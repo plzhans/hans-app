@@ -10,11 +10,17 @@ on:
     paths:
       - 'backend/**'
       - 'scripts/ci/build-backend.sh'
+      # 버전 계산도 빌드의 일부다. 이게 빠져 있어서, version.sh 를 고쳐도 빌드가
+      # 다시 돌지 않아 CI 에서 sha 가 unknown 으로 찍히는 걸 한참 못 봤다.
+      - 'scripts/ci/version.sh'
       - '.github/workflows/build-backend.yml'
   pull_request:
     paths:
       - 'backend/**'
       - 'scripts/ci/build-backend.sh'
+      # 버전 계산도 빌드의 일부다. 이게 빠져 있어서, version.sh 를 고쳐도 빌드가
+      # 다시 돌지 않아 CI 에서 sha 가 unknown 으로 찍히는 걸 한참 못 봤다.
+      - 'scripts/ci/version.sh'
       - '.github/workflows/build-backend.yml'
   workflow_dispatch:
 
