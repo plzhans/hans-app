@@ -6,6 +6,7 @@
     "dev:server": "pnpm --filter hansapi-server start:dev",
     "hansapi-cli": "pnpm --filter hansapi-cli start",
     "krdata:codegen": "pnpm --filter \"@krdata/*\" codegen",
+    "seouldata:codegen": "pnpm --filter \"@seouldata/*\" codegen",
     "openapi:gen": "pnpm --filter hansapi-server openapi:gen",
     "build": "pnpm -r build",
     "lint": "eslint \"{apps,packages,clients}/*/src/**/*.ts\" --fix",

@@ -1,0 +1,5506 @@
+{
+  "source": {
+    "provider": "국가철도공단",
+    "dataset": "전국 도시광역철도 역사정보",
+    "file": "전국 도시광역철도 역사 역사정보_20260701.xlsx",
+    "version": "20260701"
+  },
+  "stations": [
+    {
+      "ko": "4.19민주묘지",
+      "en": "April 19th National Cemetery (Duksung Women's Univ.)",
+      "ja": "サ.イルグミンジュミョジ",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "가능",
+      "en": "ganeung",
+      "ja": "カヌン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "가락시장",
+      "en": "Garak Market",
+      "ja": "カラク・シジャン",
+      "lines": ["3호선", "8호선"]
+    },
+    {
+      "ko": "가산디지털단지",
+      "en": "Gasan Digital Complex",
+      "ja": "カサン・デジタルダンジ",
+      "lines": ["7호선", "1호선"]
+    },
+    {
+      "ko": "가야",
+      "en": "Gaya",
+      "ja": "伽倻",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "가야대",
+      "en": "Kaya Univ.",
+      "ja": "加倻大学(三溪)",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "가양",
+      "en": "Gayang",
+      "ja": "カヤン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "가오리",
+      "en": "Gaori",
+      "ja": "カオリ",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "가재울",
+      "en": "Gajaeul",
+      "ja": "カジェウル",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "가정",
+      "en": "Gajeong(Lu1 City)",
+      "ja": "カジョン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "가정중앙시장",
+      "en": "Gajeong Jungang Market",
+      "ja": "カジョンチュンアンシジャン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "가좌",
+      "en": "Gajwa",
+      "ja": "カジュア",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "가천대",
+      "en": "Gachon Univ.",
+      "ja": null,
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "가평",
+      "en": "Gapyeong",
+      "ja": "カピョン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "각산",
+      "en": "Gaksan",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "간석",
+      "en": "Ganseok",
+      "ja": "カンソク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "간석오거리",
+      "en": "Ganseogogeori",
+      "ja": "カンソクオゴリ",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "갈마",
+      "en": "Galma",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "갈매",
+      "en": "Galmae",
+      "ja": "カルメ",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "갈산",
+      "en": "Galsan",
+      "ja": "カルサン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "감삼",
+      "en": "Gamsam station",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "감전",
+      "en": "Gamjeon",
+      "ja": "甘田",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "갑천",
+      "en": "Gapcheon",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "강남",
+      "en": "Gangnam",
+      "ja": "カンナム",
+      "lines": ["2호선", "신분당선"]
+    },
+    {
+      "ko": "강남구청",
+      "en": "Gangnam-gu Office",
+      "ja": "カンナムグチョン",
+      "lines": ["7호선", "분당선"]
+    },
+    {
+      "ko": "강남대",
+      "en": "Kangnam Univ.",
+      "ja": "カンナムデ",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "강동",
+      "en": "Gangdong",
+      "ja": "カンドン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "강동구청",
+      "en": "Gangdong-gu Office",
+      "ja": "カンドングチョン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "강매",
+      "en": "Gangmae",
+      "ja": "カンメ",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "강변",
+      "en": "Gangbyeon(Dongseoul Bus Terminal)",
+      "ja": "カンビョン",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "강서구청",
+      "en": "Gangseo-gu Office",
+      "ja": "江西区庁",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "강일",
+      "en": "Gangil",
+      "ja": "カンイル",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "강창",
+      "en": "Gangchang",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "강촌",
+      "en": "Gangchon",
+      "ja": "カンチョン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "개금",
+      "en": "Gaegeum",
+      "ja": "開琴",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "개롱",
+      "en": "Gaerong",
+      "ja": "ケロン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "개봉",
+      "en": "Gaebong",
+      "ja": "ケボン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "개운포",
+      "en": "Gaeunpo Station",
+      "ja": "ケウンポ",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "개포동",
+      "en": "Gaepo-dong",
+      "ja": "ケポドン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "개화",
+      "en": "Gaehwa",
+      "ja": "ケファ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "개화산",
+      "en": "Gaehwasan",
+      "ja": "ケファサン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "거여",
+      "en": "Geoyeo",
+      "ja": "コヨ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "거제",
+      "en": "Geoje",
+      "ja": "巨堤",
+      "lines": ["3호선", "동해선"]
+    },
+    {
+      "ko": "거제해맞이",
+      "en": "Geojehaemaji",
+      "ja": "コジェヘマジ",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "건대입구",
+      "en": "Konkuk Univ.",
+      "ja": "コンデイック",
+      "lines": ["2호선", "7호선"]
+    },
+    {
+      "ko": "건들바위",
+      "en": "Geondeulbawi",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "걸포북변",
+      "en": "Geolpo Bukbyeon",
+      "ja": "コルポブクビョン(傑浦北邊）",
+      "lines": ["김포골드라인"]
+    },
+    {
+      "ko": "검단사거리",
+      "en": "Geomdan Sageori",
+      "ja": "コムダンサゴリ",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "검단오류",
+      "en": "Geomdan Oryu(Geomdan Industrial Complex)",
+      "ja": "コムダンオリュ",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "검단호수공원",
+      "en": "Geomdan Lake Park",
+      "ja": "コムダンホスゴンウォン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "검바위",
+      "en": "Geombawi",
+      "ja": "コムバウィ",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "검암",
+      "en": "Geomam",
+      "ja": "黔岩",
+      "lines": ["공항철도선", "인천2호선"]
+    },
+    {
+      "ko": "경기광주",
+      "en": "GyeonggiGwangju",
+      "ja": "キョンギクァンジュ",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "경기도청북부청사",
+      "en": "Northern Gyeonggi-do Government",
+      "ja": "キョンギドチョンブクプチョンサ",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "경대병원",
+      "en": "Kyungpook Nat'l Univ. Hosp.",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "경마공원",
+      "en": "Seoul Racecourse Park",
+      "ja": "キョンマゴンウォン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "경복궁",
+      "en": "Gyeongbokgung(Government Complex-Seoul)",
+      "ja": "キョンボックン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "경산",
+      "en": "Gyeongsan",
+      "ja": "キョンサン",
+      "lines": ["대경선"]
+    },
+    {
+      "ko": "경성대ㆍ부경대",
+      "en": "KyungsungUnivㆍ·PukyongNat'lUniv.",
+      "ja": "慶星大学·釜慶大学",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "경인교대입구",
+      "en": "Gyeong-in National Univ. of Education",
+      "ja": "キョンインギョデイック",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "경전철의정부",
+      "en": "Lrt Uijeongbu",
+      "ja": "キョンジョンチョルウィジョンブ",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "경찰병원",
+      "en": "National Police Hospital",
+      "ja": "キョンチャル・ピョンウォン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "계명대",
+      "en": "Keimyung Univ.(Sindang)",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "계산",
+      "en": "Gyesan",
+      "ja": "ケサン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "계양",
+      "en": "Gyeyang",
+      "ja": "桂陽",
+      "lines": ["공항철도선", "인천1호선"]
+    },
+    {
+      "ko": "고덕",
+      "en": "Godeok",
+      "ja": "コドク",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "고려대",
+      "en": "Korea Univ.(Jongam)",
+      "ja": "コリョデ",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "고산",
+      "en": "Gosan",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "고색",
+      "en": "Gosaek",
+      "ja": "コセク",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "고속터미널",
+      "en": "Express Bus Terminal",
+      "ja": "コソクターミナル",
+      "lines": ["3호선", "7호선", "9호선"]
+    },
+    {
+      "ko": "고잔",
+      "en": "Gojan",
+      "ja": "コジャン",
+      "lines": ["4호선", "수인분당선"]
+    },
+    {
+      "ko": "고진",
+      "en": "Gojin",
+      "ja": "コジン",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "고촌",
+      "en": "Gochon",
+      "ja": "コチョン(高村）",
+      "lines": ["김포골드라인", "4호선"]
+    },
+    {
+      "ko": "곡산",
+      "en": "Goksan",
+      "ja": "コッサン",
+      "lines": ["경의중앙선", "서해선"]
+    },
+    {
+      "ko": "곤제",
+      "en": "Gonjae",
+      "ja": "コンジェ",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "곤지암",
+      "en": "Gonjiam",
+      "ja": "コンジアム",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "공단",
+      "en": "Gongdan",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "공덕",
+      "en": "Gongdeok",
+      "ja": "孔徳",
+      "lines": ["공항철도선", "5호선", "6호선", "경의중앙선"]
+    },
+    {
+      "ko": "공릉",
+      "en": "Gongneung(Seoul National Univ. of Science & Technology)",
+      "ja": "コンヌン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "공항",
+      "en": "Airport",
+      "ja": "空港",
+      "lines": ["1호선", "부산김해선"]
+    },
+    {
+      "ko": "공항시장",
+      "en": "Airport Market",
+      "ja": "コンハンシジャン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "공항화물청사",
+      "en": "Incheon Int'l Airport Cargo Terminal",
+      "ja": "空港貨物ターミナル",
+      "lines": ["공항철도선"]
+    },
+    {
+      "ko": "과천",
+      "en": "Gwacheon",
+      "ja": "クァチョン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "관악",
+      "en": "Gwanak",
+      "ja": "クァナク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "관악산",
+      "en": "Gwanaksan (Seoul National Univ.)",
+      "ja": "クァナクサン(ソウル大)",
+      "lines": ["신림선"]
+    },
+    {
+      "ko": "광교",
+      "en": "Gwanggyo (Kyonggi Univ.) Station",
+      "ja": "クァンギョ(キョンギ大)",
+      "lines": ["신분당선"]
+    },
+    {
+      "ko": "광교중앙",
+      "en": "Gwanggyojungang Station",
+      "ja": "クァンギョチュンアン (アジュデ)",
+      "lines": ["신분당선"]
+    },
+    {
+      "ko": "광나루",
+      "en": "Gwangnaru(Presbyterian University & Theological Seminary)",
+      "ja": "クァンナル",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "광명",
+      "en": "Gwangmyeong",
+      "ja": "クァンミョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "광명사거리",
+      "en": "Gwangmyeongsageori",
+      "ja": "クァンミョンサゴリ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "광안",
+      "en": "Gwangan",
+      "ja": "広安",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "광운대",
+      "en": "kwangwoon Univ.",
+      "ja": "クアンウンデ",
+      "lines": ["1호선", "경춘선"]
+    },
+    {
+      "ko": "광주송정",
+      "en": "GwangjuSongjeong Station",
+      "ja": "クァンジュソンジョン駅",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "광화문",
+      "en": "Gwanghwamun(Sejong Center for the Performing Arts)",
+      "ja": "クァンファムン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "광흥창",
+      "en": "Gwangheungchang(Seogang)",
+      "ja": "クァンフンチャン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "괘법르네시떼",
+      "en": "Gwaebeop Renecite",
+      "ja": "掛法ルネシテ(江辺公園)",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "괴정",
+      "en": "Goejeong",
+      "ja": "槐亭",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "교대",
+      "en": "National University Of Education",
+      "ja": "釜山教育大学",
+      "lines": ["1호선", "2호선", "3호선", "동해선"]
+    },
+    {
+      "ko": "구남",
+      "en": "Gunam",
+      "ja": "亀南",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "구래",
+      "en": "Gurae",
+      "ja": "クレ(九来)",
+      "lines": ["김포골드라인"]
+    },
+    {
+      "ko": "구로",
+      "en": "Guro Station",
+      "ja": "九老駅",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "구로디지털단지",
+      "en": "Guro Digital Complex",
+      "ja": "クロ・デジタルダンジ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "구룡",
+      "en": "Guryong",
+      "ja": "グリョン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "구리",
+      "en": "Guri (Guri Traditional Market)",
+      "ja": "クリ (クリジョントンシジャン)",
+      "lines": ["8호선", "경의중앙선"]
+    },
+    {
+      "ko": "구명",
+      "en": "Gumyeong",
+      "ja": "亀明",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "구미",
+      "en": "Gumi",
+      "ja": "クミ",
+      "lines": ["대경선"]
+    },
+    {
+      "ko": "구반포",
+      "en": "Gubanpo",
+      "ja": "クバンポ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "구산",
+      "en": "Gusan",
+      "ja": "クサン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "구서",
+      "en": "Guseo",
+      "ja": "久瑞",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "구성",
+      "en": "Guseong",
+      "ja": "クソン",
+      "lines": ["GTX-A", "분당선"]
+    },
+    {
+      "ko": "구암",
+      "en": "Guam(Taegu Science Univ.·Daegu Health College)",
+      "ja": null,
+      "lines": ["3호선", "1호선"]
+    },
+    {
+      "ko": "구의",
+      "en": "Guui(Gwangjin-gu Office)",
+      "ja": "クイ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "구일",
+      "en": "Guil",
+      "ja": "クイル",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "구파발",
+      "en": "Gupabal",
+      "ja": "クパバル",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "구포",
+      "en": "Gupo",
+      "ja": "亀浦",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "국수",
+      "en": "Guksu",
+      "ja": "クッス",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "국제금융센터ㆍ부산은행",
+      "en": "BusanInt'l FinanceCenter·BusanBank",
+      "ja": "釜山国際金融センター·釜山銀行",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "국제업무지구",
+      "en": "Int'l Business District",
+      "ja": "ククチェオンムジグ",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "국회의사당",
+      "en": "National Assembly",
+      "ja": "ククェウィサダン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "군자",
+      "en": "Gunja(Neung-dong)",
+      "ja": "クンジャ",
+      "lines": ["5호선", "7호선"]
+    },
+    {
+      "ko": "군포",
+      "en": "Gunpo",
+      "ja": "クンポ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "굴봉산",
+      "en": "Gulbongsan",
+      "ja": "クルボンサン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "굴포천",
+      "en": "Gulpocheon",
+      "ja": "クルポチョン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "굽은다리",
+      "en": "Gubeundari(Gangdong Community Center )",
+      "ja": "クブンダリ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "귤현",
+      "en": "Gyulhyeon",
+      "ja": "キュルヒョン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "금곡",
+      "en": "Geumgok",
+      "ja": "金谷",
+      "lines": ["2호선", "경춘선"]
+    },
+    {
+      "ko": "금남로4가",
+      "en": "Geumnamno 4(sa)-ga",
+      "ja": "クムナムロサガ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "금남로5가",
+      "en": "Geumnamno 5(o)-ga",
+      "ja": "クムナムロオガ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "금련산",
+      "en": "Geumnyeonsan",
+      "ja": "金蓮山",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "금릉",
+      "en": "Geumneung",
+      "ja": "クムヌン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "금사",
+      "en": "Geumsa",
+      "ja": "錦糸",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "금정",
+      "en": "Geumjeong",
+      "ja": "クムジョン",
+      "lines": ["4호선", "1호선"]
+    },
+    {
+      "ko": "금천구청",
+      "en": "Geumcheon-gu Office",
+      "ja": "クムチョングチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "금촌",
+      "en": "Geumchon",
+      "ja": "クムチョン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "금호",
+      "en": "Geumho",
+      "ja": "クムホ",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "기장",
+      "en": "Gijang",
+      "ja": "キジャン",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "기흥",
+      "en": "Giheung",
+      "ja": "キフン",
+      "lines": ["에버라인", "분당선"]
+    },
+    {
+      "ko": "길동",
+      "en": "Gil-dong",
+      "ja": "キルトン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "길음",
+      "en": "Gireum",
+      "ja": "キルム",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "김대중컨벤션센터",
+      "en": "Kim Daejung Convention Center (Mareuk)",
+      "ja": "キム·テジュンコンベンションセンタ―",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "김량장",
+      "en": "Gimnyangjang",
+      "ja": "キムニャンジャン",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "김유정",
+      "en": "Gimyujeong",
+      "ja": "キミュジョン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "김포공항",
+      "en": "Gimpo Int'l Airport",
+      "ja": "金浦空港",
+      "lines": ["공항철도선", "김포골드라인", "5호선", "9호선", "서해선"]
+    },
+    {
+      "ko": "김해대학",
+      "en": "Gimhae College",
+      "ja": "金海大学(安洞)",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "김해시청",
+      "en": "Gimhae City Hall",
+      "ja": "金海市庁",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "까치산",
+      "en": "Kkachisan",
+      "ja": "カチサン",
+      "lines": ["5호선", "2호선"]
+    },
+    {
+      "ko": "까치울",
+      "en": "Kkachiul",
+      "ja": "カチウル",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "낙민",
+      "en": "Nangmin",
+      "ja": "楽民",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "낙성대",
+      "en": "Nakseongdae(Ganggamchan)",
+      "ja": "ナクソンデ(カン・ガムチャン)",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "남광주",
+      "en": "Namgwangju",
+      "ja": "ナムグァンジュ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "남구로",
+      "en": "Namguro",
+      "ja": "ナムグロ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "남동구청",
+      "en": "Namdong-gu Office",
+      "ja": "ナムドングチョン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "남동인더스파크",
+      "en": "Namdong Induspark",
+      "ja": "ナムドン・インダスパーク",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "남부터미널",
+      "en": "Nambu Bus Terminal(Seoul Arts Center)",
+      "ja": "ナンブターミナル",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "남산",
+      "en": "Namsan(Gyemyeongnegeori)",
+      "ja": "南山",
+      "lines": ["3호선", "1호선"]
+    },
+    {
+      "ko": "남산정",
+      "en": "Namsanjeong",
+      "ja": "南山亭",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "남성",
+      "en": "Namseong",
+      "ja": "ナムソン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "남양산",
+      "en": "Namyangsan",
+      "ja": "南梁山",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "남영",
+      "en": "Namyeong",
+      "ja": "ナミョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "남위례",
+      "en": "Namwirye",
+      "ja": "ナムィレ",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "남창",
+      "en": "NAM CHANG STATION",
+      "ja": "ナムチヤンえき",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "남천",
+      "en": "Namcheon",
+      "ja": "南川",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "남춘천",
+      "en": "Namchuncheon",
+      "ja": "ナムチュンチョン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "남태령",
+      "en": "Namtaeryeong",
+      "ja": "ナムテリョン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "남포",
+      "en": "Nampo",
+      "ja": "南浦",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "남한산성입구",
+      "en": "Namhansanseong(Seongnam Court & Prosecutors' Office)",
+      "ja": "ナムハンサンソンイック",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "낫개",
+      "en": "Natgae",
+      "ja": "ナッケ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "내당",
+      "en": "Naedang",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "내방",
+      "en": "Naebang",
+      "ja": "ネバン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "냉정",
+      "en": "Naengjeong",
+      "ja": "冷井",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "노들",
+      "en": "Nodeul",
+      "ja": "ノドゥル",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "노량진",
+      "en": "Noryangjin",
+      "ja": "ノリャンジン",
+      "lines": ["9호선", "1호선"]
+    },
+    {
+      "ko": "노원",
+      "en": "Nowon",
+      "ja": "ノウォン",
+      "lines": ["4호선", "7호선"]
+    },
+    {
+      "ko": "노은",
+      "en": "Noeun",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "노포",
+      "en": "Nopo",
+      "ja": "老圃",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "녹동",
+      "en": "Nokdong",
+      "ja": "ノクトン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "녹번",
+      "en": "Nokbeon",
+      "ja": "ノッポン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "녹사평",
+      "en": "Noksapyeong(Yongsan-gu Office)",
+      "ja": "ノッサピョン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "녹양",
+      "en": "Nogyang",
+      "ja": "ノギャン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "녹천",
+      "en": "NockCheon",
+      "ja": "ノクチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "논현",
+      "en": "Nonhyeon",
+      "ja": "ノンヒョン",
+      "lines": ["7호선", "신분당선"]
+    },
+    {
+      "ko": "농성",
+      "en": "Nongseong",
+      "ja": "ノンソン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "능곡",
+      "en": "Neunggok",
+      "ja": "ヌンゴク",
+      "lines": ["경의중앙선", "서해선"]
+    },
+    {
+      "ko": "다대포항",
+      "en": "Dadaepo Harbor",
+      "ja": "多大浦港",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "다대포해수욕장",
+      "en": "Dadaepo Beach",
+      "ja": "多大浦海水浴場",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "다사",
+      "en": "Dasa",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "다산",
+      "en": "Dasan",
+      "ja": "タサン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "단대오거리",
+      "en": "Dandaeogeori",
+      "ja": "タンデオゴリ",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "달미",
+      "en": "Dalmi",
+      "ja": "タルミ",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "달성공원",
+      "en": "Dalseong Park",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "달월",
+      "en": "Darwol",
+      "ja": "タルォル",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "담티",
+      "en": "Damti(Suseong College.Daeryun Middle ＆High School)",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "답십리",
+      "en": "Dapsimni",
+      "ja": "タプシムニ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "당곡",
+      "en": "Danggok",
+      "ja": "タンゴク",
+      "lines": ["신림선"]
+    },
+    {
+      "ko": "당리",
+      "en": "Dangni",
+      "ja": "堂里",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "당산",
+      "en": "Dangsan",
+      "ja": "タンサン",
+      "lines": ["2호선", "9호선"]
+    },
+    {
+      "ko": "당정",
+      "en": "Dangjeong",
+      "ja": "タンジョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "대곡",
+      "en": "Daegok(Central Gov't Office-Daegu)",
+      "ja": "テゴク",
+      "lines": ["1호선", "GTX-A", "3호선", "경의중앙선", "서해선"]
+    },
+    {
+      "ko": "대공원",
+      "en": "Seoul Grand Park Station",
+      "ja": "テゴンウォン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "대구",
+      "en": "Daegu Station",
+      "ja": "テグ",
+      "lines": ["1호선", "대경선"]
+    },
+    {
+      "ko": "대구은행",
+      "en": "Daegu Bank(Daegu Metropolitan of Education)",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "대구한의대병원",
+      "en": "Daegu Haany University Hospital",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "대동",
+      "en": "Dae-dong(Woosong Univ.)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "대림",
+      "en": "Daerim(Guro-gu Office)",
+      "ja": "テリム",
+      "lines": ["2호선", "7호선"]
+    },
+    {
+      "ko": "대명",
+      "en": "Daemyeong",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "대모산입구",
+      "en": "Daemosan",
+      "ja": "テモサンイック",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "대방",
+      "en": "Daebang(Sungae Hospital)",
+      "ja": "テバン(聖愛病院)",
+      "lines": ["신림선", "1호선"]
+    },
+    {
+      "ko": "대봉교",
+      "en": "Daebonggyo",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "대사",
+      "en": "Daesa",
+      "ja": "大沙",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "대성리",
+      "en": "Daeseong-ri",
+      "ja": "テソンニ",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "대실",
+      "en": "Daesil",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "대야미",
+      "en": "Daeyami",
+      "ja": null,
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "대연",
+      "en": "Daeyeon",
+      "ja": "大淵",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "대저",
+      "en": "Daejeo",
+      "ja": "大渚",
+      "lines": ["3호선", "부산김해선"]
+    },
+    {
+      "ko": "대전",
+      "en": "Daejeon",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "대청",
+      "en": "Daecheong",
+      "ja": "テチョン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "대치",
+      "en": "Daechi",
+      "ja": "テチ",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "대티",
+      "en": "Daeti",
+      "ja": "大峙",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "대화",
+      "en": "Daehwa",
+      "ja": "テファ",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "대흥",
+      "en": "Daeheung(Sogang Univ.)",
+      "ja": "テフン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "덕계",
+      "en": "Deokgye",
+      "ja": "トッケ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "덕두",
+      "en": "Deokdu",
+      "ja": "德斗",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "덕소",
+      "en": "Deokso",
+      "ja": "トッソ",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "덕정",
+      "en": "Deokjeong",
+      "ja": "トクチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "덕천",
+      "en": "Deokcheon",
+      "ja": "徳川",
+      "lines": ["2호선", "3호선"]
+    },
+    {
+      "ko": "덕포",
+      "en": "Deokpo",
+      "ja": "徳浦",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "덕하",
+      "en": "Deokha",
+      "ja": null,
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "도곡",
+      "en": "Dogok",
+      "ja": "トゴク",
+      "lines": ["3호선", "분당선"]
+    },
+    {
+      "ko": "도농",
+      "en": "Donong",
+      "ja": "トノン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "도라산",
+      "en": "Dorasan",
+      "ja": "トラサン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "도림천",
+      "en": "Dorimcheon",
+      "ja": "トリムチョン",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "도봉",
+      "en": "Dobong",
+      "ja": "トボン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "도봉산",
+      "en": "Dobongsan",
+      "ja": "トボンサン",
+      "lines": ["7호선", "1호선"]
+    },
+    {
+      "ko": "도산",
+      "en": "Dosan",
+      "ja": "トサン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "도심",
+      "en": "Dosim",
+      "ja": "トシム",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "도원",
+      "en": "Dowon",
+      "ja": "トウォン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "도화",
+      "en": "Dohwa",
+      "ja": "トファ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "독립문",
+      "en": "Dongnimmun",
+      "ja": "トンニンムン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "독바위",
+      "en": "Dokbawi",
+      "ja": "トッパウィ",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "독산",
+      "en": "Doksan",
+      "ja": "トクサン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "독정",
+      "en": "Dokjeong",
+      "ja": "ドクチョン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "돌고개",
+      "en": "Dolgogae",
+      "ja": "トルゴゲ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "돌곶이",
+      "en": "Dolgoji",
+      "ja": "トルゴジ",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "동구릉",
+      "en": "Donggureung",
+      "ja": "トングルン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "동구청",
+      "en": "Dong-gu Office(Keungogae)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "동대구",
+      "en": "Dongdaegu Station",
+      "ja": "トンデグ",
+      "lines": ["1호선", "대경선"]
+    },
+    {
+      "ko": "동대문",
+      "en": "Dongdaemun",
+      "ja": "トンデムン",
+      "lines": ["1호선", "4호선"]
+    },
+    {
+      "ko": "동대문역사문화공원",
+      "en": "Dongdaemun History & Culture Park(DDP)",
+      "ja": "トンデムンヨクサムンファゴンウォン(DDP)",
+      "lines": ["2호선", "4호선", "5호선"]
+    },
+    {
+      "ko": "동대신",
+      "en": "Dongdaesin",
+      "ja": "東大新",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "동대입구",
+      "en": "Dongguk Univ.",
+      "ja": "トンデイック",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "동두천",
+      "en": "Dongducheon",
+      "ja": "トンドゥチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "동두천중앙",
+      "en": "Dongducheonjungang",
+      "ja": "トンドゥチョンジュンアン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "동래",
+      "en": "Dongnae",
+      "ja": "東莱",
+      "lines": ["1호선", "4호선", "동해선"]
+    },
+    {
+      "ko": "동막",
+      "en": "Dongmak",
+      "ja": "トンマク",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "동매",
+      "en": "Dongmae",
+      "ja": "トンメ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "동묘앞",
+      "en": "Dongmyo",
+      "ja": "トンミョアプ",
+      "lines": ["1호선", "6호선"]
+    },
+    {
+      "ko": "동백",
+      "en": "Dongbaek",
+      "ja": "冬柏",
+      "lines": ["2호선", "에버라인"]
+    },
+    {
+      "ko": "동수",
+      "en": "Dongsu",
+      "ja": "トンス",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "동암",
+      "en": "Dongam",
+      "ja": "トンアム",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "동오",
+      "en": "Dong-o",
+      "ja": "トンオ",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "동원",
+      "en": "Dongwon",
+      "ja": "東院",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "동의대",
+      "en": "Dongeui Univ.",
+      "ja": "東義大学",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "동인천",
+      "en": "Dongincheon",
+      "ja": "トンインチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "동작",
+      "en": "Dongjak(Seoul National Cemetery)",
+      "ja": "トンジャク",
+      "lines": ["4호선", "9호선"]
+    },
+    {
+      "ko": "동천",
+      "en": "Dongcheon",
+      "ja": "トンチョンえき",
+      "lines": ["3호선", "신분당선"]
+    },
+    {
+      "ko": "동촌",
+      "en": "Dongchon(Dongchon Resort)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "동춘",
+      "en": "Dongchun",
+      "ja": "トンチュン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "동탄",
+      "en": "Dongtan",
+      "ja": "トンタン",
+      "lines": ["GTX-A"]
+    },
+    {
+      "ko": "두류",
+      "en": "Duryu",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "두실",
+      "en": "Dusil",
+      "ja": "斗実",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "두정",
+      "en": "Dujeong",
+      "ja": "トゥジョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "둔전",
+      "en": "Dunjeon",
+      "ja": "トゥンジョン",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "둔촌동",
+      "en": "Dunchon-dong",
+      "ja": "トゥンチョンドン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "둔촌오륜",
+      "en": "Dunchon Oryun Station",
+      "ja": "トウンチヨノリユン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "등구",
+      "en": "Deunggu",
+      "ja": "登亀",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "등촌",
+      "en": "Deungchon",
+      "ja": "トゥンチョン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "디지털미디어시티",
+      "en": "Digital Media City",
+      "ja": "デジタルメディアシティ",
+      "lines": ["공항철도선", "6호선", "경의중앙선"]
+    },
+    {
+      "ko": "뚝섬",
+      "en": "Ttukseom",
+      "ja": "トゥッソム",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "마곡",
+      "en": "Magok",
+      "ja": "マゴク",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "마곡나루",
+      "en": "Magongnaru",
+      "ja": "麻谷ナル",
+      "lines": ["공항철도선", "9호선"]
+    },
+    {
+      "ko": "마두",
+      "en": "Madu",
+      "ja": "マドゥ",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "마들",
+      "en": "Madeul",
+      "ja": "マドゥル",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "마산",
+      "en": "Masan",
+      "ja": "マサン(麻山)",
+      "lines": ["김포골드라인"]
+    },
+    {
+      "ko": "마석",
+      "en": "Maseok",
+      "ja": "マソク",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "마장",
+      "en": "Majang",
+      "ja": "マジャン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "마전",
+      "en": "Majeon",
+      "ja": "マジョン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "마천",
+      "en": "Macheon",
+      "ja": "マチョン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "마포",
+      "en": "Mapo",
+      "ja": "マポ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "마포구청",
+      "en": "Mapo-gu Office",
+      "ja": "マポグチョン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "만덕",
+      "en": "Mandeok",
+      "ja": "万徳",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "만수",
+      "en": "Mansu",
+      "ja": "マンス",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "만촌",
+      "en": "Manchon",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "만평",
+      "en": "Manpyeong",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "망미",
+      "en": "Mangmi",
+      "ja": "望美",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "망양",
+      "en": "Mangyang Station",
+      "ja": null,
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "망우",
+      "en": "Mangu",
+      "ja": "マンナ",
+      "lines": ["경의중앙선", "경춘선"]
+    },
+    {
+      "ko": "망원",
+      "en": "Mangwon",
+      "ja": "マンウォン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "망월사",
+      "en": "Mangwolsa",
+      "ja": "マンウォルサ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "망포",
+      "en": "Mangpo",
+      "ja": "マンポ",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "매교",
+      "en": "Maegyo",
+      "ja": "メギョ",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "매봉",
+      "en": "Maebong",
+      "ja": "メボン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "매천",
+      "en": "Maecheon",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "매천시장",
+      "en": "Maecheon Market",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "매탄권선",
+      "en": "MaetanGwonseon",
+      "ja": "メタン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "먹골",
+      "en": "Meokgol",
+      "ja": "モッコル",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "면목",
+      "en": "Myeonmok",
+      "ja": "ミョンモク",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "명덕",
+      "en": "Myeongdeok(The 2‧28 Movement for Democracy museum)",
+      "ja": null,
+      "lines": ["1호선", "3호선"]
+    },
+    {
+      "ko": "명동",
+      "en": "Myeongdong",
+      "ja": "ミョンドン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "명륜",
+      "en": "Myeongnyun",
+      "ja": "明倫",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "명일",
+      "en": "Myeongil",
+      "ja": "ミョンイル",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "명장",
+      "en": "Myeongjang",
+      "ja": "鳴蔵",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "명지대",
+      "en": "Myongji Univ.",
+      "ja": "ミョンジデ",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "명학",
+      "en": "Myeonghak",
+      "ja": "ミョンハク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "모덕",
+      "en": "Modeok",
+      "ja": "毛徳",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "모라",
+      "en": "Mora",
+      "ja": "毛羅",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "모란",
+      "en": "Moran",
+      "ja": "モラン",
+      "lines": ["8호선", "분당선"]
+    },
+    {
+      "ko": "모래내시장",
+      "en": "Moraenae Market",
+      "ja": "モレネシジャン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "목동",
+      "en": "Mok-dong",
+      "ja": "モクトン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "못골",
+      "en": "Motgol",
+      "ja": "モッコル",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "몽촌토성",
+      "en": "Mongchontoseong(World Peace Gate)",
+      "ja": "モンチョントソン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "무악재",
+      "en": "Muakjae",
+      "ja": "ムアクチェ",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "문래",
+      "en": "Mullae",
+      "ja": "ムンレ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "문산",
+      "en": "Munsan",
+      "ja": "ムンサン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "문양",
+      "en": "MunYang",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "문정",
+      "en": "Munjeong",
+      "ja": "ムンジョン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "문학경기장",
+      "en": "Munhak Sports Complex",
+      "ja": "ムンハクキョンギジャン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "문현",
+      "en": "Munhyeon",
+      "ja": "門峴",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "문화전당",
+      "en": "Culture Center (Former Provincial office)",
+      "ja": "ムンファジョンダン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "물만골",
+      "en": "Mulmangol",
+      "ja": "ムルマンゴル",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "미금",
+      "en": "Migeum Station",
+      "ja": "ミグム",
+      "lines": ["신분당선", "분당선"]
+    },
+    {
+      "ko": "미남",
+      "en": "Minam",
+      "ja": "美南",
+      "lines": ["3호선", "4호선"]
+    },
+    {
+      "ko": "미사",
+      "en": "Misa",
+      "ja": "ミサ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "미아",
+      "en": "Mia(Seoul Cyber Univ.)",
+      "ja": "ミア",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "미아사거리",
+      "en": "Miasageori",
+      "ja": "ミアサゴリ",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "민락",
+      "en": "Millak",
+      "ja": "民楽",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "박물관",
+      "en": "Gimhae National Museum",
+      "ja": "博物館",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "박촌",
+      "en": "Bakchon",
+      "ja": "パクチョン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "반고개",
+      "en": "Bangogae",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "반석",
+      "en": "Banseok(Chilsungdae)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "반야월",
+      "en": "Banyawol",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "반여농산물시장",
+      "en": "Banyeo Agricultural Market",
+      "ja": "盤如農産物市場",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "반월",
+      "en": "Banwol",
+      "ja": "パヌォル",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "반월당",
+      "en": "Banwoldang",
+      "ja": null,
+      "lines": ["1호선", "2호선"]
+    },
+    {
+      "ko": "반포",
+      "en": "Banpo",
+      "ja": "パンポ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "발곡",
+      "en": "Balgok",
+      "ja": "パルゴク",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "발산",
+      "en": "Balsan",
+      "ja": "パルサン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "방배",
+      "en": "Bangbae",
+      "ja": "パンベ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "방이",
+      "en": "Bangi",
+      "ja": "パンイ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "방촌",
+      "en": "Bangchon",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "방학",
+      "en": "Banghak",
+      "ja": "パンハク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "방화",
+      "en": "Banghwa",
+      "ja": "パンファ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "배방",
+      "en": "Baebang",
+      "ja": "ペバン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "배산",
+      "en": "Baesan",
+      "ja": "盃山",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "백마",
+      "en": "Baengma",
+      "ja": "ペンマ",
+      "lines": ["경의중앙선", "서해선"]
+    },
+    {
+      "ko": "백석",
+      "en": "Baekseok",
+      "ja": "ペクソク",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "백양리",
+      "en": "Baegyang-ri",
+      "ja": "ペギャンニ",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "백운",
+      "en": "Baegun",
+      "ja": "ペグン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "버티고개",
+      "en": "Beotigogae",
+      "ja": "ポティゴゲ",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "범계",
+      "en": "Beomgye",
+      "ja": "ポムゲ",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "범골",
+      "en": "Beomgol",
+      "ja": "ポムゴル",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "범내골",
+      "en": "Beomnaegol",
+      "ja": "ポ厶ネゴル",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "범물",
+      "en": "Beommul",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "범어",
+      "en": "Beomeo",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "범어사",
+      "en": "Beomeosa",
+      "ja": "梵魚寺",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "범일",
+      "en": "Beomil",
+      "ja": "凡一",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "벡스코",
+      "en": "BEXCO",
+      "ja": "ベクスコ",
+      "lines": ["2호선", "동해선"]
+    },
+    {
+      "ko": "별내",
+      "en": "Byeollae",
+      "ja": "ピョルネ",
+      "lines": ["8호선", "경춘선"]
+    },
+    {
+      "ko": "별내별가람",
+      "en": "Byeollae Byeolgaram",
+      "ja": "ピョルネビョルガラム",
+      "lines": ["진접선"]
+    },
+    {
+      "ko": "병점",
+      "en": "Byeongjeom",
+      "ja": "ピョンジョム",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "보라매",
+      "en": "Boramae",
+      "ja": "ポラメ",
+      "lines": ["신림선", "7호선"]
+    },
+    {
+      "ko": "보라매공원",
+      "en": "Boramae Park",
+      "ja": "ポラメゴンウォン",
+      "lines": ["신림선"]
+    },
+    {
+      "ko": "보라매병원",
+      "en": "Boramae Medical Center(Boramae Specialty Contractor Center)",
+      "ja": "ポラメビョンウォン(専門建設会館)",
+      "lines": ["신림선"]
+    },
+    {
+      "ko": "보문",
+      "en": "Bomun",
+      "ja": "ポムン",
+      "lines": ["6호선", "우이신설선"]
+    },
+    {
+      "ko": "보산",
+      "en": "bosan",
+      "ja": "ポサン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "보정",
+      "en": "Bojeong",
+      "ja": "ポジョン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "보평",
+      "en": "Bopyeong",
+      "ja": "ポピョン",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "복정",
+      "en": "Bokjeong",
+      "ja": "ポクチョン",
+      "lines": ["8호선", "분당선"]
+    },
+    {
+      "ko": "봉명",
+      "en": "Bongmyeong",
+      "ja": "ポンミョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "봉은사",
+      "en": "Bongeunsa",
+      "ja": "ポンウンサ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "봉천",
+      "en": "Bongcheon",
+      "ja": "ポンチョン",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "봉화산",
+      "en": "Bonghwasan(Seoul Medical Center)",
+      "ja": "ポンファサン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "봉황",
+      "en": "Bonghwang",
+      "ja": "ポンファン",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "부개",
+      "en": "Bugae",
+      "ja": "プゲ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "부발",
+      "en": "bubal",
+      "ja": "プバル",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "부산",
+      "en": "Busan",
+      "ja": "釜山",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "부산대",
+      "en": "Pusan Nat'l Univ.",
+      "ja": "釜山大学",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "부산대양산캠퍼스",
+      "en": "PusanNat'lUniv. YangsanCampus",
+      "ja": "釜山大学梁山キャンパス",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "부산원동",
+      "en": "Busanwondong",
+      "ja": "プサンウォンドン",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "부산진",
+      "en": "Busanjin",
+      "ja": "釜山鎮",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "부암",
+      "en": "Buam",
+      "ja": "釜岩",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "부원",
+      "en": "Buwon",
+      "ja": "府院",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "부전",
+      "en": "Bujeon",
+      "ja": "釜田",
+      "lines": ["1호선", "동해선"]
+    },
+    {
+      "ko": "부천",
+      "en": "Bucheon",
+      "ja": "プチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "부천시청",
+      "en": "Bucheon City Hall",
+      "ja": "プチョンシチョン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "부천종합운동장",
+      "en": "Bucheon Stadium",
+      "ja": "プチョンジョンハブンドンジャン",
+      "lines": ["7호선", "서해선"]
+    },
+    {
+      "ko": "부평",
+      "en": "Bupyeong",
+      "ja": "プピョン",
+      "lines": ["인천1호선", "1호선"]
+    },
+    {
+      "ko": "부평구청",
+      "en": "Bupyeong-gu Office",
+      "ja": "プピョングチョン",
+      "lines": ["인천1호선", "7호선"]
+    },
+    {
+      "ko": "부평삼거리",
+      "en": "Bupyeongsamgeori",
+      "ja": "プピョンサムゴリ",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "부평시장",
+      "en": "Bupyeong Market",
+      "ja": "プピョンシジャン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "부호",
+      "en": "Buho(Kyungil University･Hosan University)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "북구청",
+      "en": "Buk-gu Office(DGB Daegu iM Bank Park)",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "북삼",
+      "en": "Buksam",
+      "ja": "プクサム",
+      "lines": ["대경선"]
+    },
+    {
+      "ko": "북한산보국문",
+      "en": "Bukhansan Bogungmun (Seokyeong Univ.)",
+      "ja": "プカンサンボグンムン",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "북한산우이",
+      "en": "Bukhansan Ui(Doseonsa)",
+      "ja": "プカンサンウイ",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "불광",
+      "en": "Bulgwang",
+      "ja": "プルグァン",
+      "lines": ["3호선", "6호선"]
+    },
+    {
+      "ko": "불암",
+      "en": "Buram",
+      "ja": "仏岩",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "불암산",
+      "en": "Buramsan",
+      "ja": "プラムサン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "사가정",
+      "en": "Sagajeong",
+      "ja": "サガジョン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "사곡",
+      "en": "Sagok",
+      "ja": "サゴク",
+      "lines": ["대경선"]
+    },
+    {
+      "ko": "사당",
+      "en": "Sadang",
+      "ja": "サダン",
+      "lines": ["2호선", "4호선"]
+    },
+    {
+      "ko": "사릉",
+      "en": "Sareung",
+      "ja": "サルン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "사리",
+      "en": "Sari",
+      "ja": "サリ",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "사상",
+      "en": "Sasang",
+      "ja": "沙上",
+      "lines": ["2호선", "부산김해선"]
+    },
+    {
+      "ko": "사우",
+      "en": "Sau(Gimpo City Hall)",
+      "ja": "サウ(キンポ市庁)",
+      "lines": ["김포골드라인"]
+    },
+    {
+      "ko": "사월",
+      "en": "Sawol",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "사직",
+      "en": "Sajik",
+      "ja": "社稷",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "사평",
+      "en": "Sapyeong",
+      "ja": "サピョン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "사하",
+      "en": "Saha",
+      "ja": "沙下",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "산곡",
+      "en": "Sangok",
+      "ja": "サンゴク",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "산본",
+      "en": "Sanbon",
+      "ja": "サンボン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "산성",
+      "en": "Sanseong",
+      "ja": "サンソン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "삼가",
+      "en": "Samga",
+      "ja": "サムガ",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "삼각지",
+      "en": "Samgakji(The War Memorial of Korea)",
+      "ja": "サムガクチ(戦争記念館)",
+      "lines": ["4호선", "6호선"]
+    },
+    {
+      "ko": "삼동",
+      "en": "samdong",
+      "ja": "サムドン",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "삼산체육관",
+      "en": "Samsan Gymnasium",
+      "ja": "サムサン·チェユックァン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "삼성",
+      "en": "Samseong(World Trade Center Seoul)",
+      "ja": "サムソン(三成)",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "삼성중앙",
+      "en": "Samsung Jungang",
+      "ja": "サムソン チュンアン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "삼송",
+      "en": "Samsong",
+      "ja": "サムソン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "삼양",
+      "en": "Samyang",
+      "ja": "サミャン",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "삼양사거리",
+      "en": "Samyang Sageori",
+      "ja": "サミャンサゴリ",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "삼전",
+      "en": "Samjeon",
+      "ja": "サムジョン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "상갈",
+      "en": "Sanggal",
+      "ja": "サンガル",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "상계",
+      "en": "Sanggye",
+      "ja": "サンゲ",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "상도",
+      "en": "Sangdo",
+      "ja": "サンド",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "상동",
+      "en": "Sang-dong",
+      "ja": "サンドン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "상록수",
+      "en": "Sangnoksu",
+      "ja": "サンノクス",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "상무",
+      "en": "Sangmu(Smart Savings Bank)",
+      "ja": "サンム",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "상봉",
+      "en": "Sangbong",
+      "ja": "サンボン",
+      "lines": ["7호선", "경의중앙선", "경춘선"]
+    },
+    {
+      "ko": "상수",
+      "en": "Sangsu",
+      "ja": "サンス",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "상왕십리",
+      "en": "Sangwangsimni",
+      "ja": "サンワンシムニ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "상월곡",
+      "en": "Sangwolgok(KIST)",
+      "ja": "サンウォルゴク",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "상인",
+      "en": "Sangin",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "상일동",
+      "en": "Sangil-dong",
+      "ja": "サンイルトン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "상천",
+      "en": "Sangcheon",
+      "ja": "サンチョン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "상현",
+      "en": "Sanghyeon Station",
+      "ja": "サンヒョン",
+      "lines": ["신분당선"]
+    },
+    {
+      "ko": "새말",
+      "en": "Sae-mal",
+      "ja": "セマル",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "새절",
+      "en": "Saejeol(Sinsa)",
+      "ja": "セジョル",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "샛강",
+      "en": "Saetgang",
+      "ja": "セッカン",
+      "lines": ["신림선", "9호선"]
+    },
+    {
+      "ko": "서강대",
+      "en": "Sogang Univ.",
+      "ja": "ソガン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "서구청",
+      "en": "Seo-gu Office",
+      "ja": "ソグチョン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "서대구",
+      "en": "Seodaegu",
+      "ja": "ソデグ",
+      "lines": ["대경선"]
+    },
+    {
+      "ko": "서대문",
+      "en": "Seodaemun",
+      "ja": "ソデムン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "서대신",
+      "en": "Seodaesin",
+      "ja": "西大新",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "서대전네거리",
+      "en": "Seodaejeonnegeori",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "서동",
+      "en": "Seo-dong",
+      "ja": "書洞",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "서동탄",
+      "en": "Seodongtan",
+      "ja": "ソドンタン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "서면",
+      "en": "Seomyeon",
+      "ja": "西面",
+      "lines": ["1호선", "2호선"]
+    },
+    {
+      "ko": "서문시장",
+      "en": "Seomun Market(Dongsan Hospital)",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "서부산유통지구",
+      "en": "Seobusan Yutongjigu",
+      "ja": "西釜山流通地区(錦湖マウル)",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "서부여성회관",
+      "en": "West Woman’s Community Center",
+      "ja": "ソブヨソンフェグァン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "서부정류장",
+      "en": "Seobu Bus Terminal(Gwanmun Market)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "서빙고",
+      "en": "Seobinggo",
+      "ja": "ソビンゴ",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "서생",
+      "en": "seosaeng",
+      "ja": "ソセン",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "서울",
+      "en": "Seoul Station",
+      "ja": "ソウル駅",
+      "lines": ["공항철도선", "1호선", "4호선", "GTX-A", "경의중앙선"]
+    },
+    {
+      "ko": "서울대벤처타운",
+      "en": "Seoul National Univ. Venture Town",
+      "ja": "ソウルデベンチャータウン",
+      "lines": ["신림선"]
+    },
+    {
+      "ko": "서울대입구",
+      "en": "Seoul Nat‘l Univ.(Gwanak-gu Office)",
+      "ja": "ソウルデイック",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "서울숲",
+      "en": "Seoul Forest",
+      "ja": "ソウル林",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "서울지방병무청",
+      "en": "Seoul Regional Office of Millitary Manpower",
+      "ja": "ソウルジバンビョンムチョン",
+      "lines": ["신림선"]
+    },
+    {
+      "ko": "서원",
+      "en": "Seowon",
+      "ja": "ソウォン",
+      "lines": ["신림선"]
+    },
+    {
+      "ko": "서정리",
+      "en": "Seojeong-ri",
+      "ja": "ソヅョソニ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "서초",
+      "en": "Seocho",
+      "ja": "ソチョ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "서현",
+      "en": "Seohyeon",
+      "ja": "ソヒョン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "석계",
+      "en": "Seokgye",
+      "ja": "ソッケ",
+      "lines": ["6호선", "1호선"]
+    },
+    {
+      "ko": "석남",
+      "en": "Seongnam(Geobuk Market)",
+      "ja": "ソクナム",
+      "lines": ["인천2호선", "7호선"]
+    },
+    {
+      "ko": "석대",
+      "en": "Seokdae",
+      "ja": "石坮",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "석바위시장",
+      "en": "Seokbawi Market",
+      "ja": "ソッバウィシジャン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "석수",
+      "en": "Seoksu",
+      "ja": "ソクス",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "석천사거리",
+      "en": "Seokcheon Sageori",
+      "ja": "ソクチョンサゴリ",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "석촌",
+      "en": "Seokchon",
+      "ja": "ソクチョン",
+      "lines": ["8호선", "9호선"]
+    },
+    {
+      "ko": "석촌고분",
+      "en": "Seokchon Gobun",
+      "ja": "ソクチョンこふん",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "선릉",
+      "en": "Seolleung",
+      "ja": "ソンルン",
+      "lines": ["2호선", "분당선"]
+    },
+    {
+      "ko": "선바위",
+      "en": "Seonbawi",
+      "ja": "ソンバウィ",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "선부",
+      "en": "Seonbu",
+      "ja": "ソンブ",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "선유도",
+      "en": "Seonyudo",
+      "ja": "ソニュド",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "선정릉",
+      "en": "Seonjeongneung",
+      "ja": "ソンジョンヌン",
+      "lines": ["9호선", "분당선"]
+    },
+    {
+      "ko": "선학",
+      "en": "Seonhak",
+      "ja": "ソンハク",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "설화명곡",
+      "en": "Seolhwa·Myeonggok",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "성균관대",
+      "en": "Sungkyunkwan Univ.",
+      "ja": "ソンギュングァンデ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "성남",
+      "en": "Seongnam",
+      "ja": "ソンナム",
+      "lines": ["GTX-A", "경강선"]
+    },
+    {
+      "ko": "성복",
+      "en": "Seongbok Station",
+      "ja": "星福(ソンボク)",
+      "lines": ["신분당선"]
+    },
+    {
+      "ko": "성서산업단지",
+      "en": "Seongseo Industrial Complex Station",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "성수",
+      "en": "Seongsu",
+      "ja": "ソンス",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "성신여대입구",
+      "en": "Sungshin Women's Univ.(Donam)",
+      "ja": "ソンシンヨデイック",
+      "lines": ["4호선", "우이신설선"]
+    },
+    {
+      "ko": "성환",
+      "en": "Seonghwan",
+      "ja": "ソンファン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "세류",
+      "en": "Seryu",
+      "ja": "セリュ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "세마",
+      "en": "Sema",
+      "ja": "セマ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "세종대왕릉",
+      "en": "Sejongdaewangneung",
+      "ja": "セジョンデワンヌン",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "센텀",
+      "en": "Centum",
+      "ja": "センタム",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "센텀시티",
+      "en": "Centum City",
+      "ja": "センタムシティ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "센트럴파크",
+      "en": "Central Park(Overseas Koreans Agency)",
+      "ja": "セントラルパ-ク(チェウェトンポチョン)",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "소래포구",
+      "en": "Soraepogu",
+      "ja": "ソレポグ",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "소사",
+      "en": "Sosa",
+      "ja": "ソサ",
+      "lines": ["서해선", "1호선"]
+    },
+    {
+      "ko": "소새울",
+      "en": "Sosaeul",
+      "ja": "ソセウル",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "소요산",
+      "en": "soyosan",
+      "ja": "ソヨサン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "소태",
+      "en": "Sotae",
+      "ja": "ソテ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "솔밭공원",
+      "en": "Solbat Park",
+      "ja": "ソルバッコンウォン",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "솔샘",
+      "en": "Solsaem",
+      "ja": "ソルセム",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "송내",
+      "en": "Songnae",
+      "ja": "ソンネ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "송도",
+      "en": "songdo",
+      "ja": "ソンド",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "송도달빛축제공원",
+      "en": "Songdo Moonlight Festival Park",
+      "ja": "ソンドダルピッチュクチェゴンウォン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "송산",
+      "en": "Songsan",
+      "ja": "ソンサン",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "송정",
+      "en": "Songjeong",
+      "ja": "ソンジョン",
+      "lines": ["5호선", "동해선"]
+    },
+    {
+      "ko": "송정공원",
+      "en": "Songjeong Park",
+      "ja": "ソンジョンゴンウォン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "송탄",
+      "en": "Songtan",
+      "ja": "ソンタン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "송파",
+      "en": "Songpa",
+      "ja": "ソンパ",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "송파나루",
+      "en": "Songpanaru",
+      "ja": "松坡ナル",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "송현",
+      "en": "Songhyeon",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "수내",
+      "en": "Sunae",
+      "ja": "スネ",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "수락산",
+      "en": "Suraksan",
+      "ja": "スラッサン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "수로왕릉",
+      "en": "Royal Tomb of King Suro",
+      "ja": "首露王陵",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "수리산",
+      "en": "Surisan",
+      "ja": "スリサン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "수색",
+      "en": "Susaek",
+      "ja": "スセク",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "수서",
+      "en": "Suseo",
+      "ja": "スソ",
+      "lines": ["3호선", "GTX-A", "분당선"]
+    },
+    {
+      "ko": "수성구민운동장",
+      "en": "Suseong District Stadium",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "수성구청",
+      "en": "Suseong-gu Office Station(KBS)",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "수성못",
+      "en": "Suseongmot(TBC)",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "수성시장",
+      "en": "Suseong Market",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "수성알파시티",
+      "en": "Suseong Alpha City(Samsung Lions Park)",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "수안",
+      "en": "Suan",
+      "ja": "寿安",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "수영",
+      "en": "Suyeong",
+      "ja": "水営",
+      "lines": ["2호선", "3호선"]
+    },
+    {
+      "ko": "수원",
+      "en": "Suwon",
+      "ja": "スウォン",
+      "lines": ["수인선", "1호선"]
+    },
+    {
+      "ko": "수원시청",
+      "en": "Suwon City Hall",
+      "ja": "スウォンシチョン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "수유",
+      "en": "Suyu(Gangbuk-gu Office)",
+      "ja": "スユ",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "수정",
+      "en": "Sujeong",
+      "ja": "水亭",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "수지구청",
+      "en": "Suji-gu office Station",
+      "ja": "水枝区庁スジグチョン",
+      "lines": ["신분당선"]
+    },
+    {
+      "ko": "수진",
+      "en": "Sujin",
+      "ja": "スジン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "숙대입구",
+      "en": "Sookmyung Women's Univ. (Seoul Metropolitan Office of Education)",
+      "ja": "スクデイプク(ソウル特別市教育庁)",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "숙등",
+      "en": "Sukdeung",
+      "ja": "淑嶝",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "숭실대입구",
+      "en": "Soongsil Univ.(Salpijae)",
+      "ja": "スンシルデイック",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "숭의",
+      "en": "Sungui",
+      "ja": "スンイ",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "시민공원",
+      "en": "Citizens Park(Culture Creation Zone)",
+      "ja": "シミンゴンウォン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "시우",
+      "en": "Siu",
+      "ja": "シウ",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "시청",
+      "en": "City Hall",
+      "ja": "市庁",
+      "lines": ["1호선", "2호선"]
+    },
+    {
+      "ko": "시청·용인대",
+      "en": "Yongin City Hall·Yongin Univ.",
+      "ja": "ヨンインシチョン·ヨンインデ",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "시흥능곡",
+      "en": "Siheung Neunggok",
+      "ja": "シフンヌンゴク",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "시흥대야",
+      "en": "Siheung Daeya",
+      "ja": "シフンデヤ",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "시흥시청",
+      "en": "Siheung City Hall",
+      "ja": "シフンシチョン",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "신갈",
+      "en": "Singal",
+      "ja": "シンガル",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "신검단중앙",
+      "en": "Singeomdanjungang",
+      "ja": "シンゴムダンジュンアン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "신금호",
+      "en": "Singeumho",
+      "ja": "シングムホ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "신기",
+      "en": "Singi",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "신길",
+      "en": "Singil",
+      "ja": "シンギル",
+      "lines": ["5호선", "1호선"]
+    },
+    {
+      "ko": "신길온천",
+      "en": "Singiloncheon",
+      "ja": "シンギルオンチョン",
+      "lines": ["4호선", "수인선"]
+    },
+    {
+      "ko": "신내",
+      "en": "Sinnae",
+      "ja": "シンネ",
+      "lines": ["6호선", "경춘선"]
+    },
+    {
+      "ko": "신논현",
+      "en": "Sinnonhyeon",
+      "ja": "シンノンヒョン",
+      "lines": ["9호선", "신분당선"]
+    },
+    {
+      "ko": "신답",
+      "en": "Sindap",
+      "ja": "シンダプ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "신당",
+      "en": "Sindang",
+      "ja": "シンダン",
+      "lines": ["2호선", "6호선"]
+    },
+    {
+      "ko": "신대방",
+      "en": "Sindaebang",
+      "ja": "シンデバン",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "신대방삼거리",
+      "en": "Sindaebangsamgeori",
+      "ja": "シンデバンサムゴリ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "신도림",
+      "en": "Sindorim",
+      "ja": "シンドリム",
+      "lines": ["2호선", "1호선"]
+    },
+    {
+      "ko": "신둔도예촌",
+      "en": "Sindundoyechon",
+      "ja": "シンドゥンドイェチョン",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "신림",
+      "en": "Sillim",
+      "ja": "シンリム",
+      "lines": ["신림선", "2호선"]
+    },
+    {
+      "ko": "신매",
+      "en": "Sinmae",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "신목동",
+      "en": "Sinmokdong",
+      "ja": "シンモクトン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "신반포",
+      "en": "Sinbanpo",
+      "ja": "シンバンポ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "신방화",
+      "en": "Sinbanghwa",
+      "ja": "シンバンファ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "신사",
+      "en": "Sinsa",
+      "ja": "シンサ",
+      "lines": ["3호선", "신분당선"]
+    },
+    {
+      "ko": "신설동",
+      "en": "Sinseoldong",
+      "ja": "シンソルトン",
+      "lines": ["1호선", "2호선", "우이신설선"]
+    },
+    {
+      "ko": "신연수",
+      "en": "Sinyeonsu",
+      "ja": "シニョンス",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "신용산",
+      "en": "Sinyongsan",
+      "ja": "シニョンサン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "신원",
+      "en": "Sinwon",
+      "ja": "シヌォン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "신이문",
+      "en": "Sinimun",
+      "ja": "シニムン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "신장림",
+      "en": "Sinjangnim",
+      "ja": "新長林",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "신정",
+      "en": "Sinjeong(Eunhaengjeong)",
+      "ja": "シンジョン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "신정네거리",
+      "en": "Sinjeongnegeori",
+      "ja": "シンジョンネゴリ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "신중동",
+      "en": "Sinjung-dong",
+      "ja": "シンジュンドン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "신창",
+      "en": "Sinchang (Soonchunhyang Univ.)",
+      "ja": "シンチャン(スンチョンヒャン大学)",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "신천",
+      "en": "Sincheon(Kyungpook Nat'l Univ.)",
+      "ja": "シンチョン",
+      "lines": ["1호선", "서해선"]
+    },
+    {
+      "ko": "신촌",
+      "en": "Sinchon",
+      "ja": "シンチョン(新村)",
+      "lines": ["2호선", "경의중앙선"]
+    },
+    {
+      "ko": "신평",
+      "en": "Sinpyeong",
+      "ja": "新平",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "신포",
+      "en": "Sinpo",
+      "ja": "シンポ",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "신풍",
+      "en": "Sinpung",
+      "ja": "シンプン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "신해운대",
+      "en": "Sinhaeundae",
+      "ja": "シンヘウンデ",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "신현",
+      "en": "Sinhyeon",
+      "ja": "シンヒョン",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "신흥",
+      "en": "Sinheung",
+      "ja": "シンフン",
+      "lines": ["1호선", "8호선"]
+    },
+    {
+      "ko": "쌍문",
+      "en": "Ssangmun",
+      "ja": "サンムン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "쌍용",
+      "en": "Ssangyong (Korea Nazarene Univ.)",
+      "ja": "サンヨン(ナザレ大学)",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "쌍촌",
+      "en": "Ssangchon",
+      "ja": "サンチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "아라",
+      "en": "Ara(Northern District Court․Prosecutors' Office)",
+      "ja": "アラ (北部裁判所〮検察庁)",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "아산",
+      "en": "Asan",
+      "ja": "アサン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "아시아드경기장",
+      "en": "Asiad Stadium(Gongchon Sageori)",
+      "ja": "アシア-ドキョンギジャン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "아신",
+      "en": "asin",
+      "ja": "アシン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "아양교",
+      "en": "Ayanggyo(Daegu Int'l Airport)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "아차산",
+      "en": "Achasan(Rear Entrance to Seoul Children's Grand Park)",
+      "ja": "アチャサン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "아현",
+      "en": "Ahyeon",
+      "ja": "アヒョン",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "안국",
+      "en": "Anguk",
+      "ja": "アングク",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "안락",
+      "en": "Allrak",
+      "ja": "アソうク",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "안산",
+      "en": "Ansan",
+      "ja": "アンサン",
+      "lines": ["4호선", "수인분당선", "수인선"]
+    },
+    {
+      "ko": "안심",
+      "en": "Ansim(Innovation city · High-techMedical Complex)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "안암",
+      "en": "Anam(Korea Univ. Hospital)",
+      "ja": "アナム",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "안양",
+      "en": "Anyang",
+      "ja": "アニヤン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "안지랑",
+      "en": "Anjirang",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "안평",
+      "en": "Anpyeong",
+      "ja": "安平",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "암사",
+      "en": "Amsa",
+      "ja": "アムサ",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "암사역사공원",
+      "en": "Amsa History Park",
+      "ja": "アムサヨクサゴンウォン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "압구정",
+      "en": "Apgujeong",
+      "ja": "アックジョン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "압구정로데오",
+      "en": "Apgujeong Rodeo",
+      "ja": "アプクジョソロデオ",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "애오개",
+      "en": "Aeogae",
+      "ja": "エオゲ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "야당",
+      "en": "Yadang",
+      "ja": "ヤダン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "야목",
+      "en": "Yamok",
+      "ja": "ヤモク",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "야탑",
+      "en": "Yatap",
+      "ja": "ヤタプ",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "약수",
+      "en": "Yaksu",
+      "ja": "ヤクス",
+      "lines": ["3호선", "6호선"]
+    },
+    {
+      "ko": "양동시장",
+      "en": "Yangdong Market",
+      "ja": "ヤンドンシジャン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "양산",
+      "en": "Yangsan",
+      "ja": "梁山",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "양수",
+      "en": "Yangsu",
+      "ja": "ヤンス",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "양원",
+      "en": "Yang Won",
+      "ja": "ヤンウォン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "양재",
+      "en": "Yangjae(Seocho-gu Office)",
+      "ja": "ヤンジェ",
+      "lines": ["3호선", "신분당선"]
+    },
+    {
+      "ko": "양재시민의숲",
+      "en": "Yangjae Citizen's Forest (Maeheon)",
+      "ja": "良才シミネスプ(梅軒)",
+      "lines": ["신분당선"]
+    },
+    {
+      "ko": "양정",
+      "en": "Yangjeong",
+      "ja": "楊亭",
+      "lines": ["1호선", "경의중앙선"]
+    },
+    {
+      "ko": "양주",
+      "en": "Yangju",
+      "ja": "ヤンジュ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "양천구청",
+      "en": "Yangcheon-gu Office",
+      "ja": "ヤンチョングチョン",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "양천향교",
+      "en": "Yangcheon Hyanggyo",
+      "ja": "ヤンチョンヒャンギョ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "양촌",
+      "en": "Yangchon",
+      "ja": "ヤンチョン(陽村)",
+      "lines": ["김포골드라인"]
+    },
+    {
+      "ko": "양평",
+      "en": "Yangpyeong",
+      "ja": "ヤンピョン",
+      "lines": ["5호선", "경의중앙선"]
+    },
+    {
+      "ko": "어룡",
+      "en": "Eoryong",
+      "ja": "オリョン",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "어린이대공원",
+      "en": "Children's Grand Park(Sejong Univ.)",
+      "ja": "オリニ・テゴンウォン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "어린이세상",
+      "en": "Children's World",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "어정",
+      "en": "Eojeong",
+      "ja": "オジョン",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "어천",
+      "en": "Eocheon",
+      "ja": "オチョン",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "언주",
+      "en": "Eonju",
+      "ja": "オンジュ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "여의나루",
+      "en": "Yeouinaru",
+      "ja": "ヨイナル",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "여의도",
+      "en": "Yeouido",
+      "ja": "ヨイド",
+      "lines": ["5호선", "9호선"]
+    },
+    {
+      "ko": "여주",
+      "en": "Yeoju",
+      "ja": "ヨジュ",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "역곡",
+      "en": "Yeokgok",
+      "ja": "ヨッコク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "역삼",
+      "en": "Yeoksam",
+      "ja": "ヨッサム",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "역촌",
+      "en": "Yeokchon",
+      "ja": "ヨクチョン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "연산",
+      "en": "Yeonsan",
+      "ja": "蓮山",
+      "lines": ["1호선", "3호선"]
+    },
+    {
+      "ko": "연수",
+      "en": "Yeonsu",
+      "ja": "ヨンス",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "연신내",
+      "en": "Yeonsinnae",
+      "ja": "ヨンシンネ",
+      "lines": ["3호선", "6호선", "GTX-A"]
+    },
+    {
+      "ko": "연지공원",
+      "en": "Yeonji Park",
+      "ja": "蓮池公園",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "연천",
+      "en": "Yeoncheon",
+      "ja": "ヨンチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "연호",
+      "en": "Yeonho",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "염창",
+      "en": "Yeomchang",
+      "ja": "ヨムチャン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "영남대",
+      "en": "Yeungnam University",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "영대병원",
+      "en": "Yeungnam University Hospital",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "영등포",
+      "en": "Yeongdeungpo",
+      "ja": "ヨンドゥンポ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "영등포구청",
+      "en": "Yeongdeungpo-gu Office",
+      "ja": "ヨンドゥンポグチョン",
+      "lines": ["2호선", "5호선"]
+    },
+    {
+      "ko": "영등포시장",
+      "en": "Yeongdeungpo Market",
+      "ja": "ヨンドゥンポシジャン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "영산대",
+      "en": "Youngsan Univ.",
+      "ja": "霊山大学",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "영종",
+      "en": "Yeongjong",
+      "ja": "永宗",
+      "lines": ["공항철도선"]
+    },
+    {
+      "ko": "영통",
+      "en": "Yeongtong",
+      "ja": "ヨントン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "예술회관",
+      "en": "Culture & Arts Center",
+      "ja": "イェスルフェグァン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "오금",
+      "en": "Ogeum",
+      "ja": "オグム",
+      "lines": ["3호선", "5호선"]
+    },
+    {
+      "ko": "오남",
+      "en": "Onam",
+      "ja": "オナム",
+      "lines": ["진접선"]
+    },
+    {
+      "ko": "오룡",
+      "en": "Oryong",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "오류동",
+      "en": "Oryu-dong",
+      "ja": "オリュドン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "오리",
+      "en": "Ori",
+      "ja": "オリ",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "오목교",
+      "en": "Omokgyo(Mokdong Stadium)",
+      "ja": "オモッキョ",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "오목천",
+      "en": "Omokcheon",
+      "ja": "オモクチョン",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "오빈",
+      "en": "Obin",
+      "ja": "オビン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "오산",
+      "en": "Osan",
+      "ja": "オサン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "오산대",
+      "en": "Osan Univ.",
+      "ja": "オサンデ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "오시리아",
+      "en": "OSIRIA",
+      "ja": "オシリア",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "오이도",
+      "en": "Oido",
+      "ja": "オイド",
+      "lines": ["수인분당선", "4호선"]
+    },
+    {
+      "ko": "옥수",
+      "en": "Oksu",
+      "ja": "オクス",
+      "lines": ["3호선", "경의중앙선"]
+    },
+    {
+      "ko": "온수",
+      "en": "Onsu(Sungkonghoe Univ.)",
+      "ja": "オンス",
+      "lines": ["7호선", "1호선"]
+    },
+    {
+      "ko": "온양온천",
+      "en": "Onyangoncheon",
+      "ja": "オニャンオンチョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "온천장",
+      "en": "Oncheonjang",
+      "ja": "温泉場",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "올림픽공원",
+      "en": "Olympic Park(Korea National Sport University)",
+      "ja": "オリンピックゴンウォン",
+      "lines": ["5호선", "9호선"]
+    },
+    {
+      "ko": "완정",
+      "en": "Wanjeong",
+      "ja": "ワンジョン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "왕길",
+      "en": "Wanggil",
+      "ja": "ワンギル",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "왕십리",
+      "en": "Wangsimni(Seongdong-gu Office)",
+      "ja": "ワンシムニ(ソンドン区庁)",
+      "lines": ["2호선", "5호선", "경의중앙선", "분당선"]
+    },
+    {
+      "ko": "왜관",
+      "en": "Waegwan",
+      "ja": "ウェグァン",
+      "lines": ["대경선"]
+    },
+    {
+      "ko": "외대앞",
+      "en": "Hankuk Univ.of Foreign Studies",
+      "ja": "ウェデアプ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "용계",
+      "en": "Yonggye",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "용답",
+      "en": "Yongdap",
+      "ja": "ヨンダプ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "용두",
+      "en": "Yongdu(Dongdaemun-gu Office)",
+      "ja": "ヨンドゥ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "용마산",
+      "en": "Yongmasan(Yongma Falls Park)",
+      "ja": "ヨンマサン(ヨンマポクポ公園)",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "용문",
+      "en": "Yongmun",
+      "ja": "ヨンムン",
+      "lines": ["1호선", "경의중앙선"]
+    },
+    {
+      "ko": "용산",
+      "en": "Yongsan(Seobu Branch Court·Prosecutors Office)",
+      "ja": "ヨンサン",
+      "lines": ["2호선", "1호선", "경의중앙선"]
+    },
+    {
+      "ko": "용유",
+      "en": "Yongyu",
+      "ja": null,
+      "lines": ["자기부상"]
+    },
+    {
+      "ko": "용인중앙시장",
+      "en": "Yongin Jungang Market",
+      "ja": "ヨンインチュンアンシジャン",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "용지",
+      "en": "Yongji",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "우장산",
+      "en": "Ujangsan",
+      "ja": "ウジャンサン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "운길산",
+      "en": "Ungilsan",
+      "ja": "ウンギルサン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "운서",
+      "en": "Unseo",
+      "ja": "雲西",
+      "lines": ["공항철도선"]
+    },
+    {
+      "ko": "운양",
+      "en": "Unyang",
+      "ja": "ウニャン(雲陽）",
+      "lines": ["김포골드라인"]
+    },
+    {
+      "ko": "운연",
+      "en": "Unyeon(Seochang)",
+      "ja": "ウニョン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "운정",
+      "en": "Unjeong",
+      "ja": "ウンジョン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "운정중앙",
+      "en": "Unjeong",
+      "ja": "ウンジョンチュンアン",
+      "lines": ["GTX-A"]
+    },
+    {
+      "ko": "운천",
+      "en": "Uncheon",
+      "ja": "ウンチョン",
+      "lines": ["1호선", "경의중앙선"]
+    },
+    {
+      "ko": "워터파크",
+      "en": "Water Park",
+      "ja": null,
+      "lines": ["자기부상"]
+    },
+    {
+      "ko": "원당",
+      "en": "Wondang",
+      "ja": "ウォンダン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "원대",
+      "en": "Wondae",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "원덕",
+      "en": "Wondeok",
+      "ja": "ウォンドク",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "원시",
+      "en": "Wonsi",
+      "ja": "ウォンシ",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "원인재",
+      "en": "Woninjae",
+      "ja": "ウォニンジェ",
+      "lines": ["인천1호선", "수인선"]
+    },
+    {
+      "ko": "원종",
+      "en": "Wonjong",
+      "ja": "ウォンジョン",
+      "lines": ["서해선"]
+    },
+    {
+      "ko": "원흥",
+      "en": "Wonheung",
+      "ja": "ウォンフン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "월계",
+      "en": "Wolgye",
+      "ja": "ウォルゲ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "월곡",
+      "en": "Wolgok(Dongduk Women's Univ.)",
+      "ja": "ウォルゴク",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "월곶",
+      "en": "wolgot",
+      "ja": "ウォルゴッ",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "월내",
+      "en": "wollae",
+      "ja": "ウォルネ",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "월드컵경기장",
+      "en": "World Cup Stadium (Noeun Wholesale Market)",
+      "ja": "ワールドカップ・キョンギジャン",
+      "lines": ["1호선", "6호선"]
+    },
+    {
+      "ko": "월롱",
+      "en": "Wollong",
+      "ja": "ウォルロン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "월배",
+      "en": "Wolbae",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "월촌",
+      "en": "Wolchon",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "월평",
+      "en": "Wolpyeong(KAIST)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "윗반송",
+      "en": "Witbansong",
+      "ja": "ウィッパンソン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "유성온천",
+      "en": "Yuseong Spa (Chungnam Nat'l Univ.·Mokwon Univ.)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "율리",
+      "en": "Yulli",
+      "ja": "栗里",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "율하",
+      "en": "Yulha",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "을지로3가",
+      "en": "Euljiro 3(sam)ga",
+      "ja": "ウルチロサムガ",
+      "lines": ["2호선", "3호선"]
+    },
+    {
+      "ko": "을지로4가",
+      "en": "Euljiro 4(sa)ga",
+      "ja": "ウルチロサガ",
+      "lines": ["2호선", "5호선"]
+    },
+    {
+      "ko": "을지로입구",
+      "en": "Euljiro 1(il)ga",
+      "ja": "ウルチロイック",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "응봉",
+      "en": "Eungbong",
+      "ja": "ウンボン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "응암",
+      "en": "Eungam",
+      "ja": "ウンアム",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "의왕",
+      "en": "Uiwang",
+      "ja": "ウィワン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "의정부",
+      "en": "Uijeongbu",
+      "ja": "ウィジョンブ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "의정부시청",
+      "en": "Uijeongbu City Hall",
+      "ja": "ウィジョンブシチョン",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "의정부중앙",
+      "en": "Uijeongbu Jung-ang",
+      "ja": "ウィジョンブチュンアン",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "이곡",
+      "en": "Igok",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "이대",
+      "en": "Ewha Womans Univ.",
+      "ja": "イデ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "이매",
+      "en": "Imae",
+      "ja": "ィメ",
+      "lines": ["분당선", "경강선"]
+    },
+    {
+      "ko": "이수",
+      "en": "Isu",
+      "ja": "イス",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "이천",
+      "en": "Icheon",
+      "ja": "セジョンデワンヌン",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "이촌",
+      "en": "Ichon(National Museum of Korea)",
+      "ja": "イチョン",
+      "lines": ["4호선", "경의중앙선"]
+    },
+    {
+      "ko": "이태원",
+      "en": "Itaewon",
+      "ja": "イテウォン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "인덕원",
+      "en": "INDEOGWON",
+      "ja": "インドグォン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "인제대",
+      "en": "Inje Univ.",
+      "ja": "仁済大学 (活川)",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "인천",
+      "en": "Incheon",
+      "ja": "インチョン",
+      "lines": ["1호선", "수인선"]
+    },
+    {
+      "ko": "인천가좌",
+      "en": "Incheon Gajwa",
+      "ja": "インチョンカジュア",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "인천공항1터미널",
+      "en": "Incheon Int'l Airport Terminal 1",
+      "ja": "仁川国際空港 1ターミナル",
+      "lines": ["공항철도선", "자기부상"]
+    },
+    {
+      "ko": "인천공항2터미널",
+      "en": "Incheon Int'l Airport Terminal 2",
+      "ja": "仁川国際空港 ２ターミナル",
+      "lines": ["공항철도선"]
+    },
+    {
+      "ko": "인천논현",
+      "en": "Incheon Nonhyeon",
+      "ja": "インチョンノンヒョン",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "인천대공원",
+      "en": "Incheon Grand Park",
+      "ja": "インチョンテゴンウォン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "인천대입구",
+      "en": "Incheon National University",
+      "ja": "インチョンデイック",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "인천시청",
+      "en": "Incheon City Hall",
+      "ja": "インチョンシチョン",
+      "lines": ["인천1호선", "인천2호선"]
+    },
+    {
+      "ko": "인천터미널",
+      "en": "Incheon Bus Terminal",
+      "ja": "インチョンタ-ミナル",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "인하대",
+      "en": "Inha Univ.",
+      "ja": null,
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "일광",
+      "en": "Ilgwang",
+      "ja": "イルグァン",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "일산",
+      "en": "Ilsan",
+      "ja": "イルサン",
+      "lines": ["경의중앙선", "서해선"]
+    },
+    {
+      "ko": "일원",
+      "en": "Irwon",
+      "ja": "イルォン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "임당",
+      "en": "Imdang Station",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "임진강",
+      "en": "Imjingang",
+      "ja": "イムジンガン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "임학",
+      "en": "Imhak",
+      "ja": "イムハク",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "자갈치",
+      "en": "Jagalchi",
+      "ja": "チャガルチ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "자양",
+      "en": "Jayang(Ttukseom Hangang Park)",
+      "ja": "チャヤン(トゥクソム ハンガン(漢江)公園)",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "작전",
+      "en": "Jakjeon",
+      "ja": "チャクチョン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "잠실",
+      "en": "Jamsil(Songpa-gu Office)",
+      "ja": "チャムシル",
+      "lines": ["2호선", "8호선"]
+    },
+    {
+      "ko": "잠실나루",
+      "en": "Jamsillaru",
+      "ja": "チャムシルナル",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "잠실새내",
+      "en": "Jamsilsaenae",
+      "ja": "チャムシルセネ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "잠원",
+      "en": "Jamwon",
+      "ja": "チャムォン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "장기",
+      "en": "Janggi",
+      "ja": "チャンギ(場基）",
+      "lines": ["김포골드라인"]
+    },
+    {
+      "ko": "장기주차장",
+      "en": "Long Term Parking",
+      "ja": null,
+      "lines": ["자기부상"]
+    },
+    {
+      "ko": "장림",
+      "en": "Jangnim",
+      "ja": "長 林",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "장산",
+      "en": "Jangsan",
+      "ja": "萇山",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "장승배기",
+      "en": "Jangseungbaegi",
+      "ja": "チャンスンベギ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "장신대",
+      "en": "Presbyterian Univ.",
+      "ja": "長神大学(花亭)",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "장암",
+      "en": "Jangam",
+      "ja": "チャンアム",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "장자호수공원",
+      "en": "Jangja Lake Park",
+      "ja": "チャンジャホスゴンウォン",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "장전",
+      "en": "Jangjeon",
+      "ja": "長箭",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "장지",
+      "en": "Jangji",
+      "ja": "チャンジ",
+      "lines": ["8호선"]
+    },
+    {
+      "ko": "장한평",
+      "en": "Janghanpyeong",
+      "ja": "チャンハンピョン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "재송",
+      "en": "Jaesong",
+      "ja": "チェソン",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "전곡",
+      "en": "Jeongok",
+      "ja": "テョソゴク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "전대·에버랜드",
+      "en": "Jeondae·Everland",
+      "ja": "チョンデ·エバーランド",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "전포",
+      "en": "Jeonpo",
+      "ja": "田浦",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "정릉",
+      "en": "Jeongneung (Kookmin Univ.)",
+      "ja": "チョンヌン",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "정발산",
+      "en": "Jeongbalsan",
+      "ja": "チョンバルサン",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "정부과천청사",
+      "en": "Government Complex Gwacheon",
+      "ja": "チョンブ・クァチョンチョンサ",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "정부청사",
+      "en": "Government Complex Daejeon",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "정왕",
+      "en": "Jeongwang",
+      "ja": "チョンワン",
+      "lines": ["4호선", "수인선"]
+    },
+    {
+      "ko": "정자",
+      "en": "Jeongja",
+      "ja": "チョンジャ",
+      "lines": ["신분당선", "분당선"]
+    },
+    {
+      "ko": "정평",
+      "en": "JeongPyeong",
+      "ja": null,
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "제기동",
+      "en": "Jegidong",
+      "ja": "チェギドン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "제물포",
+      "en": "Jemulpo",
+      "ja": "チェムルポ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "종각",
+      "en": "Jonggak",
+      "ja": "チョンガク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "종로3가",
+      "en": "Jongno 3(sam)ga",
+      "ja": "チョンノサムガ",
+      "lines": ["1호선", "3호선", "5호선"]
+    },
+    {
+      "ko": "종로5가",
+      "en": "Jongno 5(o)ga",
+      "ja": "チョンノオガ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "종합운동장",
+      "en": "Sports Complex",
+      "ja": "総合運動場",
+      "lines": ["3호선", "2호선", "9호선"]
+    },
+    {
+      "ko": "좌천",
+      "en": "Jwacheon",
+      "ja": "佐川",
+      "lines": ["1호선", "동해선"]
+    },
+    {
+      "ko": "주례",
+      "en": "Jurye",
+      "ja": "周礼",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "주안",
+      "en": "Juan",
+      "ja": "チュアン",
+      "lines": ["인천2호선", "1호선"]
+    },
+    {
+      "ko": "주안국가산단",
+      "en": "Juan National Industrial Complex(Incheon J Valley)",
+      "ja": "チュアンクッカサンダン",
+      "lines": ["인천2호선"]
+    },
+    {
+      "ko": "주엽",
+      "en": "Juyeop",
+      "ja": "チュヨプ",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "죽전",
+      "en": "Jukjeon",
+      "ja": "チュクチョン",
+      "lines": ["2호선", "분당선"]
+    },
+    {
+      "ko": "중계",
+      "en": "Junggye",
+      "ja": "チュンゲ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "중곡",
+      "en": "Junggok",
+      "ja": "チュンゴク",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "중구청",
+      "en": "Jung-gu Office",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "중동",
+      "en": "Jung-dong",
+      "ja": "中洞",
+      "lines": ["2호선", "1호선"]
+    },
+    {
+      "ko": "중랑",
+      "en": "Jungnang",
+      "ja": "チュンナン",
+      "lines": ["경의중앙선", "경춘선"]
+    },
+    {
+      "ko": "중앙",
+      "en": "Jungang",
+      "ja": "中央",
+      "lines": ["1호선", "4호선", "수인분당선"]
+    },
+    {
+      "ko": "중앙로",
+      "en": "Jungangno Station",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "중앙보훈병원",
+      "en": "VHS Medical Center",
+      "ja": "チュンアンボフンビョンウォン",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "중화",
+      "en": "Junghwa",
+      "ja": "チュンファ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "증미",
+      "en": "Jeungmi",
+      "ja": "チュンミ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "증산",
+      "en": "Jeungsan",
+      "ja": "甑山",
+      "lines": ["2호선", "6호선"]
+    },
+    {
+      "ko": "지게골",
+      "en": "Jigegol",
+      "ja": "チゲゴル",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "지내",
+      "en": "Jinae",
+      "ja": "池内",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "지산",
+      "en": "Jisan",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "지석",
+      "en": "Jiseok",
+      "ja": "チソク",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "지식정보단지",
+      "en": "BIT Zone",
+      "ja": "チシクチョンボダンジ",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "지족",
+      "en": "Jijok(Chimsin Univ.)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "지축",
+      "en": "Jichuk",
+      "ja": "チチュク",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "지평",
+      "en": "Jipyeong Station",
+      "ja": "チピョン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "지행",
+      "en": "Jihaeng",
+      "ja": "チヘン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "직산",
+      "en": "Jiksan",
+      "ja": "チクサン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "진위",
+      "en": "Jinwi",
+      "ja": "チヌィ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "진접",
+      "en": "Jinjeop",
+      "ja": "チンジョプ",
+      "lines": ["진접선"]
+    },
+    {
+      "ko": "진천",
+      "en": "Jincheon",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "창동",
+      "en": "Changdong",
+      "ja": "チャンドン",
+      "lines": ["4호선", "1호선"]
+    },
+    {
+      "ko": "창신",
+      "en": "Changsin",
+      "ja": "チャンシン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "천마산",
+      "en": "Cheonmasan",
+      "ja": "チョンマサン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "천안",
+      "en": "Cheonan",
+      "ja": "チョナン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "천왕",
+      "en": "Cheonwang",
+      "ja": "チョヌァン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "천호",
+      "en": "Cheonho(Pungnaptoseong)",
+      "ja": "チョンホ",
+      "lines": ["5호선", "8호선"]
+    },
+    {
+      "ko": "철산",
+      "en": "Cheolsan",
+      "ja": "チョルサン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "청계산입구",
+      "en": "Cheonggyesan",
+      "ja": "清渓山入口",
+      "lines": ["신분당선"]
+    },
+    {
+      "ko": "청구",
+      "en": "Cheonggu",
+      "ja": "チョング",
+      "lines": ["5호선", "6호선"]
+    },
+    {
+      "ko": "청담",
+      "en": "Cheongdam",
+      "ja": "チョンダム",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "청라국제도시",
+      "en": "Cheongna Int'l City",
+      "ja": "青羅国際都市",
+      "lines": ["공항철도선"]
+    },
+    {
+      "ko": "청라언덕",
+      "en": "Cheongna Hill Station(Sinnam)",
+      "ja": null,
+      "lines": ["2호선", "3호선"]
+    },
+    {
+      "ko": "청량리",
+      "en": "Cheongnyangni(University of Seoul)",
+      "ja": "チョンニャンニ",
+      "lines": ["1호선", "경의중앙선", "경춘선"]
+    },
+    {
+      "ko": "청명",
+      "en": "Cheongmyeong",
+      "ja": "チョンミョン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "청산",
+      "en": "cheongsan",
+      "ja": "チョンサン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "청평",
+      "en": "Cheongpyeong",
+      "ja": "チョンピョン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "체육공원",
+      "en": "Sports Park",
+      "ja": "体育公園",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "초 월",
+      "en": "Chowol",
+      "ja": "チョウォル",
+      "lines": ["경강선"]
+    },
+    {
+      "ko": "초당",
+      "en": "Chodang",
+      "ja": "チョダン",
+      "lines": ["에버라인"]
+    },
+    {
+      "ko": "초량",
+      "en": "Choryang",
+      "ja": "草梁",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "초지",
+      "en": "Choji",
+      "ja": "チョジ",
+      "lines": ["서해선", "4호선", "수인분당선"]
+    },
+    {
+      "ko": "총신대입구",
+      "en": "Chongshin Univ.(Isu)",
+      "ja": "チョンシンデイック",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "춘의",
+      "en": "Chunui",
+      "ja": "チュニ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "춘천",
+      "en": "Chuncheon",
+      "ja": "チュンチョン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "충렬사",
+      "en": "Chungnyeolsa",
+      "ja": "忠烈祠",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "충무로",
+      "en": "Chungmuro",
+      "ja": "チュンムロ",
+      "lines": ["3호선", "4호선"]
+    },
+    {
+      "ko": "충정로",
+      "en": "Chungjeongno(Kyonggi Univ.)",
+      "ja": "チュンジョンノ",
+      "lines": ["2호선", "5호선"]
+    },
+    {
+      "ko": "칠곡경대병원",
+      "en": "Chilgok Kyungpook Nat‘l Univ.Medical Center",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "칠곡운암",
+      "en": "Chilgok·Unam",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "칠성시장",
+      "en": "Chilseong Market",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "캠퍼스타운",
+      "en": "Campus Town",
+      "ja": "キャンパスタウン",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "킨텍스",
+      "en": "KINTEX",
+      "ja": "キンテックス",
+      "lines": ["GTX-A"]
+    },
+    {
+      "ko": "탄방",
+      "en": "Tanbang",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "탄현",
+      "en": "Tanhyeon",
+      "ja": "タソヒョソ",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "탑석",
+      "en": "Tapseok",
+      "ja": "タプソク",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "탕정",
+      "en": "Tangjeong",
+      "ja": "タンジョン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "태릉입구",
+      "en": "Taereung",
+      "ja": "テルンイック",
+      "lines": ["6호선", "7호선"]
+    },
+    {
+      "ko": "태전",
+      "en": "Taejeon",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "태평",
+      "en": "Taepyeong",
+      "ja": "テピョン",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "태화강",
+      "en": "Taehwagang",
+      "ja": "テファガン",
+      "lines": ["동해선"]
+    },
+    {
+      "ko": "테크노파크",
+      "en": "Technopark",
+      "ja": "テクノパ-ク",
+      "lines": ["인천1호선"]
+    },
+    {
+      "ko": "토성",
+      "en": "Toseong",
+      "ja": "土城",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "퇴계원",
+      "en": "Toegyewon",
+      "ja": "トェゲウォン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "파라다이스시티",
+      "en": "Paradise City",
+      "ja": null,
+      "lines": ["자기부상"]
+    },
+    {
+      "ko": "파주",
+      "en": "PaJu Station",
+      "ja": "パジコ",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "판교",
+      "en": "Pangyo (Pangyo Techno Valley)",
+      "ja": "パンギョ (パンギョテクノバレー)",
+      "lines": ["신분당선", "경강선"]
+    },
+    {
+      "ko": "판암",
+      "en": "Panam(Daejeon Univ.)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "팔거",
+      "en": "Palgeo(NAQS · KOSTAT)",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "팔달",
+      "en": "Paldal",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "팔달시장",
+      "en": "Paldal Market",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "팔당",
+      "en": "Paldang",
+      "ja": "パルタン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "평강",
+      "en": "Pyeonggang",
+      "ja": "平江",
+      "lines": ["부산김해선"]
+    },
+    {
+      "ko": "평내호평",
+      "en": "Pyeongnae Hopyeong",
+      "ja": "ピョンネホピョン",
+      "lines": ["경춘선"]
+    },
+    {
+      "ko": "평동",
+      "en": "Pyeong-dong",
+      "ja": "ピョンドン",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "평촌",
+      "en": "Pyeongchon",
+      "ja": "ピョンチョン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "평택",
+      "en": "Pyeongtaek",
+      "ja": "ピョンテク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "평택지제",
+      "en": "PyeongtaekJije",
+      "ja": "ピョンテクチジェ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "풍무",
+      "en": "Pungmu",
+      "ja": "プンム(豊舞)",
+      "lines": ["김포골드라인"]
+    },
+    {
+      "ko": "풍산",
+      "en": "Pungsan",
+      "ja": "プンサン",
+      "lines": ["경의중앙선", "서해선"]
+    },
+    {
+      "ko": "하계",
+      "en": "Hagye",
+      "ja": "ハゲ",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "하남검단산",
+      "en": "Hanam Geomdansan",
+      "ja": "ハナムゴムダンサン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "하남시청",
+      "en": "Hanam City Hall(Deokpung&Sinjang)",
+      "ja": "ハナムシチョン (トクプン∙シンジャン)",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "하남풍산",
+      "en": "Hanam Pungsan",
+      "ja": "ハナンプンサン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "하단",
+      "en": "Hadan",
+      "ja": "下端",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "하양",
+      "en": "Hayang(Daegu Catholic University)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "학동",
+      "en": "Hak-dong",
+      "ja": "ハクトン",
+      "lines": ["7호선"]
+    },
+    {
+      "ko": "학동증심사입구",
+      "en": "Hak-dong·Jeungsimsa",
+      "ja": "ハクトン・チュンシムサイプク",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "학여울",
+      "en": "Hangnyeoul",
+      "ja": "ハンニョウル",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "학정",
+      "en": "Hakjeong",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "한강진",
+      "en": "Hangangjin",
+      "ja": "ハンガンジン",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "한국항공대",
+      "en": "Korea Aerospace Univ.",
+      "ja": "ハングクハンゴンデ",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "한남",
+      "en": "Hannam",
+      "ja": "ハンナム",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "한대앞",
+      "en": "Hanyang Univ. at Ansan",
+      "ja": "ハンデアプ",
+      "lines": ["4호선", "수인분당선"]
+    },
+    {
+      "ko": "한성대입구",
+      "en": "Hansung Univ.(Samseongyo)",
+      "ja": "ハンソンデイック",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "한성백제",
+      "en": "Hanseong Baekje",
+      "ja": "ハンソンベクチェ",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "한양대",
+      "en": "Hanyang Univ.",
+      "ja": "ハニャンデ",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "한티",
+      "en": "Hanti",
+      "ja": "ハンティ",
+      "lines": ["분당선"]
+    },
+    {
+      "ko": "합동청사",
+      "en": "Administration Complex",
+      "ja": null,
+      "lines": ["자기부상"]
+    },
+    {
+      "ko": "합정",
+      "en": "Hapjeong",
+      "ja": "ハプチョン",
+      "lines": ["2호선", "6호선"]
+    },
+    {
+      "ko": "해안",
+      "en": "Haean",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "해운대",
+      "en": "Haeundae",
+      "ja": "海雲台",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "행당",
+      "en": "Haengdang",
+      "ja": "ヘンダン",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "행신",
+      "en": "Haengsin",
+      "ja": "ヘンシン",
+      "lines": ["경의중앙선"]
+    },
+    {
+      "ko": "현충로",
+      "en": "Hyeonchungno station",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "현충원",
+      "en": "National Cemetery (Hanbat Nat'l Univ.)",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "혜화",
+      "en": "Hyehwa",
+      "ja": "ヘファ",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "호구포",
+      "en": "Hogupo",
+      "ja": "ホグポ",
+      "lines": ["수인선"]
+    },
+    {
+      "ko": "호포",
+      "en": "Hopo",
+      "ja": "湖浦",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "홍대입구",
+      "en": "Hongik Univ.",
+      "ja": "弘大入口",
+      "lines": ["공항철도선", "2호선", "경의중앙선"]
+    },
+    {
+      "ko": "홍제",
+      "en": "Hongje",
+      "ja": "ホンジェ",
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "화계",
+      "en": "Hwagye",
+      "ja": "ファゲ",
+      "lines": ["우이신설선"]
+    },
+    {
+      "ko": "화곡",
+      "en": "Hwagok",
+      "ja": "ファゴク",
+      "lines": ["5호선"]
+    },
+    {
+      "ko": "화랑대",
+      "en": "Hwarangdae(Seoul Women's Univ.)",
+      "ja": "ファランデ",
+      "lines": ["6호선"]
+    },
+    {
+      "ko": "화명",
+      "en": "Hwamyeong",
+      "ja": "華明",
+      "lines": ["2호선"]
+    },
+    {
+      "ko": "화서",
+      "en": "Hwaseo",
+      "ja": "ファソ",
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "화원",
+      "en": "Hwawon",
+      "ja": null,
+      "lines": ["1호선"]
+    },
+    {
+      "ko": "화정",
+      "en": "Hwajeong",
+      "ja": "ファジョン",
+      "lines": ["1호선", "3호선"]
+    },
+    {
+      "ko": "황금",
+      "en": "Hwanggeum",
+      "ja": null,
+      "lines": ["3호선"]
+    },
+    {
+      "ko": "회기",
+      "en": "Hoegi",
+      "ja": "フェギえき",
+      "lines": ["1호선", "경의중앙선", "경춘선"]
+    },
+    {
+      "ko": "회룡",
+      "en": "Hoeryong",
+      "ja": "フェリョン",
+      "lines": ["의정부", "1호선"]
+    },
+    {
+      "ko": "회현",
+      "en": "Hoehyeon(Namdaemun Market)",
+      "ja": "フェヒョン",
+      "lines": ["4호선"]
+    },
+    {
+      "ko": "효자",
+      "en": "Hyoja",
+      "ja": "ヒョザ",
+      "lines": ["의정부"]
+    },
+    {
+      "ko": "효창공원앞",
+      "en": "Hyochang Park",
+      "ja": "ヒョチャンゴンウォンアプ",
+      "lines": ["6호선", "경의중앙선"]
+    },
+    {
+      "ko": "흑석",
+      "en": "Heukseok(Chung-Ang Univ.)",
+      "ja": "フッソク(中央大学入口)",
+      "lines": ["9호선"]
+    },
+    {
+      "ko": "흥선",
+      "en": "Heungseon",
+      "ja": "フンソン",
+      "lines": ["의정부"]
+    }
+  ]
+}

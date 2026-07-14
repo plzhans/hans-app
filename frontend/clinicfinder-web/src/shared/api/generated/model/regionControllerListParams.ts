@@ -5,10 +5,10 @@
  * Hans API backend 문서
  * OpenAPI spec version: 0.0.1
  */
-import type { HealthcareMetaControllerRegionsLevel } from './healthcareMetaControllerRegionsLevel';
+import type { RegionControllerListLevel } from './regionControllerListLevel';
 
-export type HealthcareMetaControllerRegionsParams = {
-level?: HealthcareMetaControllerRegionsLevel;
+export type RegionControllerListParams = {
+level?: RegionControllerListLevel;
 /**
  * 시도 코드 (시군구를 좁힐 때)
  */

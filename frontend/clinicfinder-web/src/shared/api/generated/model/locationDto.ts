@@ -5,7 +5,7 @@
  * Hans API backend 문서
  * OpenAPI spec version: 0.0.1
  */
-import type { RegionDto } from './regionDto';
+import type { HospitalRegionDto } from './hospitalRegionDto';
 
 export interface LocationDto {
   /**
@@ -15,7 +15,7 @@ export interface LocationDto {
   station?: string;
   address?: string;
   postNo?: string;
-  region?: RegionDto;
+  region?: HospitalRegionDto;
   lat?: number;
   lon?: number;
 }

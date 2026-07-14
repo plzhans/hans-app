@@ -7,13 +7,17 @@ import {
   useHealthcareMetaControllerSubjectGroups,
   useHealthcareMetaControllerTiers,
   useHealthcareMetaControllerClasses,
-  useHealthcareMetaControllerRegions,
 } from '@/shared/api/generated/react/healthcare-meta/healthcare-meta';
+// 지역은 /healthcare/meta/regions 가 아니라 최상위 /regions 다.
+// region_code 는 도메인 무관이라(병원·학교·약국이 같이 쓴다) 헬스케어 밑에서 빠졌다.
+import { useRegionControllerList } from '@/shared/api/generated/react/region/region';
 import type {
   HospitalSummaryDto,
   HospitalDetailDto,
   MetaCodeDto,
-  MetaRegionDto,
+  MetaHospitalTierDto,
+  MetaSubjectGroupDto,
+  RegionDto,
 } from '@/shared/api/generated/model';
 
 /**
@@ -30,7 +34,7 @@ import type {
 export type Hospital = HospitalSummaryDto;
 export type HospitalDetail = HospitalDetailDto;
 export type MetaCode = MetaCodeDto;
-export type MetaRegion = MetaRegionDto;
+export type MetaRegion = RegionDto;
 
 export interface HospitalSearchParams {
   page: number;
@@ -93,9 +97,22 @@ export function useHospitalDetail(id: string | undefined) {
   });
 }
 
+/**
+ * 목록 응답을 배열로 푼다.
+ *
+ * 서버는 목록을 `{ items: [...] }` 로 감싸 준다 — 최상위가 배열이면 나중에 필드를 하나라도
+ * 덧붙이는 순간 응답 모양이 바뀌어 클라이언트가 전부 깨지기 때문이다.
+ *
+ * 그 사정을 화면단까지 끌고 갈 이유는 없다. 여기서 풀어서 배열로 넘긴다.
+ * (이 파일이 어댑터인 이유가 그거다 — 스펙이 바뀌면 여기서만 맞춘다)
+ */
+const unwrap = <T>(data: { items?: T[] }): T[] => data.items ?? [];
+
 /** 참조 데이터. 검색 조건 드롭다운을 채운다. */
 export function useSubjects() {
-  return useHealthcareMetaControllerSubjects();
+  return useHealthcareMetaControllerSubjects({
+    query: { select: unwrap<MetaCodeDto> },
+  });
 }
 
 /**
@@ -106,26 +123,35 @@ export function useSubjects() {
  * 상태를 두 벌(그룹 / 과목) 들면 반드시 어긋난다.
  */
 export function useSubjectGroups() {
-  return useHealthcareMetaControllerSubjectGroups();
+  return useHealthcareMetaControllerSubjectGroups({
+    query: { select: unwrap<MetaSubjectGroupDto> },
+  });
 }
 
 /** 병원 등급 (TIER1~3). 종별을 묶은 것이다. */
 export function useHospitalTiers() {
-  return useHealthcareMetaControllerTiers();
+  return useHealthcareMetaControllerTiers({
+    query: { select: unwrap<MetaHospitalTierDto> },
+  });
 }
 
 export function useClasses() {
-  return useHealthcareMetaControllerClasses();
+  return useHealthcareMetaControllerClasses({
+    query: { select: unwrap<MetaCodeDto> },
+  });
 }
 
 export function useSidoRegions() {
-  return useHealthcareMetaControllerRegions({ level: 'sido' });
+  return useRegionControllerList(
+    { level: 'sido' },
+    { query: { select: unwrap<RegionDto> } },
+  );
 }
 
 export function useSgguRegions(sidoCode: string | undefined) {
-  return useHealthcareMetaControllerRegions(
+  return useRegionControllerList(
     { level: 'sggu', parent: sidoCode ?? '' },
-    { query: { enabled: !!sidoCode } },
+    { query: { enabled: !!sidoCode, select: unwrap<RegionDto> } },
   );
 }
 

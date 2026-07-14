@@ -48,9 +48,13 @@ export {
 } from './healthcare/healthcare-meta.service';
 export type {
   MetaCode,
-  MetaRegion,
   MetaCodeType,
+  MetaSubwayStation,
 } from './healthcare/healthcare-meta.service';
+
+// 지역(주소)은 도메인 무관이라 healthcare 밑이 아니다. 병원·학교·약국이 같이 쓴다.
+export { RegionService } from './region/region.service';
+export type { Region } from './region/region.service';
 export type {
   HospitalSummary,
   HospitalDetail,

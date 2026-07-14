@@ -1,0 +1,24 @@
+{
+  "name": "@seouldata/subway",
+  "version": "0.0.1",
+  "private": true,
+  "description": "서울열린데이터광장(openapi.seoul.go.kr) 지하철역 정보 클라이언트",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json",
+    "./openapi/*": "./openapi/*"
+  },
+  "scripts": {
+    "codegen": "orval --config orval.config.ts",
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "orval": "^7.13.2"
+  }
+}

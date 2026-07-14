@@ -5,13 +5,18 @@
  * Hans API backend 문서
  * OpenAPI spec version: 0.0.1
  */
-import type { CodeDto } from './codeDto';
 
 export interface RegionDto {
   code: string;
+  /** 정식 명칭. **검색·매칭은 이걸 쓴다.** */
   name: string;
-  /** 시도 */
-  sido?: CodeDto;
-  /** 읍면동. 코드가 없어 이름 그대로다. */
-  emdong?: string;
+  /**
+     * 화면 표시용 짧은 이름. 시도만 있다 — 시군구는 이미 짧다(강남구).
+     * 규칙으로 만들 수 없어 코드 테이블에 값으로 둔다 ("충청북도"→"충북", "전남광주통합특별시"→"전남").
+     */
+  shortName?: string;
+  /** sido | sggu */
+  level: string;
+  /** 시도 코드. 시도면 없다. */
+  parentCode?: string;
 }

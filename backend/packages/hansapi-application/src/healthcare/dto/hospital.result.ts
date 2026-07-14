@@ -211,6 +211,18 @@ export interface HospitalParking {
 }
 
 export interface HospitalDetail extends HospitalSummary {
+  /**
+   * 병원명의 한국어 원문. **번역이 실제로 있을 때만 온다.**
+   *
+   * 외국인이 영문 상세 링크를 한국인 지인에게 보냈을 때, 받은 사람이 언어를 바꾸지 않고도
+   * 어느 병원인지 알아보게 하려는 것이다. 간판도 지도 검색도 한국어라 번역만으로는
+   * 현실 세계와 연결되지 않는다.
+   *
+   * 한국어로 볼 때나 아직 번역이 없을 때는 **필드 자체가 없다** — name 이 이미 한국어라
+   * 병기하면 같은 이름이 두 번 나온다. 프론트는 `{nameKo && …}` 로 끝난다.
+   */
+  nameKo?: string;
+
   sources: HospitalSources;
   homepage?: string;
 

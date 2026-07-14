@@ -15,6 +15,8 @@ import { NmcRegionController } from './datagokr/nmc/nmc-region.controller';
 import { NmcHospitalController } from './datagokr/nmc/nmc-hospital.controller';
 import { HealthcareHospitalController } from './healthcare/hospital.controller';
 import { HealthcareMetaController } from './healthcare/meta.controller';
+import { TransportController } from './transport/transport.controller';
+import { RegionController } from './region/region.controller';
 
 /**
  * 게이트웨이 서버의 루트 모듈.
@@ -39,6 +41,8 @@ export class AppModule {
         NmcBabyController,
         HealthcareHospitalController,
         HealthcareMetaController,
+        TransportController,
+        RegionController,
       ],
       providers: [
         AppService,

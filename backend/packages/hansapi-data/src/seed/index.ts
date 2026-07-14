@@ -13,6 +13,7 @@ export type { RegionCodeSeed } from './region-code.seed';
 export {
   SUBJECT_GROUPS,
   HOSPITAL_TIERS,
+  TIER_NAMES,
   INPATIENT_ONLY_CLASSES,
   INPATIENT_TIERS,
   isSubjectAllowed,

@@ -1,9 +1,11 @@
 export const APP_NAME = 'hansapi';
 
 export * from './localization/lang-text';
+export * from './localization/accept-language';
 export * from './location';
 export * from './time-range';
 export * from './env';
+export * from './build-info';
 
 /**
  * 목록 조회 공통 페이지 결과. 응용 계층 서비스가 반환하고,

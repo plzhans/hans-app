@@ -11,7 +11,7 @@
 ```bash
 pnpm install
 pnpm local        # .env.local (http://127.0.0.1:3000) 로 개발 서버
-pnpm dev          # .env.develop (development-api) 로 개발 서버
+pnpm dev          # .env.develop (develop-api) 로 개발 서버
 pnpm build        # tsc -b && vite build
 ```
 

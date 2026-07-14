@@ -39,7 +39,9 @@ export class HealthcareCodeSeedService {
     const values = Prisma.join(
       HEALTHCARE_CODES.map(
         (code) => Prisma.sql`(
-          ${code.tp}, ${code.cd}, ${code.nm}, ${code.cmt ?? null},
+          ${code.tp}, ${code.cd}, ${code.nm},
+          ${code.nm_en ?? null}, ${code.nm_ja ?? null},
+          ${code.cmt ?? null},
           ${code.hira_cd ? JSON.stringify(code.hira_cd) : null},
           ${code.nmc_cd ? JSON.stringify(code.nmc_cd) : null},
           ${code.sort}, NOW(), NOW()
@@ -49,10 +51,10 @@ export class HealthcareCodeSeedService {
 
     await this.prisma.$executeRaw(Prisma.sql`
       INSERT INTO healthcare_code
-        (tp, cd, nm, cmt, hira_cd, nmc_cd, sort, created_at, updated_at)
+        (tp, cd, nm, nm_en, nm_ja, cmt, hira_cd, nmc_cd, sort, created_at, updated_at)
       VALUES ${values} AS new
       ON DUPLICATE KEY UPDATE
-        nm = new.nm, cmt = new.cmt,
+        nm = new.nm, nm_en = new.nm_en, nm_ja = new.nm_ja, cmt = new.cmt,
         hira_cd = new.hira_cd, nmc_cd = new.nmc_cd,
         sort = new.sort, updated_at = NOW()
     `);
@@ -97,7 +99,9 @@ export class HealthcareCodeSeedService {
     const values = Prisma.join(
       REGION_CODES.map(
         (region) => Prisma.sql`(
-          ${region.cd}, ${region.nm}, ${region.short_nm ?? null},
+          ${region.cd}, ${region.nm},
+          ${region.nm_en ?? null}, ${region.nm_ja ?? null},
+          ${region.short_nm ?? null},
           ${region.level}, ${region.parent_cd ?? null},
           ${region.hira_cd ? JSON.stringify(region.hira_cd) : null},
           ${region.nmc_nm ? JSON.stringify(region.nmc_nm) : null},
@@ -108,10 +112,10 @@ export class HealthcareCodeSeedService {
 
     await this.prisma.$executeRaw(Prisma.sql`
       INSERT INTO region_code
-        (cd, nm, short_nm, level, parent_cd, hira_cd, nmc_nm, sort, created_at, updated_at)
+        (cd, nm, nm_en, nm_ja, short_nm, level, parent_cd, hira_cd, nmc_nm, sort, created_at, updated_at)
       VALUES ${values} AS new
       ON DUPLICATE KEY UPDATE
-        nm = new.nm, short_nm = new.short_nm,
+        nm = new.nm, nm_en = new.nm_en, nm_ja = new.nm_ja, short_nm = new.short_nm,
         level = new.level, parent_cd = new.parent_cd,
         hira_cd = new.hira_cd, nmc_nm = new.nmc_nm,
         sort = new.sort, updated_at = NOW()

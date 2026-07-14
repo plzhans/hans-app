@@ -92,3 +92,16 @@ export { DATA_SOURCES } from './common/data-source';
 export type { DataSource } from './common/data-source';
 export { DEFAULT_SYNC_ROWS } from './common/sync.types';
 export type { SyncOptions, SyncResult } from './common/sync.types';
+
+// 번역은 DB 만 쓴다. 공공데이터 서비스키를 요구하지 않도록 AdminApplicationModule 과 분리했다.
+export { I18nModule } from './i18n/i18n.module';
+export {
+  HospitalI18nExportService,
+  I18N_FIELDS,
+  isI18nField,
+} from './i18n/hospital-i18n-export.service';
+export type {
+  I18nField,
+  I18nExportOptions,
+  I18nExportResult,
+} from './i18n/hospital-i18n-export.service';

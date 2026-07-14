@@ -1,0 +1,148 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "서울열린데이터광장 지하철역 정보 API",
+    "version": "1.0.0",
+    "description": "서울열린데이터광장(openapi.seoul.go.kr) 의 '서울시 노선별 지하철역 정보'(SearchSTNBySubwayLineInfo).\n\n역명을 한국어·영어·중국어·일본어로 함께 준다. **이 API 를 쓰는 이유가 그 다국어 표기다.**\n병원 교통정보의 하차역명을 외국어로 보여줄 때, 역명은 지어내면 안 되는 값이다 —\n틀린 역명은 환자를 다른 역에 내리게 한다.\n\n[커버리지] 수도권 전철만이다. 전량 799건 / 24개 노선. (2026-07 전수 확인)\n  01~09호선, 수인분당선, 경의선, 경춘선, 경강선, 서해선, 신분당선, 신림선, 공항철도,\n  인천선, 인천2호선, 김포도시철도, 용인경전철, 의정부경전철, 우이신설경전철, GTX-A\n**부산·대구·대전·광주 도시철도는 한 건도 없다.** 코드공간(STATION_CD 0000~9999)을 전수\n스윕해서 확인했다. 데이터셋 소개 페이지에는 '1~8호선, 9호선 2~3단계'로 적혀 있으나\n실제 응답은 그보다 넓다 — 페이지 설명이 아니라 응답이 맞다.\n\n[data.go.kr 과 다른 점] @krdata/core 를 재사용할 수 없는 이유다.\n- 인증키가 쿼리가 아니라 **경로 첫 세그먼트**다.  /{KEY}/json/{SERVICE}/...\n- 파라미터가 쿼리가 아니라 **위치 기반 경로 세그먼트**다. 건너뛸 땐 공백 한 칸(%20)을 넣는다.\n- 성공 판정이 header.resultCode 가 아니라 **RESULT.CODE == 'INFO-000'** 이다.\n- 응답이 서비스명을 키로 한 봉투에 담겨 온다. { \"SearchSTNBySubwayLineInfo\": { ... } }\n\n[이 스펙의 규칙]\n- 인증키(KEY)는 정의하지 않는다. mutator 가 baseUrl 뒤에 경로로 붙인다.\n- TYPE 은 'json' 으로 경로에 박았다. 스펙에서 고를 수 있게 두면 응답 스키마가 흔들린다.\n- SERVICE 도 경로에 박았다. 오퍼레이션이 하나뿐이라 변수로 둘 이유가 없다.\n- 에러 응답(RESULT 최상위)은 정의하지 않는다. mutator 가 예외로 바꾸므로 호출부에 오지 않는다.\n\n[실측 함정 — 2026-07]\n- **에러가 JSON 요청에도 XML 로 온다.** /json/ 으로 불러도 ERROR-335 는 XML 로 떨어졌다.\n  ERROR-500 은 JSON 이었다. 둘 다 처리해야 한다. (mutator 가 본문이 '<' 로 시작하면 XML 로 판정)\n- **한 번에 최대 1,000건.** 넘기면 ERROR-336. 전량이 799건이라 1콜이면 끝난다.\n- **샘플키('sample')는 한 번에 5건까지.** 넘기면 ERROR-335. 스키마 확인용으로만 쓸 것.\n- 원본 값이 지저분하다. STATION_NM_ENG 에 이중 공백('Dongdaemun History  Culture Park'),\n  STATION_NM_CHN 에 괄호 병기('东大门历史文化公园(DDP)')가 섞여 있다. 쓰는 쪽에서 정규화하라.\n- 환승역은 **노선마다 행이 따로** 나온다. 역명 기준으로 묶으려면 호출부가 dedup 해야 한다.",
+    "x-source": "https://data.seoul.go.kr/dataList/OA-15442/S/1/datasetView.do"
+  },
+  "servers": [
+    {
+      "url": "http://openapi.seoul.go.kr:8088"
+    }
+  ],
+  "paths": {
+    "/json/SearchSTNBySubwayLineInfo/{startIndex}/{endIndex}/{stationCd}/{stationNm}/{lineNum}": {
+      "get": {
+        "operationId": "searchStationsBySubwayLine",
+        "summary": "노선별 지하철역 정보 조회",
+        "description": "수도권 전철의 역 목록을 조회한다. 역코드·역명·호선으로 필터할 수 있다.\n\n**필터 3개는 위치 기반이라 건너뛸 수 없다.** 호선만으로 거르려면 앞의 두 자리에 공백 한 칸을\n넣어야 한다. 공식 예제도 그렇게 한다.\n  /json/SearchSTNBySubwayLineInfo/1/5/ / /1호선\n그래서 세 파라미터를 모두 required 로 뒀다. 필터하지 않을 자리에는 공백 한 칸(' ')을 넘겨라.\nSubwayClient 가 이 자리 채우기를 대신 해준다 — 생성된 함수를 직접 부르지 마라.",
+        "tags": ["subway"],
+        "parameters": [
+          {
+            "name": "startIndex",
+            "in": "path",
+            "required": true,
+            "description": "요청 시작 위치. 1부터 시작한다(0 아니다).",
+            "schema": { "type": "integer", "minimum": 1 }
+          },
+          {
+            "name": "endIndex",
+            "in": "path",
+            "required": true,
+            "description": "요청 종료 위치. startIndex 와의 간격이 1,000 을 넘으면 ERROR-336.",
+            "schema": { "type": "integer", "minimum": 1 }
+          },
+          {
+            "name": "stationCd",
+            "in": "path",
+            "required": true,
+            "description": "전철역코드 필터. 거르지 않으려면 공백 한 칸(' ').",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stationNm",
+            "in": "path",
+            "required": true,
+            "description": "전철역명 필터. 거르지 않으려면 공백 한 칸(' ').",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "lineNum",
+            "in": "path",
+            "required": true,
+            "description": "호선 필터. 거르지 않으려면 공백 한 칸(' ').\n\n**응답의 LINE_NUM 은 '01호선' 처럼 0 이 붙지만, 필터는 '1호선' 으로도 먹는다.**",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "지하철역 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StationListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "StationListResponse": {
+        "type": "object",
+        "description": "서비스명을 키로 한 봉투. 서울열린데이터광장의 모든 서비스가 이 모양이다.",
+        "properties": {
+          "SearchSTNBySubwayLineInfo": {
+            "$ref": "#/components/schemas/StationListBody"
+          }
+        }
+      },
+      "StationListBody": {
+        "type": "object",
+        "properties": {
+          "list_total_count": {
+            "type": "integer",
+            "description": "필터를 적용한 총 건수. 페이지 크기가 아니라 **전체 건수**다.\n페이지네이션은 이 값을 보고 돌린다. (필터 없이 전량 799건, 2026-07)"
+          },
+          "RESULT": {
+            "$ref": "#/components/schemas/Result"
+          },
+          "row": {
+            "type": "array",
+            "description": "역 목록. **환승역은 노선마다 행이 따로 나온다.**",
+            "items": { "$ref": "#/components/schemas/Station" }
+          }
+        }
+      },
+      "Result": {
+        "type": "object",
+        "description": "요청 결과. CODE 가 'INFO-000' 이 아니면 mutator 가 예외로 바꾼다.",
+        "properties": {
+          "CODE": {
+            "type": "string",
+            "description": "INFO-000 정상 / INFO-200 데이터 없음 / ERROR-3xx 요청 오류 / ERROR-5xx·6xx 서버 오류"
+          },
+          "MESSAGE": { "type": "string" }
+        }
+      },
+      "Station": {
+        "type": "object",
+        "description": "지하철역 한 건. **한 역이 여러 노선을 지나면 노선 수만큼 나온다.**",
+        "properties": {
+          "STATION_CD": {
+            "type": "string",
+            "description": "전철역코드. '0153', '1004' 처럼 0 이 앞에 붙는다 — **문자열이다. 숫자로 다루지 마라.**\n환승역은 노선마다 코드가 다르다(같은 역이어도 행마다 값이 다르다).\n**역을 식별하는 키로 쓰지 마라.** 역명으로 묶어라."
+          },
+          "STATION_NM": {
+            "type": "string",
+            "description": "전철역명(한국어). 이게 우리 사전의 키다.\n괄호 병기가 섞여 있다 — '총신대입구(이수)'. 쓰는 쪽에서 정규화하라."
+          },
+          "STATION_NM_ENG": {
+            "type": "string",
+            "description": "전철역명(영문). 'Jongno 3(sam)-ga' 처럼 공식 로마자 표기다.\n이중 공백이 섞인 값이 있다('Dongdaemun History  Culture Park'). 공백 정규화가 필요하다."
+          },
+          "LINE_NUM": {
+            "type": "string",
+            "description": "호선. '01호선'~'09호선' 은 0 이 붙고, 나머지는 이름 그대로다('신분당선', 'GTX-A').\n**표시용으로 쓰려면 0 을 떼야 한다** — 사람은 '1호선' 이라고 쓴다."
+          },
+          "FR_CODE": {
+            "type": "string",
+            "description": "외부코드. 노선도에 적히는 역번호다('130', 'X108')."
+          },
+          "STATION_NM_CHN": {
+            "type": "string",
+            "description": "전철역명(중문). **표기가 일관되지 않다** — 간체('首尔')와 정자('市廳')가 섞여 있고\n괄호 병기도 있다('东大门历史文化公园(DDP)'). 우리는 아직 중국어를 지원하지 않지만\n버릴 이유도 없어 그대로 담는다."
+          },
+          "STATION_NM_JPN": {
+            "type": "string",
+            "description": "전철역명(일문). **가타카나 음차다** — 의미 번역이 아니라 한국어 발음의 전사다.\n'방화' → 'パンファ', '종로3가' → 'チョンノサムガ'.\n\n비수도권 역명을 다른 소스에서 채울 때 이 체계를 반드시 따라야 한다. 국가철도공단\n데이터의 일본어 칸은 한자('괴정' → '槐亭')라 섞으면 사전이 두 체계로 쪼개진다."
+          }
+        }
+      }
+    }
+  }
+}

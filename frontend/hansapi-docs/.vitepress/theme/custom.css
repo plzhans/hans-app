@@ -258,3 +258,23 @@
 .dark .vp-doc pre.oa-json .oa-j-null {
   color: #d8b4fe;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   사이드바 계층
+   VitePress 기본값은 모든 뎁스가 font-size: 14px 이고 중첩 들여쓰기가 0 이다.
+   그래서 1뎁스(그룹)와 2뎁스(항목)가 크기도 위치도 같아 계층이 안 보인다.
+   ───────────────────────────────────────────────────────────── */
+
+/* 1뎁스 — 그룹 제목. 자식 결합자(>)를 써야 한다.
+   기본 규칙이 `.VPSidebarItem.level-0 .text` (자손 선택자)라 그냥 쓰면 2뎁스까지 같이 커진다. */
+.VPSidebar .VPSidebarItem.level-0 > .item > .text,
+.VPSidebar .VPSidebarItem.level-0 > .item > .link > .text {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+/* 2뎁스부터 — 들여쓰기.
+   padding 이 아니라 자식 컨테이너에 준다. 항목마다 주면 hover 배경이 잘려 보인다. */
+.VPSidebar .VPSidebarItem.level-0 > .items {
+  padding-left: 12px;
+}

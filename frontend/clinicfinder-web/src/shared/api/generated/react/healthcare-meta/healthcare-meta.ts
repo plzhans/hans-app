@@ -21,11 +21,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  HealthcareMetaControllerRegionsParams,
-  MetaCodeDto,
-  MetaHospitalTierDto,
-  MetaRegionDto,
-  MetaSubjectGroupDto
+  HealthcareMetaControllerClasses200,
+  HealthcareMetaControllerEquipments200,
+  HealthcareMetaControllerSeverities200,
+  HealthcareMetaControllerSubjectGroups200,
+  HealthcareMetaControllerSubjects200,
+  HealthcareMetaControllerTiers200
 } from '../../model';
 
 import { reactFetch } from '../../../mutator';
@@ -62,9 +63,9 @@ export const getHealthcareMetaControllerSubjectsUrl = () => {
  * 병원 검색의 subject 파라미터에 쓴다.
  * @summary 진료과목 코드
  */
-export const healthcareMetaControllerSubjects = async ( options?: RequestInit): Promise<MetaCodeDto[]> => {
+export const healthcareMetaControllerSubjects = async ( options?: RequestInit): Promise<HealthcareMetaControllerSubjects200> => {
 
-  return reactFetch<MetaCodeDto[]>(getHealthcareMetaControllerSubjectsUrl(),
+  return reactFetch<HealthcareMetaControllerSubjects200>(getHealthcareMetaControllerSubjectsUrl(),
   {
     ...options,
     method: 'GET'
@@ -166,9 +167,9 @@ export const getHealthcareMetaControllerSubjectGroupsUrl = () => {
  * 환자가 직접 가지 않는 과(영상의학·병리·진단검사 등)는 어느 그룹에도 없다.
  * @summary 진료 분야 그룹
  */
-export const healthcareMetaControllerSubjectGroups = async ( options?: RequestInit): Promise<MetaSubjectGroupDto[]> => {
+export const healthcareMetaControllerSubjectGroups = async ( options?: RequestInit): Promise<HealthcareMetaControllerSubjectGroups200> => {
 
-  return reactFetch<MetaSubjectGroupDto[]>(getHealthcareMetaControllerSubjectGroupsUrl(),
+  return reactFetch<HealthcareMetaControllerSubjectGroups200>(getHealthcareMetaControllerSubjectGroupsUrl(),
   {
     ...options,
     method: 'GET'
@@ -270,9 +271,9 @@ export const getHealthcareMetaControllerTiersUrl = () => {
  * 요양병원·정신병원은 이 체계 밖이라 어느 등급에도 없다(NURSING·MENTAL).
  * @summary 병원 등급 (TIER1~3)
  */
-export const healthcareMetaControllerTiers = async ( options?: RequestInit): Promise<MetaHospitalTierDto[]> => {
+export const healthcareMetaControllerTiers = async ( options?: RequestInit): Promise<HealthcareMetaControllerTiers200> => {
 
-  return reactFetch<MetaHospitalTierDto[]>(getHealthcareMetaControllerTiersUrl(),
+  return reactFetch<HealthcareMetaControllerTiers200>(getHealthcareMetaControllerTiersUrl(),
   {
     ...options,
     method: 'GET'
@@ -371,9 +372,9 @@ export const getHealthcareMetaControllerClassesUrl = () => {
  * 상급종합·종합병원·의원 등. 병원 검색의 category 파라미터에 쓴다.
  * @summary 종별 코드
  */
-export const healthcareMetaControllerClasses = async ( options?: RequestInit): Promise<MetaCodeDto[]> => {
+export const healthcareMetaControllerClasses = async ( options?: RequestInit): Promise<HealthcareMetaControllerClasses200> => {
 
-  return reactFetch<MetaCodeDto[]>(getHealthcareMetaControllerClassesUrl(),
+  return reactFetch<HealthcareMetaControllerClasses200>(getHealthcareMetaControllerClassesUrl(),
   {
     ...options,
     method: 'GET'
@@ -472,9 +473,9 @@ export const getHealthcareMetaControllerEquipmentsUrl = () => {
  * CT·MRI·PET 등
  * @summary 장비 코드
  */
-export const healthcareMetaControllerEquipments = async ( options?: RequestInit): Promise<MetaCodeDto[]> => {
+export const healthcareMetaControllerEquipments = async ( options?: RequestInit): Promise<HealthcareMetaControllerEquipments200> => {
 
-  return reactFetch<MetaCodeDto[]>(getHealthcareMetaControllerEquipmentsUrl(),
+  return reactFetch<HealthcareMetaControllerEquipments200>(getHealthcareMetaControllerEquipmentsUrl(),
   {
     ...options,
     method: 'GET'
@@ -573,9 +574,9 @@ export const getHealthcareMetaControllerSeveritiesUrl = () => {
  * 뇌출혈수술·심근경색 재관류 등. 응급 상황에서 갈 수 있는 병원을 가른다.
  * @summary 중증질환 처치가능 코드
  */
-export const healthcareMetaControllerSeverities = async ( options?: RequestInit): Promise<MetaCodeDto[]> => {
+export const healthcareMetaControllerSeverities = async ( options?: RequestInit): Promise<HealthcareMetaControllerSeverities200> => {
 
-  return reactFetch<MetaCodeDto[]>(getHealthcareMetaControllerSeveritiesUrl(),
+  return reactFetch<HealthcareMetaControllerSeverities200>(getHealthcareMetaControllerSeveritiesUrl(),
   {
     ...options,
     method: 'GET'
@@ -651,114 +652,6 @@ export function useHealthcareMetaControllerSeverities<TData = Awaited<ReturnType
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthcareMetaControllerSeveritiesQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-export const getHealthcareMetaControllerRegionsUrl = (params?: HealthcareMetaControllerRegionsParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/healthcare/meta/regions?${stringifiedParams}` : `/healthcare/meta/regions`
-}
-
-/**
- * level=sido 로 시도를, level=sggu&parent=11 로 그 시도의 시군구를 받는다.
- * @summary 지역 코드
- */
-export const healthcareMetaControllerRegions = async (params?: HealthcareMetaControllerRegionsParams, options?: RequestInit): Promise<MetaRegionDto[]> => {
-
-  return reactFetch<MetaRegionDto[]>(getHealthcareMetaControllerRegionsUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getHealthcareMetaControllerRegionsQueryKey = (params?: HealthcareMetaControllerRegionsParams,) => {
-    return [
-    `/healthcare/meta/regions`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getHealthcareMetaControllerRegionsQueryOptions = <TData = Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError = unknown>(params?: HealthcareMetaControllerRegionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getHealthcareMetaControllerRegionsQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthcareMetaControllerRegions>>> = ({ signal }) => healthcareMetaControllerRegions(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type HealthcareMetaControllerRegionsQueryResult = NonNullable<Awaited<ReturnType<typeof healthcareMetaControllerRegions>>>
-export type HealthcareMetaControllerRegionsQueryError = unknown
-
-
-export function useHealthcareMetaControllerRegions<TData = Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError = unknown>(
- params: undefined |  HealthcareMetaControllerRegionsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof healthcareMetaControllerRegions>>,
-          TError,
-          Awaited<ReturnType<typeof healthcareMetaControllerRegions>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof reactFetch>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useHealthcareMetaControllerRegions<TData = Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError = unknown>(
- params?: HealthcareMetaControllerRegionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof healthcareMetaControllerRegions>>,
-          TError,
-          Awaited<ReturnType<typeof healthcareMetaControllerRegions>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof reactFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useHealthcareMetaControllerRegions<TData = Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError = unknown>(
- params?: HealthcareMetaControllerRegionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/**
- * @summary 지역 코드
- */
-
-export function useHealthcareMetaControllerRegions<TData = Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError = unknown>(
- params?: HealthcareMetaControllerRegionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerRegions>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getHealthcareMetaControllerRegionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

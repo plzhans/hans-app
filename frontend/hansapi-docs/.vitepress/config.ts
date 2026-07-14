@@ -42,12 +42,32 @@ const allTags = [...byTag.keys()];
 const ORIGIN_TAGS = ['hira', 'nmc'];
 // '헬스케어' 그룹에 매핑할 태그. origin(hira/nmc)을 통합한 상위 API 이므로
 // 정부데이터 원본과 분리해 별도 상위 그룹으로 노출한다.
-const HEALTHCARE_TAGS = ['healthcare'];
+//
+// **태그를 여기 안 적으면 조용히 '기타' 로 떨어진다.** 화이트리스트라 그렇다.
+// 서버에 @ApiTags 를 새로 추가했다면 이 표에도 적어야 한다. 순서가 사이드바 순서다.
+const HEALTHCARE_TAG_LABELS: Record<string, string> = {
+  // 그룹 제목은 하위 오퍼레이션과 겹치지 않게 짧게 둔다.
+  // '병원 검색' 으로 두면 헬스케어 > 병원 검색 > 병원 검색 이 되어 같은 말이 두 번 나온다.
+  healthcare: '병원',
+  'healthcare-meta': '참조 데이터',
+};
+const HEALTHCARE_TAGS = Object.keys(HEALTHCARE_TAG_LABELS);
+// 최상위 참조 데이터. **도메인 무관이라 헬스케어 밑에 두지 않는다** —
+// 지하철역도 지역 코드도 병원만 쓰는 게 아니다. 병원·학교·약국이 같이 쓴다.
+const TRANSPORT_TAGS = ['transport'];
+const ADDRESS_TAGS = ['region'];
 const originTags = allTags.filter((t) => ORIGIN_TAGS.includes(t));
-const healthcareTags = allTags.filter((t) => HEALTHCARE_TAGS.includes(t));
-// 원본/헬스케어에 매핑되지 않은 나머지 태그는 모두 '기타'로 간다.
+// 스펙에 실제로 있는 태그만, HEALTHCARE_TAG_LABELS 에 적은 순서대로 노출한다.
+const healthcareTags = HEALTHCARE_TAGS.filter((t) => allTags.includes(t));
+const transportTags = allTags.filter((t) => TRANSPORT_TAGS.includes(t));
+const addressTags = allTags.filter((t) => ADDRESS_TAGS.includes(t));
+// 어느 그룹에도 매핑되지 않은 나머지 태그는 모두 '기타'로 간다.
 const etcTags = allTags.filter(
-  (t) => !ORIGIN_TAGS.includes(t) && !HEALTHCARE_TAGS.includes(t),
+  (t) =>
+    !ORIGIN_TAGS.includes(t) &&
+    !HEALTHCARE_TAGS.includes(t) &&
+    !TRANSPORT_TAGS.includes(t) &&
+    !ADDRESS_TAGS.includes(t),
 );
 const firstTag = originTags[0] ?? allTags[0];
 
@@ -86,35 +106,81 @@ export default defineConfig({
     ],
   ],
   // 완전 정적 사이트(vitepress build). base 는 배포 경로에 맞춰 조정한다.
-  base: '/',
+  //
+  // 하나의 Pages 사이트가 여러 환경을 담는다.
+  //   production  →  /          (docs.plzhans.com)
+  //   develop     →  /develop/  (docs.plzhans.com/develop/)
+  //
+  // base 가 틀리면 페이지는 뜨는데 CSS·JS 경로가 어긋나 화면이 깨진다.
+  // 그래서 배포 경로를 아는 쪽(scripts/ci/build-frontend.sh)이 넘겨준다.
+  base: process.env.DOCS_BASE ?? '/',
   themeConfig: {
     nav: [
       { text: '소개', link: '/' },
-      { text: '인증', link: '/auth' },
+      { text: '공통', link: '/common' },
       { text: 'API', link: `/apis/${firstTag}` },
     ],
     sidebar: [
       {
         text: '시작하기',
+        items: [{ text: '소개', link: '/' }],
+      },
+      {
+        // 공통: 모든 API 에 똑같이 적용되는 규칙(인증·다국어)을 **한 페이지**에 모은다.
+        //
+        // 페이지를 쪼개지 않는 이유: 인증과 다국어는 요청 하나에 **같이** 필요하다.
+        // 페이지가 둘이면 읽다 말고 클릭해서 옮겨 다녀야 한다. 사이드바 항목은 페이지 링크가
+        // 아니라 같은 페이지 안의 **섹션 앵커**다 — 눌러도 스크롤만 되고 페이지는 안 바뀐다.
+        text: '공통',
+        link: '/common',
+        collapsed: false,
         items: [
-          { text: '소개', link: '/' },
-          { text: '인증', link: '/auth' },
+          { text: '인증', link: '/common#인증' },
+          { text: '다국어', link: '/common#다국어' },
         ],
       },
-      // 헬스케어: 통합 API. '병원 검색' 하위에 통합 병원 오퍼레이션(앵커)을 나열한다.
+      // 헬스케어: 통합 API. 태그마다 한 그룹이고, 하위는 오퍼레이션 앵커다.
+      //   병원        healthcare       병원 검색·상세
+      //   참조 데이터 healthcare-meta  진료과목·종별·장비 등 검색 조건용 코드
+      // 교통정보·지역 코드는 여기 없다 — 도메인 무관이라 최상위 그룹으로 뺐다.
       ...(healthcareTags.length
         ? [
             {
               text: '헬스케어',
               collapsed: false,
-              items: healthcareTags.map((t) => tagGroup(t, '병원 검색')),
+              items: healthcareTags.map((t) =>
+                tagGroup(t, HEALTHCARE_TAG_LABELS[t]),
+              ),
+            },
+          ]
+        : []),
+      // 교통정보·주소: 도메인 무관 참조 데이터. 태그 층 없이 오퍼레이션을 바로 나열한다 —
+      // 오퍼레이션이 하나뿐이라 태그 그룹을 두면 '주소 > 지역 코드 > 지역 코드' 가 된다.
+      ...(transportTags.length
+        ? [
+            {
+              text: '교통정보',
+              collapsed: false,
+              items: transportTags.flatMap(opItems),
+            },
+          ]
+        : []),
+      ...(addressTags.length
+        ? [
+            {
+              text: '주소',
+              collapsed: false,
+              items: addressTags.flatMap(opItems),
             },
           ]
         : []),
       {
         // 정부데이터 원본: 매핑된 태그(hira/nmc)마다 한 페이지, 하위는 오퍼레이션 앵커.
+        //
+        // **기본으로 접어 둔다.** 캐싱한 원본이라 대부분의 사용자가 볼 일이 없는데,
+        // 오퍼레이션이 11개라 펼쳐 두면 사이드바를 통째로 차지해 위쪽(헬스케어)을 밀어낸다.
         text: '정부데이터 원본',
-        collapsed: false,
+        collapsed: true,
         items: originTags.map((t) => tagGroup(t)),
       },
       // 기타: 태그 층 없이 오퍼레이션(헬스 체크 등)을 바로 나열(앵커 링크).

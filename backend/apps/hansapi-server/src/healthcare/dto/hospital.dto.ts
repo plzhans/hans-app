@@ -112,7 +112,18 @@ export class CodeDto {
   readonly name!: string;
 }
 
-export class RegionDto {
+/**
+ * 병원에 붙어 나오는 지역. **지역 목록(/regions)의 RegionDto 와 다른 타입이다.**
+ *
+ * 이름을 RegionDto 로 두면 안 된다. Swagger 는 클래스 이름으로 스키마 이름을 만들어서,
+ * 같은 이름이 둘이면 components.schemas 의 한 자리를 놓고 충돌한다. 나중에 등록된 쪽이 이기고
+ * 병원 응답의 스키마가 통째로 거짓말이 된다(실제로 그렇게 깨져 있었다 — 이 응답엔 sido 가
+ * 있는데 스펙에는 없어서, 생성된 클라이언트가 sido 를 모르는 상태였다).
+ *
+ * 모양이 다른 이유는 쓰임이 달라서다. 이건 화면에 주소를 찍기 위한 것이라 시도를 품고 있고,
+ * 지역 목록은 검색 조건을 고르기 위한 것이라 level·parentCode 로 계층을 표현한다.
+ */
+export class HospitalRegionDto {
   @ApiProperty({ type: String, example: '11001' })
   readonly code!: string;
 
@@ -147,8 +158,8 @@ export class LocationDto {
   @ApiPropertyOptional({ type: String })
   readonly postNo?: string;
 
-  @ApiPropertyOptional({ type: RegionDto })
-  readonly region?: RegionDto;
+  @ApiPropertyOptional({ type: HospitalRegionDto })
+  readonly region?: HospitalRegionDto;
 
   @ApiPropertyOptional({ type: Number, example: 37.4923 })
   readonly lat?: number;

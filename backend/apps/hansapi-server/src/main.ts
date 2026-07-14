@@ -4,7 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import { config } from 'dotenv';
 import type { Request } from 'express';
-import { loadEnv, resolveAppEnv } from '@hansapi/common';
+import { exitIfVersionFlag, loadEnv, resolveAppEnv } from '@hansapi/common';
 
 // SDK 가 실어보내는 임시 공개 토큰. 이 값이면 요청 origin 을 그대로 반사한다.
 // TODO: 실제 발급되는 public/user 토큰 체계로 대체.
@@ -16,6 +16,10 @@ import {
   SWAGGER_PATH,
   buildOpenApiDocument,
 } from './swagger';
+
+// --version 이면 버전만 찍고 끝낸다. 서버를 띄우지 않는다.
+// 반드시 loadEnv 앞이다. 버전을 물어보는 데 DB 접속정보까지 갖춰져 있어야 할 이유가 없다.
+exitIfVersionFlag(__dirname);
 
 // 환경 설정을 로드한다. backend/env/.env.<환경> 을 APP_ENV 로 고른다.
 // env 파일은 특정 앱이 소유하지 않는다. server·cli 가 같은 DB 를 보므로 접속정보를 중복시키지 않는다.

@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { isAbsolute, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 /** 지원하는 실행 환경. env 파일명(.env.<환경>)과 1:1 대응한다. */
 export const APP_ENVS = ['local', 'dev', 'prod'] as const;
@@ -47,13 +47,45 @@ export interface EnvSource {
 }
 
 /**
+ * backend 루트. env/ 와 temp/ 가 여기 있다.
+ *
+ * **cwd 로 찾으면 안 된다.** CLI 는 `pnpm --filter hansapi-cli start` 로 도는데, 그러면
+ * cwd 가 apps/hansapi-cli 다. 어디서 실행하든 같은 곳을 가리켜야 한다.
+ *
+ * **깊이를 세지도 않는다.** 예전엔 `resolve(appDir, '../../..')` 였는데, 이건 부르는 파일이
+ * src/ 바로 아래일 때만 맞다. commands/ 같은 하위 폴더에서 부르면 한 단계씩 어긋나
+ * backend/apps/temp/ 같은 엉뚱한 곳에 파일이 생긴다(실제로 그랬다). 호출 위치에 따라 답이
+ * 달라지는 함수는 언젠가 반드시 틀린다.
+ *
+ * 그래서 pnpm-workspace.yaml 이 나올 때까지 위로 올라간다. 그게 backend 의 정의다 —
+ * src 로 돌리든 dist 로 돌리든, 어느 파일에서 부르든 같은 곳을 가리킨다.
+ *
+ * @param fromDir 아무 파일의 __dirname
+ */
+export function rootDir(fromDir: string): string {
+  let dir = resolve(fromDir);
+
+  for (;;) {
+    if (existsSync(join(dir, 'pnpm-workspace.yaml'))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      // 루트까지 올라가도 못 찾았다. 워크스페이스 밖에서 실행된 것이다.
+      throw new Error(
+        `backend 루트를 못 찾았다 (pnpm-workspace.yaml 없음). 시작 위치: ${fromDir}`,
+      );
+    }
+    dir = parent;
+  }
+}
+
+/**
  * env 파일들이 있는 디렉토리. 모든 앱이 backend/env/ 를 공유한다.
  * DB 접속정보를 앱마다 중복시키지 않도록 특정 앱이 소유하지 않는다.
- *
- * @param appDir 실행 중인 파일의 디렉토리(__dirname). <backend>/apps/<앱>/{src|dist} 를 전제한다.
  */
 export function envDir(appDir: string): string {
-  return resolve(appDir, '../../../env');
+  return join(rootDir(appDir), 'env');
 }
 
 /**

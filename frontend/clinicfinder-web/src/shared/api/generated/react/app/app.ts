@@ -20,6 +20,10 @@ import type {
   UseQueryResult
 } from '@tanstack/react-query';
 
+import type {
+  BuildInfoDto
+} from '../../model';
+
 import { reactFetch } from '../../../mutator';
 
 
@@ -53,9 +57,9 @@ export const getAppControllerGetHelloUrl = () => {
 /**
  * @summary 헬스 체크
  */
-export const appControllerGetHello = async ( options?: RequestInit): Promise<void> => {
+export const appControllerGetHello = async ( options?: RequestInit): Promise<string> => {
 
-  return reactFetch<void>(getAppControllerGetHelloUrl(),
+  return reactFetch<string>(getAppControllerGetHelloUrl(),
   {
     ...options,
     method: 'GET'
@@ -131,6 +135,106 @@ export function useAppControllerGetHello<TData = Awaited<ReturnType<typeof appCo
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getAppControllerGetHelloQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getAppControllerGetVersionUrl = () => {
+
+
+
+
+  return `/version`
+}
+
+/**
+ * @summary 빌드 버전
+ */
+export const appControllerGetVersion = async ( options?: RequestInit): Promise<BuildInfoDto> => {
+
+  return reactFetch<BuildInfoDto>(getAppControllerGetVersionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAppControllerGetVersionQueryKey = () => {
+    return [
+    `/version`
+    ] as const;
+    }
+
+
+export const getAppControllerGetVersionQueryOptions = <TData = Awaited<ReturnType<typeof appControllerGetVersion>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof appControllerGetVersion>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAppControllerGetVersionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof appControllerGetVersion>>> = ({ signal }) => appControllerGetVersion({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof appControllerGetVersion>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AppControllerGetVersionQueryResult = NonNullable<Awaited<ReturnType<typeof appControllerGetVersion>>>
+export type AppControllerGetVersionQueryError = unknown
+
+
+export function useAppControllerGetVersion<TData = Awaited<ReturnType<typeof appControllerGetVersion>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof appControllerGetVersion>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof appControllerGetVersion>>,
+          TError,
+          Awaited<ReturnType<typeof appControllerGetVersion>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAppControllerGetVersion<TData = Awaited<ReturnType<typeof appControllerGetVersion>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof appControllerGetVersion>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof appControllerGetVersion>>,
+          TError,
+          Awaited<ReturnType<typeof appControllerGetVersion>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAppControllerGetVersion<TData = Awaited<ReturnType<typeof appControllerGetVersion>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof appControllerGetVersion>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 빌드 버전
+ */
+
+export function useAppControllerGetVersion<TData = Awaited<ReturnType<typeof appControllerGetVersion>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof appControllerGetVersion>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAppControllerGetVersionQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -27,6 +27,11 @@ export interface RegionCodeSeed {
 
   cd: string;
   nm: string;
+
+  /** 영어·일본어 이름(표시 전용). 없으면 nm 으로 폴백. **매칭엔 절대 쓰지 않는다.** */
+  nm_en?: string;
+  nm_ja?: string;
+
   level: 'sido' | 'sggu';
   parent_cd?: string;
   hira_cd?: string[];

@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { Page } from '@hansapi/common';
 import { Prisma, PrismaService } from '@hansapi/data';
-import { HOSPITAL_TIERS, INPATIENT_TIERS } from '@hansapi/data/seed';
+import { INPATIENT_TIERS, TIER_NAMES } from '@hansapi/data/seed';
+import {
+  FALLBACK_LANG,
+  pickLangName,
+  type SupportedLang,
+} from '@hansapi/common';
+
+import { pickName } from './code-name';
+import { annotateKo, pickText } from './hospital-text';
 
 import { asString } from '../common/coerce';
 import { stationName } from './station';
@@ -28,21 +36,28 @@ import {
 export class HealthcareHospitalService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(command: HospitalSearchCommand): Promise<Page<HospitalSummary>> {
+  async search(
+    command: HospitalSearchCommand,
+    lang: SupportedLang = FALLBACK_LANG,
+  ): Promise<Page<HospitalSummary>> {
     const where = this.buildWhere(command);
 
     const [rows, total] = await Promise.all([
       this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
         SELECT h.id, h.name, h.tel, h.addr, h.post_no, h.lat, h.lon,
                h.emergency_yn, h.baby_yn, h.emdong_nm,
+               i.name AS i18n_name,
                JSON_UNQUOTE(JSON_EXTRACT(h.transport, '$.subway[0].arrival')) AS station,
-               h.class_cd, c.nm AS class_nm, h.tier,
-               h.region_cd, r.nm AS region_nm,
-               r.parent_cd AS sido_cd, sr.nm AS sido_nm
+               h.class_cd, c.nm AS class_nm, c.nm_en AS class_nm_en, c.nm_ja AS class_nm_ja,
+               h.tier,
+               h.region_cd, r.nm AS region_nm, r.nm_en AS region_nm_en, r.nm_ja AS region_nm_ja,
+               r.parent_cd AS sido_cd,
+               sr.nm AS sido_nm, sr.nm_en AS sido_nm_en, sr.nm_ja AS sido_nm_ja
           FROM healthcare_hospital h
           LEFT JOIN healthcare_code c ON c.tp = 'class' AND c.cd = h.class_cd
           LEFT JOIN region_code r ON r.cd = h.region_cd
           LEFT JOIN region_code sr ON sr.cd = r.parent_cd
+          LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
          WHERE ${where}
          ORDER BY h.id
          LIMIT ${command.size} OFFSET ${(command.page - 1) * command.size}
@@ -53,14 +68,17 @@ export class HealthcareHospitalService {
     ]);
 
     return new Page(
-      rows.map((row) => this.toSummary(row)),
+      rows.map((row) => this.toSummary(row, lang)),
       command.page,
       command.size,
       Number(total[0]?.c ?? 0),
     );
   }
 
-  async get(id: number): Promise<HospitalDetail | null> {
+  async get(
+    id: number,
+    lang: SupportedLang = FALLBACK_LANG,
+  ): Promise<HospitalDetail | null> {
     const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(
       Prisma.sql`
         SELECT h.id, h.name, h.tel, h.addr, h.post_no, h.lat, h.lon,
@@ -68,13 +86,22 @@ export class HealthcareHospitalService {
                h.ykiho, h.hpid,
                h.intro, h.notice, h.directions, h.transport,
                h.park_qty, h.park_paid, h.park_note,
-               h.class_cd, c.nm AS class_nm, h.tier,
-               h.region_cd, r.nm AS region_nm,
-               r.parent_cd AS sido_cd, sr.nm AS sido_nm
+               i.name       AS i18n_name,
+               i.intro      AS i18n_intro,
+               i.notice     AS i18n_notice,
+               i.directions AS i18n_directions,
+               i.park_note  AS i18n_park_note,
+               i.transport  AS i18n_transport,
+               h.class_cd, c.nm AS class_nm, c.nm_en AS class_nm_en, c.nm_ja AS class_nm_ja,
+               h.tier,
+               h.region_cd, r.nm AS region_nm, r.nm_en AS region_nm_en, r.nm_ja AS region_nm_ja,
+               r.parent_cd AS sido_cd,
+               sr.nm AS sido_nm, sr.nm_en AS sido_nm_en, sr.nm_ja AS sido_nm_ja
           FROM healthcare_hospital h
           LEFT JOIN healthcare_code c ON c.tp = 'class' AND c.cd = h.class_cd
           LEFT JOIN region_code r ON r.cd = h.region_cd
           LEFT JOIN region_code sr ON sr.cd = r.parent_cd
+          LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
          WHERE h.id = ${id} AND h.status = 'active'
       `,
     );
@@ -87,7 +114,7 @@ export class HealthcareHospitalService {
     const [subjects, hours, staff, beds, equipments, capabilities] =
       await Promise.all([
         this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT s.subject_cd, c.nm, s.declared, s.doctor_cnt, s.specialist_cnt
+          SELECT s.subject_cd, c.nm, c.nm_en, c.nm_ja, s.declared, s.doctor_cnt, s.specialist_cnt
             FROM healthcare_hospital_subject s
             JOIN healthcare_code c ON c.tp = 'subject' AND c.cd = s.subject_cd
            WHERE s.hospital_id = ${id}
@@ -104,7 +131,7 @@ export class HealthcareHospitalService {
           where: { hospital_id: id },
         }),
         this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT e.equipment_cd, c.nm, e.cnt
+          SELECT e.equipment_cd, c.nm, c.nm_en, c.nm_ja, e.cnt
             FROM healthcare_hospital_equipment e
             JOIN healthcare_code c ON c.tp = 'equipment' AND c.cd = e.equipment_cd
            WHERE e.hospital_id = ${id}
@@ -116,33 +143,40 @@ export class HealthcareHospitalService {
         }),
       ]);
 
+    const parkNote = this.text(row, 'park_note');
+
     return {
-      ...this.toSummary(row),
+      ...this.toSummary(row, lang),
+
+      // 번역된 이름 옆에 붙일 한국어 원문. 번역이 실제로 있을 때만 온다.
+      // 외국인이 영문 링크를 한국인에게 보냈을 때 언어를 안 바꿔도 알아보게 하려는 것이다.
+      nameKo: annotateKo(String(row.name), row.i18n_name as string | null),
+
       sources: {
         ykiho: (row.ykiho as string | null) ?? undefined,
         hpid: (row.hpid as string | null) ?? undefined,
       },
       homepage: (row.homepage as string | null) ?? undefined,
       establishedAt: (row.estb_dd as string | null) ?? undefined,
-      intro: (row.intro as string | null) ?? undefined,
-      notice: (row.notice as string | null) ?? undefined,
-      directions: (row.directions as string | null) ?? undefined,
-      transport: this.transport(row.transport),
+      intro: this.text(row, 'intro'),
+      notice: this.text(row, 'notice'),
+      directions: this.text(row, 'directions'),
+      transport: this.transport(pickText(row.transport, row.i18n_transport)),
       parking:
-        row.park_qty !== null || row.park_note !== null
+        row.park_qty !== null || parkNote !== undefined
           ? {
               capacity: this.num(row.park_qty),
               paid:
                 row.park_paid === null || row.park_paid === undefined
                   ? undefined
                   : Boolean(row.park_paid),
-              note: (row.park_note as string | null) ?? undefined,
+              note: parkNote,
             }
           : undefined,
 
       subjects: subjects.map((s) => ({
         code: String(s.subject_cd),
-        name: String(s.nm),
+        name: this.codeName(s, lang),
         declared: Boolean(s.declared),
         doctorCount: this.num(s.doctor_cnt),
         specialistCount: this.num(s.specialist_cnt),
@@ -188,7 +222,7 @@ export class HealthcareHospitalService {
 
       equipments: equipments.map((e) => ({
         code: String(e.equipment_cd),
-        name: String(e.nm),
+        name: this.codeName(e, lang),
         count: this.num(e.cnt),
       })),
 
@@ -274,7 +308,10 @@ export class HealthcareHospitalService {
     return Prisma.join(conditions, ' AND ');
   }
 
-  private toSummary(row: Record<string, unknown>): HospitalSummary {
+  private toSummary(
+    row: Record<string, unknown>,
+    lang: SupportedLang,
+  ): HospitalSummary {
     const regionCd = row.region_cd as string | null;
     const classCd = asString(row.class_cd);
     const tierCd = asString(row.tier);
@@ -282,12 +319,14 @@ export class HealthcareHospitalService {
 
     return {
       id: Number(row.id),
-      name: String(row.name),
+      // 번역이 있으면 번역, 없으면 한국어 원문. 목록도 번역된 이름으로 나가야
+      // (lang, name) 인덱스가 의미를 갖는다 — 영어 사용자는 영문명으로 찾는다.
+      name: String(pickText(row.name, row.i18n_name)),
       category: classCd
-        ? { code: classCd, name: asString(row.class_nm) ?? '' }
+        ? { code: classCd, name: this.rowName(row, 'class_nm', lang) }
         : undefined,
       // 등급 이름은 시드가 갖는다. DB 에는 코드만 넣어 두 곳에 이름이 생기지 않게 한다.
-      tier: tierCd ? this.tier(tierCd) : undefined,
+      tier: tierCd ? this.tier(tierCd, lang) : undefined,
       tel: (row.tel as string | null) ?? undefined,
       emergency: Boolean(row.emergency_yn),
       baby: Boolean(row.baby_yn),
@@ -300,11 +339,11 @@ export class HealthcareHospitalService {
         region: regionCd
           ? {
               code: regionCd,
-              name: asString(row.region_nm) ?? '',
+              name: this.rowName(row, 'region_nm', lang),
               sido: sidoCd
                 ? {
                     code: sidoCd,
-                    name: asString(row.sido_nm) ?? '',
+                    name: this.rowName(row, 'sido_nm', lang),
                   }
                 : undefined,
               emdong: (row.emdong_nm as string | null) ?? undefined,
@@ -331,17 +370,74 @@ export class HealthcareHospitalService {
     };
   }
 
-  /** 등급 코드 → 이름. 요양·정신은 HOSPITAL_TIERS 에 없다 — 등급이 아니라 성격이라서다. */
-  private tier(code: string): { code: string; name: string } {
-    const tier = HOSPITAL_TIERS.find((t) => t.code === code);
-    if (tier) {
-      return { code, name: tier.name };
-    }
-    const names: Record<string, string> = {
-      NURSING: '요양병원',
-      MENTAL: '정신병원',
-    };
-    return { code, name: names[code] ?? code };
+  /** nm/nm_en/nm_ja 를 그대로 가진 행(진료과목·장비)에서 이름을 고른다. */
+  private codeName(row: Record<string, unknown>, lang: SupportedLang): string {
+    return pickName(
+      {
+        nm: asString(row.nm) ?? '',
+        nm_en: asString(row.nm_en),
+        nm_ja: asString(row.nm_ja),
+      },
+      lang,
+    );
+  }
+
+  /**
+   * 조인해 온 코드 이름을 언어에 맞춰 고른다.
+   *
+   * **SQL 로 언어를 고르지 않는다.** 예전엔 `COALESCE(c.nm_en, c.nm)` 처럼 컬럼식을 동적으로
+   * 만들어 끼웠는데, Prisma.sql 이 그 조각을 평탄화하지 않고 **바인딩 값으로 넣어** 버려서
+   * 응답에 SQL 객체가 그대로 나왔다. 셋 다 SELECT 해서 여기서 고른다 —
+   * 컬럼 두 개가 더 붙을 뿐이고, 동적 SQL 이 사라져 주입 여지도 없다.
+   */
+  private rowName(
+    row: Record<string, unknown>,
+    prefix: string,
+    lang: SupportedLang,
+  ): string {
+    return pickName(
+      {
+        nm: asString(row[prefix]) ?? '',
+        nm_en: asString(row[`${prefix}_en`]),
+        nm_ja: asString(row[`${prefix}_ja`]),
+      },
+      lang,
+    );
+  }
+
+  /**
+   * 등급 코드 → 이름.
+   *
+   * 이름은 **시드(TIER_NAMES)가 유일한 출처다.** 예전엔 요양·정신 이름을 이 서비스가
+   * 하드코딩했는데, 이름이 두 곳에 있으면 반드시 어긋난다.
+   * 모르는 코드면 코드를 그대로 보여준다 — 빈칸보다 낫다.
+   */
+  private tier(
+    code: string,
+    lang: SupportedLang,
+  ): { code: string; name: string } {
+    const name = TIER_NAMES[code as keyof typeof TIER_NAMES];
+    return { code, name: name ? pickLangName(name, lang) : code };
+  }
+
+  /**
+   * 자유 텍스트 한 필드를 언어에 맞춰 고른다.
+   *
+   * SQL 이 원문(h.intro)과 번역(i.intro AS i18n_intro)을 **둘 다 그냥 SELECT** 하고,
+   * 고르는 건 여기서 한다. COALESCE 를 SQL 에 넣지 않는 이유가 둘이다:
+   *   1. 원문이 지워졌는데 번역이 남으면 COALESCE 는 좀비를 내놓는다 (pickText 주석 참고)
+   *   2. Prisma.sql 에 컬럼식을 동적으로 끼워 넣으면 평탄화가 안 돼 바인딩 값으로 들어간다
+   *      — 예전에 응답에 SQL 객체가 그대로 나간 적이 있다. 다시 밟지 않는다.
+   */
+  private text(
+    row: Record<string, unknown>,
+    field: 'intro' | 'notice' | 'directions' | 'park_note',
+  ): string | undefined {
+    const picked = pickText(
+      row[field] as string | null,
+      row[`i18n_${field}`] as string | null,
+    );
+    return picked ?? undefined;
   }
 
   private num(value: unknown): number | undefined {

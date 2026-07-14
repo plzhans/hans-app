@@ -8,6 +8,8 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    // reference/subway-station.json 을 import 한다. tsc 가 outDir 로 함께 복사한다.
+    "resolveJsonModule": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "types": ["node"],

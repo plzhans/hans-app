@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { EnvSource } from '@hansapi/common';
-import { AdminApplicationModule } from '@hansapi/admin-application';
+import { AdminApplicationModule, I18nModule } from '@hansapi/admin-application';
 import { DataModule } from '@hansapi/data';
 
 /**
@@ -69,4 +69,24 @@ export async function withDataContext<T>(
   run: (context: INestApplicationContext) => Promise<T>,
 ): Promise<T> {
   return withContext(DataModule.forRoot(source), run, false, false);
+}
+
+/**
+ * 번역 커맨드용. DB 만 쓴다.
+ *
+ * **admin 컨텍스트를 쓰지 않는 이유는 공공데이터 서비스키다.** 번역은 원문을 DB 에서 뽑고
+ * 번역을 DB 에 넣을 뿐, HIRA·NMC API 를 때리지 않는다. 서비스키가 없다고 번역 export 가
+ * 못 돌 이유가 없다. 요구하는 게 적을수록 돌릴 수 있는 곳이 많다.
+ */
+export async function withI18nContext<T>(
+  source: EnvSource,
+  run: (context: INestApplicationContext) => Promise<T>,
+  options: { verbose?: boolean } = {},
+): Promise<T> {
+  return withContext(
+    I18nModule.forRoot(source),
+    run,
+    options.verbose !== false,
+    false,
+  );
 }

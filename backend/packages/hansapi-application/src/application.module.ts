@@ -13,6 +13,7 @@ import { NmcSubjectService } from './nmc/nmc-subject.service';
 import { NmcHospitalService } from './nmc/nmc-hospital.service';
 import { HealthcareHospitalService } from './healthcare/healthcare-hospital.service';
 import { HealthcareMetaService } from './healthcare/healthcare-meta.service';
+import { RegionService } from './region/region.service';
 
 /**
  * 응용 계층의 DI 진입점. 제공하는 서비스를 여기서 export 하고,
@@ -40,6 +41,7 @@ export class ApplicationModule {
         NmcBabyService,
         HealthcareHospitalService,
         HealthcareMetaService,
+        RegionService,
       ],
       exports: [
         HiraHospitalService,
@@ -53,6 +55,7 @@ export class ApplicationModule {
         NmcBabyService,
         HealthcareHospitalService,
         HealthcareMetaService,
+        RegionService,
       ],
     };
   }

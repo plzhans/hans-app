@@ -40,3 +40,6 @@ pnpm-debug.log*
 
 # Prisma 생성 클라이언트 (pnpm install / build 시 재생성)
 packages/hansapi-data/generated/
+
+# 번역 작업용 중간 산출물 (JSONL). 커밋하지 않는다 — 재생성 가능하고 수 MiB 다.
+/temp/

@@ -4,12 +4,16 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { config } from 'dotenv';
-import { loadEnv, resolveAppEnv } from '@hansapi/common';
+import { exitIfVersionFlag, loadEnv, resolveAppEnv } from '@hansapi/common';
 import { describeError } from '@hansapi/admin-application';
 
 import { AppModule } from './app.module';
 import { BatchScheduler } from './batch.scheduler';
 import { BatchService } from './batch.service';
+
+// --version 이면 버전만 찍고 끝낸다. 배치를 실행하지 않는다.
+// loadEnv 앞이어야 한다. 버전을 물어보는 데 DB 접속정보가 필요할 이유가 없다.
+exitIfVersionFlag(__dirname);
 
 /**
  * 배치 프로세스.

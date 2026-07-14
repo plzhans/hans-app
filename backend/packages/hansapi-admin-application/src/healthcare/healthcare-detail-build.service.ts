@@ -8,6 +8,28 @@ import { isSubjectAllowed } from '@hansapi/data/seed';
 import { CodeMapper } from './code-mapper';
 import { HospitalLocks } from './hospital-lock';
 
+/**
+ * replace() 가 통째로 비울 수 있는 테이블. **이 목록은 함부로 늘리지 마라.**
+ *
+ * replace() 는 `DELETE FROM <table>` 을 WHERE 없이 친다. 여기 적힌 테이블은 전부
+ * 원본에서 파생된 집계라, 지워도 다음 빌드가 똑같이 다시 만든다.
+ *
+ * **healthcare_hospital_i18n 은 여기 들어오면 안 된다.** 이름이 형제처럼 생겼지만
+ * 성질이 정반대다 — 원본에서 파생되지 않고, 돈과 시간을 들여 LLM 으로 얻은 값이라
+ * 지우면 **다시 만들 수 없다**(같은 비용을 또 내야 한다). 사람이 손으로 고친 번역까지
+ * 함께 날아간다. 그래서 규율이 아니라 타입으로 막는다.
+ */
+const REBUILD_TABLES = [
+  'healthcare_hospital_subject',
+  'healthcare_hospital_hours',
+  'healthcare_hospital_staff',
+  'healthcare_hospital_bed',
+  'healthcare_hospital_equipment',
+  'healthcare_hospital_capability',
+] as const;
+
+type RebuildTable = (typeof REBUILD_TABLES)[number];
+
 export interface DetailBuildResult {
   subjects: number;
   hours: number;
@@ -564,8 +586,21 @@ export class HealthcareDetailBuildService {
    * **잠긴 행은 예외다.** 지우지도 않고 다시 만들지도 않는다 —
    * 병원 요청으로 사람이 고친 값이라 그대로 둬야 한다.
    */
+  private assertRebuildable(table: string): asserts table is RebuildTable {
+    // 타입이 이미 막는다. 그런데도 런타임에서 한 번 더 보는 이유는, 바로 아래에서
+    // 이 값이 Prisma.raw() 로 SQL 에 그대로 박히기 때문이다 — 타입은 컴파일 때만 있고,
+    // any 하나만 끼어들면 사라진다. `DELETE FROM <이거>` 를 WHERE 없이 치는 자리라
+    // 방어를 두 겹으로 둔다.
+    if (!(REBUILD_TABLES as readonly string[]).includes(table)) {
+      throw new Error(
+        `replace() 로 지울 수 있는 테이블이 아니다: ${table}. ` +
+          `번역(healthcare_hospital_i18n)처럼 다시 만들 수 없는 것은 여기 오면 안 된다.`,
+      );
+    }
+  }
+
   private async replace(
-    table: string,
+    table: RebuildTable,
     columns: string,
     rows: {
       key: Record<string, unknown>;
@@ -573,6 +608,8 @@ export class HealthcareDetailBuildService {
       value: Prisma.Sql;
     }[],
   ): Promise<void> {
+    this.assertRebuildable(table);
+
     const locked = rows.filter((r) =>
       this.locks.isRowLocked(table, r.hospitalId, r.key),
     );

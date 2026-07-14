@@ -14,6 +14,8 @@ import {
 } from '@nestjs/swagger';
 import { HealthcareHospitalService } from '@hansapi/application';
 
+import { Lang } from '../common/lang.decorator';
+import type { SupportedLang } from '@hansapi/common';
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
 import { ApiPageResponse } from '../common/dto/api-page-response.decorator';
@@ -48,18 +50,22 @@ export class HealthcareHospitalController {
   @ApiPageResponse(HospitalSummaryDto)
   async search(
     @Query() request: HospitalSearchRequestDto,
+    @Lang() lang: SupportedLang,
   ): Promise<PageResponseDto<HospitalSummaryDto>> {
-    const page = await this.service.search({
-      page: request.page,
-      size: request.size,
-      regionCd: request.region,
-      classCds: csv(request.category),
-      tiers: csv(request.tier),
-      subjectCds: csv(request.subject),
-      name: request.name,
-      emergency: request.emergency === 'true',
-      baby: request.baby === 'true',
-    });
+    const page = await this.service.search(
+      {
+        page: request.page,
+        size: request.size,
+        regionCd: request.region,
+        classCds: csv(request.category),
+        tiers: csv(request.tier),
+        subjectCds: csv(request.subject),
+        name: request.name,
+        emergency: request.emergency === 'true',
+        baby: request.baby === 'true',
+      },
+      lang,
+    );
 
     return new PageResponseDto(page, page.items);
   }
@@ -73,8 +79,11 @@ export class HealthcareHospitalController {
   })
   @ApiParam({ name: 'id', description: '통합 병원 id' })
   @ApiOkResponse({ type: HospitalDetailDto })
-  async get(@Param('id', ParseIntPipe) id: number): Promise<HospitalDetailDto> {
-    const hospital = await this.service.get(id);
+  async get(
+    @Param('id', ParseIntPipe) id: number,
+    @Lang() lang: SupportedLang,
+  ): Promise<HospitalDetailDto> {
+    const hospital = await this.service.get(id, lang);
     if (!hospital) {
       throw new NotFoundException(`병원을 찾을 수 없습니다: ${id}`);
     }

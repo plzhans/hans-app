@@ -9,9 +9,13 @@
  * 조회는 메타 API 가 이 파일을 그대로 내려준다.
  */
 
+import type { LangName } from '@hansapi/common';
+
 export interface SubjectGroupSeed {
   code: string;
-  name: string;
+
+  /** 다국어 이름. 우리가 만든 분류라 DB 가 아니라 여기에 이름이 있다. */
+  name: LangName;
 
   /** healthcare_code(tp='subject') 의 cd. 검색은 이 목록을 OR 로 건다. */
   subjects: string[];
@@ -28,35 +32,87 @@ export interface SubjectGroupSeed {
  *    다른 과를 지원하는 과다. 상세 검색의 개별 과목 목록에는 남는다.
  */
 export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
-  { code: 'internal', name: '내과', subjects: ['IM'] },
+  {
+    code: 'internal',
+    name: { ko: '내과', en: 'Internal Medicine', ja: '内科' },
+    subjects: ['IM'],
+  },
 
   // 특정 부위가 아니라 환자 전체를 본다 — 감기·만성질환·검진·예방접종.
   // "어디 갈지 모를 때" 가는 과라서 내과와 묶지 않고 따로 둔다.
-  { code: 'family', name: '가정의학과', subjects: ['FM'] },
+  {
+    code: 'family',
+    name: { ko: '가정의학과', en: 'Family Medicine', ja: '家庭医学科' },
+    subjects: ['FM'],
+  },
 
-  { code: 'pediatrics', name: '소아청소년과', subjects: ['PED'] },
+  {
+    code: 'pediatrics',
+    name: { ko: '소아청소년과', en: 'Pediatrics', ja: '小児科' },
+    subjects: ['PED'],
+  },
 
   // 신경외과가 여기 있는 이유: 신경외과 의원은 실제로 대부분 디스크·목·허리 통증을 본다.
   // 뇌수술을 하는 곳은 종합병원이고, 그 환자는 검색이 아니라 의뢰로 간다.
   {
     code: 'ortho',
-    name: '정형·통증',
+    name: { ko: '정형·통증', en: 'Orthopedics & Pain', ja: '整形・疼痛' },
     subjects: ['OS', 'NS', 'REHAB', 'ANES'],
   },
 
-  { code: 'skin', name: '피부·성형', subjects: ['DERM', 'PS'] },
-  { code: 'eye', name: '안과', subjects: ['OPH'] },
-  { code: 'ent', name: '이비인후과', subjects: ['ENT'] },
-  { code: 'obgy', name: '산부인과', subjects: ['OBGY'] },
-  { code: 'uro', name: '비뇨의학과', subjects: ['URO'] },
-  { code: 'mental', name: '정신건강의학과', subjects: ['PSY'] },
-  { code: 'neuro', name: '신경과', subjects: ['NEURO'] },
-  { code: 'surgery', name: '외과', subjects: ['GS', 'CS'] },
-  { code: 'emergency', name: '응급의학과', subjects: ['EM'] },
+  {
+    code: 'skin',
+    name: {
+      ko: '피부·성형',
+      en: 'Dermatology & Plastic Surgery',
+      ja: '皮膚・形成',
+    },
+    subjects: ['DERM', 'PS'],
+  },
+  {
+    code: 'eye',
+    name: { ko: '안과', en: 'Ophthalmology', ja: '眼科' },
+    subjects: ['OPH'],
+  },
+  {
+    code: 'ent',
+    name: { ko: '이비인후과', en: 'ENT', ja: '耳鼻咽喉科' },
+    subjects: ['ENT'],
+  },
+  {
+    code: 'obgy',
+    name: { ko: '산부인과', en: 'Obstetrics & Gynecology', ja: '産婦人科' },
+    subjects: ['OBGY'],
+  },
+  {
+    code: 'uro',
+    name: { ko: '비뇨의학과', en: 'Urology', ja: '泌尿器科' },
+    subjects: ['URO'],
+  },
+  {
+    code: 'mental',
+    name: { ko: '정신건강의학과', en: 'Psychiatry', ja: '精神科' },
+    subjects: ['PSY'],
+  },
+  {
+    code: 'neuro',
+    name: { ko: '신경과', en: 'Neurology', ja: '神経科' },
+    subjects: ['NEURO'],
+  },
+  {
+    code: 'surgery',
+    name: { ko: '외과', en: 'Surgery', ja: '外科' },
+    subjects: ['GS', 'CS'],
+  },
+  {
+    code: 'emergency',
+    name: { ko: '응급의학과', en: 'Emergency Medicine', ja: '救急医学科' },
+    subjects: ['EM'],
+  },
 
   {
     code: 'dental',
-    name: '치과',
+    name: { ko: '치과', en: 'Dentistry', ja: '歯科' },
     subjects: [
       'DENT',
       'ORTHO',
@@ -72,7 +128,7 @@ export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
 
   {
     code: 'oriental',
-    name: '한방',
+    name: { ko: '한방', en: 'Korean Medicine', ja: '韓方' },
     subjects: [
       'KM_IM',
       'KM_ACU',
@@ -87,15 +143,29 @@ export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
 ];
 
 export interface HospitalTierSeed {
-  code: string;
-  name: string;
+  code: HospitalTier;
 
   /** 설명. 화면에 부제로 쓴다. */
-  cmt: string;
+  cmt: LangName;
 
   /** healthcare_code(tp='class') 의 cd */
   classes: string[];
 }
+
+/**
+ * 등급 이름. **다섯 개가 전부 여기 있다.**
+ *
+ * HOSPITAL_TIERS 에는 TIER1~3 만 있다 — NURSING·MENTAL 은 등급이 아니라 성격이라 거기 못 넣는다.
+ * 그런데 이름은 다섯 개 다 필요하다. 예전엔 서비스가 NURSING/MENTAL 이름을 하드코딩했는데,
+ * 이름이 두 곳에 생기면 반드시 어긋난다. 이름은 여기 한 곳에만 둔다.
+ */
+export const TIER_NAMES: Record<HospitalTier, LangName> = {
+  TIER1: { ko: '의원급', en: 'Clinic level', ja: '医院級' },
+  TIER2: { ko: '병원급', en: 'Hospital level', ja: '病院級' },
+  TIER3: { ko: '상급종합', en: 'Tertiary general', ja: '上級総合' },
+  NURSING: { ko: '요양병원', en: 'Nursing hospital', ja: '療養病院' },
+  MENTAL: { ko: '정신병원', en: 'Psychiatric hospital', ja: '精神病院' },
+};
 
 /**
  * 병원 등급.
@@ -119,8 +189,11 @@ export interface HospitalTierSeed {
 export const HOSPITAL_TIERS: HospitalTierSeed[] = [
   {
     code: 'TIER1',
-    name: '의원급',
-    cmt: '동네 의원. 외래 중심, 병상 30개 미만',
+    cmt: {
+      ko: '동네 의원. 외래 중심, 병상 30개 미만',
+      en: 'Local clinics. Outpatient-focused, under 30 beds',
+      ja: '町の医院。外来中心、病床30床未満',
+    },
     classes: [
       'CLINIC',
       'DENTAL_CLINIC',
@@ -134,8 +207,11 @@ export const HOSPITAL_TIERS: HospitalTierSeed[] = [
   },
   {
     code: 'TIER2',
-    name: '병원급',
-    cmt: '병원·종합병원. 입원 가능, 병상 30개 이상',
+    cmt: {
+      ko: '병원·종합병원. 입원 가능, 병상 30개 이상',
+      en: 'Hospitals and general hospitals. Inpatient care, 30+ beds',
+      ja: '病院・総合病院。入院可能、病床30床以上',
+    },
     // 정신병원(MENTAL)은 병상 규모로는 2차지만 여기 넣지 않는다.
     // 장기 입원 시설이라 INPATIENT_ONLY_CLASSES 로 따로 뺀다 — 두 곳에 두면 서로 어긋난다.
     classes: [
@@ -149,9 +225,12 @@ export const HOSPITAL_TIERS: HospitalTierSeed[] = [
   },
   {
     code: 'TIER3',
-    name: '상급종합',
     // 진료의뢰서 없이 가면 진료비 전액을 본인이 낸다. 화면에서 경고해야 한다.
-    cmt: '상급종합병원. 중증질환 중심, 진료의뢰서 필요',
+    cmt: {
+      ko: '상급종합병원. 중증질환 중심, 진료의뢰서 필요',
+      en: 'Tertiary general hospitals. Severe cases, referral required',
+      ja: '上級総合病院。重症疾患中心、紹介状が必要',
+    },
     classes: ['TERTIARY'],
   },
 ];

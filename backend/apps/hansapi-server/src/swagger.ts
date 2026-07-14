@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
 
+import { buildInfo } from './build-info';
 import { mergeKrDataSchemas } from './krdata-schemas';
 
 // Swagger UI 경로. production 이 아닐 때만 문서를 노출한다.
@@ -31,7 +32,7 @@ const LOCAL: ServerDef = {
   description: 'Local',
 };
 const DEVELOPMENT: ServerDef = {
-  url: 'https://development-api.plzhans.com',
+  url: 'https://develop-api.plzhans.com',
   description: 'Development',
 };
 const PRODUCTION: ServerDef = {
@@ -110,7 +111,14 @@ export function buildOpenApiDocument(
   const builder = new DocumentBuilder()
     .setTitle('Hans API')
     .setDescription('Hans API backend 문서')
-    .setVersion(process.env.npm_package_version ?? '0.0.1')
+    // 여기는 sha 가 붙지 않은 semver 다(0.0.1). 이 함수가 커밋되는 스펙 파일도 만들기 때문에
+    // (openapi:gen → docs/openapi/openapi_hansapi.json), sha 를 넣으면 커밋마다 스펙이 바뀐다.
+    //
+    // 이전 값(process.env.npm_package_version ?? '0.0.1')은 `pnpm run` 으로 띄울 때만 들어와서,
+    // 운영(node dist/main)에서는 늘 폴백인 '0.0.1' 이 찍혔다. 이제 package.json 이 유일한 출처다.
+    //
+    // "떠 있는 서버가 어느 커밋이냐" 는 GET /version 이 sha 까지 답한다.
+    .setVersion(buildInfo().semver)
     // Bearer 토큰 인증 스킴을 선언한다. 전역 요구가 아니라 @Auth() 데코레이터가 붙은
     // 컨트롤러/핸들러에만 적용된다(@ApiBearerAuth). 헬스체크(@Public)에는 적용되지 않는다.
     .addBearerAuth(

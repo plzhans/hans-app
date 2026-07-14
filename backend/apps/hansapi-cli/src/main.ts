@@ -8,6 +8,7 @@ import {
   APP_ENVS,
   DEFAULT_APP_ENV,
   EnvSource,
+  exitIfVersionFlag,
   loadEnv,
   resolveAppEnv,
 } from '@hansapi/common';
@@ -19,6 +20,7 @@ import { syncStatusCommand } from './commands/stage';
 import { hiraCommand } from './commands/hira';
 import { healthcareCommand } from './commands/healthcare';
 import { hiraNmcCommand } from './commands/hira-nmc';
+import { i18nCommand } from './commands/i18n';
 import { nmcCommand } from './commands/nmc';
 import { addExamples, localizeHelp } from './help';
 
@@ -38,6 +40,11 @@ function bootstrapEnv(): EnvSource {
   process.env.APP_ENV = appEnv;
   return loadEnv(__dirname, appEnv, config);
 }
+
+// --version 이면 버전만 찍고 끝낸다.
+// env 로딩(bootstrapEnv) 앞이어야 한다. 버전을 물어보는 데 DB 접속정보가 필요할 이유가 없고,
+// env 파일이 없는 머신에서도 "이게 무슨 빌드냐" 는 답할 수 있어야 한다.
+exitIfVersionFlag(__dirname);
 
 let envSource: EnvSource;
 try {
@@ -61,6 +68,7 @@ const program = new Command()
   .addCommand(hiraCommand(envSource))
   .addCommand(hiraNmcCommand(envSource))
   .addCommand(healthcareCommand(envSource))
+  .addCommand(i18nCommand(envSource))
   .addCommand(dbCommand(envSource))
   .addCommand(syncStatusCommand(envSource));
 

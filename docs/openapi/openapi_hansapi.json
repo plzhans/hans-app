@@ -7,10 +7,40 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Hello World!"
+              }
+            }
           }
         },
         "summary": "헬스 체크",
+        "tags": [
+          "app"
+        ]
+      }
+    },
+    "/version": {
+      "get": {
+        "operationId": "AppController_getVersion",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildInfoDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "빌드 버전",
         "tags": [
           "app"
         ]
@@ -753,10 +783,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MetaCodeDto"
-                  }
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaCodeDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -784,10 +825,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MetaSubjectGroupDto"
-                  }
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaSubjectGroupDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -815,10 +867,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MetaHospitalTierDto"
-                  }
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaHospitalTierDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -846,10 +909,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MetaCodeDto"
-                  }
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaCodeDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -877,10 +951,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MetaCodeDto"
-                  }
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaCodeDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -908,10 +993,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MetaCodeDto"
-                  }
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaCodeDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -928,10 +1024,38 @@
         ]
       }
     },
-    "/healthcare/meta/regions": {
+    "/transport/subway-stations": {
       "get": {
-        "description": "level=sido 로 시도를, level=sggu&parent=11 로 그 시도의 시군구를 받는다.",
-        "operationId": "HealthcareMetaController_regions",
+        "description": "병원 상세의 교통정보(`transport.subway[].arrival`)에 나오는 하차역명을 화면에서 다국어로 보여줄 때 쓴다.\n\n**언어를 한꺼번에 다 내린다.** 다른 API 와 달리 `Accept-Language` 를 보지 않는다 — 화면에 나온 역명을 **찾아 바꾸는** 용도라, 클라이언트가 통째로 받아 맵으로 들고 쓰기 때문이다. 언어를 바꿀 때 다시 받을 필요가 없다.\n\n**필터도 페이징도 없다.** 세 언어를 다 담아도 응답이 gzip 십수 KB 밖에 안 된다.\n\n`Cache-Control: private, max-age=3600` 이 붙는다. 브라우저가 한 시간 캐시한다.\n\n**응답의 `version` 과 `ETag` 에 원본 데이터의 배포일자가 담긴다.** `If-None-Match` 로 재검증하면 바뀐 게 없을 때 **304** 가 오고 본문은 안 내려온다. 원본 갱신 주기가 길어(연 1~2회) 대부분의 재검증이 304 다.\n\n출처: 국가철도공단 전국 도시광역철도 역사정보 (표준데이터). 전국 도시철도를 모두 덮는다 — 수도권·부산·대구·대전·광주.",
+        "operationId": "TransportController_subwayStations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubwayStationListDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "지하철역 목록",
+        "tags": [
+          "transport"
+        ]
+      }
+    },
+    "/regions": {
+      "get": {
+        "description": "시도 → 시군구 2단계다.\n\n`level=sido` 로 시도를, `level=sggu&parent=11` 로 그 시도의 시군구를 받는다.\n\n병원 검색의 `region` 파라미터에 시군구 코드를 넘긴다.",
+        "operationId": "RegionController_list",
         "parameters": [
           {
             "name": "level",
@@ -961,10 +1085,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MetaRegionDto"
-                  }
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/RegionDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -977,7 +1112,7 @@
         ],
         "summary": "지역 코드",
         "tags": [
-          "healthcare-meta"
+          "region"
         ]
       }
     }
@@ -995,7 +1130,7 @@
       "description": "Local"
     },
     {
-      "url": "https://development-api.plzhans.com",
+      "url": "https://develop-api.plzhans.com",
       "description": "Development"
     }
   ],
@@ -1010,6 +1145,53 @@
       }
     },
     "schemas": {
+      "BuildInfoDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "example": "0.0.1+a1b2c3d",
+            "description": "표시·로그용 버전"
+          },
+          "tagVersion": {
+            "type": "string",
+            "example": "0.0.1-a1b2c3d",
+            "description": "docker 태그·파일명용 ('+' 를 못 쓰는 곳)"
+          },
+          "semver": {
+            "type": "string",
+            "example": "0.0.1",
+            "description": "package.json 의 버전"
+          },
+          "sha": {
+            "type": "string",
+            "example": "a1b2c3d4e5f6...",
+            "description": "빌드된 커밋. 이게 진짜 신원이다."
+          },
+          "branch": {
+            "type": "string",
+            "example": "main"
+          },
+          "builtAt": {
+            "type": "string",
+            "example": "2026-07-14T02:45:00Z"
+          },
+          "node": {
+            "type": "string",
+            "example": "24.18.0",
+            "description": "빌드에 쓰인 node 버전"
+          }
+        },
+        "required": [
+          "version",
+          "tagVersion",
+          "semver",
+          "sha",
+          "branch",
+          "builtAt",
+          "node"
+        ]
+      },
       "KrDataHeaderDto": {
         "type": "object",
         "properties": {
@@ -1365,7 +1547,7 @@
           "name"
         ]
       },
-      "RegionDto": {
+      "HospitalRegionDto": {
         "type": "object",
         "properties": {
           "code": {
@@ -1409,7 +1591,7 @@
             "type": "string"
           },
           "region": {
-            "$ref": "#/components/schemas/RegionDto"
+            "$ref": "#/components/schemas/HospitalRegionDto"
           },
           "lat": {
             "type": "number",
@@ -1863,6 +2045,21 @@
           "capabilities"
         ]
       },
+      "ListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "목록 항목",
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
       "MetaCodeDto": {
         "type": "object",
         "properties": {
@@ -1938,7 +2135,62 @@
           "classes"
         ]
       },
-      "MetaRegionDto": {
+      "SubwayStationDto": {
+        "type": "object",
+        "properties": {
+          "ko": {
+            "type": "string",
+            "example": "총신대입구",
+            "description": "한국어 역명. **이게 키다.**\n\n병원 상세의 `transport.subway[].arrival`(예: '총신대입구역 3번 출구')에서 역명을 뽑아 이 값과 맞춘다. '역' 접미사와 부역명 괄호는 이미 떼어져 있다."
+          },
+          "en": {
+            "type": "string",
+            "example": "Chongshin Univ.(Isu)",
+            "description": "영문 역명. 원본이 전 역에 주므로 사실상 항상 있다.\n\n**없으면 `ko` 를 대신 보여줘라.** 지어내면 안 된다."
+          },
+          "ja": {
+            "type": "string",
+            "example": "チョンシンデイック",
+            "description": "일문 역명. **대구·대전·인천공항 역들은 비어 있다** — 원본이 주지 않는다.\n\n**없으면 `ko` 를 대신 보여줘라.** 빈칸을 그대로 두면 화면이 빈다."
+          },
+          "lines": {
+            "example": [
+              "4호선"
+            ],
+            "description": "이 역을 지나는 노선. 환승역이면 여러 개다.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ko",
+          "lines"
+        ]
+      },
+      "SubwayStationListDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "example": "20260701",
+            "description": "원본 데이터셋의 배포일자 (`YYYYMMDD`).\n\n**이 값이 그대로면 역 목록도 그대로다.** 저장해 둔 버전과 같으면 다시 파싱할 필요가 없다.\n\n원본 갱신 주기가 길어(연 1~2회) 자주 바뀌지 않는다."
+          },
+          "items": {
+            "description": "역 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubwayStationDto"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "items"
+        ]
+      },
+      "RegionDto": {
         "type": "object",
         "properties": {
           "code": {
