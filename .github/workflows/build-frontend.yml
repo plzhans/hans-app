@@ -29,7 +29,9 @@ on:
         default: develop
 
 jobs:
-  web:
+  # 프론트가 여러 개 생길 예정이라, 프로젝트마다 잡 하나다.
+  # 잡을 추가할 때 바꾸는 건 세 줄뿐이다 — PROJECT, VAR_PREFIX, 캐시 키.
+  medifinder-web:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/plzhans/hans-api/node-builder:node24
@@ -40,6 +42,11 @@ jobs:
 
     env:
       APP_ENV: ${{ inputs.environment || 'develop' }}
+      # frontend/ 아래의 디렉터리 이름 그대로. 이름이 바뀌면(→ medifinder-web) 여기만 고친다.
+      PROJECT: clinicfinder-web
+      # 이 프로젝트의 변수 접두사. 프론트가 여러 개면 environment 하나에 VITE_API_BASE_URL 이
+      # 여러 벌 필요해지는데, 이름이 같으면 서로 덮어쓴다. 그래서 프로젝트별로 접두사를 단다.
+      VAR_PREFIX: MEDIFINDER_WEB_
 
     steps:
       - uses: actions/checkout@v5
@@ -47,32 +54,47 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: pnpm-web-${{ hashFiles('frontend/clinicfinder-web/pnpm-lock.yaml') }}
-          restore-keys: pnpm-web-
+          key: pnpm-clinicfinder-web-${{ hashFiles('frontend/clinicfinder-web/pnpm-lock.yaml') }}
+          restore-keys: pnpm-clinicfinder-web-
 
-      # VITE_* 는 전부 클라이언트 번들에 그대로 구워져 나간다. 즉 브라우저에서 다 보인다.
-      # 그래서 여기 있는 값 중 진짜 비밀은 없다. API_KEY 만 Secrets 에 둔 건 로그·화면에
-      # 굳이 흘리지 않기 위해서지, 번들에서 감출 수 있어서가 아니다.
+      # 접두사가 붙은 변수·시크릿을 골라 접두사를 떼고 .env 로 쓴다.
+      #   MEDIFINDER_WEB_VITE_API_BASE_URL  →  VITE_API_BASE_URL
       #
-      # 값이 비면 vite 는 조용히 빈 문자열을 박는다. 빌드는 "성공" 하고 앱만 죽는다.
-      # 그래서 build-frontend.sh 가 필수 키를 검사해 크게 실패시킨다.
+      # 키 목록을 여기 적지 않는다. 적어두면 프론트가 키를 하나 늘릴 때마다 워크플로우를
+      # 같이 고쳐야 하고, 빼먹으면 빈 값이 조용히 번들에 박힌다.
+      #
+      # VITE_* 는 전부 클라이언트 번들에 구워져 나간다. 즉 브라우저에서 다 보인다.
+      # 그래서 여기 있는 값 중 진짜 비밀은 없다. API_KEY 를 Secrets 에 두는 건 로그에
+      # 굳이 흘리지 않기 위해서지, 번들에서 감출 수 있어서가 아니다.
       - name: .env.${{ env.APP_ENV }} 생성
         working-directory: frontend/clinicfinder-web
+        env:
+          ALL_VARS: ${{ toJSON(vars) }}
+          ALL_SECRETS: ${{ toJSON(secrets) }}
         run: |
           umask 077
-          cat > ".env.$APP_ENV" <<EOF
-          VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL }}
-          VITE_API_KEY=${{ secrets.VITE_API_KEY }}
-          VITE_NCLOUD_CLIENT_ID=${{ vars.VITE_NCLOUD_CLIENT_ID }}
-          VITE_SHOW_INTEGRATION_INFO=${{ vars.VITE_SHOW_INTEGRATION_INFO }}
-          VITE_SITE_URL=${{ vars.VITE_SITE_URL }}
-          EOF
+          pick() {
+            jq -r --arg p "$VAR_PREFIX" '
+              to_entries[]
+              | select(.key | startswith($p))
+              | "\(.key | ltrimstr($p))=\(.value)"
+            '
+          }
+          {
+            printf '%s' "$ALL_VARS"    | pick
+            printf '%s' "$ALL_SECRETS" | pick
+          } > ".env.$APP_ENV"
 
-      - run: ./scripts/ci/build-frontend.sh web "$APP_ENV"
+          # 값은 찍지 않는다. 어떤 키가 왔는지만 남긴다.
+          echo "생성된 키: $(cut -d= -f1 ".env.$APP_ENV" | sort | tr '\n' ' ')"
+
+      # 빈 값이 오면 vite 는 조용히 빈 문자열을 박는다. 빌드는 "성공" 하고 앱만 죽는다.
+      # build-frontend.sh 가 필수 키를 검사해 여기서 크게 실패시킨다.
+      - run: ./scripts/ci/build-frontend.sh "$PROJECT" "$APP_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: clinicfinder-web-${{ env.APP_ENV }}
+          name: ${{ env.PROJECT }}-${{ env.APP_ENV }}
           path: frontend/clinicfinder-web/dist
           retention-days: 7
 
@@ -90,9 +112,12 @@ jobs:
           key: pnpm-docs-${{ hashFiles('frontend/hansapi-docs/pnpm-lock.yaml') }}
           restore-keys: pnpm-docs-
 
+      # 여기는 **빌드가 되는지만** 본다. 실제 배포는 deploy-docs.yml 이 한다.
+      # 그래서 환경은 develop 으로 고정한다(servers·base 는 배포 워크플로우가 환경별로 넘긴다).
+      #
       # 레포에 커밋된 docs/openapi/openapi_hansapi.json 을 그대로 쓴다. DB 가 필요 없다.
       # (스펙 재생성은 앱을 부팅해 DB 에 붙어야 하므로 CI 에서 하지 않는다)
-      - run: ./scripts/ci/build-frontend.sh docs
+      - run: ./scripts/ci/build-frontend.sh hansapi-docs develop
 
       - uses: actions/upload-artifact@v4
         with:

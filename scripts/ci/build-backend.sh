@@ -12,7 +12,8 @@
 # 호스트의 node 버전을 쓰므로 CI 와 완전히 같지는 않다. make 타겟은 컨테이너 안에서 돈다.
 set -euo pipefail
 
-cd "$(dirname "$0")/../../backend"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/../../backend"
 
 # GitHub Actions 에서는 접히는 그룹으로, 로컬에서는 그냥 한 줄로 보이게 한다.
 group() {
@@ -51,6 +52,18 @@ endgroup
 group "test"
 # 지금은 스캐폴드 테스트 1 개뿐이다. 늘어나면 여기가 그대로 받는다.
 pnpm -r test
+endgroup
+
+# 산출물 안에 자기 신원을 박는다. 이게 없으면 서버에 뭐가 떠 있는지 알 방법이 없다.
+# 배포 단위(dist)와 같이 다니므로, 산출물만 보고도 어느 커밋인지 알 수 있다.
+group "build-info"
+for app_dir in apps/*/; do
+  [ -d "$app_dir/dist" ] || continue
+  "$SCRIPT_DIR/version.sh" "$app_dir" > "$app_dir/dist/build-info.json"
+  printf '  %-16s %s\n' \
+    "$(basename "$app_dir")" \
+    "$(jq -r .version "$app_dir/dist/build-info.json")"
+done
 endgroup
 
 echo "✅ backend OK"

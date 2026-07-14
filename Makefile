@@ -6,10 +6,13 @@
 # backend 개발용 명령(dev, db-up 등)은 backend/Makefile 에 있다.
 
 .DEFAULT_GOAL := help
-.PHONY: help ci-build-backend ci-build-web ci-build-docs ci-shell
+.PHONY: help ci-build-backend ci-build-front ci-shell
 
-# clinicfinder-web 은 환경별 .env 를 읽는다. 기본은 develop.
-#   make ci-build-web ENV=production
+# 프론트는 각자 독립 프로젝트다(각자 lockfile). 그래서 어느 것을 빌드할지 지정해야 한다.
+# APP 은 frontend/ 아래의 디렉터리 이름 그대로다.
+#   make ci-build-front APP=clinicfinder-web ENV=production
+#   make ci-build-front APP=hansapi-docs
+APP ?=
 ENV ?= develop
 
 help: ## 사용 가능한 명령 목록
@@ -19,11 +22,13 @@ help: ## 사용 가능한 명령 목록
 ci-build-backend: ## backend 를 CI 와 같은 컨테이너에서 빌드 (CI 재현)
 	@scripts/ci/run-in-builder.sh ./scripts/ci/build-backend.sh
 
-ci-build-web: ## clinicfinder-web 을 CI 와 같은 컨테이너에서 빌드 (ENV=develop|staging|production)
-	@scripts/ci/run-in-builder.sh ./scripts/ci/build-frontend.sh web $(ENV)
-
-ci-build-docs: ## hansapi-docs 를 CI 와 같은 컨테이너에서 빌드
-	@scripts/ci/run-in-builder.sh ./scripts/ci/build-frontend.sh docs
+ci-build-front: ## 프론트를 CI 와 같은 컨테이너에서 빌드 (APP=<frontend 디렉터리명> [ENV=develop|staging|production])
+	@test -n "$(APP)" || { \
+		echo "APP 을 지정할 것. 예: make ci-build-front APP=clinicfinder-web ENV=develop"; \
+		echo "현재 있는 것:"; ls -1 frontend; \
+		exit 2; \
+	}
+	@scripts/ci/run-in-builder.sh ./scripts/ci/build-frontend.sh $(APP) $(ENV)
 
 ci-shell: ## CI 와 같은 컨테이너 안에서 셸 열기 (디버깅)
 	@scripts/ci/run-in-builder.sh bash

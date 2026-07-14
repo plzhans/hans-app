@@ -35,10 +35,20 @@ fi
 # 볼륨을 pnpm 의 **기본 store 경로에 그대로** 붙인다. 경로를 옮기려면 --store-dir 플래그를
 # 써야 하는데(pnpm 11 은 .npmrc 의 store-dir 도, PNPM_STORE_DIR 도 읽지 않는다),
 # 그러면 build-backend.sh 가 컨테이너 사정을 알아야 한다. 기본 경로에 붙이면 아무도 몰라도 된다.
+# .git 은 컨테이너로 복사하지 않는다(느리고 빌드에 필요 없다). 그래서 컨테이너 안에서는
+# git 에 물어볼 수가 없다. 산출물에 박을 신원(sha·브랜치·dirty)은 호스트가 계산해 넘긴다.
+git_sha=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)
+git_branch=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
+git_dirty=0
+[ -n "$(git -C "$REPO_ROOT" status --porcelain -uno 2>/dev/null)" ] && git_dirty=1
+
 docker run --rm "${tty_flags[@]}" \
   -v "$REPO_ROOT:/src:ro" \
   -v hansapi-pnpm-store:/root/.local/share/pnpm/store \
   -e CI=1 \
+  -e GIT_SHA="$git_sha" \
+  -e GIT_BRANCH="$git_branch" \
+  -e GIT_DIRTY="$git_dirty" \
   -w /workspace \
   "$IMAGE" \
   bash -euo pipefail -c '
