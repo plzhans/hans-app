@@ -6,7 +6,11 @@
 # backend 개발용 명령(dev, db-up 등)은 backend/Makefile 에 있다.
 
 .DEFAULT_GOAL := help
-.PHONY: help ci-build-backend ci-shell
+.PHONY: help ci-build-backend ci-build-web ci-build-docs ci-shell
+
+# clinicfinder-web 은 환경별 .env 를 읽는다. 기본은 develop.
+#   make ci-build-web ENV=production
+ENV ?= develop
 
 help: ## 사용 가능한 명령 목록
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -14,6 +18,12 @@ help: ## 사용 가능한 명령 목록
 
 ci-build-backend: ## backend 를 CI 와 같은 컨테이너에서 빌드 (CI 재현)
 	@scripts/ci/run-in-builder.sh ./scripts/ci/build-backend.sh
+
+ci-build-web: ## clinicfinder-web 을 CI 와 같은 컨테이너에서 빌드 (ENV=develop|staging|production)
+	@scripts/ci/run-in-builder.sh ./scripts/ci/build-frontend.sh web $(ENV)
+
+ci-build-docs: ## hansapi-docs 를 CI 와 같은 컨테이너에서 빌드
+	@scripts/ci/run-in-builder.sh ./scripts/ci/build-frontend.sh docs
 
 ci-shell: ## CI 와 같은 컨테이너 안에서 셸 열기 (디버깅)
 	@scripts/ci/run-in-builder.sh bash

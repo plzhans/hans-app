@@ -54,7 +54,8 @@
     "refreshing": "(更新中)",
     "empty": "検索結果がありません。",
     "collapse": "折りたたむ",
-    "more": "+{{count}}件"
+    "more": "+{{count}}件",
+    "optionCount": "{{count}}件"
   },
   "clinic": {
     "badge": {

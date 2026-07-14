@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui/Input';
 import { Combobox } from '@/shared/ui/Combobox';
 import { Button } from '@/shared/ui/Button';
@@ -232,7 +231,8 @@ export default function SearchPage() {
     })),
     ...tierCds.map((code) => ({
       code,
-      name: tiers?.find((t) => t.code === code)?.name ?? t('search.inpatient'),
+      // find 콜백 인자를 t 로 두면 번역 함수 t 를 가린다. 이름을 겹치지 않게 둔다.
+      name: tiers?.find((item) => item.code === code)?.name ?? t('search.inpatient'),
       remove: () =>
         update({ tier: tierCds.filter((c) => c !== code).join(',') }),
     })),
@@ -308,7 +308,7 @@ export default function SearchPage() {
                   active ? tab.dot : 'text-slate-400',
                 )}
               />
-              {tab.name}
+              {t(`search.tabs.${tab.key}`)}
             </button>
           );
         })}
@@ -504,7 +504,7 @@ export default function SearchPage() {
 
       <p className="mt-4 text-sm text-slate-500">
         {isLoading ? t('common.loading') : t('search.count', { count: total })}
-        {isFetching && !isLoading && }
+        {isFetching && !isLoading && ` ${t('search.refreshing')}`}
       </p>
 
       {isLoading && (
@@ -616,6 +616,7 @@ function FilterRow({
   /** 행 전체를 접어 둔다. 항목이 많고(47개) 대부분의 사용자가 안 쓰는 행에 준다. */
   collapsible?: boolean;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   /** 접힌 행은 라벨만 보인다. 고른 게 있으면 펴서 보여준다 — 숨긴 필터가 살아 있으면 안 된다. */
@@ -641,7 +642,8 @@ function FilterRow({
           {label}
         </span>
         <span className="flex flex-1 items-center gap-1 px-3 py-3 text-sm text-slate-400">
-          {options.length}개 <ChevronDown className="h-4 w-4" />
+          {t('search.optionCount', { count: options.length })}{' '}
+          <ChevronDown className="h-4 w-4" />
         </span>
       </button>
     );
@@ -700,7 +702,7 @@ function FilterRow({
             onClick={() => setExpanded(!expanded)}
             className="mt-1.5 text-xs font-medium text-slate-500 hover:text-primary-600"
           >
-            {expanded ? '접기' : `${hidden}개 +`}
+            {expanded ? t('search.collapse') : t('search.more', { count: hidden })}
           </button>
         )}
       </div>

@@ -54,7 +54,8 @@
     "refreshing": "(updating)",
     "empty": "No results found.",
     "collapse": "Collapse",
-    "more": "+{{count}} more"
+    "more": "+{{count}} more",
+    "optionCount": "{{count}} items"
   },
   "clinic": {
     "badge": {

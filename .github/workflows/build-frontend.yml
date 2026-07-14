@@ -1,0 +1,101 @@
+name: build frontend
+
+# 이 워크플로우도 **빌드 방법을 모른다.** scripts/ci/build-frontend.sh 를 호출만 한다.
+# 로컬에서 같은 것을 돌리려면: make ci-build-web ENV=develop / make ci-build-docs
+#
+# 워크플로우가 하는 일은 딱 하나 더 있다 — 레포에 없는 .env 를 만들어 주는 것이다.
+# clinicfinder-web 의 .env.<환경> 은 gitignore 라 CI 에는 존재하지 않는다.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'docs/openapi/**'
+      - 'scripts/ci/build-frontend.sh'
+      - '.github/workflows/build-frontend.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'docs/openapi/**'
+      - 'scripts/ci/build-frontend.sh'
+      - '.github/workflows/build-frontend.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'clinicfinder-web 을 어느 환경으로 빌드할지'
+        type: choice
+        options: [develop, staging, production]
+        default: develop
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/plzhans/hans-api/node-builder:node24
+
+    # 환경별로 값이 다르다. Variables/Secrets 는 이 environment 에 걸어 둔다.
+    # (레포 → Settings → Environments → develop/staging/production)
+    environment: ${{ inputs.environment || 'develop' }}
+
+    env:
+      APP_ENV: ${{ inputs.environment || 'develop' }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-web-${{ hashFiles('frontend/clinicfinder-web/pnpm-lock.yaml') }}
+          restore-keys: pnpm-web-
+
+      # VITE_* 는 전부 클라이언트 번들에 그대로 구워져 나간다. 즉 브라우저에서 다 보인다.
+      # 그래서 여기 있는 값 중 진짜 비밀은 없다. API_KEY 만 Secrets 에 둔 건 로그·화면에
+      # 굳이 흘리지 않기 위해서지, 번들에서 감출 수 있어서가 아니다.
+      #
+      # 값이 비면 vite 는 조용히 빈 문자열을 박는다. 빌드는 "성공" 하고 앱만 죽는다.
+      # 그래서 build-frontend.sh 가 필수 키를 검사해 크게 실패시킨다.
+      - name: .env.${{ env.APP_ENV }} 생성
+        working-directory: frontend/clinicfinder-web
+        run: |
+          umask 077
+          cat > ".env.$APP_ENV" <<EOF
+          VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL }}
+          VITE_API_KEY=${{ secrets.VITE_API_KEY }}
+          VITE_NCLOUD_CLIENT_ID=${{ vars.VITE_NCLOUD_CLIENT_ID }}
+          VITE_SHOW_INTEGRATION_INFO=${{ vars.VITE_SHOW_INTEGRATION_INFO }}
+          VITE_SITE_URL=${{ vars.VITE_SITE_URL }}
+          EOF
+
+      - run: ./scripts/ci/build-frontend.sh web "$APP_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clinicfinder-web-${{ env.APP_ENV }}
+          path: frontend/clinicfinder-web/dist
+          retention-days: 7
+
+  docs:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/plzhans/hans-api/node-builder:node24
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-docs-${{ hashFiles('frontend/hansapi-docs/pnpm-lock.yaml') }}
+          restore-keys: pnpm-docs-
+
+      # 레포에 커밋된 docs/openapi/openapi_hansapi.json 을 그대로 쓴다. DB 가 필요 없다.
+      # (스펙 재생성은 앱을 부팅해 DB 에 붙어야 하므로 CI 에서 하지 않는다)
+      - run: ./scripts/ci/build-frontend.sh docs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hansapi-docs
+          path: frontend/hansapi-docs/.vitepress/dist
+          retention-days: 7

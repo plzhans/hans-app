@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LangLink } from '@/shared/i18n/LangLink';
 import {
   ArrowLeft,
@@ -20,7 +21,6 @@ import { NaverMap } from '@/shared/components/map/NaverMap';
 import {
   useHospitalDetail,
   stationName,
-  DAY_LABELS,
   formatTime,
   todayDay,
   tomorrowDay,
@@ -79,14 +79,18 @@ interface TransportStop {
  * 구분이 안 된다 — 지하철은 "○○역" 이라 저절로 구분되지만 버스는 아니다.
  * 이미 "정류장"/"정류소" 가 붙어 있으면 그대로 둔다.
  */
-function stopLabel(kind: string, arrival?: string): string | undefined {
+function stopLabel(
+  kind: string,
+  arrival: string | undefined,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string | undefined {
   if (!arrival) {
     return undefined;
   }
   if (kind !== 'bus' || /정류장|정류소/.test(arrival)) {
     return arrival;
   }
-  return `${arrival} 정류장`;
+  return t('clinic.transport.busStop', { name: arrival });
 }
 
 /**
@@ -161,17 +165,19 @@ function Section({
 
 /** 오늘·내일 표시. 공휴일(8)은 날짜와 무관해서 붙이지 않는다. */
 function DayBadge({ day }: { day: number }) {
+  const { t } = useTranslation();
+
   if (day === todayDay()) {
     return (
       <span className="ml-2 rounded bg-primary-100 px-1.5 py-0.5 text-xs font-medium text-primary-700">
-        오늘
+        {t('clinic.today')}
       </span>
     );
   }
   if (day === tomorrowDay()) {
     return (
       <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
-        내일
+        {t('clinic.tomorrow')}
       </span>
     );
   }
@@ -228,14 +234,16 @@ type DetailTab = 'subject' | 'care' | 'scale' | 'location';
  *   규모  얼마나 갖췄나 (종별·의료진·병상·장비)
  *   위치  어떻게 가나 (교통·주차·주소·지도)
  */
-const DETAIL_TABS: { key: DetailTab; name: string }[] = [
-  { key: 'subject', name: '소개' },
-  { key: 'care', name: '진료' },
-  { key: 'scale', name: '규모' },
-  { key: 'location', name: '위치' },
+/** 탭 이름은 i18n 이 준다. 모듈 상수라 문구를 여기 둘 수 없다 — key 로 찾는다. */
+const DETAIL_TABS: { key: DetailTab }[] = [
+  { key: 'subject' },
+  { key: 'care' },
+  { key: 'scale' },
+  { key: 'location' },
 ];
 
 export default function HospitalDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { data: hospital, isLoading, isError } = useHospitalDetail(id);
 
@@ -356,7 +364,7 @@ export default function HospitalDetailPage() {
   }
   if (isError || !hospital) {
     return (
-      <p className="py-16 text-center text-rose-600">불러오지 못했습니다.</p>
+      <p className="py-16 text-center text-rose-600">{t('common.loadError')}</p>
     );
   }
 
@@ -389,9 +397,9 @@ export default function HospitalDetailPage() {
    * 강일병원은 "강일병원 정문"이 아홉 줄 찍힌다. 정류장 하나에 노선을 모아 한 줄로 만든다.
    */
   const transportGroups = [
-    { key: 'subway', label: '지하철', routes: hospital.transport?.subway ?? [] },
-    { key: 'bus', label: '버스', routes: hospital.transport?.bus ?? [] },
-    { key: 'etc', label: '그 밖에', routes: hospital.transport?.etc ?? [] },
+    { key: 'subway', label: t('clinic.transport.subway'), routes: hospital.transport?.subway ?? [] },
+    { key: 'bus', label: t('clinic.transport.bus'), routes: hospital.transport?.bus ?? [] },
+    { key: 'etc', label: t('clinic.transport.etc'), routes: hospital.transport?.etc ?? [] },
   ]
     .filter((g) => g.routes.length > 0)
     .map((g) => ({ ...g, stops: groupByStop(g.routes) }));
@@ -419,7 +427,7 @@ export default function HospitalDetailPage() {
         to="/search"
         className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
       >
-        <ArrowLeft className="h-4 w-4" /> 검색으로
+        <ArrowLeft className="h-4 w-4" /> {t('clinic.backToSearch')}
       </LangLink>
 
       {/*
@@ -450,12 +458,12 @@ export default function HospitalDetailPage() {
             )}
             {hospital.emergency && (
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
-                <Ambulance className="h-3 w-3" /> 응급실 운영
+                <Ambulance className="h-3 w-3" /> {t('clinic.badge.emergencyDetail')}
               </span>
             )}
             {hospital.baby && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                <Baby className="h-3 w-3" /> 달빛어린이병원
+                <Baby className="h-3 w-3" /> {t('clinic.badge.babyDetail')}
               </span>
             )}
           </div>
@@ -501,21 +509,21 @@ export default function HospitalDetailPage() {
         role="tablist"
         className="-mx-4 !mt-0 flex border-b border-slate-200 px-4"
       >
-        {DETAIL_TABS.map((t) => (
+        {DETAIL_TABS.map((detailTab) => (
           <a
-            key={t.key}
-            href={`#${t.key}`}
+            key={detailTab.key}
+            href={`#${detailTab.key}`}
             role="tab"
-            aria-selected={tab === t.key}
-            onClick={(event) => lockSpy(event, t.key)}
+            aria-selected={tab === detailTab.key}
+            onClick={(event) => lockSpy(event, detailTab.key)}
             className={cn(
               '-mb-px border-b-2 px-4 py-2.5 text-sm no-underline transition-colors',
-              tab === t.key
+              tab === detailTab.key
                 ? 'border-primary-600 font-bold text-primary-700'
                 : 'border-transparent font-medium text-slate-500 hover:text-slate-800',
             )}
           >
-            {t.name}
+            {t(`clinic.tabs.${detailTab.key}`)}
           </a>
         ))}
       </nav>
@@ -524,7 +532,7 @@ export default function HospitalDetailPage() {
       <Section
         first
         id="subject"
-        title="소개"
+        title={t('clinic.tabs.subject')}
         icon={<Stethoscope className="h-4 w-4 text-primary-600" />}
       >
         {/*
@@ -532,7 +540,7 @@ export default function HospitalDetailPage() {
           섹션 제목(소개)은 탭과 짝을 이루고, 그 안의 덩어리마다 소제목을 단다.
           전화·홈페이지는 각각 한 줄씩 — 한 줄에 붙이면 긴 URL 이 전화번호를 밀어낸다.
         */}
-        <p className="text-xs font-medium text-slate-500">연락처</p>
+        <p className="text-xs font-medium text-slate-500">{t('clinic.contact')}</p>
         <dl className="mt-1.5 space-y-1.5 text-sm text-slate-600">
           {hospital.tel && (
             <div className="flex items-center gap-2">
@@ -565,7 +573,7 @@ export default function HospitalDetailPage() {
         */}
         {hospital.intro && (
           <div className="mt-3 rounded-xl bg-slate-50 p-3">
-            <p className="text-xs font-medium text-slate-500">소개</p>
+            <p className="text-xs font-medium text-slate-500">{t('clinic.intro')}</p>
             <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">
               {hospital.intro.replace(/\r/g, '').replace(/\n{2,}/g, '\n').trim()}
             </p>
@@ -580,7 +588,7 @@ export default function HospitalDetailPage() {
       */}
       <Section
         id="care"
-        title="진료"
+        title={t('clinic.tabs.care')}
         icon={<Clock className="h-4 w-4 text-primary-600" />}
       >
         {/*
@@ -591,11 +599,11 @@ export default function HospitalDetailPage() {
         {general.length === 0 && baby.length === 0 && (
           <div>
             <p className="mb-1.5 text-xs font-medium text-slate-500">
-              진료시간
+              {t('clinic.hours')}
             </p>
             <div className="rounded-xl bg-slate-50 p-4 text-center">
               <p className="text-sm text-slate-600">
-                진료시간 정보가 없습니다.
+                {t('clinic.hoursEmpty')}
               </p>
               {hospital.tel && (
                 <a
@@ -603,7 +611,7 @@ export default function HospitalDetailPage() {
                   className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white no-underline hover:bg-primary-700"
                 >
                   <Phone className="h-4 w-4" />
-                  {hospital.tel} 전화로 확인
+                  {t('clinic.hoursConfirm', { tel: hospital.tel })}
                 </a>
               )}
             </div>
@@ -613,7 +621,7 @@ export default function HospitalDetailPage() {
         {(general.length > 0 || baby.length > 0) && (
           <div>
             <p className="mb-1.5 text-xs font-medium text-slate-500">
-              진료시간
+              {t('clinic.hours')}
             </p>
           {/* 소개·안내와 같은 회색 박스. 강조가 아니라 **덩어리로 묶어주는** 역할이다. */}
           {general.length > 0 && (
@@ -621,7 +629,7 @@ export default function HospitalDetailPage() {
               {general.map((h) => (
                 <div key={h.day} className="flex flex-wrap items-center gap-x-2.5">
                   <dt className="w-10 shrink-0 text-slate-500">
-                    {DAY_LABELS[h.day]}
+                    {t(`common.days.${h.day}`)}
                   </dt>
                   <dd className="flex flex-wrap items-center gap-x-2 text-slate-900">
                     <span>
@@ -634,7 +642,7 @@ export default function HospitalDetailPage() {
                     */}
                     {h.breakStart && (
                       <span className="text-sm text-slate-500">
-                        점심 {formatTime(h.breakStart)}~{formatTime(h.breakEnd)}
+                        {t('clinic.lunch', { start: formatTime(h.breakStart), end: formatTime(h.breakEnd) })}
                       </span>
                     )}
 
@@ -649,13 +657,13 @@ export default function HospitalDetailPage() {
           {baby.length > 0 && (
             <div className="mt-4 rounded-xl bg-amber-50 p-3">
               <p className="flex items-center gap-1 text-xs font-medium text-amber-800">
-                <Baby className="h-3 w-3" /> 달빛어린이 진료 (만 18세 이하)
+                <Baby className="h-3 w-3" /> {t('clinic.babyHours')}
               </p>
               <dl className="mt-1.5 space-y-1 text-sm">
                 {baby.map((h) => (
                   <div key={h.day} className="flex gap-3">
                     <dt className="w-12 shrink-0 text-amber-700">
-                      {DAY_LABELS[h.day]}
+                      {t(`common.days.${h.day}`)}
                     </dt>
                     <dd className="text-amber-900">
                       {formatTime(h.open)} ~ {formatTime(h.close)}
@@ -681,7 +689,7 @@ export default function HospitalDetailPage() {
             */}
             {hospital.notice && (
               <div className="mt-4">
-                <p className="mb-1.5 text-xs font-medium text-slate-500">안내</p>
+                <p className="mb-1.5 text-xs font-medium text-slate-500">{t('clinic.notice')}</p>
                 <div className="rounded-xl bg-slate-50 p-3">
                   <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">
                     {hospital.notice.replace(/\r/g, '').replace(/\n{2,}/g, '\n').trim()}
@@ -694,7 +702,7 @@ export default function HospitalDetailPage() {
 
         {(display.length > 0 || declared.length > 0) && (
           <div className="mt-4">
-          <p className="mb-1.5 text-xs font-medium text-slate-500">진료과목</p>
+          <p className="mb-1.5 text-xs font-medium text-slate-500">{t('clinic.subjects')}</p>
           {/*
             진료과목이 먼저다. **병원이 무슨 진료를 하는지**가 이 섹션의 본론이고,
             전문의가 몇 명인지는 그 다음 관심사다.
@@ -720,8 +728,8 @@ export default function HospitalDetailPage() {
           {display.length > 0 && (
             <div className="mt-4">
               <p className="text-xs font-medium text-slate-500">
-                전문의{' '}
-                <span className="font-normal text-slate-400">(표시과목)</span>
+                {t('clinic.specialist')}{' '}
+                <span className="font-normal text-slate-400">{t('clinic.displaySubject')}</span>
               </p>
 
               {/* 진료시간·안내와 같은 회색 박스. 덩어리로 묶어 표가 떠 보이지 않게 한다. */}
@@ -741,7 +749,7 @@ export default function HospitalDetailPage() {
                     </span>
                     <span className="shrink-0 text-slate-800">
                       {s.specialistCount}
-                      <span className="ml-0.5 text-xs text-slate-500">명</span>
+                      <span className="ml-0.5 text-xs text-slate-500">{t('clinic.peopleSuffix')}</span>
                     </span>
                   </div>
                 ))}
@@ -765,7 +773,7 @@ export default function HospitalDetailPage() {
         hospital.parking?.capacity) && (
         <Section
           id="scale"
-          title="규모"
+          title={t('clinic.tabs.scale')}
           icon={<Building2 className="h-4 w-4 text-primary-600" />}
         >
           {/*
@@ -794,36 +802,36 @@ export default function HospitalDetailPage() {
           */}
           {staff?.doctorTotal ? (
             <>
-              <p className="mt-3 text-xs font-medium text-slate-500">의료진</p>
+              <p className="mt-3 text-xs font-medium text-slate-500">{t('clinic.staff')}</p>
 
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Stat label="전체" value={staff.doctorTotal} primary />
+                <Stat label={t('clinic.staffField.total')} value={staff.doctorTotal} primary />
 
                 {/* 총원과 내역 사이에 선을 둔다. 내역을 더해도 총원이 안 된다(겸직 중복). */}
                 <span className="mx-0.5 h-5 w-px bg-slate-200" />
 
-                <Stat label="전문의" value={staff.specialist} />
-                <Stat label="레지던트" value={staff.resident} />
-                <Stat label="인턴" value={staff.intern} />
-                <Stat label="일반의" value={staff.generalDoctor} />
-                <Stat label="치과의사" value={staff.dentist} />
-                <Stat label="한의사" value={staff.oriental} />
+                <Stat label={t('clinic.staffField.specialist')} value={staff.specialist} />
+                <Stat label={t('clinic.staffField.resident')} value={staff.resident} />
+                <Stat label={t('clinic.staffField.intern')} value={staff.intern} />
+                <Stat label={t('clinic.staffField.general')} value={staff.generalDoctor} />
+                <Stat label={t('clinic.staffField.dentist')} value={staff.dentist} />
+                <Stat label={t('clinic.staffField.oriental')} value={staff.oriental} />
               </div>
             </>
           ) : null}
 
           {beds?.total ? (
             <>
-              <p className="mt-3 text-xs font-medium text-slate-500">병상</p>
+              <p className="mt-3 text-xs font-medium text-slate-500">{t('clinic.beds')}</p>
 
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Stat label="허가 병상" value={beds.total} primary />
+                <Stat label={t('clinic.bedField.total')} value={beds.total} primary />
                 <span className="mx-0.5 h-5 w-px bg-slate-200" />
-                <Stat label="일반" value={beds.standard} />
-                <Stat label="상급" value={beds.higher} />
-                <Stat label="중환자실" value={beds.icu} />
-                <Stat label="응급실" value={beds.emergency} />
-                <Stat label="수술실" value={beds.operatingRoom} />
+                <Stat label={t('clinic.bedField.standard')} value={beds.standard} />
+                <Stat label={t('clinic.bedField.higher')} value={beds.higher} />
+                <Stat label={t('clinic.bedField.icu')} value={beds.icu} />
+                <Stat label={t('clinic.bedField.emergency')} value={beds.emergency} />
+                <Stat label={t('clinic.bedField.operatingRoom')} value={beds.operatingRoom} />
               </div>
             </>
           ) : null}
@@ -835,7 +843,7 @@ export default function HospitalDetailPage() {
           */}
           {equipments.length > 0 && (
             <>
-              <p className="mt-3 text-xs font-medium text-slate-500">보유 장비</p>
+              <p className="mt-3 text-xs font-medium text-slate-500">{t('clinic.equipments')}</p>
               <div className="mt-1.5 grid grid-cols-1 gap-x-8 rounded-xl bg-slate-50 px-3 py-1 sm:grid-cols-2">
                 {equipments.map((e) => (
                   <div
@@ -854,7 +862,7 @@ export default function HospitalDetailPage() {
 
           {staff?.doctorTotal ? (
             <p className="mt-3 text-xs text-slate-400">
-              과목별 인원은 겸직이 중복 계산되어 총원과 다를 수 있습니다.
+              {t('clinic.staffNote')}
             </p>
           ) : null}
         </Section>
@@ -867,7 +875,7 @@ export default function HospitalDetailPage() {
       */}
       <Section
         id="location"
-        title="위치"
+        title={t('clinic.tabs.location')}
         icon={<MapPin className="h-4 w-4 text-primary-600" />}
       >
         {/*
@@ -921,16 +929,16 @@ export default function HospitalDetailPage() {
                             <span className="rounded bg-slate-100 px-2 py-0.5 text-sm text-slate-800">
                               {[
                                 stop.lines.map((l) => l.no).join('·'),
-                                stopLabel(group.key, stop.arrival) ?? stop.kindName,
+                                stopLabel(group.key, stop.arrival, t) ?? stop.kindName,
                               ]
                                 .filter(Boolean)
-                                .join(' ') || '하차지점 미상'}
+                                .join(' ') || t('clinic.transport.unknownStop')}
                             </span>
                           ) : (
                             <span className="text-slate-900">
-                              {stopLabel(group.key, stop.arrival) ??
+                              {stopLabel(group.key, stop.arrival, t) ??
                                 stop.kindName ??
-                                '하차지점 미상'}
+                                t('clinic.transport.unknownStop')}
                             </span>
                           )}
 
@@ -981,12 +989,12 @@ export default function HospitalDetailPage() {
         */}
         {hospital.parking?.capacity ? (
           <div className="mt-3">
-            <p className="text-xs font-medium text-slate-500">주차</p>
+            <p className="text-xs font-medium text-slate-500">{t('clinic.parking')}</p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <Stat label="주차 가능" value={hospital.parking.capacity} />
+              <Stat label={t('clinic.parkingCapacity')} value={hospital.parking.capacity} />
               {hospital.parking.paid !== undefined && (
                 <span className="inline-flex items-center rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 ring-1 ring-slate-100">
-                  {hospital.parking.paid ? '유료' : '무료'}
+                  {hospital.parking.paid ? t('clinic.paid') : t('clinic.free')}
                 </span>
               )}
             </div>
@@ -1004,7 +1012,7 @@ export default function HospitalDetailPage() {
 
         {/* 주소·지도. 지도는 클릭할 때만 로드해 API 콜을 아낀다. */}
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <p className="text-xs font-medium text-slate-500">주소</p>
+          <p className="text-xs font-medium text-slate-500">{t('clinic.address')}</p>
         {hospital.location?.address && (
           <p className="mt-1.5 text-sm text-slate-700">
             {hospital.location.postNo && (
@@ -1031,7 +1039,7 @@ export default function HospitalDetailPage() {
               onClick={() => setMapOpen(true)}
               className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
             >
-              <MapPin className="h-4 w-4" /> 지도 보기
+              <MapPin className="h-4 w-4" /> {t('clinic.showMap')}
               <ChevronDown className="h-4 w-4" />
             </button>
           )
