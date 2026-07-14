@@ -105,12 +105,28 @@ site="$REPO_ROOT/frontend/hansapi-docs/.vitepress/dist"
 if [ -n "${DOCS_DEPLOY_KEY:-}" ]; then
   group "ssh 키 설치"
   umask 077
-  mkdir -p ~/.ssh
-  printf '%s\n' "$DOCS_DEPLOY_KEY" > ~/.ssh/id_docs
-  chmod 600 ~/.ssh/id_docs
+
+  # '~' 에 기대지 않는다. 컨테이너 잡에서는 HOME 이 무엇인지, ssh 와 이 스크립트가 같은 것을
+  # 보는지가 확실하지 않다. 경로를 직접 만들어 ssh 에 명시적으로 넘긴다.
+  ssh_dir="$(mktemp -d)"
+  key_file="$ssh_dir/id_docs"
+  known_hosts="$ssh_dir/known_hosts"
+
+  printf '%s\n' "$DOCS_DEPLOY_KEY" > "$key_file"
+  chmod 600 "$key_file"
+
   # known_hosts 를 고정한다. StrictHostKeyChecking=no 로 넘기면 MITM 에 노출된다.
-  ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
-  export GIT_SSH_COMMAND='ssh -i ~/.ssh/id_docs -o IdentitiesOnly=yes'
+  #
+  # 실패를 삼키지 않는다. 예전엔 2>/dev/null 로 가려서, 키를 못 받아도 조용히 넘어간 뒤
+  # 한참 뒤에 "Host key verification failed" 로 터졌다. 원인이 여기인 줄 알 수가 없었다.
+  ssh-keyscan -t rsa,ecdsa,ed25519 github.com > "$known_hosts"
+  if [ ! -s "$known_hosts" ]; then
+    echo "❌ github.com 의 호스트 키를 가져오지 못했다 (ssh-keyscan)." >&2
+    exit 1
+  fi
+  echo "  호스트 키 $(wc -l < "$known_hosts") 개 확보"
+
+  export GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes -o UserKnownHostsFile=$known_hosts"
   endgroup
 fi
 
@@ -119,7 +135,19 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 group "문서 레포 클론 ($DOCS_BRANCH)"
-if git clone --depth 1 --branch "$DOCS_BRANCH" "$DOCS_REPO" "$work" 2>/dev/null; then
+
+# **접속 가능 여부부터 따로 확인한다.**
+# 예전엔 clone 실패를 전부 "브랜치가 없다" 로 해석했다. 그래서 인증이 깨졌을 때도
+# 조용히 "새로 만든다" 로 넘어간 뒤 엉뚱한 곳에서 터졌고, 원인을 찾는 데 시간을 버렸다.
+# ls-remote 가 실패하면 접속·권한 문제고, 성공하는데 비어 있으면 브랜치가 없는 것이다.
+if ! remote_branch=$(git ls-remote --heads "$DOCS_REPO" "$DOCS_BRANCH"); then
+  echo "❌ 문서 레포에 접속할 수 없다: $DOCS_REPO" >&2
+  echo "   배포 키(DOCS_DEPLOY_KEY)와 그 레포의 Deploy keys 설정을 확인할 것." >&2
+  exit 1
+fi
+
+if [ -n "$remote_branch" ]; then
+  git clone --depth 1 --branch "$DOCS_BRANCH" "$DOCS_REPO" "$work"
   echo "  기존 $DOCS_BRANCH 브랜치를 가져왔다."
 else
   # 첫 배포. 브랜치가 아직 없다. 히스토리 없는 새 브랜치로 시작한다.
