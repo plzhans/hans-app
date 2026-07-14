@@ -51,6 +51,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # arm64 를 amd64 러너에서 굽기 위한 에뮬레이터.
+      # CI(ubuntu-latest)는 amd64 라 arm64 는 순전히 로컬(Apple Silicon)에서 당겨 쓰기 위한 것이다.
+      # 에뮬레이션이라 arm64 쪽 apt 설치가 느리지만, 이 이미지는 paths 필터 때문에
+      # docker/node-builder/** 가 바뀔 때만 빌드된다. 1 년에 몇 번이라 감수할 만하다.
+      - uses: docker/setup-qemu-action@v3
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -80,6 +86,9 @@ jobs:
         with:
           context: docker/node-builder
           push: true
+          # amd64 = CI 러너. arm64 = 로컬 맥. 매니페스트 하나로 묶여서
+          # docker pull 하는 쪽이 자기 아키텍처를 알아서 고른다.
+          platforms: linux/amd64,linux/arm64
           build-args: |
             NODE_VERSION=${{ matrix.node }}
             PNPM_VERSION=${{ needs.setup.outputs.pnpm }}
