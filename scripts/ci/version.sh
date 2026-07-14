@@ -20,13 +20,21 @@ pkg_dir="${1:?사용: $0 <패키지 디렉터리>}"
 
 semver=$(jq -r '.version // "0.0.0"' "$pkg_dir/package.json")
 
-# 컨테이너 안에서는 .git 이 없다(run-in-builder.sh 가 복사하지 않는다).
-# 그래서 호스트가 넘겨준 값을 먼저 보고, 없으면 git 에 직접 묻는다(=CI).
-sha=${GIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}
-branch=${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)}
+# git 에 직접 묻는 건 마지막 수단이다. 두 환경에서 git 이 답을 못 준다.
+#
+#   로컬 컨테이너 — .git 을 복사하지 않는다(run-in-builder.sh). 그래서 GIT_* 로 받는다.
+#   GitHub Actions 컨테이너 잡 — 체크아웃된 파일의 소유자(러너 UID)와 컨테이너 사용자(root)가
+#     달라서 git 이 "dubious ownership" 으로 거부한다. 그러면 sha 가 unknown 이 되어
+#     버전을 박아둔 의미가 통째로 사라진다(실제로 그렇게 0.0.1+unknown 이 찍혔다).
+#     러너가 GITHUB_SHA 로 이미 알려주므로 그걸 쓴다.
+sha=${GIT_SHA:-${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}}
+branch=${GIT_BRANCH:-${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)}}
 
 if [ -n "${GIT_DIRTY:-}" ]; then
   dirty=$GIT_DIRTY
+elif [ -n "${GITHUB_ACTIONS:-}" ]; then
+  # 방금 체크아웃한 트리다. 더러울 수가 없다.
+  dirty=0
 elif [ -n "$(git status --porcelain -uno 2>/dev/null)" ]; then
   # 추적 중인 파일의 변경만 본다. 굴러다니는 untracked 파일 때문에 dirty 로 찍히면
   # 아무도 그 표시를 안 믿게 된다.

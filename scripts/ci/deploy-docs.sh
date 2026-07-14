@@ -192,7 +192,10 @@ if git diff --cached --quiet; then
   exit 0
 fi
 
-src_sha="${GIT_SHA:-$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+# 배포 커밋에 어느 소스에서 나왔는지 남긴다. 이게 없으면 사이트를 보고 어느 커밋인지 알 수 없다.
+# git 에 직접 묻지 않는 이유는 version.sh 와 같다 — 컨테이너 잡에서 git 이 소유권 때문에 거부한다.
+src_sha="${GIT_SHA:-${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)}}"
+src_sha="${src_sha:0:7}"
 git commit -q -m "docs($env_name): hans-api@${src_sha}"
 git push -q origin "$DOCS_BRANCH"
 
