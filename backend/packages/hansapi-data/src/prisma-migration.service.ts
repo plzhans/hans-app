@@ -1,0 +1,87 @@
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { DB_CONFIG, DbConfig } from './db.config';
+
+/** 관리 대상 DB. 보존기간·관리 주기가 달라 메인과 로그를 별도 DB 로 분리했다. */
+export const DB_TARGETS = ['main', 'log'] as const;
+export type DbTarget = (typeof DB_TARGETS)[number];
+
+export interface MigrationOptions {
+  /** 마이그레이션 이름. 생략하면 prisma 가 프롬프트로 묻는다. */
+  name?: string;
+}
+
+/**
+ * Prisma 마이그레이션 실행. 스키마 파일과 prisma 실행 파일을 이 패키지가 소유하므로
+ * 실행 방법도 여기서 안다. 호출부(CLI)는 무엇을 할지만 정하고 어떻게 하는지는 모른다.
+ *
+ * prisma 는 별도 프로세스로 뜨며 설정을 process.env 로만 받는다(schema.prisma 의 env(...)).
+ * 그래서 부모 환경을 통째로 물려주는 대신 DbConfig 에서 꺼내 명시적으로 주입한다.
+ */
+@Injectable()
+export class PrismaMigrationService {
+  /** 이 패키지의 루트. dist/src 어느 쪽에서 실행되든 한 단계 위가 패키지 루트다. */
+  private readonly packageDir = resolve(__dirname, '..');
+
+  constructor(@Inject(DB_CONFIG) private readonly config: DbConfig) {}
+
+  /** 스키마 변경분으로 마이그레이션을 만들고 적용한다. 개발용. shadow DB 가 필요하다. */
+  migrate(target: DbTarget, options: MigrationOptions = {}): void {
+    this.run(target, [
+      'migrate',
+      'dev',
+      ...(options.name ? ['--name', options.name] : []),
+    ]);
+  }
+
+  /**
+   * 이미 만들어진 마이그레이션을 적용한다. SQL 을 생성하지 않고 데이터도 지우지 않는다.
+   * shadow DB 가 필요 없어 운영에서도 안전하다.
+   */
+  deploy(target: DbTarget): void {
+    this.run(target, ['migrate', 'deploy']);
+  }
+
+  /** 마이그레이션 적용 상태를 확인한다. */
+  status(target: DbTarget): void {
+    this.run(target, ['migrate', 'status']);
+  }
+
+  /** Prisma Client 를 다시 생성한다. */
+  generate(target: DbTarget): void {
+    this.run(target, ['generate']);
+  }
+
+  private schemaPath(target: DbTarget): string {
+    return `prisma/${target}/schema.prisma`;
+  }
+
+  private run(target: DbTarget, args: string[]): void {
+    const result = spawnSync(
+      'npx',
+      ['prisma', ...args, '--schema', this.schemaPath(target)],
+      {
+        cwd: this.packageDir,
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          DATABASE_URL: this.config.url,
+          LOG_DATABASE_URL: this.config.logUrl,
+          ...(this.config.shadowUrl
+            ? { SHADOW_DATABASE_URL: this.config.shadowUrl }
+            : {}),
+        },
+      },
+    );
+
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 0) {
+      // prisma 가 이미 에러를 출력했으므로 메시지를 덧붙이지 않는다.
+      process.exit(result.status ?? 1);
+    }
+  }
+}

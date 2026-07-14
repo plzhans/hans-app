@@ -1,0 +1,105 @@
+{
+  "app": {
+    "name": "ClinicFinder",
+    "tagline": "全国の病院をかんたんに検索"
+  },
+  "nav": {
+    "home": "ホーム",
+    "search": "病院検索"
+  },
+  "home": {
+    "heroTitle": "近くの病院を探す",
+    "heroSubtitle": "病院を名前で検索し、診療情報を確認できます。",
+    "searchPlaceholder": "病院名を入力",
+    "searchButton": "検索"
+  },
+  "search": {
+    "title": "病院検索",
+    "placeholder": "病院名で絞り込み",
+    "source": "データ出典",
+    "sourceHira": "HIRA",
+    "sourceNmc": "NMC",
+    "resultCount": "全 {{count}} 件",
+    "empty": "検索結果がありません。",
+    "loadError": "一覧を読み込めませんでした。",
+    "prev": "前へ",
+    "next": "次へ",
+    "page": "{{page}} ページ",
+    "clientFilterNote": "※ 現在キーワードは読み込んだページ内のみで絞り込みます。サーバー検索は準備中です。"
+  },
+  "clinic": {
+    "category": "区分",
+    "address": "住所",
+    "phone": "電話",
+    "homepage": "ホームページ",
+    "beds": "病床",
+    "detail": "詳細情報",
+    "back": "一覧へ",
+    "noData": "情報なし",
+    "notFound": "病院情報が見つかりません。一覧から選び直してください。",
+    "integration": "連携情報",
+    "integrationNote": "内部・開発用 · 本番では非表示",
+    "establishment": "開院日",
+    "contact": "連絡先",
+    "mainTel": "代表番号",
+    "location": "所在地",
+    "landmark": "アクセス",
+    "viewOnMap": "地図を見る",
+    "hideMap": "地図を閉じる",
+    "openNaverMap": "地図を大きく見る",
+    "zipcode": "郵便番号",
+    "hours": "診療時間",
+    "today": "今日",
+    "tomorrow": "明日",
+    "closed": "休診",
+    "break": "昼休み",
+    "bedsCapacity": "病床(定員)",
+    "bedsField": {
+      "permitted": "許可病床", "upper": "上級病床", "standard": "一般病床",
+      "icuAdultChild": "成人・小児ICU", "icuChild": "小児ICU", "icuNeonatal": "新生児ICU",
+      "delivery": "分娩室", "surgery": "手術病床", "emergency": "救急", "physicalTherapy": "理学療法室",
+      "psychClosedUpper": "精神科閉鎖(上級)", "psychClosedStandard": "精神科閉鎖(一般)",
+      "psychOpenUpper": "精神科開放(上級)", "psychOpenStandard": "精神科開放(一般)",
+      "isolation": "隔離病室", "sterile": "無菌治療室"
+    },
+    "staff": "スタッフ",
+    "doctorTotal": "医師総数",
+    "nurse": "看護師",
+    "staffDept": { "medical": "医科", "dental": "歯科", "oriental": "韓方" },
+    "staffCount": { "specialist": "専門医", "general": "一般医", "intern": "インターン", "resident": "レジデント" },
+    "equipment": "保有設備",
+    "equipmentField": {
+      "deliveryRoom": "分娩室", "ct": "CT", "mri": "MRI", "angiography": "血管撮影装置",
+      "ventilator": "人工呼吸器", "ventilatorPediatric": "人工呼吸器(小児)", "incubator": "保育器",
+      "crrt": "CRRT", "ecmo": "ECMO", "therapeuticHypothermia": "低体温療法",
+      "burnTreatmentRoom": "熱傷処置室", "hyperbaricOxygen": "高圧酸素治療装置"
+    },
+    "acceptance": "重症疾患の受入可否",
+    "acceptanceField": {
+      "brainHemorrhageSurgery": "脳出血手術", "cerebralReperfusion": "脳梗塞再灌流",
+      "myocardialReperfusion": "心筋梗塞再灌流", "abdominalSurgery": "腹部損傷手術",
+      "limbReplantation": "四肢接合", "emergencyEndoscopy": "緊急内視鏡", "emergencyDialysis": "緊急透析",
+      "pretermLabor": "早産妊婦", "psychiatric": "精神疾患", "neonate": "新生児",
+      "severeBurn": "重症熱傷", "emergencyRoom": "救急室"
+    },
+    "emergency": "救急室",
+    "emergencyDay": "日中",
+    "emergencyNight": "夜間",
+    "emergencyInactive": "運営停止",
+    "emergencyTel": "救急電話",
+    "facilities": "施設",
+    "parking": "駐車",
+    "parkingCapacity": "{{count}}台",
+    "parkingPaid": "有料",
+    "parkingFree": "無料",
+    "description": "病院紹介",
+    "notice": "案内",
+    "day": {
+      "mon": "月", "tue": "火", "wed": "水", "thu": "木", "fri": "金", "sat": "土", "sun": "日", "holiday": "祝日"
+    }
+  },
+  "common": {
+    "loading": "読み込み中...",
+    "language": "言語"
+  }
+}

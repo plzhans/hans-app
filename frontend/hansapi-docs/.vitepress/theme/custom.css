@@ -1,0 +1,260 @@
+/* Hans API 문서 커스텀 스타일
+ * 목적: vitepress-openapi 오퍼레이션 화면이 오른쪽 "코드샘플/호출" 패널로
+ *       2컬럼이 되며 본문이 좁아지는 문제를 해결한다.
+ *   1) 2컬럼 → 1컬럼(스택): 코드샘플/호출 패널을 본문 아래로 내림
+ *   2) 문서 콘텐츠 폭 제한 해제: 남는 가로 폭을 전부 사용
+ */
+
+/* 1) 오퍼레이션 본문 그리드를 단일 컬럼으로 강제한다.
+ *    대상: <div class="... grid grid-cols-1 sm:grid-cols-2 ...">
+ *    (항상 2컬럼인 헤더 그리드 grid-cols-2 는 건드리지 않는다.) */
+.vp-doc .grid-cols-1.sm\:grid-cols-2 {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* 1-1) 아래로 스택된 코드샘플/호출 패널을 본문과 구분하는 hr 느낌의 라인.
+ *      그리드의 2번째 이후 직계 자식(=우측 패널) 위에 구분선을 그린다. */
+.vp-doc .grid-cols-1.sm\:grid-cols-2 > * + * {
+  border-top: 1px solid var(--vp-c-divider);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+/* 2) VitePress 문서 폭 제한을 풀어 전체 폭을 쓴다(사이드바 제외 영역 전부). */
+.VPDoc .container,
+.VPDoc .content,
+.VPDoc .content-container {
+  max-width: none !important;
+}
+
+/* 3) 파라미터를 정렬된 실제 표로 렌더한다(커스텀 ParamsTable 컴포넌트).
+ *    VitePress 기본 표 스타일을 그대로 쓰되, 전체 폭 사용 + 컬럼 폭만 다듬는다. */
+.vp-doc .oa-params-table {
+  display: table; /* VitePress 의 table{display:block;overflow:auto} 무효화 → 컬럼 정렬 */
+  width: 100%;
+  margin: 0.5rem 0 1rem;
+}
+.vp-doc .oa-params-table th,
+.vp-doc .oa-params-table td {
+  vertical-align: top;
+}
+/* 설명 컬럼을 넓게, 값 컬럼들은 줄바꿈 없이 좁게 */
+.vp-doc .oa-params-table .oa-p-desc {
+  width: 45%;
+}
+.vp-doc .oa-params-table .oa-p-type,
+.vp-doc .oa-params-table .oa-p-req {
+  white-space: nowrap;
+}
+.vp-doc .oa-params-table .oa-p-required {
+  color: var(--vp-c-danger-1);
+  font-weight: 600;
+}
+.vp-doc .oa-params-table .oa-p-optional {
+  color: var(--vp-c-text-3);
+}
+/* 모델 표에서 중첩 object 를 한 표에 펼칠 때: depth 만큼 들여쓰고 └─ 로 계층을 표시한다. */
+.vp-doc .oa-params-table .oa-p-indent {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.vp-doc .oa-params-table .oa-p-branch {
+  color: var(--vp-c-text-3);
+  user-select: none;
+}
+/* 중첩 필드 행은 설명 톤을 살짝 낮춰 최상위 필드와 구분한다. */
+.vp-doc .oa-params-table .oa-p-nested .oa-p-desc {
+  color: var(--vp-c-text-2);
+}
+
+/* 3-0) 태그 페이지: 오퍼레이션 앵커(#op-...) 점프 시 상단 고정 네비 아래로 가려지지 않게
+ *      스크롤 여백을 주고, 오퍼레이션 사이를 굵은 선으로 구분한다. */
+.vp-doc .oa-op-anchor {
+  scroll-margin-top: 80px;
+  border-top: 3px solid var(--vp-c-divider);
+  margin-top: 3rem;
+  /* 구분선(border-top)과 아래 오퍼레이션 제목 사이 여백(제목이 선에 붙지 않게) */
+  padding-top: 2rem;
+}
+
+/* 3-1) Request / Response 구역 제목 — 상단 구분선으로 구역을 분리한다. */
+.vp-doc .oa-section-title {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--vp-c-divider);
+}
+
+/* 3-1b) 엔드포인트(메서드 + 경로)를 코드블록 스타일 박스로 표시 */
+.vp-doc .oa-endpoint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0.25rem 0 1rem;
+  padding: 0.5rem 0.6rem 0.5rem 0.9rem;
+  background: var(--vp-code-block-bg, var(--vp-c-bg-alt));
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+}
+/* 메서드 + 경로 영역(길면 이 안에서만 가로 스크롤). */
+.vp-doc .oa-endpoint .oa-endpoint-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+/* 우상단 복사 버튼. */
+.vp-doc .oa-endpoint .oa-copy {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--vp-c-text-2);
+  background: var(--vp-c-bg);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.vp-doc .oa-endpoint .oa-copy:hover {
+  color: var(--vp-c-brand-1);
+  border-color: var(--vp-c-brand-1);
+}
+.vp-doc .oa-endpoint .oa-method {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 6px;
+  color: #fff;
+  background: var(--vp-c-brand-1);
+}
+.vp-doc .oa-endpoint .oa-method--get {
+  background: #16a34a;
+}
+.vp-doc .oa-endpoint .oa-method--post {
+  background: #2563eb;
+}
+.vp-doc .oa-endpoint .oa-method--put {
+  background: #d97706;
+}
+.vp-doc .oa-endpoint .oa-method--patch {
+  background: #ca8a04;
+}
+.vp-doc .oa-endpoint .oa-method--delete {
+  background: #dc2626;
+}
+.vp-doc .oa-endpoint .oa-endpoint-path {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  color: var(--vp-c-text-1);
+  /* 박스가 이미 음영이므로 인라인 code 의 배경/여백은 제거(이중 음영 방지). */
+  background: transparent;
+  padding: 0;
+  border: 0;
+}
+
+/* 3-2) Request 타이틀 줄 — 좌: 제목, 우: 인증 표시. 구역 상단 구분선은 이 줄로 옮긴다. */
+.vp-doc .oa-request-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--vp-c-divider);
+}
+.vp-doc .oa-request-head .oa-section-title {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+/* 인증 필요 부가 표시 — 강조 없이 작은 회색 텍스트(타이틀 줄 오른쪽). */
+.vp-doc .oa-auth-note {
+  font-size: 0.8rem;
+  color: var(--vp-c-text-2);
+}
+.vp-doc .oa-auth-note a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.vp-doc .oa-auth-note a:hover {
+  color: var(--vp-c-brand-1);
+}
+
+/* 4) 응답 Table / JSON 탭 */
+.vp-doc .oa-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--vp-c-divider);
+  margin: 0.75rem 0 0;
+}
+.vp-doc .oa-tab {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--vp-c-text-2);
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.vp-doc .oa-tab:hover {
+  color: var(--vp-c-text-1);
+}
+.vp-doc .oa-tab.active {
+  color: var(--vp-c-brand-1);
+  border-color: var(--vp-c-divider);
+  border-bottom-color: var(--vp-c-bg);
+  background: var(--vp-c-bg);
+}
+/* JSON 샘플 블록 */
+.vp-doc pre.oa-json {
+  margin: 0.75rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--vp-code-block-bg, var(--vp-c-bg-alt));
+  overflow-x: auto;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+.vp-doc pre.oa-json code {
+  font-family: var(--vp-font-family-mono);
+  white-space: pre;
+}
+/* JSON 구문 강조 토큰 색상 */
+.vp-doc pre.oa-json .oa-j-key {
+  color: #2563eb;
+} /* 키: 파랑 */
+.vp-doc pre.oa-json .oa-j-str {
+  color: #16a34a;
+} /* 문자열: 초록 */
+.vp-doc pre.oa-json .oa-j-num {
+  color: #b45309;
+} /* 숫자: 갈색 */
+.vp-doc pre.oa-json .oa-j-bool,
+.vp-doc pre.oa-json .oa-j-null {
+  color: #9333ea;
+} /* boolean/null: 보라 */
+/* 다크 테마 대비(토글로 다크 전환 시) */
+.dark .vp-doc pre.oa-json .oa-j-key {
+  color: #7dd3fc;
+}
+.dark .vp-doc pre.oa-json .oa-j-str {
+  color: #86efac;
+}
+.dark .vp-doc pre.oa-json .oa-j-num {
+  color: #fdba74;
+}
+.dark .vp-doc pre.oa-json .oa-j-bool,
+.dark .vp-doc pre.oa-json .oa-j-null {
+  color: #d8b4fe;
+}

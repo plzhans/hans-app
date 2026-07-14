@@ -1,0 +1,29 @@
+{
+  "name": "hansapi-cli",
+  "version": "0.0.1",
+  "private": true,
+  "description": "외부 공공데이터 API 를 커맨드로 호출해보는 개발용 CLI",
+  "bin": {
+    "hansapi-cli": "./dist/main.js"
+  },
+  "scripts": {
+    "start": "node --conditions src -r @swc-node/register src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "@hansapi/admin-application": "workspace:*",
+    "@hansapi/common": "workspace:*",
+    "@hansapi/data": "workspace:*",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
+    "commander": "^14.0.2",
+    "dotenv": "^17.4.2",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.43",
+    "@types/node": "^26.1.0"
+  }
+}

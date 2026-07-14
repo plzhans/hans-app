@@ -1,0 +1,56 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // VitePress 개발 서버(docs:dev)를 디버깅한다. pnpm 으로 구동하고
+      // 자식 node 프로세스(config.ts/paths.js/SSR 등)에 자동으로 디버거를 붙인다.
+      "name": "fe: hansapi-docs",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/hansapi-docs",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "docs:dev"],
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true,
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      // Vite 개발 서버(pnpm local, .env.local)를 통합 터미널에서 구동한다.
+      // 브라우저 코드 중단점은 아래 "fe: clinicfinder-web (chrome)" 로 붙는다.
+      "name": "fe: clinicfinder-web (dev server)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/clinicfinder-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "local"],
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true,
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      // 위 dev 서버에 Chrome 을 띄워 브라우저(React) 코드에 중단점을 건다.
+      // dev 서버가 먼저 떠 있어야 하며, 아래 compound 로 한 번에 실행할 수 있다.
+      "name": "fe: clinicfinder-web (chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/clinicfinder-web/src",
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${workspaceFolder}/clinicfinder-web/src/*",
+        "/src/*": "${workspaceFolder}/clinicfinder-web/src/*"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      // dev 서버 + Chrome 을 함께 실행 (원클릭 풀 디버깅)
+      "name": "fe: clinicfinder-web (full)",
+      "configurations": ["fe: clinicfinder-web (dev server)", "fe: clinicfinder-web (chrome)"],
+      "stopAll": true
+    }
+  ]
+}

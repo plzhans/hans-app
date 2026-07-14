@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# 브랜치 전환($3=1)으로 schema 가 바뀌었으면 Prisma 클라이언트 재생성. ($1=이전, $2=새 브랜치)
+[ "$3" = "1" ] || exit 0
+sh scripts/prisma-sync.sh "$1" "$2"

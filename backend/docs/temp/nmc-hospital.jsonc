@@ -1,0 +1,218 @@
+{
+  "id": 0, // 고유 id
+
+  "nmc": {
+    "hpid": 0, // hpid
+    "dutyEmCls": "", // duty_emcls (응급의료기관 종별코드)
+    "dutyEmClsName": "" // duty_emcls_name (응급의료기관 종별코드명)
+  },
+
+  "name": {
+    "ko": "" // duty_name
+  },
+
+  "categoryId": 0, // duty_div (병원 분류 코드)
+  "categoryName": { "ko": "" }, // duty_div_nam (병원 분류명)
+
+  "establishment": {
+    "date": "" //
+  },
+
+  "link": {
+    "homepage": "" //
+  },
+
+  // dgidIdName (표시과목) — 코드 → { name, 인력 } 맵
+  "specialties": {
+    "01": {
+      "name": { "ko": "내과", "en": "Internal Medicine" }, // dgidIdName
+      "doctorCount": null, //
+      "specialistCount": null, //
+      "selectiveDoctorCount": null //
+    },
+    "23": {
+      "name": { "ko": "가정의학과", "en": "Family Medicine" }, // dgidIdName
+      "doctorCount": null, //
+      "specialistCount": null, //
+      "selectiveDoctorCount": null //
+    }
+  },
+
+  "texts": {
+    "description": { "ko": "" }, // duty_inf (병원 설명)
+    "notice": { "ko": "" } // duty_etc (안내사항 — 휴진시간, 공지 등)
+  },
+
+  "contact": {
+    "tel": "" // duty_tel1 (대표전화)
+  },
+
+  "location": {
+    "address": {
+      // duty_addr (주소) — 언어별 블록. 파싱해서 sido/sigungu/dong/detail로 분해
+      "ko": { "sido": "", "sigungu": "", "dong": "", "detail": "" },
+      "en": { "sido": "", "sigungu": "", "dong": "", "detail": "" },
+      "ja": { "sido": "", "sigungu": "", "dong": "", "detail": "" }
+    },
+    "zipcode": "", // post_cdn1 + post_cdn2 (우편번호)
+    "lat": 0, // wgs84_lat (위도)
+    "lon": 0, // wgs84_lon (경도)
+
+    "landmark": {
+      "name": "", //
+      "direction": "", //
+      "distance": "" //
+    }
+  },
+
+  "facilities": {
+    "parking": {
+      "capacity": null, //
+      "paid": false, //
+      "note": { "ko": "", "en": "" } //
+    }
+  },
+
+  // 운영시간 — 요일 맵. 같은 스케줄 요일은 "|"로 묶음. 공휴일은 holiday 로 분리.
+  "operatingHours": {
+    "mon|tue|wed|thu|fri|sat|sun": {
+      "start": "", // duty_time1_s ~ duty_time7_s (진료시작)
+      "end": "", // duty_time1_c ~ duty_time7_c (진료종료)
+      "reception": "", //
+      "break": { "start": "", "end": "" }, //
+      "notice": "" //
+    },
+    "holiday": {
+      "start": "", // duty_time8_s (공휴일)
+      "end": "", // duty_time8_c
+      "reception": "", //
+      "break": { "start": "", "end": "" }, //
+      "notice": "" //
+    }
+  },
+
+  "emergency": {
+    "day": {
+      "active": false, // duty_eryn (응급실 운영여부)
+      "tel": [""] // duty_tel3 (응급실 전화)
+    },
+    "night": {
+      "active": false, //
+      "tel": [""] //
+    }
+  },
+
+  "staff": {
+    "doctorTotal": null, //
+    "medical": {
+      "specialist": null, //
+      "general": null, //
+      "intern": null, //
+      "resident": null //
+    },
+    "dental": {
+      "specialist": null, //
+      "general": null, //
+      "intern": null, //
+      "resident": null //
+    },
+    "oriental": {
+      "specialist": null, //
+      "general": null, //
+      "intern": null, //
+      "resident": null //
+    },
+    "nurse": null //
+  },
+
+  // o026~o037 — 장비/시설 보유 여부 (정적, boolean)
+  "equipment": {
+    "deliveryRoom": false, // o026 분만실
+    "ct": false, // o027 CT
+    "mri": false, // o028 MRI
+    "angiography": false, // o029 혈관촬영기
+    "ventilator": false, // o030 인공호흡기
+    "ventilatorPediatric": false, // o031 인공호흡기(소아)
+    "incubator": false, // o032 인큐베이터
+    "crrt": false, // o033 CRRT
+    "ecmo": false, // o034 ECMO
+    "therapeuticHypothermia": false, // o035 치료적 저체온 요법
+    "burnTreatmentRoom": false, // o036 화상전용 처치실
+    "hyperbaricOxygen": false // o037 고압산소치료기
+  },
+
+  // MKioskTy — 중증질환 수용 가능 (boolean)
+  "acceptance": {
+    "brainHemorrhageSurgery": false, // MKioskTy1  뇌출혈수술
+    "cerebralReperfusion": false, // MKioskTy2  뇌경색 재관류
+    "myocardialReperfusion": false, // MKioskTy3  심근경색 재관류
+    "abdominalSurgery": false, // MKioskTy4  복부손상 수술
+    "limbReplantation": false, // MKioskTy5  사지접합
+    "emergencyEndoscopy": false, // MKioskTy6  응급내시경
+    "emergencyDialysis": false, // MKioskTy7  응급투석
+    "pretermLabor": false, // MKioskTy8  조산산모
+    "psychiatric": false, // MKioskTy9  정신질환자
+    "neonate": false, // MKioskTy10 신생아
+    "severeBurn": false, // MKioskTy11 중증화상
+    "emergencyRoom": false // MKioskTy25 응급실
+  },
+
+  "beds": {
+    // 가용 병상수 (실시간, 미제공은 null) — o###
+    "available": {
+      "emergency": {
+        "general": null, // o001 응급실 일반
+        "pediatric": null, // o002 응급실 소아
+        "negativePressureIsolation": null, // o003 음압 격리
+        "isolation": null, // o004 일반 격리
+        "icu": null, // o005 응급전용 중환자실
+        "pediatricOnly": null, // o010 소아응급전용
+        "ward": null, // o019 응급전용 입원실
+        "pediatricWard": null // o020 소아응급전용 입원 병상
+      },
+      "icu": {
+        "internalMedicine": null, // o006 내과
+        "surgical": null, // o007 외과
+        "neonatal": null, // o008 신생아
+        "pediatric": null, // o009 소아
+        "neurology": null, // o011 신경과
+        "neurosurgery": null, // o012 신경외과
+        "burn": null, // o013 화상
+        "trauma": null, // o014 외상
+        "cardiology": null, // o015 심장내과
+        "thoracicSurgery": null, // o016 흉부외과
+        "general": null, // o017 일반
+        "negativePressureIsolation": null // o018 음압 격리
+      },
+      "trauma": {
+        "ward": null, // o021 외상전용 입원실
+        "operatingRoom": null // o023 외상전용 수술실
+      },
+      "special": {
+        "psychiatricClosed": null, // o024 정신과 폐쇄 병상
+        "negativePressureIsolation": null // o025 음압 격리 병상
+      },
+      "operatingRoom": null, // o022 수술실
+      "generalWard": null // o038 일반입원실
+    },
+    // 정원 병상수 (정적) — nmc 소스 없음
+    "capacity": {
+      "permitted": null, //
+      "upper": null, //
+      "standard": null, //
+      "icuAdultChild": null, //
+      "icuChild": null, //
+      "icuNeonatal": null, //
+      "delivery": null, //
+      "surgery": null, //
+      "emergency": null, //
+      "physicalTherapy": null, //
+      "psychClosedUpper": null, //
+      "psychClosedStandard": null, //
+      "psychOpenUpper": null, //
+      "psychOpenStandard": null, //
+      "isolation": null, //
+      "sterile": null //
+    }
+  }
+}

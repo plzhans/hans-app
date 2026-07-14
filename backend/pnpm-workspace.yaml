@@ -1,0 +1,16 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  # 외부 API SDK. hansapi 도메인에 의존하지 않으며 단독 배포 가능해야 한다.
+  - 'clients/*'
+
+# 빌드 스크립트(postinstall 등) 실행 허용 여부 (pnpm 11 approve-builds).
+# 네이티브/코드젠 패키지는 true, 텔레메트리(scarf)는 false.
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  '@swc/core': true
+  esbuild: true
+  prisma: true
+  unrs-resolver: true

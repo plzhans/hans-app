@@ -1,0 +1,258 @@
+{
+  "id": 0, // 고유 id
+
+  "hira": {
+    "ykiho": "", // ykiho (요양기관기호, HIRA 고유식별자)
+    "orgTyCd": "", // org_ty_cd (설립구분코드)
+    "orgTyCdNm": { "ko": "" } // org_ty_cd_nm (설립구분명)
+  },
+
+  "name": {
+    "ko": "" // yadm_nm (병원명)
+  },
+
+  "categoryId": 0, // cl_cd (종별코드)
+  "categoryName": { "ko": "" }, // cl_cd_nm (종별코드명)
+
+  "establishment": {
+    "date": "" // estb_dd (개설일자 yyyyMMdd)
+  },
+
+  "link": {
+    "homepage": "" // hosp_url (병원 URL)
+  },
+
+  // 진료과목 — 코드 → { name, 인력 } 맵. diagnosis_subject + specialty 병합
+  "specialties": {
+    "01": {
+      "name": { "ko": "내과" }, // dgsbjt_cd_nm
+      "doctorCount": null, // dgsbjt_pr_sdr_cnt (의사수)
+      "specialistCount": null, // dtl_sdr_cnt (전문의수, _specialty)
+      "selectiveDoctorCount": null // cdiag_dr_cnt (선택진료의사수)
+    }
+  },
+
+  "texts": {
+    "description": { "ko": "" }, //
+    "notice": { "ko": "" } //
+  },
+
+  "contact": {
+    "tel": "" // telno (전화번호)
+  },
+
+  "location": {
+    "address": {
+      // sido_cd_nm / sggu_cd_nm / emdong_nm / addr
+      "ko": { "sido": "", "sigungu": "", "dong": "", "detail": "" },
+      "en": { "sido": "", "sigungu": "", "dong": "", "detail": "" }, //
+      "ja": { "sido": "", "sigungu": "", "dong": "", "detail": "" } //
+    },
+    "zipcode": "", // post_no (우편번호)
+    "lat": 0, // y_pos (위도) — varchar → number 파싱
+    "lon": 0, // x_pos (경도) — varchar → number 파싱
+
+    // 랜드마크(공공건물 기준 위치) — detail
+    "landmark": {
+      "name": "", // plc_nm (장소 이름)
+      "direction": "", // plc_dir (방향)
+      "distance": "" // plc_dist (거리)
+    }
+  },
+
+  "facilities": {
+    // 주차 — detail
+    "parking": {
+      "capacity": null, // park_qty (주차 가능대수)
+      "paid": false, // park_xpns_yn (주차비용 부담여부 Y/N)
+      "note": { "ko": "", "en": "" } // park_etc (기타 안내) — 자유 텍스트라 다국어
+    }
+  },
+
+  // 진료시간 — detail. 요일별로 진료/접수/점심/휴진안내 통합.
+  "operatingHours": {
+    "mon": {
+      "start": "", // trmt_mon_start (진료시작)
+      "end": "", // trmt_mon_end (진료종료)
+      "reception": "", // rcv_week (평일 접수시간)
+      "break": { "start": "", "end": "" }, // lunch_week (월~금 점심시간)
+      "notice": "" // 휴진/특이 안내
+    },
+    "tue": {
+      "start": "", // trmt_tue_start
+      "end": "", // trmt_tue_end
+      "reception": "", // rcv_week
+      "break": { "start": "", "end": "" }, // lunch_week
+      "notice": ""
+    },
+    "wed": {
+      "start": "", // trmt_wed_start
+      "end": "", // trmt_wed_end
+      "reception": "", // rcv_week
+      "break": { "start": "", "end": "" }, // lunch_week
+      "notice": ""
+    },
+    "thu": {
+      "start": "", // trmt_thu_start
+      "end": "", // trmt_thu_end
+      "reception": "", // rcv_week
+      "break": { "start": "", "end": "" }, // lunch_week
+      "notice": ""
+    },
+    "fri": {
+      "start": "", // trmt_fri_start
+      "end": "", // trmt_fri_end
+      "reception": "", // rcv_week
+      "break": { "start": "", "end": "" }, // lunch_week
+      "notice": ""
+    },
+    "sat": {
+      "start": "", // trmt_sat_start
+      "end": "", // trmt_sat_end
+      "reception": "", // rcv_sat (토요일 접수시간)
+      "break": { "start": "", "end": "" },
+      "notice": ""
+    },
+    "sun": {
+      "start": "", // 진료 없음
+      "end": "",
+      "reception": "",
+      "break": { "start": "", "end": "" },
+      "notice": "" // no_trmt_sun (일요일 휴진 안내)
+    },
+    "holiday": {
+      "start": "",
+      "end": "",
+      "reception": "",
+      "break": { "start": "", "end": "" },
+      "notice": "" // no_trmt_holi (공휴일 휴진 안내)
+    }
+  },
+
+  // 응급실 — detail. 주간/야간 분리 + 각 전화 2개
+  "emergency": {
+    "day": {
+      "active": false, // emy_day_yn (주간 운영여부 Y/N)
+      "tel": ["", ""] // emy_day_tel_no1 / emy_day_tel_no2
+    },
+    "night": {
+      "active": false, // emy_ngt_yn (야간 운영여부 Y/N)
+      "tel": ["", ""] // emy_ngt_tel_no1 / emy_ngt_tel_no2
+    }
+  },
+
+  // 인력 — hira_hospital
+  "staff": {
+    "doctorTotal": null, // dr_tot_cnt (의사 총 수)
+    "medical": {
+      "specialist": null, // mdept_sdr_cnt (의과 전문의)
+      "general": null, // mdept_gdr_cnt (의과 일반의)
+      "intern": null, // mdept_intn_cnt (의과 인턴)
+      "resident": null // mdept_resdnt_cnt (의과 레지던트)
+    },
+    "dental": {
+      "specialist": null, // dety_sdr_cnt
+      "general": null, // dety_gdr_cnt
+      "intern": null, // dety_intn_cnt
+      "resident": null // dety_resdnt_cnt
+    },
+    "oriental": {
+      "specialist": null, // cmdc_sdr_cnt (한방 전문의)
+      "general": null, // cmdc_gdr_cnt
+      "intern": null, // cmdc_intn_cnt
+      "resident": null // cmdc_resdnt_cnt
+    },
+    "nurse": null // pnurs_cnt (간호사 수)
+  },
+
+  // 장비/시설 보유 여부 (정적, boolean)
+  "equipment": {
+    "deliveryRoom": false, //
+    "ct": false, //
+    "mri": false, //
+    "angiography": false, //
+    "ventilator": false, //
+    "ventilatorPediatric": false, //
+    "incubator": false, //
+    "crrt": false, //
+    "ecmo": false, //
+    "therapeuticHypothermia": false, //
+    "burnTreatmentRoom": false, //
+    "hyperbaricOxygen": false //
+  },
+
+  // 중증질환 수용 가능 (boolean)
+  "acceptance": {
+    "brainHemorrhageSurgery": false, //
+    "cerebralReperfusion": false, //
+    "myocardialReperfusion": false, //
+    "abdominalSurgery": false, //
+    "limbReplantation": false, //
+    "emergencyEndoscopy": false, //
+    "emergencyDialysis": false, //
+    "pretermLabor": false, //
+    "psychiatric": false, //
+    "neonate": false, //
+    "severeBurn": false, //
+    "emergencyRoom": false //
+  },
+
+  "beds": {
+    // 가용 병상수 (실시간) — hira 소스 없음
+    "available": {
+      "emergency": {
+        "general": null, //
+        "pediatric": null, //
+        "negativePressureIsolation": null, //
+        "isolation": null, //
+        "icu": null, //
+        "pediatricOnly": null, //
+        "ward": null, //
+        "pediatricWard": null //
+      },
+      "icu": {
+        "internalMedicine": null, //
+        "surgical": null, //
+        "neonatal": null, //
+        "pediatric": null, //
+        "neurology": null, //
+        "neurosurgery": null, //
+        "burn": null, //
+        "trauma": null, //
+        "cardiology": null, //
+        "thoracicSurgery": null, //
+        "general": null, //
+        "negativePressureIsolation": null //
+      },
+      "trauma": {
+        "ward": null, //
+        "operatingRoom": null //
+      },
+      "special": {
+        "psychiatricClosed": null, //
+        "negativePressureIsolation": null //
+      },
+      "operatingRoom": null, //
+      "generalWard": null //
+    },
+    // 정원 병상수 (정적) — hira_hospital_facility
+    "capacity": {
+      "permitted": null, // perm_sbd_cnt (허가병상수)
+      "upper": null, // hghr_sickbd_cnt (상급병상수)
+      "standard": null, // std_sickbd_cnt (일반병상수)
+      "icuAdultChild": null, // adu_chld_sprm_cnt (성인소아중환자실수)
+      "icuChild": null, // chld_sprm_cnt (소아중환자실수)
+      "icuNeonatal": null, // nby_sprm_cnt (신생아중환자실수)
+      "delivery": null, // partum_cnt (분만실수)
+      "surgery": null, // soprm_cnt (수술병상수)
+      "emergency": null, // emym_cnt (응급실수)
+      "physicalTherapy": null, // ptrm_cnt (물리치료실수)
+      "psychClosedUpper": null, // psydept_cls_hig_sbd_cnt (정신과폐쇄상급)
+      "psychClosedStandard": null, // psydept_cls_gnl_sbd_cnt (정신과폐쇄일반)
+      "psychOpenUpper": null, // psydept_open_hig_sbd_cnt (정신과개방상급)
+      "psychOpenStandard": null, // psydept_open_gnl_sbd_cnt (정신과개방일반)
+      "isolation": null, // isnr_sbd_cnt (격리병실병상수)
+      "sterile": null // anvir_trrm_sbd_cnt (무균치료실병상수)
+    }
+  }
+}

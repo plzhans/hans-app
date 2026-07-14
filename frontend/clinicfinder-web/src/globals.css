@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+
+  /*
+    기준 글자 크기. **Tailwind 의 text-* 는 전부 rem 이라 여기만 올리면 비율대로 커진다.**
+    클래스를 파일마다 한 단계씩 올리면(text-sm → text-base) 위계가 무너지고, 놓친 곳이 생긴다.
+    16px → 17px = 약 6% 확대. text-sm(0.875rem)은 14 → 14.9px 가 된다.
+  */
+  font-size: 17px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}

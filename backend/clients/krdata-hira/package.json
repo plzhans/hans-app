@@ -1,0 +1,27 @@
+{
+  "name": "@krdata/hira",
+  "version": "0.0.1",
+  "private": true,
+  "description": "공공데이터포털(data.go.kr) 건강보험심사평가원(HIRA) API 클라이언트",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json",
+    "./openapi/*": "./openapi/*"
+  },
+  "scripts": {
+    "codegen": "orval --config orval.config.ts",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@krdata/core": "workspace:*"
+  },
+  "devDependencies": {
+    "orval": "^7.13.2"
+  }
+}

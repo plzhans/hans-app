@@ -1,0 +1,7 @@
+# Prettier는 node_modules를 기본 무시하지만, 그 외 제외 대상을 명시
+**/node_modules
+**/dist
+**/coverage
+pnpm-lock.yaml
+# prisma 생성 코드
+**/prisma/generated

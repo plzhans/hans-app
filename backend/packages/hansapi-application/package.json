@@ -1,0 +1,26 @@
+{
+  "name": "@hansapi/application",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@hansapi/common": "workspace:*",
+    "@hansapi/data": "workspace:*",
+    "@krdata/hira": "workspace:*",
+    "@krdata/nmc": "workspace:*",
+    "@nestjs/common": "^11.0.1",
+    "@prisma/client": "^6.19.3",
+    "reflect-metadata": "^0.2.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

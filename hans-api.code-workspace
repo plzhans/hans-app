@@ -1,0 +1,24 @@
+{
+  "folders": [
+    {
+      "name": "🔧 root",
+      "path": "."
+    },
+    {
+      "name": "backend",
+      "path": "backend"
+    },
+    {
+      "name": "frontend",
+      "path": "frontend"
+    }
+  ],
+  "settings": {
+    // 🔧 root 폴더에서 backend/frontend 중복 표시를 숨김
+    // (각각은 아래 별도 폴더로 보이므로 root 에는 .husky/.gitignore 등 최상위 파일만 노출)
+    "files.exclude": {
+      "backend": true,
+      "frontend": true
+    }
+  }
+}

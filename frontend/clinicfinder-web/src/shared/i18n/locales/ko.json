@@ -1,0 +1,105 @@
+{
+  "app": {
+    "name": "ClinicFinder",
+    "tagline": "전국 병원을 쉽고 빠르게"
+  },
+  "nav": {
+    "home": "홈",
+    "search": "병원 검색"
+  },
+  "home": {
+    "heroTitle": "가까운 병원을 찾아보세요",
+    "heroSubtitle": "이름으로 병원을 검색하고 진료 정보를 확인하세요.",
+    "searchPlaceholder": "병원 이름을 입력하세요",
+    "searchButton": "검색"
+  },
+  "search": {
+    "title": "병원 검색",
+    "placeholder": "병원 이름으로 필터링",
+    "source": "데이터 출처",
+    "sourceHira": "건강보험심사평가원(HIRA)",
+    "sourceNmc": "국립중앙의료원(NMC)",
+    "resultCount": "총 {{count}}건",
+    "empty": "검색 결과가 없습니다.",
+    "loadError": "목록을 불러오지 못했습니다.",
+    "prev": "이전",
+    "next": "다음",
+    "page": "{{page}} 페이지",
+    "clientFilterNote": "※ 현재 키워드는 불러온 페이지 내에서만 필터링됩니다. 서버 검색은 준비 중입니다."
+  },
+  "clinic": {
+    "category": "종별",
+    "address": "주소",
+    "phone": "전화",
+    "homepage": "홈페이지",
+    "beds": "병상",
+    "detail": "상세 정보",
+    "back": "목록으로",
+    "noData": "정보 없음",
+    "notFound": "병원 정보를 찾을 수 없습니다. 목록에서 다시 선택해 주세요.",
+    "integration": "연동 정보",
+    "integrationNote": "내부 개발용 · production 에서는 노출되지 않습니다",
+    "establishment": "개원일",
+    "contact": "연락처",
+    "mainTel": "대표번호",
+    "location": "위치",
+    "landmark": "찾아오는 길",
+    "viewOnMap": "지도 보기",
+    "hideMap": "지도 닫기",
+    "openNaverMap": "지도 크게보기",
+    "zipcode": "우편번호",
+    "hours": "진료시간",
+    "today": "오늘",
+    "tomorrow": "내일",
+    "closed": "휴진",
+    "break": "점심시간",
+    "bedsCapacity": "병상(정원)",
+    "bedsField": {
+      "permitted": "허가병상", "upper": "상급병상", "standard": "일반병상",
+      "icuAdultChild": "성인·소아 중환자실", "icuChild": "소아 중환자실", "icuNeonatal": "신생아 중환자실",
+      "delivery": "분만실", "surgery": "수술병상", "emergency": "응급실", "physicalTherapy": "물리치료실",
+      "psychClosedUpper": "정신과 폐쇄 상급", "psychClosedStandard": "정신과 폐쇄 일반",
+      "psychOpenUpper": "정신과 개방 상급", "psychOpenStandard": "정신과 개방 일반",
+      "isolation": "격리병실", "sterile": "무균치료실"
+    },
+    "staff": "인력",
+    "doctorTotal": "의사 총원",
+    "nurse": "간호사",
+    "staffDept": { "medical": "의과", "dental": "치과", "oriental": "한방" },
+    "staffCount": { "specialist": "전문의", "general": "일반의", "intern": "인턴", "resident": "레지던트" },
+    "equipment": "보유 장비",
+    "equipmentField": {
+      "deliveryRoom": "분만실", "ct": "CT", "mri": "MRI", "angiography": "혈관촬영기",
+      "ventilator": "인공호흡기", "ventilatorPediatric": "인공호흡기(소아)", "incubator": "인큐베이터",
+      "crrt": "CRRT", "ecmo": "ECMO", "therapeuticHypothermia": "저체온치료",
+      "burnTreatmentRoom": "화상처치실", "hyperbaricOxygen": "고압산소치료기"
+    },
+    "acceptance": "중증질환 수용 가능",
+    "acceptanceField": {
+      "brainHemorrhageSurgery": "뇌출혈수술", "cerebralReperfusion": "뇌경색 재관류",
+      "myocardialReperfusion": "심근경색 재관류", "abdominalSurgery": "복부손상 수술",
+      "limbReplantation": "사지접합", "emergencyEndoscopy": "응급내시경", "emergencyDialysis": "응급투석",
+      "pretermLabor": "조산산모", "psychiatric": "정신질환자", "neonate": "신생아",
+      "severeBurn": "중증화상", "emergencyRoom": "응급실"
+    },
+    "emergency": "응급실",
+    "emergencyDay": "주간",
+    "emergencyNight": "야간",
+    "emergencyInactive": "운영 중지",
+    "emergencyTel": "응급실 전화",
+    "facilities": "시설",
+    "parking": "주차",
+    "parkingCapacity": "{{count}}대",
+    "parkingPaid": "유료",
+    "parkingFree": "무료",
+    "description": "병원 소개",
+    "notice": "안내",
+    "day": {
+      "mon": "월", "tue": "화", "wed": "수", "thu": "목", "fri": "금", "sat": "토", "sun": "일", "holiday": "공휴일"
+    }
+  },
+  "common": {
+    "loading": "불러오는 중...",
+    "language": "언어"
+  }
+}

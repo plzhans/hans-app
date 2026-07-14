@@ -1,0 +1,36 @@
+{
+  "name": "hans-api",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "scripts": {
+    "dev:server": "pnpm --filter hansapi-server start:dev",
+    "hansapi-cli": "pnpm --filter hansapi-cli start",
+    "krdata:codegen": "pnpm --filter \"@krdata/*\" codegen",
+    "openapi:gen": "pnpm --filter hansapi-server openapi:gen",
+    "build": "pnpm -r build",
+    "lint": "eslint \"{apps,packages,clients}/*/src/**/*.ts\" --fix",
+    "format": "prettier --write \"{apps,packages,clients}/*/**/*.{ts,js,json}\""
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^24.13.2",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "globals": "^17.7.0",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.9.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.62.1"
+  },
+  "lint-staged": {
+    "*.{ts,js,mjs,cjs}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,jsonc,md,yml,yaml,css,scss,html}": [
+      "prettier --write"
+    ]
+  }
+}

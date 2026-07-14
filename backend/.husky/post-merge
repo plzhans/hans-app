@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# pull/merge 로 schema 가 바뀌었으면 Prisma 클라이언트 재생성. (ORIG_HEAD=merge 전, HEAD=merge 후)
+sh scripts/prisma-sync.sh ORIG_HEAD HEAD

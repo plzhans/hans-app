@@ -1,0 +1,32 @@
+{
+  "name": "@hansapi/admin-application",
+  "version": "0.0.1",
+  "private": true,
+  "description": "관리자/배치 전용 응용 계층. hansapi-server 는 이 패키지를 참조하지 않는다.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@hansapi/application": "workspace:*",
+    "@hansapi/common": "workspace:*",
+    "@hansapi/data": "workspace:*",
+    "@krdata/core": "workspace:*",
+    "@krdata/hira": "workspace:*",
+    "@krdata/nmc": "workspace:*",
+    "@nestjs/common": "^11.0.1",
+    "@prisma/client": "^6.19.3",
+    "reflect-metadata": "^0.2.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2"
+  }
+}

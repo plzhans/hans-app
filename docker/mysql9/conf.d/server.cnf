@@ -1,0 +1,58 @@
+# MySQL 9 서버 공통 설정.
+#
+# 공유 개발 DB(MySQL HeatWave 9.7.1-cloud)에 실제로 붙어서 읽어온 값들이다.
+# 로컬에서만 다르게 동작하는 걸 막는 게 목적이므로, MySQL 기본값과 같더라도 명시해 둔다.
+# 값을 바꾸기 전에 실제 DB 의 해당 변수를 먼저 확인할 것.
+#
+# 여기 담는 건 어느 스택에서 쓰든 같아야 하는 서버 동작(문자셋 / sql_mode / 시간대 등)뿐이다.
+# 특정 DB·계정 만들기는 이미지가 아니라 각 docker-compose 의 initdb 마운트가 한다.
+
+[mysqld]
+
+# --- 문자셋 ---
+# @@character_set_server = utf8mb4 / @@collation_server = utf8mb4_0900_ai_ci
+character-set-server = utf8mb4
+collation-server     = utf8mb4_0900_ai_ci
+
+# --- 시간대 ---
+# 서버는 UTC 로 돈다. 공유 개발 DB(@@time_zone = UTC) 와 같다.
+# DATETIME 은 시간대 변환 없이 그대로 저장되므로, 로컬만 KST 로 돌리면
+# DB 기본시각으로 채운 값이 개발/운영과 9시간 어긋난다. 그래서 맞춰 둔다.
+# 한국 시각으로 보여주는 건 앱이 한다.
+#
+# 컨테이너에 타임존 테이블이 적재돼 있지 않아 'UTC' 같은 이름은 못 쓴다. 오프셋으로 쓴다.
+default-time-zone = '+00:00'
+
+# --- SQL 동작 ---
+# @@sql_mode 를 그대로 옮긴 것. 로컬에서만 통과하는 쿼리가 생기지 않게 한다.
+sql_mode = ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+
+# 테이블명 대소문자 구분. Linux 기본값이자 실제 DB 값(0)이다.
+# macOS/Windows 개발자가 대소문자를 틀려도 로컬에서 바로 깨지도록 0 을 유지한다.
+lower_case_table_names = 0
+
+# TIMESTAMP 컬럼에 암묵적 NOT NULL / 자동갱신을 붙이지 않는다.
+explicit_defaults_for_timestamp = ON
+
+# 바이너리 로그가 켜진 상태에서 함수/트리거를 만들 수 있게 한다.
+log_bin_trust_function_creators = ON
+
+transaction_isolation = REPEATABLE-READ
+group_concat_max_len  = 1024
+
+# --- InnoDB ---
+innodb_default_row_format = dynamic
+# 16384 는 기본값이지만, datadir 초기화 시점에만 반영되는 값이라 명시해 둔다.
+innodb_page_size = 16384
+
+# --- 접속 ---
+max_connections = 200
+
+# binlog_format 은 실제 DB 도 ROW(9.x 기본값)다.
+# 9.x 에서 deprecated 라 명시하면 기동 시 경고가 뜨므로 적지 않는다.
+
+[client]
+default-character-set = utf8mb4
+
+[mysql]
+default-character-set = utf8mb4

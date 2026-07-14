@@ -1,0 +1,790 @@
+/**
+ * 통합 코드 시드 (healthcare_code).
+ *
+ * 이 파일이 코드 매핑의 **유일한 원본**이다. DB 에 직접 INSERT 하지 않는다.
+ * git 에 남고, 어느 환경에나 같은 값이 들어가고, 누가 언제 바꿨는지 추적된다.
+ *
+ * [1:N 매핑이 필요한 이유]
+ * 원본이 같은 과목을 신·구 이름으로 두 코드에 나눠 갖고 있다.
+ *   방사선종양학과 = NMC D031 (현행) + D019 (치료방사선과, 옛 이름)
+ *   진단검사의학과 = NMC D033 (현행) + D020 (임상병리과, 옛 이름)
+ * 병원이 옛 코드를 달고 있어도 우리 코드로는 하나가 되어야 한다.
+ *
+ * [매핑하지 않는 것]
+ *   HIRA 00 일반의        전문의가 없다는 뜻이지 진료과목이 아니다
+ *   HIRA 60/90 치과·한방소계  합계 행이다
+ *   NMC D057~D060         병무청·의무대·학교시설·기타 — 기관 종류지 과목이 아니다
+ * 이런 것은 hospital 적재 때 무시한다. 배치가 "매핑 없음" 으로 경고하지 않도록 여기 명시한다.
+ */
+
+export interface HealthcareCodeSeed {
+  tp: 'subject' | 'class' | 'equipment' | 'severe';
+  cd: string;
+  nm: string;
+  cmt?: string;
+  hira_cd?: string[];
+  nmc_cd?: string[];
+  sort: number;
+}
+
+/** 매핑 대상이 아닌 원본 코드. 배치가 경고를 내지 않도록 명시적으로 무시한다. */
+export const IGNORED_SOURCE_CODES = {
+  subject: {
+    hira: ['00', '60', '90'], // 일반의 · 치과소계 · 한방소계
+    nmc: ['D057', 'D058', 'D059', 'D060'], // 병무청 · 의무대 · 학교시설 · 기타
+  },
+  class: {
+    hira: [],
+    // NMC 기관구분에는 병원이 아닌 것이 섞여 있다. 응급의료 정보 시스템이라
+    // 이송·신고 기관까지 담기 때문이다. 우리 병원 테이블의 대상이 아니다.
+    nmc: ['S', 'T', 'U', 'V', 'W', 'Y', 'Z'],
+    //    이송단체 소방서 경찰서 지자체 구급차 중앙응급의료센터 정보센터
+  },
+} as const;
+
+// ── 진료과목 ────────────────────────────────────────────────
+// HIRA 50종 · NMC 57종 → 통합 47종. 이름으로 44종이 자동 매칭됐고 나머지는 손으로 붙였다.
+
+const SUBJECTS: HealthcareCodeSeed[] = [
+  // 의과
+  {
+    tp: 'subject',
+    cd: 'IM',
+    nm: '내과',
+    hira_cd: ['01'],
+    nmc_cd: ['D001'],
+    sort: 101,
+  },
+  {
+    tp: 'subject',
+    cd: 'PED',
+    nm: '소아청소년과',
+    hira_cd: ['11'],
+    nmc_cd: ['D002'],
+    sort: 102,
+  },
+  {
+    tp: 'subject',
+    cd: 'NEURO',
+    nm: '신경과',
+    hira_cd: ['02'],
+    nmc_cd: ['D003'],
+    sort: 103,
+  },
+  {
+    tp: 'subject',
+    cd: 'PSY',
+    nm: '정신건강의학과',
+    hira_cd: ['03'],
+    nmc_cd: ['D004'],
+    sort: 104,
+  },
+  {
+    tp: 'subject',
+    cd: 'DERM',
+    nm: '피부과',
+    hira_cd: ['14'],
+    nmc_cd: ['D005'],
+    sort: 105,
+  },
+  {
+    tp: 'subject',
+    cd: 'GS',
+    nm: '외과',
+    hira_cd: ['04'],
+    nmc_cd: ['D006'],
+    sort: 106,
+  },
+  {
+    tp: 'subject',
+    cd: 'CS',
+    nm: '심장혈관흉부외과',
+    hira_cd: ['07'],
+    nmc_cd: ['D007'],
+    sort: 107,
+  },
+  {
+    tp: 'subject',
+    cd: 'OS',
+    nm: '정형외과',
+    hira_cd: ['05'],
+    nmc_cd: ['D008'],
+    sort: 108,
+  },
+  {
+    tp: 'subject',
+    cd: 'NS',
+    nm: '신경외과',
+    hira_cd: ['06'],
+    nmc_cd: ['D009'],
+    sort: 109,
+  },
+  {
+    tp: 'subject',
+    cd: 'PS',
+    nm: '성형외과',
+    hira_cd: ['08'],
+    nmc_cd: ['D010'],
+    sort: 110,
+  },
+  {
+    tp: 'subject',
+    cd: 'OBGY',
+    nm: '산부인과',
+    hira_cd: ['10'],
+    nmc_cd: ['D011'],
+    sort: 111,
+  },
+  {
+    tp: 'subject',
+    cd: 'OPH',
+    nm: '안과',
+    hira_cd: ['12'],
+    nmc_cd: ['D012'],
+    sort: 112,
+  },
+  {
+    tp: 'subject',
+    cd: 'ENT',
+    nm: '이비인후과',
+    hira_cd: ['13'],
+    nmc_cd: ['D013'],
+    sort: 113,
+  },
+  {
+    tp: 'subject',
+    cd: 'URO',
+    nm: '비뇨의학과',
+    hira_cd: ['15'],
+    nmc_cd: ['D014'],
+    sort: 114,
+  },
+  {
+    tp: 'subject',
+    cd: 'TB',
+    nm: '결핵과',
+    hira_cd: ['20'],
+    nmc_cd: ['D015'],
+    sort: 115,
+  },
+  {
+    tp: 'subject',
+    cd: 'REHAB',
+    nm: '재활의학과',
+    hira_cd: ['21'],
+    nmc_cd: ['D016'],
+    sort: 116,
+  },
+  {
+    tp: 'subject',
+    cd: 'ANES',
+    nm: '마취통증의학과',
+    hira_cd: ['09'],
+    nmc_cd: ['D017'],
+    sort: 117,
+  },
+  {
+    tp: 'subject',
+    cd: 'RAD',
+    nm: '영상의학과',
+    hira_cd: ['16'],
+    nmc_cd: ['D018'],
+    sort: 118,
+  },
+  {
+    tp: 'subject',
+    cd: 'RAD_ONC',
+    nm: '방사선종양학과',
+    cmt: 'NMC D019(치료방사선과)는 같은 과목의 옛 이름이다',
+    hira_cd: ['17'],
+    nmc_cd: ['D031', 'D019'],
+    sort: 119,
+  },
+  {
+    tp: 'subject',
+    cd: 'PATH',
+    nm: '병리과',
+    cmt: 'NMC D021(해부병리과)은 같은 과목의 옛 이름이다',
+    hira_cd: ['18'],
+    nmc_cd: ['D032', 'D021'],
+    sort: 120,
+  },
+  {
+    tp: 'subject',
+    cd: 'LAB',
+    nm: '진단검사의학과',
+    cmt: 'NMC D020(임상병리과)은 같은 과목의 옛 이름이다',
+    hira_cd: ['19'],
+    nmc_cd: ['D033', 'D020'],
+    sort: 121,
+  },
+  {
+    tp: 'subject',
+    cd: 'NM',
+    nm: '핵의학과',
+    hira_cd: ['22'],
+    nmc_cd: ['D023'],
+    sort: 122,
+  },
+  {
+    tp: 'subject',
+    cd: 'FM',
+    nm: '가정의학과',
+    hira_cd: ['23'],
+    nmc_cd: ['D022'],
+    sort: 123,
+  },
+  {
+    tp: 'subject',
+    cd: 'EM',
+    nm: '응급의학과',
+    hira_cd: ['24'],
+    nmc_cd: ['D024'],
+    sort: 124,
+  },
+  {
+    tp: 'subject',
+    cd: 'OCC_ENV',
+    nm: '직업환경의학과',
+    cmt: 'NMC D025(산업의학과)는 옛 이름이다',
+    hira_cd: ['25'],
+    nmc_cd: ['D053', 'D025'],
+    sort: 125,
+  },
+  {
+    tp: 'subject',
+    cd: 'PREV',
+    nm: '예방의학과',
+    hira_cd: ['26'],
+    nmc_cd: ['D029'],
+    sort: 126,
+  },
+
+  // 치과
+  {
+    tp: 'subject',
+    cd: 'DENT',
+    nm: '치과',
+    hira_cd: ['49'],
+    nmc_cd: ['D026'],
+    sort: 201,
+  },
+  {
+    tp: 'subject',
+    cd: 'OMFS',
+    nm: '구강악안면외과',
+    cmt: 'NMC D054(구강안면외과)는 같은 과목의 다른 표기다',
+    hira_cd: ['50'],
+    nmc_cd: ['D034', 'D054'],
+    sort: 202,
+  },
+  {
+    tp: 'subject',
+    cd: 'PROS',
+    nm: '치과보철과',
+    hira_cd: ['51'],
+    nmc_cd: ['D035'],
+    sort: 203,
+  },
+  {
+    tp: 'subject',
+    cd: 'ORTHO',
+    nm: '치과교정과',
+    hira_cd: ['52'],
+    nmc_cd: ['D036'],
+    sort: 204,
+  },
+  {
+    tp: 'subject',
+    cd: 'PEDO',
+    nm: '소아치과',
+    hira_cd: ['53'],
+    nmc_cd: ['D037'],
+    sort: 205,
+  },
+  {
+    tp: 'subject',
+    cd: 'PERIO',
+    nm: '치주과',
+    hira_cd: ['54'],
+    nmc_cd: ['D038'],
+    sort: 206,
+  },
+  {
+    tp: 'subject',
+    cd: 'ENDO',
+    nm: '치과보존과',
+    hira_cd: ['55'],
+    nmc_cd: ['D039'],
+    sort: 207,
+  },
+  {
+    tp: 'subject',
+    cd: 'OMED',
+    nm: '구강내과',
+    hira_cd: ['56'],
+    nmc_cd: ['D040'],
+    sort: 208,
+  },
+  {
+    tp: 'subject',
+    cd: 'ORAD',
+    nm: '영상치의학과',
+    cmt: 'NMC D041(구강악안면방사선과)은 옛 이름이다',
+    hira_cd: ['57'],
+    nmc_cd: ['D055', 'D041'],
+    sort: 209,
+  },
+  {
+    tp: 'subject',
+    cd: 'OPATH',
+    nm: '구강병리과',
+    hira_cd: ['58'],
+    nmc_cd: ['D042'],
+    sort: 210,
+  },
+  {
+    tp: 'subject',
+    cd: 'PREV_DENT',
+    nm: '예방치과',
+    hira_cd: ['59'],
+    nmc_cd: ['D043'],
+    sort: 211,
+  },
+  {
+    tp: 'subject',
+    cd: 'INTEG_DENT',
+    nm: '통합치의학과',
+    hira_cd: ['61'],
+    nmc_cd: ['D056'],
+    sort: 212,
+  },
+
+  // 한방
+  {
+    tp: 'subject',
+    cd: 'KM_IM',
+    nm: '한방내과',
+    hira_cd: ['80'],
+    nmc_cd: ['D044'],
+    sort: 301,
+  },
+  {
+    tp: 'subject',
+    cd: 'KM_OBGY',
+    nm: '한방부인과',
+    hira_cd: ['81'],
+    nmc_cd: ['D045'],
+    sort: 302,
+  },
+  {
+    tp: 'subject',
+    cd: 'KM_PED',
+    nm: '한방소아과',
+    hira_cd: ['82'],
+    nmc_cd: ['D046'],
+    sort: 303,
+  },
+  {
+    tp: 'subject',
+    cd: 'KM_ENT_DERM',
+    nm: '한방안·이비인후·피부과',
+    hira_cd: ['83'],
+    nmc_cd: ['D047'],
+    sort: 304,
+  },
+  {
+    tp: 'subject',
+    cd: 'KM_PSY',
+    nm: '한방신경정신과',
+    hira_cd: ['84'],
+    nmc_cd: ['D048'],
+    sort: 305,
+  },
+  {
+    tp: 'subject',
+    cd: 'KM_REHAB',
+    nm: '한방재활의학과',
+    hira_cd: ['86'],
+    nmc_cd: ['D049'],
+    sort: 306,
+  },
+  {
+    tp: 'subject',
+    cd: 'KM_SASANG',
+    nm: '사상체질과',
+    hira_cd: ['87'],
+    nmc_cd: ['D050'],
+    sort: 307,
+  },
+  {
+    tp: 'subject',
+    cd: 'KM_ACU',
+    nm: '침구과',
+    hira_cd: ['85'],
+    nmc_cd: ['D051'],
+    sort: 308,
+  },
+  {
+    tp: 'subject',
+    cd: 'KM_EM',
+    nm: '한방응급',
+    hira_cd: ['88'],
+    nmc_cd: ['D052'],
+    sort: 309,
+  },
+];
+
+// ── 종별 ────────────────────────────────────────────────────
+// HIRA clCd 19종 · NMC dutyDiv 25종. 두 체계가 크게 다르다.
+//   HIRA 는 요양기관 종별(청구 기준), NMC 는 응급의료 관점의 기관구분이다.
+//   NMC 에는 이송단체·소방서·경찰서·지자체까지 들어 있어 병원이 아닌 것이 많다.
+
+const CLASSES: HealthcareCodeSeed[] = [
+  { tp: 'class', cd: 'TERTIARY', nm: '상급종합병원', hira_cd: ['01'], sort: 1 },
+  {
+    tp: 'class',
+    cd: 'GENERAL',
+    nm: '종합병원',
+    hira_cd: ['11'],
+    nmc_cd: ['A'],
+    sort: 2,
+  },
+  {
+    tp: 'class',
+    cd: 'HOSPITAL',
+    nm: '병원',
+    hira_cd: ['21'],
+    nmc_cd: ['B'],
+    sort: 3,
+  },
+  {
+    tp: 'class',
+    cd: 'SPECIALTY',
+    nm: '전문병원',
+    cmt: 'HIRA 만 별도 종별로 둔다',
+    hira_cd: ['05'],
+    sort: 4,
+  },
+  {
+    tp: 'class',
+    cd: 'CLINIC',
+    nm: '의원',
+    hira_cd: ['31'],
+    nmc_cd: ['C'],
+    sort: 5,
+  },
+  {
+    tp: 'class',
+    cd: 'NURSING',
+    nm: '요양병원',
+    hira_cd: ['28'],
+    nmc_cd: ['D'],
+    sort: 6,
+  },
+  {
+    tp: 'class',
+    cd: 'MENTAL',
+    nm: '정신병원',
+    cmt: 'HIRA 는 clCd 29 로 주는데 코드 목록에는 없다. 병원 데이터에는 존재한다.',
+    hira_cd: ['29'],
+    nmc_cd: ['L'],
+    sort: 7,
+  },
+  {
+    tp: 'class',
+    cd: 'DENTAL_HOSP',
+    nm: '치과병원',
+    hira_cd: ['41'],
+    nmc_cd: ['M'],
+    sort: 8,
+  },
+  {
+    tp: 'class',
+    cd: 'DENTAL_CLINIC',
+    nm: '치과의원',
+    hira_cd: ['51'],
+    nmc_cd: ['N'],
+    sort: 9,
+  },
+  {
+    tp: 'class',
+    cd: 'KM_GENERAL',
+    nm: '한방종합병원',
+    hira_cd: ['91'],
+    sort: 10,
+  },
+  {
+    tp: 'class',
+    cd: 'KM_HOSPITAL',
+    nm: '한방병원',
+    hira_cd: ['92'],
+    nmc_cd: ['E'],
+    sort: 11,
+  },
+  {
+    tp: 'class',
+    cd: 'KM_CLINIC',
+    nm: '한의원',
+    hira_cd: ['93'],
+    nmc_cd: ['G'],
+    sort: 12,
+  },
+  {
+    tp: 'class',
+    cd: 'MIDWIFE',
+    nm: '조산원',
+    hira_cd: ['61'],
+    nmc_cd: ['P'],
+    sort: 13,
+  },
+  {
+    tp: 'class',
+    cd: 'HEALTH_CENTER',
+    nm: '보건소',
+    hira_cd: ['71'],
+    nmc_cd: ['R'],
+    sort: 14,
+  },
+  { tp: 'class', cd: 'HEALTH_SUB', nm: '보건지소', hira_cd: ['72'], sort: 15 },
+  {
+    tp: 'class',
+    cd: 'HEALTH_POST',
+    nm: '보건진료소',
+    hira_cd: ['73'],
+    sort: 16,
+  },
+  {
+    tp: 'class',
+    cd: 'HEALTH_MED',
+    nm: '보건의료원',
+    hira_cd: ['75'],
+    sort: 17,
+  },
+  {
+    tp: 'class',
+    cd: 'PHARMACY',
+    nm: '약국',
+    hira_cd: ['81'],
+    nmc_cd: ['H'],
+    sort: 18,
+  },
+  {
+    tp: 'class',
+    cd: 'TB_HOSP',
+    nm: '결핵병원',
+    cmt: 'NMC 만 구분한다',
+    nmc_cd: ['J'],
+    sort: 19,
+  },
+  { tp: 'class', cd: 'LEPROSY_HOSP', nm: '한센병원', nmc_cd: ['K'], sort: 20 },
+  { tp: 'class', cd: 'GERIATRIC', nm: '노인전문병원', nmc_cd: ['F'], sort: 21 },
+  { tp: 'class', cd: 'DEMENTIA', nm: '치매병원', nmc_cd: ['Q'], sort: 22 },
+  {
+    tp: 'class',
+    cd: 'ETC',
+    nm: '기타',
+    hira_cd: ['99', 'AA'],
+    nmc_cd: ['I', 'O'],
+    sort: 99,
+  },
+];
+
+// ── 장비 ────────────────────────────────────────────────────
+// HIRA 만 코드를 준다. NMC 는 basic 의 개별 필드(hvgc 등)로 일부만 알 수 있다.
+
+const EQUIPMENTS: HealthcareCodeSeed[] = [
+  {
+    tp: 'equipment',
+    cd: 'XRAY',
+    nm: '일반엑스선촬영장치',
+    hira_cd: ['B101'],
+    sort: 1,
+  },
+  {
+    tp: 'equipment',
+    cd: 'MAMMO',
+    nm: '유방촬영장치',
+    hira_cd: ['B105'],
+    sort: 2,
+  },
+  { tp: 'equipment', cd: 'CT', nm: 'CT', hira_cd: ['B108'], sort: 3 },
+  { tp: 'equipment', cd: 'CBCT', nm: '콘빔CT', hira_cd: ['B109'], sort: 4 },
+  { tp: 'equipment', cd: 'MRI', nm: 'MRI', hira_cd: ['B301'], sort: 5 },
+  {
+    tp: 'equipment',
+    cd: 'PET',
+    nm: '양전자단층촬영기(PET)',
+    hira_cd: ['B201'],
+    sort: 6,
+  },
+  {
+    tp: 'equipment',
+    cd: 'US',
+    nm: '초음파영상진단기',
+    hira_cd: ['B302'],
+    sort: 7,
+  },
+  {
+    tp: 'equipment',
+    cd: 'BMD',
+    nm: '골밀도검사기',
+    hira_cd: ['B203'],
+    sort: 8,
+  },
+  {
+    tp: 'equipment',
+    cd: 'GAMMA_KNIFE',
+    nm: '종양치료기(감마나이프)',
+    hira_cd: ['B403'],
+    sort: 9,
+  },
+  {
+    tp: 'equipment',
+    cd: 'CYBER_KNIFE',
+    nm: '종양치료기(사이버나이프)',
+    hira_cd: ['B404'],
+    sort: 10,
+  },
+  {
+    tp: 'equipment',
+    cd: 'PROTON',
+    nm: '종양치료기(양성자치료기)',
+    hira_cd: ['B407'],
+    sort: 11,
+  },
+  {
+    tp: 'equipment',
+    cd: 'VENTILATOR',
+    nm: '인공호흡기',
+    hira_cd: ['D202'],
+    sort: 12,
+  },
+  { tp: 'equipment', cd: 'ECMO', nm: 'ECMO', hira_cd: ['D206'], sort: 13 },
+  {
+    tp: 'equipment',
+    cd: 'INCUBATOR',
+    nm: '인큐베이터',
+    hira_cd: ['D201'],
+    sort: 14,
+  },
+  {
+    tp: 'equipment',
+    cd: 'DIALYSIS',
+    nm: '인공신장기(혈액투석)',
+    hira_cd: ['D214'],
+    sort: 15,
+  },
+  {
+    tp: 'equipment',
+    cd: 'ESWL',
+    nm: '체외충격파쇄석기',
+    hira_cd: ['D212'],
+    sort: 16,
+  },
+  {
+    tp: 'equipment',
+    cd: 'FETAL_MONITOR',
+    nm: '분만감시기',
+    hira_cd: ['A240'],
+    sort: 17,
+  },
+];
+
+// ── 중증질환 처치가능 ───────────────────────────────────────
+// NMC 만 준다 (basic 의 MKioskTy*). 응급 상황에서 "이 병원이 뇌출혈 수술을 할 수 있나" 를 답한다.
+// HIRA 에는 대응하는 코드가 없다.
+
+const SEVERE: HealthcareCodeSeed[] = [
+  {
+    tp: 'severe',
+    cd: 'BRAIN_HEMO',
+    nm: '뇌출혈수술',
+    nmc_cd: ['MKioskTy1'],
+    sort: 1,
+  },
+  {
+    tp: 'severe',
+    cd: 'BRAIN_ISCH',
+    nm: '뇌경색의재관류',
+    nmc_cd: ['MKioskTy2'],
+    sort: 2,
+  },
+  {
+    tp: 'severe',
+    cd: 'MI',
+    nm: '심근경색의재관류',
+    nmc_cd: ['MKioskTy3'],
+    sort: 3,
+  },
+  {
+    tp: 'severe',
+    cd: 'ABDOMEN',
+    nm: '복부손상의수술',
+    nmc_cd: ['MKioskTy4'],
+    sort: 4,
+  },
+  {
+    tp: 'severe',
+    cd: 'LIMB',
+    nm: '사지접합의수술',
+    nmc_cd: ['MKioskTy5'],
+    sort: 5,
+  },
+  {
+    tp: 'severe',
+    cd: 'ENDOSCOPY',
+    nm: '응급내시경',
+    nmc_cd: ['MKioskTy6'],
+    sort: 6,
+  },
+  {
+    tp: 'severe',
+    cd: 'DIALYSIS',
+    nm: '응급투석',
+    nmc_cd: ['MKioskTy7'],
+    sort: 7,
+  },
+  {
+    tp: 'severe',
+    cd: 'PRETERM',
+    nm: '조산산모',
+    nmc_cd: ['MKioskTy8'],
+    sort: 8,
+  },
+  {
+    tp: 'severe',
+    cd: 'PSYCH',
+    nm: '정신질환자',
+    nmc_cd: ['MKioskTy9'],
+    sort: 9,
+  },
+  {
+    tp: 'severe',
+    cd: 'NEONATE',
+    nm: '신생아',
+    nmc_cd: ['MKioskTy10'],
+    sort: 10,
+  },
+  {
+    tp: 'severe',
+    cd: 'BURN',
+    nm: '중증화상',
+    nmc_cd: ['MKioskTy11'],
+    sort: 11,
+  },
+  {
+    tp: 'severe',
+    cd: 'ER_GATEKEEPER',
+    nm: '응급실(Emergency gate keeper)',
+    nmc_cd: ['MKioskTy25'],
+    sort: 25,
+  },
+];
+
+export const HEALTHCARE_CODES: HealthcareCodeSeed[] = [
+  ...SUBJECTS,
+  ...CLASSES,
+  ...EQUIPMENTS,
+  ...SEVERE,
+];

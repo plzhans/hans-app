@@ -1,0 +1,652 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { asNumber, asString } from '@hansapi/application';
+import { parseTimeRange } from '@hansapi/common';
+import { PrismaService } from '@hansapi/data';
+import { Prisma } from '@prisma/client';
+
+import { isSubjectAllowed } from '@hansapi/data/seed';
+
+import { CodeMapper } from './code-mapper';
+import { HospitalLocks } from './hospital-lock';
+
+export interface DetailBuildResult {
+  subjects: number;
+  hours: number;
+  staff: number;
+  beds: number;
+  equipments: number;
+  capabilities: number;
+  elapsedMs: number;
+}
+
+const CHUNK = 1_000;
+
+/**
+ * 적재할 행 하나.
+ *
+ * key 가 필요한 이유: 하위 테이블은 통째로 갈아엎는데(DELETE + INSERT), **잠긴 행은 빼야** 한다.
+ * 어느 행이 잠겼는지 알려면 PK 의 나머지 부분(kind, day, subject_cd …)이 있어야 한다.
+ */
+interface BuildRow {
+  hospitalId: number;
+  key: Record<string, unknown>;
+  value: Prisma.Sql;
+}
+
+/** 통합 병원의 id ↔ 출처 키 */
+interface HospitalKey {
+  id: number;
+  ykiho: string | null;
+  hpid: string | null;
+}
+
+/**
+ * 통합 병원의 하위 테이블 빌드.
+ *
+ * 본체(healthcare_hospital)가 만들어진 뒤에 돈다. API 콜이 0이다.
+ *
+ * 어느 원본을 쓰는지가 테이블마다 다르다.
+ *   subject     양쪽 (역조회 매핑 86만쌍 + HIRA 상세의 전문의수)
+ *   hours       NMC 만 (HIRA info 는 공휴일·달빛을 못 준다)
+ *   staff       HIRA 만 (병원 목록에 이미 있다)
+ *   bed         HIRA 상세 facility
+ *   equipment   HIRA 상세 equipment
+ *   capability  NMC basic(중증처치) + HIRA 상세(전문병원·특수진료)
+ */
+@Injectable()
+export class HealthcareDetailBuildService {
+  private readonly logger = new Logger(HealthcareDetailBuildService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * 동기화 예외. 병원 요청으로 사람이 고친 행은 배치가 건드리지 않는다.
+   * 하위 테이블은 통째로 갈아엎기 때문에(DELETE + INSERT), 잠긴 행을 지우지 않도록
+   * DELETE 와 INSERT 양쪽에서 빼야 한다.
+   */
+  private locks!: HospitalLocks;
+
+  async build(): Promise<DetailBuildResult> {
+    const startedAt = Date.now();
+    const mapper = await CodeMapper.load(this.prisma);
+    this.locks = await HospitalLocks.load(this.prisma);
+
+    const hospitals = await this.prisma.$queryRaw<HospitalKey[]>(Prisma.sql`
+      SELECT id, ykiho, hpid FROM healthcare_hospital WHERE status = 'active'
+    `);
+    const byYkiho = new Map<string, number>();
+    const byHpid = new Map<string, number>();
+    for (const h of hospitals) {
+      if (h.ykiho) byYkiho.set(h.ykiho, h.id);
+      if (h.hpid) byHpid.set(h.hpid, h.id);
+    }
+
+    const result: DetailBuildResult = {
+      subjects: await this.buildSubjects(mapper, byYkiho, byHpid),
+      hours: await this.buildHours(byHpid, byYkiho),
+      staff: await this.buildStaff(byYkiho),
+      beds: await this.buildBeds(byYkiho),
+      equipments: await this.buildEquipments(mapper, byYkiho),
+      capabilities: await this.buildCapabilities(mapper, byYkiho, byHpid),
+      elapsedMs: 0,
+    };
+
+    result.elapsedMs = Date.now() - startedAt;
+    return result;
+  }
+
+  /**
+   * 진료과목.
+   *
+   * declared(신고 과목)는 역조회 매핑에서 온다 — 8만 병원 전부 있다.
+   * specialist_cnt(전문의수)는 HIRA 상세(병원당 1콜)라 받은 만큼만 채워진다.
+   *   진료과목 = declared = true
+   *   표시과목 = specialist_cnt > 0
+   */
+  private async buildSubjects(
+    mapper: CodeMapper,
+    byYkiho: Map<string, number>,
+    byHpid: Map<string, number>,
+  ): Promise<number> {
+    // (hospital_id, subject_cd) → 행.
+    // fromHira 를 따로 든다 — 계열이 안 맞을 때 **HIRA 가 뒷받침하는지**로 진위를 가른다.
+    const rows = new Map<
+      string,
+      {
+        id: number;
+        cd: string;
+        declared: boolean;
+        doctor: number | null;
+        spec: number | null;
+        fromHira: boolean;
+      }
+    >();
+
+    const upsert = (
+      id: number,
+      cd: string,
+      patch: Partial<{
+        declared: boolean;
+        doctor: number | null;
+        spec: number | null;
+        fromHira: boolean;
+      }>,
+    ): void => {
+      const key = `${id}|${cd}`;
+      const cur = rows.get(key) ?? {
+        id,
+        cd,
+        declared: false,
+        doctor: null,
+        spec: null,
+        fromHira: false,
+      };
+      rows.set(key, { ...cur, ...patch });
+    };
+
+    // HIRA 신고 과목 (역조회 43만쌍)
+    for (const r of await this.prisma.hira_hospital_subject.findMany({
+      select: { ykiho: true, dgsbjt_cd: true, sdr_cnt: true },
+    })) {
+      const id = byYkiho.get(r.ykiho);
+      const cd = mapper.code('subject', 'hira', r.dgsbjt_cd);
+      if (id && cd) {
+        upsert(id, cd, { declared: true, doctor: r.sdr_cnt, fromHira: true });
+      }
+    }
+
+    // NMC 신고 과목 (역조회 42만쌍). HIRA 에 없는 병원을 채운다.
+    for (const r of await this.prisma.nmc_hospital_subject.findMany({
+      select: { hpid: true, subject_cd: true },
+    })) {
+      const id = byHpid.get(r.hpid);
+      const cd = mapper.code('subject', 'nmc', r.subject_cd);
+      if (id && cd) {
+        upsert(id, cd, { declared: true });
+      }
+    }
+
+    // HIRA 상세: 과목별 전문의수 → 표시과목 판정
+    for (const r of await this.prisma.hira_hospital_detail.findMany({
+      where: { op: 'specialist' },
+      select: { ykiho: true, data: true },
+    })) {
+      const id = byYkiho.get(r.ykiho);
+      if (!id) continue;
+      for (const item of this.items(r.data)) {
+        const cd = mapper.code('subject', 'hira', asString(item.dgsbjtCd));
+        if (cd) {
+          upsert(id, cd, { spec: asNumber(item.dtlSdrCnt) });
+        }
+      }
+    }
+
+    /**
+     * 계열 검사. **거르지 않는다. 기록만 한다.**
+     *
+     * 계열이 안 맞는 조합이 원본에 온다 — 한의원에 치과, 치과의원에 예방의학과.
+     * 오류처럼 보이지만 **지우면 안 된다.** 두 이유 때문이다.
+     *
+     *   1. 복수면허(의사+한의사)가 실재한다. 성모힐링척의원·한의원은 종별이 한의원인데
+     *      정형외과·신경외과를 진료하고 HIRA·NMC 가 둘 다 그렇게 말한다. 진짜다.
+     *   2. **두 기관의 갱신 시차가 있다.** 한의원이 이번 달에 의과 진료과를 추가했다면
+     *      NMC 는 반영하고 HIRA 는 아직 안 했을 수 있다. 한 시점의 스냅샷만 보고
+     *      "불일치 = 오류" 라고 단정할 수 없다.
+     *
+     * 그래서 통합 테이블에는 다 넣고, healthcare_subject_mismatch 에 표시만 해둔다.
+     * **시간이 판단해 준다** — first_seen_at/last_seen_at 이 그걸 위해 있다.
+     *   몇 주간 계속 나오고 HIRA 가 끝내 안 준다  → 진짜 오류. 그때 거르면 된다.
+     *   다음 동기화에서 사라진다                  → 시차였다. 안 지우길 잘했다.
+     * 지금 지우면 이 관찰 자체가 불가능하다.
+     */
+    const hospitals = await this.prisma.healthcare_hospital.findMany({
+      select: { id: true, class_cd: true, ykiho: true, hpid: true },
+    });
+    const byId = new Map(hospitals.map((h) => [h.id, h]));
+
+    const list = [...rows.values()];
+
+    // 의심스러운 것을 골라 기록한다. list 에서 빼지 않는다 — 위 주석 참고.
+    const mismatched = list.filter((row) => {
+      const hospital = byId.get(row.id);
+
+      // HIRA 가 없는 병원(NMC 전용)은 대조할 방법이 없다 → 의심하지 않는다.
+      // HIRA 가 있는데 이 과목을 안 줬다면 NMC 단독 주장이다 → 계열이 안 맞으면 의심한다.
+      const hiraDeclared = hospital?.ykiho ? row.fromHira : undefined;
+
+      return !isSubjectAllowed(
+        hospital?.class_cd ?? null,
+        row.cd,
+        hiraDeclared,
+      );
+    });
+
+    await this.replace(
+      'healthcare_hospital_subject',
+      '(hospital_id, subject_cd, declared, doctor_cnt, specialist_cnt)',
+      list.map((r) => ({
+        hospitalId: r.id,
+        key: { subject_cd: r.cd },
+        value: Prisma.sql`(${r.id}, ${r.cd}, ${r.declared}, ${r.doctor}, ${r.spec})`,
+      })),
+    );
+
+    await this.recordMismatches(mismatched, byId);
+    return list.length;
+  }
+
+  /**
+   * 계열 불일치를 기록한다. **통합 테이블에는 이미 들어가 있다** — 여기 있다고 빠진 게 아니다.
+   *
+   * **status 와 memo 는 덮어쓰지 않는다.** 사람이 "확인했다 / 우리 규칙이 틀렸다" 고 적어둔 것을
+   * 매 빌드마다 지우면 확인 작업이 무의미해진다. 갱신하는 건 last_seen_at 뿐이다.
+   * 원본이 고치면 이 행이 더 이상 안 나오고 last_seen_at 이 낡은 채로 남는다 — 그게 신호다.
+   */
+  private async recordMismatches(
+    rows: { id: number; cd: string }[],
+    byId: Map<
+      number,
+      { class_cd: string | null; ykiho: string | null; hpid: string | null }
+    >,
+  ): Promise<void> {
+    if (rows.length === 0) {
+      return;
+    }
+
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+
+      const values = Prisma.join(
+        chunk.map((r) => {
+          const h = byId.get(r.id);
+          return Prisma.sql`(${r.id}, ${r.cd}, ${h?.class_cd ?? ''}, ${h?.ykiho ?? null}, ${h?.hpid ?? null}, 'open', NOW(), NOW())`;
+        }),
+      );
+
+      await this.prisma.$executeRaw(Prisma.sql`
+        INSERT INTO healthcare_subject_mismatch
+          (hospital_id, subject_cd, class_cd, ykiho, hpid, status, first_seen_at, last_seen_at)
+        VALUES ${values} AS new
+        ON DUPLICATE KEY UPDATE
+          class_cd     = new.class_cd,
+          ykiho        = new.ykiho,
+          hpid         = new.hpid,
+          last_seen_at = NOW()
+      `);
+    }
+
+    this.logger.warn(
+      `계열 불일치 ${rows.length.toLocaleString()}건을 기록했다(제외하지 않았다). ` +
+        `healthcare_subject_mismatch 에서 확인하라.`,
+    );
+  }
+
+  /**
+   * 진료시간.
+   *
+   * **두 원본을 합친다.**
+   *   NMC   요일별 시작·종료 시각 (월~일 + 공휴일). 달빛 시간도 여기서 온다.
+   *   HIRA  점심시간·접수시간 (info). 자유 텍스트라 파싱해야 한다("12시30분~13시30분").
+   *
+   * 달빛(kind='baby')과 일반(kind='general')은 **나눠서 담는다.** 시간대가 다르기 때문이다 —
+   * 연세의원은 일반 09~19시인데 달빛으로 18~23시에 소아를 받는다.
+   * 합집합으로 뭉치면 성인이 21시에 갔다가 헛걸음한다.
+   *
+   * HIRA 는 요일별 진료시간도 주지만(trmtMonStart 등) 쓰지 않는다 —
+   * 일요일·공휴일을 안 주고, 달빛도 모른다. NMC 가 요일 커버리지가 넓다.
+   */
+  private async buildHours(
+    byHpid: Map<string, number>,
+    byYkiho: Map<string, number>,
+  ): Promise<number> {
+    // HIRA info 에서 점심·접수시간을 뽑아 (병원 id, 요일) 별로 담아 둔다.
+    // 평일(1~5)과 토요일(6)의 값이 다르므로 요일별로 나눠 저장한다.
+    const extras = new Map<
+      string,
+      { breakStart?: string; breakEnd?: string; reception?: string }
+    >();
+
+    for (const r of await this.prisma.hira_hospital_detail.findMany({
+      where: { op: 'info' },
+      select: { ykiho: true, data: true },
+    })) {
+      const id = byYkiho.get(r.ykiho);
+      if (!id) continue;
+      const d = this.items(r.data)[0];
+      if (!d) continue;
+
+      const week = parseTimeRange(asString(d.lunchWeek));
+      const sat = parseTimeRange(asString(d.lunchSat));
+      const rcvWeek = parseTimeRange(asString(d.rcvWeek));
+      const rcvSat = parseTimeRange(asString(d.rcvSat));
+
+      for (const day of [1, 2, 3, 4, 5]) {
+        extras.set(`${id}|${day}`, {
+          breakStart: this.compact(week.start),
+          breakEnd: this.compact(week.end),
+          reception: this.compact(rcvWeek.end),
+        });
+      }
+      extras.set(`${id}|6`, {
+        breakStart: this.compact(sat.start),
+        breakEnd: this.compact(sat.end),
+        reception: this.compact(rcvSat.end),
+      });
+    }
+
+    const values: BuildRow[] = [];
+
+    const push = (
+      id: number,
+      kind: 'general' | 'baby',
+      data: Record<string, unknown>,
+    ): void => {
+      for (let day = 1; day <= 8; day++) {
+        const open = asString(data[`dutyTime${day}s`]);
+        const close = asString(data[`dutyTime${day}c`]);
+        if (!open && !close) continue;
+
+        // 점심·접수는 일반 진료에만 붙인다. 달빛은 야간 소아진료라 점심시간이 없다.
+        const extra =
+          kind === 'general' ? extras.get(`${id}|${day}`) : undefined;
+
+        values.push({
+          hospitalId: id,
+          key: { kind, day },
+          value: Prisma.sql`(${id}, ${kind}, ${day}, ${this.hhmm(open)}, ${this.hhmm(close)},
+            ${extra?.breakStart ?? null}, ${extra?.breakEnd ?? null}, ${extra?.reception ?? null})`,
+        });
+      }
+    };
+
+    for (const r of await this.prisma.nmc_hospital.findMany({
+      select: { hpid: true, data: true },
+    })) {
+      const id = byHpid.get(r.hpid);
+      if (id) push(id, 'general', r.data as Record<string, unknown>);
+    }
+
+    for (const r of await this.prisma.nmc_baby_hospital.findMany({
+      select: { hpid: true, data: true },
+    })) {
+      const id = byHpid.get(r.hpid);
+      if (id) push(id, 'baby', r.data as Record<string, unknown>);
+    }
+
+    await this.replace(
+      'healthcare_hospital_hours',
+      '(hospital_id, kind, day, open_time, close_time, break_start, break_end, reception_end)',
+      values,
+    );
+    return values.length;
+  }
+
+  /** 'HH:MM' → 'HHMM'. 파서가 콜론 형식으로 주는데 우리는 HHMM 으로 저장한다. */
+  private compact(value: string | null): string | undefined {
+    return value ? value.replace(':', '') : undefined;
+  }
+
+  /** 인력. HIRA 병원 목록에 이미 있다. **총원**이라 과목별 합계와 다르다(겸직). */
+  private async buildStaff(byYkiho: Map<string, number>): Promise<number> {
+    const rows = await this.prisma.$queryRaw<
+      Record<string, unknown>[]
+    >(Prisma.sql`
+      SELECT ykiho,
+             JSON_EXTRACT(data, '$.drTotCnt')       total,
+             JSON_EXTRACT(data, '$.mdeptSdrCnt')    specialist,
+             JSON_EXTRACT(data, '$.mdeptResdntCnt') resident,
+             JSON_EXTRACT(data, '$.mdeptIntnCnt')   intern,
+             JSON_EXTRACT(data, '$.mdeptGdrCnt')    general,
+             JSON_EXTRACT(data, '$.detySdrCnt')     dentist,
+             JSON_EXTRACT(data, '$.cmdcSdrCnt')     oriental,
+             JSON_EXTRACT(data, '$.pnursCnt')       midwife
+        FROM hira_hospital
+    `);
+
+    const values: BuildRow[] = [];
+    for (const r of rows) {
+      const id = byYkiho.get(String(r.ykiho));
+      if (!id) continue;
+      values.push({
+        hospitalId: id,
+        key: {},
+        value: Prisma.sql`(${id}, ${asNumber(r.total)}, ${asNumber(r.specialist)},
+          ${asNumber(r.resident)}, ${asNumber(r.intern)}, ${asNumber(r.general)},
+          ${asNumber(r.dentist)}, ${asNumber(r.oriental)}, ${asNumber(r.midwife)})`,
+      });
+    }
+
+    await this.replace(
+      'healthcare_hospital_staff',
+      '(hospital_id, doctor_total, specialist, resident, intern, general_doctor, dentist, oriental, midwife)',
+      values,
+    );
+    return values.length;
+  }
+
+  /** 병상. HIRA 상세 facility. 규모기관만 있다. */
+  private async buildBeds(byYkiho: Map<string, number>): Promise<number> {
+    const values: BuildRow[] = [];
+
+    for (const r of await this.prisma.hira_hospital_detail.findMany({
+      where: { op: 'facility' },
+      select: { ykiho: true, data: true },
+    })) {
+      const id = byYkiho.get(r.ykiho);
+      if (!id) continue;
+      const d = this.items(r.data)[0];
+      if (!d) continue;
+
+      values.push({
+        hospitalId: id,
+        key: {},
+        value: Prisma.sql`(${id},
+          ${asNumber(d.permSbdCnt)}, ${asNumber(d.stdSickbdCnt)}, ${asNumber(d.hghrSickbdCnt)},
+          ${asNumber(d.isnrSbdCnt)}, ${asNumber(d.emymCnt)}, ${asNumber(d.soprmCnt)},
+          ${asNumber(d.partumCnt)}, ${asNumber(d.nbySprmCnt)}, ${asNumber(d.anvirTrrmSbdCnt)},
+          ${asNumber(d.psydeptOpenGnlSbdCnt)}, ${asNumber(d.psydeptClsGnlSbdCnt)})`,
+      });
+    }
+
+    await this.replace(
+      'healthcare_hospital_bed',
+      '(hospital_id, total, standard, higher, icu, emergency, operating_room, delivery, neonatal, isolation, psy_open, psy_closed)',
+      values,
+    );
+    return values.length;
+  }
+
+  /** 장비. HIRA 상세 equipment. */
+  private async buildEquipments(
+    mapper: CodeMapper,
+    byYkiho: Map<string, number>,
+  ): Promise<number> {
+    const values: BuildRow[] = [];
+    const seen = new Set<string>();
+
+    for (const r of await this.prisma.hira_hospital_equipment.findMany({
+      select: { ykiho: true, oft_cd: true, oft_cnt: true },
+    })) {
+      const id = byYkiho.get(r.ykiho);
+      const cd = mapper.code('equipment', 'hira', r.oft_cd);
+      if (!id || !cd) continue;
+
+      // 우리 코드로 합쳐지면서 중복이 생길 수 있다 (원본이 쪼개 놓은 코드).
+      const key = `${id}|${cd}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      values.push({
+        hospitalId: id,
+        key: { equipment_cd: cd },
+        value: Prisma.sql`(${id}, ${cd}, ${r.oft_cnt})`,
+      });
+    }
+
+    await this.replace(
+      'healthcare_hospital_equipment',
+      '(hospital_id, equipment_cd, cnt)',
+      values,
+    );
+    return values.length;
+  }
+
+  /**
+   * 역량. 셋을 한 테이블에 담는다 — "이 병원이 무엇을 할 수 있나"를 코드로 말하는 같은 구조다.
+   *   severe    중증질환 처치가능 (NMC basic 의 MKioskTy*)
+   *   specialty 전문병원 지정분야 (HIRA)
+   *   special   특수진료 (HIRA — 방문진료·치매주치의 등 시범사업)
+   */
+  private async buildCapabilities(
+    mapper: CodeMapper,
+    byYkiho: Map<string, number>,
+    byHpid: Map<string, number>,
+  ): Promise<number> {
+    const values: BuildRow[] = [];
+    const seen = new Set<string>();
+
+    const push = (
+      id: number,
+      tp: string,
+      cd: string,
+      nm: string | null,
+    ): void => {
+      const key = `${id}|${tp}|${cd}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      values.push({
+        hospitalId: id,
+        key: { tp, cd },
+        value: Prisma.sql`(${id}, ${tp}, ${cd}, ${nm})`,
+      });
+    };
+
+    // NMC 중증처치. basic 의 MKioskTy1~25 가 'Y' 면 가능하다는 뜻이다.
+    // basic 을 받은 병원만. JSON 컬럼의 NULL 필터는 Prisma 가 까다로워서
+    // 같은 뜻인 basic_synced_at 으로 거른다.
+    for (const r of await this.prisma.nmc_hospital.findMany({
+      where: { basic_synced_at: { not: null } },
+      select: { hpid: true, basic: true },
+    })) {
+      const id = byHpid.get(r.hpid);
+      if (!id) continue;
+      const basic = r.basic as Record<string, unknown>;
+
+      for (const [key, value] of Object.entries(basic)) {
+        if (!key.startsWith('MKioskTy')) continue;
+        if (asString(value) !== 'Y') continue;
+        const cd = mapper.code('severe', 'nmc', key);
+        if (cd) push(id, 'severe', cd, null);
+      }
+    }
+
+    // HIRA 전문병원·특수진료. 우리 코드가 아직 없어 원본 코드를 그대로 쓴다.
+    for (const r of await this.prisma.hira_hospital_srch.findMany({
+      select: { ykiho: true, tp: true, srch_cd: true, srch_nm: true },
+    })) {
+      const id = byYkiho.get(r.ykiho);
+      if (id) push(id, r.tp, r.srch_cd, r.srch_nm);
+    }
+
+    await this.replace(
+      'healthcare_hospital_capability',
+      '(hospital_id, tp, cd, nm)',
+      values,
+    );
+    return values.length;
+  }
+
+  /**
+   * 통째로 갈아엎는다.
+   *
+   * 하위 테이블은 원본에서 파생된 집계라 증분 upsert 를 할 이유가 없다.
+   * 원본에서 사라진 행(병원이 과목을 뺐다)을 따로 지워야 하는 복잡도만 는다.
+   *
+   * **잠긴 행은 예외다.** 지우지도 않고 다시 만들지도 않는다 —
+   * 병원 요청으로 사람이 고친 값이라 그대로 둬야 한다.
+   */
+  private async replace(
+    table: string,
+    columns: string,
+    rows: {
+      key: Record<string, unknown>;
+      hospitalId: number;
+      value: Prisma.Sql;
+    }[],
+  ): Promise<void> {
+    const locked = rows.filter((r) =>
+      this.locks.isRowLocked(table, r.hospitalId, r.key),
+    );
+
+    if (locked.length === 0) {
+      await this.prisma.$executeRaw(
+        Prisma.sql`DELETE FROM ${Prisma.raw(table)}`,
+      );
+    } else {
+      // 잠긴 행만 남기고 지운다. 행이 몇 개 안 되므로 id 목록으로 빼도 된다.
+      const keepIds = [...new Set(locked.map((r) => r.hospitalId))];
+      await this.prisma.$executeRaw(Prisma.sql`
+        DELETE FROM ${Prisma.raw(table)}
+         WHERE hospital_id NOT IN (${Prisma.join(keepIds)})
+      `);
+      // 잠긴 병원의 행 중 **잠기지 않은 것**은 지운다 (그 병원의 다른 요일 등).
+      for (const hospitalId of keepIds) {
+        const lockedKeys = rows
+          .filter((r) => r.hospitalId === hospitalId)
+          .filter((r) => this.locks.isRowLocked(table, hospitalId, r.key));
+
+        await this.prisma.$executeRaw(Prisma.sql`
+          DELETE FROM ${Prisma.raw(table)}
+           WHERE hospital_id = ${hospitalId}
+             AND NOT (${Prisma.join(
+               lockedKeys.map(
+                 (r) =>
+                   Prisma.sql`(${Prisma.join(
+                     Object.entries(r.key).map(
+                       ([col, val]) =>
+                         Prisma.sql`${Prisma.raw(col)} = ${val as string | number}`,
+                     ),
+                     ' AND ',
+                   )})`,
+               ),
+               ' OR ',
+             )})
+        `);
+      }
+    }
+
+    const lockedSet = new Set(
+      locked.map((r) => `${r.hospitalId}|${JSON.stringify(r.key)}`),
+    );
+    const insertable = rows.filter(
+      (r) => !lockedSet.has(`${r.hospitalId}|${JSON.stringify(r.key)}`),
+    );
+
+    for (let i = 0; i < insertable.length; i += CHUNK) {
+      const chunk = insertable.slice(i, i + CHUNK);
+      await this.prisma.$executeRaw(Prisma.sql`
+        INSERT INTO ${Prisma.raw(table)} ${Prisma.raw(columns)}
+        VALUES ${Prisma.join(chunk.map((r) => r.value))}
+      `);
+    }
+
+    this.logger.log(
+      `${table}: ${insertable.length.toLocaleString()}행` +
+        (locked.length > 0 ? ` (잠금 ${locked.length}행 보존)` : ''),
+    );
+  }
+
+  /** 상세 JSON 은 1행짜리면 객체, 여러 행이면 배열이다. */
+  private items(data: unknown): Record<string, unknown>[] {
+    if (Array.isArray(data)) return data as Record<string, unknown>[];
+    if (data && typeof data === 'object')
+      return [data as Record<string, unknown>];
+    return [];
+  }
+
+  /** 원본이 시간을 숫자로도 문자열로도 준다. '900' → '0900' */
+  private hhmm(value: string | null): string | null {
+    if (!value) return null;
+    return value.padStart(4, '0').slice(0, 4);
+  }
+}

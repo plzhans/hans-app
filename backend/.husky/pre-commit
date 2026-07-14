@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# 커밋 직전 검사. 규칙은 package.json 의 "lint-staged" 필드 참고.
+pnpm exec lint-staged

@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+# 공통 기본값. 비밀이 아닌 값만 담고 커밋한다.
+!env/.env
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Cache
+.cache/
+.eslintcache
+.turbo/
+
+# Prisma 생성 클라이언트 (pnpm install / build 시 재생성)
+packages/hansapi-data/generated/

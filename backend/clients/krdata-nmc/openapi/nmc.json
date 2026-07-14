@@ -1,0 +1,1660 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "국립중앙의료원(NMC) 전국 병·의원 찾기 서비스",
+    "version": "1.1.0",
+    "description": "공공데이터포털(data.go.kr) 국립중앙의료원 전국 병·의원 찾기 서비스(HsptlAsembySearchService)와\n코드마스터(CodeMast).\n\n출처: NIA OpenAPI 활용 가이드 (SC-IFT-01-02, 서비스 버전 1.1, 2017-02-01 배포)\n\n[운영 제약]\n- 초당 최대 트랜잭션: 30 TPS\n- 데이터 갱신주기: 일 1회 (배치는 하루 한 번이면 충분하다)\n- 가이드상 최대 메시지 사이즈는 4000 bytes 로 적혀 있으나 실제로는 지켜지지 않는다.\n  numOfRows 를 크게 주면 수십 MB 응답도 그대로 내려온다. NumOfRows 파라미터 설명 참고.\n\n[이 스펙의 규칙]\n- ServiceKey 와 _type 파라미터는 정의하지 않는다. @krdata/core 의 mutator 가 모든 요청에 주입한다.\n  ServiceKey 를 스펙에 넣으면 생성된 코드가 URLSearchParams 로 재인코딩해 이미 인코딩된 발급키가\n  이중 인코딩되어 401 이 발생한다.\n- 가이드는 XML 기준이지만 _type=json 을 주면 JSON 으로 응답한다. mutator 가 항상 주입한다.\n- 응답 스키마는 '이상적인' 형태로 정의한다. 실제 응답에서 items 가 빈 문자열로 오거나\n  item 이 단일 객체로 오는 경우는 @krdata/core 의 normalizeKrDataResponse 가 보정한다.\n- 가이드의 응답 명세에 없지만 실제 응답에 나오는 필드(dutyLvkl 등)도 포함한다.",
+    "x-source": "https://www.data.go.kr/data/15000736/openapi.do"
+  },
+  "servers": [
+    {
+      "url": "https://apis.data.go.kr/B552657"
+    }
+  ],
+  "paths": {
+    "/HsptlAsembySearchService/getHsptlMdcncListInfoInqire": {
+      "get": {
+        "operationId": "getHospitalList",
+        "summary": "병·의원 목록정보 조회",
+        "description": "주소, 기관구분, 진료과목 등을 기준으로 진료시간 등의 병·의원 정보를 조회한다.",
+        "tags": ["hospital"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Q0"
+          },
+          {
+            "$ref": "#/components/parameters/Q1"
+          },
+          {
+            "$ref": "#/components/parameters/QZ"
+          },
+          {
+            "$ref": "#/components/parameters/QD"
+          },
+          {
+            "$ref": "#/components/parameters/QT"
+          },
+          {
+            "$ref": "#/components/parameters/QN"
+          },
+          {
+            "$ref": "#/components/parameters/ORD"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "병·의원 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HospitalListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/HsptlAsembySearchService/getHsptlMdcncLcinfoInqire": {
+      "get": {
+        "operationId": "getHospitalLocationList",
+        "summary": "병·의원 위치정보 조회",
+        "description": "위/경도를 기준으로 가까운 병·의원을 거리순으로 조회한다.",
+        "tags": ["hospital"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Wgs84Lon"
+          },
+          {
+            "$ref": "#/components/parameters/Wgs84Lat"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "병·의원 위치 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HospitalLocationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/HsptlAsembySearchService/getHsptlBassInfoInqire": {
+      "get": {
+        "operationId": "getHospitalBasisInfo",
+        "summary": "병·의원별 기본정보 조회",
+        "description": "기관ID(HPID)를 기준으로 병상수, 장비 보유 여부 등 상세 정보를 조회한다.",
+        "tags": ["hospital"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Hpid"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "병·의원 기본정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HospitalBasisInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/HsptlAsembySearchService/getBabyListInfoInqire": {
+      "get": {
+        "operationId": "getBabyHospitalList",
+        "summary": "달빛어린이병원 및 소아전문센터 목록정보 조회",
+        "description": "주소, 진료과목, 진료요일 등을 기준으로 달빛어린이병원 및 소아전문센터를 조회한다.\n응답 항목은 병·의원 목록정보 조회와 동일하다.",
+        "tags": ["baby"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Q0"
+          },
+          {
+            "$ref": "#/components/parameters/Q1"
+          },
+          {
+            "$ref": "#/components/parameters/QZ"
+          },
+          {
+            "$ref": "#/components/parameters/QD"
+          },
+          {
+            "$ref": "#/components/parameters/QT"
+          },
+          {
+            "$ref": "#/components/parameters/QN"
+          },
+          {
+            "$ref": "#/components/parameters/ORD"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "달빛어린이병원 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BabyHospitalListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/HsptlAsembySearchService/getBabyLcinfoInqire": {
+      "get": {
+        "operationId": "getBabyHospitalLocationList",
+        "summary": "달빛어린이병원 위치정보 조회",
+        "description": "위/경도를 기준으로 가까운 달빛어린이병원을 거리순으로 조회한다.\n응답 항목은 병·의원 위치정보 조회와 동일하다.",
+        "tags": ["baby"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Wgs84Lon"
+          },
+          {
+            "$ref": "#/components/parameters/Wgs84Lat"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "달빛어린이병원 위치 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BabyHospitalLocationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/HsptlAsembySearchService/getHsptlMdcncFullDown": {
+      "get": {
+        "operationId": "getHospitalFullDown",
+        "summary": "병/의원 FullData 내려받기",
+        "description": "전체 병·의원 정보를 조회한다. 필터가 없으며 배치 적재용이다.",
+        "tags": ["hospital"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "병·의원 전체 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HospitalFullDownResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/CodeMast/info": {
+      "get": {
+        "operationId": "getCodeInfoList",
+        "summary": "코드마스터 정보 조회",
+        "description": "dutyDiv(H000), 진료과목(D000), 시도(P004) 등 코드 값의 원본 마스터다.\n별개 서비스(CodeMast, SC-OA-01-08)이며 30 TPS 제한은 동일하다.\n필터 없이 부르면 전체 2,784건이 내려온다. (2026-07 확인)",
+        "tags": ["code"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CmMid"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "코드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PageNo": {
+        "name": "pageNo",
+        "in": "query",
+        "required": false,
+        "description": "페이지 번호",
+        "schema": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "NumOfRows": {
+        "name": "numOfRows",
+        "in": "query",
+        "required": false,
+        "description": "한 페이지 결과 수. 상한이 없다. 값이 전체 건수보다 크면 전체를 한 응답에 담아 준다.\n(가이드에는 최대 메시지 사이즈 4000 bytes 로 적혀 있으나 실제로는 지켜지지 않는다.)\nFullDown 실측 (2026-07, 전체 78,631건):\n  100 → 1.1초 / 0.1MB\n  1,000 → 1.2초 / 1.1MB\n  10,000 → 3.2초 / 10.9MB\n  100,000 → 21.8초 / 84MB (전체 반환)\n콜수 제한이 있으므로 배치는 크게 받는 편이 유리하다. 다만 전체를 한 번에 받으면\n84MB 를 통째로 JSON.parse 해야 하므로 10,000 건 단위가 균형점이다.",
+        "schema": {
+          "type": "integer",
+          "default": 10
+        }
+      },
+      "Q0": {
+        "name": "Q0",
+        "in": "query",
+        "required": false,
+        "description": "주소(시도). 예: 서울특별시",
+        "schema": {
+          "type": "string",
+          "maxLength": 16
+        }
+      },
+      "Q1": {
+        "name": "Q1",
+        "in": "query",
+        "required": false,
+        "description": "주소(시군구). 예: 강남구",
+        "schema": {
+          "type": "string",
+          "maxLength": 60
+        }
+      },
+      "QZ": {
+        "name": "QZ",
+        "in": "query",
+        "required": false,
+        "description": "기관구분. 코드마스터 'H000' 참조. dutyDiv 와 같은 코드 체계다. (예: B=병원, C=의원)",
+        "schema": {
+          "type": "string",
+          "maxLength": 1
+        }
+      },
+      "QD": {
+        "name": "QD",
+        "in": "query",
+        "required": false,
+        "description": "진료과목. 코드마스터 'D000' 참조 (D001~D034).\nD001:내과, D002:소아청소년과, D003:신경과, D004:정신건강의학과, D005:피부과,\nD006:외과, D007:흉부외과, D008:정형외과, D009:신경외과, D010:성형외과,\nD011:산부인과, D012:안과, D013:이비인후과, D014:비뇨기과, D016:재활의학과,\nD017:마취통증의학과, D018:영상의학과, D019:치료방사선과, D020:임상병리과,\nD021:해부병리과, D022:가정의학과, D023:핵의학과, D024:응급의학과, D026:치과,\nD034:구강악안면외과",
+        "schema": {
+          "type": "string",
+          "maxLength": 4
+        }
+      },
+      "QT": {
+        "name": "QT",
+        "in": "query",
+        "required": false,
+        "description": "진료요일. 월~일요일(1~7), 공휴일(8)",
+        "schema": {
+          "type": "string",
+          "maxLength": 1
+        }
+      },
+      "QN": {
+        "name": "QN",
+        "in": "query",
+        "required": false,
+        "description": "기관명. 예: 삼성병원",
+        "schema": {
+          "type": "string",
+          "maxLength": 100
+        }
+      },
+      "ORD": {
+        "name": "ORD",
+        "in": "query",
+        "required": false,
+        "description": "정렬 순서. 예: NAME, ADDR",
+        "schema": {
+          "type": "string",
+          "maxLength": 20
+        }
+      },
+      "Wgs84Lon": {
+        "name": "WGS84_LON",
+        "in": "query",
+        "required": true,
+        "description": "병원경도. 예: 127.0851566",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Wgs84Lat": {
+        "name": "WGS84_LAT",
+        "in": "query",
+        "required": true,
+        "description": "병원위도. 예: 37.4881325",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Hpid": {
+        "name": "HPID",
+        "in": "query",
+        "required": true,
+        "description": "기관ID. 예: A1100001",
+        "schema": {
+          "type": "string",
+          "maxLength": 10
+        }
+      },
+      "CmMid": {
+        "name": "CM_MID",
+        "in": "query",
+        "required": false,
+        "description": "대분류코드 필터 (예: H010).\n\n주의: 요청 파라미터명은 대문자 CM_MID 다. 응답 필드명(cmMid)과 표기가 다르다.\n소문자 cmMid 로 보내면 서버가 조용히 무시하고 전체 코드를 반환한다. (에러도 나지 않는다)\n가이드상 필수(1) 이지만 생략해도 동작하며, 이 경우 전체 코드가 내려온다.\n\n대분류코드 목록:\n  H000[기관구분]  H010[설립구분]  H020[의료기관구분]  H030[응급의료기관구분]\n  H040[운영상태]  H050[전문의구분]\n  D000[진료과목]  D001[중증질환_핫라인]\n  J000[직종]  J001[1339]  J002[응급의료기관]  J003[일반의약업]  J004[지역보건소]\n  L000[지역별링크정보]  M000[중증응급실질환]\n  N000[의료자원(필수)]  O000[의료자원(실시간)]\n  P001[의료기관구분]  P002[영업구분]  P003[진료과목]  P004[시도]\n  S000[특수클리닉및센터]  SIDO[지역코드]\n  Y000[증상]  Y001[점검]  Y002[질환별정보상태]  Y003[중증이용_미수용사유]\n  Y004[중증이용_수용사유]  Y005[중증이용_부정확사유]  Y006[중증이용_통화자_구분]\n  Y007[중증이용_의뢰경로]  Y008[중증이용_전원처리결과]  Y009[중증이용_연락번호구분]\n  Z000[정보센터]\n  AED0[구비의무기관]  AED1[다중이용시설]  AED2[공동주택]\n  AMBL[기도(1**)/호흡(2**)/순환(3**)/약품(4**)/고정(5**)/기타(6**)]\n  A~L: 시도별 시군구 코드\n    A[서울특별시/제주시]  B[부산광역시/울산광역시]  C[대구광역시/경상북도]\n    D[광주광역시/전라남도]  E[대전광역시/충청북도]  F[인천광역시]\n    G[경기도]  H[경기도]  I[강원도]  J[강원도]  K[전라북도]  L[경상남도]",
+        "schema": {
+          "type": "string",
+          "maxLength": 20
+        }
+      }
+    },
+    "schemas": {
+      "ResultHeader": {
+        "type": "object",
+        "description": "공통 응답 헤더",
+        "properties": {
+          "resultCode": {
+            "type": "string",
+            "description": "결과코드 (정상: 00)"
+          },
+          "resultMsg": {
+            "type": "string",
+            "description": "결과메시지"
+          }
+        }
+      },
+      "PageInfo": {
+        "type": "object",
+        "properties": {
+          "numOfRows": {
+            "type": "integer",
+            "description": "한 페이지 결과 수"
+          },
+          "pageNo": {
+            "type": "integer",
+            "description": "현재 페이지 번호"
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "전체 결과 수"
+          }
+        }
+      },
+      "HospitalListResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HospitalListResult"
+          }
+        }
+      },
+      "BabyHospitalListResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/BabyHospitalListResult"
+          }
+        }
+      },
+      "HospitalLocationResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HospitalLocationResult"
+          }
+        }
+      },
+      "BabyHospitalLocationResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/BabyHospitalLocationResult"
+          }
+        }
+      },
+      "HospitalFullDownResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HospitalFullDownResult"
+          }
+        }
+      },
+      "HospitalBasisInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HospitalBasisInfoResult"
+          }
+        }
+      },
+      "CodeInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/CodeInfoResult"
+          }
+        }
+      },
+      "DutyDiv": {
+        "type": "string",
+        "description": "병원분류 코드. 코드마스터 'H000' 참조.\nA:상급종합병원·종합병원, B:병원·군병원, C:의원·군의원, D:요양병원, E:한방병원,\nG:한의원·군한의원, H:약국, I:기타, M:치과병원, N:치과의원,\nR:보건소·보건지소·보건진료소·보건의료원, S:이송단체, T:119구급대,\nU:경찰서(교도소포함), V:지방자치단체, W:기타시설·군기타,\nY:중앙응급의료센터, Z:응급의료지원센터"
+      },
+      "YnFlag": {
+        "type": "string",
+        "description": "Y:가능, N:불가"
+      },
+      "HospitalListItem": {
+        "type": "object",
+        "description": "병·의원 목록정보 항목. 달빛어린이병원 목록도 같은 형태다.",
+        "properties": {
+          "rnum": {
+            "type": "integer",
+            "description": "일련번호"
+          },
+          "hpid": {
+            "type": "string",
+            "description": "기관ID"
+          },
+          "dutyName": {
+            "type": "string",
+            "description": "기관명"
+          },
+          "dutyAddr": {
+            "type": "string",
+            "description": "주소"
+          },
+          "dutyDiv": {
+            "$ref": "#/components/schemas/DutyDiv"
+          },
+          "dutyDivNam": {
+            "type": "string",
+            "description": "병원분류명"
+          },
+          "dutyEmcls": {
+            "type": "string",
+            "description": "응급의료기관코드"
+          },
+          "dutyEmclsName": {
+            "type": "string",
+            "description": "응급의료기관코드명"
+          },
+          "dutyEryn": {
+            "type": "string",
+            "description": "응급실운영여부 (1:운영, 2:미운영)"
+          },
+          "dutyEtc": {
+            "type": "string",
+            "description": "비고"
+          },
+          "dutyInf": {
+            "type": "string",
+            "description": "기관설명상세"
+          },
+          "dutyMapimg": {
+            "type": "string",
+            "description": "간이약도"
+          },
+          "dutyTel1": {
+            "type": "string",
+            "description": "대표전화1"
+          },
+          "dutyTel3": {
+            "type": "string",
+            "description": "응급실전화"
+          },
+          "postCdn1": {
+            "type": "string",
+            "description": "우편번호1"
+          },
+          "postCdn2": {
+            "type": "string",
+            "description": "우편번호2"
+          },
+          "wgs84Lon": {
+            "type": "string",
+            "description": "병원경도"
+          },
+          "wgs84Lat": {
+            "type": "string",
+            "description": "병원위도"
+          },
+          "dutyTime1s": {
+            "type": "string",
+            "description": "진료시간(월요일) 시작"
+          },
+          "dutyTime2s": {
+            "type": "string",
+            "description": "진료시간(화요일) 시작"
+          },
+          "dutyTime3s": {
+            "type": "string",
+            "description": "진료시간(수요일) 시작"
+          },
+          "dutyTime4s": {
+            "type": "string",
+            "description": "진료시간(목요일) 시작"
+          },
+          "dutyTime5s": {
+            "type": "string",
+            "description": "진료시간(금요일) 시작"
+          },
+          "dutyTime6s": {
+            "type": "string",
+            "description": "진료시간(토요일) 시작"
+          },
+          "dutyTime7s": {
+            "type": "string",
+            "description": "진료시간(일요일) 시작"
+          },
+          "dutyTime8s": {
+            "type": "string",
+            "description": "진료시간(공휴일) 시작"
+          },
+          "dutyTime1c": {
+            "type": "string",
+            "description": "진료시간(월요일) 종료"
+          },
+          "dutyTime2c": {
+            "type": "string",
+            "description": "진료시간(화요일) 종료"
+          },
+          "dutyTime3c": {
+            "type": "string",
+            "description": "진료시간(수요일) 종료"
+          },
+          "dutyTime4c": {
+            "type": "string",
+            "description": "진료시간(목요일) 종료"
+          },
+          "dutyTime5c": {
+            "type": "string",
+            "description": "진료시간(금요일) 종료"
+          },
+          "dutyTime6c": {
+            "type": "string",
+            "description": "진료시간(토요일) 종료"
+          },
+          "dutyTime7c": {
+            "type": "string",
+            "description": "진료시간(일요일) 종료"
+          },
+          "dutyTime8c": {
+            "type": "string",
+            "description": "진료시간(공휴일) 종료"
+          },
+          "sidoNm": {
+            "type": "string",
+            "description": "시도명 (예: 서울특별시).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.\nNMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,\n지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
+            "example": "서울특별시"
+          },
+          "sgguNm": {
+            "type": "string",
+            "description": "시군구명 (예: 강남구).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.\n시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
+            "example": "강남구"
+          }
+        }
+      },
+      "HospitalLocationItem": {
+        "type": "object",
+        "description": "병·의원 위치정보 항목. 달빛어린이병원 위치정보도 같은 형태다.",
+        "properties": {
+          "rnum": {
+            "type": "integer",
+            "description": "일련번호"
+          },
+          "cnt": {
+            "type": "integer",
+            "description": "건수"
+          },
+          "distance": {
+            "type": "string",
+            "description": "거리 (km)"
+          },
+          "hpid": {
+            "type": "string",
+            "description": "기관ID"
+          },
+          "dutyName": {
+            "type": "string",
+            "description": "기관명"
+          },
+          "dutyAddr": {
+            "type": "string",
+            "description": "주소"
+          },
+          "dutyDiv": {
+            "$ref": "#/components/schemas/DutyDiv"
+          },
+          "dutyDivName": {
+            "type": "string",
+            "description": "병원분류명"
+          },
+          "dutyEmcls": {
+            "type": "string",
+            "description": "응급의료기관코드"
+          },
+          "dutyFax": {
+            "type": "string",
+            "description": "팩스번호"
+          },
+          "dutyLvkl": {
+            "type": "string",
+            "description": "운영상태"
+          },
+          "dutyTel1": {
+            "type": "string",
+            "description": "대표전화1"
+          },
+          "startTime": {
+            "type": "string",
+            "description": "시작시간"
+          },
+          "endTime": {
+            "type": "string",
+            "description": "종료시간"
+          },
+          "latitude": {
+            "type": "string",
+            "description": "병원위도"
+          },
+          "longitude": {
+            "type": "string",
+            "description": "병원경도"
+          },
+          "sidoNm": {
+            "type": "string",
+            "description": "시도명 (예: 서울특별시).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.\nNMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,\n지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
+            "example": "서울특별시"
+          },
+          "sgguNm": {
+            "type": "string",
+            "description": "시군구명 (예: 강남구).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.\n시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
+            "example": "강남구"
+          }
+        }
+      },
+      "HospitalFullDownItem": {
+        "type": "object",
+        "description": "병/의원 FullData 항목",
+        "properties": {
+          "rnum": {
+            "type": "integer",
+            "description": "일련번호"
+          },
+          "hpid": {
+            "type": "string",
+            "description": "기관ID"
+          },
+          "dutyName": {
+            "type": "string",
+            "description": "기관명"
+          },
+          "dutyAddr": {
+            "type": "string",
+            "description": "주소"
+          },
+          "dutyDiv": {
+            "$ref": "#/components/schemas/DutyDiv"
+          },
+          "dutyDivNam": {
+            "type": "string",
+            "description": "병원분류명"
+          },
+          "dutyEmcls": {
+            "type": "string",
+            "description": "응급의료기관코드"
+          },
+          "dutyEmclsName": {
+            "type": "string",
+            "description": "응급의료기관코드명"
+          },
+          "dutyEryn": {
+            "type": "string",
+            "description": "응급실운영여부 (1:운영, 2:미운영)"
+          },
+          "dutyEtc": {
+            "type": "string",
+            "description": "비고"
+          },
+          "dutyInf": {
+            "type": "string",
+            "description": "기관설명상세"
+          },
+          "dutyMapimg": {
+            "type": "string",
+            "description": "간이약도"
+          },
+          "dutyTel1": {
+            "type": "string",
+            "description": "대표전화1"
+          },
+          "dutyTel3": {
+            "type": "string",
+            "description": "응급실전화"
+          },
+          "postCdn1": {
+            "type": "string",
+            "description": "우편번호1"
+          },
+          "postCdn2": {
+            "type": "string",
+            "description": "우편번호2"
+          },
+          "wgs84Lon": {
+            "type": "string",
+            "description": "병원경도"
+          },
+          "wgs84Lat": {
+            "type": "string",
+            "description": "병원위도"
+          },
+          "dutyTime1s": {
+            "type": "string",
+            "description": "진료시간(월요일) 시작"
+          },
+          "dutyTime2s": {
+            "type": "string",
+            "description": "진료시간(화요일) 시작"
+          },
+          "dutyTime3s": {
+            "type": "string",
+            "description": "진료시간(수요일) 시작"
+          },
+          "dutyTime4s": {
+            "type": "string",
+            "description": "진료시간(목요일) 시작"
+          },
+          "dutyTime5s": {
+            "type": "string",
+            "description": "진료시간(금요일) 시작"
+          },
+          "dutyTime6s": {
+            "type": "string",
+            "description": "진료시간(토요일) 시작"
+          },
+          "dutyTime7s": {
+            "type": "string",
+            "description": "진료시간(일요일) 시작"
+          },
+          "dutyTime8s": {
+            "type": "string",
+            "description": "진료시간(공휴일) 시작"
+          },
+          "dutyTime1c": {
+            "type": "string",
+            "description": "진료시간(월요일) 종료"
+          },
+          "dutyTime2c": {
+            "type": "string",
+            "description": "진료시간(화요일) 종료"
+          },
+          "dutyTime3c": {
+            "type": "string",
+            "description": "진료시간(수요일) 종료"
+          },
+          "dutyTime4c": {
+            "type": "string",
+            "description": "진료시간(목요일) 종료"
+          },
+          "dutyTime5c": {
+            "type": "string",
+            "description": "진료시간(금요일) 종료"
+          },
+          "dutyTime6c": {
+            "type": "string",
+            "description": "진료시간(토요일) 종료"
+          },
+          "dutyTime7c": {
+            "type": "string",
+            "description": "진료시간(일요일) 종료"
+          },
+          "dutyTime8c": {
+            "type": "string",
+            "description": "진료시간(공휴일) 종료"
+          },
+          "sidoNm": {
+            "type": "string",
+            "description": "시도명 (예: 서울특별시).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.\nNMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,\n지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
+            "example": "서울특별시"
+          },
+          "sgguNm": {
+            "type": "string",
+            "description": "시군구명 (예: 강남구).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.\n시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
+            "example": "강남구"
+          }
+        }
+      },
+      "HospitalBasisInfoItem": {
+        "type": "object",
+        "description": "병·의원별 기본정보 항목",
+        "properties": {
+          "hpid": {
+            "type": "string",
+            "description": "기관ID"
+          },
+          "dutyName": {
+            "type": "string",
+            "description": "기관명"
+          },
+          "dutyAddr": {
+            "type": "string",
+            "description": "주소"
+          },
+          "dutyTel1": {
+            "type": "string",
+            "description": "대표전화1"
+          },
+          "dutyTel3": {
+            "type": "string",
+            "description": "응급실전화"
+          },
+          "dutyInf": {
+            "type": "string",
+            "description": "기관설명상세"
+          },
+          "dutyMapimg": {
+            "type": "string",
+            "description": "간이약도"
+          },
+          "dgidIdName": {
+            "type": "string",
+            "description": "진료과목. 쉼표로 구분된 과목명 목록. QD 파라미터의 코드 설명 참고."
+          },
+          "postCdn1": {
+            "type": "string",
+            "description": "우편번호1"
+          },
+          "postCdn2": {
+            "type": "string",
+            "description": "우편번호2"
+          },
+          "dutyEryn": {
+            "type": "integer",
+            "description": "응급실운영여부 (1:운영, 2:미운영)"
+          },
+          "dutyHayn": {
+            "type": "integer",
+            "description": "입원실가용여부 (1:가능, 그외:불가)"
+          },
+          "dutyHano": {
+            "type": "integer",
+            "description": "병상수"
+          },
+          "wgs84Lat": {
+            "type": "number",
+            "description": "병원위도"
+          },
+          "wgs84Lon": {
+            "type": "number",
+            "description": "병원경도"
+          },
+          "dutyTime1s": {
+            "type": "string",
+            "description": "진료시간(월요일) 시작"
+          },
+          "dutyTime2s": {
+            "type": "string",
+            "description": "진료시간(화요일) 시작"
+          },
+          "dutyTime3s": {
+            "type": "string",
+            "description": "진료시간(수요일) 시작"
+          },
+          "dutyTime4s": {
+            "type": "string",
+            "description": "진료시간(목요일) 시작"
+          },
+          "dutyTime5s": {
+            "type": "string",
+            "description": "진료시간(금요일) 시작"
+          },
+          "dutyTime6s": {
+            "type": "string",
+            "description": "진료시간(토요일) 시작"
+          },
+          "dutyTime7s": {
+            "type": "string",
+            "description": "진료시간(일요일) 시작"
+          },
+          "dutyTime8s": {
+            "type": "string",
+            "description": "진료시간(공휴일) 시작"
+          },
+          "dutyTime1c": {
+            "type": "string",
+            "description": "진료시간(월요일) 종료"
+          },
+          "dutyTime2c": {
+            "type": "string",
+            "description": "진료시간(화요일) 종료"
+          },
+          "dutyTime3c": {
+            "type": "string",
+            "description": "진료시간(수요일) 종료"
+          },
+          "dutyTime4c": {
+            "type": "string",
+            "description": "진료시간(목요일) 종료"
+          },
+          "dutyTime5c": {
+            "type": "string",
+            "description": "진료시간(금요일) 종료"
+          },
+          "dutyTime6c": {
+            "type": "string",
+            "description": "진료시간(토요일) 종료"
+          },
+          "dutyTime7c": {
+            "type": "string",
+            "description": "진료시간(일요일) 종료"
+          },
+          "dutyTime8c": {
+            "type": "string",
+            "description": "진료시간(공휴일) 종료"
+          },
+          "hvec": {
+            "type": "integer",
+            "description": "응급실 가용 병상수 (실시간).\n주의: 가이드에 명세되어 있으나 실제 응답에는 오지 않는다. (2026-07 확인, 응급실 운영 기관도 동일)\n실시간 가용병상이 필요하면 응급의료 실시간 가용병상 API 를 따로 써야 한다."
+          },
+          "hvoc": {
+            "type": "integer",
+            "description": "수술실 가용 수 (실시간). hvec 과 마찬가지로 실제 응답에는 오지 않는다."
+          },
+          "hvcc": {
+            "type": "integer",
+            "description": "신경중환자 가용 병상수 (실시간). 실제 응답에는 오지 않는다."
+          },
+          "hvncc": {
+            "type": "integer",
+            "description": "신생아중환자 가용 병상수 (실시간). 실제 응답에는 오지 않는다."
+          },
+          "hvccc": {
+            "type": "integer",
+            "description": "흉부중환자 가용 병상수 (실시간). 실제 응답에는 오지 않는다."
+          },
+          "hvicc": {
+            "type": "integer",
+            "description": "일반중환자 가용 병상수 (실시간). 실제 응답에는 오지 않는다."
+          },
+          "hvgc": {
+            "type": "integer",
+            "description": "입원실 가용 병상수 (실시간). 실제 응답에는 오지 않는다."
+          },
+          "hpbdn": {
+            "type": "integer",
+            "description": "병상수"
+          },
+          "hperyn": {
+            "type": "integer",
+            "description": "응급실 (보유 수)"
+          },
+          "hpgryn": {
+            "type": "integer",
+            "description": "입원실 (보유 수)"
+          },
+          "hpnicuyn": {
+            "type": "integer",
+            "description": "신생아중환자실 (보유 수)"
+          },
+          "hpopyn": {
+            "type": "integer",
+            "description": "수술실 (보유 수)"
+          },
+          "hpccuyn": {
+            "type": "integer",
+            "description": "흉부중환자실 (보유 수)"
+          },
+          "hpcuyn": {
+            "type": "integer",
+            "description": "신경중환자실 (보유 수)"
+          },
+          "hpicuyn": {
+            "type": "integer",
+            "description": "일반중환자실 (보유 수)"
+          },
+          "MKioskTy1": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "뇌출혈수술"
+          },
+          "MKioskTy2": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "뇌경색의재관류"
+          },
+          "MKioskTy3": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "심근경색의재관류"
+          },
+          "MKioskTy4": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "복부손상의수술"
+          },
+          "MKioskTy5": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "사지접합의수술"
+          },
+          "MKioskTy6": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "응급내시경"
+          },
+          "MKioskTy7": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "응급투석"
+          },
+          "MKioskTy8": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "조산산모"
+          },
+          "MKioskTy9": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "정신질환자"
+          },
+          "MKioskTy10": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "신생아"
+          },
+          "MKioskTy11": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "중증화상"
+          },
+          "MKioskTy25": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "응급실(Emergency gate keeper)"
+          },
+          "o001": {
+            "type": "integer",
+            "description": "응급실 일반병상"
+          },
+          "o002": {
+            "type": "integer",
+            "description": "응급실 소아 병상"
+          },
+          "o003": {
+            "type": "integer",
+            "description": "응급실 음압 격리 병상"
+          },
+          "o004": {
+            "type": "integer",
+            "description": "응급실 일반 격리 병상"
+          },
+          "o005": {
+            "type": "integer",
+            "description": "응급전용 중환자실"
+          },
+          "o006": {
+            "type": "integer",
+            "description": "내과중환자실"
+          },
+          "o007": {
+            "type": "integer",
+            "description": "외과중환자실"
+          },
+          "o008": {
+            "type": "integer",
+            "description": "신생아중환자실"
+          },
+          "o009": {
+            "type": "integer",
+            "description": "소아 중환자실"
+          },
+          "o010": {
+            "type": "integer",
+            "description": "소아응급전용 중환자실 병상"
+          },
+          "o011": {
+            "type": "integer",
+            "description": "신경과중환자실"
+          },
+          "o012": {
+            "type": "integer",
+            "description": "신경외과중환자실"
+          },
+          "o013": {
+            "type": "integer",
+            "description": "화상중환자실"
+          },
+          "o014": {
+            "type": "integer",
+            "description": "외상중환자실"
+          },
+          "o015": {
+            "type": "integer",
+            "description": "심장내과 중환자실"
+          },
+          "o016": {
+            "type": "integer",
+            "description": "흉부외과 중환자실"
+          },
+          "o017": {
+            "type": "integer",
+            "description": "일반 중환자실"
+          },
+          "o018": {
+            "type": "integer",
+            "description": "중환자실 내 음압 격리 병상"
+          },
+          "o019": {
+            "type": "integer",
+            "description": "응급전용 입원실"
+          },
+          "o020": {
+            "type": "integer",
+            "description": "소아응급전용 입원 병상"
+          },
+          "o021": {
+            "type": "integer",
+            "description": "외상전용 입원실"
+          },
+          "o022": {
+            "type": "integer",
+            "description": "수술실"
+          },
+          "o023": {
+            "type": "integer",
+            "description": "외상전용 수술실"
+          },
+          "o024": {
+            "type": "integer",
+            "description": "정신과 폐쇄 병상"
+          },
+          "o025": {
+            "type": "integer",
+            "description": "음압 격리 병상"
+          },
+          "o026": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "분만실"
+          },
+          "o027": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "CT"
+          },
+          "o028": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "MRI"
+          },
+          "o029": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "혈관촬영기"
+          },
+          "o030": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "인공호흡기"
+          },
+          "o031": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "인공호흡기(소아)"
+          },
+          "o032": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "인큐베이터"
+          },
+          "o033": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "CRRT"
+          },
+          "o034": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "ECMO"
+          },
+          "o035": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "치료적 저체온 요법"
+          },
+          "o036": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "화상전용 처치실"
+          },
+          "o037": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/YnFlag"
+              }
+            ],
+            "description": "고압산소치료기"
+          },
+          "o038": {
+            "type": "integer",
+            "description": "일반입원실"
+          },
+          "sidoNm": {
+            "type": "string",
+            "description": "시도명 (예: 서울특별시).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.\nNMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,\n지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
+            "example": "서울특별시"
+          },
+          "sgguNm": {
+            "type": "string",
+            "description": "시군구명 (예: 강남구).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.\n시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
+            "example": "강남구"
+          }
+        }
+      },
+      "CodeInfoItem": {
+        "type": "object",
+        "description": "코드마스터 항목",
+        "properties": {
+          "cmMid": {
+            "type": "string",
+            "description": "대분류코드 (예: H010)"
+          },
+          "cmMnm": {
+            "type": "string",
+            "description": "코드명 (예: 설립구분)"
+          },
+          "cmSid": {
+            "type": "string",
+            "description": "소분류코드 (예: F001)"
+          },
+          "cmSnm": {
+            "type": "string",
+            "description": "코드약어 (예: 국립)"
+          }
+        }
+      },
+      "HospitalListItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HospitalListItem"
+            }
+          }
+        }
+      },
+      "HospitalListBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HospitalListItems"
+              }
+            }
+          }
+        ]
+      },
+      "HospitalListResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HospitalListBody"
+          }
+        }
+      },
+      "BabyHospitalListItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HospitalListItem"
+            }
+          }
+        }
+      },
+      "BabyHospitalListBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/BabyHospitalListItems"
+              }
+            }
+          }
+        ]
+      },
+      "BabyHospitalListResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/BabyHospitalListBody"
+          }
+        }
+      },
+      "HospitalLocationItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HospitalLocationItem"
+            }
+          }
+        }
+      },
+      "HospitalLocationBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HospitalLocationItems"
+              }
+            }
+          }
+        ]
+      },
+      "HospitalLocationResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HospitalLocationBody"
+          }
+        }
+      },
+      "BabyHospitalLocationItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HospitalLocationItem"
+            }
+          }
+        }
+      },
+      "BabyHospitalLocationBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/BabyHospitalLocationItems"
+              }
+            }
+          }
+        ]
+      },
+      "BabyHospitalLocationResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/BabyHospitalLocationBody"
+          }
+        }
+      },
+      "HospitalFullDownItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HospitalFullDownItem"
+            }
+          }
+        }
+      },
+      "HospitalFullDownBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HospitalFullDownItems"
+              }
+            }
+          }
+        ]
+      },
+      "HospitalFullDownResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HospitalFullDownBody"
+          }
+        }
+      },
+      "HospitalBasisInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "description": "실제 응답은 단일 객체로 오지만 mutator 가 배열로 정규화한다.",
+            "items": {
+              "$ref": "#/components/schemas/HospitalBasisInfoItem"
+            }
+          }
+        }
+      },
+      "HospitalBasisInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HospitalBasisInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "HospitalBasisInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HospitalBasisInfoBody"
+          }
+        }
+      },
+      "CodeInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CodeInfoItem"
+            }
+          }
+        }
+      },
+      "CodeInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/CodeInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "CodeInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/CodeInfoBody"
+          }
+        }
+      }
+    }
+  }
+}

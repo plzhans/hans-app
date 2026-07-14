@@ -1,0 +1,8 @@
+#!/bin/sh
+# root 는 "어느 워크스페이스가 바뀌었나"만 보고, 그 워크스페이스의 .husky/<동일이름> 훅으로 위임.
+CHANGED=$(git diff --name-only ORIG_HEAD HEAD 2>/dev/null)
+for ws in backend frontend; do
+  echo "$CHANGED" | grep -q "^$ws/" || continue
+  [ -f "$ws/.husky/post-merge" ] || continue
+  ( cd "$ws" && sh .husky/post-merge "$@" ) || exit $?
+done

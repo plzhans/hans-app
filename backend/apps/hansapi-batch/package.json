@@ -1,0 +1,29 @@
+{
+  "name": "hansapi-batch",
+  "version": "0.0.1",
+  "private": true,
+  "description": "공공데이터를 로컬 DB 에 적재하는 배치. 크론으로 단계를 순서대로 돌린다",
+  "scripts": {
+    "start": "node --conditions src -r @swc-node/register src/main.ts",
+    "start:once": "node --conditions src -r @swc-node/register src/main.ts --once",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "@hansapi/admin-application": "workspace:*",
+    "@hansapi/common": "workspace:*",
+    "@hansapi/data": "workspace:*",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
+    "@nestjs/schedule": "^6.0.1",
+    "cron": "^4.4.0",
+    "dotenv": "^17.4.2",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.43",
+    "@types/node": "^26.1.0",
+    "typescript": "^5.9.3"
+  }
+}

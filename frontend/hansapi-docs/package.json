@@ -1,0 +1,25 @@
+{
+  "name": "hansapi-docs",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Hans API 명세 문서 (VitePress + OpenAPI)",
+  "scripts": {
+    "docs:dev": "vitepress dev --port 5174 --strictPort",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview --port 5174 --strictPort",
+    "spec:local": "NODE_ENV=local pnpm -C ../../backend openapi:gen",
+    "spec:dev": "NODE_ENV=development pnpm -C ../../backend openapi:gen",
+    "spec:prod": "NODE_ENV=production pnpm -C ../../backend openapi:gen",
+    "build:local": "pnpm spec:local && pnpm docs:build",
+    "build:dev": "pnpm spec:dev && pnpm docs:build",
+    "build:prod": "pnpm spec:prod && pnpm docs:build"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.13"
+  },
+  "dependencies": {
+    "vitepress-openapi": "^0.1.9"
+  }
+}

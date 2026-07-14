@@ -1,0 +1,56 @@
+# 로컬 개발환경. backend 폴더에서 `docker compose up -d` 로 띄운다.
+# (또는 `make db-up`. Makefile 의 db-* 타겟이 이 파일을 감싼다)
+#
+# 이미지(docker/mysql9/)는 "MySQL 9 + 서버 공통 설정"까지만 담당한다.
+# 버전·설정은 공유 개발 DB(MySQL HeatWave 9.7.1-cloud)에 맞춰져 있다.
+# 이 스택에서 쓸 DB·계정을 만드는 건 아래 initdb 마운트가 한다.
+name: hansapi-backend
+
+services:
+  hansapi-db:
+    build:
+      # backend/ 가 아니라 레포 루트의 docker/ 아래에 둔다. 다른 스택(node-builder)과 같은 자리다.
+      context: ../docker/mysql9
+      args:
+        # 실제 DB 와 같은 패치버전. 올리기 전에 `SELECT @@version` 부터 확인할 것.
+        MYSQL_VERSION: 9.7.1
+    image: hansapi/mysql9:9.7.1
+    container_name: hansapi-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+
+      # 메인 DB 와 앱 계정은 mysql 이미지의 기본 기능이 만든다.
+      # MYSQL_USER 는 MYSQL_DATABASE 에 대해서만 권한을 받는다.
+      # 로그·shadow DB 는 여기서 못 만들므로(변수가 DB 하나만 받는다) initdb 스크립트가 이어서 만든다.
+      # 접속 정보의 출처는 여기 한 곳뿐이다. initdb 스크립트는 이 값들을 읽어 쓴다.
+      MYSQL_DATABASE: local_hansapi
+      MYSQL_USER: local_hansapi
+      # 로컬 컨테이너 전용이라 감출 게 없다. 계정명과 같게 둔다.
+      MYSQL_PASSWORD: local_hansapi
+
+      # 컨테이너 OS 시간대. MySQL 서버 시간대는 별개이며 server.cnf 가 정한다(둘 다 UTC).
+      TZ: UTC
+    ports:
+      # 호스트에 이미 MySQL 이 돌고 있어도 부딪히지 않게 3306 을 피한다.
+      # 바꾸려면 MYSQL_PORT=... 로 덮어쓰고 env/.env.local 의 포트도 같이 고친다.
+      - '${MYSQL_PORT:-13306}:3306'
+    volumes:
+      - hansapi-db-data:/var/lib/mysql
+      # 위 변수로 못 만드는 로그·shadow DB 를 마저 만드는 스크립트. 이미지에 굽지 않고 여기서 붙인다.
+      # datadir 이 비어 있을 때(최초 기동, 볼륨 삭제 후)만 한 번 실행된다.
+      # 스크립트를 고쳤으면 `make db-reset` 으로 볼륨을 지우고 다시 올려야 반영된다.
+      - ./infra/local/mysql-db/docker-initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # 앱을 붙이기 전에 DB 가 실제로 접속을 받는지 확인한다.
+      # root 로 ping 을 쳐야 "접속은 되는데 초기화가 안 끝난" 상태를 걸러낼 수 있다.
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      # 초기화(3개 DB 생성)에 시간이 걸린다. 그동안의 실패는 재시도로 치지 않는다.
+      start_period: 40s
+
+volumes:
+  hansapi-db-data:
+    name: hansapi-db-data
