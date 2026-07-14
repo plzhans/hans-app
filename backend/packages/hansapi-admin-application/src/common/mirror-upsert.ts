@@ -1,5 +1,4 @@
-import { PrismaService } from '@hansapi/data';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaService } from '@hansapi/data';
 
 /** 한 번의 INSERT 에 담을 행 수. 너무 크면 max_allowed_packet 에 걸린다. */
 const CHUNK_SIZE = 500;

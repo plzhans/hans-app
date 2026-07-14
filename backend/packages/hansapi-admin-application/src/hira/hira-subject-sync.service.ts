@@ -1,8 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { PrismaService } from '@hansapi/data';
+import { Prisma, PrismaService } from '@hansapi/data';
 import type { HiraClient } from '@krdata/hira';
-import { Prisma } from '@prisma/client';
 
 import { SyncOutcome } from '../common/sync-state.service';
 import { HIRA_CLIENT } from '../krdata.providers';

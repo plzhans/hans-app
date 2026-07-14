@@ -4,16 +4,19 @@ import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import { Input } from '@/shared/ui/Input';
 import { Button } from '@/shared/ui/Button';
+import { useLangPath } from '@/shared/i18n/routing';
 
 export default function Home() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const path = useLangPath();
   const [keyword, setKeyword] = useState('');
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     const q = keyword.trim();
-    navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search');
+    // 접두사를 붙여 보낸다. 안 붙이면 영어 페이지에서 검색했는데 한국어 검색으로 튕긴다.
+    navigate(path(q ? `/search?q=${encodeURIComponent(q)}` : '/search'));
   }
 
   return (

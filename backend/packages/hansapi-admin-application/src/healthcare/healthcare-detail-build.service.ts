@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapi/application';
 import { parseTimeRange } from '@hansapi/common';
-import { PrismaService } from '@hansapi/data';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaService } from '@hansapi/data';
 
 import { isSubjectAllowed } from '@hansapi/data/seed';
 

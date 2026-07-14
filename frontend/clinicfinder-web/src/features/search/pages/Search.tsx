@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui/Input';
 import { Combobox } from '@/shared/ui/Combobox';
 import { Button } from '@/shared/ui/Button';
@@ -44,7 +46,7 @@ const PAGE_SIZE = 20;
  */
 const TABS = [
   {
-    name: '병원',
+    key: 'hospital',
     icon: Stethoscope,
     on: 'border-primary-600 text-primary-700',
     dot: 'text-primary-600',
@@ -53,7 +55,7 @@ const TABS = [
     tier: '',
   },
   {
-    name: '응급실',
+    key: 'emergency',
     icon: Siren,
     on: 'border-rose-600 text-rose-700',
     dot: 'text-rose-600',
@@ -62,7 +64,7 @@ const TABS = [
     tier: '',
   },
   {
-    name: '달빛어린이',
+    key: 'baby',
     icon: Moon,
     on: 'border-indigo-600 text-indigo-700',
     dot: 'text-indigo-600',
@@ -71,7 +73,7 @@ const TABS = [
     tier: '',
   },
   {
-    name: '요양병원',
+    key: 'nursing',
     icon: BedDouble,
     on: 'border-emerald-600 text-emerald-700',
     dot: 'text-emerald-600',
@@ -80,7 +82,7 @@ const TABS = [
     tier: 'NURSING',
   },
   {
-    name: '정신병원',
+    key: 'mental',
     icon: Brain,
     on: 'border-violet-600 text-violet-700',
     dot: 'text-violet-600',
@@ -98,6 +100,7 @@ const TABS = [
  * 이제 지역·종별·진료과목·이름을 서버에 넘긴다 (인덱스를 탄다).
  */
 export default function SearchPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
 
@@ -229,7 +232,7 @@ export default function SearchPage() {
     })),
     ...tierCds.map((code) => ({
       code,
-      name: tiers?.find((t) => t.code === code)?.name ?? '요양·정신',
+      name: tiers?.find((t) => t.code === code)?.name ?? t('search.inpatient'),
       remove: () =>
         update({ tier: tierCds.filter((c) => c !== code).join(',') }),
     })),
@@ -273,7 +276,7 @@ export default function SearchPage() {
 
           return (
             <button
-              key={tab.name}
+              key={tab.key}
               type="button"
               role="tab"
               aria-selected={active}
@@ -325,8 +328,8 @@ export default function SearchPage() {
               value={sido}
               onChange={(value) => update({ sido: value, region: '' })}
               options={toOptions(sidos)}
-              placeholder="시도"
-              searchPlaceholder="시도 검색"
+              placeholder={t('search.sido')}
+              searchPlaceholder={t('search.sidoSearch')}
               className="w-1/2 shrink-0 sm:w-28"
             />
 
@@ -335,8 +338,8 @@ export default function SearchPage() {
               value={region}
               onChange={(value) => update({ region: value })}
               options={toOptions(sggus)}
-              placeholder="시군구"
-              searchPlaceholder="시군구 검색"
+              placeholder={t('search.sggu')}
+              searchPlaceholder={t('search.sgguSearch')}
               disabled={!sido}
               className="w-1/2 shrink-0 sm:w-32"
             />
@@ -347,7 +350,7 @@ export default function SearchPage() {
             <div className="relative flex-1">
               <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
-                placeholder="병원 이름"
+                placeholder={t('search.hospitalName')}
                 value={keyword}
                 onChange={(e) => update({ q: e.target.value })}
                 onKeyDown={(e) => {
@@ -359,7 +362,7 @@ export default function SearchPage() {
             </div>
 
             <Button onClick={search} className="shrink-0">
-              검색
+              {t('search.submit')}
             </Button>
           </div>
         </div>
@@ -413,7 +416,7 @@ export default function SearchPage() {
           className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800"
         >
           <SlidersHorizontal className="h-4 w-4" />
-          상세 검색
+          {t('search.advanced')}
           <ChevronDown
             className={cn('h-4 w-4 transition-transform', detailOpen && 'rotate-180')}
           />
@@ -429,7 +432,7 @@ export default function SearchPage() {
             {/* 요양·정신 탭에서는 규모를 안 보여준다 — 그 탭 자체가 이미 규모를 정한다. */}
             {!inpatient && (
               <FilterRow
-                label="병원 등급"
+                label={t('search.tier')}
                 options={(tiers ?? []).map((t) => ({
                   code: t.code,
                   name: t.name,
@@ -447,7 +450,7 @@ export default function SearchPage() {
             */}
             {!baby && (
               <FilterRow
-                label="진료과목"
+                label={t('search.subject')}
                 options={subjects ?? []}
                 selected={subjectCds}
                 onChange={(codes) => update({ subject: codes.join(',') })}
@@ -482,7 +485,7 @@ export default function SearchPage() {
               onClick={() => update({ subject: '', tier: '' })}
               className="ml-1 text-xs font-medium text-slate-500 hover:text-primary-600"
             >
-              전체 해제
+              {t('search.clearAll')}
             </button>
           </div>
             )}
@@ -494,14 +497,14 @@ export default function SearchPage() {
         {dirty && (
           <Button onClick={search} className="w-full">
             <SearchIcon className="h-4 w-4" />
-            이 조건으로 검색
+            {t('search.applyFilters')}
           </Button>
         )}
       </div>
 
       <p className="mt-4 text-sm text-slate-500">
-        {isLoading ? '불러오는 중…' : `${total.toLocaleString()}건`}
-        {isFetching && !isLoading && ' (갱신 중)'}
+        {isLoading ? t('common.loading') : t('search.count', { count: total })}
+        {isFetching && !isLoading && }
       </p>
 
       {isLoading && (
@@ -510,7 +513,7 @@ export default function SearchPage() {
         </div>
       )}
       {isError && (
-        <p className="py-12 text-center text-rose-600">불러오지 못했습니다.</p>
+        <p className="py-12 text-center text-rose-600">{t('common.loadError')}</p>
       )}
 
       <div className="mt-3 space-y-3">
@@ -520,7 +523,7 @@ export default function SearchPage() {
       </div>
 
       {items.length === 0 && !isLoading && (
-        <p className="py-12 text-center text-slate-500">검색 결과가 없습니다.</p>
+        <p className="py-12 text-center text-slate-500">{t('search.empty')}</p>
       )}
 
       {totalPages > 1 && (
@@ -530,7 +533,7 @@ export default function SearchPage() {
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
           >
-            이전
+            {t('search.prev')}
           </Button>
           <span className="text-sm text-slate-600">
             {page} / {totalPages}
@@ -540,7 +543,7 @@ export default function SearchPage() {
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
           >
-            다음
+            {t('search.next')}
           </Button>
         </div>
       )}

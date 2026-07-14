@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Crosshair, Maximize2, Minimize2 } from 'lucide-react';
 
 /** 우리가 쓰는 것만 선언한다. 네이버는 공식 타입 패키지를 주지 않는다. */
@@ -42,16 +43,17 @@ const CLIENT_ID = import.meta.env.VITE_NCLOUD_CLIENT_ID as string | undefined;
 // 스크립트는 한 번만 로드한다(여러 지도가 떠도 중복 요청 방지).
 let scriptLoaded = false;
 let scriptLoading = false;
-const scriptCallbacks: ((error?: string) => void)[] = [];
+/** 에러는 모듈 스코프(React 밖)에서 나온다. 문구 대신 **번역 키**를 넘겨 렌더 시점에 번역한다. */
+const scriptCallbacks: ((errorKey?: string) => void)[] = [];
 
-function settle(error?: string) {
+function settle(errorKey?: string) {
   scriptLoading = false;
-  scriptLoaded = error === undefined;
-  scriptCallbacks.forEach((cb) => cb(error));
+  scriptLoaded = errorKey === undefined;
+  scriptCallbacks.forEach((cb) => cb(errorKey));
   scriptCallbacks.length = 0;
 }
 
-function loadNaverScript(callback: (error?: string) => void) {
+function loadNaverScript(callback: (errorKey?: string) => void) {
   if (scriptLoaded) {
     callback();
     return;
@@ -66,13 +68,13 @@ function loadNaverScript(callback: (error?: string) => void) {
    * 실제로 키에 localhost 만 등록돼 있어 127.0.0.1 로 접속하면 여기로 온다.
    */
   window.navermap_authFailure = () => {
-    settle('지도 인증에 실패했습니다. 네이버 클라우드 콘솔에 이 도메인이 등록됐는지 확인하세요.');
+    settle('map.authFailed');
   };
 
   const script = document.createElement('script');
   script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`;
   script.onload = () => settle();
-  script.onerror = () => settle('지도를 불러오지 못했습니다.');
+  script.onerror = () => settle('map.loadFailed');
   document.head.appendChild(script);
 }
 
@@ -90,7 +92,8 @@ export function NaverMap({ lat, lng, name, height = '260px' }: NaverMapProps) {
   /** 핀 좌표. "현위치로" 버튼이 여기로 되돌린다. */
   const centerRef = useRef<object | null>(null);
 
-  const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -184,7 +187,7 @@ export function NaverMap({ lat, lng, name, height = '260px' }: NaverMapProps) {
 
     loadNaverScript((failure) => {
       if (failure) {
-        setError(failure);
+        setErrorKey(failure);
         return;
       }
       renderMap();
@@ -194,15 +197,15 @@ export function NaverMap({ lat, lng, name, height = '260px' }: NaverMapProps) {
   if (!CLIENT_ID) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
-        지도 키(VITE_NCLOUD_CLIENT_ID)가 설정되지 않았습니다.
+        {t('map.noKey')}
       </div>
     );
   }
 
-  if (error) {
+  if (errorKey) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-700">
-        {error}
+        {t(errorKey)}
       </div>
     );
   }
@@ -247,7 +250,7 @@ export function NaverMap({ lat, lng, name, height = '260px' }: NaverMapProps) {
         <button
           type="button"
           onClick={toggleSize}
-          title={expanded ? '작게 보기' : '크게 보기'}
+          title={expanded ? t('map.collapse') : t('map.expand')}
           className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-600 shadow-md ring-1 ring-slate-200 backdrop-blur transition-colors hover:text-primary-600"
         >
           {expanded ? (
@@ -260,7 +263,7 @@ export function NaverMap({ lat, lng, name, height = '260px' }: NaverMapProps) {
         <button
           type="button"
           onClick={recenter}
-          title="병원 위치로"
+          title={t('map.recenter')}
           className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-600 shadow-md ring-1 ring-slate-200 backdrop-blur transition-colors hover:text-primary-600"
         >
           <Crosshair className="h-4 w-4" />

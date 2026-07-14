@@ -1,12 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
+import { Prisma, PrismaService } from '@hansapi/data';
 import {
   HEALTHCARE_CODES,
   IGNORED_SOURCE_CODES,
   REGION_CODES,
   type HealthcareCodeSeed,
 } from '@hansapi/data/seed';
-import { Prisma } from '@prisma/client';
 
 export interface CodeSeedResult {
   seeded: number;

@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LangLink } from '@/shared/i18n/LangLink';
 import { ChevronRight, MapPin, Phone, Ambulance, Baby } from 'lucide-react';
 import type { Hospital } from '../api';
 
@@ -9,6 +10,8 @@ import type { Hospital } from '../api';
  * 다국어 객체(name.ko)와 주소 조각을 조립해야 했는데, 이제 백엔드가 평범한 문자열로 준다.
  */
 export function HospitalCard({ hospital }: { hospital: Hospital }) {
+  const { t } = useTranslation();
+
   const inner = (
     <>
       {/*
@@ -23,12 +26,12 @@ export function HospitalCard({ hospital }: { hospital: Hospital }) {
         )}
         {hospital.emergency && (
           <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
-            <Ambulance className="h-3 w-3" /> 응급실
+            <Ambulance className="h-3 w-3" /> {t('clinic.badge.emergency')}
           </span>
         )}
         {hospital.baby && (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-            <Baby className="h-3 w-3" /> 달빛어린이
+            <Baby className="h-3 w-3" /> {t('clinic.badge.baby')}
           </span>
         )}
       </div>
@@ -67,11 +70,11 @@ export function HospitalCard({ hospital }: { hospital: Hospital }) {
   );
 
   return (
-    <Link
+    <LangLink
       to={`/hospitals/${hospital.id}`}
       className="block rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:shadow-md"
     >
       {inner}
-    </Link>
+    </LangLink>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { LangLink } from '@/shared/i18n/LangLink';
 import {
   ArrowLeft,
   MapPin,
@@ -414,12 +415,12 @@ export default function HospitalDetailPage() {
     // 섹션마다 흰 카드를 두르면 탭이 하는 구역 나누기를 두 번 하게 되어 화면이 조각난다.
     // 배경은 흰색으로 채우고, 구역은 선으로만 가른다.
     <div className="mx-auto max-w-3xl space-y-5 rounded-2xl bg-white px-4 py-6">
-      <Link
+      <LangLink
         to="/search"
         className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
       >
         <ArrowLeft className="h-4 w-4" /> 검색으로
-      </Link>
+      </LangLink>
 
       {/*
         병원 이름과 탭은 **함께 고정된다.** 탭을 눌러 구역을 옮겨도 "어느 병원을 보고 있나" 가

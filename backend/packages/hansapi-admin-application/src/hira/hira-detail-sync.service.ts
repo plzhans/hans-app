@@ -1,9 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapi/application';
-import { PrismaService } from '@hansapi/data';
+import { Prisma, PrismaService } from '@hansapi/data';
 import { KrDataQuotaError } from '@krdata/core';
 import type { HiraClient } from '@krdata/hira';
-import { Prisma } from '@prisma/client';
 
 import { mapWithConcurrency } from '../common/pool';
 import { SyncOutcome } from '../common/sync-state.service';

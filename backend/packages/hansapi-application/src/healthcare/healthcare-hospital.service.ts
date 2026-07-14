@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Page } from '@hansapi/common';
-import { PrismaService } from '@hansapi/data';
+import { Prisma, PrismaService } from '@hansapi/data';
 import { HOSPITAL_TIERS, INPATIENT_TIERS } from '@hansapi/data/seed';
 
 import { asString } from '../common/coerce';
 import { stationName } from './station';
-
-import { Prisma } from '@prisma/client';
 
 import {
   HospitalDetail,

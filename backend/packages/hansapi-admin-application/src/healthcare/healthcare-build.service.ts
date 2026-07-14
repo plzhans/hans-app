@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapi/application';
-import { PrismaService } from '@hansapi/data';
+import { Prisma, PrismaService } from '@hansapi/data';
 import { hospitalTier, IGNORED_SOURCE_CODES } from '@hansapi/data/seed';
-import { Prisma } from '@prisma/client';
 
 import { CodeMapper } from './code-mapper';
 import { HospitalLocks } from './hospital-lock';

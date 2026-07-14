@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaService } from '@hansapi/data';
 
 import {
   distanceMeters,

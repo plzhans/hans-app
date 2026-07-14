@@ -1,8 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { PrismaService } from '@hansapi/data';
+import { Prisma, PrismaService } from '@hansapi/data';
 import type { NmcClient } from '@krdata/nmc';
-import { Prisma } from '@prisma/client';
 
 import { NMC_CLIENT } from '../krdata.providers';
 import { SyncOutcome } from './../common/sync-state.service';
