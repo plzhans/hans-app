@@ -59,6 +59,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 베이스(node:24-bookworm-slim)는 패치 버전이 떠 있다. 같은 Dockerfile 로 다시 빌드해도
+      # 24.18.0 이 24.19.x 가 된다. 그런데 태그·라벨이 'node24' 뿐이면 그 둘을 구분할 수 없고,
+      # "이 이미지로 빌드했더니 깨졌다" 는 상황에서 어느 node 였는지 역추적이 안 된다.
+      # 그래서 빌드 전에 실제로 깔릴 버전을 확인해 태그와 라벨에 박는다.
+      #
+      # 베이스 이미지 이름은 Dockerfile 의 FROM 에서 꺼낸다. 여기에 다시 적으면
+      # Dockerfile 이 바뀔 때 조용히 어긋난다.
+      - name: 베이스 이미지의 실제 node 버전 확인
+        id: node
+        run: |
+          base=$(grep -m1 '^FROM ' docker/node-builder/Dockerfile | sed 's/^FROM //')
+          base=${base//\$\{NODE_VERSION\}/${{ matrix.node }}}
+          full=$(docker run --rm "$base" node --version)   # v24.18.0
+          full=${full#v}                                   # 24.18.0
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "base=$base → node $full"
+
       - uses: docker/build-push-action@v6
         with:
           context: docker/node-builder
@@ -68,15 +85,26 @@ jobs:
             PNPM_VERSION=${{ needs.setup.outputs.pnpm }}
           # source 라벨이 있어야 GHCR 패키지가 이 레포에 연결된다.
           # 연결돼야 패키지 설정(visibility 변경) 화면으로 들어갈 수 있다.
+          #
+          # 나머지 라벨은 "이 이미지에 뭐가 들었나" 를 이미지 자신이 답하게 하기 위한 것이다.
+          # 컨테이너를 띄워 node -v 를 쳐보지 않아도 docker inspect 로 알 수 있다.
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.description=hans-api CI 빌드/배포용 툴체인 이미지 (node ${{ matrix.node }})
+            org.opencontainers.image.description=hans-api CI 빌드/배포용 툴체인 이미지 (node ${{ steps.node.outputs.full }}, pnpm ${{ needs.setup.outputs.pnpm }})
+            org.opencontainers.image.version=${{ steps.node.outputs.full }}
+            io.hansapi.node-builder.node=${{ steps.node.outputs.full }}
+            io.hansapi.node-builder.pnpm=${{ needs.setup.outputs.pnpm }}
           # latest 태그는 일부러 찍지 않는다.
           # 버전이 둘 이상이면 latest 가 무엇을 가리키는지 모호해지고,
           # 소비하는 잡이 조용히 엉뚱한 node 버전을 물게 된다. 항상 :node<버전> 으로 고정해서 쓸 것.
           # sha 태그도 버전을 접두사로 붙여야 두 매트릭스 잡이 서로 덮어쓰지 않는다.
+          #
+          # :node24        메이저. 최신 빌드로 계속 옮겨간다. 평소에 쓰는 태그.
+          # :node24.18.0   실제로 깔린 패치까지. 안 움직인다.
+          # :node24-<sha>  커밋 고정. 안 움직인다.
           tags: |
             ${{ env.IMAGE }}:node${{ matrix.node }}
+            ${{ env.IMAGE }}:node${{ steps.node.outputs.full }}
             ${{ env.IMAGE }}:node${{ matrix.node }}-${{ github.sha }}
           # scope 를 나눠야 두 버전이 서로의 캐시를 밀어내지 않는다.
           cache-from: type=gha,scope=node${{ matrix.node }}

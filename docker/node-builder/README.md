@@ -5,11 +5,20 @@ CI 빌드/배포용 툴체인 이미지. 매 잡마다 apt/npm 설치를 반복�
 ## 태그
 
 ```
-ghcr.io/<owner>/hans-api/node-builder:node24        ← 이걸 쓴다
-ghcr.io/<owner>/hans-api/node-builder:node24-<sha>  ← 특정 커밋으로 고정하고 싶을 때
+ghcr.io/plzhans/hans-api/node-builder:node24         ← 이걸 쓴다. 최신 빌드로 계속 옮겨간다
+ghcr.io/plzhans/hans-api/node-builder:node24.18.0    ← 실제로 깔린 패치까지. 안 움직인다
+ghcr.io/plzhans/hans-api/node-builder:node24-<sha>   ← 특정 커밋으로 고정하고 싶을 때. 안 움직인다
 ```
 
 **`latest` 태그는 일부러 만들지 않는다.** node 버전이 둘 이상이면 `latest` 가 무엇을 가리키는지 모호해지고, 소비하는 잡이 조용히 엉뚱한 버전을 물게 된다. 항상 `:node<버전>` 으로 고정해서 쓸 것.
+
+베이스(`node:24-bookworm-slim`)는 패치 버전이 떠 있다. Dockerfile 을 안 고쳐도 재빌드하면 24.18.0 이 24.19.x 가 된다. 그래서 워크플로우가 빌드 직전에 실제로 깔릴 버전을 확인해 `:node24.18.0` 태그와 라벨에 박는다. 보안 패치는 자동으로 따라가되, "이 이미지에 뭐가 들었나" 는 이미지 자신이 답하게 하기 위해서다.
+
+```bash
+docker inspect --format '{{json .Config.Labels}}' ghcr.io/plzhans/hans-api/node-builder:node24 | jq
+# io.hansapi.node-builder.node = 24.18.0
+# io.hansapi.node-builder.pnpm = 11.10.0
+```
 
 현재 굽는 버전은 `24`, `22` 두 가지다.
 
