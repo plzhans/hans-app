@@ -21,7 +21,25 @@ on:
       - 'scripts/ci/build-frontend.sh'
       - 'scripts/ci/deploy-docs.sh'
       - '.github/workflows/deploy-docs.yml'
+  # 손으로 돌릴 때만 환경을 고를 수 있다. **자동 배포(push)는 여전히 브랜치가 환경을 정한다.**
+  #
+  # 열어둔 이유는 하나다 — production 브랜치가 생기기 전까지 루트가 비어 있거나 낡은 채로
+  # 남는데, 그동안 main 의 문서를 임시로 루트에 올려둘 방법이 필요하다.
+  #
+  # 대신 이 문은 손으로만 열린다. push 트리거까지 환경을 고를 수 있게 하면
+  # "운영 문서가 어느 브랜치에서 나왔는지" 를 아무도 확신할 수 없게 된다.
+  # (배포 커밋 메시지에 hans-api@<sha> 가 남으므로, 임시로 올려도 출처는 추적된다)
   workflow_dispatch:
+    inputs:
+      environment:
+        description: '배포할 환경 (auto = 브랜치에 따름)'
+        type: choice
+        options: [auto, develop, production]
+        default: auto
+      force:
+        description: '내용이 같아도 강제로 배포한다 (gh-pages 를 손으로 건드려 망가뜨렸을 때)'
+        type: boolean
+        default: false
 
 # 같은 브랜치의 배포가 겹치면 나중 것만 살린다. 앞의 것이 뒤엣것을 덮어쓰면 안 된다.
 concurrency:
@@ -34,12 +52,15 @@ jobs:
     container:
       image: ghcr.io/plzhans/hans-api/node-builder:node24
 
-    # 브랜치가 곧 환경이다. Variables(OPENAPI_SERVERS)를 이 environment 에 걸어 둔다.
-    environment: ${{ github.ref_name == 'production' && 'production' || 'develop' }}
+    # 기본은 브랜치가 곧 환경이다. 수동 실행에서 명시하면 그게 이긴다.
+    # Variables(OPENAPI_SERVERS, DOCS_PATH)는 이 environment 에 걸려 있다.
+    environment: ${{ (inputs.environment != null && inputs.environment != 'auto') && inputs.environment || (github.ref_name == 'production' && 'production' || 'develop') }}
 
     # 설정은 전부 GitHub Variables 다. 레포 이름·도메인·배포 경로가 바뀌어도 코드를 고치지 않는다.
     env:
-      APP_ENV: ${{ github.ref_name == 'production' && 'production' || 'develop' }}
+      APP_ENV: ${{ (inputs.environment != null && inputs.environment != 'auto') && inputs.environment || (github.ref_name == 'production' && 'production' || 'develop') }}
+      # 내용이 같아도 배포한다. deploy-docs.sh 가 이 값을 본다.
+      DOCS_FORCE: ${{ inputs.force }}
 
       # --- 레포 레벨 (환경 무관) ---
       # 브랜치(gh-pages)는 변수가 아니다. 문서 전용 레포의 문서 전용 브랜치라 바뀔 일이 없어

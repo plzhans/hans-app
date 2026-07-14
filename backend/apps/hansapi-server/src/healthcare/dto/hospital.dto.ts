@@ -43,7 +43,7 @@ export class HospitalSearchRequestDto {
   readonly size: number = DEFAULT_PAGE_SIZE;
 
   @ApiPropertyOptional({
-    description: '시군구 코드. /healthcare/meta/regions 참조',
+    description: '시군구 코드. /regions 참조',
     example: '11001',
   })
   @IsOptional()

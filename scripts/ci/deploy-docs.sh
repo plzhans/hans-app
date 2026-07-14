@@ -187,16 +187,26 @@ git config user.name 'github-actions[bot]'
 git config user.email 'github-actions[bot]@users.noreply.github.com'
 git add -A
 
+# 내용이 같으면 빈 커밋을 쌓지 않는다.
+#
+# 다만 gh-pages 를 손으로 건드려 망가뜨렸는데 소스가 그대로면, 이 검사 때문에 복구 배포가
+# 나가지 않는다. 그때 쓰라고 DOCS_FORCE 를 둔다.
+force=${DOCS_FORCE:-false}
 if git diff --cached --quiet; then
-  echo "✅ 바뀐 게 없다. 배포하지 않는다."
-  exit 0
+  if [ "$force" != 'true' ]; then
+    echo "✅ 바뀐 게 없다. 배포하지 않는다. (강제로 밀려면 force 옵션)"
+    exit 0
+  fi
+  echo "  바뀐 게 없지만 force 라 그대로 배포한다."
 fi
 
 # 배포 커밋에 어느 소스에서 나왔는지 남긴다. 이게 없으면 사이트를 보고 어느 커밋인지 알 수 없다.
 # git 에 직접 묻지 않는 이유는 version.sh 와 같다 — 컨테이너 잡에서 git 이 소유권 때문에 거부한다.
 src_sha="${GIT_SHA:-${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)}}"
 src_sha="${src_sha:0:7}"
-git commit -q -m "docs($env_name): hans-api@${src_sha}"
+
+# 강제 배포에서 내용이 같으면 commit 이 실패한다(커밋할 게 없다). --allow-empty 로 흔적을 남긴다.
+git commit -q --allow-empty -m "docs($env_name): hans-api@${src_sha}"
 git push -q origin "$DOCS_BRANCH"
 
 echo "✅ 배포됨 → https://$DOCS_DOMAIN/${dest_subdir:+$dest_subdir/}"
