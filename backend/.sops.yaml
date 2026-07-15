@@ -1,0 +1,21 @@
+creation_rules:
+  # 로컬 배포 설정(local-deploy-<환경>.env): 개인키만.
+  # local-deploy.sh 가 이 사람 머신에서만 읽는다 — 서버는 안 읽으므로 서버키가 필요없다.
+  - path_regex: ^local-deploy-.*\.env$
+    age: age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
+
+  # develop: 개인키 + develop 서버키
+  - path_regex: ^config/develop/.*$
+    age: >-
+      age1zg5n5zp069lamnw2kxk3nw58h4l68tp9wx9tld962sq6gg9en58spmmm54,
+      age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
+
+  # production: 개인키 + production 서버키
+  - path_regex: ^config/production/.*$
+    age: >-
+      age1zg5n5zp069lamnw2kxk3nw58h4l68tp9wx9tld962sq6gg9en58spmmm54,
+      age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
+
+  # config 아래의 나머지 파일: 개인키만
+  - path_regex: ^config/.*$
+    age: age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26

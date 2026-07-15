@@ -8,7 +8,7 @@
 #   ./scripts/ci/build-frontend.sh hansapi-docs
 #
 #   로컬:  make ci-build-front APP=medifinder-web ENV=develop
-#   CI:    .github/workflows/build-frontend.yml
+#   CI:    .github/workflows/fe-build-test.yml (검사) · fe-deploy-medifinder.yml (배포)
 #
 # 인자는 frontend/ 아래의 **디렉터리 이름 그대로다.** 별칭(web, docs)을 쓰지 않는 이유:
 # 프론트가 여러 개가 되면 별칭과 실제 디렉터리가 어긋나기 시작하고, 별칭이 무엇을 가리키는지

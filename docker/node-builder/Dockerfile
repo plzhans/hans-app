@@ -9,6 +9,9 @@ ARG NODE_VERSION=24
 FROM node:${NODE_VERSION}-bookworm-slim
 
 ARG PNPM_VERSION=11.10.0
+# 시크릿 암복호화 툴체인. apt 에는 sops 가 없고 age 도 버전이 낮아 릴리스 바이너리로 고정한다.
+ARG SOPS_VERSION=3.9.4
+ARG AGE_VERSION=1.2.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -25,6 +28,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       # wireguard. wireguard-go 는 커널 모듈이 없는 컨테이너용 userspace 폴백.
       wireguard-tools wireguard-go iproute2 iptables openresolv \
     && rm -rf /var/lib/apt/lists/*
+
+# sops / age. SOPS 로 암호화된 시크릿을 CI 에서 복호화하는 데 쓴다.
+# amd64/arm64 러너 모두 지원하도록 dpkg 아키텍처로 분기한다.
+RUN arch="$(dpkg --print-architecture)" \
+    && curl -fsSL -o /usr/local/bin/sops \
+         "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.${arch}" \
+    && chmod +x /usr/local/bin/sops \
+    && curl -fsSL -o /tmp/age.tar.gz \
+         "https://github.com/FiloSottile/age/releases/download/v${AGE_VERSION}/age-v${AGE_VERSION}-linux-${arch}.tar.gz" \
+    && tar -xzf /tmp/age.tar.gz -C /tmp \
+    && mv /tmp/age/age /tmp/age/age-keygen /usr/local/bin/ \
+    && rm -rf /tmp/age /tmp/age.tar.gz \
+    && sops --version && age --version
 
 RUN npm install -g pnpm@${PNPM_VERSION} && pnpm --version
 

@@ -8,9 +8,9 @@
     "docs:dev": "vitepress dev --port 5174 --strictPort",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview --port 5174 --strictPort",
-    "spec:local": "NODE_ENV=local pnpm -C ../../backend openapi:gen",
-    "spec:dev": "NODE_ENV=development pnpm -C ../../backend openapi:gen",
-    "spec:prod": "NODE_ENV=production pnpm -C ../../backend openapi:gen",
+    "spec:local": "pnpm -C ../../backend openapi:gen:local",
+    "spec:dev": "pnpm -C ../../backend openapi:gen:dev",
+    "spec:prod": "pnpm -C ../../backend openapi:gen:prod",
     "build:local": "pnpm spec:local && pnpm docs:build",
     "build:dev": "pnpm spec:dev && pnpm docs:build",
     "build:prod": "pnpm spec:prod && pnpm docs:build"

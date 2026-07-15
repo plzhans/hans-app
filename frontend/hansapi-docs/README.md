@@ -19,7 +19,7 @@ pnpm --filter hansapi-server openapi:gen -- --out /path/to/spec.json
 ```
 
 서버·DB 없이 preview 모드로 스펙만 뽑으므로 DB 연결이 필요 없다.
-환경별 servers 는 `NODE_ENV`(local|development|production)로 결정된다.
+환경별 servers 는 `APP_ENV`(local|develop|production)로 결정된다.
 
 ## 개발 / 빌드
 

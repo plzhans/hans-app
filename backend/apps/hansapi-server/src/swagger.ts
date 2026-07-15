@@ -2,6 +2,8 @@ import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
 
+import { resolveAppEnv, type AppEnv } from '@hansapi/common';
+
 import { buildInfo } from './build-info';
 import { mergeKrDataSchemas } from './krdata-schemas';
 
@@ -18,8 +20,6 @@ export const BEARER_SCHEME = 'bearer';
 // - 문서 "Try it" 플레이그라운드에 기본으로 채워 넣을 토큰(임시 고정값).
 //   추후 실제 발급 토큰으로 대체한다.
 const BEARER_EXAMPLE = 'test';
-
-type AppEnv = 'local' | 'development' | 'production';
 
 interface ServerDef {
   url: string;
@@ -40,30 +40,15 @@ const PRODUCTION: ServerDef = {
   description: 'Production',
 };
 
-// 빌드 대상 환경별로 openapi.json 의 servers 목록(순서)을 다르게 구성한다.
-// - local:       Local 을 먼저, Development 를 보조로
-// - development: Development 를 먼저, Local 을 보조로
-// - production:  Production 만 노출
+// 빌드 대상 환경별로 openapi.json 의 servers 목록(순서)을 다르게 구성한다. APP_ENV 로 고른다.
+// - local:      Local 을 먼저, Development 를 보조로
+// - develop:    Development 를 먼저, Local 을 보조로
+// - production: Production 만 노출
 const SERVERS_BY_ENV: Record<AppEnv, ServerDef[]> = {
   local: [LOCAL, DEVELOPMENT],
-  development: [DEVELOPMENT, LOCAL],
+  develop: [DEVELOPMENT, LOCAL],
   production: [PRODUCTION],
 };
-
-/**
- * 대상 환경을 결정한다. NODE_ENV 로 지정하며(local|development|production),
- * 없으면 local 로 본다. dev/develop, prod 같은 축약형도 허용한다.
- * (로컬 실행 start:dev/start:debug 는 NODE_ENV=local 이라 local 로 해석되어
- *  servers 목록 첫 번째가 127.0.0.1 이 된다. 배포된 dev 환경은 NODE_ENV=development 를 준다.)
- */
-function resolveAppEnv(): AppEnv {
-  const raw = (process.env.NODE_ENV ?? 'local').toLowerCase();
-  if (raw === 'production' || raw === 'prod') return 'production';
-  if (raw === 'development' || raw === 'develop' || raw === 'dev') {
-    return 'development';
-  }
-  return 'local';
-}
 
 /**
  * "url|설명;url|설명" 형태의 문자열을 servers 목록으로 파싱한다.

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 /**
- * 지원하는 실행 환경. env 파일명(.env.<환경>)과 1:1 대응한다.
+ * 지원하는 실행 환경. env 파일명(<환경>.env)과 1:1 대응한다.
  *
  * **GitHub Environment 이름과도 같다.** 예전엔 앱은 dev|prod, GitHub 은 develop|production 이라
  * 배포 스크립트가 그 사이를 번역했다. 이제 그 번역이 없다.
@@ -103,53 +103,74 @@ export const CONFIG_DIR = 'config';
  *
  * ```
  *   <바이너리>/.env                    ← 번들에 같이 담긴 기본값
- *   <바이너리>/.env.<환경>
- *   <cwd>/config/.env                  ← 공통 기본값(모든 환경 공유)
- *   <cwd>/config/.env.<환경>           ← config/ 밑 평면 (배포가 이 자리에 올릴 때)
- *   <cwd>/config/<환경>/.env.<환경>    ← 개발: 환경별 디렉터리
+ *   <바이너리>/<환경>.env
+ *   <cwd>/config/.env                  ← 환경 무시하고 항상 불러들이는 설정(비밀 포함 가능)
+ *   <cwd>/config/<환경>.env            ← 서버: 배포가 config/<환경>/ 를 config/ 밑으로 올린 자리
+ *   <cwd>/config/<환경>/<환경>.env     ← 개발: 환경별 디렉터리
  *   <cwd>/.env
- *   <cwd>/.env.<환경>                  ← 서버: 배포가 루트에 설치. 가장 높다
+ *   <cwd>/<환경>.env                   ← 로컬 오버라이드용. 가장 높다
  * ```
  *
- * **환경별 디렉터리(config/<환경>/) 를 쓴다.** env 뿐 아니라 인증서 같은 다른 매체도 한
- * 환경의 것을 한 자리에 모으기 위해서다. 개발에서는 config/<환경>/.env.<환경> 을 읽고,
- * 서버에서는 배포(deploy-backend.sh)가 그 env 를 배포 루트의 .env.<환경> 로 설치한다.
- * 두 자리 모두 후보에 있어 어느 쪽이든 잡힌다.
+ * **파일명 규칙: 이름이 .env 로 끝난다.** 항상 불러오는 .env, 환경별 <환경>.env(develop.env …),
+ * 개인 오버라이드 <환경>.local.env. 앞에 점을 붙이지 않아 파일명만 봐도 무슨 환경인지 안다.
  *
- * **`../../..` 로 거슬러 올라가지 않는다.** 예전엔 그렇게 했는데, 그 깊이는 "앱이
+ * **환경별 디렉터리(config/<환경>/) 를 쓴다.** env 뿐 아니라 인증서 같은 다른 매체도 한
+ * 환경의 것을 한 자리에 모으기 위해서다. 개발에서는 config/<환경>/<환경>.env 를 읽고,
+ * 서버에서는 배포(deploy-backend.sh)가 config/<환경>/ 를 <배포경로>/config/ 로 평면화해 올려
+ * <배포경로>/config/<환경>.env 가 된다. 두 자리 모두 후보에 있어 어느 쪽이든 잡힌다.
+ *
+ * **깊이를 세서 `../../..` 로 올라가지 않는다.** 예전엔 그렇게 했는데, 그 깊이는 "앱이
  * apps/<앱>/dist 에 있다" 는 **배치 가정**에 묶여 있었다. 배치가 바뀌면 조용히 엉뚱한 곳을
  * 가리키고, 앱이 부팅하다 죽고 나서야 안다. 실제로 그렇게 한 번 깨졌다.
  *
- * 이제 **프로세스가 스스로 아는 두 값만 쓴다: 실행 위치(cwd)와 바이너리 옆.**
- * 배치 가정이 사라진 대신, **띄우는 쪽이 cwd 를 맞춰 줘야 한다:**
+ * 대신 config 후보를 두 base 밑에서 만든다: **실행 위치(cwd)와 워크스페이스 루트.**
+ * 워크스페이스 루트는 깊이가 아니라 **마커(pnpm-workspace.yaml)로 찾는다**(findRootDir).
+ * 그래서 개발에선 apps/<앱> 이든 backend 든 **어느 하위 폴더에서 띄워도** backend/config 를
+ * 정확히 집는다. **배포 번들엔 그 마커가 없어** findRootDir 이 undefined → 배포에서는 자연히
+ * cwd 만 남는다(배포는 cwd 를 배포 경로로 맞춰 준다). 개발은 위치에 안 흔들리고, 배포는 그대로.
  *
- *   개발   cwd = backend        → backend/config/develop/.env.develop
- *   서버   cwd = <배포경로>      → <배포경로>/.env.develop
+ *   개발   어디서 띄우든    → <워크스페이스루트>/config/develop/develop.env  (마커로 루트를 찾음)
+ *   서버   cwd = <배포경로>  → <배포경로>/config/develop.env                  (마커 없음 → cwd)
  *
- * systemd 라면 WorkingDirectory 를 배포 경로로 둘 것. 그게 어려우면 ENV_FILE 에 절대경로를
- * 주면 된다 — 그건 파일 탐색보다 우선한다.
+ * ENV_FILE 에 절대경로를 주면 그건 파일 탐색보다 우선한다.
  *
  * @param appDir 바이너리(main.js)가 있는 디렉터리. 보통 __dirname.
  */
 export function envFiles(appDir: string, env: AppEnv): string[] {
   const cwd = process.cwd();
+  // 워크스페이스 루트를 마커(pnpm-workspace.yaml)로 찾는다. 개발이면 backend, 배포 번들엔
+  // 마커가 없어 undefined. config/ 후보를 만들 base 를 cwd 와 루트(있으면) 둘로 둔다.
+  const root = findRootDir(appDir);
+  // 루트보다 cwd 가 세다(명시적으로 띄운 위치가 이긴다). 둘이 같으면(예: cwd=backend) 하나로.
+  const bases = [
+    ...new Set([root, cwd].filter((d): d is string => Boolean(d))),
+  ];
+
+  // 한 base 밑 config/ 후보 (낮은→높은). 위 주석 표와 순서를 맞춘다.
+  //   config/.env            공통(항상)
+  //   config/<환경>.env       평면 (배포가 올린 자리 / config 직하)
+  //   config/<환경>/<환경>.env  환경 디렉터리 (개발 소스 구조)
+  const configAt = (base: string): string[] => [
+    join(base, CONFIG_DIR, '.env'),
+    join(base, CONFIG_DIR, `${env}.env`),
+    join(base, CONFIG_DIR, env, `${env}.env`),
+  ];
+  // 개인 오버라이드(gitignore). 남의 머신에는 없다. 파일 중에서는 가장 세다.
+  const localAt = (base: string): string[] => [
+    join(base, CONFIG_DIR, `${env}.local.env`),
+    join(base, CONFIG_DIR, env, `${env}.local.env`),
+  ];
 
   // 낮은 우선순위부터 쌓고 마지막에 뒤집는다. 위 주석의 표와 순서를 같게 두면
   // "표와 코드 중 어느 쪽이 맞나" 를 고민할 일이 없다.
   const lowToHigh = [
     join(appDir, '.env'),
-    join(appDir, `.env.${env}`),
-    join(cwd, CONFIG_DIR, '.env'),
-    // config/ 밑 평면. 배포가 env 를 이 자리에 올리는 경우를 위해 남겨둔다.
-    join(cwd, CONFIG_DIR, `.env.${env}`),
-    // 개발: 환경별 디렉터리. env 외의 인증 매체도 여기 같이 둔다.
-    join(cwd, CONFIG_DIR, env, `.env.${env}`),
+    join(appDir, `${env}.env`),
+    ...bases.flatMap(configAt),
     join(cwd, '.env'),
-    join(cwd, `.env.${env}`),
-    // 개인 오버라이드(gitignore). 남의 머신에는 없다. 파일 중에서는 가장 세다.
-    join(cwd, CONFIG_DIR, `.env.${env}.local`),
-    join(cwd, CONFIG_DIR, env, `.env.${env}.local`),
-    join(cwd, `.env.${env}.local`),
+    join(cwd, `${env}.env`),
+    ...bases.flatMap(localAt),
+    join(cwd, `${env}.local.env`),
   ];
 
   return lowToHigh.reverse();

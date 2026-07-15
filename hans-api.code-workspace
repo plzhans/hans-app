@@ -16,9 +16,24 @@
   "settings": {
     // 🔧 root 폴더에서 backend/frontend 중복 표시를 숨김
     // (각각은 아래 별도 폴더로 보이므로 root 에는 .husky/.gitignore 등 최상위 파일만 노출)
+    //
+    // node_modules·dist 는 탐색기에서 숨긴다. 모노리포라 프로젝트(backend, frontend/*)
+    // 마다 생겨서, 안 숨기면 트리가 의존성·빌드 산출물로 덮인다. git 은 이미 .gitignore 로 뺀다.
     "files.exclude": {
       "backend": true,
-      "frontend": true
+      "frontend": true,
+      "**/node_modules": true,
+      "**/dist": true
+    },
+    // 검색 결과에서도 제외. node_modules 는 VSCode 기본도 빼주지만 dist 는 기본에 없어 명시한다.
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true
+    },
+    // 파일 감시(watcher)에서도 제외 — 대용량 디렉터리를 watch 하면 CPU·파일핸들을 잡아먹는다.
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/dist/**": true
     }
   }
 }

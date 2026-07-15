@@ -30,8 +30,8 @@ pnpm api:gen      # docs/openapi/openapi_hansapi.json → src/shared/api/schema.
 
 | 변수 | 설명 |
 |---|---|
-| `VITE_API_BASE_URL` | hansapi-server base URL |
-| `VITE_API_KEY` | 인증 토큰(Authorization: Bearer). 통합 병원 API 는 Jwt/ApiKey 필요 |
+| `VITE_HANSAPI_BASE_URL` | hansapi-server base URL (공유 백엔드) |
+| `VITE_HANSAPI_KEY` | 인증 토큰(Authorization: Bearer). 통합 병원 API 는 Jwt/ApiKey 필요 |
 
 ## 알려진 제약 (TODO)
 

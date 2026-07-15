@@ -19,12 +19,27 @@
     {
       // Vite 개발 서버(pnpm local, .env.local)를 통합 터미널에서 구동한다.
       // 브라우저 코드 중단점은 아래 "fe: medifinder-web (chrome)" 로 붙는다.
-      "name": "fe: medifinder-web (dev server)",
+      "name": "fe: medifinder-web (local server)",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}/medifinder-web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "local"],
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true,
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      // Vite 개발 서버(pnpm local, .env.local)를 통합 터미널에서 구동한다.
+      // 브라우저 코드 중단점은 아래 "fe: medifinder-web (chrome)" 로 붙는다.
+      "name": "fe: medifinder-web (dev server)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/medifinder-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "develop"],
       "console": "integratedTerminal",
       "autoAttachChildProcesses": true,
       "restart": true,

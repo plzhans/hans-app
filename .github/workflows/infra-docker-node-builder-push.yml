@@ -1,11 +1,11 @@
-name: build node-builder image
+name: push node-builder image
 
 on:
   push:
     branches: [main]
     paths:
       - 'docker/node-builder/**'
-      - '.github/workflows/docker-node-builder.yml'
+      - '.github/workflows/docker-node-builder-push.yml'
   workflow_dispatch:
 
 env:

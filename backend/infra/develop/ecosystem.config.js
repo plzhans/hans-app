@@ -2,7 +2,7 @@
 //
 //   <배포경로>/
 //     ecosystem.config.js     ← 이 파일
-//     .env.develop             ← 앱 설정 (배포가 같이 보낸다)
+//     config/develop.env       ← 앱 설정 (deploy 가 config/develop/ 를 config/ 로 올린다)
 //     bin/hansapi-server/      ← 번들
 //     logs/                    ← pm2 로그
 //
@@ -37,13 +37,8 @@ module.exports = {
       listen_timeout: 10000, // 앱이 뜰 때까지 기다리는 한도
 
       env: {
-        // **APP_ENV 가 설정 파일을 고른다** (<배포경로>/.env.develop).
-        // 없으면 DEFAULT_APP_ENV 로 떨어지는데, 그건 지금 'develop' 이라 우연히 맞을 뿐이다.
-        // production 에서 빠뜨리면 **develop 설정으로 뜬다.** 반드시 명시한다.
-        APP_ENV: 'develop',
-
-        // NODE_ENV 는 별개다. swagger 노출 여부를 정한다(production 이 아니면 노출).
         NODE_ENV: 'development',
+        APP_ENV: 'develop',
       },
 
       merge_logs: true,

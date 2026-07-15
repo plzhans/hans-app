@@ -1,28 +1,29 @@
-name: deploy web
+name: frontend deploy medifinder
 
 # medifinder-web 을 GitHub Pages 에 배포한다.
-# 이 워크플로우는 **배포 방법을 모른다.** scripts/ci/deploy-web.sh 를 호출만 한다.
+# 이 워크플로우는 **배포 방법을 모른다.** scripts/ci/deploy-medifinder-web.sh 를 호출만 한다.
 #
 #   production 브랜치 → production 환경 → medifinder.kr          (medifinder-kr 레포)
 #   main 브랜치       → develop 환경    → develop.medifinder.kr  (medifinder-kr-develop 레포)
 #
+# 배포 트리거: 커밋 메시지에 #deploy 가 있거나, Actions 에서 수동 실행(Run workflow)할 때만.
+# 그냥 push 만으로는 배포하지 않는다(아래 on / job 의 if 참고).
+#
 # docs 와 달리 환경마다 **도메인·레포가 다르다**(서브도메인은 apex 와 한 레포로 못 담는다).
-# 그래서 각 환경은 자기 레포의 gh-pages 루트를 통째로 갈아끼운다. 자세한 건 deploy-web.sh 참고.
+# 그래서 각 환경은 자기 레포의 gh-pages 루트를 통째로 갈아끼운다. 자세한 건 deploy-medifinder-web.sh 참고.
 #
 # hans-api 가 private 이라 여기에 Pages 를 붙일 수 없다(Free 플랜 제약).
 # 그래서 빌드된 정적 사이트만 public 레포(medifinder-kr / medifinder-kr-develop)로 밀고,
 # Pages 는 그쪽에 붙어 있다.
 
 on:
+  # push 자체로는 배포하지 않는다. 아래 job 의 if 가 커밋 메시지에 #deploy 가 있을 때만 통과시킨다.
+  # paths 필터를 두지 않는 이유: 배포 여부를 "무엇을 건드렸나"(경로)가 아니라 "#deploy 를 달았나"로
+  # 명시하게 하기 위해서다. frontend 를 안 건드린 커밋이라도 #deploy 면 재배포된다
+  # (gh-pages 를 손으로 망가뜨려 되살릴 때 등).
   push:
     branches: [main, production]
-    paths:
-      - 'frontend/medifinder-web/**'
-      - 'scripts/ci/build-frontend.sh'
-      - 'scripts/ci/deploy-web.sh'
-      - '.github/workflows/deploy-web.yml'
-  # 손으로 돌릴 때만 환경을 고를 수 있다. 자동 배포(push)는 여전히 브랜치가 환경을 정한다.
-  # (production 브랜치가 생기기 전까지 medifinder.kr 을 임시로 올려야 할 때를 위해 열어둔다)
+  # 수동 실행은 #deploy 없이도 배포된다. 환경도 여기서 고를 수 있다(auto = 브랜치에 따름).
   workflow_dispatch:
     inputs:
       environment:
@@ -37,23 +38,28 @@ on:
 
 # 같은 브랜치의 배포가 겹치면 나중 것만 살린다.
 concurrency:
-  group: deploy-web-${{ github.ref }}
+  group: fe-deploy-medifinder-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   deploy:
+    # 자동 배포는 커밋 메시지에 #deploy 가 있을 때만. 수동 실행(workflow_dispatch)은 항상 배포.
+    # push 에서 검사하는 건 head(마지막) 커밋 메시지다 — 여러 커밋을 한 번에 push 하면 맨 끝 커밋에 #deploy 를 단다.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '#deploy')
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/plzhans/hans-api/node-builder:node24
 
     # 기본은 브랜치가 곧 환경이다. 수동 실행에서 명시하면 그게 이긴다.
-    # Variables(MEDIFINDER_GHPAGES_REPO, MEDIFINDER_DOMAIN)와 Secret(WEB_DEPLOY_KEY)은 이 environment 에 걸려 있다.
+    # Variables(MEDIFINDER_GHPAGES_REPO, MEDIFINDER_DOMAIN)와 Secret(MEDIFINDER_DEPLOY_KEY)은 이 environment 에 걸려 있다.
     environment: ${{ (inputs.environment != null && inputs.environment != 'auto') && inputs.environment || (github.ref_name == 'production' && 'production' || 'develop') }}
 
     env:
       APP_ENV: ${{ (inputs.environment != null && inputs.environment != 'auto') && inputs.environment || (github.ref_name == 'production' && 'production' || 'develop') }}
-      # 내용이 같아도 배포한다. deploy-web.sh 가 이 값을 본다.
-      WEB_FORCE: ${{ inputs.force }}
+      # 내용이 같아도 배포한다. deploy-medifinder-web.sh 가 이 값을 본다.
+      MEDIFINDER_FORCE: ${{ inputs.force }}
 
       # --- 환경 레벨 ---
       # 환경마다 레포·도메인이 다르다. Environment(develop/production)에 걸어 둔다.
@@ -64,7 +70,7 @@ jobs:
 
       # 대상 레포에만 쓰기 권한이 있는 배포 키. 배포 키는 레포당 하나라 환경마다 다르다.
       # GITHUB_TOKEN 은 다른 레포에 못 쓴다.
-      WEB_DEPLOY_KEY: ${{ secrets.WEB_DEPLOY_KEY }}
+      MEDIFINDER_DEPLOY_KEY: ${{ secrets.MEDIFINDER_DEPLOY_KEY }}
 
     steps:
       - uses: actions/checkout@v5
@@ -76,5 +82,5 @@ jobs:
           restore-keys: pnpm-medifinder-web-
 
       # .env.<환경> 은 레포에 커밋돼 있다(공개 상수라 GitHub 로 주입하지 않는다).
-      # deploy-web.sh 가 build-frontend.sh 를 호출해 그 파일로 빌드한 뒤 대상 레포로 민다.
-      - run: ./scripts/ci/deploy-web.sh "$APP_ENV"
+      # deploy-medifinder-web.sh 가 build-frontend.sh 를 호출해 그 파일로 빌드한 뒤 대상 레포로 민다.
+      - run: ./scripts/ci/deploy-medifinder-web.sh "$APP_ENV"

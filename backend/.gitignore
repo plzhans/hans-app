@@ -20,10 +20,12 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Environment
-.env
-.env.*
-!.env.example
-# sops 로 암호화한 파일만 커밋한다. 평문 .env* 은 위에서 막힌다.
+# env 파일은 이름이 .env 로 끝난다: 항상 불러오는 .env, 환경별 <환경>.env(develop.env …),
+# 개인 오버라이드 <환경>.local.env, 로컬 배포 설정 local-deploy-<환경>.env.
+# 전부 시크릿이 들어갈 수 있으니 .env 로 끝나면 다 막는다.
+*.env
+# 커밋 대상은 예시(.example)와 sops 로 암호화한 것(.enc)뿐.
+!*.example
 !*.enc
 
 # Editor / OS

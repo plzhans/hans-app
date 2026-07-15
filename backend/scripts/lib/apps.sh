@@ -1,7 +1,7 @@
 # 앱 이름 해석. **build.sh 와 deploy-backend.sh 가 같은 규칙을 쓰게 하려는 것이다.**
 #
 # 규칙을 두 곳에 두면 언젠가 갈라진다 — `build.sh api` 는 되는데
-# `deploy.sh develop api` 는 "apps/api 가 없다" 로 죽는, 설명하기 어려운 상황이 온다.
+# `local-deploy.sh develop api` 는 "apps/api 가 없다" 로 죽는, 설명하기 어려운 상황이 온다.
 #
 # source 로 읽어 쓴다. cwd 에 기대지 않고 자기 위치에서 backend 를 찾는다 —
 # build.sh 는 backend 로 cd 하고, deploy-backend.sh 는 안 하기 때문이다.

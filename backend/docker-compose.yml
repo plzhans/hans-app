@@ -33,7 +33,7 @@ services:
       TZ: UTC
     ports:
       # 호스트에 이미 MySQL 이 돌고 있어도 부딪히지 않게 3306 을 피한다.
-      # 바꾸려면 MYSQL_PORT=... 로 덮어쓰고 config/local/.env.local 의 포트도 같이 고친다.
+      # 바꾸려면 MYSQL_PORT=... 로 덮어쓰고 config/local/local.env 의 포트도 같이 고친다.
       - '${MYSQL_PORT:-13306}:3306'
     volumes:
       - hansapi-db-data:/var/lib/mysql

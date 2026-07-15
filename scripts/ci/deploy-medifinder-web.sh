@@ -2,8 +2,8 @@
 #
 # medifinder-web 정적 사이트를 GitHub Pages 에 배포한다.
 #
-#   ./scripts/ci/deploy-web.sh develop
-#   ./scripts/ci/deploy-web.sh production
+#   ./scripts/ci/deploy-medifinder-web.sh develop
+#   ./scripts/ci/deploy-medifinder-web.sh production
 #
 # [docs 와 무엇이 다른가]
 # deploy-docs.sh 는 **한 레포·한 브랜치(gh-pages)** 안에서 경로만 나눈다(/ vs /develop/).
@@ -20,7 +20,7 @@
 # [인증]
 # 다른 레포에 푸시하므로 GITHUB_TOKEN 으로는 안 된다. 배포 키(SSH)를 쓴다.
 # 배포 키는 레포당 하나라, 환경(=레포)마다 다른 키가 필요하다.
-#   WEB_DEPLOY_KEY  **환경 레벨** secret. 그 환경의 대상 레포에 등록된 배포 키의 개인키.
+#   MEDIFINDER_DEPLOY_KEY  **환경 레벨** secret. 그 환경의 대상 레포에 등록된 배포 키의 개인키.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -30,7 +30,7 @@ SCRIPT_DIR="$REPO_ROOT/scripts/ci"
 PROJECT='medifinder-web'
 
 # 대상 레포와 도메인은 환경변수로 제어한다. 아래 기본값은 로컬에서 손으로 돌릴 때의 폴백일 뿐,
-# CI 에서는 GitHub Variables 가 넘어온다(.github/workflows/deploy-web.yml).
+# CI 에서는 GitHub Variables 가 넘어온다(.github/workflows/fe-deploy-medifinder.yml).
 # 그래서 레포 이름이나 도메인이 바뀌어도 코드를 고칠 일이 없다.
 #
 #   MEDIFINDER_GHPAGES_REPO    **환경 레벨** 변수. 그 환경의 사이트를 담는 레포.
@@ -40,7 +40,7 @@ MEDIFINDER_DOMAIN="${MEDIFINDER_DOMAIN:-}"
 
 # 대상 레포의 배포 브랜치다. 어느 환경이든 자기 레포의 gh-pages 루트에 올라간다.
 # 바뀔 일이 없으므로 변수로 빼지 않는다(바꾸려면 이 줄과 각 레포의 Pages 설정을 같이 고친다).
-WEB_BRANCH='gh-pages'
+GHPAGES_BRANCH='gh-pages'
 
 env_name="${1:-}"
 [ -n "$env_name" ] || {
@@ -80,17 +80,17 @@ site="$REPO_ROOT/frontend/$PROJECT/dist"
 }
 
 # --- 2. 배포 키 ---------------------------------------------------------------
-if [ -n "${WEB_DEPLOY_KEY:-}" ]; then
+if [ -n "${MEDIFINDER_DEPLOY_KEY:-}" ]; then
   group "ssh 키 설치"
   umask 077
 
   # '~' 에 기대지 않는다. 컨테이너 잡에서는 HOME 이 무엇인지, ssh 와 이 스크립트가 같은 것을
   # 보는지가 확실하지 않다. 경로를 직접 만들어 ssh 에 명시적으로 넘긴다.
   ssh_dir="$(mktemp -d)"
-  key_file="$ssh_dir/id_web"
+  key_file="$ssh_dir/id_medifinder"
   known_hosts="$ssh_dir/known_hosts"
 
-  printf '%s\n' "$WEB_DEPLOY_KEY" > "$key_file"
+  printf '%s\n' "$MEDIFINDER_DEPLOY_KEY" > "$key_file"
   chmod 600 "$key_file"
 
   # known_hosts 를 고정한다. StrictHostKeyChecking=no 로 넘기면 MITM 에 노출된다.
@@ -110,25 +110,25 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-group "대상 레포 클론 ($MEDIFINDER_GHPAGES_REPO#$WEB_BRANCH)"
+group "대상 레포 클론 ($MEDIFINDER_GHPAGES_REPO#$GHPAGES_BRANCH)"
 
 # **접속 가능 여부부터 따로 확인한다.** clone 실패를 전부 "브랜치가 없다" 로 해석하면,
 # 인증이 깨졌을 때도 조용히 "새로 만든다" 로 넘어간 뒤 엉뚱한 곳에서 터진다.
 # ls-remote 가 실패하면 접속·권한 문제고, 성공하는데 비어 있으면 브랜치가 없는 것이다.
-if ! remote_branch=$(git ls-remote --heads "$MEDIFINDER_GHPAGES_REPO" "$WEB_BRANCH"); then
+if ! remote_branch=$(git ls-remote --heads "$MEDIFINDER_GHPAGES_REPO" "$GHPAGES_BRANCH"); then
   echo "❌ 대상 레포에 접속할 수 없다: $MEDIFINDER_GHPAGES_REPO" >&2
-  echo "   배포 키(WEB_DEPLOY_KEY)와 그 레포의 Deploy keys(쓰기 허용) 설정을 확인할 것." >&2
+  echo "   배포 키(MEDIFINDER_DEPLOY_KEY)와 그 레포의 Deploy keys(쓰기 허용) 설정을 확인할 것." >&2
   exit 1
 fi
 
 if [ -n "$remote_branch" ]; then
-  git clone --depth 1 --branch "$WEB_BRANCH" "$MEDIFINDER_GHPAGES_REPO" "$work"
-  echo "  기존 $WEB_BRANCH 브랜치를 가져왔다."
+  git clone --depth 1 --branch "$GHPAGES_BRANCH" "$MEDIFINDER_GHPAGES_REPO" "$work"
+  echo "  기존 $GHPAGES_BRANCH 브랜치를 가져왔다."
 else
   # 첫 배포. 브랜치가 아직 없다. 히스토리 없는 새 브랜치로 시작한다.
-  echo "  $WEB_BRANCH 브랜치가 없다. 새로 만든다."
+  echo "  $GHPAGES_BRANCH 브랜치가 없다. 새로 만든다."
   git clone --depth 1 "$MEDIFINDER_GHPAGES_REPO" "$work"
-  git -C "$work" checkout --orphan "$WEB_BRANCH"
+  git -C "$work" checkout --orphan "$GHPAGES_BRANCH"
   git -C "$work" rm -rf . >/dev/null 2>&1 || true
 fi
 endgroup
@@ -161,8 +161,8 @@ git config user.email 'github-actions[bot]@users.noreply.github.com'
 git add -A
 
 # 내용이 같으면 빈 커밋을 쌓지 않는다. gh-pages 를 손으로 건드려 망가뜨렸는데 소스가 그대로면
-# 이 검사 때문에 복구 배포가 안 나간다. 그때 쓰라고 WEB_FORCE 를 둔다.
-force=${WEB_FORCE:-false}
+# 이 검사 때문에 복구 배포가 안 나간다. 그때 쓰라고 MEDIFINDER_FORCE 를 둔다.
+force=${MEDIFINDER_FORCE:-false}
 if git diff --cached --quiet; then
   if [ "$force" != 'true' ]; then
     echo "✅ 바뀐 게 없다. 배포하지 않는다. (강제로 밀려면 force 옵션)"
@@ -177,6 +177,6 @@ src_sha="${GIT_SHA:-${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/nu
 src_sha="${src_sha:0:7}"
 
 git commit -q --allow-empty -m "web($env_name): hans-api@${src_sha}"
-git push -q origin "$WEB_BRANCH"
+git push -q origin "$GHPAGES_BRANCH"
 
 echo "✅ 배포됨 → https://$MEDIFINDER_DOMAIN/"

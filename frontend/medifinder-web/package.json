@@ -5,15 +5,13 @@
   "type": "module",
   "scripts": {
     "local": "dotenv -e .env.local -- vite",
-    "dev": "dotenv -e .env.develop -- vite",
-    "staging": "dotenv -e .env.staging -- vite",
+    "develop": "dotenv -e .env.develop -- vite",
     "build": "tsc -b && vite build",
     "build:develop": "dotenv -e .env.develop -- vite build",
-    "build:staging": "dotenv -e .env.staging -- vite build",
     "build:production": "dotenv -e .env.production -- vite build",
     "preview": "vite preview --port 5173 --strictPort",
-    "spec:local": "NODE_ENV=local pnpm -C ../../backend openapi:gen",
-    "spec:dev": "NODE_ENV=development pnpm -C ../../backend openapi:gen",
+    "spec:local": "pnpm -C ../../backend openapi:gen:local",
+    "spec:dev": "pnpm -C ../../backend openapi:gen:dev",
     "api:gen": "orval",
     "api:sync": "pnpm spec:local && pnpm api:gen"
   },
