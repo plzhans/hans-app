@@ -9,6 +9,11 @@
 
 generator client {
   provider = "prisma-client-js"
+
+  // 빌드(CI, amd64)와 배포 서버(arm64)의 아키텍처가 다르다.
+  // 기본값은 "native" 뿐이라, amd64 에서 만든 번들을 arm64 서버에 풀면
+  // Prisma 엔진이 없어서 부팅이 실패한다. 두 엔진을 다 담는다.
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
   output   = "../../generated/log"
 }
 

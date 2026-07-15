@@ -7,7 +7,7 @@
 #
 # docker-compose.yml 이 이 디렉토리를 /docker-entrypoint-initdb.d 로 마운트한다.
 # (이미지(docker/mysql9)는 MySQL 9 + 서버 공통 설정까지만 담당한다. 스택별 DB 생성은 여기 몫이다)
-# datadir 이 비어 있을 때 한 번만 실행된다. 고쳤으면 `make db-reset` 으로 볼륨을 지워야 반영된다.
+# datadir 이 비어 있을 때 한 번만 실행된다. 고쳤으면 `pnpm db:reset` 으로 볼륨을 지워야 반영된다.
 set -euo pipefail
 
 log_db="${MYSQL_DATABASE}_log"

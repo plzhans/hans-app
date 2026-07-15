@@ -23,8 +23,8 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
-# 공통 기본값. 비밀이 아닌 값만 담고 커밋한다.
-!env/.env
+# sops 로 암호화한 파일만 커밋한다. 평문 .env* 은 위에서 막힌다.
+!*.enc
 
 # Editor / OS
 .DS_Store

@@ -631,7 +631,7 @@
             "name": "region",
             "required": false,
             "in": "query",
-            "description": "시군구 코드. /healthcare/meta/regions 참조",
+            "description": "시군구 코드. /regions 참조",
             "schema": {
               "example": "11001",
               "type": "string"

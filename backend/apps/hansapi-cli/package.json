@@ -25,5 +25,8 @@
     "@swc-node/register": "^1.11.1",
     "@swc/core": "^1.15.43",
     "@types/node": "^26.1.0"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

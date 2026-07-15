@@ -1,15 +1,22 @@
 import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 
-/** 지원하는 실행 환경. env 파일명(.env.<환경>)과 1:1 대응한다. */
-export const APP_ENVS = ['local', 'dev', 'prod'] as const;
+/**
+ * 지원하는 실행 환경. env 파일명(.env.<환경>)과 1:1 대응한다.
+ *
+ * **GitHub Environment 이름과도 같다.** 예전엔 앱은 dev|prod, GitHub 은 develop|production 이라
+ * 배포 스크립트가 그 사이를 번역했다. 이제 그 번역이 없다.
+ * 번역이 있는 곳에는 반드시 어긋나는 순간이 온다 — 그리고 그게 어긋나면 **엉뚱한 DB 에
+ * 붙는다.** 이름을 하나로 두면 번역할 게 없어진다.
+ */
+export const APP_ENVS = ['local', 'develop', 'production'] as const;
 export type AppEnv = (typeof APP_ENVS)[number];
 
 /**
- * 기본 환경. 아직 로컬 DB 가 없어 공유 개발 DB(dev)를 본다.
+ * 기본 환경. 아직 로컬 DB 가 없어 공유 개발 DB(develop)를 본다.
  * 로컬 도커 MySQL 을 붙이면 'local' 로 바꾼다.
  */
-export const DEFAULT_APP_ENV: AppEnv = 'dev';
+export const DEFAULT_APP_ENV: AppEnv = 'develop';
 
 export function isAppEnv(value: string): value is AppEnv {
   return (APP_ENVS as readonly string[]).includes(value);
@@ -47,22 +54,33 @@ export interface EnvSource {
 }
 
 /**
- * backend 루트. env/ 와 temp/ 가 여기 있다.
+ * 워크스페이스 루트(backend). **개발용 도구 전용이다 — 런타임 코드는 쓰면 안 된다.**
  *
- * **cwd 로 찾으면 안 된다.** CLI 는 `pnpm --filter hansapi-cli start` 로 도는데, 그러면
- * cwd 가 apps/hansapi-cli 다. 어디서 실행하든 같은 곳을 가리켜야 한다.
+ * 배포된 앱은 워크스페이스 밖에서 돈다. 번들에는 dist 와 node_modules 만 있고
+ * pnpm-workspace.yaml 이 없다. 여기서 던지면 앱이 부팅조차 못 한다.
+ * 앱이 설정을 찾을 때는 envFiles(cwd·바이너리 기준)를 쓴다.
  *
- * **깊이를 세지도 않는다.** 예전엔 `resolve(appDir, '../../..')` 였는데, 이건 부르는 파일이
- * src/ 바로 아래일 때만 맞다. commands/ 같은 하위 폴더에서 부르면 한 단계씩 어긋나
- * backend/apps/temp/ 같은 엉뚱한 곳에 파일이 생긴다(실제로 그랬다). 호출 위치에 따라 답이
- * 달라지는 함수는 언젠가 반드시 틀린다.
+ * 쓰는 곳: CLI 의 i18n export 가 backend/temp/ 를 찾을 때.
  *
- * 그래서 pnpm-workspace.yaml 이 나올 때까지 위로 올라간다. 그게 backend 의 정의다 —
- * src 로 돌리든 dist 로 돌리든, 어느 파일에서 부르든 같은 곳을 가리킨다.
+ * **cwd 로 찾으면 안 된다.** CLI 는 `pnpm --filter hansapi-cli start` 로 도는데 그러면
+ * cwd 가 apps/hansapi-cli 다. **깊이를 세도 안 된다.** commands/ 같은 하위 폴더에서 부르면
+ * 한 단계 어긋나 backend/apps/temp/ 에 파일이 생긴다(실제로 그랬다). 그래서 마커를 찾는다.
  *
  * @param fromDir 아무 파일의 __dirname
  */
 export function rootDir(fromDir: string): string {
+  const found = findRootDir(fromDir);
+  if (!found) {
+    throw new Error(
+      `워크스페이스 루트를 못 찾았다 (pnpm-workspace.yaml 없음). 시작 위치: ${fromDir}\n` +
+        `배포된 서버에서 불렀다면 그게 버그다 — 런타임 코드는 rootDir 을 쓰면 안 된다.`,
+    );
+  }
+  return found;
+}
+
+/** rootDir 과 같지만 못 찾으면 undefined. 워크스페이스 안인지 판별할 때 쓴다. */
+export function findRootDir(fromDir: string): string | undefined {
   let dir = resolve(fromDir);
 
   for (;;) {
@@ -71,21 +89,70 @@ export function rootDir(fromDir: string): string {
     }
     const parent = dirname(dir);
     if (parent === dir) {
-      // 루트까지 올라가도 못 찾았다. 워크스페이스 밖에서 실행된 것이다.
-      throw new Error(
-        `backend 루트를 못 찾았다 (pnpm-workspace.yaml 없음). 시작 위치: ${fromDir}`,
-      );
+      return undefined;
     }
     dir = parent;
   }
 }
 
+/** 설정 파일을 모아 두는 디렉터리 이름. */
+export const CONFIG_DIR = 'config';
+
 /**
- * env 파일들이 있는 디렉토리. 모든 앱이 backend/env/ 를 공유한다.
- * DB 접속정보를 앱마다 중복시키지 않도록 특정 앱이 소유하지 않는다.
+ * 설정 파일을 찾을 자리. **뒤에 있을수록 우선순위가 높다.**
+ *
+ * ```
+ *   <바이너리>/.env                    ← 번들에 같이 담긴 기본값
+ *   <바이너리>/.env.<환경>
+ *   <cwd>/config/.env                  ← 공통 기본값(모든 환경 공유)
+ *   <cwd>/config/.env.<환경>           ← config/ 밑 평면 (배포가 이 자리에 올릴 때)
+ *   <cwd>/config/<환경>/.env.<환경>    ← 개발: 환경별 디렉터리
+ *   <cwd>/.env
+ *   <cwd>/.env.<환경>                  ← 서버: 배포가 루트에 설치. 가장 높다
+ * ```
+ *
+ * **환경별 디렉터리(config/<환경>/) 를 쓴다.** env 뿐 아니라 인증서 같은 다른 매체도 한
+ * 환경의 것을 한 자리에 모으기 위해서다. 개발에서는 config/<환경>/.env.<환경> 을 읽고,
+ * 서버에서는 배포(deploy-backend.sh)가 그 env 를 배포 루트의 .env.<환경> 로 설치한다.
+ * 두 자리 모두 후보에 있어 어느 쪽이든 잡힌다.
+ *
+ * **`../../..` 로 거슬러 올라가지 않는다.** 예전엔 그렇게 했는데, 그 깊이는 "앱이
+ * apps/<앱>/dist 에 있다" 는 **배치 가정**에 묶여 있었다. 배치가 바뀌면 조용히 엉뚱한 곳을
+ * 가리키고, 앱이 부팅하다 죽고 나서야 안다. 실제로 그렇게 한 번 깨졌다.
+ *
+ * 이제 **프로세스가 스스로 아는 두 값만 쓴다: 실행 위치(cwd)와 바이너리 옆.**
+ * 배치 가정이 사라진 대신, **띄우는 쪽이 cwd 를 맞춰 줘야 한다:**
+ *
+ *   개발   cwd = backend        → backend/config/develop/.env.develop
+ *   서버   cwd = <배포경로>      → <배포경로>/.env.develop
+ *
+ * systemd 라면 WorkingDirectory 를 배포 경로로 둘 것. 그게 어려우면 ENV_FILE 에 절대경로를
+ * 주면 된다 — 그건 파일 탐색보다 우선한다.
+ *
+ * @param appDir 바이너리(main.js)가 있는 디렉터리. 보통 __dirname.
  */
-export function envDir(appDir: string): string {
-  return join(rootDir(appDir), 'env');
+export function envFiles(appDir: string, env: AppEnv): string[] {
+  const cwd = process.cwd();
+
+  // 낮은 우선순위부터 쌓고 마지막에 뒤집는다. 위 주석의 표와 순서를 같게 두면
+  // "표와 코드 중 어느 쪽이 맞나" 를 고민할 일이 없다.
+  const lowToHigh = [
+    join(appDir, '.env'),
+    join(appDir, `.env.${env}`),
+    join(cwd, CONFIG_DIR, '.env'),
+    // config/ 밑 평면. 배포가 env 를 이 자리에 올리는 경우를 위해 남겨둔다.
+    join(cwd, CONFIG_DIR, `.env.${env}`),
+    // 개발: 환경별 디렉터리. env 외의 인증 매체도 여기 같이 둔다.
+    join(cwd, CONFIG_DIR, env, `.env.${env}`),
+    join(cwd, '.env'),
+    join(cwd, `.env.${env}`),
+    // 개인 오버라이드(gitignore). 남의 머신에는 없다. 파일 중에서는 가장 세다.
+    join(cwd, CONFIG_DIR, `.env.${env}.local`),
+    join(cwd, CONFIG_DIR, env, `.env.${env}.local`),
+    join(cwd, `.env.${env}.local`),
+  ];
+
+  return lowToHigh.reverse();
 }
 
 /**
@@ -103,14 +170,12 @@ export type DotenvLoader = (options: {
  * dotenv 는 **이미 process.env 에 있는 키를 덮어쓰지 않는다.** 그래서 우선순위가 높은 것부터
  * 읽으면 먼저 채워진 값이 그대로 이긴다.
  *
- *   1. process.env          컨테이너·CI 가 주입한 값        ← 파일이 절대 못 덮는다
- *   2. ENV_FILE             배포에서 지정한 절대경로 (선택)
- *   3. .env.<환경>.local    개인 오버라이드 (gitignore)
- *   4. .env.<환경>          환경별 설정
- *   5. .env                 공통 기본값
+ *   1. process.env          컨테이너·CI 가 주입한 값     ← 파일이 절대 못 덮는다
+ *   2. ENV_FILE             절대경로로 콕 집어 준 파일
+ *   3. envFiles()           cwd·바이너리 기준 탐색 (그 주석의 표 참고)
  *
  * 파일이 하나도 없어도 에러가 아니다. 쿠버네티스처럼 환경변수를 직접 주입하는 배포에서는
- * env 파일이 이미지에 들어가지 않기 때문이다. 값이 비었는지는 각 계층이 판단한다.
+ * 설정 파일이 이미지에 들어가지 않기 때문이다. 값이 비었는지는 각 계층이 판단한다.
  *
  * process.env 를 읽는 곳은 여기 하나뿐이다. 다른 코드는 EnvSource 를 통해서만 설정을 본다.
  */
@@ -119,13 +184,10 @@ export function loadEnv(
   env: AppEnv,
   loader: DotenvLoader,
 ): EnvSource {
-  const dir = envDir(appDir);
-
   const candidates = [
+    // ENV_FILE 은 배포가 절대경로로 콕 집어 주는 값이라 파일 탐색보다 우선한다.
     process.env.ENV_FILE,
-    resolve(dir, `.env.${env}.local`),
-    resolve(dir, `.env.${env}`),
-    resolve(dir, '.env'),
+    ...envFiles(appDir, env),
   ];
 
   const files: string[] = [];
@@ -164,7 +226,7 @@ export function requireString(source: EnvSource, key: string): string {
         ? `읽은 파일: ${source.files.join(', ')}`
         : '읽은 env 파일이 없다. 환경변수로 주입했다면 값이 비어 있는지 확인하라.';
     throw new Error(
-      `환경(${source.env})에 필수 설정이 없다: ${key}\n${origin}\nenv/.env.example 을 참고하라.`,
+      `환경(${source.env})에 필수 설정이 없다: ${key}\n${origin}\nconfig/.env.example 을 참고하라.`,
     );
   }
   return value;

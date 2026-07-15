@@ -2,7 +2,7 @@
 #
 # 빌드 산출물의 신원을 계산해 build-info JSON 으로 찍는다.
 #
-#   ./scripts/ci/version.sh backend/apps/hansapi-server
+#   ./backend/scripts/version.sh apps/hansapi-server
 #
 # 숫자(0.0.1)는 사람용 라벨이고, **진짜 신원은 git sha 다.**
 # 숫자는 apps/<app>/package.json 의 version 을 그대로 쓴다. 올리고 싶으면 사람이 고쳐 커밋한다.

@@ -60,7 +60,7 @@ const program = new Command()
   .description('공공데이터 API 조회·적재와 DB 스키마 관리를 위한 커맨드')
   .option(
     '--env <name>',
-    `대상 환경. ${APP_ENVS.join(' | ')} 중 하나. env/.env.<환경> 을 읽는다`,
+    `대상 환경. ${APP_ENVS.join(' | ')} 중 하나. config/<환경>/.env.<환경> 을 읽는다`,
     DEFAULT_APP_ENV,
   )
   .option('--pretty', 'JSON 응답에 색을 입혀 출력한다 (TTY 에서만)')

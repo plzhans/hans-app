@@ -18,6 +18,9 @@ export default tseslint.config(
       // 같은 이유. 일회성 빌드 스크립트라 tsconfig include("src") 밖이고,
       // 패키지에 담겨 배포되지도 않는다.
       'packages/*/scripts/**',
+      // 같은 이유. pm2 구성(ecosystem.config.cjs)은 우리 코드가 아니라 **서버에 올리는 설정**이다.
+      // tsconfig 밖이라 타입 기반 린트가 파싱하지 못한다.
+      'infra/**',
       'docs/temp/**', // 참고용 응답 예시. 빌드에 안 들어가고 tsconfig 밖이다.
       '**/prisma/**', // prisma 스키마/생성 코드
       '**/src/generated/**', // orval 이 생성한 API 클라이언트 코드

@@ -21,7 +21,7 @@ import {
 // 반드시 loadEnv 앞이다. 버전을 물어보는 데 DB 접속정보까지 갖춰져 있어야 할 이유가 없다.
 exitIfVersionFlag(__dirname);
 
-// 환경 설정을 로드한다. backend/env/.env.<환경> 을 APP_ENV 로 고른다.
+// 환경 설정을 로드한다. backend/config/<환경>/.env.<환경> 을 APP_ENV 로 고른다.
 // env 파일은 특정 앱이 소유하지 않는다. server·cli 가 같은 DB 를 보므로 접속정보를 중복시키지 않는다.
 // 설정을 계층으로 쌓아 EnvSource 로 만든다. 어떤 키가 필수인지는 각 계층이 판단한다.
 const envSource = loadEnv(__dirname, resolveAppEnv(), config);

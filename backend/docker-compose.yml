@@ -1,5 +1,5 @@
 # 로컬 개발환경. backend 폴더에서 `docker compose up -d` 로 띄운다.
-# (또는 `make db-up`. Makefile 의 db-* 타겟이 이 파일을 감싼다)
+# (또는 `pnpm db:up`. backend/package.json 의 db:* 스크립트가 이 파일을 감싼다)
 #
 # 이미지(docker/mysql9/)는 "MySQL 9 + 서버 공통 설정"까지만 담당한다.
 # 버전·설정은 공유 개발 DB(MySQL HeatWave 9.7.1-cloud)에 맞춰져 있다.
@@ -33,13 +33,13 @@ services:
       TZ: UTC
     ports:
       # 호스트에 이미 MySQL 이 돌고 있어도 부딪히지 않게 3306 을 피한다.
-      # 바꾸려면 MYSQL_PORT=... 로 덮어쓰고 env/.env.local 의 포트도 같이 고친다.
+      # 바꾸려면 MYSQL_PORT=... 로 덮어쓰고 config/local/.env.local 의 포트도 같이 고친다.
       - '${MYSQL_PORT:-13306}:3306'
     volumes:
       - hansapi-db-data:/var/lib/mysql
       # 위 변수로 못 만드는 로그·shadow DB 를 마저 만드는 스크립트. 이미지에 굽지 않고 여기서 붙인다.
       # datadir 이 비어 있을 때(최초 기동, 볼륨 삭제 후)만 한 번 실행된다.
-      # 스크립트를 고쳤으면 `make db-reset` 으로 볼륨을 지우고 다시 올려야 반영된다.
+      # 스크립트를 고쳤으면 `pnpm db:reset` 으로 볼륨을 지우고 다시 올려야 반영된다.
       - ./infra/local/mysql-db/docker-initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # 앱을 붙이기 전에 DB 가 실제로 접속을 받는지 확인한다.

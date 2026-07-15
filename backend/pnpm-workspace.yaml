@@ -7,6 +7,18 @@ packages:
 # 빌드 스크립트(postinstall 등) 실행 허용 여부 (pnpm 11 approve-builds).
 # 네이티브/코드젠 패키지는 true, 텔레메트리(scarf)는 false.
 allowBuilds:
+  # **우리 워크스페이스 패키지인데 여기 있어야 한다. 값은 false 다.**
+  #
+  # 평소(pnpm install)에는 심볼릭 링크라 빌드 스크립트 승인 대상이 아니다. 그런데
+  # `pnpm deploy` 는 이걸 file: 의존성으로 **주입**하므로, 그 순간 postinstall(prisma generate)이
+  # 승인 대상이 된다. 여기 항목이 없으면 pnpm 이 ERR_PNPM_IGNORED_BUILDS 로 **exit 1** 을 낸다 —
+  # 번들 파일은 다 만들어 놓고 마지막에 실패하는 거라 원인을 짚기 어렵다.
+  #
+  # **false 인 이유:** 배포 번들에는 generated/ 가 이미 들어 있다. pnpm 이 워크스페이스 의존성을
+  # 디렉터리째 복사하기 때문이다(gitignore 무시). 그래서 번들 안에서 prisma generate 를 다시
+  # 돌릴 이유가 없고, 돌리면 오히려 실패한다 — 그 안에서는 @prisma/client 를 찾지 못해
+  # `npm i @prisma/client` 를 시도하다 죽는다.
+  '@hansapi/data@file:packages/hansapi-data': false
   '@prisma/client': true
   '@prisma/engines': true
   '@scarf/scarf': false

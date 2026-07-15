@@ -69,7 +69,10 @@ const etcTags = allTags.filter(
     !TRANSPORT_TAGS.includes(t) &&
     !ADDRESS_TAGS.includes(t),
 );
-const firstTag = originTags[0] ?? allTags[0];
+// 상단 nav 의 'API' 가 착지하는 곳. **주력 API(헬스케어 병원 검색)여야 한다.**
+// 예전엔 originTags[0](=hira)로 가서, 문서를 처음 여는 사람이 정부데이터 원본부터 만났다.
+// 원본은 대부분 쓸 일이 없는데도 제일 먼저 보이니 그게 주력인 줄 알게 된다.
+const landingTag = healthcareTags[0] ?? allTags[0];
 
 // 오퍼레이션 → 사이드바 앵커 항목(태그 페이지 안의 #op-:operationId 로 점프)
 function opItems(tag: string) {
@@ -118,7 +121,7 @@ export default defineConfig({
     nav: [
       { text: '소개', link: '/' },
       { text: '공통', link: '/common' },
-      { text: 'API', link: `/apis/${firstTag}` },
+      { text: 'API', link: `/apis/${landingTag}` },
     ],
     sidebar: [
       {
