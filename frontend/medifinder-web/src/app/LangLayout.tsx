@@ -13,7 +13,7 @@ import { langPath, stripLang } from '@/shared/i18n/routing';
  */
 const SITE_URL =
   (import.meta.env.VITE_SITE_URL as string | undefined) ??
-  'https://clinicfinder.kr';
+  'https://medifinder.kr';
 
 /** 이 문서가 만든 태그만 지운다. index.html 이 넣은 것과 섞이지 않게 표시를 달아 둔다. */
 const MARK = 'data-i18n-seo';

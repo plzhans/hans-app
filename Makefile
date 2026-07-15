@@ -20,7 +20,7 @@
 #
 # 프론트는 각자 독립 프로젝트라(각자 lockfile) 어느 것인지 말하지 않으면 고를 수가 없다.
 # APP 은 frontend/ 아래 디렉터리 이름 그대로다.
-#   make ci-build-front APP=clinicfinder-web ENV=production
+#   make ci-build-front APP=medifinder-web ENV=production
 #   make ci-build-front APP=hansapi-docs
 APP ?=
 ENV ?= develop
@@ -33,7 +33,7 @@ help: ## 사용 가능한 명령 목록
 
 ci-build-front: ## 프론트를 CI 와 같은 컨테이너에서 빌드 (APP=<frontend 디렉터리명> [ENV=develop|staging|production])
 	@test -n "$(APP)" || { \
-		echo "APP 을 지정할 것. 예: make ci-build-front APP=clinicfinder-web ENV=develop"; \
+		echo "APP 을 지정할 것. 예: make ci-build-front APP=medifinder-web ENV=develop"; \
 		echo "현재 있는 것:"; ls -1 frontend; \
 		exit 2; \
 	}

@@ -4,10 +4,10 @@
 #
 #   ./scripts/ci/build-frontend.sh <frontend 디렉터리명> [환경]
 #
-#   ./scripts/ci/build-frontend.sh clinicfinder-web develop
+#   ./scripts/ci/build-frontend.sh medifinder-web develop
 #   ./scripts/ci/build-frontend.sh hansapi-docs
 #
-#   로컬:  make ci-build-front APP=clinicfinder-web ENV=develop
+#   로컬:  make ci-build-front APP=medifinder-web ENV=develop
 #   CI:    .github/workflows/build-frontend.yml
 #
 # 인자는 frontend/ 아래의 **디렉터리 이름 그대로다.** 별칭(web, docs)을 쓰지 않는 이유:
@@ -51,7 +51,7 @@ cd "$project_dir"
 # 프로젝트마다 빌드 방법이 다르다(환경별 빌드가 있는 것, 스펙을 읽는 것...).
 # 새 프론트를 추가하면 여기에 케이스를 하나 더 넣는다.
 case "$project" in
-  clinicfinder-web)
+  medifinder-web)
     env_name="${2:-}"
     case "$env_name" in
       develop | staging | production) ;;

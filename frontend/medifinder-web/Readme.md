@@ -1,6 +1,6 @@
-# clinicfinder-web
+# medifinder-web
 
-병원 검색 사이트 `clinicfinder.kr` 프론트엔드.
+병원 검색 사이트 `medifinder.kr` 프론트엔드.
 
 - **스택**: React 19 · Vite 6 · TypeScript · Tailwind 3 · TanStack Query · react-router v7 · i18next(ko/en/ja)
 - **구조**: Feature-sliced (`src/{app,features,shared}`)
