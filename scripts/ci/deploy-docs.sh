@@ -28,7 +28,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT_DIR="$REPO_ROOT/scripts/ci"
 
 # 문서 사이트를 담는 레포와 도메인은 환경변수로 제어한다. 아래 기본값은 로컬에서 손으로 돌릴 때의
-# 폴백일 뿐이고, CI 에서는 GitHub Variables 가 넘어온다(.github/workflows/deploy-docs.yml).
+# 폴백일 뿐이고, CI 에서는 GitHub Variables 가 넘어온다(.github/workflows/fe-deploy-hansapi-docs.yml).
 # 그래서 레포 이름이나 도메인이 바뀌어도 코드를 고칠 일이 없다.
 #
 #   DOCS_REPO    레포 레벨 변수. 문서 사이트를 담는 public 레포.

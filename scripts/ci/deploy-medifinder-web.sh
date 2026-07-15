@@ -121,15 +121,14 @@ if ! remote_branch=$(git ls-remote --heads "$MEDIFINDER_GHPAGES_REPO" "$GHPAGES_
   exit 1
 fi
 
+# clone 은 **레포·remote 를 얻기 위한 것뿐**이다. 어차피 아래에서 orphan 단일 커밋으로
+# 통째 갈아끼우니 브랜치 내용은 안 쓴다. 브랜치가 있으면 그걸(가벼우니), 없으면 기본 브랜치를 뜬다.
 if [ -n "$remote_branch" ]; then
   git clone --depth 1 --branch "$GHPAGES_BRANCH" "$MEDIFINDER_GHPAGES_REPO" "$work"
   echo "  기존 $GHPAGES_BRANCH 브랜치를 가져왔다."
 else
-  # 첫 배포. 브랜치가 아직 없다. 히스토리 없는 새 브랜치로 시작한다.
-  echo "  $GHPAGES_BRANCH 브랜치가 없다. 새로 만든다."
+  echo "  $GHPAGES_BRANCH 브랜치가 없다. 첫 배포다(push -f 로 생성)."
   git clone --depth 1 "$MEDIFINDER_GHPAGES_REPO" "$work"
-  git -C "$work" checkout --orphan "$GHPAGES_BRANCH"
-  git -C "$work" rm -rf . >/dev/null 2>&1 || true
 fi
 endgroup
 
@@ -158,25 +157,25 @@ endgroup
 cd "$work"
 git config user.name 'github-actions[bot]'
 git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+# 배포 결과는 **생성물**이라 history 가 무의미하다 — 자산 파일명에 해시가 박혀(app.<hash>.js)
+# 매 배포마다 새 파일이 되니, 커밋을 쌓으면 .git 이 계속 커진다. 그래서 **매 배포를 부모 없는
+# 단일 커밋(orphan)으로 만들어 force push** 한다. gh-pages 는 항상 커밋 1개고, 버려진 옛 커밋은
+# GitHub 이 GC 로 정리한다.
+#
+# 그래서 "바뀐 게 없으면 스킵" 같은 diff 검사도, force 옵션도 없다 — 트리거(#deploy/수동)가
+# 이미 "배포하겠다" 는 의도라, 트리거되면 항상 그대로 배포한다.
+# 롤백은 git 이 아니라 그 소스로 다시 빌드해서 한다(커밋 메시지의 hans-api@sha 로 추적).
+git checkout -q --orphan __deploy
 git add -A
 
-# 내용이 같으면 빈 커밋을 쌓지 않는다. gh-pages 를 손으로 건드려 망가뜨렸는데 소스가 그대로면
-# 이 검사 때문에 복구 배포가 안 나간다. 그때 쓰라고 MEDIFINDER_FORCE 를 둔다.
-force=${MEDIFINDER_FORCE:-false}
-if git diff --cached --quiet; then
-  if [ "$force" != 'true' ]; then
-    echo "✅ 바뀐 게 없다. 배포하지 않는다. (강제로 밀려면 force 옵션)"
-    exit 0
-  fi
-  echo "  바뀐 게 없지만 force 라 그대로 배포한다."
-fi
-
-# 배포 커밋에 어느 소스에서 나왔는지 남긴다. git 에 직접 묻지 않는 이유는 version.sh 와 같다 —
+# 어느 소스에서 나왔는지 남긴다. git 에 직접 묻지 않는 이유는 version.sh 와 같다 —
 # 컨테이너 잡에서 git 이 소유권 때문에 거부한다.
 src_sha="${GIT_SHA:-${GITHUB_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)}}"
 src_sha="${src_sha:0:7}"
 
-git commit -q --allow-empty -m "web($env_name): hans-api@${src_sha}"
-git push -q origin "$GHPAGES_BRANCH"
+git commit -q -m "web($env_name): hans-api@${src_sha}"
+# 부모 없는 단일 커밋을 gh-pages 에 강제로 얹는다(원격 history 통째 교체). 브랜치가 없으면 생성.
+git push -q -f origin "__deploy:$GHPAGES_BRANCH"
 
 echo "✅ 배포됨 → https://$MEDIFINDER_DOMAIN/"

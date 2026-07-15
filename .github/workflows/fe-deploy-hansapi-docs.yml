@@ -1,4 +1,4 @@
-name: deploy docs
+name: frontend deploy hansapi-docs
 
 # 문서 사이트를 GitHub Pages 에 배포한다.
 # 이 워크플로우도 **배포 방법을 모른다.** scripts/ci/deploy-docs.sh 를 호출만 한다.
@@ -20,7 +20,7 @@ on:
       - 'docs/openapi/**'
       - 'scripts/ci/build-frontend.sh'
       - 'scripts/ci/deploy-docs.sh'
-      - '.github/workflows/deploy-docs.yml'
+      - '.github/workflows/fe-deploy-hansapi-docs.yml'
   # 손으로 돌릴 때만 환경을 고를 수 있다. **자동 배포(push)는 여전히 브랜치가 환경을 정한다.**
   #
   # 열어둔 이유는 하나다 — production 브랜치가 생기기 전까지 루트가 비어 있거나 낡은 채로
@@ -43,7 +43,7 @@ on:
 
 # 같은 브랜치의 배포가 겹치면 나중 것만 살린다. 앞의 것이 뒤엣것을 덮어쓰면 안 된다.
 concurrency:
-  group: deploy-docs-${{ github.ref }}
+  group: fe-deploy-hansapi-docs-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

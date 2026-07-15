@@ -54,9 +54,9 @@ case "$project" in
   medifinder-web)
     env_name="${2:-}"
     case "$env_name" in
-      develop | staging | production) ;;
+      develop | production) ;;
       *)
-        echo "❌ $project 은 환경이 필요하다: develop | staging | production" >&2
+        echo "❌ $project 은 환경이 필요하다: develop | production" >&2
         exit 2
         ;;
     esac
@@ -75,11 +75,11 @@ case "$project" in
     fi
 
     # 값이 반드시 있어야 하는 키만 본다.
-    #   VITE_API_KEY 는 선택이다. mutator.ts 가 `if (API_KEY)` 로 감싸고 있어서,
+    #   VITE_HANSAPI_KEY 는 선택이다. mutator.ts 가 `if (API_KEY)` 로 감싸고 있어서,
     #     비면 Authorization 헤더를 안 붙인다(인증을 아직 안 거는 환경).
     #   VITE_SHOW_INTEGRATION_INFO 는 지금 코드에서 아무도 읽지 않는다.
     missing=()
-    for key in VITE_API_BASE_URL VITE_NCLOUD_CLIENT_ID VITE_SITE_URL; do
+    for key in VITE_HANSAPI_BASE_URL VITE_NCLOUD_CLIENT_ID VITE_SITE_URL; do
       # key=<비어있지 않은 값> 이 한 줄이라도 있어야 한다.
       grep -qE "^${key}=.+" "$env_file" || missing+=("$key")
     done

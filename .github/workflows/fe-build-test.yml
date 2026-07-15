@@ -3,7 +3,7 @@ name: frontend build test
 # 프론트가 빌드·타입체크를 통과하는지 보는 **CI 검사**다. PR/push 마다 돈다.
 #
 # 배포는 이 워크플로우의 산출물을 **가져다 쓰지 않는다.** 실제 배포(fe-deploy-medifinder.yml,
-# deploy-docs.yml)는 같은 scripts/ci/build-frontend.sh 를 자기가 호출해 **다시 빌드**한다.
+# fe-deploy-hansapi-docs.yml)는 같은 scripts/ci/build-frontend.sh 를 자기가 호출해 **다시 빌드**한다.
 # 즉 빌드 로직의 단일 출처는 그 스크립트고, 이 .yml 은 "빌드가 깨졌나" 검사일 뿐이다.
 # (여기 artifact 는 확인용 업로드이지 배포 입력이 아니다)
 #
@@ -34,6 +34,13 @@ on:
         type: choice
         options: [develop, production]
         default: develop
+
+# 새 push/PR 커밋이 오면 이전 빌드는 의미가 없으니 취소한다(검사라 최신만 통과하면 됨).
+# group 에 github.ref 를 써서 브랜치·PR 별로 나눈다 — 다른 브랜치/PR 끼리는 서로 안 건드린다.
+# PR 은 ref 가 refs/pull/N/merge 라, 같은 PR 에 새 커밋을 push 하면 이전 빌드가 취소된다.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # 프론트가 여러 개 생길 예정이라, 프로젝트마다 잡 하나다.
@@ -81,7 +88,7 @@ jobs:
           key: pnpm-docs-${{ hashFiles('frontend/hansapi-docs/pnpm-lock.yaml') }}
           restore-keys: pnpm-docs-
 
-      # 여기는 **빌드가 되는지만** 본다. 실제 배포는 deploy-docs.yml 이 한다.
+      # 여기는 **빌드가 되는지만** 본다. 실제 배포는 fe-deploy-hansapi-docs.yml 이 한다.
       # 그래서 환경은 develop 으로 고정한다(servers·base 는 배포 워크플로우가 환경별로 넘긴다).
       #
       # 레포에 커밋된 docs/openapi/openapi_hansapi.json 을 그대로 쓴다. DB 가 필요 없다.

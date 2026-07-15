@@ -31,10 +31,6 @@ on:
         type: choice
         options: [auto, develop, production]
         default: auto
-      force:
-        description: '내용이 같아도 강제로 배포한다 (gh-pages 를 손으로 건드려 망가뜨렸을 때)'
-        type: boolean
-        default: false
 
 # 같은 브랜치의 배포가 겹치면 나중 것만 살린다.
 concurrency:
@@ -58,8 +54,6 @@ jobs:
 
     env:
       APP_ENV: ${{ (inputs.environment != null && inputs.environment != 'auto') && inputs.environment || (github.ref_name == 'production' && 'production' || 'develop') }}
-      # 내용이 같아도 배포한다. deploy-medifinder-web.sh 가 이 값을 본다.
-      MEDIFINDER_FORCE: ${{ inputs.force }}
 
       # --- 환경 레벨 ---
       # 환경마다 레포·도메인이 다르다. Environment(develop/production)에 걸어 둔다.

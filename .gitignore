@@ -6,10 +6,10 @@
 **/build/
 **/coverage/
 
-# env (예시 파일만 추적)
-**/.env
-**/.env.*
-!**/.env.example
+# env 는 서브트리별로 각자 관리한다. backend 와 frontend 의 정책이 정반대라
+# 루트에서 한 번에 막으면 한쪽이 반드시 어긋난다.
+#   backend/.gitignore  — 전부 무시(시크릿). .example·.enc 만 추적.
+#   frontend/.gitignore — 전부 추적(값이 전부 VITE_* 공개 상수). .env.local(개인용)만 무시.
 
 # logs
 **/*.log

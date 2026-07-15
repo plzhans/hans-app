@@ -19,7 +19,7 @@
 #
 #   로컬:  pnpm ci:build [앱]      ← 검사만
 #          pnpm ci:bundle [앱]     ← 검사 + 번들 (CI 와 같은 컨테이너)
-#   CI:             .github/workflows/build-backend.yml
+#   CI:             .github/workflows/be-build-test.yml
 #
 # 호스트에서 그냥 돌려도 된다. 다만 그때는 호스트의 node 를 쓰므로 CI 와 완전히 같지는 않고,
 # **배포 번들은 안 만든다**(아래 리눅스 조건 참고).
