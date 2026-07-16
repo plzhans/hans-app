@@ -38,10 +38,8 @@ export class HealthcareMetaController {
     description: '병원 검색의 subject 파라미터에 쓴다.',
   })
   @ApiListResponse(MetaCodeDto)
-  async subjects(
-    @Lang() lang: SupportedLang,
-  ): Promise<ListResponseDto<MetaCodeDto>> {
-    return new ListResponseDto(await this.service.listCodes('subject', lang));
+  subjects(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
+    return new ListResponseDto(this.service.listCodes('subject', lang));
   }
 
   @Get('subject-groups')
@@ -53,10 +51,10 @@ export class HealthcareMetaController {
       '환자가 직접 가지 않는 과(영상의학·병리·진단검사 등)는 어느 그룹에도 없다.',
   })
   @ApiListResponse(MetaSubjectGroupDto)
-  async subjectGroups(
+  subjectGroups(
     @Lang() lang: SupportedLang,
-  ): Promise<ListResponseDto<MetaSubjectGroupDto>> {
-    return new ListResponseDto(await this.service.listSubjectGroups(lang));
+  ): ListResponseDto<MetaSubjectGroupDto> {
+    return new ListResponseDto(this.service.listSubjectGroups(lang));
   }
 
   @Get('tiers')
@@ -68,10 +66,8 @@ export class HealthcareMetaController {
       '요양병원·정신병원은 이 체계 밖이라 어느 등급에도 없다(NURSING·MENTAL).',
   })
   @ApiListResponse(MetaHospitalTierDto)
-  async tiers(
-    @Lang() lang: SupportedLang,
-  ): Promise<ListResponseDto<MetaHospitalTierDto>> {
-    return new ListResponseDto(await this.service.listHospitalTiers(lang));
+  tiers(@Lang() lang: SupportedLang): ListResponseDto<MetaHospitalTierDto> {
+    return new ListResponseDto(this.service.listHospitalTiers(lang));
   }
 
   @Get('classes')
@@ -81,19 +77,15 @@ export class HealthcareMetaController {
       '상급종합·종합병원·의원 등. 병원 검색의 category 파라미터에 쓴다.',
   })
   @ApiListResponse(MetaCodeDto)
-  async classes(
-    @Lang() lang: SupportedLang,
-  ): Promise<ListResponseDto<MetaCodeDto>> {
-    return new ListResponseDto(await this.service.listCodes('class', lang));
+  classes(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
+    return new ListResponseDto(this.service.listCodes('class', lang));
   }
 
   @Get('equipments')
   @ApiOperation({ summary: '장비 코드', description: 'CT·MRI·PET 등' })
   @ApiListResponse(MetaCodeDto)
-  async equipments(
-    @Lang() lang: SupportedLang,
-  ): Promise<ListResponseDto<MetaCodeDto>> {
-    return new ListResponseDto(await this.service.listCodes('equipment', lang));
+  equipments(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
+    return new ListResponseDto(this.service.listCodes('equipment', lang));
   }
 
   @Get('severities')
@@ -103,10 +95,8 @@ export class HealthcareMetaController {
       '뇌출혈수술·심근경색 재관류 등. 응급 상황에서 갈 수 있는 병원을 가른다.',
   })
   @ApiListResponse(MetaCodeDto)
-  async severities(
-    @Lang() lang: SupportedLang,
-  ): Promise<ListResponseDto<MetaCodeDto>> {
-    return new ListResponseDto(await this.service.listCodes('severe', lang));
+  severities(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
+    return new ListResponseDto(this.service.listCodes('severe', lang));
   }
 
   @Get('specialties')
@@ -117,10 +107,8 @@ export class HealthcareMetaController {
       '병원 상세의 capabilities(type=specialty) 코드를 이 이름으로 푼다.',
   })
   @ApiListResponse(MetaCodeDto)
-  async specialties(
-    @Lang() lang: SupportedLang,
-  ): Promise<ListResponseDto<MetaCodeDto>> {
-    return new ListResponseDto(await this.service.listCodes('specialty', lang));
+  specialties(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
+    return new ListResponseDto(this.service.listCodes('specialty', lang));
   }
 
   @Get('specials')
@@ -131,9 +119,7 @@ export class HealthcareMetaController {
       '병원 상세의 capabilities(type=special) 코드를 이 이름으로 푼다.',
   })
   @ApiListResponse(MetaCodeDto)
-  async specials(
-    @Lang() lang: SupportedLang,
-  ): Promise<ListResponseDto<MetaCodeDto>> {
-    return new ListResponseDto(await this.service.listCodes('special', lang));
+  specials(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
+    return new ListResponseDto(this.service.listCodes('special', lang));
   }
 }

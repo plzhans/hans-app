@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 import { HOSPITAL_TIERS, SUBJECT_GROUPS, TIER_NAMES } from '@hansapi/data/seed';
 import {
   SUBWAY_STATIONS,
@@ -11,7 +10,7 @@ import {
   type SupportedLang,
 } from '@hansapi/common';
 
-import { pickName } from './code-name';
+import { HealthcareCodeCache, codeName } from './healthcare-code.cache';
 
 /** 코드 항목 */
 export interface MetaCode {
@@ -105,30 +104,15 @@ export type MetaCodeType = (typeof META_CODE_TYPES)[number];
  */
 @Injectable()
 export class HealthcareMetaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly codes: HealthcareCodeCache) {}
 
-  async listCodes(
-    tp: MetaCodeType,
-    lang: SupportedLang = FALLBACK_LANG,
-  ): Promise<MetaCode[]> {
-    const rows = await this.prisma.healthcare_code.findMany({
-      where: { tp },
-      orderBy: [{ sort: 'asc' }, { cd: 'asc' }],
-    });
-
-    // 표시명은 title*(nm 은 관리용). pickName 의 nm/en/ja 자리에 title 값을 넣는다.
-    return rows.map((row) => ({
-      code: row.cd,
-      name: pickName(
-        {
-          nm: row.title,
-          nm_en: row.title_en,
-          nm_ja: row.title_ja,
-          nm_zh: row.title_zh,
-        },
-        lang,
-      ),
-      description: row.cmt ?? undefined,
+  // 아래 조회들은 **동기다.** 부팅 때 올려둔 코드표 캐시에서 읽어 DB 왕복이 없다.
+  listCodes(tp: MetaCodeType, lang: SupportedLang = FALLBACK_LANG): MetaCode[] {
+    // 표시명은 title 계열이다.
+    return this.codes.list(tp).map((entry) => ({
+      code: entry.code,
+      name: codeName(entry, lang),
+      description: entry.cmt ?? undefined,
     }));
   }
 
@@ -138,10 +122,8 @@ export class HealthcareMetaService {
    * 시드에는 코드만 있다(['OS','NS',…]). 이름은 healthcare_code 가 갖는다 —
    * 이름을 두 곳에 두면 반드시 어긋난다.
    */
-  async listSubjectGroups(
-    lang: SupportedLang = FALLBACK_LANG,
-  ): Promise<MetaSubjectGroup[]> {
-    const names = await this.codeNames('subject', lang);
+  listSubjectGroups(lang: SupportedLang = FALLBACK_LANG): MetaSubjectGroup[] {
+    const names = this.codeNames('subject', lang);
 
     return SUBJECT_GROUPS.map((group) => ({
       code: group.code,
@@ -159,10 +141,8 @@ export class HealthcareMetaService {
    * 이름은 TIER_NAMES 가 유일한 출처다 — HOSPITAL_TIERS 에는 이름을 두지 않는다.
    * 요양·정신은 등급이 아니라 성격이라 HOSPITAL_TIERS 에 없는데, 이름은 다섯 개 다 필요해서다.
    */
-  async listHospitalTiers(
-    lang: SupportedLang = FALLBACK_LANG,
-  ): Promise<MetaHospitalTier[]> {
-    const names = await this.codeNames('class', lang);
+  listHospitalTiers(lang: SupportedLang = FALLBACK_LANG): MetaHospitalTier[] {
+    const names = this.codeNames('class', lang);
 
     return HOSPITAL_TIERS.map((tier) => ({
       code: tier.code,
@@ -216,33 +196,12 @@ export class HealthcareMetaService {
     return `"${SUBWAY_RESPONSE_FORMAT}-${SUBWAY_STATION_SOURCE.version}"`;
   }
 
-  private async codeNames(
+  private codeNames(
     tp: MetaCodeType,
     lang: SupportedLang,
-  ): Promise<Map<string, string>> {
-    const rows = await this.prisma.healthcare_code.findMany({
-      where: { tp },
-      select: {
-        cd: true,
-        title: true,
-        title_en: true,
-        title_ja: true,
-        title_zh: true,
-      },
-    });
+  ): Map<string, string> {
     return new Map(
-      rows.map((row) => [
-        row.cd,
-        pickName(
-          {
-            nm: row.title,
-            nm_en: row.title_en,
-            nm_ja: row.title_ja,
-            nm_zh: row.title_zh,
-          },
-          lang,
-        ),
-      ]),
+      this.codes.list(tp).map((entry) => [entry.code, codeName(entry, lang)]),
     );
   }
 }

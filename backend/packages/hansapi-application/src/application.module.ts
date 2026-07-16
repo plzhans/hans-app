@@ -13,7 +13,9 @@ import { NmcSubjectService } from './nmc/nmc-subject.service';
 import { NmcHospitalService } from './nmc/nmc-hospital.service';
 import { HealthcareHospitalService } from './healthcare/healthcare-hospital.service';
 import { HealthcareMetaService } from './healthcare/healthcare-meta.service';
+import { HealthcareCodeCache } from './healthcare/healthcare-code.cache';
 import { RegionService } from './region/region.service';
+import { RegionCache } from './region/region.cache';
 
 /**
  * 응용 계층의 DI 진입점. 제공하는 서비스를 여기서 export 하고,
@@ -39,6 +41,9 @@ export class ApplicationModule {
         HiraSubjectService,
         NmcSubjectService,
         NmcBabyService,
+        // 코드표 인메모리 캐시. 부팅 시 전량 로드해 아래 서비스들이 조인 대신 참조한다.
+        HealthcareCodeCache,
+        RegionCache,
         HealthcareHospitalService,
         HealthcareMetaService,
         RegionService,
@@ -53,6 +58,8 @@ export class ApplicationModule {
         HiraSubjectService,
         NmcSubjectService,
         NmcBabyService,
+        HealthcareCodeCache,
+        RegionCache,
         HealthcareHospitalService,
         HealthcareMetaService,
         RegionService,

@@ -8,7 +8,8 @@ import {
   type SupportedLang,
 } from '@hansapi/common';
 
-import { pickName } from './code-name';
+import { HealthcareCodeCache, codeName } from './healthcare-code.cache';
+import { RegionCache, regionName } from '../region/region.cache';
 import { annotateKo, pickText } from './hospital-text';
 
 import { asString } from '../common/coerce';
@@ -34,7 +35,12 @@ import {
  */
 @Injectable()
 export class HealthcareHospitalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // 코드 이름은 조인하지 않고 부팅 때 올려둔 캐시에서 붙인다.
+    private readonly codes: HealthcareCodeCache,
+    private readonly regions: RegionCache,
+  ) {}
 
   async search(
     command: HospitalSearchCommand,
@@ -48,19 +54,15 @@ export class HealthcareHospitalService {
                h.emergency_yn, h.baby_yn, h.emdong_nm,
                i.name AS i18n_name,
                JSON_UNQUOTE(JSON_EXTRACT(h.transport, '$.subway[0].arrival')) AS station,
-               h.class_cd, c.title AS class_nm, c.title_en AS class_nm_en, c.title_ja AS class_nm_ja, c.title_zh AS class_nm_zh,
+               h.class_cd,
                h.tier,
-               spc.cd AS specialty_cd, sc.title AS specialty_nm, sc.title_en AS specialty_nm_en, sc.title_ja AS specialty_nm_ja, sc.title_zh AS specialty_nm_zh,
-               h.region_cd, r.nm AS region_nm, r.nm_en AS region_nm_en, r.nm_ja AS region_nm_ja,
-               r.parent_cd AS sido_cd,
-               sr.nm AS sido_nm, sr.nm_en AS sido_nm_en, sr.nm_ja AS sido_nm_ja
+               spc.cd AS specialty_cd,
+               h.region_cd
           FROM healthcare_hospital h
-          LEFT JOIN healthcare_code c ON c.tp = 'class' AND c.cd = h.class_cd
-          -- 전문병원 지정은 병원당 최대 1건이라 JOIN 이 행을 늘리지 않는다.
+          -- 종별·전문병원분야·지역 이름은 조인하지 않는다 — 코드만 SELECT 하고
+          -- 이름은 부팅 때 올려둔 캐시(HealthcareCodeCache·RegionCache)에서 붙인다.
+          -- 전문병원 지정은 병원당 최대 1건이라 이 JOIN 이 행을 늘리지 않는다.
           LEFT JOIN healthcare_hospital_capability spc ON spc.hospital_id = h.id AND spc.tp = 'specialty'
-          LEFT JOIN healthcare_code sc ON sc.tp = 'specialty' AND sc.cd = spc.cd
-          LEFT JOIN region_code r ON r.cd = h.region_cd
-          LEFT JOIN region_code sr ON sr.cd = r.parent_cd
           LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
          WHERE ${where}
          ORDER BY h.id
@@ -96,19 +98,14 @@ export class HealthcareHospitalService {
                i.directions AS i18n_directions,
                i.park_note  AS i18n_park_note,
                i.transport  AS i18n_transport,
-               h.class_cd, c.title AS class_nm, c.title_en AS class_nm_en, c.title_ja AS class_nm_ja, c.title_zh AS class_nm_zh,
+               h.class_cd,
                h.tier,
-               spc.cd AS specialty_cd, sc.title AS specialty_nm, sc.title_en AS specialty_nm_en, sc.title_ja AS specialty_nm_ja, sc.title_zh AS specialty_nm_zh,
-               h.region_cd, r.nm AS region_nm, r.nm_en AS region_nm_en, r.nm_ja AS region_nm_ja,
-               r.parent_cd AS sido_cd,
-               sr.nm AS sido_nm, sr.nm_en AS sido_nm_en, sr.nm_ja AS sido_nm_ja
+               spc.cd AS specialty_cd,
+               h.region_cd
           FROM healthcare_hospital h
-          LEFT JOIN healthcare_code c ON c.tp = 'class' AND c.cd = h.class_cd
-          -- 전문병원 지정은 병원당 최대 1건이라 JOIN 이 행을 늘리지 않는다.
+          -- 코드 이름은 조인 대신 캐시에서 붙인다(search 와 같은 이유).
+          -- 전문병원 지정은 병원당 최대 1건이라 이 JOIN 이 행을 늘리지 않는다.
           LEFT JOIN healthcare_hospital_capability spc ON spc.hospital_id = h.id AND spc.tp = 'specialty'
-          LEFT JOIN healthcare_code sc ON sc.tp = 'specialty' AND sc.cd = spc.cd
-          LEFT JOIN region_code r ON r.cd = h.region_cd
-          LEFT JOIN region_code sr ON sr.cd = r.parent_cd
           LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
          WHERE h.id = ${id} AND h.status = 'active'
       `,
@@ -119,14 +116,13 @@ export class HealthcareHospitalService {
       return null;
     }
 
-    const [subjects, hours, staff, beds, equipments, capabilities] =
+    // 이름·정렬(코드 sort)은 조인하지 않는다 — 코드만 읽고 캐시로 이름을 붙인 뒤 앱에서 정렬한다.
+    const [subjectRows, hours, staff, beds, equipmentRows, capabilityRows] =
       await Promise.all([
         this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT s.subject_cd, c.title AS nm, c.title_en AS nm_en, c.title_ja AS nm_ja, c.title_zh AS nm_zh, s.declared, s.doctor_cnt, s.specialist_cnt
+          SELECT s.subject_cd, s.declared, s.doctor_cnt, s.specialist_cnt
             FROM healthcare_hospital_subject s
-            JOIN healthcare_code c ON c.tp = 'subject' AND c.cd = s.subject_cd
            WHERE s.hospital_id = ${id}
-           ORDER BY c.sort
         `),
         this.prisma.healthcare_hospital_hours.findMany({
           where: { hospital_id: id },
@@ -139,20 +135,20 @@ export class HealthcareHospitalService {
           where: { hospital_id: id },
         }),
         this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT e.equipment_cd, c.title AS nm, c.title_en AS nm_en, c.title_ja AS nm_ja, c.title_zh AS nm_zh, e.cnt
+          SELECT e.equipment_cd, e.cnt
             FROM healthcare_hospital_equipment e
-            JOIN healthcare_code c ON c.tp = 'equipment' AND c.cd = e.equipment_cd
            WHERE e.hospital_id = ${id}
-           ORDER BY c.sort
         `),
         this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT cap.tp, cap.cd, c.title AS nm, c.title_en AS nm_en, c.title_ja AS nm_ja, c.title_zh AS nm_zh
+          SELECT cap.tp, cap.cd
             FROM healthcare_hospital_capability cap
-            LEFT JOIN healthcare_code c ON c.tp = cap.tp AND c.cd = cap.cd
            WHERE cap.hospital_id = ${id}
-           ORDER BY cap.tp, c.sort, cap.cd
         `),
       ]);
+
+    const subjects = this.buildSubjects(subjectRows, lang);
+    const equipments = this.buildEquipments(equipmentRows, lang);
+    const capabilities = this.buildCapabilities(capabilityRows, lang);
 
     const parkNote = this.text(row, 'park_note');
 
@@ -185,13 +181,7 @@ export class HealthcareHospitalService {
             }
           : undefined,
 
-      subjects: subjects.map((s) => ({
-        code: String(s.subject_cd),
-        name: this.codeName(s, lang),
-        declared: Boolean(s.declared),
-        doctorCount: this.num(s.doctor_cnt),
-        specialistCount: this.num(s.specialist_cnt),
-      })),
+      subjects,
 
       hours: hours.map((h) => ({
         kind: h.kind,
@@ -231,21 +221,83 @@ export class HealthcareHospitalService {
           }
         : undefined,
 
-      equipments: equipments.map((e) => ({
-        code: String(e.equipment_cd),
-        name: this.codeName(e, lang),
-        count: this.num(e.cnt),
-      })),
+      equipments,
 
-      // 이름은 healthcare_code 조인에서 온다(장비·과목과 같은 방식). capability 행에는
-      // 코드만 있다 — 이름을 코드표 한 곳에서만 관리하고 i18n 도 거기 붙는다.
-      // 아직 코드표에 없는 코드는 이름이 비므로 code 만 내보낸다.
-      capabilities: capabilities.map((c) => ({
-        type: String(c.tp),
-        code: String(c.cd),
-        name: this.codeName(c, lang) || undefined,
-      })),
+      capabilities,
     };
+  }
+
+  /**
+   * 진료과목 목록을 만든다. 이름·정렬은 코드 캐시가 준다.
+   *
+   * 예전엔 healthcare_code 를 INNER JOIN 해서, 코드표에 없는 과목은 빠지고 정렬도 코드 sort 였다.
+   * 그 의미를 유지한다 — 캐시에 없는 코드는 버리고(과목은 이름이 반드시 있어야 한다), sort 순으로 낸다.
+   */
+  private buildSubjects(
+    rows: Record<string, unknown>[],
+    lang: SupportedLang,
+  ): HospitalDetail['subjects'] {
+    return rows
+      .map((s) => ({
+        row: s,
+        entry: this.codes.get('subject', String(s.subject_cd)),
+      }))
+      .filter((x) => x.entry !== undefined)
+      .sort((a, b) => a.entry!.sort - b.entry!.sort)
+      .map(({ row, entry }) => ({
+        code: entry!.code,
+        name: codeName(entry!, lang),
+        declared: Boolean(row.declared),
+        doctorCount: this.num(row.doctor_cnt),
+        specialistCount: this.num(row.specialist_cnt),
+      }));
+  }
+
+  /** 장비 목록. 과목과 같은 방식(코드표에 없는 장비는 버리고 sort 순). */
+  private buildEquipments(
+    rows: Record<string, unknown>[],
+    lang: SupportedLang,
+  ): HospitalDetail['equipments'] {
+    return rows
+      .map((e) => ({
+        row: e,
+        entry: this.codes.get('equipment', String(e.equipment_cd)),
+      }))
+      .filter((x) => x.entry !== undefined)
+      .sort((a, b) => a.entry!.sort - b.entry!.sort)
+      .map(({ row, entry }) => ({
+        code: entry!.code,
+        name: codeName(entry!, lang),
+        count: this.num(row.cnt),
+      }));
+  }
+
+  /**
+   * capability 목록. **코드표에 없는 코드도 남긴다**(예전 LEFT JOIN 의미) — 이름이 비면 code 만 낸다.
+   * 정렬은 tp → 코드 sort → cd. sort 는 캐시에서, 미상 코드는 뒤로 민다.
+   */
+  private buildCapabilities(
+    rows: Record<string, unknown>[],
+    lang: SupportedLang,
+  ): HospitalDetail['capabilities'] {
+    return rows
+      .map((c) => {
+        const tp = String(c.tp);
+        const cd = String(c.cd);
+        return { tp, cd, entry: this.codes.get(tp, cd) };
+      })
+      .sort(
+        (a, b) =>
+          a.tp.localeCompare(b.tp) ||
+          (a.entry?.sort ?? Number.MAX_SAFE_INTEGER) -
+            (b.entry?.sort ?? Number.MAX_SAFE_INTEGER) ||
+          a.cd.localeCompare(b.cd),
+      )
+      .map(({ tp, cd, entry }) => ({
+        type: tp,
+        code: cd,
+        name: entry ? codeName(entry, lang) || undefined : undefined,
+      }));
   }
 
   /**
@@ -261,16 +313,12 @@ export class HealthcareHospitalService {
       /**
        * 시도 코드로도 검색된다.
        *
-       * 병원이 갖는 건 시군구 코드뿐이다. 시도 코드가 들어오면 그 시도에 속한 시군구
-       * (region_code.parent_cd = 시도) 전체로 확장한다. 서브쿼리가 인덱스를 타므로
-       * 코드 목록을 애플리케이션에서 펼쳐 IN 절로 넘길 필요가 없다.
+       * 병원이 갖는 건 시군구 코드뿐이다. 시도 코드가 들어오면 그 시도의 시군구 전체로 편다 —
+       * 예전엔 SQL 서브쿼리(region_code)로 했지만, 이제 지역표가 메모리에 있으니
+       * 캐시가 [자신 + 하위 시군구] 를 펴서 IN 절에 넘긴다(시군구 코드면 자신뿐이라 등가).
        */
-      conditions.push(Prisma.sql`(
-        h.region_cd = ${command.regionCd}
-        OR h.region_cd IN (
-          SELECT cd FROM region_code WHERE parent_cd = ${command.regionCd}
-        )
-      )`);
+      const codes = this.regions.selfAndChildren(command.regionCd);
+      conditions.push(Prisma.sql`h.region_cd IN (${Prisma.join(codes)})`);
     }
     if (command.classCds?.length) {
       conditions.push(
@@ -329,7 +377,12 @@ export class HealthcareHospitalService {
     const regionCd = row.region_cd as string | null;
     const classCd = asString(row.class_cd);
     const tierCd = asString(row.tier);
-    const sidoCd = asString(row.sido_cd);
+    const specialtyCd = asString(row.specialty_cd);
+
+    // 지역·시도 이름은 조인이 아니라 캐시에서 붙인다. 시도 코드도 SQL 이 아니라
+    // 지역 캐시가 아는 parent 다. 모르는 코드는 이름 대신 코드를 그대로 보여준다(빈칸보다 낫다).
+    const regionEntry = regionCd ? this.regions.get(regionCd) : undefined;
+    const sidoCd = regionEntry?.parentCode ?? undefined;
 
     return {
       id: Number(row.id),
@@ -337,14 +390,18 @@ export class HealthcareHospitalService {
       // (lang, name) 인덱스가 의미를 갖는다 — 영어 사용자는 영문명으로 찾는다.
       name: String(pickText(row.name, row.i18n_name)),
       category: classCd
-        ? { code: classCd, name: this.rowName(row, 'class_nm', lang) }
+        ? {
+            code: classCd,
+            name: this.codes.name('class', classCd, lang) ?? classCd,
+          }
         : undefined,
       // 등급 이름은 시드가 갖는다. DB 에는 코드만 넣어 두 곳에 이름이 생기지 않게 한다.
       tier: tierCd ? this.tier(tierCd, lang) : undefined,
-      specialty: asString(row.specialty_cd)
+      specialty: specialtyCd
         ? {
-            code: asString(row.specialty_cd) as string,
-            name: this.rowName(row, 'specialty_nm', lang),
+            code: specialtyCd,
+            name:
+              this.codes.name('specialty', specialtyCd, lang) ?? specialtyCd,
           }
         : undefined,
       tel: (row.tel as string | null) ?? undefined,
@@ -359,11 +416,11 @@ export class HealthcareHospitalService {
         region: regionCd
           ? {
               code: regionCd,
-              name: this.rowName(row, 'region_nm', lang),
+              name: regionEntry ? regionName(regionEntry, lang) : regionCd,
               sido: sidoCd
                 ? {
                     code: sidoCd,
-                    name: this.rowName(row, 'sido_nm', lang),
+                    name: this.regions.name(sidoCd, lang) ?? sidoCd,
                   }
                 : undefined,
               emdong: (row.emdong_nm as string | null) ?? undefined,
@@ -388,43 +445,6 @@ export class HealthcareHospitalService {
       bus: t.bus ?? [],
       etc: t.etc ?? [],
     };
-  }
-
-  /** nm/nm_en/nm_ja/nm_zh 를 그대로 가진 행(진료과목·장비)에서 이름을 고른다. */
-  private codeName(row: Record<string, unknown>, lang: SupportedLang): string {
-    return pickName(
-      {
-        nm: asString(row.nm) ?? '',
-        nm_en: asString(row.nm_en),
-        nm_ja: asString(row.nm_ja),
-        nm_zh: asString(row.nm_zh),
-      },
-      lang,
-    );
-  }
-
-  /**
-   * 조인해 온 코드 이름을 언어에 맞춰 고른다.
-   *
-   * **SQL 로 언어를 고르지 않는다.** 예전엔 `COALESCE(c.nm_en, c.nm)` 처럼 컬럼식을 동적으로
-   * 만들어 끼웠는데, Prisma.sql 이 그 조각을 평탄화하지 않고 **바인딩 값으로 넣어** 버려서
-   * 응답에 SQL 객체가 그대로 나왔다. 셋 다 SELECT 해서 여기서 고른다 —
-   * 컬럼 두 개가 더 붙을 뿐이고, 동적 SQL 이 사라져 주입 여지도 없다.
-   */
-  private rowName(
-    row: Record<string, unknown>,
-    prefix: string,
-    lang: SupportedLang,
-  ): string {
-    return pickName(
-      {
-        nm: asString(row[prefix]) ?? '',
-        nm_en: asString(row[`${prefix}_en`]),
-        nm_ja: asString(row[`${prefix}_ja`]),
-        nm_zh: asString(row[`${prefix}_zh`]),
-      },
-      lang,
-    );
   }
 
   /**

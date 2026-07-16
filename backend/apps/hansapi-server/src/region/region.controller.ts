@@ -45,13 +45,13 @@ export class RegionController {
     description: '시도 코드 (시군구를 좁힐 때)',
   })
   @ApiListResponse(RegionDto)
-  async list(
+  list(
     @Lang() lang: SupportedLang,
     @Query('level') level?: string,
     @Query('parent') parent?: string,
-  ): Promise<ListResponseDto<RegionDto>> {
+  ): ListResponseDto<RegionDto> {
     return new ListResponseDto(
-      await this.service.list({ level, parentCode: parent }, lang),
+      this.service.list({ level, parentCode: parent }, lang),
     );
   }
 }
