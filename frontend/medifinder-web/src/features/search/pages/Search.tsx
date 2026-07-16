@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui/Input';
@@ -92,6 +92,16 @@ const TABS = [
 ];
 
 /**
+ * 화면에 늘 보이는 탭과 "더보기" 로 접는 탭을 가른다.
+ *
+ * 병원·응급실·달빛은 대부분이 찾는 입구라 항상 편다. 요양·정신은 찾는 사람이 적어
+ * (게다가 이름이 길어 모바일에서 탭줄이 잘렸다) "더보기" 안으로 접는다 —
+ * 필요한 사람만 펼쳐서 고른다.
+ */
+const PRIMARY_TABS = TABS.slice(0, 3);
+const MORE_TABS = TABS.slice(3);
+
+/**
  * 병원 검색.
  *
  * **검색은 서버가 한다.** 예전에는 원본(hira/nmc)을 골라 한 페이지를 받아 온 뒤
@@ -181,6 +191,20 @@ export default function SearchPage() {
    */
   const [detailOpen, setDetailOpen] = useState(true);
 
+  /** "더보기" 로 접어둔 탭(요양·정신)을 펼쳤는가. 바깥을 누르면 닫는다. */
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [moreOpen]);
+
   /** 지금 요양·정신 탭인가. 그러면 상세검색의 병원 규모는 의미가 없다. */
   const inpatient =
     tierCds.includes('NURSING') || tierCds.includes('MENTAL');
@@ -193,6 +217,22 @@ export default function SearchPage() {
         tab.baby === baby &&
         (tab.tier ? tierCds.includes(tab.tier) : !inpatient),
     ) ?? TABS[0];
+
+  /** 켜진 탭이 "더보기" 안(요양·정신)에 있는가. 그러면 더보기 버튼 자체를 켠 것처럼 보인다. */
+  const moreActive = MORE_TABS.includes(activeTab);
+
+  /** 탭 선택. 진입점이라 즉시 검색하고, 열려 있던 더보기는 닫는다. */
+  const selectTab = (tab: (typeof TABS)[number]) => {
+    switchTab({
+      emergency: tab.emergency ? '1' : '',
+      baby: tab.baby ? '1' : '',
+      tier: tab.tier,
+      // 달빛은 소아 진료만 한다. 남아 있던 과목 선택을 지운다 —
+      // 화면에서 안 보이는 필터가 살아 있으면 결과가 이유 없이 줄어든다.
+      ...(tab.baby ? { subject: '' } : {}),
+    });
+    setMoreOpen(false);
+  };
 
   const { data: subjects } = useSubjects();
   const { data: groups } = useSubjectGroups();
@@ -252,7 +292,7 @@ export default function SearchPage() {
     }));
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
+    <div className="mx-auto max-w-3xl px-0 py-4 sm:px-4 sm:py-6">
       {/*
         탭. **필터가 아니라 진입점이다.**
         찾는 사람이 서로 다르다 — 병원은 진료를 계획하는 사람, 응급실은 지금 당장 아픈 사람,
@@ -266,56 +306,117 @@ export default function SearchPage() {
         배경으로 구분하려면 **트랙이 있어야 한다.** 예전엔 흰 페이지 위에 흰 탭이라 배경 대비가
         안 나와서 밑줄로만 구분했다. 트랙(slate-100)을 깔아 흰 탭이 떠 보이게 만들었다.
       */}
-      <div
-        role="tablist"
-        className="flex gap-1 overflow-x-auto rounded-t-2xl border border-b-0 border-slate-200 bg-slate-100 px-1.5 pt-1.5 [&::-webkit-scrollbar]:hidden"
-      >
-        {TABS.map((tab) => {
-          const active = tab === activeTab;
-          const Icon = tab.icon;
+      {/*
+        relative 래퍼. 더보기 드롭다운은 이 래퍼 기준으로 띄운다 —
+        탭줄(overflow-x-auto)에 넣으면 세로로 잘리기 때문이다.
+      */}
+      <div className="relative" ref={moreRef}>
+        <div
+          role="tablist"
+          className="mx-3 flex gap-1 overflow-x-auto rounded-t-2xl border border-b-0 border-slate-200 bg-slate-100 px-1.5 pt-1.5 sm:mx-0 [&::-webkit-scrollbar]:hidden"
+        >
+          {PRIMARY_TABS.map((tab) => {
+            const active = tab === activeTab;
+            const Icon = tab.icon;
 
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() =>
-                switchTab({
-                  emergency: tab.emergency ? '1' : '',
-                  baby: tab.baby ? '1' : '',
-                  tier: tab.tier,
-                  // 달빛은 소아 진료만 한다. 남아 있던 과목 선택을 지운다 —
-                  // 화면에서 안 보이는 필터가 살아 있으면 결과가 이유 없이 줄어든다.
-                  ...(tab.baby ? { subject: '' } : {}),
-                })
-              }
-              /*
-                켜진 탭은 **패널과 같은 흰색**으로 띄운다 — 회색 트랙 위에 흰 탭이 얹히고
-                그대로 아래 패널로 이어져, 폴더 탭처럼 "이 탭의 내용" 이라는 게 형태로 읽힌다.
-                (예전엔 흰 배경 위에 흰 탭이라 배경으로는 구분이 안 됐다. 트랙을 깔아 해결.)
-              */
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-t-xl px-3 py-2.5 text-sm transition-colors sm:px-4',
-                active
-                  ? cn('bg-white font-bold', tab.on)
-                  : 'font-medium text-slate-500 hover:bg-slate-200/60 hover:text-slate-800',
-              )}
-            >
-              <Icon
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => selectTab(tab)}
+                /*
+                  켜진 탭은 **패널과 같은 흰색**으로 띄운다 — 회색 트랙 위에 흰 탭이 얹히고
+                  그대로 아래 패널로 이어져, 폴더 탭처럼 "이 탭의 내용" 이라는 게 형태로 읽힌다.
+                  (예전엔 흰 배경 위에 흰 탭이라 배경으로는 구분이 안 됐다. 트랙을 깔아 해결.)
+                */
                 className={cn(
-                  'h-4 w-4 shrink-0',
-                  active ? tab.dot : 'text-slate-400',
+                  'flex shrink-0 items-center gap-1.5 rounded-t-xl px-3 py-2.5 text-sm transition-colors sm:px-4',
+                  active
+                    ? cn('bg-white font-bold', tab.on)
+                    : 'font-medium text-slate-500 hover:bg-slate-200/60 hover:text-slate-800',
                 )}
-              />
-              {t(`search.tabs.${tab.key}`)}
-            </button>
-          );
-        })}
+              >
+                <Icon
+                  className={cn(
+                    'h-4 w-4 shrink-0',
+                    active ? tab.dot : 'text-slate-400',
+                  )}
+                />
+                {t(`search.tabs.${tab.key}`)}
+              </button>
+            );
+          })}
+
+          {/*
+            더보기. 요양·정신을 접어둔 입구다. 그 안의 탭이 켜져 있으면(moreActive)
+            버튼 자체를 그 탭인 것처럼 — 아이콘·이름·색을 그대로 빌려 — 흰 탭으로 띄운다.
+          */}
+          <button
+            type="button"
+            aria-haspopup="true"
+            aria-expanded={moreOpen}
+            onClick={() => setMoreOpen((o) => !o)}
+            className={cn(
+              'ml-auto flex shrink-0 items-center gap-1.5 rounded-t-xl px-3 py-2.5 text-sm transition-colors sm:px-4',
+              moreActive
+                ? cn('bg-white font-bold', activeTab.on)
+                : 'font-medium text-slate-500 hover:bg-slate-200/60 hover:text-slate-800',
+            )}
+          >
+            {moreActive &&
+              (() => {
+                const Icon = activeTab.icon;
+                return <Icon className={cn('h-4 w-4 shrink-0', activeTab.dot)} />;
+              })()}
+            {moreActive ? t(`search.tabs.${activeTab.key}`) : t('search.tabs.more')}
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 transition-transform',
+                moreOpen && 'rotate-180',
+              )}
+            />
+          </button>
+        </div>
+
+        {/* 더보기 목록. overflow 밖에 둬야 세로로 안 잘린다. 오른쪽 정렬로 버튼 아래에 편다. */}
+        {moreOpen && (
+          <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+            {MORE_TABS.map((tab) => {
+              const active = tab === activeTab;
+              const Icon = tab.icon;
+
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => selectTab(tab)}
+                  className={cn(
+                    'flex w-full items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm transition-colors',
+                    active
+                      ? cn('bg-slate-50 font-bold', tab.on)
+                      : 'font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      'h-4 w-4 shrink-0',
+                      active ? tab.dot : 'text-slate-400',
+                    )}
+                  />
+                  {t(`search.tabs.${tab.key}`)}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 켜진 탭의 검색 조건 패널. 탭과 하나의 상자로 이어진다. */}
-      <div className="space-y-3 rounded-b-2xl border border-t-0 border-slate-200 bg-white p-4">
+      <div className="mx-3 space-y-3 rounded-b-2xl border border-t-0 border-slate-200 bg-white p-4 sm:mx-0">
         {/* 시도 | 시군구 | 병원명. 한 줄이다 — 지역을 좁히고 이름을 치는 게 한 동작이다. */}
         {/*
           좁은 화면에서는 **두 줄로 접는다.** 셀렉트 둘 + 입력 + 버튼을 390px 에 한 줄로 밀어 넣으면
@@ -345,7 +446,7 @@ export default function SearchPage() {
             />
           </div>
 
-          <div className="flex flex-1 gap-2">
+          <div className="flex flex-1 gap-3">
             {/* 돋보기를 칸 안에 둔다 — 버튼을 보기 전에 "여기가 검색어" 라는 게 먼저 읽힌다. */}
             <div className="relative flex-1">
               <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -502,9 +603,14 @@ export default function SearchPage() {
         )}
       </div>
 
-      <p className="mt-4 text-sm text-slate-500">
+      {/* 결과 목록의 제목 줄. 카드 바로 위에 붙여 "이 아래가 결과" 임을 잇는다. */}
+      <p className="mb-2 mt-5 pl-1 text-sm font-medium text-slate-700">
         {isLoading ? t('common.loading') : t('search.count', { count: total })}
-        {isFetching && !isLoading && ` ${t('search.refreshing')}`}
+        {isFetching && !isLoading && (
+          <span className="ml-1 font-normal text-slate-400">
+            {t('search.refreshing')}
+          </span>
+        )}
       </p>
 
       {isLoading && (
@@ -516,7 +622,7 @@ export default function SearchPage() {
         <p className="py-12 text-center text-rose-600">{t('common.loadError')}</p>
       )}
 
-      <div className="mt-3 space-y-3">
+      <div className="space-y-2">
         {items.map((h) => (
           <HospitalCard key={h.id} hospital={h} />
         ))}

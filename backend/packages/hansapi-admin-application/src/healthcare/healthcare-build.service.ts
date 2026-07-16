@@ -5,6 +5,7 @@ import { hospitalTier, IGNORED_SOURCE_CODES } from '@hansapi/data/seed';
 
 import { CodeMapper } from './code-mapper';
 import { HospitalLocks } from './hospital-lock';
+import { normalizeTel, hiraAreaCode, nmcAreaCode } from './phone';
 
 /** 한 병원의 통합 결과 */
 interface BuiltHospital {
@@ -164,7 +165,8 @@ export class HealthcareBuildService {
         source: n ? 'hira_nmc' : 'hira',
         name: h.name,
         addr: h.addr,
-        tel: h.tel ?? n?.tel ?? null,
+        // 원본 HIRA sggu_cd 로 지역번호를 뽑는다 — tel 이 NMC 에서 왔어도 병원 위치는 같다.
+        tel: normalizeTel(h.tel ?? n?.tel ?? null, hiraAreaCode(h.sgguCd)),
         homepage: h.homepage,
         class_cd: classCd,
         tier: hospitalTier(classCd),
@@ -218,7 +220,7 @@ export class HealthcareBuildService {
         source: 'nmc',
         name: n.name,
         addr: n.addr,
-        tel: n.tel,
+        tel: normalizeTel(n.tel, nmcAreaCode(n.sidoNm)),
         homepage: null,
         class_cd: classCd,
         tier: hospitalTier(classCd),

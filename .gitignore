@@ -1,6 +1,10 @@
 # dependencies
 **/node_modules/
 
+# 이 레포는 pnpm 전용(packageManager: pnpm). npm 이 실수로 만든 package-lock.json 은
+# pnpm-lock.yaml 과 어긋나 VSCode 경고를 낸다. 이름으로 막아 어느 서브트리든 잡는다.
+**/package-lock.json
+
 # build output
 **/dist/
 **/build/

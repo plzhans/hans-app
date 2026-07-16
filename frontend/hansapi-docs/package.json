@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Hans API 명세 문서 (VitePress + OpenAPI)",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "docs:dev": "vitepress dev --port 5174 --strictPort",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview --port 5174 --strictPort",

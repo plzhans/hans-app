@@ -9,8 +9,8 @@
   },
   "home": {
     "heroTitle": "Find a hospital near you",
-    "heroSubtitle": "Search hospitals by name and check their care information.",
-    "searchPlaceholder": "Enter a hospital name",
+    "heroSubtitle": "Search hospitals and check their care information.",
+    "searchPlaceholder": "Enter a search term",
     "searchButton": "Search"
   },
   "common": {
@@ -34,7 +34,8 @@
       "emergency": "Emergency",
       "baby": "Night Pediatric",
       "nursing": "Nursing",
-      "mental": "Psychiatric"
+      "mental": "Psychiatric",
+      "more": "More"
     },
     "inpatient": "Nursing / Psychiatric",
     "sido": "Province",
@@ -50,7 +51,7 @@
     "applyFilters": "Search with these filters",
     "prev": "Prev",
     "next": "Next",
-    "count": "{{count}} results",
+    "count": "{{count, number}} results",
     "refreshing": "(updating)",
     "empty": "No results found.",
     "collapse": "Collapse",
@@ -120,14 +121,22 @@
     "paid": "Paid",
     "free": "Free",
     "address": "Address",
-    "showMap": "Show map"
+    "showMap": "Show map",
+    "copyAddress": "Copy address",
+    "map": "Map"
   },
   "map": {
     "authFailed": "Map authentication failed. Check that this domain is registered in the Naver Cloud console.",
     "loadFailed": "Failed to load the map.",
-    "noKey": "Map key (VITE_NCLOUD_CLIENT_ID) is not set.",
+    "noKey": "Map key is not set.",
+    "tabs": {
+      "naver": "Naver Map",
+      "kakao": "Kakao Map",
+      "google": "Google Map"
+    },
     "expand": "Expand",
     "collapse": "Collapse",
-    "recenter": "Back to hospital"
+    "recenter": "Back to hospital",
+    "switchLabel": "View another map"
   }
 }

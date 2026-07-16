@@ -49,11 +49,11 @@ export function HospitalCard({ hospital }: { hospital: Hospital }) {
         <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
       </div>
 
-      <dl className="mt-3 space-y-1.5 text-sm text-slate-600">
+      <dl className="mt-2 space-y-1.5 text-xs text-slate-600">
         {hospital.location?.address && (
-          <div className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <span>
+          <div className="flex items-start gap-1.5">
+            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <span className="break-keep">
               {/*
                 지하철역이 주소보다 먼저다. 한국에서 위치를 가늠하는 1차 기준이고,
                 "서울 종로구 대학로 101" 보다 "혜화역" 이 훨씬 빨리 읽힌다.
@@ -68,8 +68,8 @@ export function HospitalCard({ hospital }: { hospital: Hospital }) {
           </div>
         )}
         {hospital.tel && (
-          <div className="flex items-center gap-2">
-            <Phone className="h-4 w-4 shrink-0 text-slate-400" />
+          <div className="flex items-center gap-1.5">
+            <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <span>{hospital.tel}</span>
           </div>
         )}
@@ -80,7 +80,7 @@ export function HospitalCard({ hospital }: { hospital: Hospital }) {
   return (
     <LangLink
       to={`/hospitals/${hospital.id}`}
-      className="block rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:shadow-md"
+      className="block rounded-2xl border border-slate-200 bg-white p-3 transition-shadow hover:shadow-md"
     >
       {inner}
     </LangLink>

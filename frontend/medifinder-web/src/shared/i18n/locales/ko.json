@@ -9,8 +9,8 @@
   },
   "home": {
     "heroTitle": "가까운 병원을 찾아보세요",
-    "heroSubtitle": "이름으로 병원을 검색하고 진료 정보를 확인하세요.",
-    "searchPlaceholder": "병원 이름을 입력하세요",
+    "heroSubtitle": "병원을 검색하고 진료 정보를 확인하세요.",
+    "searchPlaceholder": "검색어를 입력하세요",
     "searchButton": "검색"
   },
   "common": {
@@ -34,7 +34,8 @@
       "emergency": "응급실",
       "baby": "달빛어린이",
       "nursing": "요양병원",
-      "mental": "정신병원"
+      "mental": "정신병원",
+      "more": "더보기"
     },
     "inpatient": "요양·정신",
     "sido": "시도",
@@ -50,7 +51,7 @@
     "applyFilters": "이 조건으로 검색",
     "prev": "이전",
     "next": "다음",
-    "count": "{{count}}건",
+    "count": "{{count, number}}건",
     "refreshing": "(갱신 중)",
     "empty": "검색 결과가 없습니다.",
     "collapse": "접기",
@@ -120,14 +121,22 @@
     "paid": "유료",
     "free": "무료",
     "address": "주소",
-    "showMap": "지도 보기"
+    "showMap": "지도 보기",
+    "copyAddress": "주소 복사",
+    "map": "지도"
   },
   "map": {
     "authFailed": "지도 인증에 실패했습니다. 네이버 클라우드 콘솔에 이 도메인이 등록됐는지 확인하세요.",
     "loadFailed": "지도를 불러오지 못했습니다.",
-    "noKey": "지도 키(VITE_NCLOUD_CLIENT_ID)가 설정되지 않았습니다.",
+    "noKey": "지도 키가 설정되지 않았습니다.",
+    "tabs": {
+      "naver": "네이버 지도",
+      "kakao": "카카오 지도",
+      "google": "구글 지도"
+    },
     "expand": "크게 보기",
     "collapse": "작게 보기",
-    "recenter": "병원 위치로"
+    "recenter": "병원 위치로",
+    "switchLabel": "다른 지도로 보기"
   }
 }

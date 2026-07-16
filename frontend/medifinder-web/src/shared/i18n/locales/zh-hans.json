@@ -9,8 +9,8 @@
   },
   "home": {
     "heroTitle": "查找附近的医院",
-    "heroSubtitle": "按名称搜索医院并查看诊疗信息。",
-    "searchPlaceholder": "请输入医院名称",
+    "heroSubtitle": "搜索医院并查看诊疗信息。",
+    "searchPlaceholder": "请输入搜索词",
     "searchButton": "搜索"
   },
   "common": {
@@ -34,7 +34,8 @@
       "emergency": "急诊室",
       "baby": "夜间儿童",
       "nursing": "疗养医院",
-      "mental": "精神病院"
+      "mental": "精神病院",
+      "more": "更多"
     },
     "inpatient": "疗养·精神",
     "sido": "市道",
@@ -50,7 +51,7 @@
     "applyFilters": "按此条件搜索",
     "prev": "上一页",
     "next": "下一页",
-    "count": "{{count}}条",
+    "count": "{{count, number}}条",
     "refreshing": "(更新中)",
     "empty": "没有搜索结果。",
     "collapse": "收起",
@@ -120,14 +121,22 @@
     "paid": "收费",
     "free": "免费",
     "address": "地址",
-    "showMap": "查看地图"
+    "showMap": "查看地图",
+    "copyAddress": "复制地址",
+    "map": "地图"
   },
   "map": {
     "authFailed": "地图认证失败。请确认该域名是否已在 NAVER 云控制台注册。",
     "loadFailed": "无法加载地图。",
-    "noKey": "未设置地图密钥 (VITE_NCLOUD_CLIENT_ID)。",
+    "noKey": "未设置地图密钥。",
+    "tabs": {
+      "naver": "Naver 地图",
+      "kakao": "Kakao 地图",
+      "google": "Google 地图"
+    },
     "expand": "放大",
     "collapse": "缩小",
-    "recenter": "前往医院位置"
+    "recenter": "前往医院位置",
+    "switchLabel": "查看其他地图"
   }
 }

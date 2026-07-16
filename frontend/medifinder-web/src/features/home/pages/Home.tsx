@@ -20,11 +20,11 @@ export default function Home() {
   }
 
   return (
-    <section className="flex flex-col items-center py-16 text-center">
+    <section className="flex flex-col items-center px-6 py-16 text-center">
       <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">{t('home.heroTitle')}</h1>
       <p className="mt-3 max-w-md text-slate-500">{t('home.heroSubtitle')}</p>
 
-      <form onSubmit={onSubmit} className="mt-8 flex w-full max-w-lg gap-2">
+      <form onSubmit={onSubmit} className="mt-8 flex w-full max-w-lg gap-3">
         <Input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}

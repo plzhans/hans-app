@@ -46,6 +46,14 @@ void i18n.use(initReactI18next).init({
   lng: DEFAULT_LANGUAGE,
   fallbackLng: DEFAULT_LANGUAGE,
   supportedLngs: SUPPORTED_LANGUAGES,
+  /**
+   * **언어 코드를 소문자로 유지한다.** i18next 기본값은 지역 서브태그를 대문자로 포맷해
+   * `en-us`→`en-US`, `zh-hans`→`zh-Hans` 로 바꾼다. 그러면 소문자로 등록한 리소스 번들
+   * (`'en-us'`·`'zh-hans'`)과 어긋나 조회에 실패하고 fallbackLng(한국어)로 통째로 떨어진다.
+   * 소문자로 고정해 i18n.language·리소스 키·SUPPORTED_LANGUAGES 를 한 표기로 맞춘다.
+   * (서브태그가 없는 ko·ja 는 애초에 영향이 없었다.)
+   */
+  lowerCaseLng: true,
   interpolation: { escapeValue: false },
 });
 

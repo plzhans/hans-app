@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "local": "dotenv -e .env.local -- vite",
     "develop": "dotenv -e .env.develop -- vite",
     "build": "tsc -b && vite build",

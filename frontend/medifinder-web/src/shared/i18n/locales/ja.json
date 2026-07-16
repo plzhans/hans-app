@@ -9,8 +9,8 @@
   },
   "home": {
     "heroTitle": "近くの病院を探す",
-    "heroSubtitle": "病院を名前で検索し、診療情報を確認できます。",
-    "searchPlaceholder": "病院名を入力",
+    "heroSubtitle": "病院を検索し、診療情報を確認できます。",
+    "searchPlaceholder": "検索語を入力",
     "searchButton": "検索"
   },
   "common": {
@@ -34,7 +34,8 @@
       "emergency": "救急室",
       "baby": "夜間小児",
       "nursing": "療養病院",
-      "mental": "精神病院"
+      "mental": "精神病院",
+      "more": "もっと見る"
     },
     "inpatient": "療養・精神",
     "sido": "道・市",
@@ -50,7 +51,7 @@
     "applyFilters": "この条件で検索",
     "prev": "前へ",
     "next": "次へ",
-    "count": "{{count}}件",
+    "count": "{{count, number}}件",
     "refreshing": "(更新中)",
     "empty": "検索結果がありません。",
     "collapse": "折りたたむ",
@@ -120,14 +121,22 @@
     "paid": "有料",
     "free": "無料",
     "address": "住所",
-    "showMap": "地図を見る"
+    "showMap": "地図を見る",
+    "copyAddress": "住所をコピー",
+    "map": "地図"
   },
   "map": {
     "authFailed": "地図の認証に失敗しました。NAVERクラウドコンソールにこのドメインが登録されているか確認してください。",
     "loadFailed": "地図を読み込めませんでした。",
-    "noKey": "地図キー (VITE_NCLOUD_CLIENT_ID) が設定されていません。",
+    "noKey": "地図キーが設定されていません。",
+    "tabs": {
+      "naver": "Naver 地図",
+      "kakao": "Kakao 地図",
+      "google": "Google 地図"
+    },
     "expand": "拡大",
     "collapse": "縮小",
-    "recenter": "病院の位置へ"
+    "recenter": "病院の位置へ",
+    "switchLabel": "他の地図で見る"
   }
 }

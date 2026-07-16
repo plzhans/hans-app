@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@11.10.0",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "dev:server": "SWC_NODE_PROJECT=apps/hansapi-server/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapi-server/src/main.ts",
     "build": "pnpm -r build",
     "ci:build": "./scripts/build.sh",

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LangLink } from '@/shared/i18n/LangLink';
+import { useLangPath } from '@/shared/i18n/routing';
 import {
   ArrowLeft,
   MapPin,
@@ -13,11 +13,14 @@ import {
   Building2,
   Clock,
   ChevronDown,
+  Copy,
+  Check,
 } from 'lucide-react';
 import type { TransportRouteDto } from '@/shared/api/generated/model';
+import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
 import { cn } from '@/shared/lib/utils';
 import { Spinner } from '@/shared/ui/Spinner';
-import { NaverMap } from '@/shared/components/map/NaverMap';
+import { MapView } from '@/shared/components/map/MapView';
 import {
   useHospitalDetail,
   stationName,
@@ -246,6 +249,26 @@ export default function HospitalDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { data: hospital, isLoading, isError } = useHospitalDetail(id);
+  const { copy, copied } = useCopyToClipboard();
+  const navigate = useNavigate();
+  const langPath = useLangPath();
+
+  /**
+   * 검색으로 돌아가기.
+   *
+   * **앱 안에서 넘어왔으면 직전 기록으로 되돌아간다** — 그래야 검색 조건(q·지역·과목…)과
+   * 스크롤 위치가 그대로 살아난다. `/search` 로 새로 이동하면 조건이 다 날아간다.
+   * 상세를 새 탭·외부 링크로 바로 연 경우(history.state.idx 가 0)는 돌아갈 기록이 없어
+   * 검색 페이지로 보낸다.
+   */
+  const goBack = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) {
+      navigate(-1);
+    } else {
+      navigate(langPath('/search'));
+    }
+  };
 
   /**
    * 지도는 클릭할 때만 로드한다.
@@ -428,12 +451,13 @@ export default function HospitalDetailPage() {
     // 섹션마다 흰 카드를 두르면 탭이 하는 구역 나누기를 두 번 하게 되어 화면이 조각난다.
     // 배경은 흰색으로 채우고, 구역은 선으로만 가른다.
     <div className="mx-auto max-w-3xl space-y-5 rounded-2xl bg-white px-4 py-6">
-      <LangLink
-        to="/search"
+      <button
+        type="button"
+        onClick={goBack}
         className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
       >
         <ArrowLeft className="h-4 w-4" /> {t('clinic.backToSearch')}
-      </LangLink>
+      </button>
 
       {/*
         병원 이름과 탭은 **함께 고정된다.** 탭을 눌러 구역을 옮겨도 "어느 병원을 보고 있나" 가
@@ -624,15 +648,19 @@ export default function HospitalDetailPage() {
               {t('clinic.hours')}
             </p>
             <div className="rounded-xl bg-slate-50 p-4 text-center">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-500">
                 {t('clinic.hoursEmpty')}
               </p>
+              {/*
+                진료시간 "없음"은 중요도가 낮은 상태다. 채움 버튼으로 강조하면
+                과한 시선을 뺏는다. 전화는 **보조 행동**이니 텍스트 링크 톤으로 낮춘다.
+              */}
               {hospital.tel && (
                 <a
                   href={`tel:${hospital.tel}`}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white no-underline hover:bg-primary-700"
+                  className="mt-1.5 inline-flex items-center gap-1 text-sm text-slate-500 no-underline hover:text-primary-600"
                 >
-                  <Phone className="h-4 w-4" />
+                  <Phone className="h-3.5 w-3.5" />
                   {t('clinic.hoursConfirm', { tel: hospital.tel })}
                 </a>
               )}
@@ -1070,20 +1098,45 @@ export default function HospitalDetailPage() {
         <div className="mt-4 border-t border-slate-100 pt-4">
           <p className="text-xs font-medium text-slate-500">{t('clinic.address')}</p>
         {hospital.location?.address && (
-          <p className="mt-1.5 text-sm text-slate-700">
+          <div className="mt-1.5 flex items-start gap-2">
             {hospital.location.postNo && (
-              <span className="mr-1.5 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">
+              <span className="mt-0.5 shrink-0 whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">
                 {hospital.location.postNo}
               </span>
             )}
-            {hospital.location.address}{' '}
-            <span className="text-slate-800">{hospital.name}</span>
-          </p>
+            <p className="min-w-0 flex-1 break-keep text-sm text-slate-700">
+              {hospital.location.address}{' '}
+              <span className="text-slate-800">{hospital.name}</span>
+            </p>
+            {(() => {
+              const copyText = `${hospital.location.address} ${hospital.name}`;
+              const isCopied = copied === copyText;
+              return (
+                <button
+                  type="button"
+                  onClick={() => void copy(copyText)}
+                  aria-label={t('clinic.copyAddress')}
+                  title={t('clinic.copyAddress')}
+                  className={cn(
+                    'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
+                    isCopied
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                      : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700',
+                  )}
+                >
+                  {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </button>
+              );
+            })()}
+          </div>
         )}
         {hospital.location?.lat && hospital.location?.lon ? (
           mapOpen ? (
-            <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-              <NaverMap
+            <div className="mt-4">
+              <p className="mb-1.5 text-xs font-medium text-slate-500">
+                {t('clinic.map')}
+              </p>
+              <MapView
                 lat={hospital.location.lat}
                 lng={hospital.location.lon}
                 name={hospital.name}
