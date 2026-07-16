@@ -152,6 +152,16 @@ export class LocationDto {
   })
   readonly station?: string;
 
+  @ApiPropertyOptional({
+    type: String,
+    example: '2호선',
+    description:
+      'station 이 어느 노선인가. **같은 항목(subway[0])에서 뽑으므로** 역과 어긋나지 않는다.\n' +
+      '원문 그대로다 — "2호선" 뿐 아니라 "1,4호선", "인천지하철1호선" 처럼 오기도 한다. ' +
+      '노선색·표기 정규화는 화면이 한다.',
+  })
+  readonly stationLine?: string;
+
   @ApiPropertyOptional({ type: String })
   readonly address?: string;
 
@@ -351,6 +361,60 @@ export class EquipmentDto {
   readonly count?: number;
 }
 
+export class AssessmentItemDto {
+  @ApiProperty({
+    type: String,
+    description: '심평원 평가항목 번호',
+    example: '01',
+  })
+  readonly code!: string;
+
+  @ApiProperty({
+    type: String,
+    description:
+      '항목명. 요청 언어(Accept-Language)로 온다. 번역이 없으면 한국어로 폴백한다.\n\n' +
+      '**심평원 공식 번역이 아니라 우리가 붙인 표시용 이름이다** — 심평원은 한국어만 준다.',
+    example: '급성기뇌졸중',
+  })
+  readonly name!: string;
+
+  @ApiProperty({
+    type: String,
+    description:
+      "등급. 원본 그대로다. **1 이 가장 좋고 5 가 가장 나쁘다.** '등급제외' 는 평가는 했으나 등급을 안 매긴 것이다(평가대상이 아닌 항목은 아예 목록에 없다 — 둘은 다르다).\n\n**천식(code='16')만 인코딩이 다르다** — 1등급을 '양호' 로, 등급제외를 '0' 으로 준다. 그래서 이 값을 숫자로 파싱해 정렬하면 안 된다. 비교는 normalized 를 써라.",
+    example: '1',
+  })
+  readonly grade!: string;
+
+  @ApiProperty({
+    oneOf: [{ type: 'integer' }, { type: 'string' }],
+    description:
+      "등급을 항목 간 비교 가능하게 옮긴 값. 1~5 또는 'X'(등급대상 제외). 천식의 '양호'→1, '0'→'X' 가 여기서 흡수된다.",
+    example: 1,
+  })
+  readonly normalized!: number | 'X';
+}
+
+export class AssessmentGroupDto {
+  @ApiProperty({ type: String, example: 'asm01' })
+  readonly code!: string;
+
+  @ApiProperty({ type: String, example: '급성질환' })
+  readonly name!: string;
+
+  @ApiProperty({ type: [AssessmentItemDto] })
+  readonly items!: AssessmentItemDto[];
+}
+
+export class AssessmentDto {
+  @ApiProperty({
+    type: [AssessmentGroupDto],
+    description:
+      '그룹별 평가 결과. 심평원 홈페이지 노출 순서다. **항목이 하나라도 있는 그룹만 온다.**',
+  })
+  readonly groups!: AssessmentGroupDto[];
+}
+
 export class CapabilityDto {
   @ApiProperty({
     type: String,
@@ -502,4 +566,11 @@ export class HospitalDetailDto extends HospitalSummaryDto {
 
   @ApiProperty({ type: [CapabilityDto] })
   readonly capabilities!: CapabilityDto[];
+
+  @ApiPropertyOptional({
+    type: AssessmentDto,
+    description:
+      '심평원 병원평가. **HIRA 연동(ykiho)이 있고 평가대상인 병원만 온다** — 없으면 필드 자체가 없다.',
+  })
+  readonly assessment?: AssessmentDto;
 }

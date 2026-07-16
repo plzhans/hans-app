@@ -24,9 +24,11 @@ import type {
   HiraAddressCodeResponse,
   HiraCodeControllerListParams,
   HiraEquipmentCodeResponse,
+  HiraHospitalControllerGetNonPaymentsParams,
   HiraHospitalControllerListParams,
   HiraHospitalListResponse,
   HiraInstitutionClassCodeResponse,
+  HiraNonPaymentDetailResponse,
   HiraRegionControllerListRegionsParams,
   HiraRegionResponseDto,
   HiraSearchCodeResponse,
@@ -254,6 +256,124 @@ export function useHiraHospitalControllerGet<TData = Awaited<ReturnType<typeof h
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHiraHospitalControllerGetQueryOptions(ykiho,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHiraHospitalControllerGetNonPaymentsUrl = (ykiho: string,
+    params?: HiraHospitalControllerGetNonPaymentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/data-go-kr/hira/hospitals/${ykiho}/npay?${stringifiedParams}` : `/data-go-kr/hira/hospitals/${ykiho}/npay`
+}
+
+/**
+ * 기관이 신고한 비급여 항목별 실제 청구금액(curAmt). 응답 구조는 원본 API 와 동일하다.
+ *
+ * **병원급 이상만 있다** — 의원(clCd=31)은 원본에 통째로 없어 늘 빈 배열이다. **한 기관에 수백 행이다**(최다 1,048건) — 페이지로 받아라.
+ * @summary 비급여 진료비 조회
+ */
+export const hiraHospitalControllerGetNonPayments = async (ykiho: string,
+    params?: HiraHospitalControllerGetNonPaymentsParams, options?: RequestInit): Promise<HiraNonPaymentDetailResponse> => {
+
+  return reactFetch<HiraNonPaymentDetailResponse>(getHiraHospitalControllerGetNonPaymentsUrl(ykiho,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHiraHospitalControllerGetNonPaymentsQueryKey = (ykiho: string,
+    params?: HiraHospitalControllerGetNonPaymentsParams,) => {
+    return [
+    `/data-go-kr/hira/hospitals/${ykiho}/npay`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getHiraHospitalControllerGetNonPaymentsQueryOptions = <TData = Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError = unknown>(ykiho: string,
+    params?: HiraHospitalControllerGetNonPaymentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHiraHospitalControllerGetNonPaymentsQueryKey(ykiho,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>> = ({ signal }) => hiraHospitalControllerGetNonPayments(ykiho,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: ykiho !== null && ykiho !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HiraHospitalControllerGetNonPaymentsQueryResult = NonNullable<Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>>
+export type HiraHospitalControllerGetNonPaymentsQueryError = unknown
+
+
+export function useHiraHospitalControllerGetNonPayments<TData = Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError = unknown>(
+ ykiho: string,
+    params: undefined |  HiraHospitalControllerGetNonPaymentsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>,
+          TError,
+          Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHiraHospitalControllerGetNonPayments<TData = Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError = unknown>(
+ ykiho: string,
+    params?: HiraHospitalControllerGetNonPaymentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>,
+          TError,
+          Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHiraHospitalControllerGetNonPayments<TData = Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError = unknown>(
+ ykiho: string,
+    params?: HiraHospitalControllerGetNonPaymentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 비급여 진료비 조회
+ */
+
+export function useHiraHospitalControllerGetNonPayments<TData = Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError = unknown>(
+ ykiho: string,
+    params?: HiraHospitalControllerGetNonPaymentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHiraHospitalControllerGetNonPaymentsQueryOptions(ykiho,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

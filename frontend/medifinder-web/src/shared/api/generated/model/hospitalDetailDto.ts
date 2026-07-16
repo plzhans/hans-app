@@ -5,6 +5,7 @@
  * Hans API backend 문서
  * OpenAPI spec version: 0.0.1
  */
+import type { AssessmentDto } from './assessmentDto';
 import type { BedsDto } from './bedsDto';
 import type { CapabilityDto } from './capabilityDto';
 import type { CodeDto } from './codeDto';
@@ -56,4 +57,6 @@ export interface HospitalDetailDto {
   beds?: BedsDto;
   equipments: EquipmentDto[];
   capabilities: CapabilityDto[];
+  /** 심평원 병원평가. **HIRA 연동(ykiho)이 있고 평가대상인 병원만 온다** — 없으면 필드 자체가 없다. */
+  assessment?: AssessmentDto;
 }

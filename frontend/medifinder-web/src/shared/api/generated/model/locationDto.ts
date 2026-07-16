@@ -13,6 +13,11 @@ export interface LocationDto {
      * **거리는 따지지 않는다** — 원본이 거리("500m")와 소요시간("도보 5분")을 같은 칸에 섞어 쓰고 비워두기도 해서, 걸러내면 멀쩡한 역세권 병원이 대거 빠진다. 정확한 거리는 상세의 transport 를 봐라.
      */
   station?: string;
+  /**
+     * station 이 어느 노선인가. **같은 항목(subway[0])에서 뽑으므로** 역과 어긋나지 않는다.
+     * 원문 그대로다 — "2호선" 뿐 아니라 "1,4호선", "인천지하철1호선" 처럼 오기도 한다. 노선색·표기 정규화는 화면이 한다.
+     */
+  stationLine?: string;
   address?: string;
   postNo?: string;
   region?: HospitalRegionDto;

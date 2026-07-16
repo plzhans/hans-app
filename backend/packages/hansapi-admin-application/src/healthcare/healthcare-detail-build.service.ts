@@ -26,7 +26,57 @@ const REBUILD_TABLES = [
   'healthcare_hospital_bed',
   'healthcare_hospital_equipment',
   'healthcare_hospital_capability',
+  'healthcare_hospital_section',
 ] as const;
+
+/**
+ * 섹션 목록. **우리 어휘다** — 미러의 op 이름(hira.info)을 쓰지 마라.
+ * 가르는 기준과 각 섹션의 출처는 schema.prisma 의 healthcare_hospital_section 주석에 있다.
+ */
+const SECTIONS = [
+  'basic',
+  'description',
+  'directions',
+  'parking',
+  'transport',
+  'hours',
+  'hours_break',
+  'baby',
+  'subject',
+  'specialist',
+  'bed',
+  'staff',
+  'equipment',
+  'severe',
+  'specialty',
+  'emergency',
+] as const;
+
+type SectionName = (typeof SECTIONS)[number];
+
+/**
+ * 섹션이 어느 원본에 딸렸나. **그 원본에 링크되지 않은 병원은 행을 만들지 않는다** —
+ * ykiho 가 없는 NMC 전용 병원에 bed 행을 깔아 봐야 영원히 NULL 이고, 그건 "아직 안 받음"
+ * 이 아니라 "해당 없음" 이라 뜻이 다르다. 'both' 는 양쪽 중 하나만 있어도 대상이다.
+ */
+const SECTION_SIDE: Record<SectionName, 'hira' | 'nmc' | 'both'> = {
+  basic: 'both',
+  description: 'nmc',
+  directions: 'both',
+  parking: 'hira',
+  transport: 'hira',
+  hours: 'nmc',
+  hours_break: 'hira',
+  baby: 'nmc',
+  subject: 'both',
+  specialist: 'hira',
+  bed: 'hira',
+  staff: 'hira',
+  equipment: 'hira',
+  severe: 'nmc',
+  specialty: 'hira',
+  emergency: 'nmc',
+};
 
 type RebuildTable = (typeof REBUILD_TABLES)[number];
 
@@ -37,7 +87,45 @@ export interface DetailBuildResult {
   beds: number;
   equipments: number;
   capabilities: number;
+  sections: number;
   elapsedMs: number;
+}
+
+/** 섹션별로 값이 실제로 들어간 병원 id 집합. */
+interface BuiltValues {
+  description: Set<number>;
+  /** NMC 원본에 dutyMapimg 가 있는 병원. 찾아오는 길의 출처를 가리는 데만 쓴다. */
+  directionsNmc: Set<number>;
+  directions: Set<number>;
+  parking: Set<number>;
+  transport: Set<number>;
+  emergency: Set<number>;
+  hours: Set<number>;
+  hoursBreak: Set<number>;
+  baby: Set<number>;
+  subject: Set<number>;
+  specialist: Set<number>;
+  bed: Set<number>;
+  staff: Set<number>;
+  equipment: Set<number>;
+  severe: Set<number>;
+  specialty: Set<number>;
+}
+
+/** judgeSection 이 판정에 쓰는 재료. 병원마다 도는 자리라 미리 만들어 넘긴다. */
+interface SectionContext {
+  id: number;
+  ykiho: string | null;
+  hpid: string | null;
+  now: Date;
+  /** 1단계(전수 역조회)가 성공한 시각. null 이면 아직이다. */
+  hiraBulk: Date | null;
+  nmcBulk: Date | null;
+  gotOp: (op: string, ykiho: string | null) => boolean;
+  gotBasic: Set<string>;
+  hiraSubject: Set<string>;
+  nmcSubject: Set<string>;
+  has: BuiltValues;
 }
 
 const CHUNK = 1_000;
@@ -109,6 +197,8 @@ export class HealthcareDetailBuildService {
       beds: await this.buildBeds(byYkiho),
       equipments: await this.buildEquipments(mapper, byYkiho),
       capabilities: await this.buildCapabilities(mapper, byYkiho, byHpid),
+      // **맨 뒤여야 한다.** 위에서 만든 healthcare_* 를 읽어 "값이 있나" 를 판단한다.
+      sections: await this.buildSections(byYkiho, byHpid),
       elapsedMs: 0,
     };
 
@@ -672,6 +762,335 @@ export class HealthcareDetailBuildService {
       `${table}: ${insertable.length.toLocaleString()}행` +
         (locked.length > 0 ? ` (잠금 ${locked.length}행 보존)` : ''),
     );
+  }
+
+  /**
+   * 섹션별 원본 확인 상태.
+   *
+   * **반드시 다른 buildX 가 전부 끝난 뒤에 돈다.** "값이 있나" 를 원본에서 다시 파싱하지 않고
+   * 이미 만들어진 healthcare_* 에 직접 물어보기 때문이다. 다시 파싱하면 규칙이 buildX 와
+   * 조용히 어긋난다 — 같은 걸 두 군데서 판단하게 되므로.
+   *
+   * "확인했나" 의 판정 근거가 출처마다 다르다.
+   *   전수 벌크(hira.list·nmc.fulldown)  병원이 healthcare 에 있다는 것 자체가 증거다.
+   *                                      미러에 없으면 애초에 빌드되지 않았다.
+   *   개별 조회(detail op·nmc basic)      그 병원의 미러 행이 있냐로 본다.
+   *   전수 역조회(subject·srch·baby)      **해당하는 병원만 행이 생겨서 미러로는 못 가린다.**
+   *                                      과목 행이 없는 게 미신고인지 1단계 미실행인지
+   *                                      모른다. 그래서 sync_state 를 본다.
+   *
+   * sync_state 를 읽는 건 빌드 시점 의존이라 괜찮다. 금지된 건 **런타임에** healthcare 가
+   * 미러·sync 를 참조하는 것이지, 빌드가 읽는 게 아니다(빌드는 이미 미러를 읽는다).
+   */
+  private async buildSections(
+    byYkiho: Map<string, number>,
+    byHpid: Map<string, number>,
+  ): Promise<number> {
+    const now = new Date();
+
+    // 전수 역조회가 성공했나. 1단계가 벌크와 역조회를 같이 돈다.
+    const bulk = await this.prisma.sync_state.findMany({
+      where: { stage: 1, job: { in: ['hira.1', 'nmc.1'] } },
+      select: { job: true, status: true, last_success_at: true },
+    });
+    const bulkDone = (provider: 'hira' | 'nmc'): Date | null => {
+      const row = bulk.find((b) => b.job === `${provider}.1`);
+      // isFresh 와 같은 규칙이다 — last_success_at 만 보면 안 된다.
+      // 실패한 실행 뒤에도 옛 성공 시각이 남아 있어서다.
+      return row?.status === 'done' ? (row.last_success_at ?? null) : null;
+    };
+    const hiraBulk = bulkDone('hira');
+    const nmcBulk = bulkDone('nmc');
+
+    // 개별 조회를 받은 병원. op 하나가 여러 섹션을 먹인다(info → parking·hours_break).
+    const detail = new Map<string, Set<string>>();
+    for (const r of await this.prisma.hira_hospital_detail.findMany({
+      select: { ykiho: true, op: true },
+    })) {
+      let set = detail.get(r.op);
+      if (!set) detail.set(r.op, (set = new Set()));
+      set.add(r.ykiho);
+    }
+    const gotOp = (op: string, ykiho: string | null): boolean =>
+      ykiho !== null && (detail.get(op)?.has(ykiho) ?? false);
+
+    const gotBasic = new Set(
+      (
+        await this.prisma.nmc_hospital.findMany({
+          where: { basic_synced_at: { not: null } },
+          select: { hpid: true },
+        })
+      ).map((r) => r.hpid),
+    );
+
+    // 역조회 미러의 병원 집합. subject 는 출처가 합집합이라 양쪽을 따로 든다.
+    const hiraSubject = new Set(
+      (
+        await this.prisma.hira_hospital_subject.findMany({
+          select: { ykiho: true },
+          distinct: ['ykiho'],
+        })
+      ).map((r) => r.ykiho),
+    );
+    const nmcSubject = new Set(
+      (
+        await this.prisma.nmc_hospital_subject.findMany({
+          select: { hpid: true },
+          distinct: ['hpid'],
+        })
+      ).map((r) => r.hpid),
+    );
+
+    // 값이 실제로 들어갔나. **원본이 아니라 우리 테이블에 묻는다.**
+    const has = await this.builtValues();
+
+    const values: BuildRow[] = [];
+    const push = (
+      id: number,
+      section: SectionName,
+      syncedAt: Date | null,
+      source: string | null,
+    ): void => {
+      values.push({
+        hospitalId: id,
+        key: { section },
+        // 확인 못 했으면 출처가 있을 수 없다. 둘이 어긋나면 읽는 쪽이 판단 불가라 여기서 막는다.
+        value: Prisma.sql`(${id}, ${section}, ${syncedAt ? source : null}, ${syncedAt}, ${now})`,
+      });
+    };
+
+    const ids = new Map<
+      number,
+      { ykiho: string | null; hpid: string | null }
+    >();
+    for (const [ykiho, id] of byYkiho) {
+      ids.set(id, { ykiho, hpid: ids.get(id)?.hpid ?? null });
+    }
+    for (const [hpid, id] of byHpid) {
+      ids.set(id, { ykiho: ids.get(id)?.ykiho ?? null, hpid });
+    }
+
+    for (const [id, { ykiho, hpid }] of ids) {
+      for (const section of SECTIONS) {
+        const side = SECTION_SIDE[section];
+        // 해당 원본에 링크가 없으면 대상이 아니다 — 행을 만들지 않는다.
+        if (side === 'hira' && !ykiho) continue;
+        if (side === 'nmc' && !hpid) continue;
+
+        const [syncedAt, source] = this.judgeSection(section, {
+          id,
+          ykiho,
+          hpid,
+          now,
+          hiraBulk,
+          nmcBulk,
+          gotOp,
+          gotBasic,
+          hiraSubject,
+          nmcSubject,
+          has,
+        });
+        push(id, section, syncedAt, source);
+      }
+    }
+
+    await this.replace(
+      'healthcare_hospital_section',
+      '(hospital_id, section, source, synced_at, built_at)',
+      values,
+    );
+    return values.length;
+  }
+
+  /**
+   * 섹션 하나의 (확인 시각, 출처) 판정.
+   *
+   * synced_at 은 **우리가 확인한 시각**이다(미러의 synced_at 복사가 아니다).
+   * 그래서 확인된 섹션은 전부 now 다 — 값이 그대로여도 매번 갱신하는 게 규약이다.
+   * 예외는 역조회 3종이다. 그건 1단계가 성공한 시각이 곧 확인 시각이라 그걸 쓴다.
+   */
+  private judgeSection(
+    section: SectionName,
+    c: SectionContext,
+  ): [Date | null, string | null] {
+    const { id, ykiho, hpid, now, has } = c;
+
+    switch (section) {
+      // 전수 벌크. 병원이 여기 있다는 것 자체가 받았다는 증거라 NULL 이 될 수 없다.
+      case 'basic':
+        return [now, ykiho ? 'hira' : 'nmc'];
+      case 'staff':
+        return [now, has.staff.has(id) ? 'hira' : null];
+      case 'description':
+        return [now, has.description.has(id) ? 'nmc' : null];
+      case 'hours':
+        return [now, has.hours.has(id) ? 'nmc' : null];
+      case 'emergency':
+        return [now, has.emergency.has(id) ? 'nmc' : null];
+
+      // 찾아오는 길만 폴백 방향이 반대다 — NMC 우선, 없으면 HIRA info.
+      // NMC 는 벌크라 늘 확인되지만 HIRA info 는 개별이라, NMC 에 값이 없고 info 도 아직이면
+      // 확인이 안 끝난 것이다.
+      case 'directions': {
+        if (has.directionsNmc.has(id)) return [now, 'nmc'];
+        if (!ykiho) return [now, null];
+        if (!c.gotOp('info', ykiho)) return [null, null];
+        return [now, has.directions.has(id) ? 'hira' : null];
+      }
+
+      // 개별 조회. 그 병원의 미러 행이 있냐로 본다.
+      case 'parking':
+        return c.gotOp('info', ykiho)
+          ? [now, has.parking.has(id) ? 'hira' : null]
+          : [null, null];
+      case 'hours_break':
+        return c.gotOp('info', ykiho)
+          ? [now, has.hoursBreak.has(id) ? 'hira' : null]
+          : [null, null];
+      case 'transport':
+        return c.gotOp('transport', ykiho)
+          ? [now, has.transport.has(id) ? 'hira' : null]
+          : [null, null];
+      case 'bed':
+        return c.gotOp('facility', ykiho)
+          ? [now, has.bed.has(id) ? 'hira' : null]
+          : [null, null];
+      case 'specialist':
+        return c.gotOp('specialist', ykiho)
+          ? [now, has.specialist.has(id) ? 'hira' : null]
+          : [null, null];
+      case 'equipment':
+        return c.gotOp('equipment', ykiho)
+          ? [now, has.equipment.has(id) ? 'hira' : null]
+          : [null, null];
+      case 'severe':
+        return hpid && c.gotBasic.has(hpid)
+          ? [now, has.severe.has(id) ? 'nmc' : null]
+          : [null, null];
+
+      // 전수 역조회. 해당 병원만 행이 생기므로 미러 존재로는 못 가린다 — 1단계 성공을 본다.
+      case 'subject': {
+        const fromHira = ykiho !== null && c.hiraSubject.has(ykiho);
+        const fromNmc = hpid !== null && c.nmcSubject.has(hpid);
+        // 양쪽 다 확인돼야 합집합의 출처를 확정할 수 있다.
+        const done = (ykiho ? c.hiraBulk : true) && (hpid ? c.nmcBulk : true);
+        if (!done) return [null, null];
+        const at = c.hiraBulk ?? c.nmcBulk ?? now;
+        if (fromHira && fromNmc) return [at, 'hira_nmc'];
+        if (fromHira) return [at, 'hira'];
+        if (fromNmc) return [at, 'nmc'];
+        return [at, null];
+      }
+      case 'specialty':
+        return c.hiraBulk
+          ? [c.hiraBulk, has.specialty.has(id) ? 'hira' : null]
+          : [null, null];
+      case 'baby':
+        return c.nmcBulk
+          ? [c.nmcBulk, has.baby.has(id) ? 'nmc' : null]
+          : [null, null];
+    }
+  }
+
+  /**
+   * 각 섹션의 값이 실제로 들어간 병원 id.
+   *
+   * **원본이 아니라 healthcare_* 에 묻는다.** buildX 가 이미 판단해 쓴 결과라, 여기서 다시
+   * 파싱하면 규칙이 두 벌이 되고 언젠가 어긋난다.
+   */
+  private async builtValues(): Promise<BuiltValues> {
+    const ids = async (sql: Prisma.Sql): Promise<Set<number>> =>
+      new Set(
+        (await this.prisma.$queryRaw<{ id: number }[]>(sql)).map((r) => r.id),
+      );
+
+    const [
+      description,
+      directionsNmc,
+      directions,
+      parking,
+      transport,
+      emergency,
+      hours,
+      hoursBreak,
+      baby,
+      subject,
+      specialist,
+      bed,
+      staff,
+      equipment,
+      severe,
+      specialty,
+    ] = await Promise.all([
+      ids(
+        Prisma.sql`SELECT id FROM healthcare_hospital WHERE intro IS NOT NULL OR notice IS NOT NULL`,
+      ),
+      // 찾아오는 길의 출처를 가리려면 NMC 원본을 봐야 한다 — 우리 테이블은 합쳐진 뒤라
+      // 어느 쪽이 이겼는지 모른다. 여기만 예외적으로 미러를 본다.
+      ids(Prisma.sql`
+        SELECT h.id FROM healthcare_hospital h
+          JOIN nmc_hospital n ON n.hpid = h.hpid
+         WHERE JSON_UNQUOTE(JSON_EXTRACT(n.data, '$.dutyMapimg')) > ''
+      `),
+      ids(
+        Prisma.sql`SELECT id FROM healthcare_hospital WHERE directions IS NOT NULL`,
+      ),
+      ids(Prisma.sql`
+        SELECT id FROM healthcare_hospital
+         WHERE park_qty IS NOT NULL OR park_paid IS NOT NULL OR park_note IS NOT NULL
+      `),
+      ids(
+        Prisma.sql`SELECT id FROM healthcare_hospital WHERE transport IS NOT NULL`,
+      ),
+      ids(
+        Prisma.sql`SELECT id FROM healthcare_hospital WHERE emergency_yn = 1`,
+      ),
+      ids(
+        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_hours WHERE kind = 'general' AND open_time IS NOT NULL`,
+      ),
+      ids(
+        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_hours WHERE kind = 'general' AND (break_start IS NOT NULL OR reception_end IS NOT NULL)`,
+      ),
+      ids(
+        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_hours WHERE kind = 'baby'`,
+      ),
+      ids(
+        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_subject WHERE declared = 1`,
+      ),
+      ids(
+        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_subject WHERE specialist_cnt > 0`,
+      ),
+      ids(Prisma.sql`SELECT hospital_id AS id FROM healthcare_hospital_bed`),
+      ids(Prisma.sql`SELECT hospital_id AS id FROM healthcare_hospital_staff`),
+      ids(
+        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_equipment`,
+      ),
+      ids(
+        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_capability WHERE tp = 'severe'`,
+      ),
+      ids(
+        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_capability WHERE tp IN ('specialty','special')`,
+      ),
+    ]);
+
+    return {
+      description,
+      directionsNmc,
+      directions,
+      parking,
+      transport,
+      emergency,
+      hours,
+      hoursBreak,
+      baby,
+      subject,
+      specialist,
+      bed,
+      staff,
+      equipment,
+      severe,
+      specialty,
+    };
   }
 
   /** 상세 JSON 은 1행짜리면 객체, 여러 행이면 배열이다. */

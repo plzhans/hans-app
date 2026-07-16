@@ -4,7 +4,10 @@ import { DB_TARGETS, DbTarget, PrismaMigrationService } from '@hansapi/data';
 
 import { withAdminContext, withDataContext } from '../context';
 import { addExamples } from '../help';
-import { HealthcareCodeSeedService } from '@hansapi/admin-application';
+import {
+  HealthcareCodeSeedService,
+  HiraCodeSeedService,
+} from '@hansapi/admin-application';
 
 interface DbOptions {
   db: DbTarget;
@@ -104,20 +107,27 @@ export function dbCommand(source: EnvSource): Command {
     db
       .command('seed')
       .description(
-        '통합 코드(healthcare_code)를 시드 파일로 적재한다. 시드 파일이 유일한 원본이다',
+        '코드를 시드 파일로 적재한다. 시드 파일이 유일한 원본이다.\n' +
+          '  healthcare_code  통합 코드 (HIRA+NMC 를 우리 코드로)\n' +
+          '  hira_code        API 가 코드표를 안 주는 HIRA 코드 (병원평가 항목·그룹)',
       )
       .action(async (): Promise<void> => {
-        const result = await withAdminContext(source, (context) =>
-          context.get(HealthcareCodeSeedService).seed(),
+        const { result, hira } = await withAdminContext(
+          source,
+          async (context) => ({
+            result: await context.get(HealthcareCodeSeedService).seed(),
+            hira: await context.get(HiraCodeSeedService).seed(),
+          }),
         );
 
         console.log(
           [
             '코드 시드 완료',
-            `  코드     : ${result.seeded.toLocaleString()}`,
-            `  지역     : ${result.regions.toLocaleString()}`,
-            `  삭제     : ${result.removed.toLocaleString()} (시드에서 빠진 코드)`,
-            `  미매핑   : ${result.unmapped.length.toLocaleString()} (원본에 있는데 시드에 없음)`,
+            `  통합 코드 : ${result.seeded.toLocaleString()}`,
+            `  지역      : ${result.regions.toLocaleString()}`,
+            `  HIRA 코드 : ${hira.seeded.toLocaleString()} (병원평가 항목)`,
+            `  삭제      : ${(result.removed + hira.removed).toLocaleString()} (시드에서 빠진 코드)`,
+            `  미매핑    : ${result.unmapped.length.toLocaleString()} (원본에 있는데 시드에 없음)`,
           ].join('\n'),
         );
 

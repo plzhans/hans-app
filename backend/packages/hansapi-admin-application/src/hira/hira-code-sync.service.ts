@@ -30,6 +30,11 @@ export interface HiraCodeSyncOptions extends CodeSyncOptions {
  * 원본은 종류마다 엔드포인트가 따로지만, 우리는 한 테이블에 tp 로 구분해 담는다.
  * 필드명도 원본이 제각각(addrCd/clCd/…)이라 cd/cd_nm/cd_cmt 로 통일한다.
  * 원본 필드명은 조회 시점에 HIRA_CODE_TYPE_DEFS 로 되돌린다.
+ *
+ * **hira_code 에는 시드가 채우는 tp 도 있다**(asm·asmgrp — API 가 코드표를 안 주는 것).
+ * 여기는 HIRA_CODE_TYPES(6종)만 돌므로 지금은 구조적으로 안 겹친다.
+ * "원본에서 사라진 코드 정리" 같은 걸 나중에 넣는다면 **반드시 tp 를 이 6종으로 한정하라** —
+ * 한정하지 않으면 HiraCodeSeedService 가 넣은 행이 조용히 날아간다.
  */
 @Injectable()
 export class HiraCodeSyncService {

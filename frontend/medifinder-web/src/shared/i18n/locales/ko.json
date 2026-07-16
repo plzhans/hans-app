@@ -70,7 +70,9 @@
       "subject": "소개",
       "care": "진료",
       "scale": "규모",
-      "location": "위치"
+      "assessment": "평가",
+      "location": "위치",
+      "npay": "비급여"
     },
     "contact": "연락처",
     "intro": "소개",
@@ -110,8 +112,7 @@
     },
     "equipments": "보유 장비",
     "transport": {
-      "subway": "지하철",
-      "bus": "버스",
+      "publicTransit": "대중교통",
       "etc": "그 밖에",
       "unknownStop": "하차지점 미상",
       "busStop": "{{name}} 정류장"
@@ -123,7 +124,24 @@
     "address": "주소",
     "showMap": "지도 보기",
     "copyAddress": "주소 복사",
-    "map": "지도"
+    "map": "지도",
+    "assessment": {
+      "title": "심평원 병원평가",
+      "source": "건강보험심사평가원이 요양급여 적정성을 평가한 결과입니다. 1등급이 가장 좋습니다.",
+      "grade": "{{grade}}등급",
+      "excluded": "등급제외",
+      "excludedHint": "평가는 받았으나 등급이 매겨지지 않았습니다.",
+      "note": "평가 항목은 병원 종별마다 다릅니다. 목록에 없는 항목은 평가 대상이 아닙니다."
+    },
+    "npay": {
+      "title": "비급여 진료비",
+      "source": "건강보험심사평가원에 병원이 신고한 금액입니다. 실제 청구액과 다를 수 있습니다.",
+      "empty": "등록된 비급여 정보가 없습니다.",
+      "error": "비급여 정보를 불러오지 못했습니다.",
+      "more": "더보기 ({{shown}}/{{total}})",
+      "won": "원",
+      "variants": "{{count}}종"
+    }
   },
   "map": {
     "authFailed": "지도 인증에 실패했습니다. 네이버 클라우드 콘솔에 이 도메인이 등록됐는지 확인하세요.",

@@ -243,6 +243,8 @@ importers:
         specifier: ^7.13.2
         version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
 
+  clients/kr-or-hira: {}
+
   clients/krdata-core: {}
 
   clients/krdata-hira:

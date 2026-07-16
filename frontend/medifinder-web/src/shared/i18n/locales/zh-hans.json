@@ -70,7 +70,9 @@
       "subject": "简介",
       "care": "诊疗",
       "scale": "规模",
-      "location": "位置"
+      "assessment": "评价",
+      "location": "位置",
+      "npay": "自费项目"
     },
     "contact": "联系方式",
     "intro": "医院介绍",
@@ -110,8 +112,7 @@
     },
     "equipments": "保有设备",
     "transport": {
-      "subway": "地铁",
-      "bus": "公交",
+      "publicTransit": "公共交通",
       "etc": "其他",
       "unknownStop": "下车地点不明",
       "busStop": "{{name}} 公交站"
@@ -123,7 +124,24 @@
     "address": "地址",
     "showMap": "查看地图",
     "copyAddress": "复制地址",
-    "map": "地图"
+    "map": "地图",
+    "assessment": {
+      "title": "审评院 医院评价",
+      "source": "健康保险审查评价院对医疗给付适当性的评价结果。1级为最佳。",
+      "grade": "{{grade}}级",
+      "excluded": "不予评级",
+      "excludedHint": "已评价，但未给予等级。",
+      "note": "评价项目因医院类别而异。未列出的项目不属于评价对象。"
+    },
+    "npay": {
+      "title": "自费诊疗费",
+      "source": "医院向健康保险审查评价院申报的金额。实际收费可能有所不同。",
+      "empty": "没有登记的自费诊疗信息。",
+      "error": "无法加载自费诊疗信息。",
+      "more": "查看更多 ({{shown}}/{{total}})",
+      "won": "韩元",
+      "variants": "{{count}}种"
+    }
   },
   "map": {
     "authFailed": "地图认证失败。请确认该域名是否已在 NAVER 云控制台注册。",

@@ -9,7 +9,7 @@ generator client {
   // 기본값은 "native" 뿐이라, amd64 에서 만든 번들을 arm64 서버에 풀면
   // Prisma 엔진이 없어서 부팅이 실패한다. 두 엔진을 다 담는다.
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
-  output   = "../../generated/main"
+  output        = "../../generated/main"
 }
 
 datasource db {
@@ -173,26 +173,58 @@ model nmc_code {
   @@index([cm_snm], map: "idx_nmc_code_snm")
 }
 
-/// 건강보험심사평가원(HIRA) 코드. 출처: codeInfoService 6종
+/// 건강보험심사평가원(HIRA) 코드.
 ///
 /// 코드 종류마다 엔드포인트가 따로이고 원본 필드명도 다르다(addrCd, clCd, dgsbjtCd, oftCd, srchCd).
 /// tp 로 종류를 구분하고 cd/cd_nm/cd_cmt 로 통일해 담는다.
 /// specialty 와 special 은 원본 필드명이 srchCd 로 같아 tp 없이는 구분되지 않는다.
+///
+/// **채우는 주체가 tp 마다 다르다.**
+///   addr·class·subject·equipment·specialty·special  sync 가 채운다 (codeInfoService 6종)
+///   asm01~asm09                                     시드가 채운다 (API 에 코드표가 없다)
+///
+/// 심평원 개념인데 API 가 코드표를 안 주는 것이 있다. 병원평가 항목(asmGrd01~24)이 그렇다 —
+/// API 는 필드명으로만 주고 그게 급성기뇌졸중인지는 메뉴얼·홈페이지에만 있다.
+/// 그래도 심평원 코드니 여기 담는다. 우리 코드로 추상화할 대상(healthcare_code)이 아니다 —
+/// 출처가 HIRA 하나뿐이라 통합할 상대가 없다.
+///
+/// **sync 와 시드는 tp 로 갈린다. 서로의 행을 건드리면 안 된다.**
+/// 지금은 sync 가 HIRA_CODE_TYPES(6종)만 돌아 구조적으로 안전하다. 코드 sync 에 "원본에서
+/// 사라진 코드 정리" 같은 걸 넣는다면 **반드시 tp 를 그 6종으로 한정하라** — 안 그러면
+/// 시드가 넣은 asm* 이 조용히 날아간다.
 model hira_code {
-  /// 코드 종류. addr | class | subject | equipment | specialty | special
+  /// 코드 종류. addr | class | subject | equipment | specialty | special | asm01~asm09
   /// API 가 주는 값이 아니라 우리가 붙이는 구분자다(엔드포인트별로 결정).
+  ///
+  /// **tp 가 곧 상위 계층이다.** 병원평가는 그 자리에 그룹이 온다 —
+  /// asm01(급성질환) · asm02(만성질환) · … · asm09(난임시술). 평가항목 전체는 tp LIKE 'asm%'.
+  /// "병원평가항목" 이라는 레벨은 만들지 않는다. 모든 asm 행에 똑같이 붙는 상수라 계층이 아니다.
   tp String @db.VarChar(20)
 
   /// 코드 종류명. 주소코드 | 의료기관종별코드 | ... 우리가 붙이는 라벨이다.
+  /// 병원평가는 여기가 그룹명이다(급성질환·만성질환…).
   tp_nm String @db.VarChar(50)
 
+  /// [i18n] 코드 종류명 번역. **시드가 채우는 tp(asm*)만 값이 있다.**
+  /// sync 가 채우는 6종은 원본이 한국어만 줘서 NULL 이고, 읽는 쪽이 한국어로 폴백한다.
+  tp_nm_en String? @db.VarChar(50)
+  tp_nm_ja String? @db.VarChar(50)
+  tp_nm_zh String? @db.VarChar(50)
+
   /// 코드값. 원본의 addrCd / clCd / dgsbjtCd / oftCd / srchCd
+  /// asm* 은 원본 asmGrd 의 번호('01','03'…)다. hira_hospital_asm 의 컬럼명(asm_01…)과 1:1.
   cd String @db.VarChar(20)
 
   /// 코드명. 원본의 ...CdNm
   cd_nm String? @db.VarChar(200)
 
+  /// [i18n] 코드명 번역. tp_nm_* 과 같은 규칙 — asm* 만 값이 있고 나머지는 NULL 이다.
+  cd_nm_en String? @db.VarChar(200)
+  cd_nm_ja String? @db.VarChar(200)
+  cd_nm_zh String? @db.VarChar(200)
+
   /// 코드 설명. 원본의 ...CdCmmt. subject/specialty/special 에만 있다.
+  /// asm* 은 시드가 우리 메모를 넣는다(원본에 설명이 없다).
   cd_cmt String? @db.Text
 
   created_at DateTime @default(now()) @db.DateTime(0)
@@ -379,6 +411,177 @@ model nmc_baby_hospital {
   synced_at  DateTime @default(now()) @db.DateTime(0)
 }
 
+/// HIRA 병원평가 등급. 출처: hospAsmInfoService1/getHospAsmInfo (목록형, 37콜 전수)
+///
+/// 병원 목록의 부분집합(36,599 / 79,739)이지만 원본이 별도 API 라 테이블을 나눈다.
+/// nmc_baby_hospital 과 같은 이유다. hira_hospital.data 는 getHospBasisList 의 item 원본이라
+/// 다른 API 응답을 섞으면 그 의미가 깨진다.
+///
+/// **개별조회가 아니라 목록형이다.** ykiho 가 옵션이라 빼고 부르면 전수가 페이지로 떨어진다.
+/// 그래서 hira_hospital_detail((병원,오퍼레이션) + "행이 없으면 아직 안 받은 것")에 넣지 않는다.
+/// 여기서 행이 없다는 건 "평가대상이 아니다"는 뜻이다.
+///
+/// 정규화 사본(항목별 등급)은 두지 않는다. 등급으로 필터링이 필요해지면 그때 JSON 에서 뽑는다.
+/// 평가항목이 asmGrd01~24 로 가로로 붙고(02·11 은 없다) 항목마다 값 도메인이 달라서
+/// (asmGrd16 천식만 0·2~5·'양호'), 섣불리 펼치면 원본을 잃는다.
+model hira_hospital_asm {
+  /// 암호화된 요양기호
+  ykiho String @id @db.VarChar(200)
+
+  /// API 응답 item 원본. 등급은 정수 1~5 와 문자열 '등급제외' 가 섞여 온다.
+  data Json
+
+  created_at DateTime @default(now()) @db.DateTime(0)
+  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  synced_at  DateTime @default(now()) @db.DateTime(0)
+
+  /// [generated] 종별코드. data.clCd 에서 뽑는다.
+  /// 원본은 '01'(상급종합)만 문자열이고 나머지는 숫자다 — 앞자리 0 은 JSON 숫자가 될 수 없다.
+  /// JSON_UNQUOTE(JSON_EXTRACT(...)) 가 둘 다 문자열로 정규화한다.
+  cl_cd String? @db.VarChar(5)
+
+  // 평가항목 등급. asmGrd01~24 를 컬럼으로 편다. **02 와 11 은 원본에 없다.**
+  // 원본 그대로 담는다. 등급이 숫자와 문자열로 섞여 오는데
+  // JSON_UNQUOTE(JSON_EXTRACT(...)) 가 둘 다 문자열로 정규화한다(cl_cd 와 같은 방식).
+  //
+  // **'평가대상 제외' 와 '등급대상 제외' 는 다르다. 합치지 마라.**
+  //   NULL         평가대상 제외 — 평가 자체를 안 했다(원본에 키가 없다)
+  //   '등급제외'    등급대상 제외 — 평가는 했으나 등급을 안 매겼다
+  //   '1'~'5'      등급
+  // 약품목수(asm_09)만 봐도 키없음 1,876 · '등급제외' 516 으로 수가 다르다.
+  // '등급제외' 를 NULL 로 접으면 이 구분이 사라진다.
+  //
+  // **천식(asm_16)만 인코딩이 다르다. 체계는 같다.** (2026-07 심평원 홈페이지 대조)
+  //   일반 21개 :  1        2 3 4 5   '등급제외'
+  //   천식      : '양호'     2 3 4 5    0
+  // 1등급을 '양호' 로, 등급대상 제외를 0 으로 줄 뿐 등급 체계 자체는 동일하다.
+  // 그래서 천식엔 1 도 '등급제외' 도 전수 14,923건에 한 번도 안 나온다(그 자리를 대신하니까).
+  // 가이드의 '(양호한 기관 공개)' 가 이 뜻이다 — 1등급을 '양호' 로 표기해 공개한다.
+  //
+  // **0 을 '최하 등급' 이나 '값 없음' 으로 읽지 마라.** 0 은 등급제외고, 최하는 5 다.
+  // 정렬·필터할 때 문자열이라 '양호' 가 숫자와 섞인다. 비교하려면 '양호'→1, 0→등급제외로
+  // 옮기고 나서 하라. 그 변환은 여기(미러)가 아니라 상위 레이어가 한다.
+  //
+  // 코드(01·03…)의 이름은 hira_code(tp='asm') 가 갖는다. 여기 컬럼명과 그 cd 가 1:1 이다.
+
+  /// [generated] 급성기뇌졸중. data.asmGrd01
+  asm_01 String? @db.VarChar(10)
+
+  /// [generated] 혈액투석. data.asmGrd03
+  asm_03 String? @db.VarChar(10)
+
+  /// [generated] 의료급여정신과. data.asmGrd04
+  asm_04 String? @db.VarChar(10)
+
+  /// [generated] 수술부위 감염예방 항생제. data.asmGrd05
+  asm_05 String? @db.VarChar(10)
+
+  /// [generated] 관상동맥우회술. data.asmGrd06
+  asm_06 String? @db.VarChar(10)
+
+  /// [generated] 급성상기도감염 항생제 처방률. data.asmGrd07
+  asm_07 String? @db.VarChar(10)
+
+  /// [generated] 주사제 처방률. data.asmGrd08
+  asm_08 String? @db.VarChar(10)
+
+  /// [generated] 약품목수. data.asmGrd09
+  asm_09 String? @db.VarChar(10)
+
+  /// [generated] 요양병원. data.asmGrd10
+  asm_10 String? @db.VarChar(10)
+
+  /// [generated] 대장암. data.asmGrd12
+  asm_12 String? @db.VarChar(10)
+
+  /// [generated] 위암. data.asmGrd13
+  asm_13 String? @db.VarChar(10)
+
+  /// [generated] 유방암. data.asmGrd14
+  asm_14 String? @db.VarChar(10)
+
+  /// [generated] 폐암. data.asmGrd15
+  asm_15 String? @db.VarChar(10)
+
+  /// [generated] 천식. data.asmGrd16
+  /// **값 체계가 다르다: 0·2~5·'양호'. 1 도 '등급제외' 도 없다.**
+  asm_16 String? @db.VarChar(10)
+
+  /// [generated] 만성폐쇄성폐질환. data.asmGrd17
+  asm_17 String? @db.VarChar(10)
+
+  /// [generated] 폐렴. data.asmGrd18
+  asm_18 String? @db.VarChar(10)
+
+  /// [generated] 중환자실. data.asmGrd19
+  asm_19 String? @db.VarChar(10)
+
+  /// [generated] 신생아중환자실. data.asmGrd20
+  asm_20 String? @db.VarChar(10)
+
+  /// [generated] 마취. data.asmGrd21
+  asm_21 String? @db.VarChar(10)
+
+  /// [generated] 정신건강 입원영역. data.asmGrd22
+  asm_22 String? @db.VarChar(10)
+
+  /// [generated] 급성하기도감염 항생제 처방률. data.asmGrd23
+  asm_23 String? @db.VarChar(10)
+
+  /// [generated] 고혈압·당뇨병. data.asmGrd24
+  asm_24 String? @db.VarChar(10)
+
+  @@index([cl_cd], map: "idx_hira_hospital_asm_cl_cd")
+  @@index([synced_at], map: "idx_hira_hospital_asm_synced_at")
+}
+
+/// HIRA 비급여 진료비(기관별 실제 청구금액). 출처: nonPaymentDamtInfoService/getNonPaymentItemHospDtlList
+///
+/// **병원급 이상만 있다.** 의원(clCd=31)은 이 API 에 통째로 없다 — 의료법 제45조의2 공개 대상이
+/// 병원급 이상이라서다. 병원 79,739개 중 대부분이 의원이므로 **이 테이블이 붙는 기관은 소수다.**
+/// (의원급은 심평원 홈페이지에만 있다. clients/kr-or-hira 참고 — 약관 정리 전까지 적재 대상 아니다.)
+///
+/// **개별조회가 아니라 목록형이다.** 가이드가 ykiho 를 '필수'라 적어놨지만 실제로는 옵션이라,
+/// 빼고 부르면 전수 259,353건이 페이지로 떨어진다(1,000건/페이지 = 260콜). 병원마다 부를 이유가 없다.
+///
+/// 요약(List2)과 섞지 마라. 성격이 반대다 — 여긴 기관의 **실제 청구금액**(curAmt) 한 행,
+/// 저긴 항목별 **가격 범위**(minPrc~maxPrc)다. 자세한 건 clients/krdata-hira/README.md 에 있다.
+model hira_hospital_npay {
+  /// 암호화된 요양기호
+  ykiho String @db.VarChar(200)
+
+  /// 기관 안에서의 순번. **심평원이 매긴 값이라 우리가 통제하지 못한다.**
+  /// 연속이 아니다(1, 7, 8 …) — 삭제된 항목의 자리가 비어서 온다. 재부여될 수도 있다.
+  ///
+  /// 그럼에도 PK 로 쓴다. 이것 말고 행을 구분할 수단이 없어서다 — npayCd 는 한 기관에 중복된다
+  /// (체외충격파 SZ0840000 이 단순/복잡 두 행). 같은 npayCd·curAmt 에 yadmNpayCdNm 만 다른
+  /// 행이 실제로 있다. 재부여돼도 문제가 없는 이유는 sync 서비스가 **전량을 새로 받고
+  /// 이번 라운드에 안 닿은 행을 synced_at 으로 지우기** 때문이다. 증분 갱신을 하지 않는다.
+  sno Int
+
+  /// API 응답 item 원본.
+  ///
+  /// 타입이 지저분해서 가공하지 않는다. clCd 는 '01'(상급종합)만 문자열이고 나머지는 숫자로 온다.
+  /// 날짜(adtFrDd/adtEndDd)는 20260126 같은 정수고 adtEndDd=99991231 이 '종료일 없음'이다.
+  /// urlAddr 은 병원 단위 값이라 그 기관의 모든 행에 같은 값이 반복된다 — 미러라 그대로 둔다.
+  data Json
+
+  created_at DateTime @default(now()) @db.DateTime(0)
+  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  synced_at  DateTime @default(now()) @db.DateTime(0)
+
+  /// [generated] 종별코드. hira_hospital_asm.cl_cd 와 같은 방식이다(위 주석 참고).
+  cl_cd String? @db.VarChar(5)
+
+  /// [generated] 비급여 항목코드. 항목별 가격 비교의 축이라 뽑아둔다.
+  npay_cd String? @db.VarChar(20)
+
+  @@id([ykiho, sno])
+  @@index([cl_cd], map: "idx_hira_hospital_npay_cl_cd")
+  @@index([npay_cd], map: "idx_hira_hospital_npay_npay_cd")
+  @@index([synced_at], map: "idx_hira_hospital_npay_synced_at")
+}
+
 // HIRA 개별 상세.
 //
 // NMC 는 basic 한 콜이면 병원 하나가 끝나지만, HIRA 는 11종 오퍼레이션을 다 불러야 끝난다.
@@ -392,14 +595,17 @@ model hira_hospital_detail {
 
   /// 오퍼레이션. info | facility | equipment | special | specialty | nursing | food
   ///            | subject | specialist | etc-staff | transport
+  ///
+  /// top5(의원 상위질병5)는 적재 대상이 아니다 — 원본을 신뢰할 수 없어 뺐다
+  /// (근거: clients/README.md). 과거에 받아둔 op='top5' 행이 남아 있을 수 있다.
   op String @db.VarChar(20)
 
   /// 응답 item 원본. 1행짜리(info, facility)는 객체, 여러 행짜리는 배열로 들어온다.
   data Json
 
-  created_at DateTime  @default(now()) @db.DateTime(0)
-  updated_at DateTime  @default(now()) @updatedAt @db.DateTime(0)
-  synced_at  DateTime  @default(now()) @db.DateTime(0)
+  created_at DateTime @default(now()) @db.DateTime(0)
+  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  synced_at  DateTime @default(now()) @db.DateTime(0)
 
   @@id([ykiho, op])
   @@index([op, synced_at], map: "idx_hira_hospital_detail_op")
@@ -425,7 +631,13 @@ model hira_hospital_equipment {
 }
 
 /// HIRA 전문병원 지정분야 · 특수진료. 둘 다 원본 필드명이 srchCd 로 같아 tp 로 가른다.
-/// 출처: specialty(전문병원) · special(특수진료 — 방문진료·치매주치의 등 시범사업)
+///
+/// 출처가 tp 마다 다르다.
+///   specialty  1단계 역조회. spclMdlrtHospInfoService1/getSpcHospList1 을 전문병원코드
+///              19종으로 돌린다(19콜, 전수). 개별 조회는 4,231콜인데다 끝나지를 않았다.
+///              이번 전수에 없던 행은 지운다 — 지정은 3년 주기라 탈락하는 곳이 있다.
+///   special    개별 조회(MadmDtl 의 getSpclDiagInfo). 방문진료·치매주치의 등 시범사업.
+///              목록형이 없어 여전히 병원당 1콜이다.
 model hira_hospital_srch {
   ykiho String @db.VarChar(200)
 
@@ -540,10 +752,17 @@ model hira_nmc_match_candidate {
 /// 의료 코드. 진료과목·종별·장비·중증처치를 tp 로 구분해 담는다.
 model healthcare_code {
   /// subject(진료과목) | class(종별) | equipment(장비) | severe(중증처치) | specialty(전문병원) | special(특수진료)
+  ///
+  /// 병원평가(asm)는 여기 없다. 심평원이 직접 평가·부여하는 **HIRA 전용 개념**이라 통합할
+  /// 상대가 없어 hira_code 가 갖는다. 이 테이블은 두 원본의 체계를 우리 코드로 합치는 곳이다.
   tp String @db.VarChar(20)
 
   /// 우리 코드. 의미가 보이는 문자열이다 (IM=내과, CT=CT).
   /// 원본 코드를 재사용하지 않는다 — 그러면 그 기관에 종속된다.
+  ///
+  /// **짧게 써라.** 검색 API 의 필터 값으로 URL 에 그대로 나간다.
+  /// 통용 약어가 없어 이름이 임의 명명이 될 판이면 원본 코드를 그대로 쓰는 게 낫다 —
+  /// special 이 그렇다(Y4 = 원본 srchCd, 87/87 이 cd===hira_cd).
   cd String @db.VarChar(30)
 
   /// 관리용 한국어 이름. **시스템/운영이 코드를 식별하는 라벨이다.**
@@ -659,9 +878,9 @@ model healthcare_hospital {
   /// manual 은 배치가 건드리지 않는다.
   source String @db.VarChar(10)
 
-  name    String  @db.VarChar(200)
-  addr    String? @db.VarChar(300)
-  tel     String? @db.VarChar(30)
+  name     String  @db.VarChar(200)
+  addr     String? @db.VarChar(300)
+  tel      String? @db.VarChar(30)
   homepage String? @db.VarChar(300)
 
   /// 종별. healthcare_code(tp='class') 의 cd
@@ -1060,4 +1279,85 @@ model healthcare_hospital_lock {
 
   @@index([hospital_id], map: "idx_hc_lock_hospital")
   @@index([table_name], map: "idx_hc_lock_table")
+}
+
+/// 통합 병원의 정보 종류별 원본 확인 상태.
+///
+/// [왜 필요한가]
+/// healthcare_* 만 보면 "이 병원 병상 행이 없다"가 **아직 안 받아서**인지 **원본에 진짜
+/// 없어서**인지 구분이 안 된다. 미러(hira_hospital_detail 등)는 그 구분을 이미 갖고 있다 —
+/// 행이 없으면 안 받은 것이고 data 가 [] 면 받았는데 0건이다. 그냥 조인하면 될 것 같지만,
+/// **미러는 지울 계획이고 healthcare 는 런타임에 미러를 참조하면 안 된다**(나중에 DB 가
+/// 갈릴 수 있다). 그래서 빌드가 미러를 읽는 김에 이쪽으로 옮겨 적는다.
+/// 미러를 읽는 건 빌드까지고, 그 뒤로는 이 테이블만으로 답한다.
+///
+/// [section 은 우리 어휘다]
+/// 미러의 op 이름(hira.info)을 쓰지 마라 — 그건 남의 사정이다. "이 병원 주차 정보가 왜
+/// 없나" 를 물을 때 쓰는 말이어야 한다. 섹션을 가르는 기준은 둘이다.
+///   같은 개념 + 같은 출처 → 합친다 (달빛 여부와 달빛 진료시간은 둘 다 nmc.baby 다)
+///   같은 개념 + 다른 출처 → 나눈다 (hours 는 NMC, hours_break 는 HIRA info 다.
+///                                 한 행에 출처를 둘 적을 수 없다)
+/// 출처가 같다고 합치지 마라 — description·hours·emergency 는 셋 다 nmc.fulldown 이지만
+/// 합치면 이름이 "nmc.fulldown 이 주는 것들" 이 된다. 그건 미러 어휘로 되돌아가는 것이다.
+///
+/// [왜 op 이 아니라 provider 인가]
+/// (section, source) 면 op 이 자동으로 정해진다 — basic+hira 는 hira.list 고
+/// hours_break+hira 는 hira.info 다. 적으면 중복이다.
+///
+/// [왜 status 컬럼이 없나]
+/// synced_at 과 source 의 NULL 여부에서 파생된다. 파생되는 걸 저장하면 언젠가 어긋나고,
+/// 그때 뭘 믿을지 아무도 모른다.
+///
+/// [주의] 미러를 실제로 지운 뒤에는 이 테이블을 재생성할 수 없다. 그 시점부터는 성격이
+/// healthcare_hospital_i18n 과 같아진다 — 지우면 되살릴 방법이 없다. REBUILD_TABLES 에
+/// 들어 있다면 그때 빼야 한다.
+model healthcare_hospital_section {
+  hospital_id Int
+
+  /// 병원의 어떤 정보인가.
+  ///   basic        이름·주소·종별·우편·개설일·홈페이지·좌표·전화
+  ///   description  소개·공지
+  ///   directions   찾아오는 길
+  ///   parking      주차
+  ///   transport    대중교통
+  ///   hours        진료시간 (여닫는 시각)
+  ///   hours_break  점심시간·접수마감
+  ///   baby         달빛어린이 (여부 + 진료시간)
+  ///   subject      진료과목
+  ///   specialist   표시과목 (과목별 전문의수)
+  ///   bed          병상
+  ///   staff        인력
+  ///   equipment    장비
+  ///   severe       중증처치
+  ///   specialty    전문병원·특수진료
+  ///   emergency    응급실 여부
+  ///
+  /// 비급여(npay)와 병원평가(asm)는 여기 없다 — HIRA 고유 정보라 healthcare_* 로 통합하지
+  /// 않고 미러 전용 API 로만 나간다. 통합하게 되면 그때 섹션을 추가한다.
+  section String @db.VarChar(20)
+
+  /// 어디서 왔나. healthcare_hospital.source 와 같은 값 체계다.
+  ///   hira | nmc | hira_nmc(양쪽이 다 기여했다 — 진료과목이 그렇다)
+  ///
+  /// **NULL 은 "확인했는데 어디에도 없었다" 는 뜻이다.** synced_at 과 같이 읽어야 한다.
+  /// 우선순위가 실제로 갈리는 섹션은 basic·directions·subject 셋뿐이고, 나머지 13개는
+  /// 한쪽 단독이라 값이 사실상 상수다.
+  source String? @db.VarChar(10)
+
+  /// 빌드가 이 섹션을 확인한 시각. **NULL 이면 아직 확인 못 한 것이다.**
+  ///
+  /// 미러의 synced_at 을 복사하는 게 아니라 **우리가 확인한 시각**이다. 값이 그대로여도
+  /// 매번 갱신한다 — nmc_hospital.basic_synced_at 과 같은 규약이다. 미러가 언제 원본에서
+  /// 받았는지는 헬스케어가 알 바가 아니다(그걸 알려면 미러를 봐야 하는데, 그러면 안 된다).
+  ///
+  ///   synced_at NULL              아직 안 받음
+  ///   synced_at 값 + source NULL  받았는데 **원본에 정말 없음**
+  ///   synced_at 값 + source 있음  받았고 그쪽에서 옴
+  synced_at DateTime? @db.DateTime(0)
+
+  /// 배치가 마지막으로 이 행을 쓴 시각
+  built_at DateTime @default(now()) @db.DateTime(0)
+
+  @@id([hospital_id, section])
+  @@index([section, synced_at], map: "idx_hc_section_synced")
 }

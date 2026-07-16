@@ -70,7 +70,9 @@
       "subject": "概要",
       "care": "診療",
       "scale": "規模",
-      "location": "所在地"
+      "assessment": "評価",
+      "location": "所在地",
+      "npay": "自費診療"
     },
     "contact": "連絡先",
     "intro": "病院紹介",
@@ -110,8 +112,7 @@
     },
     "equipments": "保有設備",
     "transport": {
-      "subway": "地下鉄",
-      "bus": "バス",
+      "publicTransit": "公共交通",
       "etc": "その他",
       "unknownStop": "降車地点不明",
       "busStop": "{{name}} バス停"
@@ -123,7 +124,24 @@
     "address": "住所",
     "showMap": "地図を見る",
     "copyAddress": "住所をコピー",
-    "map": "地図"
+    "map": "地図",
+    "assessment": {
+      "title": "審査評価院 病院評価",
+      "source": "健康保険審査評価院による療養給付適正性評価の結果です。1等級が最も良い評価です。",
+      "grade": "{{grade}}等級",
+      "excluded": "等級対象外",
+      "excludedHint": "評価は受けましたが、等級は付与されていません。",
+      "note": "評価項目は病院の種別ごとに異なります。一覧にない項目は評価対象外です。"
+    },
+    "npay": {
+      "title": "自費診療費",
+      "source": "病院が健康保険審査評価院に申告した金額です。実際の請求額と異なる場合があります。",
+      "empty": "登録された自費診療の情報がありません。",
+      "error": "自費診療の情報を読み込めませんでした。",
+      "more": "もっと見る ({{shown}}/{{total}})",
+      "won": "ウォン",
+      "variants": "{{count}}種"
+    }
   },
   "map": {
     "authFailed": "地図の認証に失敗しました。NAVERクラウドコンソールにこのドメインが登録されているか確認してください。",

@@ -1,7 +1,12 @@
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useHealthcareHospitalControllerSearch,
   useHealthcareHospitalControllerGet,
 } from '@/shared/api/generated/react/healthcare/healthcare';
+import {
+  useHiraHospitalControllerGetNonPayments,
+  getHiraHospitalControllerGetNonPaymentsQueryOptions,
+} from '@/shared/api/generated/react/hira/hira';
 import {
   useHealthcareMetaControllerSubjects,
   useHealthcareMetaControllerSubjectGroups,
@@ -12,6 +17,7 @@ import {
 // region_code 는 도메인 무관이라(병원·학교·약국이 같이 쓴다) 헬스케어 밑에서 빠졌다.
 import { useRegionControllerList } from '@/shared/api/generated/react/address/address';
 import type {
+  HiraNonPaymentDetailItem,
   HospitalSummaryDto,
   HospitalDetailDto,
   MetaCodeDto,
@@ -95,6 +101,105 @@ export function useHospitalDetail(id: string | undefined) {
   return useHealthcareHospitalControllerGet(Number(id ?? 0), {
     query: { enabled: !!id },
   });
+}
+
+export type NonPaymentItem = HiraNonPaymentDetailItem;
+
+/**
+ * 비급여 한 페이지 크기.
+ *
+ * 100 은 서버의 MAX_PAGE_SIZE 다. 기관의 81% 가 100건 이하라 대부분 한 번에 끝난다
+ * (평균 66건, 최다 1,048건 — 2026-07 실측). 나머지는 '더보기'로 이어 붙인다.
+ */
+export const NPAY_PAGE_SIZE = 100;
+
+/** 비급여 조회 결과. 원본 봉투를 화면이 알 필요가 없어 여기서 푼다. */
+export interface NonPaymentPage {
+  items: NonPaymentItem[];
+  totalCount: number;
+}
+
+/**
+ * 원본 봉투(response.body.items.item)를 푼다.
+ *
+ * **0건이면 items 가 빈 문자열('')로 온다** — 공공데이터포털 원본의 버릇이고, 미러도 같은
+ * 봉투를 쓰므로 그대로 넘어온다. 1건이면 item 이 배열이 아니라 객체다. 둘 다 배열로 맞춘다.
+ */
+function unwrapNpay(data: {
+  response?: {
+    body?: {
+      items?: unknown;
+      totalCount?: number;
+    };
+  };
+}): NonPaymentPage {
+  const body = data.response?.body;
+  const container = body?.items;
+  const raw =
+    container && typeof container === 'object'
+      ? (container as { item?: NonPaymentItem | NonPaymentItem[] }).item
+      : undefined;
+
+  return {
+    items: raw === undefined ? [] : Array.isArray(raw) ? raw : [raw],
+    totalCount: body?.totalCount ?? 0,
+  };
+}
+
+/**
+ * GET /data-go-kr/hira/hospitals/{ykiho}/npay — 비급여 진료비.
+ *
+ * **통합 상세(useHospitalDetail)와 별개 호출이다.** 상세 응답에 끼워 넣지 않은 이유는 두 가지다 —
+ * 비급여가 있는 기관이 3,511곳(전체의 4.4%)뿐이라 95% 에게는 헛짐이고, 한 기관에 수백 행이라
+ * 탭을 열지도 않은 사람에게 실어 보낼 이유가 없다.
+ *
+ * ykiho 가 없는 병원(NMC 만 있는 병원)은 호출하지 않는다.
+ */
+export function useHospitalNonPayments(
+  ykiho: string | undefined,
+  page = 1,
+  enabled = true,
+) {
+  return useHiraHospitalControllerGetNonPayments(
+    ykiho ?? '',
+    { page, size: NPAY_PAGE_SIZE },
+    { query: { enabled: !!ykiho && enabled, select: unwrapNpay } },
+  );
+}
+
+/**
+ * 비급여를 미리 받아 둔다. 탭에 마우스가 올라가거나 손이 닿을 때 부른다.
+ *
+ * **이 레포에 프리페치 관례가 없어 여기서 처음 만든다**(2026-07). react-query 의 캐시에
+ * 미리 채워 두면, 탭을 눌렀을 때 useHospitalNonPayments 가 같은 queryKey 로 캐시를 맞고
+ * 로딩 없이 그린다. queryKey 가 어긋나면 조용히 두 번 부르게 되므로, 키를 손으로 만들지 않고
+ * 생성된 queryOptions 를 그대로 쓴다.
+ *
+ * prefetchQuery 는 이미 캐시에 있으면 아무것도 하지 않으므로 중복 호출 걱정이 없다.
+ */
+export function useNonPaymentPrefetch(ykiho: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return () => {
+    if (!ykiho) return;
+    void queryClient.prefetchQuery(
+      getHiraHospitalControllerGetNonPaymentsQueryOptions(ykiho, {
+        page: 1,
+        size: NPAY_PAGE_SIZE,
+      }),
+    );
+  };
+}
+
+/**
+ * 비급여 항목의 대분류. 'MRI진단료/근골격계/고관절' → 'MRI진단료'
+ *
+ * **분류 코드가 아니라 이름을 잘라 만든 파생값이다.** 상세(Dtl) 응답에는 분류 체계가 없다 —
+ * 중/소/상세분류 코드는 요약(List2)에만 있고, 그쪽은 기관별 조회가 안 된다(ykiho 를 무시한다).
+ * 슬래시가 없으면 이름 전체가 그대로 대분류가 된다.
+ */
+export function npayCategory(item: NonPaymentItem): string {
+  return (item.npayKorNm ?? '').split('/')[0] || '';
 }
 
 /**
@@ -222,6 +327,18 @@ export function stationName(arrival?: string): string | undefined {
   // "동래 전철역" — 일반명사 앞의 단어가 진짜 역 이름이다.
   const before = arrival.slice(0, match.index).trim().split(/\s+/).pop();
   return before ? `${before}역` : undefined;
+}
+
+/**
+ * 노선 배지 옆에 붙일 역 이름. 끝의 "역" 을 뗀다 — "④ 혜화" 는 승강장 표지판의 표기다.
+ *
+ * **배지가 있을 때만 뗀다.** 노선색을 못 찾아 배지가 없으면 "혜화" 만 남아 그게 역인지
+ * 동네인지 알 수 없다. "역" 은 배지가 대신 말해 줄 때만 군더더기다.
+ *
+ * 이름 자체가 "역" 으로 끝나는 역(역곡역)은 한 글자만 떼므로 "역곡" 이 되어 문제없다.
+ */
+export function stationLabel(name: string, hasBadge: boolean): string {
+  return hasBadge ? name.replace(/역$/, '') : name;
 }
 
 /** 헤더에 띄울 지하철역. 1km 이내(또는 도보 15분 이내)로 확인된 것만 쓴다. */

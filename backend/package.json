@@ -5,7 +5,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev:server": "SWC_NODE_PROJECT=apps/hansapi-server/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapi-server/src/main.ts",
-    "build": "pnpm -r build",
+    "build": "pnpm -r build && ./scripts/build-report.sh",
     "ci:build": "./scripts/build.sh",
     "ci:bundle": "../scripts/ci/run-in-builder.sh ./backend/scripts/build.sh",
     "ci:deploy": "./scripts/deploy.sh",

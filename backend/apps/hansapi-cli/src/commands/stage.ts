@@ -1,7 +1,9 @@
 import { Command } from 'commander';
 import { EnvSource } from '@hansapi/common';
 import {
+  HIRA_ALL_OPS,
   HIRA_DETAIL_OPS,
+  HIRA_EXTRA_OPS,
   HIRA_STAGES,
   HiraStageService,
   NMC_STAGES,
@@ -24,18 +26,18 @@ const NMC_STAGE_HELP: Record<number, string> = {
 };
 
 const HIRA_STAGE_HELP: Record<number, string> = {
-  1: '전체 병원 벌크 + 진료과목 역조회 (108콜, 매일)',
-  2: '상급종합 47 × 개별 11종 (517콜)',
-  3: '종합병원 338 × 11종 (3,718콜)',
-  4: '병원 1,429 × 11종 (15,719콜)',
-  5: '정신병원 261 × 11종 (2,871콜)',
-  6: '한방병원 624 × 11종 (6,864콜)',
-  7: '치과병원 247 × 11종 (2,717콜)',
-  8: '요양병원 1,285 × 11종 (14,135콜)',
-  9: '의원 37,789 × 11종 (운영계정 필요)',
-  10: '치과의원 19,380 × 11종 (운영계정 필요)',
-  11: '한의원 14,873 × 11종 (운영계정 필요)',
-  12: '보건기관 등 3,466 × 11종 (운영계정 필요)',
+  1: '전체 병원 벌크 + 진료과목·전문병원 역조회 + 병원평가 + 비급여 (294콜, 매일)',
+  2: '상급종합 47 × 개별 10종 (470콜)',
+  3: '종합병원 338 × 10종 (3,380콜)',
+  4: '병원 1,429 × 10종 (14,290콜)',
+  5: '정신병원 261 × 10종 (2,610콜)',
+  6: '한방병원 624 × 10종 (6,240콜)',
+  7: '치과병원 247 × 10종 (2,470콜)',
+  8: '요양병원 1,285 × 10종 (12,850콜)',
+  9: '의원 37,789 × 10종 (운영계정 필요)',
+  10: '치과의원 19,380 × 10종 (운영계정 필요)',
+  11: '한의원 14,873 × 10종 (운영계정 필요)',
+  12: '보건기관 등 3,466 × 10종 (운영계정 필요)',
 };
 
 function stageHelp(help: Record<number, string>): string {
@@ -59,11 +61,11 @@ function parseOps(values: string[] | undefined): readonly string[] | undefined {
     return undefined;
   }
   const unknown = values.filter(
-    (op) => !(HIRA_DETAIL_OPS as readonly string[]).includes(op),
+    (op) => !(HIRA_ALL_OPS as readonly string[]).includes(op),
   );
   if (unknown.length > 0) {
     throw new Error(
-      `알 수 없는 오퍼레이션: ${unknown.join(', ')}\n사용 가능: ${HIRA_DETAIL_OPS.join(', ')}`,
+      `알 수 없는 오퍼레이션: ${unknown.join(', ')}\n사용 가능: ${HIRA_ALL_OPS.join(', ')}`,
     );
   }
   return values;
@@ -115,9 +117,12 @@ export function stageSyncCommand(
     command.option(
       '--op <name...>',
       '받을 오퍼레이션만 지정한다 (HIRA 상세 단계 전용).\n' +
-        `사용 가능: ${HIRA_DETAIL_OPS.join(', ')}\n` +
-        '생략하면 11종 전부. 등급 하나를 11종으로 완성하는 게 기본이므로 평소엔 쓰지 마라.\n' +
-        '새 오퍼레이션을 뒤늦게 추가해 그것만 채울 때 쓴다\n',
+        `기본 10종: ${HIRA_DETAIL_OPS.join(', ')}\n` +
+        '생략하면 10종 전부. 등급 하나를 10종으로 완성하는 게 기본이므로 평소엔 쓰지 마라.\n' +
+        '새 오퍼레이션을 뒤늦게 추가해 그것만 채울 때 쓴다\n' +
+        `기본 세트 밖(opt-in): ${HIRA_EXTRA_OPS.join(', ')}\n` +
+        '  specialty 전문병원지정분야. 1단계가 19콜에 전수로 받으므로 평소엔 불필요.\n' +
+        '            역조회 결과를 개별 조회와 대조할 때만 쓴다\n',
     );
   }
 

@@ -4,8 +4,12 @@ import { ApplicationModule } from '@hansapi/application';
 import { DataModule } from '@hansapi/data';
 
 import { HiraCodeReadService } from './hira/hira-code-read.service';
+import { HiraCodeSeedService } from './hira/hira-code-seed.service';
 import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
 import { HiraStageService } from './hira/hira-stage.service';
+import { HiraAssessmentSyncService } from './hira/hira-assessment-sync.service';
+import { HiraNpaySyncService } from './hira/hira-npay-sync.service';
+import { HiraSpecialtySyncService } from './hira/hira-specialty-sync.service';
 import { HiraSubjectSyncService } from './hira/hira-subject-sync.service';
 import { HiraCodeSyncService } from './hira/hira-code-sync.service';
 import { HiraHospitalSyncService } from './hira/hira-hospital-sync.service';
@@ -71,6 +75,9 @@ export class AdminApplicationModule {
         SyncStateService,
         NmcSubjectSyncService,
         HiraSubjectSyncService,
+        HiraSpecialtySyncService,
+        HiraAssessmentSyncService,
+        HiraNpaySyncService,
         NmcBabySyncService,
         NmcBasicSyncService,
         HiraDetailSyncService,
@@ -79,6 +86,7 @@ export class AdminApplicationModule {
         SyncRunnerService,
         HiraNmcMatchService,
         HealthcareCodeSeedService,
+        HiraCodeSeedService,
         HealthcareBuildService,
         HealthcareDetailBuildService,
       ],
@@ -100,6 +108,7 @@ export class AdminApplicationModule {
         SyncRunnerService,
         HiraNmcMatchService,
         HealthcareCodeSeedService,
+        HiraCodeSeedService,
         HealthcareBuildService,
         HealthcareDetailBuildService,
       ],

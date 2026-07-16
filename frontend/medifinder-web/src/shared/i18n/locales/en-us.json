@@ -70,7 +70,9 @@
       "subject": "About",
       "care": "Care",
       "scale": "Facility",
-      "location": "Location"
+      "assessment": "Ratings",
+      "location": "Location",
+      "npay": "Fees"
     },
     "contact": "Contact",
     "intro": "About",
@@ -110,8 +112,7 @@
     },
     "equipments": "Equipment",
     "transport": {
-      "subway": "Subway",
-      "bus": "Bus",
+      "publicTransit": "Public transit",
       "etc": "Other",
       "unknownStop": "Stop unknown",
       "busStop": "{{name}} stop"
@@ -123,7 +124,24 @@
     "address": "Address",
     "showMap": "Show map",
     "copyAddress": "Copy address",
-    "map": "Map"
+    "map": "Map",
+    "assessment": {
+      "title": "HIRA Hospital Assessment",
+      "source": "Results from the Health Insurance Review & Assessment Service (HIRA). Grade 1 is the best.",
+      "grade": "Grade {{grade}}",
+      "excluded": "Not graded",
+      "excludedHint": "Assessed, but no grade was assigned.",
+      "note": "Assessed items differ by hospital type. Items not listed were not subject to assessment."
+    },
+    "npay": {
+      "title": "Non-covered fees",
+      "source": "Prices reported by the hospital to HIRA. The amount actually billed may differ.",
+      "empty": "No non-covered fee information is registered.",
+      "error": "Could not load non-covered fee information.",
+      "more": "Show more ({{shown}}/{{total}})",
+      "won": " KRW",
+      "variants": "{{count}} types"
+    }
   },
   "map": {
     "authFailed": "Map authentication failed. Check that this domain is registered in the Naver Cloud console.",

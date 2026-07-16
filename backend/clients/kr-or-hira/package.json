@@ -1,0 +1,19 @@
+{
+  "name": "@kr-or/hira",
+  "version": "0.0.1",
+  "private": true,
+  "description": "건강보험심사평가원 홈페이지(www.hira.or.kr) 비급여 진료비 클라이언트 — 의원급 포함",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

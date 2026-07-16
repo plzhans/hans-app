@@ -16,7 +16,7 @@ import type { OpenAPIObject } from '@nestjs/swagger';
 /** 제공기관별 스펙과 스키마 이름 접두사. 접두사가 없으면 이름이 충돌한다(양쪽에 HospitalListResponse 가 있다). */
 const SPECS = [
   { pkg: '@krdata/nmc', file: 'openapi/nmc.json', prefix: 'Nmc' },
-  // hira 는 정부포털 서비스 그룹 단위로 스펙을 나눠 두었다. 셋을 모두 같은 'Hira'
+  // hira 는 정부포털 서비스 그룹 단위로 스펙을 나눠 두었다. 모두 같은 'Hira'
   // 접두사로 병합하므로 병합된 스키마 이름(HiraDetailInfoItem 등)은 이전과 동일하다.
   // 그룹 간 공유 스키마(HiraResultHeader·HiraPageInfo 등)는 동일 내용이라 덮어써도 무방.
   {
@@ -32,6 +32,21 @@ const SPECS = [
   {
     pkg: '@krdata/hira',
     file: 'openapi/B551182/MadmDtlInfoService2.json',
+    prefix: 'Hira',
+  },
+  // 상위질병5. 이걸 쓰는 엔드포인트는 지금 @ApiExcludeEndpoint 로 문서에서 빠져 있어
+  // 여기서 병합한 스키마를 참조하는 경로가 없다. 그래도 남겨 둔다 — 컨트롤러의
+  // @ApiOkResponse 가 이 이름을 가리키고 있어서, 원본이 정상화되면 exclude 한 줄만 떼면 된다.
+  {
+    pkg: '@krdata/hira',
+    file: 'openapi/B551182/hospDiagInfoService1.json',
+    prefix: 'Hira',
+  },
+  // 비급여 진료비. 상세(Dtl)만 쓰지만 스펙 파일에 요약(List2) 스키마도 같이 들어 있다 —
+  // 병합해도 참조하는 경로가 없으면 문서에 나오지 않으므로 그대로 둔다.
+  {
+    pkg: '@krdata/hira',
+    file: 'openapi/B551182/nonPaymentDamtInfoService.json',
     prefix: 'Hira',
   },
 ] as const;

@@ -12,18 +12,22 @@ const CONCURRENCY = 8;
 const BATCH_SIZE = 50;
 
 /**
- * 개별 조회 11종.
+ * 개별 조회 기본 세트 10종. `--op` 를 주지 않으면 이게 돈다.
  *
- * NMC 는 basic 한 콜이면 병원 하나가 끝나지만 HIRA 는 11번 두드려야 끝난다.
- * 그래서 실행 단위가 오퍼레이션이 아니라 **병원**이다. 한 병원을 잡으면 11종을 다 받는다.
+ * NMC 는 basic 한 콜이면 병원 하나가 끝나지만 HIRA 는 10번 두드려야 끝난다.
+ * 그래서 실행 단위가 오퍼레이션이 아니라 **병원**이다. 한 병원을 잡으면 10종을 다 받는다.
  * 오퍼레이션별로 훑으면 어느 병원도 완성되지 않은 채 콜만 소모된다.
+ *
+ * **목록 API 로 같은 것을 얻을 수 있으면 여기 두지 않는다.** specialty 가 그래서 빠졌다
+ * (HIRA_EXTRA_OPS 참고). 반대로 subject 는 남아 있다 — 1단계 역조회가 매핑을 이미
+ * 만들지만, 개별 조회만 주는 과목별 전문의수(sdr_cnt)가 있어서다. 목록형이 있다고
+ * 무조건 빼는 게 아니라, **개별 조회가 더 주는 게 있는지**가 기준이다.
  */
 export const HIRA_DETAIL_OPS = [
   'info',
   'facility',
   'equipment',
   'special',
-  'specialty',
   'nursing',
   'food',
   'subject',
@@ -32,7 +36,28 @@ export const HIRA_DETAIL_OPS = [
   'transport',
 ] as const;
 
-export type HiraDetailOp = (typeof HIRA_DETAIL_OPS)[number];
+/**
+ * 기본 세트에 끼지 않는 opt-in 오퍼레이션.
+ *
+ * specialty 는 **HiraSpecialtySyncService(1단계)가 19콜에 전수로 받는다.** 병원마다 부르면
+ * 병원급만 4,231콜이고 의원급엔 지정 자체가 없어 전부 헛콜이다. 기본 세트에서 뺐지만
+ * 역조회 결과를 개별 조회와 대조해볼 때가 있어 `--op specialty` 로는 남겨둔다.
+ * special(특수진료)과 헷갈리지 마라 — 그건 다른 것이고 여전히 기본 세트다.
+ *
+ * **top5 는 여기 있었지만 뺐다 — 원본을 신뢰할 수 없다.** 의원 상위질병5가 표시과목과
+ * 전혀 맞지 않는다(소아과에 자궁근종·뇌종양, 서로 다른 의원이 같은 세트). 실측 근거는
+ * clients/README.md 의 HIRA 절에 있다. 적재는 원래도 안 돌렸지만 `--op top5` 로 부를 수는
+ * 있었다. 쓸 수 없는 값에 의원 37,789콜을 태울 길을 아예 막는다.
+ *
+ * 스펙·클라이언트(getClinicTop5)·조회 라우트는 남겨뒀다. 원본이 정상화되면 여기에
+ * 'top5' 를 되돌리고 fetchOp 에 case 를 넣으면 된다 — 그 둘이 전부다.
+ */
+export const HIRA_EXTRA_OPS = ['specialty'] as const;
+
+/** --op 검증·타입용 전체 집합. 기본 세트 + opt-in. */
+export const HIRA_ALL_OPS = [...HIRA_DETAIL_OPS, ...HIRA_EXTRA_OPS] as const;
+
+export type HiraDetailOp = (typeof HIRA_ALL_OPS)[number];
 
 export interface DetailSyncOptions {
   /** 대상 종별코드. 생략하면 종별을 가리지 않는다 */
@@ -41,7 +66,7 @@ export interface DetailSyncOptions {
   /** 종별코드 제외 목록. 12단계(보건기관 등 나머지)에서 쓴다 */
   excludeClCds?: readonly string[];
 
-  /** 받을 오퍼레이션. 생략하면 11종 전부 */
+  /** 받을 오퍼레이션. 생략하면 기본 세트(HIRA_DETAIL_OPS) 전부 */
   ops?: readonly HiraDetailOp[];
 
   /** 이번 실행에서 쓸 최대 콜 수 */
@@ -83,7 +108,9 @@ export class HiraDetailSyncService {
     for (;;) {
       if (alive.size === 0) {
         limitReached = true;
-        this.logger.warn('HIRA 11종 모두 일일 한도에 걸렸다. 내일 이어받는다.');
+        this.logger.warn(
+          'HIRA 오퍼레이션 전부 일일 한도에 걸렸다. 내일 이어받는다.',
+        );
         break;
       }
 
@@ -113,14 +140,18 @@ export class HiraDetailSyncService {
 
       const before = alive.size;
 
-      await mapWithConcurrency(targets, CONCURRENCY, async (ykiho) => {
-        calls += await this.fetchHospital(
-          ykiho,
-          activeOps,
-          options.force === true,
-          alive,
-        );
-      });
+      // **워커 안에서 `calls += await ...` 로 누적하지 마라.** `+=` 는 await 전에 좌변을
+      // 읽으므로, 워커 8개가 모두 같은 값을 읽고 각자 덮어써 증가분이 유실된다.
+      // (--limit 5 로 돌렸을 때 카운터는 5, 실제 콜은 15였다. 최대 동시성 배까지 어긋난다.)
+      // --limit 은 일 10,000 한도를 지키는 유일한 가드라 어긋나면 한도를 넘겨 버린다.
+      // 워커는 자기 콜 수만 반환하고, 합산은 모두 끝난 뒤 여기서 한 번에 한다.
+      const callsPerHospital = await mapWithConcurrency(
+        targets,
+        CONCURRENCY,
+        (ykiho) =>
+          this.fetchHospital(ykiho, activeOps, options.force === true, alive),
+      );
+      calls += callsPerHospital.reduce((sum, n) => sum + n, 0);
 
       processed += targets.length;
 
@@ -139,7 +170,7 @@ export class HiraDetailSyncService {
   }
 
   /**
-   * 작업 큐. **11종을 다 받지 못한 병원**을 꺼낸다.
+   * 작업 큐. **요청한 오퍼레이션을 다 받지 못한 병원**을 꺼낸다.
    *
    * hira_hospital_detail 에 행이 없으면 아직 안 받은 것이다. 오퍼레이션 수만큼 행이 차면 완성이다.
    * 커서를 따로 두지 않으므로 중단하고 다시 돌리면 미완성 병원부터 이어간다.

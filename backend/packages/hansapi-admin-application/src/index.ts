@@ -25,6 +25,7 @@ export type { HiraCodeSyncOptions } from './hira/hira-code-sync.service';
 export { NmcCodeReadService } from './nmc/nmc-code-read.service';
 export type { NmcCodeListOptions } from './nmc/nmc-code-read.service';
 export { HiraCodeReadService } from './hira/hira-code-read.service';
+export { HiraCodeSeedService } from './hira/hira-code-seed.service';
 export type { HiraCodeListOptions } from './hira/hira-code-read.service';
 export { DEFAULT_CODE_SYNC_ROWS } from './common/code-sync.types';
 export type { CodeSyncOptions, CodeSyncResult } from './common/code-sync.types';
@@ -61,6 +62,8 @@ export {
 export {
   HiraDetailSyncService,
   HIRA_DETAIL_OPS,
+  HIRA_EXTRA_OPS,
+  HIRA_ALL_OPS,
 } from './hira/hira-detail-sync.service';
 export {
   HiraStageService,

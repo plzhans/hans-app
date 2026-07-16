@@ -71,6 +71,7 @@ export function healthcareCommand(source: EnvSource): Command {
                     `    병상      : ${detail.beds.toLocaleString()}`,
                     `    장비      : ${detail.equipments.toLocaleString()}`,
                     `    역량      : ${detail.capabilities.toLocaleString()}`,
+                    `    확인상태  : ${detail.sections.toLocaleString()}`,
                   ]
                 : []),
               `  소요 시간   : ${seconds}초`,

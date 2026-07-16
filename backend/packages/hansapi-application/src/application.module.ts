@@ -14,6 +14,7 @@ import { NmcHospitalService } from './nmc/nmc-hospital.service';
 import { HealthcareHospitalService } from './healthcare/healthcare-hospital.service';
 import { HealthcareMetaService } from './healthcare/healthcare-meta.service';
 import { HealthcareCodeCache } from './healthcare/healthcare-code.cache';
+import { HiraAsmCodeCache } from './healthcare/hira-asm-code.cache';
 import { RegionService } from './region/region.service';
 import { RegionCache } from './region/region.cache';
 
@@ -43,6 +44,7 @@ export class ApplicationModule {
         NmcBabyService,
         // 코드표 인메모리 캐시. 부팅 시 전량 로드해 아래 서비스들이 조인 대신 참조한다.
         HealthcareCodeCache,
+        HiraAsmCodeCache,
         RegionCache,
         HealthcareHospitalService,
         HealthcareMetaService,
@@ -59,6 +61,7 @@ export class ApplicationModule {
         NmcSubjectService,
         NmcBabyService,
         HealthcareCodeCache,
+        HiraAsmCodeCache,
         RegionCache,
         HealthcareHospitalService,
         HealthcareMetaService,

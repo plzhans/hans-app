@@ -3,11 +3,13 @@
 # backend 앱을 사설망 서버에 배포한다. **배포 로직의 유일한 출처다.**
 # CI 워크플로우도, 로컬 테스트 스크립트도 이 파일을 호출만 한다.
 #
-# **빌드하지 않는다.** build.sh 가 backend/.deploy/<app> 에 만들어 둔 번들을 보낼 뿐이다.
-# 배포가 다시 빌드하면 "검사를 통과한 그 산출물이 배포된다" 는 보장이 깨진다.
+# **TS 는 빌드하지 않는다.** 먼저 `pnpm -r build` 로 apps/<app>/dist 를 만들어 둔다.
+# 이 스크립트는 **전송 직전에** 그 dist 를 자립형 번들(node_modules 포함)로 묶어 압축해 보낸다.
+# 압축·전송이 배포의 몫이므로, 별도의 번들 산출물(.deploy/*.tar.gz)에 기대지 않는다 —
+# 항상 지금 워킹트리의 dist 를 그대로 싣는다. 그래서 build-info 의 git sha 도 늘 현재와 맞는다.
 #
-#   ./backend/scripts/build.sh                            # 1번. 번들을 만든다
-#   ./backend/scripts/deploy-backend.sh hansapi-server    # N번. 앱마다(서버마다) 따로 보낸다
+#   cd backend && pnpm -r build                           # 1번. dist 를 만든다
+#   ./backend/scripts/deploy-backend.sh hansapi-server    # N번. 앱마다(서버마다) 따로 번들·전송
 #   ./backend/scripts/deploy-backend.sh api               # 별칭도 받는다 (lib/apps.sh)
 #
 # **이 스크립트는 오로지 환경변수로만 값을 받는다.** 그 변수를 누가 채우는지는 모른다:
@@ -208,32 +210,57 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# --- 1. 번들 확인 -------------------------------------------------------------
+# --- 1. 번들 (전송 직전에 굽는다) ---------------------------------------------
 #
-# **여기서 빌드하지 않는다. 압축하지도 않는다.**
-# build.sh 가 backend/.deploy/<app>.tar.gz 로 만들어 둔 것을 보낼 뿐이다.
+# **TS 는 여기서 빌드하지 않는다. 하지만 압축은 여기서 한다.**
+# 먼저 `pnpm -r build` 로 만들어 둔 apps/<app>/dist 를, 이 앱과 그 의존성만 추린
+# 자립형 디렉터리(node_modules 포함)로 pnpm deploy 해서 tar 로 묶는다.
+# 산출물은 임시 디렉터리($work)에 두고 끝나면 지운다 — 워크스페이스에 남기지 않는다.
 #
-# 배포가 다시 빌드하면 두 가지가 어긋난다.
-#   - **검사를 통과한 그 산출물이 배포된다는 보장이 없다.** 빌드 사이에 워킹트리가 바뀌면
-#     조용히 다른 게 나간다. 검사한 것과 배포한 것이 다르면 검사를 한 의미가 없다.
-#   - 앱마다 목적 서버가 다르면 배포를 앱 수만큼 돌리는데, 그때마다 전체를 다시 빌드하게 된다.
+# **왜 전송 시점에 굽나:** 미리 구워둔 번들(.deploy/*.tar.gz)에 기대면, 그게 오래되면
+# 조용히 옛 산출물이 나간다(옛 git sha 로 찍힌 채). 전송 직전에 지금 dist 를 그대로 실으면
+# "빌드한 것"과 "보낸 것"이 어긋날 자리가 없다.
 #
-# 빌드 1번(전 앱) → 배포 N번(앱마다).
+# **Prisma 주의:** 이 번들의 Prisma 엔진은 **이 머신 OS 의 것**이다. schema.prisma 의
+# binaryTargets 에 linux-arm64 를 명시해 둬서 서버에서 **쿼리는** 도는데, 마이그레이션
+# (schema-engine)은 호스트(맥)의 것만 담긴다. 서버에서 이 번들로 migrate 를 돌리지 말 것 —
+# 마이그레이션은 별도 경로로 한다. (컨테이너에서 구우려면 pnpm ci:bundle.)
 #
-# **번들은 리눅스에서 구워야 한다.** Prisma 엔진이 빌드한 OS 의 것으로 담기기 때문이다.
-# build.sh 가 맥에서는 아예 안 만든다 — pnpm ci:bundle 를 쓸 것.
 # 설정만 배포(config)면 번들은 아예 안 본다.
 if [ "$config_only" != 1 ]; then
-  tarball="$REPO_ROOT/backend/.deploy/$app.tar.gz"
+  backend_dir="$REPO_ROOT/backend"
+  app_dir="$backend_dir/apps/$app"
 
-  if [ ! -f "$tarball" ]; then
-    echo "❌ 번들이 없다: backend/.deploy/$app.tar.gz" >&2
-    echo "   먼저 빌드할 것:  pnpm ci:bundle      (리눅스 컨테이너에서 굽는다)" >&2
-    echo "   (CI 라면 build 잡의 아티팩트를 내려받는 단계가 빠졌다)" >&2
+  if [ ! -f "$app_dir/dist/main.js" ]; then
+    echo "❌ dist 가 없다: backend/apps/$app/dist/main.js" >&2
+    echo "   먼저 빌드할 것:  cd backend && pnpm -r build" >&2
     exit 1
   fi
 
-  version=$(tar -xzOf "$tarball" ./dist/build-info.json 2>/dev/null | jq -r '.version // "unknown"' || echo unknown)
+  # 산출물에 자기 신원(git sha)을 박는다. 전송 직전에 다시 찍으므로 워킹트리와 항상 일치한다.
+  # (호스트에 .git 이 있어 version.sh 가 현재 HEAD 를 그대로 읽는다.)
+  "$(dirname "$0")/version.sh" "$app_dir" > "$app_dir/dist/build-info.json"
+  version=$(jq -r '.version // "unknown"' "$app_dir/dist/build-info.json")
+
+  # 이 앱 + 의존 워크스페이스 패키지만 추려 자립형 디렉터리를 만든다(node_modules 포함).
+  # --legacy: inject-workspace-packages 를 켜지 않은 워크스페이스에서 pnpm deploy 를 쓰기 위함.
+  # apps/<app>/package.json 의 "files": ["dist"] 가 있어야 dist 가 담긴다.
+  bundle_dir="$work/bundle"
+  ( cd "$backend_dir" && pnpm deploy --filter "$app" --prod --legacy "$bundle_dir" ) >/dev/null
+
+  # **dist 만 보면 안 된다.** node_modules 가 없는 반쪽 번들을 보내면 서버에서 앱이 안 뜬다 —
+  # 그것도 배포가 "성공" 한 뒤에.
+  [ -f "$bundle_dir/dist/main.js" ] || {
+    echo "❌ 번들에 dist/main.js 가 없다. apps/$app/package.json 의 files 를 확인할 것." >&2
+    exit 1
+  }
+  [ -d "$bundle_dir/node_modules" ] || {
+    echo "❌ 번들에 node_modules 가 없다. 반쪽짜리다." >&2
+    exit 1
+  }
+
+  tarball="$work/$app.tar.gz"
+  tar -czf "$tarball" -C "$bundle_dir" .
   echo "  번들: $version  ($(du -h "$tarball" | cut -f1))"
 fi
 
@@ -325,191 +352,170 @@ echo "  호스트 키 확보, $ssh_host 에 붙는다"
 "${SSH[@]}" "$ssh_host" 'echo "  연결됨: $(hostname) $(uname -m)"'
 endgroup
 
-# --- 5. 앱 설정 (backend/config/<환경>/ → <배포경로>/config/) ------------------
+# --- 5. 업로드 (스테이징) -----------------------------------------------------
 #
-# 앱은 cwd 기준으로 config/.env 와 config/<환경>.env 를 찾는다(envFiles). 서비스가 <배포경로>
-# 에서 뜨므로 그 파일들이 <배포경로>/config/ 에 있어야 한다.
+# 실행경로를 바로 건드리지 않는다. 산출물(번들·설정·pm2 구성)을 먼저 /tmp/<app>.deploy 로
+# 다 올려두고, 실행경로 반영은 다음 블록에서 한 번에(정해진 순서로) 한다. 반쯤 올라간 상태로
+# 앱이 재시작되는 일을 막는다.
 #
-# **config/<환경>/ 안의 것을 config/ 밑으로 평면으로 올린다** (develop/develop.env →
-# config/develop.env). 앱 env 를 시크릿 변수로 따로 나르지 않는다 — 설정의 출처는 리포이고,
-# .enc 를 복호화해 둔 평문(develop.env)이 그대로 나간다. DB 접속정보가 있어 env 는 권한 600.
+# 설정은 두 출처를 config/ 한 곳으로 모은다. 둘 다 config/ 밑으로 **평면으로** 올린다.
+#   backend/config/<환경>/*        앱 .env (develop/develop.env → config/develop.env)
+#   backend/infra/<환경>/config/*  정적 설정(nginx-*.conf 등)
+# 설정의 출처는 리포다. 뒤(교체 블록)에서 "내용만 덮어쓰기" 로 실행경로에 반영하므로,
+# 서버가 config/ 안에 따로 둔 파일(인증서 등)은 건드리지 않는다.
+stg="/tmp/$app.deploy"
+
+group "업로드 (스테이징)"
+remote_run "$ssh_host" "stg=$(rq "$stg")" <<'REMOTE'
+  rm -rf "$stg"
+  mkdir -p "$stg/config"
+REMOTE
+
+# "$src"/* 는 로컬 셸이 펴서 디렉터리 안의 것만 config/ 밑으로 평면으로 간다.
 app_config_src="$REPO_ROOT/backend/config/$APP_ENV"
 if [ -d "$app_config_src" ]; then
-  group "앱 설정 (config/)"
-  # 몇 개 안 되는 설정 파일이라 압축 안 하고 그냥 scp 한다. 먼저 목적지 config/ 를 만든다
-  # (scp 로 여러 파일을 받으려면 디렉터리가 있어야 한다).
-  remote_run "$ssh_host" "root=$(rq "$deploy_path")" <<'REMOTE'
-    root=$(eval echo "$root")   # ~ 를 원격 셸이 푼다
-    mkdir -p "$root/config"
-REMOTE
-  # ~ 는 scp 목적지에서 원격 셸이 푼다 — 로컬에서 풀지 않는다.
-  # "$src"/* 는 로컬 셸이 파일 목록으로 펴서, 디렉터리 안의 것만 config/ 밑으로 평면으로 간다.
   scp -r -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
-    "$app_config_src"/* "$ssh_host:$deploy_path/config/"
-  # env 파일엔 DB 접속정보가 있다. 남이 읽을 이유가 없다.
-  remote_run "$ssh_host" "root=$(rq "$deploy_path")" <<'REMOTE'
-    root=$(eval echo "$root")
-    chmod 600 "$root"/config/*.env 2>/dev/null || true
-    echo "  $root/config/ (env 권한 600)"
-REMOTE
-  endgroup
+    "$app_config_src"/* "$ssh_host:$stg/config/"
+  echo "  앱 설정:   config/ ← backend/config/$APP_ENV/"
 else
   echo "⚠️  앱 설정 디렉터리가 없다: backend/config/$APP_ENV/"
   echo "   config/$APP_ENV/$APP_ENV.env 를 만들거나 .enc 를 복호화(./env-decrypt.sh)할 것."
-  echo
 fi
 
-# --- 5.5 설정 디렉터리 (infra/<환경>/config/ → <배포경로>/config/) ------------
-#
-# infra/<환경>/config/ 폴더를 **통째로**(scp -r) 배포 루트에 그대로 올린다.
-# 폴더 안 파일을 이름으로 고르지 않으므로 nginx.conf·nginx-http.conf·nginx-https.conf 처럼
-# 여러 개로 쪼개도 전부 따라간다 — 목록을 따로 들고 있으면 파일이 늘 때마다 어긋난다.
-# 설정의 출처는 리포다 — 서버에서 직접 고쳐도 다음 배포에 이 폴더 내용으로 덮인다.
 config_src="$REPO_ROOT/backend/infra/$APP_ENV/config"
 if [ -d "$config_src" ]; then
-  group "설정 디렉터리 (config/)"
-  # ~ 는 scp 목적지에서 원격 셸이 푼다 — 로컬에서 풀지 않는다.
   scp -r -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
-    "$config_src" "$ssh_host:$deploy_path/"
-  echo "  $deploy_path/config/"
-  endgroup
+    "$config_src"/* "$ssh_host:$stg/config/"
+  echo "  정적 설정: config/ ← backend/infra/$APP_ENV/config/"
 fi
 
-# **설정만 배포(config)면 여기서 끝낸다.** config/ 만 올리고, 번들 전송·pm2 파일·
-# 재시작은 앱 배포에서만 한다. nginx-*.conf 반영은 서버에서 `nginx -s reload` 로 따로 한다.
+if [ "$config_only" != 1 ]; then
+  # 번들
+  scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
+    "$tarball" "$ssh_host:$stg/bundle.tar.gz"
+  # pm2 구성 · node 버전 (있으면). 배포 루트에 놓일 이름 그대로 스테이징한다.
+  ecosystem_src="$REPO_ROOT/backend/infra/$APP_ENV/ecosystem.config.js"
+  [ -f "$ecosystem_src" ] && scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
+    "$ecosystem_src" "$ssh_host:$stg/ecosystem.config.js"
+  nvmrc_src="$REPO_ROOT/backend/.nvmrc"
+  [ -f "$nvmrc_src" ] && scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
+    "$nvmrc_src" "$ssh_host:$stg/.nvmrc"
+  [ -f "$ecosystem_src" ] || echo "⚠️  pm2 구성이 없다: backend/infra/$APP_ENV/ecosystem.config.js — 서버의 기존 것을 쓴다."
+fi
+echo "  → $ssh_host:$stg"
+endgroup
+
+# **설정만 배포(config)면 여기서 끝낸다.** config/ 만 실행경로에 반영하고(내용만 덮어쓰기),
+# 번들·pm2 재시작은 앱 배포에서만 한다. nginx-*.conf 반영은 서버에서 `nginx -s reload` 로 따로.
 if [ "$config_only" = 1 ]; then
+  group "설정 교체 (내용만 덮어쓰기)"
+  remote_run "$ssh_host" "root=$(rq "$deploy_path")" "stg=$(rq "$stg")" <<'REMOTE'
+    root=$(eval echo "$root")   # ~ 를 원격 셸이 푼다
+    mkdir -p "$root/config"
+    cp -a "$stg/config/." "$root/config/"
+    chmod 600 "$root"/config/*.env 2>/dev/null || true
+    rm -rf "$stg"
+    echo "  $root/config/ (env 권한 600)"
+REMOTE
+  endgroup
   echo "✅ 설정 배포 완료: config/ → $ssh_host:$deploy_path/config   (앱 재시작 안 함)"
   exit 0
 fi
 
-# --- 6. 전송 & 교체 -----------------------------------------------------------
-# 새 디렉터리에 풀고 마지막에 이름만 바꾼다. 풀다가 실패해도 돌던 버전이 살아 있다.
-# 곧바로 덮어쓰면 "반쯤 풀린 상태" 로 서버가 재시작될 수 있다.
-group "전송 & 교체"
-scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
-  "$tarball" "$ssh_host:/tmp/$app.tar.gz"
+# --- 6. 교체 & 재시작 (원격, 정해진 순서로) ----------------------------------
+#
+# 스테이징(/tmp/<app>.deploy)에 다 올려둔 것을 실행경로로 반영한다. 한 번의 원격 세션에서
+# 순서대로 처리해, 중간에 끊겨도 돌던 버전이 그대로 살아 있게 한다(교체는 마지막 mv 한 순간뿐).
+#
+#   2. 압축 풀기 → bin/.<app>.new, 압축파일 삭제
+#   3. 푼(새 번들) 버전 출력
+#   4. env 가 실제로 있는지 확인
+#   5. 현재 실행 중인(교체 전) 버전 출력            ← node dist/main.js --version
+#   6. 서비스 중지 — 하지 않는다. pm2 가 띄운 node 는 소스를 메모리에 올려 돌므로, 디스크의
+#      파일을 바꿔도 돌던 프로세스엔 영향이 없다. 그래서 멈추지 않고 교체한 뒤 무중단 reload 한다.
+#   7. 실행경로에 번들 옮김 (bin swap: cur→old, new→cur)
+#   8. 실행경로에 설정 옮김 (config: 내용만 덮어쓰기) + pm2 구성·.nvmrc 배치
+#   9. 새 버전 출력
+#  10. 서비스 시작 (pm2 startOrReload — 안 떠 있으면 띄우고 떠 있으면 무중단 reload)
+#
+# **pm2 이름 규칙: <환경>-<앱>.** ecosystem 의 name 과 정확히 같아야 --only 가 먹는다.
+# nvm 을 명시적으로 소싱한다 — `ssh host '명령'` 은 비대화형이라 ~/.bashrc 를 안 읽어서(우분투
+# 기본 .bashrc 는 비대화형이면 맨 위에서 return), 안 하면 `node`/`pm2: command not found` 가 난다.
+# `nvm use` 는 배포 루트의 .nvmrc(방금 올린 파일)를 읽어 그 버전을 고른다.
+pm2_name="$APP_ENV-$app"
 
+group "교체 & 재시작"
+echo "  cd $deploy_path && pm2 startOrReload ecosystem.config.js --only $pm2_name (nvm 소싱 후)"
 remote_run "$ssh_host" \
   "root=$(rq "$deploy_path")" \
   "app=$(rq "$app")" \
-  "app_env=$(rq "$APP_ENV")" <<'REMOTE'
+  "app_env=$(rq "$APP_ENV")" \
+  "stg=$(rq "$stg")" \
+  "pm2_name=$(rq "$pm2_name")" \
+  "restart_override=$(rq "${HANSAPI_DEPLOY_RESTART_CMD:-}")" <<'REMOTE'
   root=$(eval echo "$root")   # ~ 를 원격 셸이 푼다
-  mkdir -p "$root/bin"
+  export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-  new="$root/bin/.$app.new"
-  cur="$root/bin/$app"
-  old="$root/bin/.$app.old"
+  bin="$root/bin"; new="$bin/.$app.new"; cur="$bin/$app"; old="$bin/.$app.old"
+  mkdir -p "$bin" "$root/logs"   # ecosystem 의 log_file 이 ./logs/ 를 가리킨다
 
+  # 산출물이 자기 버전을 답하게 한다(node dist/main.js --version — env 로딩 전에 한 줄만 찍고 끝).
+  pv() { node "$1/dist/main.js" --version 2>/dev/null || echo unknown; }
+
+  # 2. 압축 풀기 && 압축파일 삭제
   rm -rf "$new" "$old"
   mkdir -p "$new"
-  tar -xzf "/tmp/$app.tar.gz" -C "$new"
-  rm -f "/tmp/$app.tar.gz"
-
+  tar -xzf "$stg/bundle.tar.gz" -C "$new"
+  rm -f "$stg/bundle.tar.gz"
   [ -f "$new/dist/main.js" ] || { echo "  ❌ 푼 결과에 dist/main.js 가 없다" >&2; exit 1; }
 
-  # **앱이 읽을 설정이 실제로 거기 있는지 확인한다.** 없으면 부팅해서 죽는다 — 그것도
-  # 배포가 "성공" 이라고 말한 뒤에. 파일을 다 옮겨 놓고 여기서 멈추는 편이 낫다.
-  [ -f "$root/config/$app_env.env" ] || {
-    echo "  ❌ $root/config/$app_env.env 가 없다. 앱이 설정을 못 읽는다." >&2
+  # 3. 푼(새 번들) 버전
+  echo "  새 번들:   $(pv "$new")"
+
+  # 4. env 가 실제로 있는지 확인. 없으면 부팅해서 죽는다 — 그것도 배포가 "성공" 이라고 말한 뒤에.
+  [ -f "$stg/config/$app_env.env" ] || {
+    echo "  ❌ 설정에 $app_env.env 가 없다. 앱이 설정을 못 읽는다." >&2
     echo "     backend/config/$app_env/$app_env.env 를 두고(또는 .enc 복호화) 다시 배포할 것." >&2
     exit 1
   }
 
-  # 교체는 마지막 한 순간에만. 이전 버전은 한 벌 남겨 롤백에 쓴다.
+  # 5. 현재 실행 중인(교체 전) 버전
+  if [ -f "$cur/dist/main.js" ]; then
+    echo "  현재 실행: $(pv "$cur")"
+  else
+    echo "  현재 실행: (없음 — 최초 배포)"
+  fi
+
+  # 7. 실행경로에 번들 옮김. 교체는 이 mv 한 순간뿐. 이전 버전은 한 벌 남겨 롤백에 쓴다.
   if [ -d "$cur" ]; then mv "$cur" "$old"; fi
   mv "$new" "$cur"
 
-  echo "  배포됨: $cur"
-  echo "  버전:   $(cat "$cur/dist/build-info.json" 2>/dev/null | tr -d '\n' | sed 's/.*"version":"\([^"]*\)".*/\1/')"
+  # 8. 실행경로에 설정 옮김 — **내용만 덮어쓰기.** config/ 를 통째로 갈지 않으므로 서버가
+  #    거기 따로 둔 파일(인증서 등)은 보존된다. env 는 권한 600.
+  mkdir -p "$root/config"
+  cp -a "$stg/config/." "$root/config/"
+  chmod 600 "$root"/config/*.env 2>/dev/null || true
+  # pm2 구성·node 버전을 배포 루트에 놓는다(있으면). ecosystem 의 cwd 가 __dirname 이라 이 자리가
+  # 곧 실행 위치이고, 앱은 그 cwd 에서 config/<환경>.env 를 찾는다.
+  [ -f "$stg/ecosystem.config.js" ] && install -m 644 "$stg/ecosystem.config.js" "$root/ecosystem.config.js"
+  [ -f "$stg/.nvmrc" ] && install -m 644 "$stg/.nvmrc" "$root/.nvmrc"
+  rm -rf "$stg"
+
+  # 9. 새 버전(교체 후 실행경로)
+  echo "  배포됨:    $cur"
+  echo "  새 버전:   $(pv "$cur")"
+
+  # 10. 서비스 시작 (무중단). startOrReload: 안 떠 있으면 띄우고, 떠 있으면 graceful reload.
+  #     --update-env: ecosystem 의 env 가 바뀌었으면 반영. pm2 save: 재부팅 후에도 살아나게 저장.
+  cd "$root" && nvm use >/dev/null 2>&1 || true
+  if [ -n "$restart_override" ]; then
+    eval "$restart_override"
+  elif [ -f "$root/ecosystem.config.js" ]; then
+    pm2 startOrReload ecosystem.config.js --only "$pm2_name" --update-env && pm2 save
+  else
+    echo "  ⚠️ ecosystem.config.js 가 없어 재시작을 건너뛴다. 서버의 기존 pm2 구성을 쓸 것."
+  fi
 REMOTE
-endgroup
-
-# --- 7. 배포 루트 파일 (pm2 구성 · node 버전) --------------------------------
-#
-# 배포 루트에 놓이는 정적 파일들을 같이 보낸다.
-#
-#   ecosystem.config.js   pm2 구성 (infra/<환경>/ 에서 온다)
-#   .nvmrc                  node 버전. backend/.nvmrc 를 그대로 보낸다.
-#                          pm2 가 자동으로 읽지는 않지만, 배포 루트에 있으면 그 자리에서
-#                          `nvm use` 가 먹고, 어느 버전 기준인지 사람도 안다.
-#
-# 배포 루트에 놓는 이유: ecosystem 이 `cwd: __dirname` 을 쓴다. 이 파일의 자리가 곧 앱의
-# 실행 위치이고, 앱은 그 cwd 에서 .env 를 찾는다(envFiles). 경로를 하드코딩하지 않으므로
-# HANSAPI_DEPLOY_PATH 와 어긋날 수가 없다.
-#   (예전엔 cwd: '/opt/hansapi' 로 박혀 있었는데 배포 경로는 ~/app/hansapi-develop 이었다.
-#    그대로 띄웠으면 pm2 가 script 를 못 찾아 죽었다)
-group "배포 루트 파일"
-
-ecosystem_src="$REPO_ROOT/backend/infra/$APP_ENV/ecosystem.config.js"
-nvmrc_src="$REPO_ROOT/backend/.nvmrc"
-
-# scp 할 것을 모은다. 배포 루트에 놓일 이름 = 소스 경로.
-declare -a root_files=()
-# pm2 구성이 없으면 건너뛴다 — 새 환경이라 infra/<환경>/ 을 아직 안 만들었을 수 있다.
-[ -f "$ecosystem_src" ] && root_files+=("$ecosystem_src")
-[ -f "$nvmrc_src" ] && root_files+=("$nvmrc_src")
-
-if [ ${#root_files[@]} -gt 0 ]; then
-  scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
-    "${root_files[@]}" "$ssh_host:/tmp/"
-
-  # 보낸 파일 이름들. 원격에서 배열로 다시 만들 수 있게 각 이름을 %q 로 인용해 잇는다.
-  names_q=""
-  for f in "${root_files[@]}"; do names_q+=" $(rq "$(basename "$f")")"; done
-
-  remote_run "$ssh_host" \
-    "root=$(rq "$deploy_path")" \
-    "names=($names_q)" <<'REMOTE'
-    root=$(eval echo "$root")
-    mkdir -p "$root/logs"   # ecosystem 의 log_file 이 ./logs/ 를 가리킨다
-    for name in "${names[@]}"; do
-      install -m 644 "/tmp/$name" "$root/$name"
-      rm -f "/tmp/$name"
-      echo "  $root/$name"
-    done
-REMOTE
-fi
-
-if [ ! -f "$ecosystem_src" ]; then
-  echo "⚠️  pm2 구성이 없다: backend/infra/$APP_ENV/ecosystem.config.js — 서버의 기존 것을 쓴다."
-fi
-endgroup
-
-# --- 8. 재시작 ----------------------------------------------------------------
-#
-# **pm2 이름 규칙: <환경>-<앱>.** ecosystem 의 name 과 정확히 같아야 --only 가 먹는다.
-# 규칙이 없으면 "우리 앱 이름 → pm2 이름" 표가 어딘가 또 생기고, 그 표가 언젠가 어긋난다.
-#
-# startOrReload: 안 떠 있으면 띄우고, 떠 있으면 무중단 reload 한다. 배포에 딱 맞는 동사다.
-#   (restart 는 프로세스를 죽였다 살리므로 그 사이 요청이 떨어진다)
-# --update-env: ecosystem 의 env 블록이 바뀌었을 때 반영한다. 안 주면 옛 환경변수로 계속 돈다.
-# pm2 save: 재부팅 후에도 살아나게 프로세스 목록을 저장한다.
-#
-# **cd 가 핵심이다.** ecosystem 의 cwd 가 __dirname 이라 파일 위치가 곧 실행 위치이고,
-# 앱은 그 cwd 에서 <환경>.env 를 찾는다.
-pm2_name="$APP_ENV-$app"
-
-# **nvm 을 명시적으로 소싱한다.** pm2 가 nvm 아래 있는데, `ssh host '명령'` 은 비대화형이라
-# ~/.bashrc 를 안 읽는다(우분투 기본 .bashrc 는 비대화형이면 맨 위에서 return). 그러면 PATH 에
-# nvm 이 없어 `pm2: command not found` 가 난다 — 사람이 접속해서 치면 되는데 스크립트만 실패한다.
-# nvm.sh 를 직접 source 하면 .bashrc 에 의존하지 않는다.
-#
-# `nvm use` 는 배포 루트의 .nvmrc(같이 올린 파일)를 읽어 그 버전을 고른다 — .nvmrc 를
-# 배포하는 이유가 이것이다. nvm 이 없는 서버(시스템 node)면 소싱이 조용히 넘어가고 PATH 의
-# pm2 를 쓴다.
-nvm_prefix='export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'
-
-if [ -n "${HANSAPI_DEPLOY_RESTART_CMD:-}" ]; then
-  restart_cmd="$HANSAPI_DEPLOY_RESTART_CMD"
-else
-  restart_cmd="$nvm_prefix
-cd $deploy_path && nvm use >/dev/null 2>&1 || true
-pm2 startOrReload ecosystem.config.js --only $pm2_name --update-env && pm2 save"
-fi
-
-group "재시작 (pm2)"
-echo "  cd $deploy_path && pm2 startOrReload ecosystem.config.js --only $pm2_name (nvm 소싱 후)"
-"${SSH[@]}" "$ssh_host" "$restart_cmd"
 endgroup
 
 echo "✅ $app $version → $ssh_host:$deploy_path/bin/$app   (pm2: $pm2_name)"

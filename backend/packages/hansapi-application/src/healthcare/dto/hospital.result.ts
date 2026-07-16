@@ -46,6 +46,16 @@ export interface HospitalLocation {
    * 섞어 쓰고 비워두기도 해서, 걸러내면 멀쩡한 역세권 병원이 대거 빠진다.
    */
   station?: string;
+
+  /**
+   * 그 역이 어느 노선인가. `station` 과 **같은 항목(subway[0])에서 뽑는다** — 따로 고르면
+   * 역과 노선이 어긋난다.
+   *
+   * 원문 그대로다("2호선", "1,4호선", "인천지하철1호선"). 노선색을 칠하려면 이름이 필요한데
+   * 정규화는 화면이 한다 — 자유 입력이라 못 알아보는 값이 나오고, 그때 어떻게 물러날지는
+   * 화면마다 다르다(목록은 숨기고 상세는 원문을 보여준다).
+   */
+  stationLine?: string;
 }
 
 /**
@@ -108,6 +118,64 @@ export interface HospitalCapability {
   type: string;
   code: string;
   name?: string;
+}
+
+/** 병원평가 항목 하나의 결과. */
+export interface HospitalAssessmentItem {
+  /** 심평원 평가항목 번호 ('01','03'…). */
+  code: string;
+
+  /** 항목명. 요청 언어로 온다(번역이 없으면 한국어). 번역은 심평원이 아니라 우리가 붙인 것이다. */
+  name: string;
+
+  /**
+   * 등급. 원본 그대로다. `'1'`~`'5'` | `'등급제외'` | `'양호'` | `'0'`.
+   *
+   * **1 이 가장 좋고 5 가 가장 나쁘다.** `'등급제외'` 는 평가는 했으나 등급을 안 매긴 것이다
+   * (평가대상이 아닌 항목은 아예 목록에 없다 — 둘은 다르다).
+   *
+   * **천식(code='16')만 인코딩이 다르다.** 1등급을 `'양호'` 로, 등급제외를 `'0'` 으로 준다.
+   * 그래서 `grade` 를 숫자로 파싱해 정렬하지 마라 — 천식의 `'0'` 이 최상위로 올라간다.
+   * 비교가 필요하면 normalized 를 써라.
+   */
+  grade: string;
+
+  /**
+   * 등급을 항목 간 비교 가능하게 옮긴 값. 1~5 또는 `'X'`(등급제외).
+   * 천식의 `'양호'`→`1`, `'0'`→`'X'` 가 여기서 흡수된다.
+   */
+  normalized: number | 'X';
+}
+
+/**
+ * 병원평가 그룹 하나. 심평원 홈페이지의 묶음(급성질환·만성질환…)을 그대로 따른다.
+ *
+ * **항목이 하나라도 있는 그룹만 온다.** 평가대상이 아닌 항목은 원본에 키가 없어
+ * 애초에 담기지 않는다.
+ */
+export interface HospitalAssessmentGroup {
+  /** 그룹 코드 ('asm01'…). */
+  code: string;
+  name: string;
+  items: HospitalAssessmentItem[];
+}
+
+/**
+ * 심평원 병원평가 정보.
+ *
+ * **심평원이 직접 평가하고 등급을 부여한 것**이다(요양급여 적정성 평가). 우리가 만든 값도,
+ * 병원이 신고한 값도 아니다. 그래서 다른 섹션(진료과목·병상·장비 = 병원의 속성)과 성격이 다르고,
+ * 화면에도 출처를 밝히는 게 맞다.
+ *
+ * **HIRA 연동이 있는 병원만 온다.** ykiho 가 없으면(NMC 만 있는 병원) 이 섹션 자체가 없다.
+ * ykiho 가 있어도 평가대상이 아니면 없다 — 79,739개 중 36,599개만 평가대상이다.
+ *
+ * 항목마다 평가대상 종별이 다르다. 상급종합에 천식(16)이 없는 건 "천식을 못 본다" 가 아니라
+ * "천식 평가 대상이 아니다" 는 뜻이다.
+ */
+export interface HospitalAssessment {
+  /** 그룹별 평가 결과. 그룹은 심평원 홈페이지 노출 순서다. */
+  groups: HospitalAssessmentGroup[];
 }
 
 /**
@@ -258,6 +326,12 @@ export interface HospitalDetail extends HospitalSummary {
   beds?: HospitalBeds;
   equipments: HospitalEquipment[];
   capabilities: HospitalCapability[];
+
+  /**
+   * 심평원 병원평가. **HIRA 연동(ykiho)이 있고 평가대상인 병원만 온다.**
+   * 없으면 필드 자체가 없다 — 프론트는 `{assessment && …}` 로 끝난다.
+   */
+  assessment?: HospitalAssessment;
 }
 
 /** 목록 조회 조건 */

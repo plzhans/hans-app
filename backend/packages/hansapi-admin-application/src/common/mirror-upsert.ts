@@ -23,7 +23,11 @@ export interface MirrorRow {
  */
 export async function upsertMirrorRows(
   prisma: PrismaService,
-  table: 'nmc_hospital' | 'hira_hospital' | 'nmc_baby_hospital',
+  table:
+    | 'nmc_hospital'
+    | 'hira_hospital'
+    | 'nmc_baby_hospital'
+    | 'hira_hospital_asm',
   keyColumn: 'hpid' | 'ykiho',
   rows: MirrorRow[],
 ): Promise<number> {

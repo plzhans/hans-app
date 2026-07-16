@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { LangLink } from '@/shared/i18n/LangLink';
 import { ChevronRight, MapPin, Phone, Ambulance, Baby } from 'lucide-react';
-import type { Hospital } from '../api';
+import { stationLabel, type Hospital } from '../api';
+import { metroCityOf, stationLines } from '../lib/subwayLine';
+import { LineBadge } from './LineBadge';
 
 /**
  * 병원 카드.
@@ -11,6 +13,11 @@ import type { Hospital } from '../api';
  */
 export function HospitalCard({ hospital }: { hospital: Hospital }) {
   const { t } = useTranslation();
+
+  // 노선색은 도시마다 다르고(부산 1호선은 주황, 서울 1호선은 남색) 노선 칸엔 지역이 없다.
+  // 주소가 유일한 단서다. 색을 찾은 노선만 남긴다 — 카드는 한 줄로 위치를 알리는 자리다.
+  const city = metroCityOf(hospital.location?.address);
+  const lines = stationLines(hospital.location?.stationLine, city);
 
   const inner = (
     <>
@@ -59,8 +66,13 @@ export function HospitalCard({ hospital }: { hospital: Hospital }) {
                 "서울 종로구 대학로 101" 보다 "혜화역" 이 훨씬 빨리 읽힌다.
               */}
               {hospital.location.station && (
-                <span className="mr-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
-                  {hospital.location.station}
+                <span className="mr-1.5 inline-flex items-center gap-1 align-middle">
+                  {lines.map((line) => (
+                    <LineBadge key={line} line={line} city={city} />
+                  ))}
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
+                    {stationLabel(hospital.location.station, lines.length > 0)}
+                  </span>
                 </span>
               )}
               {hospital.location.address}

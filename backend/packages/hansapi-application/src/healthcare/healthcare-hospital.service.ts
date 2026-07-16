@@ -9,6 +9,11 @@ import {
 } from '@hansapi/common';
 
 import { HealthcareCodeCache, codeName } from './healthcare-code.cache';
+import {
+  HiraAsmCodeCache,
+  asmGroupName,
+  asmItemName,
+} from './hira-asm-code.cache';
 import { RegionCache, regionName } from '../region/region.cache';
 import { annotateKo, pickText } from './hospital-text';
 
@@ -16,6 +21,9 @@ import { asString } from '../common/coerce';
 import { stationName } from './station';
 
 import {
+  HospitalAssessment,
+  HospitalAssessmentGroup,
+  HospitalAssessmentItem,
   HospitalDetail,
   HospitalSearchCommand,
   HospitalSummary,
@@ -28,6 +36,14 @@ import {
  * **healthcare 계열 테이블만 읽는다.** 원본 미러(nmc, hira)를 보지 않는다 — 통째로 지워도
  * 이 서비스는 동작한다. 코드도 우리 코드(healthcare_code, region_code)만 쓴다.
  *
+ * **예외가 하나 있다: 병원평가(assessment).** 상세 조회만 hira_hospital_asm·hira_code 를 읽는다.
+ * 병원평가는 심평원이 직접 평가·부여하는 HIRA 전용 개념이라 통합할 상대(NMC)가 없고,
+ * 그래서 healthcare_* 로 올리지 않기로 했다. 통합 레이어를 통과시켜도 추상화되는 게 없다.
+ * 대신 **읽기에서만 미러를 본다.** 위 원칙은 그대로 성립한다 —
+ *   · assessment 는 optional 이라 hira_* 를 지우면 섹션만 사라지고 서비스는 동작한다
+ *   · 검색(search)은 여전히 healthcare_* 만 읽는다. 미러는 상세에서만 본다
+ *   · 응답의 섹션 이름부터 출처(HIRA)를 밝힌다 — 우리가 만든 값이 아니라는 뜻이다
+ *
  * 예전에는 `?source=hira|nmc` 로 어느 원본을 볼지 골랐다. 그러면
  *   - 같은 병원이 두 번 나오고
  *   - source=hira 면 진료시간·응급실이 없고, source=nmc 면 병상·장비가 없었다.
@@ -39,6 +55,8 @@ export class HealthcareHospitalService {
     private readonly prisma: PrismaService,
     // 코드 이름은 조인하지 않고 부팅 때 올려둔 캐시에서 붙인다.
     private readonly codes: HealthcareCodeCache,
+    // 병원평가 항목 이름·그룹. healthcare_code 가 아니라 hira_code 라 캐시가 따로다.
+    private readonly asmCodes: HiraAsmCodeCache,
     private readonly regions: RegionCache,
   ) {}
 
@@ -54,6 +72,7 @@ export class HealthcareHospitalService {
                h.emergency_yn, h.baby_yn, h.emdong_nm,
                i.name AS i18n_name,
                JSON_UNQUOTE(JSON_EXTRACT(h.transport, '$.subway[0].arrival')) AS station,
+               JSON_UNQUOTE(JSON_EXTRACT(h.transport, '$.subway[0].line')) AS station_line,
                h.class_cd,
                h.tier,
                spc.cd AS specialty_cd,
@@ -149,6 +168,7 @@ export class HealthcareHospitalService {
     const subjects = this.buildSubjects(subjectRows, lang);
     const equipments = this.buildEquipments(equipmentRows, lang);
     const capabilities = this.buildCapabilities(capabilityRows, lang);
+    const assessment = await this.assessment(row.ykiho as string | null, lang);
 
     const parkNote = this.text(row, 'park_note');
 
@@ -221,6 +241,7 @@ export class HealthcareHospitalService {
           }
         : undefined,
 
+      assessment,
       equipments,
 
       capabilities,
@@ -276,6 +297,71 @@ export class HealthcareHospitalService {
    * capability 목록. **코드표에 없는 코드도 남긴다**(예전 LEFT JOIN 의미) — 이름이 비면 code 만 낸다.
    * 정렬은 tp → 코드 sort → cd. sort 는 캐시에서, 미상 코드는 뒤로 민다.
    */
+  /**
+   * 심평원 병원평가. **이 서비스가 원본 미러를 읽는 유일한 곳이다**(클래스 주석 참고).
+   *
+   * ykiho 가 없으면(NMC 만 있는 병원) 조회조차 하지 않는다. 있어도 평가대상이 아니면
+   * 행이 없어 undefined 다 — 79,739개 중 36,599개만 평가대상이다.
+   *
+   * 등급은 asm_01~asm_24 컬럼에 원본 그대로 들어 있다(generated column). 평가대상이 아닌
+   * 항목은 NULL 이라 목록에서 빠진다. **NULL 과 '등급제외' 는 다르다** —
+   * 전자는 평가를 안 한 것이고 후자는 평가하고 등급을 안 매긴 것이다.
+   */
+  private async assessment(
+    ykiho: string | null,
+    lang: SupportedLang,
+  ): Promise<HospitalAssessment | undefined> {
+    if (!ykiho) {
+      return undefined;
+    }
+
+    const row = await this.prisma.hira_hospital_asm.findUnique({
+      where: { ykiho },
+    });
+    if (!row) {
+      return undefined;
+    }
+
+    // 그룹 순서는 캐시가 tp 오름차순으로 들고 있다(= 심평원 홈페이지 순서).
+    const byGroup = new Map<string, HospitalAssessmentGroup>();
+
+    for (const code of this.asmCodes.codes()) {
+      const grade = (row as unknown as Record<string, string | null>)[
+        `asm_${code}`
+      ];
+      // NULL = 평가대상이 아니다. 목록에 넣지 않는다.
+      if (grade === null || grade === undefined) {
+        continue;
+      }
+
+      const item = this.asmCodes.get(code);
+      if (!item) {
+        continue;
+      }
+
+      const entry: HospitalAssessmentItem = {
+        code,
+        name: asmItemName(item, lang),
+        grade,
+        normalized: normalizeGrade(code, grade),
+      };
+
+      const group = byGroup.get(item.groupCode);
+      if (group) {
+        group.items.push(entry);
+      } else {
+        byGroup.set(item.groupCode, {
+          code: item.groupCode,
+          name: asmGroupName(item, lang),
+          items: [entry],
+        });
+      }
+    }
+
+    // 항목이 하나도 없으면(전부 NULL) 섹션 자체를 만들지 않는다.
+    return byGroup.size > 0 ? { groups: [...byGroup.values()] } : undefined;
+  }
+
   private buildCapabilities(
     rows: Record<string, unknown>[],
     lang: SupportedLang,
@@ -384,6 +470,10 @@ export class HealthcareHospitalService {
     const regionEntry = regionCd ? this.regions.get(regionCd) : undefined;
     const sidoCd = regionEntry?.parentCode ?? undefined;
 
+    // 역 이름을 못 뽑으면("2번출구" 처럼 역이 안 적힌 하차지점) 노선도 같이 버린다.
+    // 노선만 남으면 화면엔 붙을 역이 없는 노선 배지가 뜬다.
+    const station = stationName(asString(row.station)) ?? undefined;
+
     return {
       id: Number(row.id),
       // 번역이 있으면 번역, 없으면 한국어 원문. 목록도 번역된 이름으로 나가야
@@ -412,7 +502,10 @@ export class HealthcareHospitalService {
         postNo: (row.post_no as string | null) ?? undefined,
         lat: this.num(row.lat),
         lon: this.num(row.lon),
-        station: stationName(asString(row.station)) ?? undefined,
+        station,
+        stationLine: station
+          ? (asString(row.station_line) ?? undefined)
+          : undefined,
         region: regionCd
           ? {
               code: regionCd,
@@ -490,3 +583,30 @@ export class HealthcareHospitalService {
     return Number.isNaN(parsed) ? undefined : parsed;
   }
 }
+
+/**
+ * 등급을 항목 간 비교 가능한 값으로 옮긴다. 1~5 또는 'X'(등급대상 제외).
+ *
+ * **천식(16)만 인코딩이 다르다.** 나머지 21개가 1~5·'등급제외' 를 쓰는데 천식만
+ * '양호'·2~5·0 을 쓴다 — 1등급을 '양호' 로, 등급제외를 0 으로 준다(2026-07 심평원 홈페이지 대조).
+ * 등급 체계 자체는 같아서 여기서 옮기면 다른 항목과 나란히 비교된다.
+ *
+ * **그래서 grade 를 Number() 로 파싱하면 안 된다** — 천식의 '0' 이 최상위(1등급보다 좋은 값)로
+ * 올라간다. 정렬·비교는 반드시 이 함수를 거친 값으로 하라.
+ */
+function normalizeGrade(code: string, grade: string): number | 'X' {
+  if (code === ASTHMA_CODE) {
+    if (grade === '양호') return 1;
+    if (grade === '0') return 'X';
+  } else if (grade === '등급제외') {
+    return 'X';
+  }
+
+  const parsed = Number(grade);
+  // 아는 값이 아니면 등급으로 취급하지 않는다. 원본이 새 값을 주기 시작해도
+  // 숫자로 둔갑해 순위를 흔들지 않는다 — 원본은 grade 에 그대로 남아 있다.
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : 'X';
+}
+
+/** 천식. 이 항목만 등급 인코딩이 다르다. */
+const ASTHMA_CODE = '16';
