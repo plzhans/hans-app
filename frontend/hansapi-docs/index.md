@@ -48,7 +48,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
 | [**공통**](/common) | 인증(`Authorization`)과 다국어(`Accept-Language`). **모든 요청에 필요합니다.** |
 | [**병원 검색**](/apis/healthcare) | 주력 API. 검색과 상세. |
 | [**참조 데이터**](/apis/healthcare-meta) | 검색 조건에 넣을 코드. 드롭다운을 채울 때 씁니다. |
-| [**주소**](/apis/region) · [**교통정보**](/apis/transport) | 지역 코드, 지하철역 목록. 도메인 무관이라 병원 밖에서도 씁니다. |
+| [**주소**](/apis/address) · [**교통정보**](/apis/transport) | 지역 코드, 지하철역 목록. 도메인 무관이라 병원 밖에서도 씁니다. |
 
 ## 정부데이터 원본은 언제 쓰나
 
