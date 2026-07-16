@@ -12,10 +12,16 @@ import type { SupportedLang } from '@hansapi/common';
  * `??` 는 그 빈칸을 그대로 내보내 화면이 비어 버린다. 한국어라도 보이는 편이 낫다.
  */
 export function pickName(
-  row: { nm: string; nm_en?: string | null; nm_ja?: string | null },
+  row: {
+    nm: string;
+    nm_en?: string | null;
+    nm_ja?: string | null;
+    nm_zh?: string | null;
+  },
   lang: SupportedLang,
 ): string {
   if (lang === 'en') return row.nm_en || row.nm;
   if (lang === 'ja') return row.nm_ja || row.nm;
+  if (lang === 'zh') return row.nm_zh || row.nm;
   return row.nm;
 }

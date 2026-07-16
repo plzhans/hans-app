@@ -1,0 +1,230 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "국세청 사업자등록정보 진위확인 및 상태조회 API",
+    "version": "1.1.0",
+    "description": "국세청(hometax)이 제공하고 공공데이터포털(odcloud.kr)로 서비스되는 사업자등록 진위확인·상태조회 API.\n\n두 오퍼레이션이 있다.\n- POST /status   상태조회: 사업자번호만으로 계속/휴업/폐업·과세유형을 조회한다.\n- POST /validate 진위확인: 사업자번호+개업일자+대표자성명(필수)이 실제 등록정보와 맞는지 확인한다.\n\n[data.go.kr 계열이지만 @krdata/core 를 재사용하지 않는 이유]\n- **POST + JSON 본문**이다(@krdata 는 전부 GET+쿼리). 본문 스키마를 mutator 로 못 만든다.\n- 성공 판정이 header.resultCode 가 아니라 **status_code == 'OK'** 다. items 정규화도 필요 없다.\n- 그래도 인증키는 data.go.kr 와 같은 serviceKey(쿼리)다 — **인코딩 키를 재인코딩하면 안 된다.**\n\n[이 스펙의 규칙]\n- serviceKey 는 정의하지 않는다. mutator 가 쿼리로 붙인다(키가 스펙·생성물에 남지 않게).\n- 에러 응답(status_code != 'OK', HTTP 4xx/5xx)은 mutator 가 예외로 바꾸므로 성공 응답만 정의한다.\n\n[실측/문서 함정]\n- **한 번에 최대 100건.** 초과 시 status_code=TOO_LARGE_REQUEST (HTTP 413).\n- 진위확인은 b_no·start_dt·p_nm 이 **필수**다. 하나라도 빠지면 REQUEST_DATA_MALFORMED (HTTP 411).\n- 상태조회에서 등록되지 않은 번호는 에러가 아니라 데이터로 온다 — b_stt 가 비고, tax_type 이\n  '국세청에 등록되지 않은 사업자등록번호입니다' 로 온다.\n- 날짜는 전부 문자열 YYYYMMDD. 숫자로 다루지 마라.",
+    "x-source": "https://www.data.go.kr/data/15081808/openapi.do",
+    "x-origin": "openapi/origin/nts-bizinfo.json (Swagger 2.0 원본)"
+  },
+  "servers": [{ "url": "https://api.odcloud.kr/api/nts-businessman/v1" }],
+  "paths": {
+    "/status": {
+      "post": {
+        "operationId": "getBusinessStatus",
+        "summary": "사업자등록 상태조회",
+        "description": "사업자등록번호 목록으로 납세자상태(계속/휴업/폐업)와 과세유형을 조회한다.\n\nserviceKey 는 mutator 가 채운다 — 생성된 함수를 직접 부르지 말고 NtsClient 를 써라.",
+        "tags": ["nts"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StatusRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "상태조회 결과",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/validate": {
+      "post": {
+        "operationId": "validateBusiness",
+        "summary": "사업자등록정보 진위확인",
+        "description": "사업자번호+개업일자+대표자성명(필수)이 국세청 등록정보와 일치하는지 확인한다.\n상호·법인번호·주소 등 선택 항목을 더 넣을수록 정밀해진다.\n\nserviceKey 는 mutator 가 채운다 — 생성된 함수를 직접 부르지 말고 NtsClient 를 써라.",
+        "tags": ["nts"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ValidateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "진위확인 결과",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidateResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "StatusRequest": {
+        "type": "object",
+        "required": ["b_no"],
+        "properties": {
+          "b_no": {
+            "type": "array",
+            "description": "사업자등록번호 목록('-' 없이 10자리). 한 번에 최대 100건.",
+            "items": { "type": "string", "example": "0000000000" }
+          }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "properties": {
+          "status_code": {
+            "type": "string",
+            "description": "API 상태 코드. 'OK' 가 아니면 mutator 가 예외로 바꾼다."
+          },
+          "request_cnt": { "type": "integer", "description": "조회 요청 수." },
+          "match_cnt": { "type": "integer", "description": "조회 매칭 수." },
+          "data": {
+            "type": "array",
+            "description": "상태조회 결과.",
+            "items": { "$ref": "#/components/schemas/BusinessStatus" }
+          }
+        }
+      },
+      "ValidateRequest": {
+        "type": "object",
+        "required": ["businesses"],
+        "properties": {
+          "businesses": {
+            "type": "array",
+            "description": "진위확인할 사업자 목록. 한 번에 최대 100건.",
+            "items": { "$ref": "#/components/schemas/BusinessDescription" }
+          }
+        }
+      },
+      "ValidateResponse": {
+        "type": "object",
+        "properties": {
+          "status_code": {
+            "type": "string",
+            "description": "API 상태 코드. 'OK' 가 아니면 mutator 가 예외로 바꾼다."
+          },
+          "request_cnt": { "type": "integer", "description": "조회 요청 수." },
+          "valid_cnt": {
+            "type": "integer",
+            "description": "진위확인 Valid 수."
+          },
+          "data": {
+            "type": "array",
+            "description": "진위확인 결과.",
+            "items": { "$ref": "#/components/schemas/BusinessValidation" }
+          }
+        }
+      },
+      "BusinessDescription": {
+        "type": "object",
+        "title": "진위확인 요청 항목",
+        "required": ["b_no", "start_dt", "p_nm"],
+        "properties": {
+          "b_no": {
+            "type": "string",
+            "description": "사업자등록번호('-' 없이 10자리). 필수.",
+            "example": "0000000000"
+          },
+          "start_dt": {
+            "type": "string",
+            "description": "개업일자 (YYYYMMDD). 필수.",
+            "example": "20000101"
+          },
+          "p_nm": {
+            "type": "string",
+            "description": "대표자성명. 필수.",
+            "example": "홍길동"
+          },
+          "p_nm2": {
+            "type": "string",
+            "description": "대표자성명2. 대표자성명1 이 한글이 아닐 때의 한글명. 선택."
+          },
+          "b_nm": { "type": "string", "description": "상호. 선택." },
+          "corp_no": {
+            "type": "string",
+            "description": "법인등록번호(13자리). 선택."
+          },
+          "b_sector": { "type": "string", "description": "주업태명. 선택." },
+          "b_type": { "type": "string", "description": "주종목명. 선택." },
+          "b_adr": {
+            "type": "string",
+            "description": "사업장주소. 선택. (v1.1 추가)"
+          }
+        }
+      },
+      "BusinessStatus": {
+        "type": "object",
+        "title": "상태조회 결과 항목",
+        "properties": {
+          "b_no": { "type": "string", "description": "사업자등록번호." },
+          "b_stt": {
+            "type": "string",
+            "description": "납세자상태(명칭). 01:계속사업자 / 02:휴업자 / 03:폐업자. 미등록이면 빈 값."
+          },
+          "b_stt_cd": {
+            "type": "string",
+            "description": "납세자상태(코드). 01:계속사업자 / 02:휴업자 / 03:폐업자."
+          },
+          "tax_type": {
+            "type": "string",
+            "description": "과세유형메세지(명칭). 01:일반과세자 / 02:간이과세자 / 03:과세특례자 / 04:면세사업자 / 05:비영리·국가기관 등 / 06:고유번호 단체 / 07:간이(세금계산서 발급). 미등록이면 '국세청에 등록되지 않은 사업자등록번호입니다'."
+          },
+          "tax_type_cd": {
+            "type": "string",
+            "description": "과세유형메세지(코드). 01~07."
+          },
+          "end_dt": { "type": "string", "description": "폐업일 (YYYYMMDD)." },
+          "utcc_yn": {
+            "type": "string",
+            "description": "단위과세전환폐업여부 (Y/N)."
+          },
+          "tax_type_change_dt": {
+            "type": "string",
+            "description": "최근과세유형전환일자 (YYYYMMDD)."
+          },
+          "invoice_apply_dt": {
+            "type": "string",
+            "description": "세금계산서적용일자 (YYYYMMDD)."
+          },
+          "rbf_tax_type": {
+            "type": "string",
+            "description": "직전과세유형메세지(명칭). 01/02/07 / 99:해당없음. (v1.1 추가)"
+          },
+          "rbf_tax_type_cd": {
+            "type": "string",
+            "description": "직전과세유형메세지(코드). 01/02/07/99. (v1.1 추가)"
+          }
+        }
+      },
+      "BusinessValidation": {
+        "type": "object",
+        "title": "진위확인 결과 항목",
+        "properties": {
+          "b_no": { "type": "string", "description": "사업자등록번호." },
+          "valid": {
+            "type": "string",
+            "description": "진위확인 결과 코드. 01:Valid(일치) / 02:Invalid(불일치)."
+          },
+          "valid_msg": {
+            "type": "string",
+            "description": "진위확인 결과 메세지. valid=02 이면 '확인할 수 없습니다', 그 외에는 미반환."
+          },
+          "request_param": {
+            "allOf": [{ "$ref": "#/components/schemas/BusinessDescription" }],
+            "description": "요청에 넣었던 값 그대로."
+          },
+          "status": {
+            "allOf": [{ "$ref": "#/components/schemas/BusinessStatus" }],
+            "description": "해당 사업자의 상태조회 결과(진위확인에 함께 실려 온다)."
+          }
+        }
+      }
+    }
+  }
+}

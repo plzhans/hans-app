@@ -631,7 +631,7 @@
             "name": "region",
             "required": false,
             "in": "query",
-            "description": "시군구 코드. /regions 참조",
+            "description": "시군구 코드. /address/regions 참조",
             "schema": {
               "example": "11001",
               "type": "string"
@@ -892,7 +892,7 @@
             "bearer": []
           }
         ],
-        "summary": "병원 등급 (TIER1~3)",
+        "summary": "병원 등급",
         "tags": [
           "healthcare-meta"
         ]
@@ -1024,6 +1024,90 @@
         ]
       }
     },
+    "/healthcare/meta/specialties": {
+      "get": {
+        "description": "관절·척추·심장 등. 보건복지부가 지정한 전문병원의 분야다.\n\n병원 상세의 capabilities(type=specialty) 코드를 이 이름으로 푼다.",
+        "operationId": "HealthcareMetaController_specialties",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaCodeDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "전문병원 지정분야 코드",
+        "tags": [
+          "healthcare-meta"
+        ]
+      }
+    },
+    "/healthcare/meta/specials": {
+      "get": {
+        "description": "방문진료·재택의료·치매주치의·중환자실 운영 등. 대부분 시범사업이다.\n\n병원 상세의 capabilities(type=special) 코드를 이 이름으로 푼다.",
+        "operationId": "HealthcareMetaController_specials",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaCodeDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "특수진료(진료가능분야) 코드",
+        "tags": [
+          "healthcare-meta"
+        ]
+      }
+    },
     "/transport/subway-stations": {
       "get": {
         "description": "병원 상세의 교통정보(`transport.subway[].arrival`)에 나오는 하차역명을 화면에서 다국어로 보여줄 때 쓴다.\n\n**언어를 한꺼번에 다 내린다.** 다른 API 와 달리 `Accept-Language` 를 보지 않는다 — 화면에 나온 역명을 **찾아 바꾸는** 용도라, 클라이언트가 통째로 받아 맵으로 들고 쓰기 때문이다. 언어를 바꿀 때 다시 받을 필요가 없다.\n\n**필터도 페이징도 없다.** 세 언어를 다 담아도 응답이 gzip 십수 KB 밖에 안 된다.\n\n`Cache-Control: private, max-age=3600` 이 붙는다. 브라우저가 한 시간 캐시한다.\n\n**응답의 `version` 과 `ETag` 에 원본 데이터의 배포일자가 담긴다.** `If-None-Match` 로 재검증하면 바뀐 게 없을 때 **304** 가 오고 본문은 안 내려온다. 원본 갱신 주기가 길어(연 1~2회) 대부분의 재검증이 304 다.\n\n출처: 국가철도공단 전국 도시광역철도 역사정보 (표준데이터). 전국 도시철도를 모두 덮는다 — 수도권·부산·대구·대전·광주.",
@@ -1052,7 +1136,7 @@
         ]
       }
     },
-    "/regions": {
+    "/address/regions": {
       "get": {
         "description": "시도 → 시군구 2단계다.\n\n`level=sido` 로 시도를, `level=sggu&parent=11` 로 그 시도의 시군구를 받는다.\n\n병원 검색의 `region` 파라미터에 시군구 코드를 넘긴다.",
         "operationId": "RegionController_list",
@@ -1112,7 +1196,170 @@
         ],
         "summary": "지역 코드",
         "tags": [
-          "region"
+          "address"
+        ]
+      }
+    },
+    "/nts/business/{bno}/status": {
+      "get": {
+        "description": "사업자번호로 납세자상태(계속/휴업/폐업)와 과세유형을 조회한다.\n\n**등록되지 않은 번호도 에러가 아니다** — registered=false 로 응답한다.",
+        "operationId": "BusinessController_status",
+        "parameters": [
+          {
+            "name": "bno",
+            "required": true,
+            "in": "path",
+            "description": "사업자등록번호. '-' 는 자동으로 제거된다.",
+            "schema": {
+              "example": "6462401820",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "사업자 등록번호 상태조회",
+        "tags": [
+          "business"
+        ]
+      }
+    },
+    "/nts/business/{bno}/verify": {
+      "post": {
+        "description": "사업자번호(경로)·개업일자·대표자성명이 국세청 등록정보와 일치하는지 확인한다.\n개업일자·대표자성명은 필수이고, 상호·법인번호·주소를 더 넣으면 판정이 정밀해진다.\n\n대표자성명 등 개인정보는 URL·쿼리가 아니라 **본문**으로 받는다(접근 로그 노출 방지).",
+        "operationId": "BusinessController_verify",
+        "parameters": [
+          {
+            "name": "bno",
+            "required": true,
+            "in": "path",
+            "description": "사업자등록번호. '-' 는 자동으로 제거된다.",
+            "schema": {
+              "example": "6462401820",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessVerifyRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessVerificationDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "사업자 등록정보 진위확인",
+        "tags": [
+          "business"
+        ]
+      }
+    },
+    "/address/english": {
+      "get": {
+        "description": "한글 주소(또는 일부)를 검색해 매칭되는 주소를 **영문 표기**와 함께 반환한다.\n\n**시/도명 단독·한 글자·숫자만으로는 검색되지 않는다**(도로명주소 API 제약). 결과가 없으면 빈 목록을 반환한다.",
+        "operationId": "AddressController_searchEnglish",
+        "parameters": [
+          {
+            "name": "keyword",
+            "required": true,
+            "in": "query",
+            "description": "검색할 한글 주소(또는 일부). 예: 도로명주소·건물명·지번.",
+            "schema": {
+              "example": "부산광역시 금정구 중앙대로1985번길 1",
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "페이지 번호",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "size",
+            "required": false,
+            "in": "query",
+            "description": "페이지 크기",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PageResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AddressDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "영문 주소 검색",
+        "tags": [
+          "address"
         ]
       }
     }
@@ -1629,6 +1876,14 @@
               }
             ]
           },
+          "specialty": {
+            "description": "전문병원 지정분야(관절·척추·심장 …). 보건복지부 지정이라 병원당 최대 1건이다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CodeDto"
+              }
+            ]
+          },
           "location": {
             "$ref": "#/components/schemas/LocationDto"
           },
@@ -1948,6 +2203,14 @@
               }
             ]
           },
+          "specialty": {
+            "description": "전문병원 지정분야(관절·척추·심장 …). 보건복지부 지정이라 병원당 최대 1건이다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CodeDto"
+              }
+            ]
+          },
           "location": {
             "$ref": "#/components/schemas/LocationDto"
           },
@@ -2222,6 +2485,166 @@
           "code",
           "name",
           "level"
+        ]
+      },
+      "BusinessStatusDto": {
+        "type": "object",
+        "properties": {
+          "bno": {
+            "type": "string",
+            "description": "사업자등록번호",
+            "example": "6462401820"
+          },
+          "registered": {
+            "type": "boolean",
+            "description": "국세청에 등록된 사업자인지. false 면 나머지 상태값은 비어 있다.",
+            "example": true
+          },
+          "statusCode": {
+            "type": "string",
+            "description": "납세자상태 코드. 01:계속사업자 / 02:휴업자 / 03:폐업자",
+            "example": "01"
+          },
+          "status": {
+            "type": "string",
+            "description": "납세자상태 명칭",
+            "example": "계속사업자"
+          },
+          "taxTypeCode": {
+            "type": "string",
+            "description": "과세유형 코드. 01:일반 / 02:간이 / 04:면세 등",
+            "example": "01"
+          },
+          "taxType": {
+            "type": "string",
+            "description": "과세유형 명칭. 미등록이면 \"국세청에 등록되지 않은 사업자등록번호입니다\".",
+            "example": "부가가치세 일반과세자"
+          },
+          "closedAt": {
+            "type": "string",
+            "description": "폐업일 (YYYYMMDD)",
+            "example": "20200101"
+          }
+        },
+        "required": [
+          "bno",
+          "registered"
+        ]
+      },
+      "BusinessVerifyRequestDto": {
+        "type": "object",
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "description": "개업일자 (YYYYMMDD). '-' 는 자동 제거된다.",
+            "example": "20000101"
+          },
+          "name": {
+            "type": "string",
+            "description": "대표자성명",
+            "example": "홍길동"
+          },
+          "name2": {
+            "type": "string",
+            "description": "대표자성명2. 대표자성명이 한글이 아닐 때의 한글명."
+          },
+          "companyName": {
+            "type": "string",
+            "description": "상호"
+          },
+          "corpNo": {
+            "type": "string",
+            "description": "법인등록번호(13자리). '-' 는 자동 제거."
+          },
+          "address": {
+            "type": "string",
+            "description": "사업장주소"
+          }
+        },
+        "required": [
+          "startDate",
+          "name"
+        ]
+      },
+      "BusinessVerificationDto": {
+        "type": "object",
+        "properties": {
+          "bno": {
+            "type": "string",
+            "description": "사업자등록번호",
+            "example": "6462401820"
+          },
+          "valid": {
+            "type": "boolean",
+            "description": "진위확인 결과. 입력한 정보가 국세청 등록정보와 일치하면 true.",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "불일치 시 안내 메시지. 일치하면 비어 있다.",
+            "example": "확인할 수 없습니다."
+          },
+          "status": {
+            "description": "함께 조회된 사업자 상태.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessStatusDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "bno",
+          "valid"
+        ]
+      },
+      "AddressDto": {
+        "type": "object",
+        "properties": {
+          "korAddr": {
+            "type": "string",
+            "description": "한글 도로명주소(정규화됨)",
+            "example": "부산광역시 금정구 중앙대로1985번길 1"
+          },
+          "roadAddr": {
+            "type": "string",
+            "description": "영문 도로명주소(전체)",
+            "example": "1 Jungang-daero 1985beon-gil, Geumjeong-gu, Busan"
+          },
+          "jibunAddr": {
+            "type": "string",
+            "description": "영문 지번주소",
+            "example": "129-13 Namsan-dong, Geumjeong-gu, Busan"
+          },
+          "zipNo": {
+            "type": "string",
+            "description": "우편번호(5자리)",
+            "example": "46227"
+          },
+          "sido": {
+            "type": "string",
+            "description": "영문 시도명",
+            "example": "Busan"
+          },
+          "sigungu": {
+            "type": "string",
+            "description": "영문 시군구명",
+            "example": "Geumjeong-gu"
+          },
+          "eupmyeondong": {
+            "type": "string",
+            "description": "영문 읍면동명",
+            "example": "Namsan-dong"
+          },
+          "roadName": {
+            "type": "string",
+            "description": "영문 도로명",
+            "example": "Jungang-daero 1985beon-gil"
+          }
+        },
+        "required": [
+          "korAddr",
+          "roadAddr"
         ]
       },
       "NmcResultHeader": {
@@ -3517,128 +3940,6 @@
           }
         }
       },
-      "HiraAddressCodeResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraAddressCodeResult"
-          }
-        }
-      },
-      "HiraInstitutionClassCodeResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraInstitutionClassCodeResult"
-          }
-        }
-      },
-      "HiraSubjectCodeResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraSubjectCodeResult"
-          }
-        }
-      },
-      "HiraEquipmentCodeResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraEquipmentCodeResult"
-          }
-        }
-      },
-      "HiraSearchCodeResponse": {
-        "type": "object",
-        "description": "전문병원코드·특수진료코드 공통 응답",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraSearchCodeResult"
-          }
-        }
-      },
-      "HiraDetailInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraDetailInfoResult"
-          }
-        }
-      },
-      "HiraFacilityInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraFacilityInfoResult"
-          }
-        }
-      },
-      "HiraSubjectInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraSubjectInfoResult"
-          }
-        }
-      },
-      "HiraTransportInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraTransportInfoResult"
-          }
-        }
-      },
-      "HiraEquipmentInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraEquipmentInfoResult"
-          }
-        }
-      },
-      "HiraNursingGradeInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraNursingGradeInfoResult"
-          }
-        }
-      },
-      "HiraFoodAddcInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraFoodAddcInfoResult"
-          }
-        }
-      },
-      "HiraSpecialDiagnosisInfoResponse": {
-        "type": "object",
-        "description": "특수진료정보·전문병원지정분야 공통 응답",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraSpecialDiagnosisInfoResult"
-          }
-        }
-      },
-      "HiraSpecialistCountInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraSpecialistCountInfoResult"
-          }
-        }
-      },
-      "HiraEtcStaffInfoResponse": {
-        "type": "object",
-        "properties": {
-          "response": {
-            "$ref": "#/components/schemas/HiraEtcStaffInfoResult"
-          }
-        }
-      },
       "HiraHospitalItem": {
         "type": "object",
         "description": "병원 기본정보 항목",
@@ -3769,6 +4070,84 @@
           }
         }
       },
+      "HiraHospitalListItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraHospitalItem"
+            }
+          }
+        }
+      },
+      "HiraHospitalListBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraHospitalListItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraHospitalListResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraHospitalListBody"
+          }
+        }
+      },
+      "HiraAddressCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraAddressCodeResult"
+          }
+        }
+      },
+      "HiraInstitutionClassCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraInstitutionClassCodeResult"
+          }
+        }
+      },
+      "HiraSubjectCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraSubjectCodeResult"
+          }
+        }
+      },
+      "HiraEquipmentCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraEquipmentCodeResult"
+          }
+        }
+      },
+      "HiraSearchCodeResponse": {
+        "type": "object",
+        "description": "전문병원코드·특수진료코드 공통 응답",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraSearchCodeResult"
+          }
+        }
+      },
       "HiraAddressCodeItem": {
         "type": "object",
         "properties": {
@@ -3843,6 +4222,272 @@
           }
         }
       },
+      "HiraAddressCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraAddressCodeItem"
+            }
+          }
+        }
+      },
+      "HiraAddressCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraAddressCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraAddressCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraAddressCodeBody"
+          }
+        }
+      },
+      "HiraInstitutionClassCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraInstitutionClassCodeItem"
+            }
+          }
+        }
+      },
+      "HiraInstitutionClassCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraInstitutionClassCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraInstitutionClassCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraInstitutionClassCodeBody"
+          }
+        }
+      },
+      "HiraSubjectCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraSubjectCodeItem"
+            }
+          }
+        }
+      },
+      "HiraSubjectCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraSubjectCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraSubjectCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraSubjectCodeBody"
+          }
+        }
+      },
+      "HiraEquipmentCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraEquipmentCodeItem"
+            }
+          }
+        }
+      },
+      "HiraEquipmentCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraEquipmentCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraEquipmentCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraEquipmentCodeBody"
+          }
+        }
+      },
+      "HiraSearchCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraSearchCodeItem"
+            }
+          }
+        }
+      },
+      "HiraSearchCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraSearchCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraSearchCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraSearchCodeBody"
+          }
+        }
+      },
+      "HiraDetailInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraDetailInfoResult"
+          }
+        }
+      },
+      "HiraFacilityInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraFacilityInfoResult"
+          }
+        }
+      },
+      "HiraSubjectInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraSubjectInfoResult"
+          }
+        }
+      },
+      "HiraTransportInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraTransportInfoResult"
+          }
+        }
+      },
+      "HiraEquipmentInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraEquipmentInfoResult"
+          }
+        }
+      },
+      "HiraNursingGradeInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraNursingGradeInfoResult"
+          }
+        }
+      },
+      "HiraFoodAddcInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraFoodAddcInfoResult"
+          }
+        }
+      },
+      "HiraSpecialDiagnosisInfoResponse": {
+        "type": "object",
+        "description": "특수진료정보·전문병원지정분야 공통 응답",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraSpecialDiagnosisInfoResult"
+          }
+        }
+      },
+      "HiraSpecialistCountInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraSpecialistCountInfoResult"
+          }
+        }
+      },
+      "HiraEtcStaffInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraEtcStaffInfoResult"
+          }
+        }
+      },
       "HiraDetailInfoItem": {
         "type": "object",
         "description": "세부정보 항목 (진료시간·휴진·주차·응급실)",
@@ -3894,6 +4539,14 @@
           "trmtSatEnd": {
             "type": "string",
             "description": "토요일 진료종료시각"
+          },
+          "trmtSunStart": {
+            "type": "string",
+            "description": "일요일 진료시작시각 (예: 0830)"
+          },
+          "trmtSunEnd": {
+            "type": "string",
+            "description": "일요일 진료종료시각 (예: 1700)"
           },
           "rcvWeek": {
             "type": "string",
@@ -4199,6 +4852,10 @@
             "type": "string",
             "description": "구분 코드"
           },
+          "trmealGrd": {
+            "type": "string",
+            "description": "등급"
+          },
           "tyCdNm": {
             "type": "string",
             "description": "구분 코드명"
@@ -4268,228 +4925,6 @@
           "gnlNopCnt": {
             "type": "integer",
             "description": "기타인력수"
-          }
-        }
-      },
-      "HiraHospitalListItems": {
-        "type": "object",
-        "properties": {
-          "item": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/HiraHospitalItem"
-            }
-          }
-        }
-      },
-      "HiraHospitalListBody": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/HiraPageInfo"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "items": {
-                "$ref": "#/components/schemas/HiraHospitalListItems"
-              }
-            }
-          }
-        ]
-      },
-      "HiraHospitalListResult": {
-        "type": "object",
-        "properties": {
-          "header": {
-            "$ref": "#/components/schemas/HiraResultHeader"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HiraHospitalListBody"
-          }
-        }
-      },
-      "HiraAddressCodeItems": {
-        "type": "object",
-        "properties": {
-          "item": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/HiraAddressCodeItem"
-            }
-          }
-        }
-      },
-      "HiraAddressCodeBody": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/HiraPageInfo"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "items": {
-                "$ref": "#/components/schemas/HiraAddressCodeItems"
-              }
-            }
-          }
-        ]
-      },
-      "HiraAddressCodeResult": {
-        "type": "object",
-        "properties": {
-          "header": {
-            "$ref": "#/components/schemas/HiraResultHeader"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HiraAddressCodeBody"
-          }
-        }
-      },
-      "HiraInstitutionClassCodeItems": {
-        "type": "object",
-        "properties": {
-          "item": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/HiraInstitutionClassCodeItem"
-            }
-          }
-        }
-      },
-      "HiraInstitutionClassCodeBody": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/HiraPageInfo"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "items": {
-                "$ref": "#/components/schemas/HiraInstitutionClassCodeItems"
-              }
-            }
-          }
-        ]
-      },
-      "HiraInstitutionClassCodeResult": {
-        "type": "object",
-        "properties": {
-          "header": {
-            "$ref": "#/components/schemas/HiraResultHeader"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HiraInstitutionClassCodeBody"
-          }
-        }
-      },
-      "HiraSubjectCodeItems": {
-        "type": "object",
-        "properties": {
-          "item": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/HiraSubjectCodeItem"
-            }
-          }
-        }
-      },
-      "HiraSubjectCodeBody": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/HiraPageInfo"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "items": {
-                "$ref": "#/components/schemas/HiraSubjectCodeItems"
-              }
-            }
-          }
-        ]
-      },
-      "HiraSubjectCodeResult": {
-        "type": "object",
-        "properties": {
-          "header": {
-            "$ref": "#/components/schemas/HiraResultHeader"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HiraSubjectCodeBody"
-          }
-        }
-      },
-      "HiraEquipmentCodeItems": {
-        "type": "object",
-        "properties": {
-          "item": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/HiraEquipmentCodeItem"
-            }
-          }
-        }
-      },
-      "HiraEquipmentCodeBody": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/HiraPageInfo"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "items": {
-                "$ref": "#/components/schemas/HiraEquipmentCodeItems"
-              }
-            }
-          }
-        ]
-      },
-      "HiraEquipmentCodeResult": {
-        "type": "object",
-        "properties": {
-          "header": {
-            "$ref": "#/components/schemas/HiraResultHeader"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HiraEquipmentCodeBody"
-          }
-        }
-      },
-      "HiraSearchCodeItems": {
-        "type": "object",
-        "properties": {
-          "item": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/HiraSearchCodeItem"
-            }
-          }
-        }
-      },
-      "HiraSearchCodeBody": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/HiraPageInfo"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "items": {
-                "$ref": "#/components/schemas/HiraSearchCodeItems"
-              }
-            }
-          }
-        ]
-      },
-      "HiraSearchCodeResult": {
-        "type": "object",
-        "properties": {
-          "header": {
-            "$ref": "#/components/schemas/HiraResultHeader"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HiraSearchCodeBody"
           }
         }
       },

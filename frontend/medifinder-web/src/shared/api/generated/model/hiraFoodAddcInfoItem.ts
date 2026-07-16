@@ -12,6 +12,8 @@
 export interface HiraFoodAddcInfoItem {
   /** 구분 코드 */
   tyCd?: string;
+  /** 등급 */
+  trmealGrd?: string;
   /** 구분 코드명 */
   tyCdNm?: string;
   /** 일반식 가산 적용여부 (Y/N) */

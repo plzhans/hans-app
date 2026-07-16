@@ -1,0 +1,1314 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "건강보험심사평가원(HIRA) 의료기관별상세정보서비스 2.8",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://apis.data.go.kr/B551182"
+    }
+  ],
+  "paths": {
+    "/MadmDtlInfoService2.8/getDtlInfo2.8": {
+      "get": {
+        "operationId": "getDetailInfo",
+        "summary": "세부정보",
+        "description": "진료시간, 점심시간, 휴진 안내, 주차, 응급실 운영 여부 등. 병원당 1건.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "세부정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getEqpInfo2.8": {
+      "get": {
+        "operationId": "getFacilityInfo",
+        "summary": "시설정보",
+        "description": "병상수, 수술실, 응급실 등 시설 현황. 병원당 1건.\n오퍼레이션명이 Eqp(장비)지만 실제 내용은 시설·병상 정보다. 의료장비는 getEquipmentInfo 를 쓴다.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "시설정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacilityInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getDgsbjtInfo2.8": {
+      "get": {
+        "operationId": "getSubjectInfo",
+        "summary": "진료과목정보",
+        "description": "해당 병원이 운영하는 진료과목과 과목별 의사 수.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "진료과목정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getTrnsprtInfo2.8": {
+      "get": {
+        "operationId": "getTransportInfo",
+        "summary": "교통정보",
+        "description": "버스·지하철 등 교통편 안내.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "교통정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransportInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getMedOftInfo2.8": {
+      "get": {
+        "operationId": "getEquipmentInfo",
+        "summary": "의료장비정보",
+        "description": "보유 의료장비와 대수. 장비코드는 getEquipmentCodeList 참조.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "의료장비정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getNursigGrdInfo2.8": {
+      "get": {
+        "operationId": "getNursingGradeInfo",
+        "summary": "간호등급정보",
+        "description": "구분별 간호등급.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "간호등급정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NursingGradeInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getFoepAddcInfo2.8": {
+      "get": {
+        "operationId": "getFoodAddcInfo",
+        "summary": "식대가산정보",
+        "description": "식대 가산 적용 여부와 인원수.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "식대가산정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodAddcInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getSpclDiagInfo2.8": {
+      "get": {
+        "operationId": "getSpecialDiagnosisInfo",
+        "summary": "특수진료정보 (진료가능분야)",
+        "description": "해당 병원이 진료 가능한 특수분야. 코드는 getSpecialDiagnosisCodeList 참조.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "특수진료정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialDiagnosisInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getSpclHospAsgFldList2.8": {
+      "get": {
+        "operationId": "getSpecialtyHospitalFieldList",
+        "summary": "전문병원지정분야",
+        "description": "전문병원으로 지정된 분야. 전문병원이 아니면 0건이다.\n코드는 getSpecialtyHospitalCodeList 참조.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "전문병원지정분야",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialDiagnosisInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getSpcSbjtSdrInfo2.8": {
+      "get": {
+        "operationId": "getSpecialistCountInfo",
+        "summary": "전문과목별 전문의수",
+        "description": "진료과목별 전문의 인원수.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "전문과목별 전문의수",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialistCountInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/MadmDtlInfoService2.8/getEtcHstInfo2.8": {
+      "get": {
+        "operationId": "getEtcStaffInfo",
+        "summary": "기타인력수",
+        "description": "의사·치과의사·한의사 외 인력 수.",
+        "tags": ["detail"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "기타인력수",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtcStaffInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PageNo": {
+        "name": "pageNo",
+        "in": "query",
+        "required": false,
+        "description": "페이지 번호",
+        "schema": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "NumOfRows": {
+        "name": "numOfRows",
+        "in": "query",
+        "required": false,
+        "description": "한 페이지 결과 수",
+        "schema": {
+          "type": "integer",
+          "default": 10
+        }
+      },
+      "Ykiho": {
+        "name": "ykiho",
+        "in": "query",
+        "required": true,
+        "description": "암호화된 요양기호. 병원 기본목록(getHospitalList) 응답의 ykiho 값을 그대로 넘긴다.\nBase64 문자열이라 +, / , = 가 섞여 있다. 쿼리 인코딩이 필요하며 생성된 코드가 처리한다.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "ResultHeader": {
+        "type": "object",
+        "description": "공통 응답 헤더",
+        "properties": {
+          "resultCode": {
+            "type": "string",
+            "description": "결과코드 (정상: 00)"
+          },
+          "resultMsg": {
+            "type": "string",
+            "description": "결과메시지"
+          }
+        }
+      },
+      "PageInfo": {
+        "type": "object",
+        "properties": {
+          "numOfRows": {
+            "type": "integer",
+            "description": "한 페이지 결과 수"
+          },
+          "pageNo": {
+            "type": "integer",
+            "description": "현재 페이지 번호"
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "전체 결과 수"
+          }
+        }
+      },
+      "DetailInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/DetailInfoResult"
+          }
+        }
+      },
+      "FacilityInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/FacilityInfoResult"
+          }
+        }
+      },
+      "SubjectInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/SubjectInfoResult"
+          }
+        }
+      },
+      "TransportInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/TransportInfoResult"
+          }
+        }
+      },
+      "EquipmentInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/EquipmentInfoResult"
+          }
+        }
+      },
+      "NursingGradeInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/NursingGradeInfoResult"
+          }
+        }
+      },
+      "FoodAddcInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/FoodAddcInfoResult"
+          }
+        }
+      },
+      "SpecialDiagnosisInfoResponse": {
+        "type": "object",
+        "description": "특수진료정보·전문병원지정분야 공통 응답",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/SpecialDiagnosisInfoResult"
+          }
+        }
+      },
+      "SpecialistCountInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/SpecialistCountInfoResult"
+          }
+        }
+      },
+      "EtcStaffInfoResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/EtcStaffInfoResult"
+          }
+        }
+      },
+      "DetailInfoItem": {
+        "type": "object",
+        "description": "세부정보 항목 (진료시간·휴진·주차·응급실)",
+        "properties": {
+          "trmtMonStart": {
+            "type": "string",
+            "description": "월요일 진료시작시각 (예: 0830)"
+          },
+          "trmtMonEnd": {
+            "type": "string",
+            "description": "월요일 진료종료시각 (예: 1700)"
+          },
+          "trmtTueStart": {
+            "type": "string",
+            "description": "화요일 진료시작시각"
+          },
+          "trmtTueEnd": {
+            "type": "string",
+            "description": "화요일 진료종료시각"
+          },
+          "trmtWedStart": {
+            "type": "string",
+            "description": "수요일 진료시작시각"
+          },
+          "trmtWedEnd": {
+            "type": "string",
+            "description": "수요일 진료종료시각"
+          },
+          "trmtThuStart": {
+            "type": "string",
+            "description": "목요일 진료시작시각"
+          },
+          "trmtThuEnd": {
+            "type": "string",
+            "description": "목요일 진료종료시각"
+          },
+          "trmtFriStart": {
+            "type": "string",
+            "description": "금요일 진료시작시각"
+          },
+          "trmtFriEnd": {
+            "type": "string",
+            "description": "금요일 진료종료시각"
+          },
+          "trmtSatStart": {
+            "type": "string",
+            "description": "토요일 진료시작시각"
+          },
+          "trmtSatEnd": {
+            "type": "string",
+            "description": "토요일 진료종료시각"
+          },
+          "trmtSunStart": {
+            "type": "string",
+            "description": "일요일 진료시작시각 (예: 0830)"
+          },
+          "trmtSunEnd": {
+            "type": "string",
+            "description": "일요일 진료종료시각 (예: 1700)"
+          },
+          "rcvWeek": {
+            "type": "string",
+            "description": "월~금 접수시간 (예: 08:00~17:00)"
+          },
+          "rcvSat": {
+            "type": "string",
+            "description": "토요일 접수시간"
+          },
+          "lunchWeek": {
+            "type": "string",
+            "description": "월~금 점심시간 (예: 12:00~13:00)"
+          },
+          "lunchSat": {
+            "type": "string",
+            "description": "토요일 점심시간"
+          },
+          "noTrmtSun": {
+            "type": "string",
+            "description": "일요일 휴진 안내"
+          },
+          "noTrmtHoli": {
+            "type": "string",
+            "description": "공휴일 휴진 안내"
+          },
+          "emyDayYn": {
+            "type": "string",
+            "description": "주간 응급실 운영여부 (Y/N)"
+          },
+          "emyDayTelNo1": {
+            "type": "string",
+            "description": "주간 응급실 전화번호 1"
+          },
+          "emyDayTelNo2": {
+            "type": "string",
+            "description": "주간 응급실 전화번호 2"
+          },
+          "emyNgtYn": {
+            "type": "string",
+            "description": "야간 응급실 운영여부 (Y/N)"
+          },
+          "emyNgtTelNo1": {
+            "type": "string",
+            "description": "야간 응급실 전화번호 1"
+          },
+          "emyNgtTelNo2": {
+            "type": "string",
+            "description": "야간 응급실 전화번호 2"
+          },
+          "parkQty": {
+            "type": "integer",
+            "description": "주차 가능대수"
+          },
+          "parkXpnsYn": {
+            "type": "string",
+            "description": "주차비용 부담여부 (Y/N)"
+          },
+          "parkEtc": {
+            "type": "string",
+            "description": "주차 기타 안내사항"
+          },
+          "plcNm": {
+            "type": "string",
+            "description": "찾아오는 길 - 공공건물(장소) 이름"
+          },
+          "plcDir": {
+            "type": "string",
+            "description": "찾아오는 길 - 방향"
+          },
+          "plcDist": {
+            "type": "string",
+            "description": "찾아오는 길 - 거리"
+          }
+        }
+      },
+      "FacilityInfoItem": {
+        "type": "object",
+        "description": "시설정보 항목 (병상·수술실 등). 병원 기본정보 필드가 함께 온다.",
+        "properties": {
+          "yadmNm": {
+            "type": "string",
+            "description": "병원명"
+          },
+          "clCd": {
+            "type": "string",
+            "description": "종별코드"
+          },
+          "clCdNm": {
+            "type": "string",
+            "description": "종별코드명"
+          },
+          "sidoCd": {
+            "type": "string",
+            "description": "시도코드"
+          },
+          "sidoCdNm": {
+            "type": "string",
+            "description": "시도명"
+          },
+          "sgguCd": {
+            "type": "string",
+            "description": "시군구코드"
+          },
+          "sgguCdNm": {
+            "type": "string",
+            "description": "시군구명"
+          },
+          "emdongNm": {
+            "type": "string",
+            "description": "읍면동명"
+          },
+          "postNo": {
+            "type": "string",
+            "description": "우편번호"
+          },
+          "addr": {
+            "type": "string",
+            "description": "주소"
+          },
+          "telno": {
+            "type": "string",
+            "description": "전화번호"
+          },
+          "hospUrl": {
+            "type": "string",
+            "description": "홈페이지"
+          },
+          "estbDd": {
+            "type": "string",
+            "description": "개설일자"
+          },
+          "orgTyCd": {
+            "type": "string",
+            "description": "설립구분 코드"
+          },
+          "orgTyCdNm": {
+            "type": "string",
+            "description": "설립구분명"
+          },
+          "permSbdCnt": {
+            "type": "integer",
+            "description": "허가병상수"
+          },
+          "stdSickbdCnt": {
+            "type": "integer",
+            "description": "일반병상수"
+          },
+          "hghrSickbdCnt": {
+            "type": "integer",
+            "description": "상급병상수"
+          },
+          "isnrSbdCnt": {
+            "type": "integer",
+            "description": "격리병실 병상수"
+          },
+          "anvirTrrmSbdCnt": {
+            "type": "integer",
+            "description": "무균치료실 병상수"
+          },
+          "dtrmSbdCnt": {
+            "type": "integer",
+            "description": "공식 가이드의 응답 표에 없는 필드. 낮병동 병상수로 추정된다."
+          },
+          "emymCnt": {
+            "type": "integer",
+            "description": "응급실 수"
+          },
+          "ptrmCnt": {
+            "type": "integer",
+            "description": "물리치료실 수"
+          },
+          "soprmCnt": {
+            "type": "integer",
+            "description": "수술실 수"
+          },
+          "partumCnt": {
+            "type": "integer",
+            "description": "분만실 수"
+          },
+          "chldSprmCnt": {
+            "type": "integer",
+            "description": "소아중환자실 수"
+          },
+          "aduChldSprmCnt": {
+            "type": "integer",
+            "description": "성인소아중환자실 수"
+          },
+          "nbySprmCnt": {
+            "type": "integer",
+            "description": "신생아중환자실 수"
+          },
+          "psydeptClsGnlSbdCnt": {
+            "type": "integer",
+            "description": "정신과 폐쇄 일반병상수"
+          },
+          "psydeptClsHigSbdCnt": {
+            "type": "integer",
+            "description": "정신과 폐쇄 상급병상수"
+          },
+          "psydeptOpenGnlSbdCnt": {
+            "type": "integer",
+            "description": "정신과 개방 일반병상수"
+          },
+          "psydeptOpenHigSbdCnt": {
+            "type": "integer",
+            "description": "정신과 개방 상급병상수"
+          }
+        }
+      },
+      "SubjectInfoItem": {
+        "type": "object",
+        "description": "진료과목정보 항목",
+        "properties": {
+          "dgsbjtCd": {
+            "type": "string",
+            "description": "진료과목코드"
+          },
+          "dgsbjtCdNm": {
+            "type": "string",
+            "description": "진료과목코드명"
+          },
+          "dgsbjtPrSdrCnt": {
+            "type": "integer",
+            "description": "과목별 의사수"
+          },
+          "cdiagDrCnt": {
+            "type": "integer",
+            "description": "선택진료 의사수"
+          }
+        }
+      },
+      "TransportInfoItem": {
+        "type": "object",
+        "description": "교통정보 항목",
+        "properties": {
+          "trafNm": {
+            "type": "string",
+            "description": "교통편. 열거형이 아니다 — \"지하철\", \"마을버스\", \"시내버스\" 등 병원이 적은 문자열."
+          },
+          "lineNo": {
+            "type": "string",
+            "description": "노선번호. 숫자만 오지 않는다 — \"2호선\", \"21A\", \"용인경전철\" 처럼 노선명이 통째로 온다."
+          },
+          "dir": {
+            "type": "string",
+            "description": "방향. 실제로는 목적지가 들어오는 경우가 많다 — \"용인세브란스병원\"."
+          },
+          "dist": {
+            "type": "string",
+            "description": "병원까지의 거리. \"100m\", \"500m\" 처럼 단위가 붙은 문자열이다."
+          },
+          "arivPlc": {
+            "type": "string",
+            "description": "하차지점. 출구까지 섞여 온다 — \"동백역 3번출구\"."
+          },
+          "rmk": {
+            "type": "string",
+            "description": "비고. \"병원 셔틀버스 이용\" 등 자유 텍스트."
+          }
+        }
+      },
+      "EquipmentInfoItem": {
+        "type": "object",
+        "description": "의료장비정보 항목",
+        "properties": {
+          "oftCd": {
+            "type": "string",
+            "description": "장비코드"
+          },
+          "oftCdNm": {
+            "type": "string",
+            "description": "장비코드명"
+          },
+          "oftCnt": {
+            "type": "integer",
+            "description": "보유대수"
+          }
+        }
+      },
+      "NursingGradeInfoItem": {
+        "type": "object",
+        "description": "간호등급정보 항목",
+        "properties": {
+          "tyCd": {
+            "type": "string",
+            "description": "구분 코드"
+          },
+          "tyCdNm": {
+            "type": "string",
+            "description": "구분 코드명"
+          },
+          "careGrd": {
+            "type": "string",
+            "description": "간호등급"
+          }
+        }
+      },
+      "FoodAddcInfoItem": {
+        "type": "object",
+        "description": "식대가산정보 항목",
+        "properties": {
+          "tyCd": {
+            "type": "string",
+            "description": "구분 코드"
+          },
+          "trmealGrd": {
+            "type": "string",
+            "description": "등급"
+          },
+          "tyCdNm": {
+            "type": "string",
+            "description": "구분 코드명"
+          },
+          "gnmAddcYn": {
+            "type": "string",
+            "description": "일반식 가산 적용여부 (Y/N)"
+          },
+          "calcNopCnt": {
+            "type": "integer",
+            "description": "인원수"
+          }
+        }
+      },
+      "SpecialDiagnosisInfoItem": {
+        "type": "object",
+        "description": "특수진료정보·전문병원지정분야 항목",
+        "properties": {
+          "srchCd": {
+            "type": "string",
+            "description": "구분 코드"
+          },
+          "srchCdNm": {
+            "type": "string",
+            "description": "구분 코드명"
+          }
+        }
+      },
+      "SpecialistCountInfoItem": {
+        "type": "object",
+        "description": "전문과목별 전문의수 항목",
+        "properties": {
+          "dgsbjtCd": {
+            "type": "string",
+            "description": "진료과목코드"
+          },
+          "dgsbjtCdNm": {
+            "type": "string",
+            "description": "진료과목코드명"
+          },
+          "dtlSdrCnt": {
+            "type": "integer",
+            "description": "전문의수"
+          }
+        }
+      },
+      "EtcStaffInfoItem": {
+        "type": "object",
+        "description": "기타인력수 항목",
+        "properties": {
+          "ykiho": {
+            "type": "string",
+            "description": "암호화된 요양기호"
+          },
+          "yadmNm": {
+            "type": "string",
+            "description": "병원명"
+          },
+          "gnlNopDtlCd": {
+            "type": "string",
+            "description": "기타인력 상세코드"
+          },
+          "dtlGnlNopCdNm": {
+            "type": "string",
+            "description": "기타인력 상세코드명"
+          },
+          "gnlNopCnt": {
+            "type": "integer",
+            "description": "기타인력수"
+          }
+        }
+      },
+      "DetailInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "description": "병원당 1건. 실제 응답은 단일 객체지만 mutator 가 배열로 정규화한다.",
+            "items": {
+              "$ref": "#/components/schemas/DetailInfoItem"
+            }
+          }
+        }
+      },
+      "DetailInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/DetailInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "DetailInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/DetailInfoBody"
+          }
+        }
+      },
+      "FacilityInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "description": "병원당 1건",
+            "items": {
+              "$ref": "#/components/schemas/FacilityInfoItem"
+            }
+          }
+        }
+      },
+      "FacilityInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/FacilityInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "FacilityInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/FacilityInfoBody"
+          }
+        }
+      },
+      "SubjectInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubjectInfoItem"
+            }
+          }
+        }
+      },
+      "SubjectInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/SubjectInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "SubjectInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/SubjectInfoBody"
+          }
+        }
+      },
+      "TransportInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransportInfoItem"
+            }
+          }
+        }
+      },
+      "TransportInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/TransportInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "TransportInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/TransportInfoBody"
+          }
+        }
+      },
+      "EquipmentInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EquipmentInfoItem"
+            }
+          }
+        }
+      },
+      "EquipmentInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/EquipmentInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "EquipmentInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/EquipmentInfoBody"
+          }
+        }
+      },
+      "NursingGradeInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NursingGradeInfoItem"
+            }
+          }
+        }
+      },
+      "NursingGradeInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/NursingGradeInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "NursingGradeInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/NursingGradeInfoBody"
+          }
+        }
+      },
+      "FoodAddcInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoodAddcInfoItem"
+            }
+          }
+        }
+      },
+      "FoodAddcInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/FoodAddcInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "FoodAddcInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/FoodAddcInfoBody"
+          }
+        }
+      },
+      "SpecialDiagnosisInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpecialDiagnosisInfoItem"
+            }
+          }
+        }
+      },
+      "SpecialDiagnosisInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/SpecialDiagnosisInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "SpecialDiagnosisInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/SpecialDiagnosisInfoBody"
+          }
+        }
+      },
+      "SpecialistCountInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpecialistCountInfoItem"
+            }
+          }
+        }
+      },
+      "SpecialistCountInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/SpecialistCountInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "SpecialistCountInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/SpecialistCountInfoBody"
+          }
+        }
+      },
+      "EtcStaffInfoItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EtcStaffInfoItem"
+            }
+          }
+        }
+      },
+      "EtcStaffInfoBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/EtcStaffInfoItems"
+              }
+            }
+          }
+        ]
+      },
+      "EtcStaffInfoResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/EtcStaffInfoBody"
+          }
+        }
+      }
+    }
+  }
+}

@@ -143,6 +143,12 @@ export interface HospitalSummary {
    * 종별에서 유도한 값이다 — 의료법이 병상 수로 종별을 규정하므로 등급이 종별에 이미 들어 있다.
    */
   tier?: HospitalCode;
+
+  /**
+   * 전문병원 지정분야. 보건복지부 지정이라 병원당 최대 1건이다(관절·척추·심장 …).
+   * 목록에서 "척추 전문병원" 배지로 쓴다. capabilities(tp='specialty')를 요약한 것이다.
+   */
+  specialty?: HospitalCode;
   location: HospitalLocation;
   tel?: string;
 

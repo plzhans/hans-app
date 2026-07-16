@@ -7,9 +7,9 @@ import { pickName } from '../healthcare/code-name';
 /**
  * 지역(주소) 항목.
  *
- * **헬스케어 소속이 아니다.** region_code 는 도메인 무관이라 접두사조차 없다 —
+ * **헬스케어 소속이 아니다.** region_code 는 도메인 무관이라 —
  * 병원·학교·약국이 같이 쓴다. (region-code.seed.ts 참고)
- * 그래서 /healthcare/meta 밑이 아니라 최상위(/regions)로 낸다.
+ * 그래서 /healthcare/meta 밑이 아니라 주소 그룹(/address/regions)으로 낸다.
  */
 export interface Region {
   code: string;

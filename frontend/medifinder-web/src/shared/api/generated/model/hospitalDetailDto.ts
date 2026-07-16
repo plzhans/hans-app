@@ -28,6 +28,8 @@ export interface HospitalDetailDto {
      * 종별에서 유도한 값이다 — 의료법이 병상 수로 종별을 규정하므로 등급이 종별에 이미 들어 있다.
      */
   tier?: CodeDto;
+  /** 전문병원 지정분야(관절·척추·심장 …). 보건복지부 지정이라 병원당 최대 1건이다. */
+  specialty?: CodeDto;
   location: LocationDto;
   tel?: string;
   /** 응급실 운영 */

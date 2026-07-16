@@ -136,6 +136,12 @@ importers:
       '@hansapi/common':
         specifier: workspace:*
         version: link:../../packages/hansapi-common
+      '@kr-go/juso':
+        specifier: workspace:*
+        version: link:../../clients/kr-go-juso
+      '@kr-go/nts':
+        specifier: workspace:*
+        version: link:../../clients/kr-go-nts
       '@krdata/hira':
         specifier: workspace:*
         version: link:../../clients/krdata-hira
@@ -225,6 +231,18 @@ importers:
         specifier: ^8.62.1
         version: 8.62.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
 
+  clients/kr-go-juso:
+    devDependencies:
+      orval:
+        specifier: ^7.13.2
+        version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
+
+  clients/kr-go-nts:
+    devDependencies:
+      orval:
+        specifier: ^7.13.2
+        version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
+
   clients/krdata-core: {}
 
   clients/krdata-hira:
@@ -264,6 +282,12 @@ importers:
       '@hansapi/data':
         specifier: workspace:*
         version: link:../hansapi-data
+      '@kr-go/juso':
+        specifier: workspace:*
+        version: link:../../clients/kr-go-juso
+      '@kr-go/nts':
+        specifier: workspace:*
+        version: link:../../clients/kr-go-nts
       '@krdata/core':
         specifier: workspace:*
         version: link:../../clients/krdata-core

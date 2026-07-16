@@ -24,7 +24,7 @@ import {
  * 우리 내부 매핑이고, 사용자가 알 필요가 없다.
  * (원본 코드가 필요하면 /data-go-kr/hira/codes · /data-go-kr/nmc/codes 를 본다)
  *
- * **지역 코드는 여기 없다.** 도메인 무관이라 최상위(/regions)로 뺐다 — 병원만 쓰는 게 아니다.
+ * **지역 코드는 여기 없다.** 도메인 무관이라 주소 그룹(/address/regions)으로 뺐다 — 병원만 쓰는 게 아니다.
  */
 @ApiTags('healthcare-meta')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
@@ -61,7 +61,7 @@ export class HealthcareMetaController {
 
   @Get('tiers')
   @ApiOperation({
-    summary: '병원 등급 (TIER1~3)',
+    summary: '병원 등급',
     description:
       '종별을 등급으로 묶은 것. 의원급(TIER1) · 병원급(TIER2) · 상급종합(TIER3).\n\n' +
       '상급종합은 **진료의뢰서가 없으면 진료비 전액 본인 부담**이다.\n' +
@@ -107,5 +107,33 @@ export class HealthcareMetaController {
     @Lang() lang: SupportedLang,
   ): Promise<ListResponseDto<MetaCodeDto>> {
     return new ListResponseDto(await this.service.listCodes('severe', lang));
+  }
+
+  @Get('specialties')
+  @ApiOperation({
+    summary: '전문병원 지정분야 코드',
+    description:
+      '관절·척추·심장 등. 보건복지부가 지정한 전문병원의 분야다.\n\n' +
+      '병원 상세의 capabilities(type=specialty) 코드를 이 이름으로 푼다.',
+  })
+  @ApiListResponse(MetaCodeDto)
+  async specialties(
+    @Lang() lang: SupportedLang,
+  ): Promise<ListResponseDto<MetaCodeDto>> {
+    return new ListResponseDto(await this.service.listCodes('specialty', lang));
+  }
+
+  @Get('specials')
+  @ApiOperation({
+    summary: '특수진료(진료가능분야) 코드',
+    description:
+      '방문진료·재택의료·치매주치의·중환자실 운영 등. 대부분 시범사업이다.\n\n' +
+      '병원 상세의 capabilities(type=special) 코드를 이 이름으로 푼다.',
+  })
+  @ApiListResponse(MetaCodeDto)
+  async specials(
+    @Lang() lang: SupportedLang,
+  ): Promise<ListResponseDto<MetaCodeDto>> {
+    return new ListResponseDto(await this.service.listCodes('special', lang));
   }
 }

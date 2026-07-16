@@ -1,0 +1,133 @@
+{
+  "app": {
+    "name": "MediFinder",
+    "tagline": "轻松快速查找全国医院"
+  },
+  "nav": {
+    "home": "首页",
+    "search": "医院搜索"
+  },
+  "home": {
+    "heroTitle": "查找附近的医院",
+    "heroSubtitle": "按名称搜索医院并查看诊疗信息。",
+    "searchPlaceholder": "请输入医院名称",
+    "searchButton": "搜索"
+  },
+  "common": {
+    "loading": "加载中…",
+    "loadError": "加载失败。",
+    "language": "语言",
+    "days": {
+      "1": "一",
+      "2": "二",
+      "3": "三",
+      "4": "四",
+      "5": "五",
+      "6": "六",
+      "7": "日",
+      "8": "假日"
+    }
+  },
+  "search": {
+    "tabs": {
+      "hospital": "医院",
+      "emergency": "急诊室",
+      "baby": "夜间儿童",
+      "nursing": "疗养医院",
+      "mental": "精神病院"
+    },
+    "inpatient": "疗养·精神",
+    "sido": "市道",
+    "sidoSearch": "搜索市道",
+    "sggu": "市郡区",
+    "sgguSearch": "搜索市郡区",
+    "hospitalName": "医院名称",
+    "submit": "搜索",
+    "tier": "医院等级",
+    "subject": "诊疗科目",
+    "advanced": "详细搜索",
+    "clearAll": "全部清除",
+    "applyFilters": "按此条件搜索",
+    "prev": "上一页",
+    "next": "下一页",
+    "count": "{{count}}条",
+    "refreshing": "(更新中)",
+    "empty": "没有搜索结果。",
+    "collapse": "收起",
+    "more": "+{{count}}个",
+    "optionCount": "{{count}}个"
+  },
+  "clinic": {
+    "badge": {
+      "emergency": "急诊室",
+      "emergencyDetail": "设有急诊室",
+      "baby": "夜间儿童",
+      "babyDetail": "夜间儿童诊疗医院"
+    },
+    "backToSearch": "返回搜索",
+    "tabs": {
+      "subject": "简介",
+      "care": "诊疗",
+      "scale": "规模",
+      "location": "位置"
+    },
+    "contact": "联系方式",
+    "intro": "医院介绍",
+    "hours": "诊疗时间",
+    "hoursEmpty": "暂无诊疗时间信息。",
+    "hoursConfirm": "请拨打 {{tel}} 确认",
+    "lunch": "午休 {{start}}~{{end}}",
+    "babyHours": "夜间儿童诊疗 (18岁以下)",
+    "today": "今天",
+    "tomorrow": "明天",
+    "notice": "说明",
+    "subjects": "诊疗科目",
+    "specialCare": "特殊诊疗",
+    "specialtyHospital": "专科",
+    "specialist": "专科医生",
+    "displaySubject": "(标榜科目)",
+    "peopleSuffix": "名",
+    "staff": "医疗团队",
+    "staffNote": "各科目人数因兼职重复计算，可能与总数不一致。",
+    "staffField": {
+      "total": "总数",
+      "specialist": "专科医生",
+      "resident": "住院医生",
+      "intern": "实习医生",
+      "general": "普通医生",
+      "dentist": "牙科医生",
+      "oriental": "韩医师"
+    },
+    "beds": "病床",
+    "bedField": {
+      "total": "核准病床",
+      "standard": "普通",
+      "higher": "高级",
+      "icu": "重症监护室",
+      "emergency": "急诊",
+      "operatingRoom": "手术室"
+    },
+    "equipments": "保有设备",
+    "transport": {
+      "subway": "地铁",
+      "bus": "公交",
+      "etc": "其他",
+      "unknownStop": "下车地点不明",
+      "busStop": "{{name}} 公交站"
+    },
+    "parking": "停车",
+    "parkingCapacity": "可停车",
+    "paid": "收费",
+    "free": "免费",
+    "address": "地址",
+    "showMap": "查看地图"
+  },
+  "map": {
+    "authFailed": "地图认证失败。请确认该域名是否已在 NAVER 云控制台注册。",
+    "loadFailed": "无法加载地图。",
+    "noKey": "未设置地图密钥 (VITE_NCLOUD_CLIENT_ID)。",
+    "expand": "放大",
+    "collapse": "缩小",
+    "recenter": "前往医院位置"
+  }
+}

@@ -26,6 +26,8 @@
   "dependencies": {
     "@hansapi/application": "workspace:*",
     "@hansapi/common": "workspace:*",
+    "@kr-go/juso": "workspace:*",
+    "@kr-go/nts": "workspace:*",
     "@krdata/hira": "workspace:*",
     "@krdata/nmc": "workspace:*",
     "@nestjs/common": "^11.1.27",

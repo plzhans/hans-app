@@ -34,7 +34,7 @@ export interface SubjectGroupSeed {
 export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
   {
     code: 'internal',
-    name: { ko: '내과', en: 'Internal Medicine', ja: '内科' },
+    name: { ko: '내과', en: 'Internal Medicine', ja: '内科', zh: '内科' },
     subjects: ['IM'],
   },
 
@@ -42,13 +42,18 @@ export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
   // "어디 갈지 모를 때" 가는 과라서 내과와 묶지 않고 따로 둔다.
   {
     code: 'family',
-    name: { ko: '가정의학과', en: 'Family Medicine', ja: '家庭医学科' },
+    name: {
+      ko: '가정의학과',
+      en: 'Family Medicine',
+      ja: '家庭医学科',
+      zh: '家庭医学科',
+    },
     subjects: ['FM'],
   },
 
   {
     code: 'pediatrics',
-    name: { ko: '소아청소년과', en: 'Pediatrics', ja: '小児科' },
+    name: { ko: '소아청소년과', en: 'Pediatrics', ja: '小児科', zh: '儿科' },
     subjects: ['PED'],
   },
 
@@ -56,7 +61,12 @@ export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
   // 뇌수술을 하는 곳은 종합병원이고, 그 환자는 검색이 아니라 의뢰로 간다.
   {
     code: 'ortho',
-    name: { ko: '정형·통증', en: 'Orthopedics & Pain', ja: '整形・疼痛' },
+    name: {
+      ko: '정형·통증',
+      en: 'Orthopedics & Pain',
+      ja: '整形・疼痛',
+      zh: '骨科·疼痛',
+    },
     subjects: ['OS', 'NS', 'REHAB', 'ANES'],
   },
 
@@ -66,53 +76,69 @@ export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
       ko: '피부·성형',
       en: 'Dermatology & Plastic Surgery',
       ja: '皮膚・形成',
+      zh: '皮肤·整形',
     },
     subjects: ['DERM', 'PS'],
   },
   {
     code: 'eye',
-    name: { ko: '안과', en: 'Ophthalmology', ja: '眼科' },
+    name: { ko: '안과', en: 'Ophthalmology', ja: '眼科', zh: '眼科' },
     subjects: ['OPH'],
   },
   {
     code: 'ent',
-    name: { ko: '이비인후과', en: 'ENT', ja: '耳鼻咽喉科' },
+    name: { ko: '이비인후과', en: 'ENT', ja: '耳鼻咽喉科', zh: '耳鼻喉科' },
     subjects: ['ENT'],
   },
   {
     code: 'obgy',
-    name: { ko: '산부인과', en: 'Obstetrics & Gynecology', ja: '産婦人科' },
+    name: {
+      ko: '산부인과',
+      en: 'Obstetrics & Gynecology',
+      ja: '産婦人科',
+      zh: '妇产科',
+    },
     subjects: ['OBGY'],
   },
   {
     code: 'uro',
-    name: { ko: '비뇨의학과', en: 'Urology', ja: '泌尿器科' },
+    name: { ko: '비뇨의학과', en: 'Urology', ja: '泌尿器科', zh: '泌尿外科' },
     subjects: ['URO'],
   },
   {
     code: 'mental',
-    name: { ko: '정신건강의학과', en: 'Psychiatry', ja: '精神科' },
+    name: {
+      ko: '정신건강의학과',
+      en: 'Psychiatry',
+      ja: '精神科',
+      zh: '精神科',
+    },
     subjects: ['PSY'],
   },
   {
     code: 'neuro',
-    name: { ko: '신경과', en: 'Neurology', ja: '神経科' },
+    name: { ko: '신경과', en: 'Neurology', ja: '神経科', zh: '神经内科' },
     subjects: ['NEURO'],
   },
   {
     code: 'surgery',
-    name: { ko: '외과', en: 'Surgery', ja: '外科' },
+    name: { ko: '외과', en: 'Surgery', ja: '外科', zh: '外科' },
     subjects: ['GS', 'CS'],
   },
   {
     code: 'emergency',
-    name: { ko: '응급의학과', en: 'Emergency Medicine', ja: '救急医学科' },
+    name: {
+      ko: '응급의학과',
+      en: 'Emergency Medicine',
+      ja: '救急医学科',
+      zh: '急诊医学科',
+    },
     subjects: ['EM'],
   },
 
   {
     code: 'dental',
-    name: { ko: '치과', en: 'Dentistry', ja: '歯科' },
+    name: { ko: '치과', en: 'Dentistry', ja: '歯科', zh: '牙科' },
     subjects: [
       'DENT',
       'ORTHO',
@@ -128,7 +154,7 @@ export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
 
   {
     code: 'oriental',
-    name: { ko: '한방', en: 'Korean Medicine', ja: '韓方' },
+    name: { ko: '한방', en: 'Korean Medicine', ja: '韓方', zh: '韩医' },
     subjects: [
       'KM_IM',
       'KM_ACU',
@@ -160,11 +186,26 @@ export interface HospitalTierSeed {
  * 이름이 두 곳에 생기면 반드시 어긋난다. 이름은 여기 한 곳에만 둔다.
  */
 export const TIER_NAMES: Record<HospitalTier, LangName> = {
-  TIER1: { ko: '의원급', en: 'Clinic level', ja: '医院級' },
-  TIER2: { ko: '병원급', en: 'Hospital level', ja: '病院級' },
-  TIER3: { ko: '상급종합', en: 'Tertiary general', ja: '上級総合' },
-  NURSING: { ko: '요양병원', en: 'Nursing hospital', ja: '療養病院' },
-  MENTAL: { ko: '정신병원', en: 'Psychiatric hospital', ja: '精神病院' },
+  TIER1: { ko: '의원급', en: 'Clinic level', ja: '医院級', zh: '诊所级' },
+  TIER2: { ko: '병원급', en: 'Hospital level', ja: '病院級', zh: '医院级' },
+  TIER3: {
+    ko: '상급종합',
+    en: 'Tertiary general',
+    ja: '上級総合',
+    zh: '上级综合',
+  },
+  NURSING: {
+    ko: '요양병원',
+    en: 'Nursing hospital',
+    ja: '療養病院',
+    zh: '疗养医院',
+  },
+  MENTAL: {
+    ko: '정신병원',
+    en: 'Psychiatric hospital',
+    ja: '精神病院',
+    zh: '精神病院',
+  },
 };
 
 /**
@@ -193,6 +234,7 @@ export const HOSPITAL_TIERS: HospitalTierSeed[] = [
       ko: '동네 의원. 외래 중심, 병상 30개 미만',
       en: 'Local clinics. Outpatient-focused, under 30 beds',
       ja: '町の医院。外来中心、病床30床未満',
+      zh: '社区诊所。以门诊为主，病床30张以下',
     },
     classes: [
       'CLINIC',
@@ -211,6 +253,7 @@ export const HOSPITAL_TIERS: HospitalTierSeed[] = [
       ko: '병원·종합병원. 입원 가능, 병상 30개 이상',
       en: 'Hospitals and general hospitals. Inpatient care, 30+ beds',
       ja: '病院・総合病院。入院可能、病床30床以上',
+      zh: '医院·综合医院。可住院，病床30张以上',
     },
     // 정신병원(MENTAL)은 병상 규모로는 2차지만 여기 넣지 않는다.
     // 장기 입원 시설이라 INPATIENT_ONLY_CLASSES 로 따로 뺀다 — 두 곳에 두면 서로 어긋난다.
@@ -230,6 +273,7 @@ export const HOSPITAL_TIERS: HospitalTierSeed[] = [
       ko: '상급종합병원. 중증질환 중심, 진료의뢰서 필요',
       en: 'Tertiary general hospitals. Severe cases, referral required',
       ja: '上級総合病院。重症疾患中心、紹介状が必要',
+      zh: '上级综合医院。以重症疾病为主，需转诊单',
     },
     classes: ['TERTIARY'],
   },

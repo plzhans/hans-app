@@ -1,0 +1,539 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "건강보험심사평가원(HIRA) 코드정보서비스",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://apis.data.go.kr/B551182"
+    }
+  ],
+  "paths": {
+    "/codeInfoService/getAddrCodeList": {
+      "get": {
+        "operationId": "getAddressCodeList",
+        "summary": "주소코드 조회",
+        "description": "시도 단위 주소코드. 전체 16건. sidoCd 파라미터에 쓰는 값이다.",
+        "tags": ["code"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "주소코드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressCodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/codeInfoService/getMedicInsttClassesCodeList": {
+      "get": {
+        "operationId": "getInstitutionClassCodeList",
+        "summary": "의료기관종별코드 조회",
+        "description": "종별코드(clCd). 전체 19건.",
+        "tags": ["code"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "종별코드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstitutionClassCodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/codeInfoService/getMdlrtSbjectCodeList": {
+      "get": {
+        "operationId": "getSubjectCodeList",
+        "summary": "진료과목코드 조회",
+        "description": "진료과목코드(dgsbjtCd). 전체 50건.",
+        "tags": ["code"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "진료과목코드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubjectCodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/codeInfoService/getMedicEquipmentCodeList": {
+      "get": {
+        "operationId": "getEquipmentCodeList",
+        "summary": "장비코드 조회",
+        "description": "의료장비코드(oftCd). 전체 17건.",
+        "tags": ["code"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "장비코드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentCodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/codeInfoService/getSpcHospCodeList": {
+      "get": {
+        "operationId": "getSpecialtyHospitalCodeList",
+        "summary": "전문병원코드 조회",
+        "description": "전문병원 지정분야 코드(srchCd). 전체 19건. 관절, 척추, 심장 등.",
+        "tags": ["code"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "전문병원코드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchCodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/codeInfoService/getSpclMdlrtCodeList": {
+      "get": {
+        "operationId": "getSpecialDiagnosisCodeList",
+        "summary": "특수진료코드 조회",
+        "description": "특수진료(진료가능분야) 코드(srchCd). 전체 93건.",
+        "tags": ["code"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "특수진료코드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchCodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PageNo": {
+        "name": "pageNo",
+        "in": "query",
+        "required": false,
+        "description": "페이지 번호",
+        "schema": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "NumOfRows": {
+        "name": "numOfRows",
+        "in": "query",
+        "required": false,
+        "description": "한 페이지 결과 수",
+        "schema": {
+          "type": "integer",
+          "default": 10
+        }
+      }
+    },
+    "schemas": {
+      "ResultHeader": {
+        "type": "object",
+        "description": "공통 응답 헤더",
+        "properties": {
+          "resultCode": {
+            "type": "string",
+            "description": "결과코드 (정상: 00)"
+          },
+          "resultMsg": {
+            "type": "string",
+            "description": "결과메시지"
+          }
+        }
+      },
+      "PageInfo": {
+        "type": "object",
+        "properties": {
+          "numOfRows": {
+            "type": "integer",
+            "description": "한 페이지 결과 수"
+          },
+          "pageNo": {
+            "type": "integer",
+            "description": "현재 페이지 번호"
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "전체 결과 수"
+          }
+        }
+      },
+      "AddressCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/AddressCodeResult"
+          }
+        }
+      },
+      "InstitutionClassCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/InstitutionClassCodeResult"
+          }
+        }
+      },
+      "SubjectCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/SubjectCodeResult"
+          }
+        }
+      },
+      "EquipmentCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/EquipmentCodeResult"
+          }
+        }
+      },
+      "SearchCodeResponse": {
+        "type": "object",
+        "description": "전문병원코드·특수진료코드 공통 응답",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/SearchCodeResult"
+          }
+        }
+      },
+      "AddressCodeItem": {
+        "type": "object",
+        "properties": {
+          "addrCd": {
+            "type": "string",
+            "description": "주소코드 (예: 110000)"
+          },
+          "addrCdNm": {
+            "type": "string",
+            "description": "주소코드명 (예: 서울)"
+          }
+        }
+      },
+      "InstitutionClassCodeItem": {
+        "type": "object",
+        "properties": {
+          "clCd": {
+            "type": "string",
+            "description": "종별코드"
+          },
+          "clCdNm": {
+            "type": "string",
+            "description": "종별코드명"
+          }
+        }
+      },
+      "SubjectCodeItem": {
+        "type": "object",
+        "properties": {
+          "dgsbjtCd": {
+            "type": "string",
+            "description": "진료과목코드"
+          },
+          "dgsbjtCdNm": {
+            "type": "string",
+            "description": "진료과목코드명"
+          },
+          "dgsbjtCdCmmt": {
+            "type": "string",
+            "description": "진료과목코드 설명"
+          }
+        }
+      },
+      "EquipmentCodeItem": {
+        "type": "object",
+        "properties": {
+          "oftCd": {
+            "type": "string",
+            "description": "장비코드"
+          },
+          "oftCdNm": {
+            "type": "string",
+            "description": "장비코드명"
+          }
+        }
+      },
+      "SearchCodeItem": {
+        "type": "object",
+        "description": "전문병원코드·특수진료코드 항목",
+        "properties": {
+          "srchCd": {
+            "type": "string",
+            "description": "구분 코드"
+          },
+          "srchCdNm": {
+            "type": "string",
+            "description": "구분 코드명"
+          },
+          "srchCdCmmt": {
+            "type": "string",
+            "description": "구분 코드 설명"
+          }
+        }
+      },
+      "AddressCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddressCodeItem"
+            }
+          }
+        }
+      },
+      "AddressCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/AddressCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "AddressCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/AddressCodeBody"
+          }
+        }
+      },
+      "InstitutionClassCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstitutionClassCodeItem"
+            }
+          }
+        }
+      },
+      "InstitutionClassCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/InstitutionClassCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "InstitutionClassCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/InstitutionClassCodeBody"
+          }
+        }
+      },
+      "SubjectCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubjectCodeItem"
+            }
+          }
+        }
+      },
+      "SubjectCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/SubjectCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "SubjectCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/SubjectCodeBody"
+          }
+        }
+      },
+      "EquipmentCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EquipmentCodeItem"
+            }
+          }
+        }
+      },
+      "EquipmentCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/EquipmentCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "EquipmentCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/EquipmentCodeBody"
+          }
+        }
+      },
+      "SearchCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchCodeItem"
+            }
+          }
+        }
+      },
+      "SearchCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/SearchCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "SearchCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/SearchCodeBody"
+          }
+        }
+      }
+    }
+  }
+}

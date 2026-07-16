@@ -18,7 +18,7 @@ page?: number;
  */
 size?: number;
 /**
- * 시군구 코드. /healthcare/meta/regions 참조
+ * 시군구 코드. /address/regions 참조
  */
 region?: string;
 /**

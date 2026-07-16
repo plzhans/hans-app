@@ -48,13 +48,17 @@ export class HealthcareHospitalService {
                h.emergency_yn, h.baby_yn, h.emdong_nm,
                i.name AS i18n_name,
                JSON_UNQUOTE(JSON_EXTRACT(h.transport, '$.subway[0].arrival')) AS station,
-               h.class_cd, c.nm AS class_nm, c.nm_en AS class_nm_en, c.nm_ja AS class_nm_ja,
+               h.class_cd, c.title AS class_nm, c.title_en AS class_nm_en, c.title_ja AS class_nm_ja, c.title_zh AS class_nm_zh,
                h.tier,
+               spc.cd AS specialty_cd, sc.title AS specialty_nm, sc.title_en AS specialty_nm_en, sc.title_ja AS specialty_nm_ja, sc.title_zh AS specialty_nm_zh,
                h.region_cd, r.nm AS region_nm, r.nm_en AS region_nm_en, r.nm_ja AS region_nm_ja,
                r.parent_cd AS sido_cd,
                sr.nm AS sido_nm, sr.nm_en AS sido_nm_en, sr.nm_ja AS sido_nm_ja
           FROM healthcare_hospital h
           LEFT JOIN healthcare_code c ON c.tp = 'class' AND c.cd = h.class_cd
+          -- 전문병원 지정은 병원당 최대 1건이라 JOIN 이 행을 늘리지 않는다.
+          LEFT JOIN healthcare_hospital_capability spc ON spc.hospital_id = h.id AND spc.tp = 'specialty'
+          LEFT JOIN healthcare_code sc ON sc.tp = 'specialty' AND sc.cd = spc.cd
           LEFT JOIN region_code r ON r.cd = h.region_cd
           LEFT JOIN region_code sr ON sr.cd = r.parent_cd
           LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
@@ -92,13 +96,17 @@ export class HealthcareHospitalService {
                i.directions AS i18n_directions,
                i.park_note  AS i18n_park_note,
                i.transport  AS i18n_transport,
-               h.class_cd, c.nm AS class_nm, c.nm_en AS class_nm_en, c.nm_ja AS class_nm_ja,
+               h.class_cd, c.title AS class_nm, c.title_en AS class_nm_en, c.title_ja AS class_nm_ja, c.title_zh AS class_nm_zh,
                h.tier,
+               spc.cd AS specialty_cd, sc.title AS specialty_nm, sc.title_en AS specialty_nm_en, sc.title_ja AS specialty_nm_ja, sc.title_zh AS specialty_nm_zh,
                h.region_cd, r.nm AS region_nm, r.nm_en AS region_nm_en, r.nm_ja AS region_nm_ja,
                r.parent_cd AS sido_cd,
                sr.nm AS sido_nm, sr.nm_en AS sido_nm_en, sr.nm_ja AS sido_nm_ja
           FROM healthcare_hospital h
           LEFT JOIN healthcare_code c ON c.tp = 'class' AND c.cd = h.class_cd
+          -- 전문병원 지정은 병원당 최대 1건이라 JOIN 이 행을 늘리지 않는다.
+          LEFT JOIN healthcare_hospital_capability spc ON spc.hospital_id = h.id AND spc.tp = 'specialty'
+          LEFT JOIN healthcare_code sc ON sc.tp = 'specialty' AND sc.cd = spc.cd
           LEFT JOIN region_code r ON r.cd = h.region_cd
           LEFT JOIN region_code sr ON sr.cd = r.parent_cd
           LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
@@ -114,7 +122,7 @@ export class HealthcareHospitalService {
     const [subjects, hours, staff, beds, equipments, capabilities] =
       await Promise.all([
         this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT s.subject_cd, c.nm, c.nm_en, c.nm_ja, s.declared, s.doctor_cnt, s.specialist_cnt
+          SELECT s.subject_cd, c.title AS nm, c.title_en AS nm_en, c.title_ja AS nm_ja, c.title_zh AS nm_zh, s.declared, s.doctor_cnt, s.specialist_cnt
             FROM healthcare_hospital_subject s
             JOIN healthcare_code c ON c.tp = 'subject' AND c.cd = s.subject_cd
            WHERE s.hospital_id = ${id}
@@ -131,16 +139,19 @@ export class HealthcareHospitalService {
           where: { hospital_id: id },
         }),
         this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT e.equipment_cd, c.nm, c.nm_en, c.nm_ja, e.cnt
+          SELECT e.equipment_cd, c.title AS nm, c.title_en AS nm_en, c.title_ja AS nm_ja, c.title_zh AS nm_zh, e.cnt
             FROM healthcare_hospital_equipment e
             JOIN healthcare_code c ON c.tp = 'equipment' AND c.cd = e.equipment_cd
            WHERE e.hospital_id = ${id}
            ORDER BY c.sort
         `),
-        this.prisma.healthcare_hospital_capability.findMany({
-          where: { hospital_id: id },
-          orderBy: [{ tp: 'asc' }, { cd: 'asc' }],
-        }),
+        this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
+          SELECT cap.tp, cap.cd, c.title AS nm, c.title_en AS nm_en, c.title_ja AS nm_ja, c.title_zh AS nm_zh
+            FROM healthcare_hospital_capability cap
+            LEFT JOIN healthcare_code c ON c.tp = cap.tp AND c.cd = cap.cd
+           WHERE cap.hospital_id = ${id}
+           ORDER BY cap.tp, c.sort, cap.cd
+        `),
       ]);
 
     const parkNote = this.text(row, 'park_note');
@@ -226,10 +237,13 @@ export class HealthcareHospitalService {
         count: this.num(e.cnt),
       })),
 
+      // 이름은 healthcare_code 조인에서 온다(장비·과목과 같은 방식). capability 행에는
+      // 코드만 있다 — 이름을 코드표 한 곳에서만 관리하고 i18n 도 거기 붙는다.
+      // 아직 코드표에 없는 코드는 이름이 비므로 code 만 내보낸다.
       capabilities: capabilities.map((c) => ({
-        type: c.tp,
-        code: c.cd,
-        name: c.nm ?? undefined,
+        type: String(c.tp),
+        code: String(c.cd),
+        name: this.codeName(c, lang) || undefined,
       })),
     };
   }
@@ -327,6 +341,12 @@ export class HealthcareHospitalService {
         : undefined,
       // 등급 이름은 시드가 갖는다. DB 에는 코드만 넣어 두 곳에 이름이 생기지 않게 한다.
       tier: tierCd ? this.tier(tierCd, lang) : undefined,
+      specialty: asString(row.specialty_cd)
+        ? {
+            code: asString(row.specialty_cd) as string,
+            name: this.rowName(row, 'specialty_nm', lang),
+          }
+        : undefined,
       tel: (row.tel as string | null) ?? undefined,
       emergency: Boolean(row.emergency_yn),
       baby: Boolean(row.baby_yn),
@@ -370,13 +390,14 @@ export class HealthcareHospitalService {
     };
   }
 
-  /** nm/nm_en/nm_ja 를 그대로 가진 행(진료과목·장비)에서 이름을 고른다. */
+  /** nm/nm_en/nm_ja/nm_zh 를 그대로 가진 행(진료과목·장비)에서 이름을 고른다. */
   private codeName(row: Record<string, unknown>, lang: SupportedLang): string {
     return pickName(
       {
         nm: asString(row.nm) ?? '',
         nm_en: asString(row.nm_en),
         nm_ja: asString(row.nm_ja),
+        nm_zh: asString(row.nm_zh),
       },
       lang,
     );
@@ -400,6 +421,7 @@ export class HealthcareHospitalService {
         nm: asString(row[prefix]) ?? '',
         nm_en: asString(row[`${prefix}_en`]),
         nm_ja: asString(row[`${prefix}_ja`]),
+        nm_zh: asString(row[`${prefix}_zh`]),
       },
       lang,
     );

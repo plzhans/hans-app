@@ -418,6 +418,11 @@ export default function HospitalDetailPage() {
   const equipments = hospital.equipments ?? [];
   const region = hospital.location?.region;
 
+  // 역량(capability)은 type 으로 갈린다. 특수진료는 진료 섹션, 전문병원 지정은 규모 섹션에 붙인다.
+  const capabilities = hospital.capabilities ?? [];
+  const specialCare = capabilities.filter((c) => c.type === 'special');
+  const specialtyFields = capabilities.filter((c) => c.type === 'specialty');
+
   return (
     // 카드를 걷어냈으므로 **페이지가 곧 한 장의 흰 종이**다.
     // 섹션마다 흰 카드를 두르면 탭이 하는 구역 나누기를 두 번 하게 되어 화면이 조각난다.
@@ -449,13 +454,30 @@ export default function HospitalDetailPage() {
           배지 줄. **규모가 맨 앞이다** — "상급병원이냐 동네 의원이냐" 가 이 병원의 기본 성격이고,
           응급실·달빛은 그 위에 얹히는 특성이다. 이름 옆에 따로 두면 배지가 두 곳에 흩어진다.
         */}
-        {(hospital.tier || hospital.emergency || hospital.baby) && (
+        {(hospital.tier ||
+          specialtyFields.length > 0 ||
+          hospital.emergency ||
+          hospital.baby) && (
           <div className="mb-1.5 flex flex-wrap gap-1.5">
             {hospital.tier && (
               <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
                 {hospital.tier.name}
               </span>
             )}
+            {/*
+              전문병원 지정. 등급(1·2·3차) 바로 옆에 "척추 전문병원" 처럼 붙인다 —
+              등급과 함께 이 병원의 기본 성격을 말하는 정보라 같은 배지 줄에 둔다.
+            */}
+            {specialtyFields.map((c) => (
+              <span
+                key={c.code}
+                className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
+              >
+                {c.name
+                  ? `${c.name} ${t('clinic.specialtyHospital')}`
+                  : t('clinic.specialtyHospital')}
+              </span>
+            ))}
             {hospital.emergency && (
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
                 <Ambulance className="h-3 w-3" /> {t('clinic.badge.emergencyDetail')}
@@ -469,7 +491,7 @@ export default function HospitalDetailPage() {
           </div>
         )}
 
-        <h1 className="text-xl font-bold text-slate-900">{hospital.name}</h1>
+        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{hospital.name}</h1>
 
         {/*
           지하철역 | 시도 | 시군구.
@@ -758,6 +780,27 @@ export default function HospitalDetailPage() {
           )}
           </div>
         )}
+
+        {/*
+          특수진료(진료가능분야). 방문진료·재택의료·응급의료기관 등 "이 병원이 참여/제공하는 제도"다.
+          이름이 길어(문장에 가깝다) 칩으로 흘리면 읽기 어렵다. **한 줄에 하나씩** 세로로 쌓는다 —
+          장비·표시과목과 같은 회색 박스 행 스타일이다.
+        */}
+        {specialCare.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-1.5 text-xs font-medium text-slate-500">{t('clinic.specialCare')}</p>
+            <div className="rounded-xl bg-slate-50 px-3 py-1">
+              {specialCare.map((c) => (
+                <div
+                  key={c.code}
+                  className="border-b border-slate-200/60 py-1.5 text-xs text-slate-700 last:border-b-0"
+                >
+                  {c.name ?? c.code}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Section>
 
       {/*
@@ -782,16 +825,29 @@ export default function HospitalDetailPage() {
             종별만 보면 그게 어느 급인지 모르고, 차수만 보면 무슨 병원인지 모른다. 둘을 붙여야 읽힌다.
             care(요양·정신)는 차수 체계 밖이라 종별만 쓴다.
           */}
-          {hospital.category && (
+          {(hospital.category || specialtyFields.length > 0) && (
             <div className="flex flex-wrap gap-1.5">
               {/*
                 예전엔 여기에 "(1차)" 를 붙였다. 뺐다 — tier 는 **우리가 매긴 등급**이지
                 의료전달체계의 1·2·3차가 아니다. 그 이름을 빌려 쓰면 공식 차수와 같다고 오해한다.
                 등급은 이름 위 배지(의원급·병원급·상급종합)가 이미 말한다.
               */}
-              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
-                {hospital.category.name}
-              </span>
+              {hospital.category && (
+                <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+                  {hospital.category.name}
+                </span>
+              )}
+              {/* 종별 옆에 전문병원 지정분야도 함께 — "종합병원 · 심장 전문병원" 처럼 성격을 붙여 읽힌다. */}
+              {specialtyFields.map((c) => (
+                <span
+                  key={c.code}
+                  className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
+                >
+                  {c.name
+                    ? `${c.name} ${t('clinic.specialtyHospital')}`
+                    : t('clinic.specialtyHospital')}
+                </span>
+              ))}
             </div>
           )}
 

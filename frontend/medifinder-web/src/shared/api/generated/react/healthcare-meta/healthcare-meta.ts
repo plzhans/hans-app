@@ -24,6 +24,8 @@ import type {
   HealthcareMetaControllerClasses200,
   HealthcareMetaControllerEquipments200,
   HealthcareMetaControllerSeverities200,
+  HealthcareMetaControllerSpecials200,
+  HealthcareMetaControllerSpecialties200,
   HealthcareMetaControllerSubjectGroups200,
   HealthcareMetaControllerSubjects200,
   HealthcareMetaControllerTiers200
@@ -269,7 +271,7 @@ export const getHealthcareMetaControllerTiersUrl = () => {
  *
  * 상급종합은 **진료의뢰서가 없으면 진료비 전액 본인 부담**이다.
  * 요양병원·정신병원은 이 체계 밖이라 어느 등급에도 없다(NURSING·MENTAL).
- * @summary 병원 등급 (TIER1~3)
+ * @summary 병원 등급
  */
 export const healthcareMetaControllerTiers = async ( options?: RequestInit): Promise<HealthcareMetaControllerTiers200> => {
 
@@ -340,7 +342,7 @@ export function useHealthcareMetaControllerTiers<TData = Awaited<ReturnType<type
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary 병원 등급 (TIER1~3)
+ * @summary 병원 등급
  */
 
 export function useHealthcareMetaControllerTiers<TData = Awaited<ReturnType<typeof healthcareMetaControllerTiers>>, TError = unknown>(
@@ -652,6 +654,212 @@ export function useHealthcareMetaControllerSeverities<TData = Awaited<ReturnType
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthcareMetaControllerSeveritiesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHealthcareMetaControllerSpecialtiesUrl = () => {
+
+
+
+
+  return `/healthcare/meta/specialties`
+}
+
+/**
+ * 관절·척추·심장 등. 보건복지부가 지정한 전문병원의 분야다.
+ *
+ * 병원 상세의 capabilities(type=specialty) 코드를 이 이름으로 푼다.
+ * @summary 전문병원 지정분야 코드
+ */
+export const healthcareMetaControllerSpecialties = async ( options?: RequestInit): Promise<HealthcareMetaControllerSpecialties200> => {
+
+  return reactFetch<HealthcareMetaControllerSpecialties200>(getHealthcareMetaControllerSpecialtiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthcareMetaControllerSpecialtiesQueryKey = () => {
+    return [
+    `/healthcare/meta/specialties`
+    ] as const;
+    }
+
+
+export const getHealthcareMetaControllerSpecialtiesQueryOptions = <TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthcareMetaControllerSpecialtiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>> = ({ signal }) => healthcareMetaControllerSpecialties({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthcareMetaControllerSpecialtiesQueryResult = NonNullable<Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>>
+export type HealthcareMetaControllerSpecialtiesQueryError = unknown
+
+
+export function useHealthcareMetaControllerSpecialties<TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareMetaControllerSpecialties<TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareMetaControllerSpecialties<TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 전문병원 지정분야 코드
+ */
+
+export function useHealthcareMetaControllerSpecialties<TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecialties>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthcareMetaControllerSpecialtiesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHealthcareMetaControllerSpecialsUrl = () => {
+
+
+
+
+  return `/healthcare/meta/specials`
+}
+
+/**
+ * 방문진료·재택의료·치매주치의·중환자실 운영 등. 대부분 시범사업이다.
+ *
+ * 병원 상세의 capabilities(type=special) 코드를 이 이름으로 푼다.
+ * @summary 특수진료(진료가능분야) 코드
+ */
+export const healthcareMetaControllerSpecials = async ( options?: RequestInit): Promise<HealthcareMetaControllerSpecials200> => {
+
+  return reactFetch<HealthcareMetaControllerSpecials200>(getHealthcareMetaControllerSpecialsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthcareMetaControllerSpecialsQueryKey = () => {
+    return [
+    `/healthcare/meta/specials`
+    ] as const;
+    }
+
+
+export const getHealthcareMetaControllerSpecialsQueryOptions = <TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthcareMetaControllerSpecialsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>> = ({ signal }) => healthcareMetaControllerSpecials({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthcareMetaControllerSpecialsQueryResult = NonNullable<Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>>
+export type HealthcareMetaControllerSpecialsQueryError = unknown
+
+
+export function useHealthcareMetaControllerSpecials<TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareMetaControllerSpecials<TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareMetaControllerSpecials<TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 특수진료(진료가능분야) 코드
+ */
+
+export function useHealthcareMetaControllerSpecials<TData = Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerSpecials>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthcareMetaControllerSpecialsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

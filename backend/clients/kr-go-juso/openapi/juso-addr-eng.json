@@ -1,0 +1,157 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "도로명주소 영문주소 검색 API",
+    "version": "1.0.0",
+    "description": "도로명주소 개발자센터(business.juso.go.kr) 의 '영문주소 검색 API'(addrEngApi.do).\n\n한글 검색어로 찾은 주소를 **영문 표기**로 함께 준다(roadAddr/jibunAddr 이 영문, korAddr 이 한글).\n외국인 환자에게 병원 주소를 영문으로 보여줄 때 쓴다 — 주소는 지어내면 안 되는 값이라\n공식 로마자 표기를 그대로 가져온다.\n\n[data.go.kr 과 다른 점] @krdata/core 를 재사용할 수 없는 이유다.\n- 인증키 이름이 ServiceKey 가 아니라 **confmKey**(승인키)다. 쿼리로 붙는다.\n- 성공 판정이 header.resultCode 가 아니라 **results.common.errorCode == '0'** 이다.\n- 정상이어도 HTTP 200 + errorCode 문자열로 실패를 알린다. 상태코드만 봐선 안 된다.\n- 응답이 { results: { common, juso } } 봉투다. 숫자로 보이는 값도 **전부 문자열**로 온다.\n\n[이 스펙의 규칙]\n- confmKey 는 정의하지 않는다. mutator 가 쿼리로 붙인다(키가 스펙·생성물에 남지 않게).\n- resultType 도 정의하지 않는다. mutator 가 항상 json 으로 고정한다. xml 로 두면 응답 스키마가 흔들린다.\n- 에러 응답(errorCode != '0')은 성공 스키마와 같은 모양이라 따로 정의하지 않는다.\n  mutator 가 errorCode 를 보고 예외로 바꾸므로, 성공 응답만 호출부에 온다.\n\n[실측 함정]\n- **countPerPage 최대 100.** 초과 시 100 으로 잘린다(문서 기준).\n- **키워드는 시/도명 단독·한 글자·숫자만·특수문자만으로는 검색 불가**(E0006/E0008/E0009/E0012).\n  E0010(80자 초과)·E0011(10자리 초과 숫자)·E0013(SQL·특수문자)·E0015(9천건 초과)도 요청 오류다.\n- **totalCount 초과 검색은 9,000 건까지.** 그 이상은 E0015 로 막힌다.\n- 결과가 없어도 errorCode 는 '0' 이다. juso 가 null/빈 배열로 온다 — 에러가 아니다.",
+    "x-source": "https://business.juso.go.kr/addrlink/openApi/apiExprn.do"
+  },
+  "servers": [{ "url": "https://business.juso.go.kr/addrlink" }],
+  "paths": {
+    "/addrEngApi.do": {
+      "get": {
+        "operationId": "searchEngAddress",
+        "summary": "영문주소 검색",
+        "description": "한글 검색어로 주소를 찾아 영문 표기와 함께 돌려준다.\n\nconfmKey·resultType 은 mutator 가 채운다 — 생성된 함수를 직접 부르지 말고 JusoClient 를 써라.",
+        "tags": ["juso"],
+        "parameters": [
+          {
+            "name": "currentPage",
+            "in": "query",
+            "required": true,
+            "description": "현재 페이지 번호. 1 부터.",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "countPerPage",
+            "in": "query",
+            "required": true,
+            "description": "페이지당 결과 수. 최대 100.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": true,
+            "description": "주소 검색어(한글). 시/도명 단독·한 글자·숫자만으로는 검색되지 않는다.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "검색 결과",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AddrEngResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddrEngResponse": {
+        "type": "object",
+        "description": "응답 봉투. 언제나 results 하나를 감싼다.",
+        "properties": {
+          "results": { "$ref": "#/components/schemas/AddrEngResults" }
+        }
+      },
+      "AddrEngResults": {
+        "type": "object",
+        "properties": {
+          "common": { "$ref": "#/components/schemas/AddrEngCommon" },
+          "juso": {
+            "type": "array",
+            "description": "검색된 주소 목록. 결과가 없으면 null 로 오기도 한다(에러 아님).",
+            "items": { "$ref": "#/components/schemas/AddrEng" }
+          }
+        }
+      },
+      "AddrEngCommon": {
+        "type": "object",
+        "description": "요청 결과 공통부. errorCode 가 '0' 이 아니면 mutator 가 예외로 바꾼다.\n**숫자로 보이는 값도 전부 문자열로 온다.**",
+        "properties": {
+          "totalCount": {
+            "type": "string",
+            "description": "총 검색 데이터 수."
+          },
+          "currentPage": {
+            "type": "string",
+            "description": "현재 페이지 번호."
+          },
+          "countPerPage": {
+            "type": "string",
+            "description": "페이지당 결과 수."
+          },
+          "errorCode": {
+            "type": "string",
+            "description": "'0' 정상 / '-999' 시스템에러 / 'E0001'~'E0015' 요청·인증 오류."
+          },
+          "errorMessage": {
+            "type": "string",
+            "description": "에러 메시지('정상' 포함)."
+          }
+        }
+      },
+      "AddrEng": {
+        "type": "object",
+        "description": "검색된 주소 한 건. **영문·한글 표기가 섞여 있다** — roadAddr/jibunAddr 은 영문, korAddr 은 한글이다.",
+        "properties": {
+          "roadAddr": {
+            "type": "string",
+            "description": "영문 도로명주소(전체)."
+          },
+          "jibunAddr": { "type": "string", "description": "영문 지번주소." },
+          "korAddr": {
+            "type": "string",
+            "description": "도로명주소(한글). 문서 타입은 Number 지만 실제로는 문자열로 온다."
+          },
+          "zipNo": { "type": "string", "description": "우편번호(5자리)." },
+          "admCd": { "type": "string", "description": "행정구역코드(10자리)." },
+          "rnMgtSn": { "type": "string", "description": "도로명코드(12자리)." },
+          "bdKdcd": {
+            "type": "string",
+            "description": "공동주택여부. '1' 공동주택 / '0' 비공동주택."
+          },
+          "siNm": { "type": "string", "description": "영문 시도명." },
+          "sggNm": { "type": "string", "description": "영문 시군구명." },
+          "emdNm": {
+            "type": "string",
+            "description": "영문 읍면동명. 없을 수 있다."
+          },
+          "liNm": {
+            "type": "string",
+            "description": "영문 법정리명. 없을 수 있다."
+          },
+          "rn": { "type": "string", "description": "영문 도로명." },
+          "udrtYn": {
+            "type": "string",
+            "description": "지하여부. '0' 지상 / '1' 지하."
+          },
+          "buldMnnm": { "type": "string", "description": "건물본번." },
+          "buldSlno": {
+            "type": "string",
+            "description": "건물부번. 없으면 '0'."
+          },
+          "mtYn": {
+            "type": "string",
+            "description": "산여부. '0' 대지 / '1' 산."
+          },
+          "lnbrMnnm": { "type": "string", "description": "지번본번(번지)." },
+          "lnbrSlno": {
+            "type": "string",
+            "description": "지번부번(호). 없으면 '0'."
+          }
+        }
+      }
+    }
+  }
+}

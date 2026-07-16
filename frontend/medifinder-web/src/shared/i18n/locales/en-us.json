@@ -1,0 +1,133 @@
+{
+  "app": {
+    "name": "MediFinder",
+    "tagline": "Find hospitals across Korea, fast"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Search"
+  },
+  "home": {
+    "heroTitle": "Find a hospital near you",
+    "heroSubtitle": "Search hospitals by name and check their care information.",
+    "searchPlaceholder": "Enter a hospital name",
+    "searchButton": "Search"
+  },
+  "common": {
+    "loading": "Loading…",
+    "loadError": "Failed to load.",
+    "language": "Language",
+    "days": {
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat",
+      "7": "Sun",
+      "8": "Holiday"
+    }
+  },
+  "search": {
+    "tabs": {
+      "hospital": "Hospitals",
+      "emergency": "Emergency",
+      "baby": "Night Pediatric",
+      "nursing": "Nursing",
+      "mental": "Psychiatric"
+    },
+    "inpatient": "Nursing / Psychiatric",
+    "sido": "Province",
+    "sidoSearch": "Search province",
+    "sggu": "District",
+    "sgguSearch": "Search district",
+    "hospitalName": "Hospital name",
+    "submit": "Search",
+    "tier": "Hospital tier",
+    "subject": "Specialty",
+    "advanced": "Advanced search",
+    "clearAll": "Clear all",
+    "applyFilters": "Search with these filters",
+    "prev": "Prev",
+    "next": "Next",
+    "count": "{{count}} results",
+    "refreshing": "(updating)",
+    "empty": "No results found.",
+    "collapse": "Collapse",
+    "more": "+{{count}} more",
+    "optionCount": "{{count}} items"
+  },
+  "clinic": {
+    "badge": {
+      "emergency": "ER",
+      "emergencyDetail": "Emergency room",
+      "baby": "Night Pediatric",
+      "babyDetail": "Night pediatric clinic"
+    },
+    "backToSearch": "Back to search",
+    "tabs": {
+      "subject": "About",
+      "care": "Care",
+      "scale": "Facility",
+      "location": "Location"
+    },
+    "contact": "Contact",
+    "intro": "About",
+    "hours": "Opening hours",
+    "hoursEmpty": "No opening hours available.",
+    "hoursConfirm": "Call {{tel}} to confirm",
+    "lunch": "Lunch {{start}}–{{end}}",
+    "babyHours": "Night pediatric care (under 18)",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "notice": "Notice",
+    "subjects": "Specialties",
+    "specialCare": "Special care programs",
+    "specialtyHospital": "Specialty",
+    "specialist": "Specialists",
+    "displaySubject": "(listed)",
+    "peopleSuffix": "",
+    "staff": "Medical staff",
+    "staffNote": "Per-specialty counts may double-count doctors holding multiple roles, so they can differ from the total.",
+    "staffField": {
+      "total": "Total",
+      "specialist": "Specialist",
+      "resident": "Resident",
+      "intern": "Intern",
+      "general": "General",
+      "dentist": "Dentist",
+      "oriental": "Oriental medicine"
+    },
+    "beds": "Beds",
+    "bedField": {
+      "total": "Licensed beds",
+      "standard": "Standard",
+      "higher": "Upper-grade",
+      "icu": "ICU",
+      "emergency": "Emergency",
+      "operatingRoom": "Operating room"
+    },
+    "equipments": "Equipment",
+    "transport": {
+      "subway": "Subway",
+      "bus": "Bus",
+      "etc": "Other",
+      "unknownStop": "Stop unknown",
+      "busStop": "{{name}} stop"
+    },
+    "parking": "Parking",
+    "parkingCapacity": "Capacity",
+    "paid": "Paid",
+    "free": "Free",
+    "address": "Address",
+    "showMap": "Show map"
+  },
+  "map": {
+    "authFailed": "Map authentication failed. Check that this domain is registered in the Naver Cloud console.",
+    "loadFailed": "Failed to load the map.",
+    "noKey": "Map key (VITE_NCLOUD_CLIENT_ID) is not set.",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "recenter": "Back to hospital"
+  }
+}

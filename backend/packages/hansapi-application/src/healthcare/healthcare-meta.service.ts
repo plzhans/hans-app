@@ -88,6 +88,8 @@ export const META_CODE_TYPES = [
   'class',
   'equipment',
   'severe',
+  'specialty',
+  'special',
 ] as const;
 
 export type MetaCodeType = (typeof META_CODE_TYPES)[number];
@@ -114,9 +116,18 @@ export class HealthcareMetaService {
       orderBy: [{ sort: 'asc' }, { cd: 'asc' }],
     });
 
+    // 표시명은 title*(nm 은 관리용). pickName 의 nm/en/ja 자리에 title 값을 넣는다.
     return rows.map((row) => ({
       code: row.cd,
-      name: pickName(row, lang),
+      name: pickName(
+        {
+          nm: row.title,
+          nm_en: row.title_en,
+          nm_ja: row.title_ja,
+          nm_zh: row.title_zh,
+        },
+        lang,
+      ),
       description: row.cmt ?? undefined,
     }));
   }
@@ -211,8 +222,27 @@ export class HealthcareMetaService {
   ): Promise<Map<string, string>> {
     const rows = await this.prisma.healthcare_code.findMany({
       where: { tp },
-      select: { cd: true, nm: true, nm_en: true, nm_ja: true },
+      select: {
+        cd: true,
+        title: true,
+        title_en: true,
+        title_ja: true,
+        title_zh: true,
+      },
     });
-    return new Map(rows.map((row) => [row.cd, pickName(row, lang)]));
+    return new Map(
+      rows.map((row) => [
+        row.cd,
+        pickName(
+          {
+            nm: row.title,
+            nm_en: row.title_en,
+            nm_ja: row.title_ja,
+            nm_zh: row.title_zh,
+          },
+          lang,
+        ),
+      ]),
+    );
   }
 }

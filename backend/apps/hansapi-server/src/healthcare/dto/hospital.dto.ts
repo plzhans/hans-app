@@ -43,7 +43,7 @@ export class HospitalSearchRequestDto {
   readonly size: number = DEFAULT_PAGE_SIZE;
 
   @ApiPropertyOptional({
-    description: '시군구 코드. /regions 참조',
+    description: '시군구 코드. /address/regions 참조',
     example: '11001',
   })
   @IsOptional()
@@ -113,7 +113,7 @@ export class CodeDto {
 }
 
 /**
- * 병원에 붙어 나오는 지역. **지역 목록(/regions)의 RegionDto 와 다른 타입이다.**
+ * 병원에 붙어 나오는 지역. **지역 목록(/address/regions)의 RegionDto 와 다른 타입이다.**
  *
  * 이름을 RegionDto 로 두면 안 된다. Swagger 는 클래스 이름으로 스키마 이름을 만들어서,
  * 같은 이름이 둘이면 components.schemas 의 한 자리를 놓고 충돌한다. 나중에 등록된 쪽이 이기고
@@ -188,6 +188,13 @@ export class HospitalSummaryDto {
       '종별에서 유도한 값이다 — 의료법이 병상 수로 종별을 규정하므로 등급이 종별에 이미 들어 있다.',
   })
   readonly tier?: CodeDto;
+
+  @ApiPropertyOptional({
+    type: CodeDto,
+    description:
+      '전문병원 지정분야(관절·척추·심장 …). 보건복지부 지정이라 병원당 최대 1건이다.',
+  })
+  readonly specialty?: CodeDto;
 
   @ApiProperty({ type: LocationDto })
   readonly location!: LocationDto;

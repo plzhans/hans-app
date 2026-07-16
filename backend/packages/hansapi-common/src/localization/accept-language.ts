@@ -7,8 +7,8 @@
  * 폴백 규칙을 다시 구현해야 했다. 이제 Accept-Language 로 하나만 골라 평문으로 준다.
  */
 
-/** 지원 언어. 이 목록에 없으면 기본 언어로 떨어진다. */
-export const SUPPORTED_LANGS = ['ko', 'en', 'ja'] as const;
+/** 지원 언어. 이 목록에 없으면 기본 언어로 떨어진다. zh 는 간체(zh-CN) 기준이다. */
+export const SUPPORTED_LANGS = ['ko', 'en', 'ja', 'zh'] as const;
 
 export type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
@@ -56,6 +56,7 @@ export interface LangName {
   ko: string;
   en?: string;
   ja?: string;
+  zh?: string;
 }
 
 /** 다국어 이름에서 언어를 고른다. 번역이 없으면 한국어. */

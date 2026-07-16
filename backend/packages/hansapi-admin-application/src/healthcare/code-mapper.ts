@@ -72,7 +72,7 @@ export class CodeMapper {
 
   /** 원본 코드 → 우리 코드. 매핑이 없으면 undefined (호출부가 경고를 낸다). */
   code(
-    tp: 'class' | 'subject' | 'equipment' | 'severe',
+    tp: 'class' | 'subject' | 'equipment' | 'severe' | 'specialty' | 'special',
     src: 'hira' | 'nmc',
     sourceCode: string | null | undefined,
   ): string | undefined {

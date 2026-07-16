@@ -38,9 +38,10 @@ export class HealthcareCodeSeedService {
 
     const values = Prisma.join(
       HEALTHCARE_CODES.map(
+        // title 은 표시용이라 생략하면 nm(관리용)을 복사한다.
         (code) => Prisma.sql`(
-          ${code.tp}, ${code.cd}, ${code.nm},
-          ${code.nm_en ?? null}, ${code.nm_ja ?? null},
+          ${code.tp}, ${code.cd}, ${code.nm}, ${code.title ?? code.nm},
+          ${code.title_en ?? null}, ${code.title_ja ?? null}, ${code.title_zh ?? null},
           ${code.cmt ?? null},
           ${code.hira_cd ? JSON.stringify(code.hira_cd) : null},
           ${code.nmc_cd ? JSON.stringify(code.nmc_cd) : null},
@@ -51,10 +52,12 @@ export class HealthcareCodeSeedService {
 
     await this.prisma.$executeRaw(Prisma.sql`
       INSERT INTO healthcare_code
-        (tp, cd, nm, nm_en, nm_ja, cmt, hira_cd, nmc_cd, sort, created_at, updated_at)
+        (tp, cd, nm, title, title_en, title_ja, title_zh, cmt, hira_cd, nmc_cd, sort, created_at, updated_at)
       VALUES ${values} AS new
       ON DUPLICATE KEY UPDATE
-        nm = new.nm, nm_en = new.nm_en, nm_ja = new.nm_ja, cmt = new.cmt,
+        nm = new.nm, title = new.title, title_en = new.title_en, title_ja = new.title_ja,
+        title_zh = new.title_zh,
+        cmt = new.cmt,
         hira_cd = new.hira_cd, nmc_cd = new.nmc_cd,
         sort = new.sort, updated_at = NOW()
     `);
@@ -175,7 +178,9 @@ export class HealthcareCodeSeedService {
     const unmapped: CodeSeedResult['unmapped'] = [];
 
     const hira = await this.prisma.hira_code.findMany({
-      where: { tp: { in: ['subject', 'class', 'equipment'] } },
+      where: {
+        tp: { in: ['subject', 'class', 'equipment', 'specialty', 'special'] },
+      },
       select: { tp: true, cd: true, cd_nm: true },
     });
     for (const row of hira) {

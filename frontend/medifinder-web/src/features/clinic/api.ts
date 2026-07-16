@@ -8,9 +8,9 @@ import {
   useHealthcareMetaControllerTiers,
   useHealthcareMetaControllerClasses,
 } from '@/shared/api/generated/react/healthcare-meta/healthcare-meta';
-// 지역은 /healthcare/meta/regions 가 아니라 최상위 /regions 다.
+// 지역은 /healthcare/meta/regions 가 아니라 /address/regions 다(영문 주소 변환과 같은 주소 그룹).
 // region_code 는 도메인 무관이라(병원·학교·약국이 같이 쓴다) 헬스케어 밑에서 빠졌다.
-import { useRegionControllerList } from '@/shared/api/generated/react/region/region';
+import { useRegionControllerList } from '@/shared/api/generated/react/address/address';
 import type {
   HospitalSummaryDto,
   HospitalDetailDto,
@@ -40,7 +40,7 @@ export interface HospitalSearchParams {
   page: number;
   size: number;
 
-  /** 시군구 코드. /healthcare/meta/regions 참조 */
+  /** 시군구 코드. /address/regions 참조 */
   region?: string;
 
   /** 종별 코드 (TERTIARY, GENERAL, CLINIC …) */

@@ -1,42 +1,49 @@
+// 서비스 그룹별로 스펙을 나눴으므로 생성물도 그룹별 모듈에서 가져온다.
+import { getHospitalList } from './generated/hosp-info/hosp-info';
+import type {
+  GetHospitalListParams,
+  HospitalListResponse,
+} from './generated/hosp-info/model';
 import {
   getAddressCodeList,
-  getDetailInfo,
   getEquipmentCodeList,
+  getInstitutionClassCodeList,
+  getSpecialDiagnosisCodeList,
+  getSpecialtyHospitalCodeList,
+  getSubjectCodeList,
+} from './generated/code-info/code-info';
+import type {
+  AddressCodeResponse,
+  EquipmentCodeResponse,
+  InstitutionClassCodeResponse,
+  SearchCodeResponse,
+  SubjectCodeResponse,
+} from './generated/code-info/model';
+import {
+  getDetailInfo,
   getEquipmentInfo,
   getEtcStaffInfo,
   getFacilityInfo,
   getFoodAddcInfo,
-  getHospitalList,
-  getInstitutionClassCodeList,
   getNursingGradeInfo,
-  getSpecialDiagnosisCodeList,
   getSpecialDiagnosisInfo,
   getSpecialistCountInfo,
-  getSpecialtyHospitalCodeList,
   getSpecialtyHospitalFieldList,
-  getSubjectCodeList,
   getSubjectInfo,
   getTransportInfo,
-} from './generated/hira';
+} from './generated/madm-dtl/madm-dtl';
 import type {
-  AddressCodeResponse,
   DetailInfoResponse,
-  EquipmentCodeResponse,
   EquipmentInfoResponse,
   EtcStaffInfoResponse,
   FacilityInfoResponse,
   FoodAddcInfoResponse,
-  GetHospitalListParams,
-  HospitalListResponse,
-  InstitutionClassCodeResponse,
   NursingGradeInfoResponse,
-  SearchCodeResponse,
   SpecialDiagnosisInfoResponse,
   SpecialistCountInfoResponse,
-  SubjectCodeResponse,
   SubjectInfoResponse,
   TransportInfoResponse,
-} from './generated/model';
+} from './generated/madm-dtl/model';
 import { HiraConfig, withKrDataConfig } from './mutator';
 
 /** ykiho 기준 상세 조회의 공통 파라미터 */

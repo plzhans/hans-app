@@ -1,0 +1,24 @@
+{
+  "name": "@kr-go/juso",
+  "version": "0.0.1",
+  "private": true,
+  "description": "도로명주소 개발자센터(business.juso.go.kr) 영문주소 검색 API 클라이언트",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json",
+    "./openapi/*": "./openapi/*"
+  },
+  "scripts": {
+    "codegen": "orval --config orval.config.ts",
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "orval": "^7.13.2"
+  }
+}

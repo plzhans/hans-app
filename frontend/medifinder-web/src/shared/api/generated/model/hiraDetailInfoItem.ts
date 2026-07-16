@@ -34,6 +34,10 @@ export interface HiraDetailInfoItem {
   trmtSatStart?: string;
   /** 토요일 진료종료시각 */
   trmtSatEnd?: string;
+  /** 일요일 진료시작시각 (예: 0830) */
+  trmtSunStart?: string;
+  /** 일요일 진료종료시각 (예: 1700) */
+  trmtSunEnd?: string;
   /** 월~금 접수시간 (예: 08:00~17:00) */
   rcvWeek?: string;
   /** 토요일 접수시간 */

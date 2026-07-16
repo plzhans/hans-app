@@ -13,16 +13,20 @@ import { RegionDto } from './dto/region.dto';
 /**
  * 지역(주소) API.
  *
- * **헬스케어 밑이 아니다.** region_code 는 도메인 무관이라 접두사조차 없다 —
+ * **헬스케어 밑이 아니다.** region_code 는 도메인 무관이라 —
  * 병원·학교·약국이 같이 쓴다(region-code.seed.ts 참고). 병원 전용인 것처럼
  * /healthcare/meta 밑에 두면, 다음 도메인이 붙는 순간 같은 코드를 두 군데서 내게 된다.
+ *
+ * **주소(address) 도메인 그룹으로 묶는다.** 영문 주소 변환(/address/english)과 같은 주소
+ * 도메인이라 경로 접두사(/address)와 OpenAPI 태그(address)를 통일했다. 예전엔 최상위 /regions 였다.
+ * 제공자명(/juso)이 아니라 도메인명을 쓴다 — region 은 juso.go.kr 데이터가 아니라 우리 코드라서다.
  *
  * **원본(HIRA/NMC) 지역코드가 아니라 우리 코드다.** 원본 코드가 필요하면
  * /data-go-kr/hira/regions · /data-go-kr/nmc/regions 를 본다.
  */
-@ApiTags('region')
+@ApiTags('address')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('regions')
+@Controller('address/regions')
 export class RegionController {
   constructor(private readonly service: RegionService) {}
 

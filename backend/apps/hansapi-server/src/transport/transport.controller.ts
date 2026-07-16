@@ -11,7 +11,7 @@ import { SubwayStationListDto } from './dto/transport.dto';
 /**
  * 교통정보 API.
  *
- * **헬스케어 밑이 아니다.** 지역(/regions)과 같은 이유다 — 지하철역은 병원만 쓰는 데이터가
+ * **헬스케어 밑이 아니다.** 지역(/address/regions)과 같은 이유다 — 지하철역은 병원만 쓰는 데이터가
  * 아니다. 병원 전용인 것처럼 /healthcare 밑에 두면 다음 도메인이 붙는 순간 같은 사전을
  * 두 군데서 내게 된다.
  *

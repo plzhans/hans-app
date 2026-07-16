@@ -22,6 +22,7 @@
     "hansapi-cli": "SWC_NODE_PROJECT=apps/hansapi-cli/tsconfig.json node --conditions src -r @swc-node/register apps/hansapi-cli/src/main.ts",
     "krdata:codegen": "pnpm --filter \"@krdata/*\" codegen",
     "seouldata:codegen": "pnpm --filter \"@seouldata/*\" codegen",
+    "kr-go:codegen": "pnpm --filter \"@kr-go/*\" codegen",
     "openapi:gen": "pnpm --filter hansapi-server openapi:gen",
     "hansapi-batch": "SWC_NODE_PROJECT=apps/hansapi-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapi-batch/src/main.ts"
   },

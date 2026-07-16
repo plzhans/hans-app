@@ -1,0 +1,24 @@
+{
+  "name": "@kr-go/nts",
+  "version": "0.0.1",
+  "private": true,
+  "description": "국세청(hometax) 사업자등록 진위확인·상태조회 API 클라이언트 (odcloud.kr)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json",
+    "./openapi/*": "./openapi/*"
+  },
+  "scripts": {
+    "codegen": "orval --config orval.config.ts",
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "orval": "^7.13.2"
+  }
+}

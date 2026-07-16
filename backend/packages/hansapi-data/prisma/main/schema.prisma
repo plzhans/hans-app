@@ -539,20 +539,25 @@ model hira_nmc_match_candidate {
 
 /// 의료 코드. 진료과목·종별·장비·중증처치를 tp 로 구분해 담는다.
 model healthcare_code {
-  /// subject(진료과목) | class(종별) | equipment(장비) | severe(중증처치)
+  /// subject(진료과목) | class(종별) | equipment(장비) | severe(중증처치) | specialty(전문병원) | special(특수진료)
   tp String @db.VarChar(20)
 
   /// 우리 코드. 의미가 보이는 문자열이다 (IM=내과, CT=CT).
   /// 원본 코드를 재사용하지 않는다 — 그러면 그 기관에 종속된다.
   cd String @db.VarChar(30)
 
-  /// 한국어 이름. **이게 기준이자 폴백이다.**
+  /// 관리용 한국어 이름. **시스템/운영이 코드를 식별하는 라벨이다.**
+  /// API 표시에는 쓰지 않는다(표시는 title). 이름의 최종 폴백이다.
   nm String @db.VarChar(100)
 
-  /// 영어·일본어 이름. **비어 있으면 nm(한국어)으로 폴백한다** — 그래서 번역을 점진적으로
-  /// 채울 수 있다. 새 코드가 생겨도 번역 없이 배포되고, 화면엔 한국어가 나온다(깨지지 않는다).
-  nm_en String? @db.VarChar(100)
-  nm_ja String? @db.VarChar(100)
+  /// 표시용 한국어 이름. **API 가 클라이언트에 내보내는 이름이다.** 초기값은 nm 복사.
+  title String @db.VarChar(100)
+
+  /// 표시용 영어·일본어·중국어(간체) 이름. **비어 있으면 title(한국어)로 폴백한다** — 그래서 번역을
+  /// 점진적으로 채울 수 있다. 새 코드가 생겨도 번역 없이 배포되고, 화면엔 한국어가 나온다(깨지지 않는다).
+  title_en String? @db.VarChar(100)
+  title_ja String? @db.VarChar(100)
+  title_zh String? @db.VarChar(100)
 
   cmt String? @db.Text
 
@@ -1008,12 +1013,9 @@ model healthcare_hospital_capability {
   /// severe(중증처치) | specialty(전문병원) | special(특수진료)
   tp String @db.VarChar(20)
 
-  /// severe 는 healthcare_code(tp='severe') 의 cd.
-  /// specialty/special 은 아직 우리 코드가 없어 원본 코드를 그대로 쓴다.
+  /// healthcare_code(tp 일치) 의 cd. 이름·i18n 은 코드표가 가진다 —
+  /// 그래서 이 테이블에는 이름 컬럼을 두지 않는다(장비·과목과 같은 구조).
   cd String @db.VarChar(30)
-
-  /// 원본 이름 (우리 코드가 없는 specialty/special 용)
-  nm String? @db.VarChar(200)
 
   @@id([hospital_id, tp, cd])
   @@index([tp, cd], map: "idx_hc_capability_cd")

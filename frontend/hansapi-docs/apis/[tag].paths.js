@@ -19,6 +19,22 @@ function readNote(name) {
   return existsSync(notePath) ? readFileSync(notePath, 'utf-8') : '';
 }
 
+// 태그 → 페이지 제목(H1·브라우저 탭). 없으면 태그명(영문)을 그대로 쓴다.
+// 사이드바 라벨(.vitepress/config.ts)과 맞춘다.
+const TAG_TITLES = {
+  business: '사업자',
+  address: '주소',
+};
+const titleOf = (tag) => TAG_TITLES[tag] ?? tag;
+
+// 사이드바에서 3뎁스(오퍼레이션)를 지운 태그들. 대신 페이지 최상단에 엔드포인트 목록을 넣어
+// 오퍼레이션으로 바로 점프할 수 있게 한다. (config.ts 의 2뎁스 그룹과 일치시킨다)
+const ENDPOINT_INDEX_TAGS = new Set([
+  'healthcare',
+  'healthcare-meta',
+  'business',
+]);
+
 // 태그마다 한 페이지(/apis/:tag)를 만든다. 페이지 본문(content)은:
 //   - 태그 노트(apis/notes/:tag.md)        → 페이지 맨 위에 인라인(페이지 단위 설명)
 //   - 각 오퍼레이션마다:
@@ -31,7 +47,7 @@ export default {
     const spec = loadSpec();
 
     const byTag = new Map();
-    for (const item of Object.values(spec.paths ?? {})) {
+    for (const [path, item] of Object.entries(spec.paths ?? {})) {
       for (const verb of HTTP_VERBS) {
         const op = item?.[verb];
         if (!op) continue;
@@ -40,14 +56,25 @@ export default {
         byTag.get(tag).push({
           operationId: op.operationId,
           summary: op.summary || op.operationId,
+          method: verb.toUpperCase(),
+          path,
         });
       }
     }
 
     return [...byTag.entries()].map(([tag, ops]) => {
-      const parts = [`# ${tag}`];
+      const parts = [`# ${titleOf(tag)}`];
 
-      // 태그(페이지) 단위 노트 — 페이지 맨 위(오퍼레이션들 앞)에 인라인.
+      // 최상단 엔드포인트 목록 — 사이드바에서 3뎁스를 지운 태그만. 각 항목은 오퍼레이션 앵커로 점프한다.
+      if (ENDPOINT_INDEX_TAGS.has(tag) && ops.length) {
+        const rows = ops.map(
+          (op) =>
+            `- [${op.summary}](#op-${op.operationId}) — \`${op.method} ${op.path}\``,
+        );
+        parts.push(['## 엔드포인트', ...rows].join('\n'));
+      }
+
+      // 태그(페이지) 단위 노트 — 오퍼레이션들 앞에 인라인.
       const tagNote = readNote(tag);
       if (tagNote) {
         parts.push(tagNote);
@@ -65,7 +92,7 @@ export default {
         parts.push(`<ApiOperation operation-id="${op.operationId}" />`);
       }
       return {
-        params: { tag, pageTitle: `${tag} - Hans API` },
+        params: { tag, pageTitle: `${titleOf(tag)} - Hans API` },
         content: parts.join('\n\n'),
       };
     });

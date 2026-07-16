@@ -526,19 +526,14 @@ export class HealthcareDetailBuildService {
     const values: BuildRow[] = [];
     const seen = new Set<string>();
 
-    const push = (
-      id: number,
-      tp: string,
-      cd: string,
-      nm: string | null,
-    ): void => {
+    const push = (id: number, tp: string, cd: string): void => {
       const key = `${id}|${tp}|${cd}`;
       if (seen.has(key)) return;
       seen.add(key);
       values.push({
         hospitalId: id,
         key: { tp, cd },
-        value: Prisma.sql`(${id}, ${tp}, ${cd}, ${nm})`,
+        value: Prisma.sql`(${id}, ${tp}, ${cd})`,
       });
     };
 
@@ -557,21 +552,28 @@ export class HealthcareDetailBuildService {
         if (!key.startsWith('MKioskTy')) continue;
         if (asString(value) !== 'Y') continue;
         const cd = mapper.code('severe', 'nmc', key);
-        if (cd) push(id, 'severe', cd, null);
+        if (cd) push(id, 'severe', cd);
       }
     }
 
-    // HIRA 전문병원·특수진료. 우리 코드가 아직 없어 원본 코드를 그대로 쓴다.
+    // HIRA 전문병원(specialty)·특수진료(special) 둘 다 우리 코드로 매핑한다(severe 와 같은 방식).
+    // 이름은 healthcare_code 가 가지므로 nm 은 null 로 둔다 — 읽기 경로가 코드로 이름을 찾는다.
+    // 아직 시드에 없는 코드면 값을 버리지 않고 원본으로라도 남긴다.
+    //   시드(findUnmapped)가 경고로 알려주므로 사람이 매핑을 추가하면 다음 빌드에서 통일된다.
     for (const r of await this.prisma.hira_hospital_srch.findMany({
       select: { ykiho: true, tp: true, srch_cd: true, srch_nm: true },
     })) {
       const id = byYkiho.get(r.ykiho);
-      if (id) push(id, r.tp, r.srch_cd, r.srch_nm);
+      if (!id) continue;
+      if (r.tp !== 'specialty' && r.tp !== 'special') continue;
+
+      const cd = mapper.code(r.tp, 'hira', r.srch_cd);
+      push(id, r.tp, cd ?? r.srch_cd);
     }
 
     await this.replace(
       'healthcare_hospital_capability',
-      '(hospital_id, tp, cd, nm)',
+      '(hospital_id, tp, cd)',
       values,
     );
     return values.length;

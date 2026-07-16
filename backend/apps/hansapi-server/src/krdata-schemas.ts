@@ -16,7 +16,24 @@ import type { OpenAPIObject } from '@nestjs/swagger';
 /** 제공기관별 스펙과 스키마 이름 접두사. 접두사가 없으면 이름이 충돌한다(양쪽에 HospitalListResponse 가 있다). */
 const SPECS = [
   { pkg: '@krdata/nmc', file: 'openapi/nmc.json', prefix: 'Nmc' },
-  { pkg: '@krdata/hira', file: 'openapi/hira.json', prefix: 'Hira' },
+  // hira 는 정부포털 서비스 그룹 단위로 스펙을 나눠 두었다. 셋을 모두 같은 'Hira'
+  // 접두사로 병합하므로 병합된 스키마 이름(HiraDetailInfoItem 등)은 이전과 동일하다.
+  // 그룹 간 공유 스키마(HiraResultHeader·HiraPageInfo 등)는 동일 내용이라 덮어써도 무방.
+  {
+    pkg: '@krdata/hira',
+    file: 'openapi/B551182/hospInfoServicev2.json',
+    prefix: 'Hira',
+  },
+  {
+    pkg: '@krdata/hira',
+    file: 'openapi/B551182/codeInfoService.json',
+    prefix: 'Hira',
+  },
+  {
+    pkg: '@krdata/hira',
+    file: 'openapi/B551182/MadmDtlInfoService2.json',
+    prefix: 'Hira',
+  },
 ] as const;
 
 interface OpenApiSpec {

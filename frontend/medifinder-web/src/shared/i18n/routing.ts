@@ -7,11 +7,12 @@ import {
 
 /**
  * 언어 접두사 규칙. **한 곳에만 둔다** — 링크·스위처·라우터가 제각각 문자열을 이어 붙이면
- * 반드시 어긋난다(`/en//search` 같은 것이 나온다).
+ * 반드시 어긋난다(`/en-us//search` 같은 것이 나온다).
  *
- *   ko  →  /search        (기본 언어는 접두사가 없다)
- *   en  →  /en/search
- *   ja  →  /ja/search
+ *   ko       →  /search          (기본 언어는 접두사가 없다)
+ *   en-us    →  /en-us/search
+ *   ja       →  /ja/search
+ *   zh-hans  →  /zh-hans/search
  *
  * **기본 언어에 접두사를 안 붙이는 이유:** 국내 서비스라 한국어가 절대다수인데 `/ko/` 를
  * 붙이면 모든 URL 이 길어지고 리다이렉트가 한 번 더 생긴다. 대신 `/ko/...` 로 들어오면
@@ -22,7 +23,7 @@ export function langPath(path: string, lang: SupportedLanguage): string {
   return lang === DEFAULT_LANGUAGE ? clean : `/${lang}${clean}`;
 }
 
-/** 경로에서 언어 접두사를 떼어낸다. `/en/search` → `/search` */
+/** 경로에서 언어 접두사를 떼어낸다. `/en-us/search` → `/search` */
 export function stripLang(pathname: string): string {
   const [, first, ...rest] = pathname.split('/');
   if (isSupportedLanguage(first)) {

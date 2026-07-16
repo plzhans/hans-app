@@ -55,19 +55,29 @@ const HEALTHCARE_TAGS = Object.keys(HEALTHCARE_TAG_LABELS);
 // 최상위 참조 데이터. **도메인 무관이라 헬스케어 밑에 두지 않는다** —
 // 지하철역도 지역 코드도 병원만 쓰는 게 아니다. 병원·학교·약국이 같이 쓴다.
 const TRANSPORT_TAGS = ['transport'];
-const ADDRESS_TAGS = ['region'];
+// 주소(address) 그룹. 지역 코드와 영문 주소 번역을 하나의 address 태그로 통일했다(둘 다 /address/*).
+const ADDRESS_TAGS = ['address'];
+// 국세청 API. 상위 그룹은 '국세청', 하위 태그(business)는 '사업자'로 라벨한다.
+// 헬스케어와 같은 2단 구조다(그룹 > 태그 > 오퍼레이션). 태그가 늘면 여기에 적는다.
+const BUSINESS_TAG_LABELS: Record<string, string> = {
+  business: '사업자',
+};
+const BUSINESS_TAGS = Object.keys(BUSINESS_TAG_LABELS);
 const originTags = allTags.filter((t) => ORIGIN_TAGS.includes(t));
 // 스펙에 실제로 있는 태그만, HEALTHCARE_TAG_LABELS 에 적은 순서대로 노출한다.
 const healthcareTags = HEALTHCARE_TAGS.filter((t) => allTags.includes(t));
 const transportTags = allTags.filter((t) => TRANSPORT_TAGS.includes(t));
 const addressTags = allTags.filter((t) => ADDRESS_TAGS.includes(t));
+// 스펙에 실제로 있는 태그만, BUSINESS_TAG_LABELS 에 적은 순서대로.
+const businessTags = BUSINESS_TAGS.filter((t) => allTags.includes(t));
 // 어느 그룹에도 매핑되지 않은 나머지 태그는 모두 '기타'로 간다.
 const etcTags = allTags.filter(
   (t) =>
     !ORIGIN_TAGS.includes(t) &&
     !HEALTHCARE_TAGS.includes(t) &&
     !TRANSPORT_TAGS.includes(t) &&
-    !ADDRESS_TAGS.includes(t),
+    !ADDRESS_TAGS.includes(t) &&
+    !BUSINESS_TAGS.includes(t),
 );
 // 상단 nav 의 'API' 가 착지하는 곳. **주력 API(헬스케어 병원 검색)여야 한다.**
 // 예전엔 originTags[0](=hira)로 가서, 문서를 처음 여는 사람이 정부데이터 원본부터 만났다.
@@ -151,14 +161,16 @@ export default defineConfig({
             {
               text: '헬스케어',
               collapsed: false,
-              items: healthcareTags.map((t) =>
-                tagGroup(t, HEALTHCARE_TAG_LABELS[t]),
-              ),
+              // **3뎁스(오퍼레이션 앵커)는 노출하지 않는다** — 태그를 링크로만 둔다.
+              items: healthcareTags.map((t) => ({
+                text: HEALTHCARE_TAG_LABELS[t],
+                link: `/apis/${t}`,
+              })),
             },
           ]
         : []),
-      // 교통정보·주소: 도메인 무관 참조 데이터. 태그 층 없이 오퍼레이션을 바로 나열한다 —
-      // 오퍼레이션이 하나뿐이라 태그 그룹을 두면 '주소 > 지역 코드 > 지역 코드' 가 된다.
+      // 교통정보·주소: 도메인 무관 참조 데이터. 태그 층 없이 오퍼레이션을 바로 나열한다.
+      // (태그가 단일 오퍼레이션이면 태그 그룹을 두는 순간 '주소 > 지역 코드 > 지역 코드' 처럼 겹친다)
       ...(transportTags.length
         ? [
             {
@@ -168,12 +180,27 @@ export default defineConfig({
             },
           ]
         : []),
+      // 주소: 지역 코드와 영문 주소 번역(둘 다 address 태그, /address/*)을 한 그룹에 오퍼레이션으로 나열한다.
       ...(addressTags.length
         ? [
             {
               text: '주소',
               collapsed: false,
               items: addressTags.flatMap(opItems),
+            },
+          ]
+        : []),
+      // 국세청: 상위 그룹 아래 태그(사업자)를 링크로만 둔다.
+      // **3뎁스(오퍼레이션 앵커)는 노출하지 않는다** — 태그 페이지로만 들어가게 한다.
+      ...(businessTags.length
+        ? [
+            {
+              text: '국세청',
+              collapsed: false,
+              items: businessTags.map((t) => ({
+                text: BUSINESS_TAG_LABELS[t],
+                link: `/apis/${t}`,
+              })),
             },
           ]
         : []),

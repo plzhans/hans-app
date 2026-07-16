@@ -13,6 +13,9 @@ import { HiraHospitalReadService } from './hira/hira-hospital-read.service';
 import { HiraQueryService } from './hira/hira-query.service';
 import { buildKrDataConfig, KRDATA_CONFIG } from './krdata.config';
 import { krDataProviders } from './krdata.providers';
+import { buildJusoConfig, JUSO_CONFIG } from './juso.config';
+import { jusoProviders } from './juso.providers';
+import { ntsProviders } from './nts.providers';
 import { NmcCodeReadService } from './nmc/nmc-code-read.service';
 import { NmcBabySyncService } from './nmc/nmc-baby-sync.service';
 import { NmcBasicSyncService } from './nmc/nmc-basic-sync.service';
@@ -42,6 +45,7 @@ import { NmcQueryService } from './nmc/nmc-query.service';
 export class AdminApplicationModule {
   static forRoot(source: EnvSource): DynamicModule {
     const config = buildKrDataConfig(source);
+    const jusoConfig = buildJusoConfig(source);
 
     return {
       module: AdminApplicationModule,
@@ -50,6 +54,10 @@ export class AdminApplicationModule {
       providers: [
         { provide: KRDATA_CONFIG, useValue: config },
         ...krDataProviders,
+        { provide: JUSO_CONFIG, useValue: jusoConfig },
+        ...jusoProviders,
+        // 국세청 사업자등록 API 는 KRDATA_SERVICE_KEY 를 공유한다 — 별도 설정 없이 KRDATA_CONFIG 를 쓴다.
+        ...ntsProviders,
         NmcHospitalSyncService,
         HiraHospitalSyncService,
         NmcCodeSyncService,

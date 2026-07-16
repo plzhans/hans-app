@@ -1,11 +1,17 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { EnvSource } from '@hansapi/common';
+import { EnvSource, optionalString } from '@hansapi/common';
 import { ApplicationModule } from '@hansapi/application';
+import { NtsClient } from '@kr-go/nts';
+import { JusoClient } from '@kr-go/juso';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthGuard } from './auth/auth.guard';
+import { AddressController } from './address/address.controller';
+import { AddressService } from './address/address.service';
+import { BusinessController } from './business/business.controller';
+import { BusinessService } from './business/business.service';
 import { HiraCodeController } from './datagokr/hira/hira-code.controller';
 import { HiraRegionController } from './datagokr/hira/hira-region.controller';
 import { HiraHospitalController } from './datagokr/hira/hira-hospital.controller';
@@ -43,11 +49,35 @@ export class AppModule {
         HealthcareMetaController,
         TransportController,
         RegionController,
+        BusinessController,
+        AddressController,
       ],
       providers: [
         AppService,
         // 전역 인증 가드. @Public() 라우트는 우회한다.
         { provide: APP_GUARD, useClass: AuthGuard },
+        BusinessService,
+        AddressService,
+        // 외부 API 클라이언트. **이 서버에서 외부(국세청·도로명주소)를 직접 호출하는 소수의 API 용이다.**
+        // 나머지 API 는 로컬 DB 미러를 읽는다.
+        //
+        // 인증키는 optionalString 이라 **키가 없어도 서버는 뜬다** — 해당 엔드포인트를 호출할 때만
+        // 실패한다. 서버는 서비스키 없이도 부팅한다는 불변식을 지키기 위해서다.
+        // NTS 는 data.go.kr(odcloud) serviceKey(KRDATA_SERVICE_KEY)를, JUSO 는 confmKey(KRGO_JUSO_SERVICE_KEY)를 쓴다.
+        {
+          provide: NtsClient,
+          useFactory: (): NtsClient =>
+            new NtsClient({
+              serviceKey: optionalString(source, 'KRDATA_SERVICE_KEY') ?? '',
+            }),
+        },
+        {
+          provide: JusoClient,
+          useFactory: (): JusoClient =>
+            new JusoClient({
+              confmKey: optionalString(source, 'KRGO_JUSO_SERVICE_KEY') ?? '',
+            }),
+        },
       ],
     };
   }

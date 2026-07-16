@@ -24,6 +24,14 @@ export function HospitalCard({ hospital }: { hospital: Hospital }) {
             {hospital.tier.name}
           </span>
         )}
+        {/* 전문병원 지정분야. 등급 옆에 "척추 전문병원" 처럼 붙인다 — 상세 페이지와 같은 규칙. */}
+        {hospital.specialty && (
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            {hospital.specialty.name
+              ? `${hospital.specialty.name} ${t('clinic.specialtyHospital')}`
+              : t('clinic.specialtyHospital')}
+          </span>
+        )}
         {hospital.emergency && (
           <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
             <Ambulance className="h-3 w-3" /> {t('clinic.badge.emergency')}

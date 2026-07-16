@@ -82,6 +82,8 @@
     "tomorrow": "내일",
     "notice": "안내",
     "subjects": "진료과목",
+    "specialCare": "특수진료",
+    "specialtyHospital": "전문",
     "specialist": "전문의",
     "displaySubject": "(표시과목)",
     "peopleSuffix": "명",
