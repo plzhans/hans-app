@@ -1,0 +1,384 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "건강보험심사평가원(HIRA) 비급여진료비정보조회서비스",
+    "version": "1.0.0",
+    "description": "병원급 이상 의료기관의 비급여 진료비(가격) 정보. 의료법에 따라 공개되는 자료다.\n\n**의원(clCd=31)은 없다**(2026-07 실측). 표본에서 나온 종별은 상급종합(01)·종합병원(11)·병원(21)·요양병원(28)·정신병원(29)·치과병원(41)·한방병원(92) 뿐이다. 병원 79,739개 중 대부분이 의원이므로 **이 데이터가 붙는 기관은 소수다.**\n\n두 오퍼레이션의 성격이 반대다 — 섞어 쓰지 마라:\n\n| | 상세(Dtl) | 요약(List2) |\n| --- | --- | --- |\n| 한 행 | 기관 하나의 **실제 청구금액**(`curAmt`) | 기관 하나의 항목별 **가격 범위**(`minPrc`~`maxPrc`) |\n| 병원별 조회 | **`ykiho` 로 된다** | **`ykiho` 가 무시된다** |\n| 항목별 조회 | **안 된다**(`npayCd`·`itemCd` 무시) | `itemCd` 로 된다 |\n| 분류 코드 | 없음 | 중/소/상세분류 다 있음 |\n| 전건 | 259,353 | 187,627 |\n\n**병원 상세 화면에 붙일 거라면 상세(Dtl) + `ykiho` 다** — 병원당 1콜로 그 기관의 비급여 전 항목이 나온다(예: 중앙대학교병원 666건).\n\n가이드가 `ykiho`·`itemCd` 를 '필수'라 적어 놨지만 **둘 다 옵션이다**(2026-07 실측). 생략하면 전 기관을 페이지 단위로 받는다.\n\n이 서비스에는 비급여항목코드정보·종별정보·지역별정보 오퍼레이션도 있지만, 여기엔 위 2종만 정제해 두었다.",
+    "x-measured": "2026-07 실측. 표본: 상세 4,000행 / 요약 4,000행(각각 페이지를 흩어 수집)."
+  },
+  "servers": [
+    {
+      "url": "https://apis.data.go.kr/B551182"
+    }
+  ],
+  "paths": {
+    "/nonPaymentDamtInfoService/getNonPaymentItemHospDtlList": {
+      "get": {
+        "operationId": "getNonPaymentItemHospDetailList",
+        "summary": "비급여항목병원목록상세 (16.3월 이후)",
+        "description": "기관별 비급여 항목의 **실제 청구금액**(`curAmt`) 목록. 16.3월 이후 자료.\n\n**`ykiho` 는 가이드와 달리 옵션이다**(2026-07 실측). 주면 그 기관만(중앙대학교병원 666건), 생략하면 전 기관 259,353건을 페이지 단위로 받는다.\n\n**항목으로는 못 거른다** — `npayCd`·`itemCd` 를 넘겨도 무시되고 전건이 나온다(2026-07 실측). 특정 항목만 필요하면 기관 단위로 받아서 호출부에서 걸러라. 지역·종별·병원명 필터는 정상 동작한다.",
+        "tags": ["npay-damt"],
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNo" },
+          { "$ref": "#/components/parameters/NumOfRows" },
+          { "$ref": "#/components/parameters/Ykiho" },
+          { "$ref": "#/components/parameters/ClCd" },
+          { "$ref": "#/components/parameters/SidoCd" },
+          { "$ref": "#/components/parameters/SgguCd" },
+          { "$ref": "#/components/parameters/YadmNm" }
+        ],
+        "responses": {
+          "200": {
+            "description": "비급여 항목 병원별 상세 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NonPaymentDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nonPaymentDamtInfoService/getNonPaymentItemHospList2": {
+      "get": {
+        "operationId": "getNonPaymentItemHospSummaryList",
+        "summary": "비급여항목병원목록요약 (16.3월 이후)",
+        "description": "기관별 비급여 항목의 **가격 범위**(`minPrc`~`maxPrc`)와 분류체계(중/소/상세분류) 목록. 16.3월 이후 자료.\n\n**`itemCd` 는 가이드와 달리 옵션이다**(2026-07 실측). 생략하면 전건 187,627건이다.\n\n**`ykiho` 는 먹지 않는다** — 넘겨도 무시된다(2026-07 실측). 병원 단위로 보려면 `yadmNm` 을 쓰거나 상세(Dtl)를 써라.",
+        "tags": ["npay-damt"],
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNo" },
+          { "$ref": "#/components/parameters/NumOfRows" },
+          { "$ref": "#/components/parameters/ItemCd" },
+          { "$ref": "#/components/parameters/ClCd" },
+          { "$ref": "#/components/parameters/SidoCd" },
+          { "$ref": "#/components/parameters/SgguCd" },
+          { "$ref": "#/components/parameters/YadmNm" },
+          { "$ref": "#/components/parameters/SearchWrd" }
+        ],
+        "responses": {
+          "200": {
+            "description": "비급여 항목 병원별 요약 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NonPaymentSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PageNo": {
+        "name": "pageNo",
+        "in": "query",
+        "required": false,
+        "description": "페이지 번호",
+        "schema": { "type": "integer", "default": 1 }
+      },
+      "NumOfRows": {
+        "name": "numOfRows",
+        "in": "query",
+        "required": false,
+        "description": "한 페이지 결과 수. 생략하면 10. 1000 까지 정상 동작한다(2026-07 실측).",
+        "schema": { "type": "integer", "default": 10 }
+      },
+      "Ykiho": {
+        "name": "ykiho",
+        "in": "query",
+        "required": false,
+        "description": "암호화된 요양기호. **가이드는 필수라 하지만 옵션이다**(2026-07 실측) — 생략하면 전 기관을 받는다. 상세(Dtl)에서만 동작하고 요약(List2)에서는 무시된다.",
+        "schema": { "type": "string" }
+      },
+      "ItemCd": {
+        "name": "itemCd",
+        "in": "query",
+        "required": false,
+        "description": "비급여 항목코드 (예: ABZ010001). **가이드는 필수라 하지만 옵션이다**(2026-07 실측). 요약(List2) 전용 — 상세(Dtl)에서는 무시된다.",
+        "schema": { "type": "string" }
+      },
+      "ClCd": {
+        "name": "clCd",
+        "in": "query",
+        "required": false,
+        "description": "의료기관 종별코드. **앞자리 0 을 살린 문자열로 넘겨라**(예: '01' 상급종합). 병원급 이상만 있어 31(의원)은 결과가 없다.",
+        "schema": { "type": "string" }
+      },
+      "SidoCd": {
+        "name": "sidoCd",
+        "in": "query",
+        "required": false,
+        "description": "시도코드 (예: 110000 서울)",
+        "schema": { "type": "string" }
+      },
+      "SgguCd": {
+        "name": "sgguCd",
+        "in": "query",
+        "required": false,
+        "description": "시군구코드 (예: 110013 영등포구)",
+        "schema": { "type": "string" }
+      },
+      "YadmNm": {
+        "name": "yadmNm",
+        "in": "query",
+        "required": false,
+        "description": "병원명 (예: 중앙대학교병원). 상세·요약 둘 다 동작한다.",
+        "schema": { "type": "string" }
+      },
+      "SearchWrd": {
+        "name": "searchWrd",
+        "in": "query",
+        "required": false,
+        "description": "비급여항목명 검색어 (예: 인실). 요약(List2) 전용.",
+        "schema": { "type": "string" }
+      }
+    },
+    "schemas": {
+      "ResultHeader": {
+        "type": "object",
+        "description": "공통 응답 헤더",
+        "properties": {
+          "resultCode": {
+            "type": "string",
+            "description": "결과코드 (정상: 00)"
+          },
+          "resultMsg": { "type": "string", "description": "결과메시지" }
+        }
+      },
+      "PageInfo": {
+        "type": "object",
+        "properties": {
+          "numOfRows": {
+            "type": "integer",
+            "description": "한 페이지 결과 수"
+          },
+          "pageNo": { "type": "integer", "description": "현재 페이지 번호" },
+          "totalCount": { "type": "integer", "description": "전체 결과 수" }
+        }
+      },
+      "ClassCode": {
+        "oneOf": [{ "type": "integer" }, { "type": "string" }],
+        "description": "종별코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). `'01'`(상급종합)만 문자열이고 나머지(11·21·28·29·41·92)는 정수다 — 앞자리 0 은 JSON 숫자가 될 수 없어 문자열로 남는다. 비교할 땐 문자열로 맞춰라.",
+        "example": "01"
+      },
+      "NonPaymentCode": {
+        "oneOf": [{ "type": "integer" }, { "type": "string" }],
+        "description": "비급여코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). 코드가 전부 숫자면 JSON number 로 뭉개진다 — `'ABZ010001'` vs `480510000`(표본 4,000행 중 77건). 조인·비교 전에 문자열로 맞춰라.",
+        "example": "ABZ010001"
+      },
+      "ApplyDate": {
+        "type": "integer",
+        "description": "적용일자 (YYYYMMDD). **문자열이 아니라 JSON number 로 온다**(2026-07 실측).",
+        "example": 20250903
+      },
+
+      "NonPaymentDetailResponse": {
+        "type": "object",
+        "properties": {
+          "response": { "$ref": "#/components/schemas/NonPaymentDetailResult" }
+        }
+      },
+      "NonPaymentDetailResult": {
+        "type": "object",
+        "properties": {
+          "header": { "$ref": "#/components/schemas/ResultHeader" },
+          "body": { "$ref": "#/components/schemas/NonPaymentDetailBody" }
+        }
+      },
+      "NonPaymentDetailBody": {
+        "allOf": [
+          { "$ref": "#/components/schemas/PageInfo" },
+          {
+            "type": "object",
+            "properties": {
+              "items": { "$ref": "#/components/schemas/NonPaymentDetailItems" }
+            }
+          }
+        ]
+      },
+      "NonPaymentDetailItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/NonPaymentDetailItem" }
+          }
+        }
+      },
+      "NonPaymentDetailItem": {
+        "type": "object",
+        "description": "기관 하나의 비급여 항목 한 건. **(기관, 항목) 한 쌍이 한 행**이라 `ykiho` 하나에 수백 행이 온다(중앙대학교병원 666행).\n\n요약(List2)과 달리 가격이 범위가 아니라 **실제 청구금액 `curAmt` 단일값**이고, 대신 분류체계(중/소/상세분류) 필드가 없다.",
+        "properties": {
+          "ykiho": { "type": "string", "description": "암호화된 요양기호" },
+          "yadmNm": { "type": "string", "description": "병원명" },
+          "clCd": { "$ref": "#/components/schemas/ClassCode" },
+          "clCdNm": {
+            "type": "string",
+            "description": "종별코드명 (예: 종합병원)"
+          },
+          "sidoCd": {
+            "type": "integer",
+            "description": "시도코드",
+            "example": 110000
+          },
+          "sidoCdNm": { "type": "string", "description": "시도명 (예: 서울)" },
+          "sgguCd": {
+            "type": "integer",
+            "description": "시군구코드",
+            "example": 110013
+          },
+          "sgguCdNm": {
+            "type": "string",
+            "description": "시군구명 (예: 영등포구)"
+          },
+          "urlAddr": {
+            "type": "string",
+            "description": "병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 391건, 2026-07 실측)."
+          },
+          "sno": { "type": "integer", "description": "일련번호" },
+          "npayCd": { "$ref": "#/components/schemas/NonPaymentCode" },
+          "npayKorNm": {
+            "type": "string",
+            "description": "비급여 한글명. '대분류/중분류/소분류' 를 슬래시로 이어 붙인 형태다 (예: MRI진단료/근골격계/고관절)."
+          },
+          "yadmNpayCdNm": {
+            "type": "string",
+            "description": "요양기관이 자체적으로 붙인 항목명 (예: 'Hip MRI', 'MegaDerm 3~4mm*1*1Cm  (엘앤씨바이오)'). **표기가 기관 제각각**이라 이 값으로 기관 간 비교하지 마라 — 비교는 `npayCd` 로 한다."
+          },
+          "adtFrDd": {
+            "allOf": [{ "$ref": "#/components/schemas/ApplyDate" }],
+            "description": "적용개시일자 (YYYYMMDD, JSON number)"
+          },
+          "adtEndDd": {
+            "allOf": [{ "$ref": "#/components/schemas/ApplyDate" }],
+            "description": "적용종료일자 (YYYYMMDD, JSON number). **종료가 없으면 `99991231`** 이다 — 현재 유효한 가격이라는 뜻이지 실제 날짜가 아니다."
+          },
+          "curAmt": {
+            "type": "integer",
+            "description": "현재금액 (단위: 원). 그 기관이 실제로 받는 금액이다.",
+            "example": 739000
+          }
+        }
+      },
+
+      "NonPaymentSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "response": { "$ref": "#/components/schemas/NonPaymentSummaryResult" }
+        }
+      },
+      "NonPaymentSummaryResult": {
+        "type": "object",
+        "properties": {
+          "header": { "$ref": "#/components/schemas/ResultHeader" },
+          "body": { "$ref": "#/components/schemas/NonPaymentSummaryBody" }
+        }
+      },
+      "NonPaymentSummaryBody": {
+        "allOf": [
+          { "$ref": "#/components/schemas/PageInfo" },
+          {
+            "type": "object",
+            "properties": {
+              "items": { "$ref": "#/components/schemas/NonPaymentSummaryItems" }
+            }
+          }
+        ]
+      },
+      "NonPaymentSummaryItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/NonPaymentSummaryItem" }
+          }
+        }
+      },
+      "NonPaymentSummaryItem": {
+        "type": "object",
+        "description": "기관 하나의 비급여 항목 요약 한 건. 가격이 **범위(`minPrc`~`maxPrc`)** 로 오고 분류체계(중/소/상세분류)가 붙는다.\n\n분류코드 예시는 가이드(`A`·`A01`)와 실제(`1010A`·`1010A010`)가 다르다 — **실제 값 기준으로 쓰라**(2026-07 실측).",
+        "properties": {
+          "ykiho": { "type": "string", "description": "암호화된 요양기호" },
+          "yadmNm": { "type": "string", "description": "병원명" },
+          "clCd": { "$ref": "#/components/schemas/ClassCode" },
+          "clCdNm": {
+            "type": "string",
+            "description": "종별코드명 (예: 상급종합)"
+          },
+          "sidoCd": {
+            "type": "integer",
+            "description": "시도코드",
+            "example": 310000
+          },
+          "sidoCdNm": { "type": "string", "description": "시도명 (예: 경기)" },
+          "sgguCd": {
+            "type": "integer",
+            "description": "시군구코드",
+            "example": 310603
+          },
+          "sgguCdNm": {
+            "type": "string",
+            "description": "시군구명 (예: 수원팔달구)"
+          },
+          "urlAddr": {
+            "type": "string",
+            "description": "병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 331건, 2026-07 실측)."
+          },
+          "npayCd": { "$ref": "#/components/schemas/NonPaymentCode" },
+          "npayKorNm": {
+            "type": "string",
+            "description": "비급여 한글명 (예: 상급병실료/1인실)"
+          },
+          "npayMdivCd": {
+            "type": "string",
+            "description": "비급여 중분류코드 (예: 1010A). 가이드 예시 'A' 는 옛 값이다."
+          },
+          "npayMdivCdNm": {
+            "type": "string",
+            "description": "비급여 중분류코드명 (예: 상급병실료)"
+          },
+          "npaySdivCd": {
+            "type": "string",
+            "description": "비급여 소분류코드 (예: 1010A010)"
+          },
+          "npaySdivCdNm": {
+            "type": "string",
+            "description": "비급여 소분류코드명 (예: 1인실)"
+          },
+          "npayDtlDivCd": {
+            "oneOf": [{ "type": "integer" }, { "type": "string" }],
+            "description": "비급여 상세분류코드. **숫자와 문자열이 섞여 온다**(2026-07 실측, 표본 4,000행 중 119건이 숫자).",
+            "example": "1010A010"
+          },
+          "npayDtlDivCdNm": {
+            "type": "string",
+            "description": "비급여 상세분류코드명 (예: 1인실)"
+          },
+          "adtFrDd": {
+            "allOf": [{ "$ref": "#/components/schemas/ApplyDate" }],
+            "description": "적용개시일자 (YYYYMMDD, JSON number)"
+          },
+          "adtEndDd": {
+            "allOf": [{ "$ref": "#/components/schemas/ApplyDate" }],
+            "description": "적용종료일자 (YYYYMMDD, JSON number). 종료가 없으면 `99991231`."
+          },
+          "minPrc": {
+            "type": "integer",
+            "description": "최소가격 (단위: 원)",
+            "example": 206000
+          },
+          "maxPrc": {
+            "type": "integer",
+            "description": "최대비용 (단위: 원)",
+            "example": 360000
+          }
+        }
+      }
+    }
+  }
+}

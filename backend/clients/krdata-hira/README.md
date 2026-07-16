@@ -19,12 +19,23 @@ openapi/
   B551182/                          # 제공기관 코드 B551182 (심평원)
     hospInfoServicev2.json          # 병원정보서비스        (1 op)  ← 정제본(OpenAPI 3.0), orval 입력
     codeInfoService.json            # 코드정보서비스        (6 ops) ← 정제본
+    hospDiagInfoService1.json       # 병원별질병정보서비스   (1 op)  ← 정제본
+    exclInstHospAsmInfoService1.json# 우수기관병원평가정보서비스(1 op)← 정제본
+    spclMdlrtHospInfoService1.json  # 특수진료병원정보서비스 (4 ops) ← 정제본, 전부 목록형
+    hospAsmInfoService1.json        # 병원평가정보서비스     (1 op)  ← 정제본, 목록형
+    mdfeeCrtrInfoService.json       # 수가기준정보서비스     (3 ops) ← 정제본, 검색형(필터 필수)
+    msupCmpnMeftInfoService.json    # 의약품성분약효정보서비스(1 op)  ← 정제본, 검색형(필터 필수)
+    nonPaymentDamtInfoService.json  # 비급여진료비정보서비스 (2 ops) ← 정제본, 목록형 / 병원급 이상만
     MadmDtlInfoService2.json        # 의료기관별상세정보서비스(11 ops)← 정제본
     orgin/
       MadmDtlInfoService2.8.json    # 정부포털 원본(Swagger 2.0). 손대지 않는 스냅샷.
+      exclInstHospAsmInfoService1.json # 정부포털 원본(Swagger 2.0).
+      spclMdlrtHospInfoService1.json   # 정부포털 원본(Swagger 2.0).
+      hospAsmInfoService1.json         # 정부포털 원본(Swagger 2.0).
 src/
   generated/                        # orval 산출물 (직접 수정 금지)
-    hosp-info/  code-info/  madm-dtl/
+    hosp-info/  code-info/  hosp-diag/  excl-asm/  spcl-mdlrt/  hosp-asm/  madm-dtl/
+    mdfee-crtr/  msup-cmpn/  npay-damt/
   hira-client.ts                    # 공개 파사드(HiraClient). 소비처는 이것만 쓴다.
   mutator.ts                        # ServiceKey 주입 · 버전 스왑 · 정규화
   index.ts                          # 패키지 공개 엔트리
@@ -87,6 +98,69 @@ OpenAPI 3.0 문서다.
 - 응답 `item`은 단일 객체로 올 때가 있어 배열로 정규화(mutator) — 스키마에 명시
 - 서비스 그룹별 파일 분리, 파일명은 **버전 중립**(아래 참조)
 
+### 가이드는 틀린다 — 실측이 정답지다
+
+가이드만 보고 스펙을 쓰면 **필드명부터 틀린다.** 수가기준정보·의약품성분약효 두 서비스를
+가이드로 먼저 쓴 뒤 실응답과 대조한 결과(2026-07 실측), 가이드가 틀린 곳이 이만큼 나왔다:
+
+| 가이드                                | 실제                            | 서비스 |
+| ------------------------------------- | ------------------------------- | ------ |
+| `adtstaDd` (약국만 소문자 s)          | `adtStaDd` — 셋 다 동일         | 수가   |
+| 적용시작일자·수가코드가 문자열        | JSON **number** (`20260101`)    | 수가   |
+| `numOfRow` (약국만 s 없음)            | **무시됨.** `numOfRows` 가 먹음 | 수가   |
+| `fomnTpNm`                            | `fomnTpCdNm`                    | 성분   |
+| `injcPthNm`                           | `injcPthCdNm`                   | 성분   |
+| `meftDivNo` 문자열                    | JSON **number**                 | 성분   |
+| `iqtyTxt` 문자열                      | number/string **혼재**          | 성분   |
+| 진료수가 `unprc3`~`unprc6` = 요청변수 | 응답 필드 (표가 밀려 찍힘)      | 수가   |
+| `ykiho`·`itemCd` **필수**             | **옵션** (생략하면 전건)        | 비급여 |
+| 분류코드 예시 `A` · `A01`             | 실제 `1010A` · `1010A010`       | 비급여 |
+
+같은 전력이 병원별질병정보에도 있었다(`mfrnIntrsIlnsNm1` → 실제 `mfrnIntrsIlnsCdNm1`,
+`crtrYm` 이 문자열이 아니라 숫자). **새 서비스를 붙일 땐 반드시 실응답을 찍어 대조하라.**
+
+프로브 팁: data.go.kr 은 **python-urllib 기본 User-Agent 요청을 응답 없이 물고 있다**(read timeout).
+`curl` 로 찍거나 UA 헤더를 갈아 끼워라 — API 가 느린 게 아니라 UA 때문이다(1,000행도 2초).
+
+### 이 두 서비스는 '검색형'이다 — 필터 없으면 0건
+
+수가기준정보·의약품성분약효는 병원목록과 달리 **검색 파라미터를 하나도 안 주면 `totalCount: 0`**
+이다(2026-07 실측). 에러가 아니라 조용한 0건이라 빈 결과와 구별이 안 된다. 전량은 와일드카드
+`%` 로 받는다:
+
+| 서비스   | 전건        | numOfRows=1000 기준 |
+| -------- | ----------- | ------------------- |
+| 약국수가 | 287         | 1콜                 |
+| 한방수가 | 10,320      | 11콜                |
+| 진료수가 | **423,910** | 424콜               |
+| 주성분   | 60,424      | 61콜                |
+
+`HiraClient` 의 `paginate*` 는 필터가 없으면 `%` 를 채워 넣는다([`MDFEE_ALL`](src/hira-client.ts)) —
+'끝까지 훑는다'는 이름이 조용히 0건으로 끝나면 안 되기 때문이다. 단건 조회(`get*`)는 파사드가
+응답을 그대로 넘기는 원칙대로 **채우지 않는다.**
+
+> 비급여진료비(`nonPaymentDamtInfoService`)는 반대다 — 필터 없이도 전건이 나오는 목록형이라
+> `%` 를 채우지 않는다. 같은 심평원이라도 서비스마다 규칙이 다르니 새로 붙일 땐 실측해라.
+
+### 비급여진료비 — 병원급 이상만이라는 함정
+
+비급여 자료는 의료법상 **병원급 이상만 공개 대상**이라 **의원(clCd=31)은 0건**이다(2026-07 실측:
+의원 ykiho 로 조회 → 0건). 표본에 나온 종별은 01·11·21·28·29·41·92 뿐이다. 병원 79,739개 중
+대부분이 의원이므로 **병원 상세에 이 가격을 붙이면 대다수 기관은 빈 화면이 된다** — 없는 게
+아니라 제도상 대상이 아닌 것이므로, UI 문구를 '정보 없음'과 구분하는 편이 낫다.
+
+두 오퍼레이션의 성격이 반대라 용도가 갈린다:
+
+|             | 상세(`getNonPaymentDetails`)          | 요약(`getNonPaymentSummaries`)          |
+| ----------- | ------------------------------------- | --------------------------------------- |
+| 한 행       | 그 기관의 **실제 청구금액**(`curAmt`) | 항목별 **가격 범위**(`minPrc`~`maxPrc`) |
+| 병원별 조회 | **`ykiho` 로 된다** (1콜)             | **`ykiho` 무시됨**                      |
+| 항목별 조회 | **안 됨**(`npayCd`·`itemCd` 무시)     | `itemCd` 로 됨                          |
+| 분류 코드   | 없음                                  | 중/소/상세분류                          |
+| 전건        | 259,353                               | 187,627                                 |
+
+**병원 상세 화면용은 상세(Dtl) + `ykiho`** 다 — 병원당 1콜로 끝난다(중앙대학교병원 666건).
+
 ### 원본과의 정합성 (drift 주의)
 
 손으로 옮기다 보면 필드가 누락될 수 있다. 실제로 원본 대비 대조에서 아래가 빠져 있어 보완했다:
@@ -144,7 +218,9 @@ pnpm --filter @krdata/hira build     # 타입 검사 + dist
 - **필드/스펙 수정:** `openapi/B551182/<service>.json`을 고치고 codegen. (생성물은 직접 수정 금지)
 - **새 서비스 추가:** ① 정부포털 원본을 `openapi/B551182/orgin/`에 받아 두고 ② 메뉴얼+원본을
   근거로 정제본 `openapi/B551182/<service>.json`을 작성 ③ [`orval.config.ts`](orval.config.ts)에
-  타깃 추가 ④ [`src/hira-client.ts`](src/hira-client.ts)에 파사드 메서드 추가.
+  타깃 추가 ④ [`src/hira-client.ts`](src/hira-client.ts)에 파사드 메서드 추가 ⑤ **실응답을 찍어
+  필드명·타입을 대조하고 스펙을 고친 뒤 재생성**(위 '가이드는 틀린다' 참조 — ⑤를 건너뛰면
+  가이드의 오타가 그대로 타입이 된다).
 - **버전 업(마이너):** 대부분 `detailVersion` 설정으로 끝난다. 스펙 자체를 새 버전으로
   갱신하려면 정제본 내부 버전 문자열과 `SPEC_DETAIL_VERSION`만 교체 후 codegen.
 

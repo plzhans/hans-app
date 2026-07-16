@@ -1,0 +1,182 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "건강보험심사평가원(HIRA) 우수기관병원평가정보서비스",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://apis.data.go.kr/B551182"
+    }
+  ],
+  "paths": {
+    "/exclInstHospAsmInfoService1/getExclInstHospAsmInfo1": {
+      "get": {
+        "operationId": "getExcellentAssessmentList",
+        "summary": "우수기관 평가정보 조회",
+        "description": "병원평가에서 평가항목별 등급이 우수한 기관과 그 상세를 조회한다. ykiho 는 옵션이라 생략하면 우수기관 전체를 페이지 단위로 받는다(병원당 1콜이 아니다). ykiho 를 주면 그 기관 것만 나온다. 한 기관이 평가항목(asmNm)마다 행을 가지므로 ykiho 하나에 여러 행이 올 수 있다.",
+        "tags": ["excl-asm"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "우수기관 평가정보 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcellentAssessmentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Ykiho": {
+        "name": "ykiho",
+        "in": "query",
+        "required": false,
+        "description": "암호화된 요양기호. 생략하면 우수기관 전체를 받는다.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "PageNo": {
+        "name": "pageNo",
+        "in": "query",
+        "required": false,
+        "description": "페이지 번호",
+        "schema": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "NumOfRows": {
+        "name": "numOfRows",
+        "in": "query",
+        "required": false,
+        "description": "한 페이지 결과 수",
+        "schema": {
+          "type": "integer",
+          "default": 10
+        }
+      }
+    },
+    "schemas": {
+      "ResultHeader": {
+        "type": "object",
+        "description": "공통 응답 헤더",
+        "properties": {
+          "resultCode": {
+            "type": "string",
+            "description": "결과코드 (정상: 00)"
+          },
+          "resultMsg": {
+            "type": "string",
+            "description": "결과메시지"
+          }
+        }
+      },
+      "PageInfo": {
+        "type": "object",
+        "properties": {
+          "numOfRows": {
+            "type": "integer",
+            "description": "한 페이지 결과 수"
+          },
+          "pageNo": {
+            "type": "integer",
+            "description": "현재 페이지 번호"
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "전체 결과 수"
+          }
+        }
+      },
+      "ExcellentAssessmentResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/ExcellentAssessmentResult"
+          }
+        }
+      },
+      "ExcellentAssessmentResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/ExcellentAssessmentBody"
+          }
+        }
+      },
+      "ExcellentAssessmentBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/ExcellentAssessmentItems"
+              }
+            }
+          }
+        ]
+      },
+      "ExcellentAssessmentItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExcellentAssessmentItem"
+            }
+          }
+        }
+      },
+      "ExcellentAssessmentItem": {
+        "type": "object",
+        "description": "우수기관 평가정보 항목. (기관, 평가항목) 한 쌍이 한 행이다.",
+        "properties": {
+          "ykiho": {
+            "type": "string",
+            "description": "암호화된 요양기호"
+          },
+          "yadmNm": {
+            "type": "string",
+            "description": "요양기관명"
+          },
+          "asmNm": {
+            "type": "string",
+            "description": "평가항목명"
+          },
+          "asmGrd": {
+            "type": "string",
+            "description": "우수기관 등급. 3=3회연속 우수기관 | 2=2회연속 우수기관 | 1=최근 우수기관"
+          },
+          "asmGrdNm": {
+            "type": "string",
+            "description": "우수기관 등급명"
+          }
+        }
+      }
+    }
+  }
+}

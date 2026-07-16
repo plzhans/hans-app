@@ -1,0 +1,388 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "건강보험심사평가원에서 의료기관 대상으로 수행하는 병원평가에서 평가항목별 평가결과 등급이 우수한 기관 및 상세정보를 조회할 수 있는 서비스입니다.\\n- 암호화된 요양기호, 요양기관명, 평가항목명, 우수기관 등급, 우수기관 등급명을 제공하고 있습니다.\\n- 요양기호는 1:1로 매칭한 암호화된 요양기호로 제공하고 있으며, 별도의 복호화 방법 또는 요양기호는 제공하고 있지 않습니다.\\n· 암호화된 요양기호는 건강보험심사평가원 '병원정보서비스' Open API > 병원기본목록에서 확인 가능합니다.",
+    "version": "1.0.0",
+    "title": "건강보험심사평가원_우수기관병원평가정보서비스"
+  },
+  "host": "apis.data.go.kr/B551182/exclInstHospAsmInfoService1",
+  "basePath": "",
+  "schemes": ["https", "http"],
+  "paths": {
+    "/getExclInstHospAsmInfo1": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "성공",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "header": {
+                  "type": "object",
+                  "description": "header",
+                  "properties": {
+                    "resultCode": {
+                      "type": "string",
+                      "description": "결과코드",
+                      "properties": {}
+                    },
+                    "resultMsg": {
+                      "type": "string",
+                      "description": "결과메시지",
+                      "properties": {}
+                    }
+                  }
+                },
+                "body": {
+                  "type": "object",
+                  "description": "body",
+                  "properties": {
+                    "numOfRows": {
+                      "type": "string",
+                      "description": "한 페이지 결과 수",
+                      "properties": {}
+                    },
+                    "pageNo": {
+                      "type": "string",
+                      "description": "페이지번호",
+                      "properties": {}
+                    },
+                    "totalCount": {
+                      "type": "string",
+                      "description": "전체 결과 수",
+                      "properties": {}
+                    },
+                    "items": {
+                      "type": "object",
+                      "description": "items",
+                      "properties": {
+                        "item": {
+                          "type": "object",
+                          "description": "item",
+                          "properties": {
+                            "asmGrdNm": {
+                              "type": "string",
+                              "description": "우수기관 등급명",
+                              "properties": {}
+                            },
+                            "ykiho": {
+                              "type": "string",
+                              "description": "암호화된 요양기호",
+                              "properties": {}
+                            },
+                            "yadmNm": {
+                              "type": "string",
+                              "description": "요양기관명",
+                              "properties": {}
+                            },
+                            "asmNm": {
+                              "type": "string",
+                              "description": "평가항목명",
+                              "properties": {}
+                            },
+                            "asmGrd": {
+                              "type": "string",
+                              "description": "3: 3회연속 우수기관 / 2: 2회연속 우수기관 / 1: 최근 우수기관",
+                              "properties": {}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "xml": { "name": "response" }
+            }
+          },
+          "DEADLINE_HAS_EXPIRED_ERROR": { "description": "활용기간 만료" },
+          "LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR": {
+            "description": "서비스 요청제한횟수 초과 에러"
+          },
+          "UNREGISTERED_IP_ERROR": { "description": "등록되지 않은 IP" },
+          "UNKNOWN_ERROR": { "description": "기타 에러" },
+          "APPLICATION_ERROR": { "description": "어플리케이션 에러" },
+          "INVALID_REQUEST_PARAMETER_ERROR": {
+            "description": "잘못된 요청 파라메터 에러"
+          },
+          "SERVICE_KEY_IS_NOT_REGISTERED_ERROR": {
+            "description": "등록되지 않은 서비스키"
+          }
+        },
+        "tags": ["API 목록"],
+        "summary": "우수기관평가정보상세조회",
+        "description": "병원평가 등급이 우수한 기관의 우수등급 상세정보를 조회하는 기능",
+        "operationId": "getExclInstHospAsmInfo1",
+        "consumes": ["application/json"],
+        "produces": ["application/xml"]
+      },
+      "parameters": [
+        {
+          "name": "serviceKey",
+          "description": "공공데이터포털에서 받은 인증키",
+          "type": "string",
+          "required": true,
+          "in": "query"
+        },
+        {
+          "name": "pageNo",
+          "description": "페이지번호",
+          "type": "string",
+          "required": true,
+          "in": "query"
+        },
+        {
+          "name": "numOfRows",
+          "description": "한 페이지 결과 수",
+          "type": "string",
+          "required": true,
+          "in": "query"
+        },
+        {
+          "name": "ykiho",
+          "description": "암호화된 요양기호(확인방법: 건강보험심사평가원 오픈API[병원정보서비스>병원기본목록(getHospBasisList1)](암호화된요양기호(ykiho)))",
+          "type": "string",
+          "required": false,
+          "in": "query"
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "getExclInstHospAsmInfo1_response": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "header",
+          "properties": {
+            "resultCode": { "type": "string", "description": "결과코드" },
+            "resultMsg": { "type": "string", "description": "결과메시지" }
+          }
+        },
+        "body": {
+          "type": "object",
+          "description": "body",
+          "properties": {
+            "numOfRows": {
+              "type": "string",
+              "description": "한 페이지 결과 수"
+            },
+            "pageNo": { "type": "string", "description": "페이지번호" },
+            "totalCount": { "type": "string", "description": "전체 결과 수" },
+            "items": {
+              "type": "object",
+              "description": "items",
+              "properties": {
+                "item": {
+                  "type": "object",
+                  "description": "item",
+                  "properties": {
+                    "asmGrdNm": {
+                      "type": "string",
+                      "description": "우수기관 등급명"
+                    },
+                    "ykiho": {
+                      "type": "string",
+                      "description": "암호화된 요양기호"
+                    },
+                    "yadmNm": { "type": "string", "description": "요양기관명" },
+                    "asmNm": { "type": "string", "description": "평가항목명" },
+                    "asmGrd": {
+                      "type": "string",
+                      "description": "3: 3회연속 우수기관 / 2: 2회연속 우수기관 / 1: 최근 우수기관"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "swaggerOprtinVOs": [
+    {
+      "oprtinUrl": "http://hiraapi.hira.or.kr/openapi/service/exclInstHospAsmInfoService1/getExclInstHospAsmInfo1",
+      "oprtinNm": "우수기관평가정보상세조회",
+      "oprtinDc": "병원평가 등급이 우수한 기관의 우수등급 상세정보를 조회하는 기능",
+      "gwSvcNm": "getExclInstHospAsmInfo1",
+      "operationId": "getExclInstHospAsmInfo1",
+      "publicDataTyDetailCode": "PRDE02",
+      "reqList": [
+        {
+          "paramtrNm": "serviceKey",
+          "paramtrDc": "공공데이터포털에서 받은 인증키",
+          "paramtrBassValue": "-",
+          "paramtrTy": "string",
+          "paramtrDivision": "필수",
+          "ck": true
+        },
+        {
+          "paramtrNm": "pageNo",
+          "paramtrDc": "페이지번호",
+          "paramtrBassValue": "1",
+          "paramtrTy": "string",
+          "paramtrDivision": "필수",
+          "ck": true
+        },
+        {
+          "paramtrNm": "numOfRows",
+          "paramtrDc": "한 페이지 결과 수",
+          "paramtrBassValue": "10",
+          "paramtrTy": "string",
+          "paramtrDivision": "필수",
+          "ck": true
+        },
+        {
+          "paramtrNm": "ykiho",
+          "paramtrDc": "암호화된 요양기호(확인방법: 건강보험심사평가원 오픈API[병원정보서비스>병원기본목록(getHospBasisList1)](암호화된요양기호(ykiho)))",
+          "paramtrBassValue": "JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQ4OSQyNjE4MzIjNTEjJDEjJDYjJDgz",
+          "paramtrTy": "string",
+          "paramtrDivision": "옵션",
+          "ck": true
+        }
+      ],
+      "resList": [
+        {
+          "paramtrNm": "header",
+          "paramtrDc": "header",
+          "arrayYn": "N",
+          "paramtrDefNm": "#/definitions/header",
+          "subDefNm": "header",
+          "paramtrTy": "object",
+          "paramtrDivision": "필수",
+          "ck": true,
+          "subParam": [
+            {
+              "paramtrNm": "resultCode",
+              "paramtrDc": "결과코드",
+              "arrayYn": "N",
+              "paramtrDefNm": "",
+              "paramtrTy": "string",
+              "paramtrDivision": "필수",
+              "ck": true
+            },
+            {
+              "paramtrNm": "resultMsg",
+              "paramtrDc": "결과메시지",
+              "arrayYn": "N",
+              "paramtrDefNm": "",
+              "paramtrTy": "string",
+              "paramtrDivision": "필수",
+              "ck": true
+            }
+          ]
+        },
+        {
+          "paramtrNm": "body",
+          "paramtrDc": "body",
+          "arrayYn": "N",
+          "paramtrDefNm": "#/definitions/body",
+          "subDefNm": "body",
+          "paramtrTy": "object",
+          "paramtrDivision": "필수",
+          "ck": true,
+          "subParam": [
+            {
+              "paramtrNm": "numOfRows",
+              "paramtrDc": "한 페이지 결과 수",
+              "arrayYn": "N",
+              "paramtrDefNm": "",
+              "paramtrTy": "string",
+              "paramtrDivision": "필수",
+              "ck": true
+            },
+            {
+              "paramtrNm": "pageNo",
+              "paramtrDc": "페이지번호",
+              "arrayYn": "N",
+              "paramtrDefNm": "",
+              "paramtrTy": "string",
+              "paramtrDivision": "필수",
+              "ck": true
+            },
+            {
+              "paramtrNm": "totalCount",
+              "paramtrDc": "전체 결과 수",
+              "arrayYn": "N",
+              "paramtrDefNm": "",
+              "paramtrTy": "string",
+              "paramtrDivision": "필수",
+              "ck": true
+            },
+            {
+              "paramtrNm": "items",
+              "paramtrDc": "items",
+              "arrayYn": "N",
+              "paramtrDefNm": "#/definitions/items",
+              "subDefNm": "items",
+              "paramtrTy": "object",
+              "paramtrDivision": "필수",
+              "ck": true,
+              "subParam": [
+                {
+                  "paramtrNm": "item",
+                  "paramtrDc": "item",
+                  "arrayYn": "N",
+                  "paramtrDefNm": "#/definitions/item",
+                  "subDefNm": "item",
+                  "paramtrTy": "object",
+                  "paramtrDivision": "필수",
+                  "ck": true,
+                  "subParam": [
+                    {
+                      "paramtrNm": "asmGrdNm",
+                      "paramtrDc": "우수기관 등급명",
+                      "arrayYn": "N",
+                      "paramtrDefNm": "",
+                      "paramtrTy": "string",
+                      "paramtrDivision": "필수",
+                      "ck": true
+                    },
+                    {
+                      "paramtrNm": "ykiho",
+                      "paramtrDc": "암호화된 요양기호",
+                      "arrayYn": "N",
+                      "paramtrDefNm": "",
+                      "paramtrTy": "string",
+                      "paramtrDivision": "필수",
+                      "ck": true
+                    },
+                    {
+                      "paramtrNm": "yadmNm",
+                      "paramtrDc": "요양기관명",
+                      "arrayYn": "N",
+                      "paramtrDefNm": "",
+                      "paramtrTy": "string",
+                      "paramtrDivision": "필수",
+                      "ck": true
+                    },
+                    {
+                      "paramtrNm": "asmNm",
+                      "paramtrDc": "평가항목명",
+                      "arrayYn": "N",
+                      "paramtrDefNm": "",
+                      "paramtrTy": "string",
+                      "paramtrDivision": "필수",
+                      "ck": true
+                    },
+                    {
+                      "paramtrNm": "asmGrd",
+                      "paramtrDc": "3: 3회연속 우수기관 / 2: 2회연속 우수기관 / 1: 최근 우수기관",
+                      "arrayYn": "N",
+                      "paramtrDefNm": "",
+                      "paramtrTy": "string",
+                      "paramtrDivision": "필수",
+                      "ck": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

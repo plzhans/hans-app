@@ -1,0 +1,271 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "건강보험심사평가원(HIRA) 특수진료병원정보서비스",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://apis.data.go.kr/B551182"
+    }
+  ],
+  "paths": {
+    "/spclMdlrtHospInfoService1/getSpcHospList1": {
+      "get": {
+        "operationId": "getSpecialtyHospitalList",
+        "summary": "전문병원 목록 조회",
+        "description": "전문병원 목록. **응답에 srchCd 가 없다.** 지정분야를 알려면 srchCd 를 필터로 넣고 전문병원코드 19종(codeInfoService/getSpcHospCodeList)을 돌아야 한다. 그러면 (ykiho, srchCd) 매핑이 20콜 남짓에 나온다 — 병원마다 MadmDtl 의 specialty 를 두드리는 것(4,231콜)의 대안이다.",
+        "tags": ["spcl-mdlrt"],
+        "parameters": [
+          { "$ref": "#/components/parameters/SrchCd" },
+          { "$ref": "#/components/parameters/SidoCd" },
+          { "$ref": "#/components/parameters/SgguCd" },
+          { "$ref": "#/components/parameters/EmdongNm" },
+          { "$ref": "#/components/parameters/YadmNm" },
+          { "$ref": "#/components/parameters/PageNo" },
+          { "$ref": "#/components/parameters/NumOfRows" }
+        ],
+        "responses": {
+          "200": {
+            "description": "전문병원 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialCareHospitalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/spclMdlrtHospInfoService1/getMdlrtSbjectList1": {
+      "get": {
+        "operationId": "getSubjectHospitalList",
+        "summary": "진료과목별 병원 목록 조회",
+        "description": "진료과목(dgsbjtCd)별 병원 목록. 1단계의 dgsbjtCd 역조회(hospInfoServicev2)와 목적이 겹친다.",
+        "tags": ["spcl-mdlrt"],
+        "parameters": [
+          { "$ref": "#/components/parameters/DgsbjtCd" },
+          { "$ref": "#/components/parameters/SidoCd" },
+          { "$ref": "#/components/parameters/SgguCd" },
+          { "$ref": "#/components/parameters/EmdongNm" },
+          { "$ref": "#/components/parameters/YadmNm" },
+          { "$ref": "#/components/parameters/PageNo" },
+          { "$ref": "#/components/parameters/NumOfRows" }
+        ],
+        "responses": {
+          "200": {
+            "description": "진료과목별 병원 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialCareHospitalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/spclMdlrtHospInfoService1/getRcperHospList1": {
+      "get": {
+        "operationId": "getNursingHospitalList",
+        "summary": "요양병원 목록 조회",
+        "description": "요양병원 목록. 병원 기본목록의 clCd='28' 로도 같은 집합을 얻을 수 있다.",
+        "tags": ["spcl-mdlrt"],
+        "parameters": [
+          { "$ref": "#/components/parameters/SidoCd" },
+          { "$ref": "#/components/parameters/SgguCd" },
+          { "$ref": "#/components/parameters/EmdongNm" },
+          { "$ref": "#/components/parameters/YadmNm" },
+          { "$ref": "#/components/parameters/PageNo" },
+          { "$ref": "#/components/parameters/NumOfRows" }
+        ],
+        "responses": {
+          "200": {
+            "description": "요양병원 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialCareHospitalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/spclMdlrtHospInfoService1/getChildNightMdlrtList1": {
+      "get": {
+        "operationId": "getChildNightCareList",
+        "summary": "소아야간진료 병의원 목록 조회",
+        "description": "20시 이후 소아야간진료가 가능한 병의원 목록. 다른 API 로는 얻기 어려운 축이다.",
+        "tags": ["spcl-mdlrt"],
+        "parameters": [
+          { "$ref": "#/components/parameters/SidoCd" },
+          { "$ref": "#/components/parameters/SgguCd" },
+          { "$ref": "#/components/parameters/EmdongNm" },
+          { "$ref": "#/components/parameters/YadmNm" },
+          { "$ref": "#/components/parameters/PageNo" },
+          { "$ref": "#/components/parameters/NumOfRows" }
+        ],
+        "responses": {
+          "200": {
+            "description": "소아야간진료 병의원 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialCareHospitalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "SrchCd": {
+        "name": "srchCd",
+        "in": "query",
+        "required": false,
+        "description": "전문병원코드 (codeInfoService/getSpcHospCodeList, 19종). 생략하면 전문병원 전체.",
+        "schema": { "type": "string" }
+      },
+      "DgsbjtCd": {
+        "name": "dgsbjtCd",
+        "in": "query",
+        "required": false,
+        "description": "진료과목코드",
+        "schema": { "type": "string" }
+      },
+      "SidoCd": {
+        "name": "sidoCd",
+        "in": "query",
+        "required": false,
+        "description": "시도코드",
+        "schema": { "type": "string" }
+      },
+      "SgguCd": {
+        "name": "sgguCd",
+        "in": "query",
+        "required": false,
+        "description": "시군구코드",
+        "schema": { "type": "string" }
+      },
+      "EmdongNm": {
+        "name": "emdongNm",
+        "in": "query",
+        "required": false,
+        "description": "읍면동명",
+        "schema": { "type": "string" }
+      },
+      "YadmNm": {
+        "name": "yadmNm",
+        "in": "query",
+        "required": false,
+        "description": "병원명",
+        "schema": { "type": "string" }
+      },
+      "PageNo": {
+        "name": "pageNo",
+        "in": "query",
+        "required": false,
+        "description": "페이지 번호",
+        "schema": { "type": "integer", "default": 1 }
+      },
+      "NumOfRows": {
+        "name": "numOfRows",
+        "in": "query",
+        "required": false,
+        "description": "한 페이지 결과 수",
+        "schema": { "type": "integer", "default": 10 }
+      }
+    },
+    "schemas": {
+      "ResultHeader": {
+        "type": "object",
+        "description": "공통 응답 헤더",
+        "properties": {
+          "resultCode": {
+            "type": "string",
+            "description": "결과코드 (정상: 00)"
+          },
+          "resultMsg": { "type": "string", "description": "결과메시지" }
+        }
+      },
+      "PageInfo": {
+        "type": "object",
+        "properties": {
+          "numOfRows": {
+            "type": "integer",
+            "description": "한 페이지 결과 수"
+          },
+          "pageNo": { "type": "integer", "description": "현재 페이지 번호" },
+          "totalCount": { "type": "integer", "description": "전체 결과 수" }
+        }
+      },
+      "SpecialCareHospitalResponse": {
+        "type": "object",
+        "description": "4개 오퍼레이션(전문병원·진료과목별·요양병원·소아야간진료)의 응답 구조가 같아 공유한다.",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/SpecialCareHospitalResult"
+          }
+        }
+      },
+      "SpecialCareHospitalResult": {
+        "type": "object",
+        "properties": {
+          "header": { "$ref": "#/components/schemas/ResultHeader" },
+          "body": { "$ref": "#/components/schemas/SpecialCareHospitalBody" }
+        }
+      },
+      "SpecialCareHospitalBody": {
+        "allOf": [
+          { "$ref": "#/components/schemas/PageInfo" },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/SpecialCareHospitalItems"
+              }
+            }
+          }
+        ]
+      },
+      "SpecialCareHospitalItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpecialCareHospitalItem"
+            }
+          }
+        }
+      },
+      "SpecialCareHospitalItem": {
+        "type": "object",
+        "description": "병원 항목. 어느 오퍼레이션이든 같은 모양이다. 어떤 목록에 들었는지(전문병원인지 소아야간진료인지)는 응답이 아니라 호출한 오퍼레이션이 알려준다.",
+        "properties": {
+          "ykiho": { "type": "string", "description": "암호화된 요양기호" },
+          "yadmNm": { "type": "string", "description": "병원명" },
+          "clCd": { "type": "string", "description": "종별 코드" },
+          "clCdNm": { "type": "string", "description": "종별 코드명" },
+          "sidoCd": { "type": "string", "description": "시도코드" },
+          "sidoCdNm": { "type": "string", "description": "시도명" },
+          "sgguCd": { "type": "string", "description": "시군구코드" },
+          "sgguCdNm": { "type": "string", "description": "시군구명" },
+          "postNo": { "type": "string", "description": "우편번호" },
+          "addr": { "type": "string", "description": "주소" },
+          "telno": { "type": "string", "description": "전화번호" },
+          "hospUrl": { "type": "string", "description": "홈페이지" },
+          "estbDd": { "type": "string", "description": "개설일자" }
+        }
+      }
+    }
+  }
+}
