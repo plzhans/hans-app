@@ -640,7 +640,12 @@ export class HealthcareDetailBuildService {
 
       for (const [key, value] of Object.entries(basic)) {
         if (!key.startsWith('MKioskTy')) continue;
-        if (asString(value) !== 'Y') continue;
+        // **트림이 필수다.** 원본이 'Y' 가 아니라 'Y         '(공백 패딩)를 준다 — CHAR 컬럼을
+        // 그대로 내보내는 것으로 보인다. 정확히 비교하면 전부 걸러져서 중증처치가 통째로
+        // 비었고, capability 에 special/specialty 행이 있어 테이블이 비어 보이지 않아
+        // 오래 안 드러났다(2026-07 healthcare_hospital_section 도입 때 발견).
+        // 'N1        ' 같은 값도 온다 — 'N' 으로 시작하면 불가라는 뜻이라 Y 만 통과시킨다.
+        if (asString(value)?.trim() !== 'Y') continue;
         const cd = mapper.code('severe', 'nmc', key);
         if (cd) push(id, 'severe', cd);
       }
