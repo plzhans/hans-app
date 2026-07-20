@@ -103,13 +103,11 @@ export class HospitalSearchRequestDto {
 
   @ApiPropertyOptional({
     description:
-      '건강보험심사평가원 적정성평가 1등급 분야. 쉼표로 여러 개(OR).\n' +
-      '- `cancer` 암질환(대장·위·유방·폐암)\n' +
-      '- `cardio` 심뇌혈관(급성기뇌졸중·관상동맥우회술)\n' +
-      '- `nicu` 신생아중환자실\n\n' +
-      '**병원급 이상만 의미가 있다** — 의원은 이 항목을 평가받지 않는다. ' +
-      '전국 목록으로 쓸 땐 `tier=TIER2,TIER3` 를 함께 거는 것을 권장한다.',
-    example: 'cancer,cardio',
+      '건강보험심사평가원 적정성평가 **항목 코드**(원본 asmGrd 번호). 그 항목에서 1등급(우수)인 병원. ' +
+      '쉼표로 여러 개(OR). 코드·분야 목록은 /healthcare/meta/assessments 참조 ' +
+      '(예: 12=대장암, 01=급성기뇌졸중, 20=신생아중환자실).\n\n' +
+      '**병원급 이상만 의미가 있다** — 의원은 이 항목을 평가받지 않는다.',
+    example: '12,13,14,15',
   })
   @IsOptional()
   @IsString()
@@ -123,6 +121,23 @@ export class HospitalSearchRequestDto {
   @IsOptional()
   @IsString()
   readonly specialty?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '특수진료 코드. 쉼표로 여러 개(OR). /healthcare/meta/specials 참조.',
+  })
+  @IsOptional()
+  @IsString()
+  readonly special?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조.',
+    example: 'CT,MRI',
+  })
+  @IsOptional()
+  @IsString()
+  readonly equipment?: string;
 }
 
 // ── 응답 ───────────────────────────────────────────────────

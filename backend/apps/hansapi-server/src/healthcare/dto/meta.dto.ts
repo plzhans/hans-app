@@ -33,6 +33,34 @@ export class MetaSubjectGroupDto {
   readonly subjects!: MetaCodeDto[];
 }
 
+/** 평가항목 한 건. code 는 원본 asmGrd 번호. */
+export class MetaAssessmentItemDto extends MetaCodeDto {
+  @ApiProperty({
+    type: [String],
+    example: ['general'],
+    description:
+      '이 항목이 뜨는 검색 맥락. general(일반·응급·달빛·정신) | nursing(요양). ' +
+      '탭에 맞는 항목만 보이게 클라이언트가 이걸로 거른다.',
+  })
+  readonly scopes!: string[];
+}
+
+/**
+ * 심평원 적정성평가 분야. 분야(그룹) 밑에 평가항목이 달린다.
+ *
+ * 검색의 `assessment` 파라미터에 items 의 code(원본 asmGrd 번호)를 넘긴다 — 항목별 1등급(우수) 필터.
+ */
+export class MetaAssessmentGroupDto {
+  @ApiProperty({ type: String, example: 'asm03' })
+  readonly code!: string;
+
+  @ApiProperty({ type: String, example: '암질환' })
+  readonly name!: string;
+
+  @ApiProperty({ type: [MetaAssessmentItemDto] })
+  readonly items!: MetaAssessmentItemDto[];
+}
+
 /**
  * 병원 규모 (1·2·3차).
  *

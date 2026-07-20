@@ -11,6 +11,10 @@ import {
   useSubjectGroups,
   useHospitalTiers,
   useSpecialties,
+  useSpecials,
+  useEquipments,
+  useAssessmentGroups,
+  type MetaAssessmentGroup,
   useSidoRegions,
   useSgguRegions,
 } from '@/features/clinic/api';
@@ -19,6 +23,7 @@ import {
   BedDouble,
   Brain,
   ChevronDown,
+  HelpCircle,
   Moon,
   Search as SearchIcon,
   Siren,
@@ -27,11 +32,182 @@ import {
   X,
 } from 'lucide-react';
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
+import * as Popover from '@radix-ui/react-popover';
 
 const PAGE_SIZE = 20;
 
-/** 심평원 적정성평가 우수 분야. 백엔드 assessment 파라미터 값과 1:1. */
-const ASSESSMENT_OPTIONS = ['cancer', 'cardio', 'nicu'] as const;
+/**
+ * 전문분야 중 **자주 찾는 것**. 상세검색에서 기본으로 이것만 보이고 나머지는 +N 으로 펼친다.
+ * 코드는 /healthcare/meta/specialties 참조 (OBGY=산부인과, PED=소아청소년과 …).
+ */
+const FEATURED_SPECIALTIES = ['OBGY', 'PED', 'OPH', 'ENT', 'JOINT', 'SPINE'];
+
+/**
+ * 보유장비 중 **자주 찾는 것**. 기본으로 이것만 보이고 나머지는 +N 으로 펼친다.
+ * 일반엑스선(XRAY)·CT·MRI·초음파(US) — 일반인이 "이 검사 되나" 물을 때의 장비다.
+ * (코드는 /healthcare/meta/equipments 의 우리 코드다. hira 원본 코드 B101 등이 아니다.)
+ */
+const FEATURED_EQUIPMENTS = ['XRAY', 'CT', 'MRI', 'US'];
+
+/**
+ * 우수 병원(적정성평가) 중 **자주 찾는 항목**(원본 asmGrd 번호). 기본으로 이것만 보이고 나머지는
+ * +N 으로 펼친다. 주사제(08)·고혈압당뇨(24)·천식(16)·대장암(12)·위암(13)·유방암(14)·폐암(15).
+ */
+const FEATURED_ASSESSMENTS = ['08', '24', '16', '12', '13', '14', '15'];
+
+/**
+ * 라벨 옆 ? 아이콘. 누르면 설명이 뜬다.
+ *
+ * Radix Popover 는 **portal 로 렌더**돼서 상세검색 패널의 overflow-hidden 에 안 잘린다.
+ * 트리거는 button 이 아니라 span 이다 — 접힌 FilterRow 는 행 전체가 button 이라, 그 안에
+ * button 을 또 넣으면 HTML 이 깨진다. 클릭 전파만 막아 행이 같이 펴지지 않게 한다.
+ */
+function InfoHint({ text }: { text: string }) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label={text}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex cursor-help text-slate-400 hover:text-slate-600"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+        </span>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          side="top"
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className="z-50 max-w-xs rounded-lg bg-slate-800 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg"
+        >
+          {text}
+          <Popover.Arrow className="fill-slate-800" />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+/**
+ * "우수 병원" 필터. 심평원 적정성평가 항목을 분야(그룹)별로 나열하고, 고른 항목에서
+ * 1등급인 병원을 찾는다. 항목·이름은 서버 메타(/healthcare/meta/assessments)가 준다.
+ *
+ * FilterRow(라벨|항목 한 줄)와 달리 **그룹 헤더 밑에 항목을 펼친다** — 22개를 8분야로 묶어야
+ * 읽힌다. selected 는 assessment 파라미터의 항목 코드 목록이다.
+ */
+function AssessmentFilter({
+  label,
+  hint,
+  groups,
+  selected,
+  onChange,
+  featured,
+}: {
+  label: string;
+  hint: string;
+  groups: MetaAssessmentGroup[];
+  selected: string[];
+  onChange: (codes: string[]) => void;
+
+  /** 자주 찾는 항목 코드. 기본은 이것들(+선택된 것)만, +N 으로 전부 펼친다. */
+  featured?: string[];
+}) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+
+  const toggle = (code: string) =>
+    onChange(
+      selected.includes(code)
+        ? selected.filter((c) => c !== code)
+        : [...selected, code],
+    );
+
+  // 이 스코프에 featured 가 하나도 없으면(요양 탭 등) 접지 않고 전부 보여준다.
+  // selected 는 featured 가 아니어도 유지한다(숨은 필터 방지).
+  const featuredSet = new Set(featured ?? []);
+  const allItems = groups.flatMap((g) => g.items);
+  const featuredItems = allItems.filter(
+    (i) => featuredSet.has(i.code) || selected.includes(i.code),
+  );
+  const collapsible =
+    !!featured &&
+    featuredItems.length > 0 &&
+    featuredItems.length < allItems.length;
+  // 즐겨찾기 접힘: **그룹 레이블 없이 한 줄로.** 전부 펼치면(닫기) 그룹으로 나눠 보여준다.
+  const showFlat = collapsible && !expanded;
+  const hidden = allItems.length - featuredItems.length;
+
+  const checkbox = (item: { code: string; name: string }) => {
+    const checked = selected.includes(item.code);
+    return (
+      <label
+        key={item.code}
+        className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700"
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => toggle(item.code)}
+          className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+        />
+        <span className={cn(checked && 'font-medium text-primary-700')}>
+          {item.name}
+        </span>
+      </label>
+    );
+  };
+
+  return (
+    // FilterRow 와 같은 좌우 구조: 왼쪽 라벨 고정(w-28), 오른쪽에 분야들을 세로로.
+    <div className="flex border-b border-slate-100 last:border-b-0">
+      <div className="w-28 shrink-0 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700">
+        <span className="inline-flex items-center gap-1">
+          {label}
+          <InfoHint text={hint} />
+        </span>
+      </div>
+
+      <div className="flex-1 px-3 py-3">
+        {/* items-start: 항목이 여러 줄이어도 +N/닫기 가 오른쪽 위 끝에 고정된다. */}
+        <div className="flex items-start gap-3">
+          <div className="flex-1 space-y-3">
+            {showFlat ? (
+              // 즐겨찾기: 그룹 없이 한 줄에 모아 보여준다.
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                {featuredItems.map((item) => checkbox(item))}
+              </div>
+            ) : (
+              groups.map((g) => (
+                <div key={g.code}>
+                  <div className="mb-1 text-xs font-semibold text-slate-500">
+                    {g.name}
+                  </div>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                    {g.items.map((item) => checkbox(item))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {collapsible && (
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="shrink-0 self-start text-xs font-medium text-slate-500 hover:text-primary-600"
+            >
+              {expanded ? t('search.close') : `+${hidden}`}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * 진입점 탭. 서로 배타적이다 — 하나만 켜진다.
@@ -137,6 +313,8 @@ export default function SearchPage() {
     // 전문분야·심평원 평가는 상세 검색 필터다. 첫 페이지 섹션의 "더보기"(?assessment=cancer)로도 들어온다.
     specialty: searchParams.get('specialty') ?? '',
     assessment: searchParams.get('assessment') ?? '',
+    special: searchParams.get('special') ?? '',
+    equipment: searchParams.get('equipment') ?? '',
   };
 
   const emergency = searchParams.get('emergency') === '1';
@@ -191,11 +369,15 @@ export default function SearchPage() {
 
   const specialty = draft.specialty;
   const assessment = draft.assessment;
+  const special = draft.special;
+  const equipment = draft.equipment;
 
   const subjectCds = subject ? subject.split(',') : [];
   const tierCds = tier ? tier.split(',') : [];
   const specialtyCds = specialty ? specialty.split(',') : [];
   const assessmentCds = assessment ? assessment.split(',') : [];
+  const specialCds = special ? special.split(',') : [];
+  const equipmentCds = equipment ? equipment.split(',') : [];
 
   /**
    * 상세 검색은 **기본으로 펼친다.** 접어두면 규모·과목 필터가 있다는 걸 아무도 모른다 —
@@ -250,8 +432,30 @@ export default function SearchPage() {
   const { data: groups } = useSubjectGroups();
   const { data: tiers } = useHospitalTiers();
   const { data: specialties } = useSpecialties();
+  const { data: specials } = useSpecials();
+  const { data: equipments } = useEquipments();
+  const { data: assessmentGroups } = useAssessmentGroups();
   const { data: sidos } = useSidoRegions();
   const { data: sggus } = useSgguRegions(sido || undefined);
+
+  // 평가 항목 코드 → 이름. 선택 배지에 항목명을 붙이는 데 쓴다(전체 항목 기준 — 탭을 바꿔도 배지가 유지되게).
+  const assessmentNames = new Map<string, string>();
+  for (const g of assessmentGroups ?? []) {
+    for (const item of g.items) assessmentNames.set(item.code, item.name);
+  }
+
+  /**
+   * 탭에 맞는 평가항목만. 요양 탭은 요양병원이 실제로 받는 4개만, 나머지 탭은 요양병원 항목을 뺀 전부.
+   * scope 판정은 서버(시드 ASM_ITEM_SCOPE)가 항목마다 준다 — 여기선 현재 탭이 요양이냐만 본다.
+   * 항목이 하나도 없는 분야는 접는다.
+   */
+  const asmScope = tierCds.includes('NURSING') ? 'nursing' : 'general';
+  const scopedAssessmentGroups = (assessmentGroups ?? [])
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => i.scopes.includes(asmScope)),
+    }))
+    .filter((g) => g.items.length > 0);
 
   const { data, isLoading, isError, isFetching } = useHospitalSearch({
     page,
@@ -267,6 +471,8 @@ export default function SearchPage() {
     baby,
     specialty: applied.specialty,
     assessment: applied.assessment,
+    special: applied.special,
+    equipment: applied.equipment,
   });
 
   const items = data?.items ?? [];
@@ -281,7 +487,7 @@ export default function SearchPage() {
   const selected = [
     ...assessmentCds.map((code) => ({
       code: `assessment:${code}`,
-      name: t(`search.assessment.${code}`),
+      name: assessmentNames.get(code) ?? code,
       remove: () =>
         update({ assessment: assessmentCds.filter((c) => c !== code).join(',') }),
     })),
@@ -290,6 +496,18 @@ export default function SearchPage() {
       name: specialties?.find((s) => s.code === code)?.name ?? code,
       remove: () =>
         update({ specialty: specialtyCds.filter((c) => c !== code).join(',') }),
+    })),
+    ...specialCds.map((code) => ({
+      code: `special:${code}`,
+      name: specials?.find((s) => s.code === code)?.name ?? code,
+      remove: () =>
+        update({ special: specialCds.filter((c) => c !== code).join(',') }),
+    })),
+    ...equipmentCds.map((code) => ({
+      code: `equipment:${code}`,
+      name: equipments?.find((e) => e.code === code)?.name ?? code,
+      remove: () =>
+        update({ equipment: equipmentCds.filter((c) => c !== code).join(',') }),
     })),
     ...subjectCds.map((code) => ({
       code,
@@ -587,27 +805,52 @@ export default function SearchPage() {
               />
             )}
 
-            {/* 전문병원 지정분야 (관절·척추·심장 …). 보건복지부 지정. */}
+            {/* 전문병원 지정분야 (관절·척추·심장 …). 보건복지부 지정, 심평원 위탁 심사.
+                자주 찾는 6개만 기본 노출, 나머지는 +N 으로 펼친다. */}
             <FilterRow
               label={t('search.specialty')}
+              hint={t('search.specialtyHint')}
               options={specialties ?? []}
               selected={specialtyCds}
               onChange={(codes) => update({ specialty: codes.join(',') })}
-              collapsible
+              featured={FEATURED_SPECIALTIES}
+            />
+
+            {/* 보유장비 (CT·MRI·PET …). */}
+            <FilterRow
+              label={t('search.equipment')}
+              options={equipments ?? []}
+              selected={equipmentCds}
+              onChange={(codes) => update({ equipment: codes.join(',') })}
+              featured={FEATURED_EQUIPMENTS}
             />
 
             {/*
-              건강보험심사평가원 적정성평가 1등급 분야. 항목이 아니라 우리가 묶은 분야 3개다.
-              병원급 이상만 등급이 붙어서(의원은 이 시술을 안 함) tier 를 따로 강제하진 않는다.
+              우수 병원(심평원 적정성평가). 22개 항목을 8분야로 묶어 보여주고, 고른 항목에서
+              1등급인 병원을 찾는다. 긴 정식명(건강보험심사평가원 평가)은 ? 툴팁으로 뺐다.
+              병원급 이상만 등급이 붙어서(의원은 이 항목을 평가받지 않음) tier 를 따로 강제하진 않는다.
+            */}
+            {scopedAssessmentGroups.length > 0 && (
+              <AssessmentFilter
+                label={t('search.assessmentLabel')}
+                hint={t('search.assessmentHint')}
+                groups={scopedAssessmentGroups}
+                selected={assessmentCds}
+                onChange={(codes) => update({ assessment: codes.join(',') })}
+                featured={FEATURED_ASSESSMENTS}
+              />
+            )}
+
+            {/*
+              특수진료 (방문진료·치매주치의 등 시범사업). **일반인이 가장 덜 찾는 필터라 맨 아래.**
+              시범사업 대상이라 대상 병원도 적고 용어도 낯설다.
             */}
             <FilterRow
-              label={t('search.assessmentLabel')}
-              options={ASSESSMENT_OPTIONS.map((code) => ({
-                code,
-                name: t(`search.assessment.${code}`),
-              }))}
-              selected={assessmentCds}
-              onChange={(codes) => update({ assessment: codes.join(',') })}
+              label={t('search.special')}
+              options={specials ?? []}
+              selected={specialCds}
+              onChange={(codes) => update({ special: codes.join(',') })}
+              collapsible
             />
 
           </div>
@@ -635,7 +878,14 @@ export default function SearchPage() {
             <button
               type="button"
               onClick={() =>
-                update({ subject: '', tier: '', specialty: '', assessment: '' })
+                update({
+                  subject: '',
+                  tier: '',
+                  specialty: '',
+                  assessment: '',
+                  special: '',
+                  equipment: '',
+                })
               }
               className="ml-1 text-xs font-medium text-slate-500 hover:text-primary-600"
             >
@@ -760,13 +1010,18 @@ interface FilterOption {
  */
 function FilterRow({
   label,
+  hint,
   options,
   selected,
   onChange,
   group,
   collapsible,
+  featured,
 }: {
   label: string;
+
+  /** 라벨 옆 ? 아이콘에 붙는 설명. 마우스를 올리면 뜬다(native title — 패널이 overflow-hidden 이라 안 잘린다). */
+  hint?: string;
   options: FilterOption[];
   selected: string[];
   onChange: (codes: string[]) => void;
@@ -774,21 +1029,65 @@ function FilterRow({
 
   /** 행 전체를 접어 둔다. 항목이 많고(47개) 대부분의 사용자가 안 쓰는 행에 준다. */
   collapsible?: boolean;
+
+  /**
+   * 자주 찾는 항목 코드. 주면 **기본은 이것들만**(+이미 선택된 것) 보이고, 나머지는 줄 끝의
+   * `+N` 을 눌러 펼친다. featured 순서대로 앞에 온다. collapsible 과는 같이 쓰지 않는다.
+   */
+  featured?: string[];
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+
+  // +N·닫기·접기 버튼 공통 모양. 밋밋한 텍스트가 아니라 **살짝 버튼 느낌**(옅은 테두리·배경·pill).
+  const pill =
+    'rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700';
+
+  // 라벨 + (있으면) ? 아이콘. 접힌 상태·펼친 상태 두 곳에서 같은 걸 쓴다.
+  const labelNode = hint ? (
+    <span className="inline-flex items-center gap-1">
+      {label}
+      <InfoHint text={hint} />
+    </span>
+  ) : (
+    label
+  );
 
   /** 접힌 행은 라벨만 보인다. 고른 게 있으면 펴서 보여준다 — 숨긴 필터가 살아 있으면 안 된다. */
   const [open, setOpen] = useState(!collapsible);
   const visible = open || selected.length > 0;
 
   /**
-   * 접히는 행(진료과목)은 **펴면 전부 보여준다.** 폈는데 또 "37개 +" 가 나오면
-   * 같은 것을 두 번 열게 된다 — 열었다는 감각만 주고 정작 원하는 항목은 여전히 숨어 있다.
-   * 항상 펴져 있는 행만 10개까지 접는다.
+   * 무엇을 보여줄지 + 몇 개가 숨었는지. 세 모드다:
+   *   featured    자주 찾는 것(+선택된 것)만. 펼치면 전부.
+   *   collapsible 행 자체를 접었다 펴는 것(위 early-return). 펴면 전부.
+   *   기본        10개까지 보이고 나머지는 아래 "N개 +".
    */
-  const hidden = collapsible ? 0 : options.length - COLLAPSED_COUNT;
-  const shown = collapsible || expanded ? options : options.slice(0, COLLAPSED_COUNT);
+  let shown: FilterOption[];
+  let hidden: number;
+  if (featured) {
+    if (expanded) {
+      shown = options;
+      hidden = 0;
+    } else {
+      const featuredSet = new Set(featured);
+      // featured 순서대로 앞에, 그다음 선택됐지만 featured 아닌 것(숨기면 안 되는 필터).
+      const feat = featured
+        .map((code) => options.find((o) => o.code === code))
+        .filter((o): o is FilterOption => !!o);
+      const extra = options.filter(
+        (o) => selected.includes(o.code) && !featuredSet.has(o.code),
+      );
+      shown = [...feat, ...extra];
+      hidden = options.length - shown.length;
+    }
+  } else if (collapsible || expanded) {
+    shown = options;
+    hidden = 0;
+  } else {
+    shown = options.slice(0, COLLAPSED_COUNT);
+    hidden = options.length - COLLAPSED_COUNT;
+  }
 
   if (collapsible && !visible) {
     return (
@@ -797,8 +1096,8 @@ function FilterRow({
         onClick={() => setOpen(true)}
         className="flex w-full items-center border-b border-slate-100 text-left last:border-b-0 hover:bg-slate-50"
       >
-        <span className="w-24 shrink-0 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700">
-          {label}
+        <span className="w-28 shrink-0 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700">
+          {labelNode}
         </span>
         <span className="flex flex-1 items-center gap-1 px-3 py-3 text-sm text-slate-400">
           {t('search.optionCount', { count: options.length })}{' '}
@@ -821,45 +1120,83 @@ function FilterRow({
 
   return (
     <div className="flex border-b border-slate-100 last:border-b-0">
-      <div className="w-24 shrink-0 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700">
-        {label}
+      <div className="w-28 shrink-0 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700">
+        {labelNode}
       </div>
 
       <div className="flex-1 px-3 py-2.5">
         {/*
-          **flex 다.** grid 로 열을 고정하면 항목이 3개뿐인 행(병원 규모)에서
-          체크박스가 화면 폭만큼 벌어져 서로 멀어진다. flex 는 내용 폭만 차지한다.
+          featured·collapsible 는 체크박스 영역과 접기/펼치기 버튼을 나란히 둔다(items-start) —
+          항목이 여러 줄로 펼쳐져도 버튼이 **오른쪽 위 끝에 고정**된다.
         */}
-        <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-          {shown.map((option) => {
-            const codes = group ? option.code.split(',') : [option.code];
-            const checked = codes.every((code) => selected.includes(code));
+        <div className={cn((featured || collapsible) && 'flex items-start gap-3')}>
+          {/*
+            **flex 다.** grid 로 열을 고정하면 항목이 3개뿐인 행(병원 규모)에서
+            체크박스가 화면 폭만큼 벌어져 서로 멀어진다. flex 는 내용 폭만 차지한다.
+          */}
+          <div className="flex flex-1 flex-wrap gap-x-5 gap-y-1.5">
+            {shown.map((option) => {
+              const codes = group ? option.code.split(',') : [option.code];
+              const checked = codes.every((code) => selected.includes(code));
 
-            return (
-              <label
-                key={option.code}
-                title={option.description}
-                className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggle(option)}
-                  className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className={cn('truncate', checked && 'font-medium text-primary-700')}>
-                  {option.name}
-                </span>
-              </label>
-            );
-          })}
+              return (
+                <label
+                  key={option.code}
+                  title={option.description}
+                  className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(option)}
+                    className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span
+                    className={cn(
+                      'truncate',
+                      checked && 'font-medium text-primary-700',
+                    )}
+                  >
+                    {option.name}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          {/* featured: 오른쪽 위 끝에 고정된 +N / 닫기. self-start 라 여러 줄이어도 맨 위에 붙는다. */}
+          {featured && (hidden > 0 || expanded) && (
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className={cn('shrink-0 self-start', pill)}
+            >
+              {expanded ? t('search.close') : `+${hidden}`}
+            </button>
+          )}
+
+          {/*
+            collapsible 행은 펼치면 hidden 이 0 이라 아래 "N개 +" 접기가 안 뜬다 — 여기서 접기를
+            준다. featured 와 같은 자리(오른쪽 위 고정)다. 고른 게 있으면 접지 않는다(숨긴 필터가
+            살아 있으면 안 된다).
+          */}
+          {collapsible && open && selected.length === 0 && (
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className={cn('shrink-0 self-start', pill)}
+            >
+              {t('search.close')}
+            </button>
+          )}
         </div>
 
-        {hidden > 0 && (
+        {/* 기본 모드(진료과목 등): 체크박스 아래에 "N개 +" */}
+        {!featured && !collapsible && hidden > 0 && (
           <button
             type="button"
             onClick={() => setExpanded(!expanded)}
-            className="mt-1.5 text-xs font-medium text-slate-500 hover:text-primary-600"
+            className={cn('mt-1.5', pill)}
           >
             {expanded ? t('search.collapse') : t('search.more', { count: hidden })}
           </button>

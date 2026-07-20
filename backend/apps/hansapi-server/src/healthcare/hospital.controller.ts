@@ -74,12 +74,11 @@ export class HealthcareHospitalController {
         name: request.name,
         emergency: request.emergency === 'true',
         baby: request.baby === 'true',
-        // 아는 분야만 통과시킨다 — 낯선 값이 들어와도 필터가 조용히 무시되게.
-        asmExcellent: csv(request.assessment)?.filter(
-          (v): v is 'cancer' | 'cardio' | 'nicu' =>
-            v === 'cancer' || v === 'cardio' || v === 'nicu',
-        ),
+        // 평가 항목 코드(01,12,20 …). 아는 코드만 서비스가 통과시킨다(인젝션 방지).
+        asmItemCds: csv(request.assessment),
         specialtyCds: csv(request.specialty),
+        specialCds: csv(request.special),
+        equipmentCds: csv(request.equipment),
       },
       lang,
     );

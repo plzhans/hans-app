@@ -21,6 +21,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  HealthcareMetaControllerAssessments200,
   HealthcareMetaControllerClasses200,
   HealthcareMetaControllerEquipments200,
   HealthcareMetaControllerSeverities200,
@@ -860,6 +861,107 @@ export function useHealthcareMetaControllerSpecials<TData = Awaited<ReturnType<t
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthcareMetaControllerSpecialsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHealthcareMetaControllerAssessmentsUrl = () => {
+
+
+
+
+  return `/healthcare/meta/assessments`
+}
+
+/**
+ * 분야(급성질환·암질환 …) 밑에 평가항목(대장암·급성기뇌졸중 …)이 달린다. 상세 검색의 assessment 필터에 쓴다 — items 의 code 를 `?assessment=12,20` 처럼 넘기면 그 항목에서 1등급(우수)을 받은 병원을 찾는다.
+ * @summary 건강보험심사평가원 적정성평가 분야·항목
+ */
+export const healthcareMetaControllerAssessments = async ( options?: RequestInit): Promise<HealthcareMetaControllerAssessments200> => {
+
+  return reactFetch<HealthcareMetaControllerAssessments200>(getHealthcareMetaControllerAssessmentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthcareMetaControllerAssessmentsQueryKey = () => {
+    return [
+    `/healthcare/meta/assessments`
+    ] as const;
+    }
+
+
+export const getHealthcareMetaControllerAssessmentsQueryOptions = <TData = Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthcareMetaControllerAssessmentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>> = ({ signal }) => healthcareMetaControllerAssessments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthcareMetaControllerAssessmentsQueryResult = NonNullable<Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>>
+export type HealthcareMetaControllerAssessmentsQueryError = unknown
+
+
+export function useHealthcareMetaControllerAssessments<TData = Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareMetaControllerAssessments<TData = Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareMetaControllerAssessments<TData = Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 건강보험심사평가원 적정성평가 분야·항목
+ */
+
+export function useHealthcareMetaControllerAssessments<TData = Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareMetaControllerAssessments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthcareMetaControllerAssessmentsQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

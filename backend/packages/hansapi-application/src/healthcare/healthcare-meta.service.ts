@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { HOSPITAL_TIERS, SUBJECT_GROUPS, TIER_NAMES } from '@hansapi/data/seed';
+import {
+  ASM_ITEM_SCOPE,
+  HOSPITAL_TIERS,
+  SUBJECT_GROUPS,
+  TIER_NAMES,
+} from '@hansapi/data/seed';
 import {
   SUBWAY_STATIONS,
   SUBWAY_STATION_SOURCE,
@@ -11,12 +16,37 @@ import {
 } from '@hansapi/common';
 
 import { HealthcareCodeCache, codeName } from './healthcare-code.cache';
+import {
+  HiraAsmCodeCache,
+  asmGroupName,
+  asmItemName,
+} from './hira-asm-code.cache';
 
 /** 코드 항목 */
 export interface MetaCode {
   code: string;
   name: string;
   description?: string;
+}
+
+/**
+ * 심평원 적정성평가 분야 한 건. 분야(그룹) 밑에 평가항목들이 달린다.
+ *
+ * **원본(HIRA) 코드다.** healthcare_code(우리 코드)가 아니라 hira_code(tp='asm*')다 —
+ * 병원평가는 심평원이 직접 평가·부여하는 HIRA 전용 개념이라 통합 코드에 올리지 않았다.
+ * 검색의 assessment 파라미터에 이 item code(원본 asmGrd 번호)를 그대로 넘긴다.
+ */
+/** 평가항목 한 건. code 는 원본 asmGrd 번호. scopes 로 어느 탭에 뜨는지 안다. */
+export interface MetaAssessmentItem extends MetaCode {
+  /** 뜨는 검색 맥락. 'general'(일반·응급·달빛·정신) | 'nursing'(요양). */
+  scopes: string[];
+}
+
+export interface MetaAssessmentGroup {
+  /** 분야 코드. 'asm01'(급성질환) … */
+  code: string;
+  name: string;
+  items: MetaAssessmentItem[];
 }
 
 /**
@@ -104,7 +134,45 @@ export type MetaCodeType = (typeof META_CODE_TYPES)[number];
  */
 @Injectable()
 export class HealthcareMetaService {
-  constructor(private readonly codes: HealthcareCodeCache) {}
+  constructor(
+    private readonly codes: HealthcareCodeCache,
+    // 병원평가 항목·그룹 이름. healthcare_code 가 아니라 hira_code 라 캐시가 따로다.
+    private readonly asmCodes: HiraAsmCodeCache,
+  ) {}
+
+  /**
+   * 심평원 적정성평가 분야·항목 전량. 상세 검색의 "우수 병원" 필터에 쓴다.
+   *
+   * 그룹 순서는 캐시가 tp 오름차순으로 들고 있다(= 심평원 홈페이지 순서). 항목도 그 안에서 순서대로다.
+   * 검색은 여기서 받은 item code(원본 asmGrd 번호)를 assessment 파라미터로 넘긴다.
+   */
+  listAssessments(lang: SupportedLang = FALLBACK_LANG): MetaAssessmentGroup[] {
+    const byGroup = new Map<string, MetaAssessmentGroup>();
+
+    for (const code of this.asmCodes.codes()) {
+      const item = this.asmCodes.get(code);
+      if (!item) continue;
+
+      // scope 는 시드가 유일한 출처다. 목록에 없는 항목은 일반(general)만.
+      const entry: MetaAssessmentItem = {
+        code,
+        name: asmItemName(item, lang),
+        scopes: [...(ASM_ITEM_SCOPE[code] ?? ['general'])],
+      };
+      const group = byGroup.get(item.groupCode);
+      if (group) {
+        group.items.push(entry);
+      } else {
+        byGroup.set(item.groupCode, {
+          code: item.groupCode,
+          name: asmGroupName(item, lang),
+          items: [entry],
+        });
+      }
+    }
+
+    return [...byGroup.values()];
+  }
 
   // 아래 조회들은 **동기다.** 부팅 때 올려둔 코드표 캐시에서 읽어 DB 왕복이 없다.
   listCodes(tp: MetaCodeType, lang: SupportedLang = FALLBACK_LANG): MetaCode[] {

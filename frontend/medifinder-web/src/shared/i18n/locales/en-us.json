@@ -66,8 +66,12 @@
       "more": "More"
     },
     "inpatient": "Nursing / Psychiatric",
-    "specialty": "Specialty field",
-    "assessmentLabel": "HIRA Assessment",
+    "specialty": "Specialty",
+    "specialtyHint": "Specialty hospitals designated by the Ministry of Health and Welfare; the designation review is carried out by HIRA (Health Insurance Review & Assessment Service) under delegation.",
+    "equipment": "Equipment",
+    "special": "Special care",
+    "assessmentLabel": "Top Hospitals",
+    "assessmentHint": "Care-quality ratings by HIRA (Health Insurance Review & Assessment Service). Grade 1 is the best.",
     "assessment": {
       "cancer": "Top-rated Cancer Care",
       "cardio": "Top-rated Heart & Stroke",
@@ -79,7 +83,7 @@
     "sgguSearch": "Search district",
     "hospitalName": "Hospital name",
     "submit": "Search",
-    "tier": "Hospital tier",
+    "tier": "Tier",
     "subject": "Specialty",
     "advanced": "Advanced search",
     "clearAll": "Clear all",
@@ -90,6 +94,7 @@
     "refreshing": "(updating)",
     "empty": "No results found.",
     "collapse": "Collapse",
+    "close": "Close",
     "more": "+{{count}} more",
     "optionCount": "{{count}} items"
   },

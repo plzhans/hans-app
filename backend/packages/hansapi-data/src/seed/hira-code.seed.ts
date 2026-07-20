@@ -54,6 +54,29 @@ export interface HiraCodeSeed {
   cmt?: string;
 }
 
+/** 적정성평가 항목이 뜨는 검색 맥락. */
+export type AsmScope = 'general' | 'nursing';
+
+/**
+ * 항목별로 어느 맥락에 노출할지. 상세 검색 "우수 병원" 필터가 **탭에 맞는 항목만** 보이게 쓴다.
+ *
+ * (2026-07 dev 실측) 요양병원은 요양병원 평가(10) 말고도 혈액투석(03)·약품목수(09)·
+ * 만성폐쇄성폐질환(17)을 받는다. 반대로 요양병원(10)은 **요양 전용**이라 일반 검색엔 안 뜬다.
+ * 나머지 18개는 전부 일반(병원급) 항목이다 — 일반·응급·달빛·정신 탭은 같은 세트를 쓴다.
+ *
+ *   general  일반·응급·달빛·정신 (요양병원 항목 10 만 뺀 전부)
+ *   nursing  요양 (요양병원이 실제로 받는 4개)
+ *
+ * **목록에 없는 코드는 general 만.** 임상적으로 안정적이라(요양병원이 암수술을 시작할 일은 없다)
+ * 손댈 일이 거의 없지만, 원본이 새 항목을 주기 시작하면 여기 한 줄로 조정한다.
+ */
+export const ASM_ITEM_SCOPE: Record<string, readonly AsmScope[]> = {
+  '10': ['nursing'], // 요양병원 — 요양 전용
+  '03': ['general', 'nursing'], // 혈액투석
+  '09': ['general', 'nursing'], // 약품목수
+  '17': ['general', 'nursing'], // 만성폐쇄성폐질환
+};
+
 /**
  * 병원평가 항목. 출처: hospAsmInfoService1 의 asmGrd01~24 필드.
  *

@@ -379,17 +379,17 @@ export interface HospitalSearchCommand {
   baby?: boolean;
 
   /**
-   * 적정성평가 1등급 분야. 여러 개면 OR.
-   *   cancer  암질환(대장·위·유방·폐암)
-   *   cardio  심뇌혈관(급성기뇌졸중·관상동맥우회술)
-   *   nicu    신생아중환자실
-   * healthcare_hospital 의 파생 플래그(asm_*_yn)를 그대로 탄다.
+   * 적정성평가 항목 코드(원본 asmGrd 번호: '01','12','20' …). 그 항목에서 1등급(우수)인 병원.
+   * 여러 개면 OR(하나라도 1등급). 미러 hira_hospital_asm 을 조인해 건다.
    */
-  asmExcellent?: AsmExcellentField[];
+  asmItemCds?: string[];
 
   /** 전문병원 지정분야 코드. healthcare_hospital_capability(tp='specialty'). 여러 개면 OR. */
   specialtyCds?: string[];
-}
 
-/** 적정성평가 우수 분야. healthcare-build 의 ASM_EXCELLENT 키와 1:1. */
-export type AsmExcellentField = 'cancer' | 'cardio' | 'nicu';
+  /** 특수진료 코드. healthcare_hospital_capability(tp='special'). 여러 개면 OR. */
+  specialCds?: string[];
+
+  /** 보유장비 코드. healthcare_hospital_equipment. 여러 개면 OR. */
+  equipmentCds?: string[];
+}

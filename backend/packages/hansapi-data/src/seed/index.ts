@@ -8,8 +8,8 @@
 export { HEALTHCARE_CODES, IGNORED_SOURCE_CODES } from './healthcare-code.seed';
 export type { HealthcareCodeSeed } from './healthcare-code.seed';
 
-export { HIRA_CODES } from './hira-code.seed';
-export type { HiraCodeSeed } from './hira-code.seed';
+export { HIRA_CODES, ASM_ITEM_SCOPE } from './hira-code.seed';
+export type { HiraCodeSeed, AsmScope } from './hira-code.seed';
 
 export { REGION_CODES } from './region-code.seed';
 export type { RegionCodeSeed } from './region-code.seed';

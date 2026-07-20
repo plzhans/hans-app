@@ -21,7 +21,6 @@ import { asString } from '../common/coerce';
 import { stationName } from './station';
 
 import {
-  AsmExcellentField,
   HospitalAssessment,
   HospitalAssessmentGroup,
   HospitalAssessmentItem,
@@ -30,16 +29,6 @@ import {
   HospitalSummary,
   HospitalTransport,
 } from './dto/hospital.result';
-
-/**
- * 적정성평가 우수 분야 → healthcare_hospital 컬럼.
- * 채우는 정의(어떤 asm 항목이냐)는 healthcare-build 의 ASM_EXCELLENT 가 갖는다. 여기는 읽기만 한다.
- */
-const ASM_EXCELLENT_COLUMN: Record<AsmExcellentField, string> = {
-  cancer: 'asm_cancer_yn',
-  cardio: 'asm_cardio_yn',
-  nicu: 'asm_nicu_yn',
-};
 
 /**
  * 통합 병원 조회.
@@ -455,12 +444,29 @@ export class HealthcareHospitalService {
     if (command.baby) {
       conditions.push(Prisma.sql`h.baby_yn = 1`);
     }
-    if (command.asmExcellent?.length) {
-      // 빌드가 채워둔 파생 플래그를 그대로 탄다(원본 미러를 안 본다). 여러 분야면 OR.
-      const flags = command.asmExcellent.map(
-        (field) => Prisma.sql`h.${Prisma.raw(ASM_EXCELLENT_COLUMN[field])} = 1`,
-      );
-      conditions.push(Prisma.sql`(${Prisma.join(flags, ' OR ')})`);
+    if (command.asmItemCds?.length) {
+      /**
+       * 적정성평가 우수(1등급) 항목 필터. **검색이 원본 미러를 읽는 유일한 예외다.**
+       *
+       * 병원평가는 HIRA 전용이라 통합할 상대(NMC)가 없고, 사용자가 수정 요청할 값도 아니라
+       * healthcare_* 로 복제하지 않고 상세 페이지처럼 미러(hira_hospital_asm)를 직접 조인한다.
+       * 미러를 지우면 이 필터만 결과가 빈다(검색 자체는 동작). ykiho 없는 병원은 EXISTS 로 자연히 빠진다.
+       *
+       * **컬럼명을 코드로 만든다 — 아는 코드만 통과시켜 인젝션을 막는다.** asmCodes 캐시에 없는
+       * 코드는 버린다. 1등급 값은 '1' 이지만 천식(16)만 '양호' 다(원본 인코딩이 그 항목만 다르다).
+       */
+      const conds = command.asmItemCds
+        .filter((code) => this.asmCodes.get(code))
+        .map((code) => {
+          const excellent = code === ASTHMA_CODE ? '양호' : '1';
+          return Prisma.sql`ha.${Prisma.raw(`asm_${code}`)} = ${excellent}`;
+        });
+      if (conds.length) {
+        conditions.push(Prisma.sql`EXISTS (
+          SELECT 1 FROM hira_hospital_asm ha
+           WHERE ha.ykiho = h.ykiho AND (${Prisma.join(conds, ' OR ')})
+        )`);
+      }
     }
     if (command.specialtyCds?.length) {
       // 전문병원 지정분야. capability 는 병원당 N행이라 EXISTS 로 건다(과목과 같은 방식).
@@ -469,6 +475,23 @@ export class HealthcareHospitalService {
          WHERE cap.hospital_id = h.id
            AND cap.tp = 'specialty'
            AND cap.cd IN (${Prisma.join(command.specialtyCds)})
+      )`);
+    }
+    if (command.specialCds?.length) {
+      // 특수진료(방문진료·치매주치의 등). 전문분야와 같은 테이블, tp 만 다르다.
+      conditions.push(Prisma.sql`EXISTS (
+        SELECT 1 FROM healthcare_hospital_capability cap
+         WHERE cap.hospital_id = h.id
+           AND cap.tp = 'special'
+           AND cap.cd IN (${Prisma.join(command.specialCds)})
+      )`);
+    }
+    if (command.equipmentCds?.length) {
+      // 보유장비(CT·MRI·PET …). 병원당 N행이라 EXISTS.
+      conditions.push(Prisma.sql`EXISTS (
+        SELECT 1 FROM healthcare_hospital_equipment e
+         WHERE e.hospital_id = h.id
+           AND e.equipment_cd IN (${Prisma.join(command.equipmentCds)})
       )`);
     }
     if (command.subjectCds?.length) {

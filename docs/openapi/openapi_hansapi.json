@@ -798,9 +798,9 @@
             "name": "assessment",
             "required": false,
             "in": "query",
-            "description": "건강보험심사평가원 적정성평가 1등급 분야. 쉼표로 여러 개(OR).\n- `cancer` 암질환(대장·위·유방·폐암)\n- `cardio` 심뇌혈관(급성기뇌졸중·관상동맥우회술)\n- `nicu` 신생아중환자실\n\n**병원급 이상만 의미가 있다** — 의원은 이 항목을 평가받지 않는다. 전국 목록으로 쓸 땐 `tier=TIER2,TIER3` 를 함께 거는 것을 권장한다.",
+            "description": "건강보험심사평가원 적정성평가 **항목 코드**(원본 asmGrd 번호). 그 항목에서 1등급(우수)인 병원. 쉼표로 여러 개(OR). 코드·분야 목록은 /healthcare/meta/assessments 참조 (예: 12=대장암, 01=급성기뇌졸중, 20=신생아중환자실).\n\n**병원급 이상만 의미가 있다** — 의원은 이 항목을 평가받지 않는다.",
             "schema": {
-              "example": "cancer,cardio",
+              "example": "12,13,14,15",
               "type": "string"
             }
           },
@@ -811,6 +811,25 @@
             "description": "전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조.",
             "schema": {
               "example": "SPINE,JOINT",
+              "type": "string"
+            }
+          },
+          {
+            "name": "special",
+            "required": false,
+            "in": "query",
+            "description": "특수진료 코드. 쉼표로 여러 개(OR). /healthcare/meta/specials 참조.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "equipment",
+            "required": false,
+            "in": "query",
+            "description": "보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조.",
+            "schema": {
+              "example": "CT,MRI",
               "type": "string"
             }
           }
@@ -1297,6 +1316,48 @@
           }
         ],
         "summary": "특수진료(진료가능분야) 코드",
+        "tags": [
+          "healthcare-meta"
+        ]
+      }
+    },
+    "/healthcare/meta/assessments": {
+      "get": {
+        "description": "분야(급성질환·암질환 …) 밑에 평가항목(대장암·급성기뇌졸중 …)이 달린다. 상세 검색의 assessment 필터에 쓴다 — items 의 code 를 `?assessment=12,20` 처럼 넘기면 그 항목에서 1등급(우수)을 받은 병원을 찾는다.",
+        "operationId": "HealthcareMetaController_assessments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ListResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MetaAssessmentGroupDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "건강보험심사평가원 적정성평가 분야·항목",
         "tags": [
           "healthcare-meta"
         ]
@@ -2826,6 +2887,62 @@
           "name",
           "description",
           "classes"
+        ]
+      },
+      "MetaAssessmentItemDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "IM"
+          },
+          "name": {
+            "type": "string",
+            "example": "내과"
+          },
+          "description": {
+            "type": "string",
+            "description": "설명"
+          },
+          "scopes": {
+            "example": [
+              "general"
+            ],
+            "description": "이 항목이 뜨는 검색 맥락. general(일반·응급·달빛·정신) | nursing(요양). 탭에 맞는 항목만 보이게 클라이언트가 이걸로 거른다.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "scopes"
+        ]
+      },
+      "MetaAssessmentGroupDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "asm03"
+          },
+          "name": {
+            "type": "string",
+            "example": "암질환"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetaAssessmentItemDto"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "items"
         ]
       },
       "SubwayStationDto": {

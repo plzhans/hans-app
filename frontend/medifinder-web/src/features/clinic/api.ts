@@ -13,6 +13,9 @@ import {
   useHealthcareMetaControllerTiers,
   useHealthcareMetaControllerClasses,
   useHealthcareMetaControllerSpecialties,
+  useHealthcareMetaControllerSpecials,
+  useHealthcareMetaControllerEquipments,
+  useHealthcareMetaControllerAssessments,
 } from '@/shared/api/generated/react/healthcare-meta/healthcare-meta';
 // 지역은 /healthcare/meta/regions 가 아니라 /address/regions 다(영문 주소 변환과 같은 주소 그룹).
 // region_code 는 도메인 무관이라(병원·학교·약국이 같이 쓴다) 헬스케어 밑에서 빠졌다.
@@ -27,6 +30,7 @@ import type {
   MetaCodeDto,
   MetaHospitalTierDto,
   MetaSubjectGroupDto,
+  MetaAssessmentGroupDto,
   RegionDto,
 } from '@/shared/api/generated/model';
 
@@ -79,6 +83,12 @@ export interface HospitalSearchParams {
 
   /** 전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조. */
   specialty?: string;
+
+  /** 특수진료 코드. 쉼표로 여러 개(OR). /healthcare/meta/specials 참조. */
+  special?: string;
+
+  /** 보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조. */
+  equipment?: string;
 }
 
 /** GET /healthcare/hospitals — 통합 병원 검색 */
@@ -96,6 +106,8 @@ export function useHospitalSearch(params: HospitalSearchParams) {
       baby: params.baby ? 'true' : undefined,
       assessment: params.assessment || undefined,
       specialty: params.specialty || undefined,
+      special: params.special || undefined,
+      equipment: params.equipment || undefined,
     },
     {
       query: {
@@ -226,6 +238,32 @@ export function useHospitalTiers() {
 export function useSpecialties() {
   return useHealthcareMetaControllerSpecialties({
     query: { select: unwrap<MetaCodeDto> },
+  });
+}
+
+/** 특수진료 (방문진료·치매주치의 등). 상세 검색의 special 필터에 쓴다. */
+export function useSpecials() {
+  return useHealthcareMetaControllerSpecials({
+    query: { select: unwrap<MetaCodeDto> },
+  });
+}
+
+/** 보유장비 (CT·MRI·PET …). 상세 검색의 equipment 필터에 쓴다. */
+export function useEquipments() {
+  return useHealthcareMetaControllerEquipments({
+    query: { select: unwrap<MetaCodeDto> },
+  });
+}
+
+export type MetaAssessmentGroup = MetaAssessmentGroupDto;
+
+/**
+ * 심평원 적정성평가 분야·항목 (급성질환 > 급성기뇌졸중 …). 상세 검색 "우수 병원" 필터에 쓴다.
+ * 항목 code(원본 asmGrd 번호)를 assessment 파라미터로 넘긴다.
+ */
+export function useAssessmentGroups() {
+  return useHealthcareMetaControllerAssessments({
+    query: { select: unwrap<MetaAssessmentGroupDto> },
   });
 }
 

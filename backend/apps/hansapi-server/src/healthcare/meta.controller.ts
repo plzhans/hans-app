@@ -9,6 +9,7 @@ import { AuthType } from '../auth/auth-type.enum';
 import { ApiListResponse } from '../common/dto/api-list-response.decorator';
 import { ListResponseDto } from '../common/dto/list.response.dto';
 import {
+  MetaAssessmentGroupDto,
   MetaCodeDto,
   MetaHospitalTierDto,
   MetaSubjectGroupDto,
@@ -121,5 +122,20 @@ export class HealthcareMetaController {
   @ApiListResponse(MetaCodeDto)
   specials(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
     return new ListResponseDto(this.service.listCodes('special', lang));
+  }
+
+  @Get('assessments')
+  @ApiOperation({
+    summary: '건강보험심사평가원 적정성평가 분야·항목',
+    description:
+      '분야(급성질환·암질환 …) 밑에 평가항목(대장암·급성기뇌졸중 …)이 달린다. ' +
+      '상세 검색의 assessment 필터에 쓴다 — items 의 code 를 `?assessment=12,20` 처럼 넘기면 ' +
+      '그 항목에서 1등급(우수)을 받은 병원을 찾는다.',
+  })
+  @ApiListResponse(MetaAssessmentGroupDto)
+  assessments(
+    @Lang() lang: SupportedLang,
+  ): ListResponseDto<MetaAssessmentGroupDto> {
+    return new ListResponseDto(this.service.listAssessments(lang));
   }
 }

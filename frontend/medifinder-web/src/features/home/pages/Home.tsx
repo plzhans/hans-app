@@ -53,35 +53,37 @@ const SECTIONS = [
     iconBox: 'bg-sky-50 text-sky-600',
     params: { tier: 'TIER3' } as Partial<HospitalSearchParams>,
   },
-  // 적정성평가 1등급(전국·2차 이상). tier=TIER2,TIER3 로 의원급을 뺀다 —
-  // 이 항목들은 병원급+ 일이라 의원엔 등급이 안 붙지만, "더보기" 검색까지 결이 맞게 명시한다.
+  // 적정성평가 1등급(전국·2차 이상). assessment 는 평가 항목 코드(원본 asmGrd 번호)의 묶음이다.
+  //   암 = 대장암(12)·위암(13)·유방암(14)·폐암(15) / 심뇌혈관 = 급성기뇌졸중(01)·관상동맥우회술(06)
+  //   NICU = 신생아중환자실(20). 하나라도 1등급이면 걸린다(OR).
+  // tier=TIER2,TIER3 로 의원급을 뺀다 — 이 항목들은 병원급+ 일이라 의원엔 등급이 안 붙는다.
   {
     key: 'cancer',
-    to: '/search?assessment=cancer&tier=TIER2,TIER3',
+    to: '/search?assessment=12,13,14,15&tier=TIER2,TIER3',
     icon: Ribbon,
     iconBox: 'bg-violet-50 text-violet-600',
     params: {
-      assessment: 'cancer',
+      assessment: '12,13,14,15',
       tier: 'TIER2,TIER3',
     } as Partial<HospitalSearchParams>,
   },
   {
     key: 'cardio',
-    to: '/search?assessment=cardio&tier=TIER2,TIER3',
+    to: '/search?assessment=01,06&tier=TIER2,TIER3',
     icon: HeartPulse,
     iconBox: 'bg-red-50 text-red-600',
     params: {
-      assessment: 'cardio',
+      assessment: '01,06',
       tier: 'TIER2,TIER3',
     } as Partial<HospitalSearchParams>,
   },
   {
     key: 'nicu',
-    to: '/search?assessment=nicu&tier=TIER2,TIER3',
+    to: '/search?assessment=20&tier=TIER2,TIER3',
     icon: Baby,
     iconBox: 'bg-teal-50 text-teal-600',
     params: {
-      assessment: 'nicu',
+      assessment: '20',
       tier: 'TIER2,TIER3',
     } as Partial<HospitalSearchParams>,
   },
