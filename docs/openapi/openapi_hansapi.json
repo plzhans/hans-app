@@ -195,6 +195,44 @@
         ]
       }
     },
+    "/data-go-kr/hira/hospitals/{ykiho}/asm": {
+      "get": {
+        "description": "기관이 받은 평가항목별 등급. 응답 구조는 원본 API 와 동일하다.\n\n**한 기관에 1건이다** — 평가항목이 item 에 asmGrd01~24 로 가로로 붙는다(02·11 은 원본에 없다). 항목 번호의 이름은 /data-go-kr/hira/codes 가 아니라 통합 병원 상세가 붙여준다.\n\n**평가대상이 아니면 items 가 빈 배열이다** — 평가대상은 36,599곳으로 병원 전체의 부분집합이다. 대부분 의원(clCd=31)이라 병원급 전용은 아니다.\n\n**등급 값은 원본 그대로다.** 정수 1~5 와 문자열 `등급제외`(평가는 했으나 등급 미부여)가 섞여 온다. 키 자체가 없으면 평가대상 제외라는 뜻이라 `등급제외` 와 다르다 — 합치면 정보가 사라진다. 천식(asmGrd16)만 인코딩이 달라 1 대신 `양호`, 등급제외 대신 0 을 쓴다. 0 은 최하가 아니라 등급제외다.",
+        "operationId": "HiraHospitalController_getAssessment",
+        "parameters": [
+          {
+            "name": "ykiho",
+            "required": true,
+            "in": "path",
+            "description": "암호화된 요양기호. 통합 병원 상세(/healthcare/hospitals/:id)의 ykiho 를 그대로 쓴다.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HiraHospitalAssessmentResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "병원평가 등급 조회",
+        "tags": [
+          "hira"
+        ]
+      }
+    },
     "/data-go-kr/nmc/hospitals": {
       "get": {
         "description": "로컬 DB 에 미러링한 NMC 병원 목록. 응답 구조는 원본 API 와 동일하다.",
@@ -755,6 +793,26 @@
               "example": "true",
               "type": "string"
             }
+          },
+          {
+            "name": "assessment",
+            "required": false,
+            "in": "query",
+            "description": "건강보험심사평가원 적정성평가 1등급 분야. 쉼표로 여러 개(OR).\n- `cancer` 암질환(대장·위·유방·폐암)\n- `cardio` 심뇌혈관(급성기뇌졸중·관상동맥우회술)\n- `nicu` 신생아중환자실\n\n**병원급 이상만 의미가 있다** — 의원은 이 항목을 평가받지 않는다. 전국 목록으로 쓸 땐 `tier=TIER2,TIER3` 를 함께 거는 것을 권장한다.",
+            "schema": {
+              "example": "cancer,cardio",
+              "type": "string"
+            }
+          },
+          {
+            "name": "specialty",
+            "required": false,
+            "in": "query",
+            "description": "전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조.",
+            "schema": {
+              "example": "SPINE,JOINT",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -827,6 +885,82 @@
           }
         ],
         "summary": "병원 상세",
+        "tags": [
+          "healthcare"
+        ]
+      }
+    },
+    "/healthcare/hospitals/{id}/hira-npay": {
+      "get": {
+        "description": "병원이 신고한 비급여 항목별 가격. 대분류 → 표준코드로 묶어 **기관 전건을 한 번에** 돌려준다(페이지 없음).\n\n**빈 categories 가 정상이다.** 비급여를 신고한 기관은 3,511곳(전체의 4.4%)뿐이고, 의원(clCd=31)은 원본에 통째로 없어 늘 비어 있다. 병원이 없을 때만 404 다.\n\n**금액은 범위다.** 한 표준코드에 원본 행이 여럿일 수 있어서다(체외충격파가 단순/복잡 두 행). 단일가면 minAmount 와 maxAmount 가 같다 — 그때는 범위로 표시하지 마라.\n\n상세(/healthcare/hospitals/:id)에 끼워 넣지 않은 이유는 95% 의 병원에게 헛짐이고 한 기관에 수백 행이기 때문이다(최다 1,048행).",
+        "operationId": "HealthcareHospitalController_nonPayments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "통합 병원 id",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HospitalNonPaymentDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "비급여 진료비",
+        "tags": [
+          "healthcare"
+        ]
+      }
+    },
+    "/healthcare/hospitals/{id}/hira-npay/request": {
+      "post": {
+        "description": "이 병원의 비급여를 받아오도록 **요청만 한다.** 즉시 반영되지 않는다 — 큐에 등록되고 배치가 처리한다.\n\n**`source=requestable` 일 때만 의미가 있다.** 공개 API 에 이미 있으면(`hira`) 요청할 이유가 없고, 받아봤는데 없으면(`none`) 다시 요청해도 결과가 같다.\n\n**같은 병원을 여러 번 눌러도 큐에는 한 줄이다.** 처리 결과는 다음 조회의 `source` 로 나타난다(web|none).",
+        "operationId": "HealthcareHospitalController_requestNonPayments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "통합 병원 id",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NonPaymentRequestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "비급여 갱신 요청",
         "tags": [
           "healthcare"
         ]
@@ -2456,6 +2590,152 @@
           "hours",
           "equipments",
           "capabilities"
+        ]
+      },
+      "NonPaymentPriceDetailDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Hip MRI",
+            "description": "요양기관이 자체적으로 붙인 항목명. **표기가 기관 제각각이라 이 값으로 기관 간 비교하지 마라** — 비교는 code 로 한다."
+          },
+          "amount": {
+            "type": "number",
+            "example": 450000,
+            "description": "그 기관이 실제로 받는 금액(원)."
+          }
+        },
+        "required": [
+          "amount"
+        ]
+      },
+      "NonPaymentPriceDto": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number",
+            "example": 450000,
+            "description": "최저가(원). **단일가면 max 와 같다** — 같은 값이면 범위로 표시하지 마라."
+          },
+          "max": {
+            "type": "number",
+            "example": 600000,
+            "description": "최고가(원)."
+          },
+          "details": {
+            "description": "범위를 이룬 개별 행. **한 코드에 여러 행이 정상이다** — 체외충격파(SZ0840000)가 단순/복잡 두 행인 식이다.\n\n**빈 배열이 정상이다** — 원본이 처음부터 범위만 주는 출처가 그렇다. 비었으면 \"쪼갤 내역이 없다\" 는 뜻이지 \"못 받았다\" 가 아니다. 그때는 범위만 보여주면 된다.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NonPaymentPriceDetailDto"
+            }
+          }
+        },
+        "required": [
+          "min",
+          "max",
+          "details"
+        ]
+      },
+      "NonPaymentItemDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "480510000",
+            "description": "표준 항목코드. 기관 간 비교는 이 코드로 한다. 코드가 없는 원본 행은 `sno:12` 형태로 혼자 선다."
+          },
+          "name": {
+            "type": "string",
+            "example": "근골격계 · 고관절",
+            "description": "항목명. 대분류는 category 에 있으므로 뒷부분만 담는다."
+          },
+          "price": {
+            "$ref": "#/components/schemas/NonPaymentPriceDto"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "price"
+        ]
+      },
+      "NonPaymentCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "MRI진단료",
+            "description": "중분류명"
+          },
+          "mdivCd": {
+            "type": "string",
+            "example": "1032A",
+            "description": "중분류코드(원본 npayMdivCd). 화면이 이 코드로 표시 그룹(검사·초음파·MRI…)을 묶는다. 코드마스터에 없는 항목이면 없다."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NonPaymentItemDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "items"
+        ]
+      },
+      "HospitalNonPaymentDto": {
+        "type": "object",
+        "properties": {
+          "noticeUrl": {
+            "type": "string",
+            "description": "병원이 신고한 비급여 안내 URL. 원본은 행마다 같은 값을 반복하지만 여기서는 한 번만 싣는다. 없는 기관이 있고, 의원급(크롤 출처)엔 아예 없다."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "hira",
+              "web",
+              "none",
+              "requestable",
+              "unavailable"
+            ],
+            "description": "이 응답의 출처, 또는 왜 비었는지.\n\n- `hira` — 공개 API(병원급 이상). 금액이 행마다 단일값이라 `price.details` 가 찬다.\n- `web` — 심평원 홈페이지(의원급). 원본이 범위만 줘서 **`price.details` 가 빈다**.\n- `none` — 받아봤는데 그 기관이 신고한 게 없다. **끝이다** — 다시 요청해도 같다.\n- `requestable` — 공개 API 에 없고 아직 받아본 적도 없다. **갱신 요청(POST .../hira-npay/request)이 가능하다.**\n- `unavailable` — 요청할 수 없다. HIRA 연동(ykiho)이 없는 병원은 조회 자체가 불가능하다."
+          },
+          "requestStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "failed"
+            ],
+            "description": "갱신 요청의 진행 상태. `source=requestable` 일 때만 의미가 있다. 요청한 적 없으면 없다.\n\n**`done` 은 오지 않는다** — 처리가 끝났으면 그 결과가 `source`(web|none)로 나타난다."
+          },
+          "categories": {
+            "description": "대분류 묶음. 원본 게시 순서를 유지한다. **빈 배열이 정상이다** — 왜 비었는지는 `source` 를 봐라.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NonPaymentCategoryDto"
+            }
+          }
+        },
+        "required": [
+          "source",
+          "categories"
+        ]
+      },
+      "NonPaymentRequestResultDto": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string",
+            "example": "queued",
+            "description": "`queued` — 큐에 등록됐다. 배치가 처리하면 다음 조회부터 `source` 가 web|none 으로 바뀐다."
+          }
+        },
+        "required": [
+          "result"
         ]
       },
       "ListResponseDto": {
@@ -5844,6 +6124,897 @@
             "type": "integer",
             "description": "최대비용 (단위: 원)",
             "example": 360000
+          }
+        }
+      },
+      "HiraNonPaymentCodeResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraNonPaymentCodeResult"
+          }
+        }
+      },
+      "HiraNonPaymentCodeResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraNonPaymentCodeBody"
+          }
+        }
+      },
+      "HiraNonPaymentCodeBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraNonPaymentCodeItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraNonPaymentCodeItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraNonPaymentCodeItem"
+            }
+          }
+        }
+      },
+      "HiraNonPaymentCodeItem": {
+        "type": "object",
+        "description": "비급여 항목 분류 한 행. **대/중/소 3단이고 아래로 갈수록 optional 이다**(2026-07 실측 — 대분류 54행 전부, 중분류 52행, 소분류 20행). PET·캡슐내시경처럼 중분류가 없는 대분류도 있다.\n\n각 단계가 코드·이름·설명 세 쌍이다. **설명(Dsc)이 이 사전의 값이다** — 신고 데이터에 없는 항목 안내 텍스트다.",
+        "properties": {
+          "divCd1": {
+            "type": "string",
+            "description": "대분류코드 (예: A=상급병실료차액, E=제증명수수료)",
+            "example": "E"
+          },
+          "divCd1Nm": {
+            "type": "string",
+            "description": "대분류명",
+            "example": "제증명수수료"
+          },
+          "divCd1Dsc": {
+            "type": "string",
+            "description": "대분류 설명문"
+          },
+          "divCd2": {
+            "type": "string",
+            "description": "중분류코드 (예: E1100). **없을 수 있다.**",
+            "example": "E1100"
+          },
+          "divCd2Nm": {
+            "type": "string",
+            "description": "중분류명 (예: 일반진단서)",
+            "example": "일반진단서"
+          },
+          "divCd2Dsc": {
+            "type": "string",
+            "description": "중분류 설명문"
+          },
+          "divCd3": {
+            "type": "string",
+            "description": "소분류코드. **없을 수 있다** — 소분류가 있는 항목만 온다(실측 20행)."
+          },
+          "divCd3Nm": {
+            "type": "string",
+            "description": "소분류명"
+          },
+          "divCd3Dsc": {
+            "type": "string",
+            "description": "소분류 설명문"
+          }
+        }
+      },
+      "HiraNonPaymentClassStatResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraNonPaymentClassStatResult"
+          }
+        }
+      },
+      "HiraNonPaymentClassStatResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraNonPaymentClassStatBody"
+          }
+        }
+      },
+      "HiraNonPaymentClassStatBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraNonPaymentClassStatItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraNonPaymentClassStatItems": {
+        "type": "object",
+        "description": "**0건이면 items 가 빈 문자열('')로 온다** — mutator 가 배열로 정규화한다.",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraNonPaymentClassStatItem"
+            }
+          }
+        }
+      },
+      "HiraNonPaymentClassStatItem": {
+        "type": "object",
+        "description": "비급여코드 하나의 **종별 가격통계**. **행마다 필드가 다르다** — 값이 있는 종별만 온다(2026-07 실측: 15~31필드). 그래서 가격 필드는 전부 optional 이다. 종별 7종(전체·상급종합·종합·치과·한방·병원·요양) × 통계 4종(최대·최소·평균·중간).",
+        "properties": {
+          "npayCd": {
+            "type": "string",
+            "description": "비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(2026-07 실측 655).",
+            "example": "1Z9230001"
+          },
+          "npayKorNm": {
+            "type": "string",
+            "description": "비급여코드명 (예: 모발이식술료/모발이식술/500모미만)"
+          },
+          "stdDate": {
+            "type": "integer",
+            "description": "적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**(2026-07 실측).",
+            "example": 20260718
+          },
+          "prcMaxAll": {
+            "type": "integer",
+            "description": "전체 최대비용(원)"
+          },
+          "prcMinAll": {
+            "type": "integer",
+            "description": "전체 최소비용(원)"
+          },
+          "prcAvgAll": {
+            "type": "integer",
+            "description": "전체 평균비용(원)"
+          },
+          "middAvgAll": {
+            "type": "integer",
+            "description": "전체 중간비용(원)"
+          },
+          "prcMaxUsgh": {
+            "type": "integer",
+            "description": "상급종합 최대비용(원)"
+          },
+          "prcMinUsgh": {
+            "type": "integer",
+            "description": "상급종합 최소비용(원)"
+          },
+          "prcAvgUsgh": {
+            "type": "integer",
+            "description": "상급종합 평균비용(원)"
+          },
+          "middAvgUsgh": {
+            "type": "integer",
+            "description": "상급종합 중간비용(원)"
+          },
+          "prcMaxGnhp": {
+            "type": "integer",
+            "description": "종합병원 최대비용(원)"
+          },
+          "prcMinGnhp": {
+            "type": "integer",
+            "description": "종합병원 최소비용(원)"
+          },
+          "prcAvgGnhp": {
+            "type": "integer",
+            "description": "종합병원 평균비용(원)"
+          },
+          "middAvgGnhp": {
+            "type": "integer",
+            "description": "종합병원 중간비용(원)"
+          },
+          "prcMaxDety": {
+            "type": "integer",
+            "description": "치과병원 최대비용(원)"
+          },
+          "prcMinDety": {
+            "type": "integer",
+            "description": "치과병원 최소비용(원)"
+          },
+          "prcAvgDety": {
+            "type": "integer",
+            "description": "치과병원 평균비용(원)"
+          },
+          "middAvgDety": {
+            "type": "integer",
+            "description": "치과병원 중간비용(원)"
+          },
+          "prcMaxCmdc": {
+            "type": "integer",
+            "description": "한방병원 최대비용(원)"
+          },
+          "prcMinCmdc": {
+            "type": "integer",
+            "description": "한방병원 최소비용(원)"
+          },
+          "prcAvgCmdc": {
+            "type": "integer",
+            "description": "한방병원 평균비용(원)"
+          },
+          "middAvgCmdc": {
+            "type": "integer",
+            "description": "한방병원 중간비용(원)"
+          },
+          "prcMaxHosp": {
+            "type": "integer",
+            "description": "병원 최대비용(원)"
+          },
+          "prcMinHosp": {
+            "type": "integer",
+            "description": "병원 최소비용(원)"
+          },
+          "prcAvgHosp": {
+            "type": "integer",
+            "description": "병원 평균비용(원)"
+          },
+          "middAvgHosp": {
+            "type": "integer",
+            "description": "병원 중간비용(원)"
+          },
+          "prcMaxRecu": {
+            "type": "integer",
+            "description": "요양병원 최대비용(원)"
+          },
+          "prcMinRecu": {
+            "type": "integer",
+            "description": "요양병원 최소비용(원)"
+          },
+          "prcAvgRecu": {
+            "type": "integer",
+            "description": "요양병원 평균비용(원)"
+          },
+          "middAvgRecu": {
+            "type": "integer",
+            "description": "요양병원 중간비용(원)"
+          }
+        }
+      },
+      "HiraNonPaymentRegionStatResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraNonPaymentRegionStatResult"
+          }
+        }
+      },
+      "HiraNonPaymentRegionStatResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraNonPaymentRegionStatBody"
+          }
+        }
+      },
+      "HiraNonPaymentRegionStatBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraNonPaymentRegionStatItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraNonPaymentRegionStatItems": {
+        "type": "object",
+        "description": "**0건이면 items 가 빈 문자열('')로 온다** — mutator 가 배열로 정규화한다.",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraNonPaymentRegionStatItem"
+            }
+          }
+        }
+      },
+      "HiraNonPaymentRegionStatItem": {
+        "type": "object",
+        "description": "비급여코드 하나의 **지역 가격통계**. **행마다 필드가 다르다** — 값이 있는 지역만 온다(2026-07 실측: 27~71필드). 그래서 가격 필드는 전부 optional 이다. 지역 18종(전체+17시도) × 통계 4종. **가이드와 필드명이 다르다** — 세종은 Sejong 이 아니라 Sj, 충북은 Ccbk 이 아니라 Ccb 다(2026-07 실측).",
+        "properties": {
+          "npayCd": {
+            "type": "string",
+            "description": "비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(2026-07 실측 655).",
+            "example": "1Z9230001"
+          },
+          "npayKorNm": {
+            "type": "string",
+            "description": "비급여코드명 (예: 모발이식술료/모발이식술/500모미만)"
+          },
+          "stdDate": {
+            "type": "integer",
+            "description": "적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**(2026-07 실측).",
+            "example": 20260718
+          },
+          "prcMaxAll": {
+            "type": "integer",
+            "description": "전체 최대비용(원)"
+          },
+          "prcMinAll": {
+            "type": "integer",
+            "description": "전체 최소비용(원)"
+          },
+          "prcAvgAll": {
+            "type": "integer",
+            "description": "전체 평균비용(원)"
+          },
+          "middAvgAll": {
+            "type": "integer",
+            "description": "전체 중간비용(원)"
+          },
+          "prcMaxSl": {
+            "type": "integer",
+            "description": "서울 최대비용(원)"
+          },
+          "prcMinSl": {
+            "type": "integer",
+            "description": "서울 최소비용(원)"
+          },
+          "prcAvgSl": {
+            "type": "integer",
+            "description": "서울 평균비용(원)"
+          },
+          "middAvgSl": {
+            "type": "integer",
+            "description": "서울 중간비용(원)"
+          },
+          "prcMaxPs": {
+            "type": "integer",
+            "description": "부산 최대비용(원)"
+          },
+          "prcMinPs": {
+            "type": "integer",
+            "description": "부산 최소비용(원)"
+          },
+          "prcAvgPs": {
+            "type": "integer",
+            "description": "부산 평균비용(원)"
+          },
+          "middAvgPs": {
+            "type": "integer",
+            "description": "부산 중간비용(원)"
+          },
+          "prcMaxIch": {
+            "type": "integer",
+            "description": "인천 최대비용(원)"
+          },
+          "prcMinIch": {
+            "type": "integer",
+            "description": "인천 최소비용(원)"
+          },
+          "prcAvgIch": {
+            "type": "integer",
+            "description": "인천 평균비용(원)"
+          },
+          "middAvgIch": {
+            "type": "integer",
+            "description": "인천 중간비용(원)"
+          },
+          "prcMaxTg": {
+            "type": "integer",
+            "description": "대구 최대비용(원)"
+          },
+          "prcMinTg": {
+            "type": "integer",
+            "description": "대구 최소비용(원)"
+          },
+          "prcAvgTg": {
+            "type": "integer",
+            "description": "대구 평균비용(원)"
+          },
+          "middAvgTg": {
+            "type": "integer",
+            "description": "대구 중간비용(원)"
+          },
+          "prcMaxKw": {
+            "type": "integer",
+            "description": "광주 최대비용(원)"
+          },
+          "prcMinKw": {
+            "type": "integer",
+            "description": "광주 최소비용(원)"
+          },
+          "prcAvgKw": {
+            "type": "integer",
+            "description": "광주 평균비용(원)"
+          },
+          "middAvgKw": {
+            "type": "integer",
+            "description": "광주 중간비용(원)"
+          },
+          "prcMaxDj": {
+            "type": "integer",
+            "description": "대전 최대비용(원)"
+          },
+          "prcMinDj": {
+            "type": "integer",
+            "description": "대전 최소비용(원)"
+          },
+          "prcAvgDj": {
+            "type": "integer",
+            "description": "대전 평균비용(원)"
+          },
+          "middAvgDj": {
+            "type": "integer",
+            "description": "대전 중간비용(원)"
+          },
+          "prcMaxUsn": {
+            "type": "integer",
+            "description": "울산 최대비용(원)"
+          },
+          "prcMinUsn": {
+            "type": "integer",
+            "description": "울산 최소비용(원)"
+          },
+          "prcAvgUsn": {
+            "type": "integer",
+            "description": "울산 평균비용(원)"
+          },
+          "middAvgUsn": {
+            "type": "integer",
+            "description": "울산 중간비용(원)"
+          },
+          "prcMaxKyg": {
+            "type": "integer",
+            "description": "경기 최대비용(원)"
+          },
+          "prcMinKyg": {
+            "type": "integer",
+            "description": "경기 최소비용(원)"
+          },
+          "prcAvgKyg": {
+            "type": "integer",
+            "description": "경기 평균비용(원)"
+          },
+          "middAvgKyg": {
+            "type": "integer",
+            "description": "경기 중간비용(원)"
+          },
+          "prcMaxKaw": {
+            "type": "integer",
+            "description": "강원 최대비용(원)"
+          },
+          "prcMinKaw": {
+            "type": "integer",
+            "description": "강원 최소비용(원)"
+          },
+          "prcAvgKaw": {
+            "type": "integer",
+            "description": "강원 평균비용(원)"
+          },
+          "middAvgKaw": {
+            "type": "integer",
+            "description": "강원 중간비용(원)"
+          },
+          "prcMaxCcb": {
+            "type": "integer",
+            "description": "충북 최대비용(원)"
+          },
+          "prcMinCcb": {
+            "type": "integer",
+            "description": "충북 최소비용(원)"
+          },
+          "prcAvgCcb": {
+            "type": "integer",
+            "description": "충북 평균비용(원)"
+          },
+          "middAvgCcb": {
+            "type": "integer",
+            "description": "충북 중간비용(원)"
+          },
+          "prcMaxCcn": {
+            "type": "integer",
+            "description": "충남 최대비용(원)"
+          },
+          "prcMinCcn": {
+            "type": "integer",
+            "description": "충남 최소비용(원)"
+          },
+          "prcAvgCcn": {
+            "type": "integer",
+            "description": "충남 평균비용(원)"
+          },
+          "middAvgCcn": {
+            "type": "integer",
+            "description": "충남 중간비용(원)"
+          },
+          "prcMaxClb": {
+            "type": "integer",
+            "description": "전북 최대비용(원)"
+          },
+          "prcMinClb": {
+            "type": "integer",
+            "description": "전북 최소비용(원)"
+          },
+          "prcAvgClb": {
+            "type": "integer",
+            "description": "전북 평균비용(원)"
+          },
+          "middAvgClb": {
+            "type": "integer",
+            "description": "전북 중간비용(원)"
+          },
+          "prcMaxCln": {
+            "type": "integer",
+            "description": "전남 최대비용(원)"
+          },
+          "prcMinCln": {
+            "type": "integer",
+            "description": "전남 최소비용(원)"
+          },
+          "prcAvgCln": {
+            "type": "integer",
+            "description": "전남 평균비용(원)"
+          },
+          "middAvgCln": {
+            "type": "integer",
+            "description": "전남 중간비용(원)"
+          },
+          "prcMaxKsb": {
+            "type": "integer",
+            "description": "경북 최대비용(원)"
+          },
+          "prcMinKsb": {
+            "type": "integer",
+            "description": "경북 최소비용(원)"
+          },
+          "prcAvgKsb": {
+            "type": "integer",
+            "description": "경북 평균비용(원)"
+          },
+          "middAvgKsb": {
+            "type": "integer",
+            "description": "경북 중간비용(원)"
+          },
+          "prcMaxKsn": {
+            "type": "integer",
+            "description": "경남 최대비용(원)"
+          },
+          "prcMinKsn": {
+            "type": "integer",
+            "description": "경남 최소비용(원)"
+          },
+          "prcAvgKsn": {
+            "type": "integer",
+            "description": "경남 평균비용(원)"
+          },
+          "middAvgKsn": {
+            "type": "integer",
+            "description": "경남 중간비용(원)"
+          },
+          "prcMaxChj": {
+            "type": "integer",
+            "description": "제주 최대비용(원)"
+          },
+          "prcMinChj": {
+            "type": "integer",
+            "description": "제주 최소비용(원)"
+          },
+          "prcAvgChj": {
+            "type": "integer",
+            "description": "제주 평균비용(원)"
+          },
+          "middAvgChj": {
+            "type": "integer",
+            "description": "제주 중간비용(원)"
+          },
+          "prcMaxSj": {
+            "type": "integer",
+            "description": "세종 최대비용(원)"
+          },
+          "prcMinSj": {
+            "type": "integer",
+            "description": "세종 최소비용(원)"
+          },
+          "prcAvgSj": {
+            "type": "integer",
+            "description": "세종 평균비용(원)"
+          },
+          "middAvgSj": {
+            "type": "integer",
+            "description": "세종 중간비용(원)"
+          }
+        }
+      },
+      "HiraHospitalAssessmentResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/HiraHospitalAssessmentResult"
+          }
+        }
+      },
+      "HiraHospitalAssessmentResult": {
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/HiraResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HiraHospitalAssessmentBody"
+          }
+        }
+      },
+      "HiraHospitalAssessmentBody": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HiraPageInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "$ref": "#/components/schemas/HiraHospitalAssessmentItems"
+              }
+            }
+          }
+        ]
+      },
+      "HiraHospitalAssessmentItems": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HiraHospitalAssessmentItem"
+            }
+          }
+        }
+      },
+      "HiraAssessmentGrade": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "description": "평가등급. **숫자와 문자열이 섞여 온다**(2026-07 실측). 등급은 정수 1~5 로, 문자열 '등급제외' 는 **등급대상 제외**(평가는 했으나 등급을 매기지 않음)다. 가이드는 전부 문자열이라 하지만 실제로는 아니다.\n\n**'등급대상 제외' 와 '평가대상 제외' 는 다르다.** 평가대상이 아닌 항목은 **키 자체가 없다**(빈 문자열이 아니라 부재). 둘을 합치면 정보가 사라진다 — 예: 약품목수는 키없음 1,876 · '등급제외' 516 으로 수가 다르다.\n\n천식(asmGrd16)만 등급대상 제외를 '등급제외' 가 아니라 숫자 0 으로 준다. AssessmentGrade16 참고."
+      },
+      "HiraHospitalAssessmentItem": {
+        "type": "object",
+        "description": "기관 하나의 평가등급. 필드는 가이드가 아니라 실응답을 따랐다(2026-07 실측, 표본 1,000건).\n\n**asmGrd02·asmGrd11 은 존재하지 않는다** — 원본에 없다(폐지 항목으로 보인다). 번호가 연속이 아니다.\n\n평가대상은 36,599개 기관이고 대부분 의원(clCd=31)이다. 병원급 전용이 아니다.",
+        "properties": {
+          "ykiho": {
+            "type": "string",
+            "description": "암호화된 요양기호"
+          },
+          "yadmNm": {
+            "type": "string",
+            "description": "요양기관명"
+          },
+          "clCd": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "종별코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). '01'(상급종합)만 문자열이고 나머지(11·21·28·29·31·71·72·75…)는 정수다 — 앞자리 0 은 JSON 숫자가 될 수 없어 문자열로 남는다. 비교할 땐 asString() 으로 맞춰라."
+          },
+          "clCdNm": {
+            "type": "string",
+            "description": "종별코드명"
+          },
+          "addr": {
+            "type": "string",
+            "description": "주소"
+          },
+          "asmGrd01": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "급성기뇌졸중"
+          },
+          "asmGrd03": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "혈액투석"
+          },
+          "asmGrd04": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "의료급여정신과"
+          },
+          "asmGrd05": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "수술부위 감염예방 항생제"
+          },
+          "asmGrd06": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "관상동맥우회술"
+          },
+          "asmGrd07": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "급성상기도감염 항생제 처방률"
+          },
+          "asmGrd08": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "주사제 처방률"
+          },
+          "asmGrd09": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "약품목수"
+          },
+          "asmGrd10": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "요양병원"
+          },
+          "asmGrd12": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "대장암"
+          },
+          "asmGrd13": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "위암"
+          },
+          "asmGrd14": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "유방암"
+          },
+          "asmGrd15": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "폐암"
+          },
+          "asmGrd16": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "천식. **이 항목만 인코딩이 다르다. 등급 체계 자체는 나머지와 같다.** (2026-07 실측 + 심평원 홈페이지 대조)\n\n    일반 21개 :  1        2 3 4 5   '등급제외'\n    천식      : '양호'     2 3 4 5    0\n\n1등급을 '양호' 로, 등급대상 제외를 0 으로 줄 뿐이다. 그래서 천식엔 1 도 '등급제외' 도 전수 14,923건에 한 번도 안 나온다 — 그 자리를 각각 '양호' 와 0 이 대신하기 때문이다. 가이드가 이 항목만 '(양호한 기관 공개)' 로 적은 것이 이 뜻이다(나머지 21개는 '(1~5등급, 등급제외)').\n\n**0 을 '최하 등급' 이나 '값 없음' 으로 읽지 마라.** 0 은 등급제외고 최하는 5 다. 다른 항목과 비교하려면 '양호'→1, 0→'등급제외' 로 옮기고 나서 하라."
+          },
+          "asmGrd17": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "만성폐쇄성폐질환"
+          },
+          "asmGrd18": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "폐렴"
+          },
+          "asmGrd19": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "중환자실"
+          },
+          "asmGrd20": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "신생아중환자실"
+          },
+          "asmGrd21": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "마취"
+          },
+          "asmGrd22": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "정신건강 입원영역"
+          },
+          "asmGrd23": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "급성하기도감염 항생제 처방률"
+          },
+          "asmGrd24": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HiraAssessmentGrade"
+              }
+            ],
+            "description": "고혈압·당뇨병"
           }
         }
       }

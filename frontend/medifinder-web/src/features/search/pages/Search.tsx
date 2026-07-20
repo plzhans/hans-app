@@ -10,6 +10,7 @@ import {
   useSubjects,
   useSubjectGroups,
   useHospitalTiers,
+  useSpecialties,
   useSidoRegions,
   useSgguRegions,
 } from '@/features/clinic/api';
@@ -28,6 +29,9 @@ import {
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
 
 const PAGE_SIZE = 20;
+
+/** 심평원 적정성평가 우수 분야. 백엔드 assessment 파라미터 값과 1:1. */
+const ASSESSMENT_OPTIONS = ['cancer', 'cardio', 'nicu'] as const;
 
 /**
  * 진입점 탭. 서로 배타적이다 — 하나만 켜진다.
@@ -130,6 +134,9 @@ export default function SearchPage() {
     region: searchParams.get('region') ?? '',
     subject: searchParams.get('subject') ?? '',
     tier: searchParams.get('tier') ?? '',
+    // 전문분야·심평원 평가는 상세 검색 필터다. 첫 페이지 섹션의 "더보기"(?assessment=cancer)로도 들어온다.
+    specialty: searchParams.get('specialty') ?? '',
+    assessment: searchParams.get('assessment') ?? '',
   };
 
   const emergency = searchParams.get('emergency') === '1';
@@ -182,8 +189,13 @@ export default function SearchPage() {
   /** 고르는 중인 조건이 검색된 것과 다른가. 다르면 검색 버튼을 강조한다. */
   const dirty = JSON.stringify(draft) !== appliedKey;
 
+  const specialty = draft.specialty;
+  const assessment = draft.assessment;
+
   const subjectCds = subject ? subject.split(',') : [];
   const tierCds = tier ? tier.split(',') : [];
+  const specialtyCds = specialty ? specialty.split(',') : [];
+  const assessmentCds = assessment ? assessment.split(',') : [];
 
   /**
    * 상세 검색은 **기본으로 펼친다.** 접어두면 규모·과목 필터가 있다는 걸 아무도 모른다 —
@@ -237,6 +249,7 @@ export default function SearchPage() {
   const { data: subjects } = useSubjects();
   const { data: groups } = useSubjectGroups();
   const { data: tiers } = useHospitalTiers();
+  const { data: specialties } = useSpecialties();
   const { data: sidos } = useSidoRegions();
   const { data: sggus } = useSgguRegions(sido || undefined);
 
@@ -252,6 +265,8 @@ export default function SearchPage() {
     tier: applied.tier,
     emergency,
     baby,
+    specialty: applied.specialty,
+    assessment: applied.assessment,
   });
 
   const items = data?.items ?? [];
@@ -259,10 +274,23 @@ export default function SearchPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   /**
-   * 선택된 필터를 배지로 펼친다. 진료과목·종별을 한 줄에 모은다.
+   * 선택된 필터를 배지로 펼친다. 진료과목·종별·전문분야·평가를 한 줄에 모은다.
    * 코드→이름은 메타에서 찾는다 — 이름을 URL 에 담지 않는다(코드가 유일한 상태다).
+   * 전부 draft 를 고쳐 x 로 지운다 — 다른 필터와 같은 방식이라 검색 버튼으로 함께 적용된다.
    */
   const selected = [
+    ...assessmentCds.map((code) => ({
+      code: `assessment:${code}`,
+      name: t(`search.assessment.${code}`),
+      remove: () =>
+        update({ assessment: assessmentCds.filter((c) => c !== code).join(',') }),
+    })),
+    ...specialtyCds.map((code) => ({
+      code: `specialty:${code}`,
+      name: specialties?.find((s) => s.code === code)?.name ?? code,
+      remove: () =>
+        update({ specialty: specialtyCds.filter((c) => c !== code).join(',') }),
+    })),
     ...subjectCds.map((code) => ({
       code,
       name: subjects?.find((s) => s.code === code)?.name ?? code,
@@ -559,6 +587,29 @@ export default function SearchPage() {
               />
             )}
 
+            {/* 전문병원 지정분야 (관절·척추·심장 …). 보건복지부 지정. */}
+            <FilterRow
+              label={t('search.specialty')}
+              options={specialties ?? []}
+              selected={specialtyCds}
+              onChange={(codes) => update({ specialty: codes.join(',') })}
+              collapsible
+            />
+
+            {/*
+              건강보험심사평가원 적정성평가 1등급 분야. 항목이 아니라 우리가 묶은 분야 3개다.
+              병원급 이상만 등급이 붙어서(의원은 이 시술을 안 함) tier 를 따로 강제하진 않는다.
+            */}
+            <FilterRow
+              label={t('search.assessmentLabel')}
+              options={ASSESSMENT_OPTIONS.map((code) => ({
+                code,
+                name: t(`search.assessment.${code}`),
+              }))}
+              selected={assessmentCds}
+              onChange={(codes) => update({ assessment: codes.join(',') })}
+            />
+
           </div>
         )}
 
@@ -583,7 +634,9 @@ export default function SearchPage() {
 
             <button
               type="button"
-              onClick={() => update({ subject: '', tier: '' })}
+              onClick={() =>
+                update({ subject: '', tier: '', specialty: '', assessment: '' })
+              }
               className="ml-1 text-xs font-medium text-slate-500 hover:text-primary-600"
             >
               {t('search.clearAll')}

@@ -8,6 +8,8 @@ import {
   HiraCodeSyncService,
   HiraHospitalReadService,
   HiraHospitalSyncService,
+  HiraNpayCodeSyncService,
+  HiraNpayWebSyncService,
   HiraQueryService,
   isHiraCodeType,
   type HiraCodeType,
@@ -196,6 +198,91 @@ function parseCodeType(value: string): HiraCodeType {
   return value;
 }
 
+/**
+ * 심평원 홈페이지 비급여 크롤. **배치 서버의 대역이다.**
+ *
+ * 흐름은 이렇다 — medifinder 에서 '갱신 요청' 을 누르면 hansapi-server 가 job_queue 에 한 줄
+ * 넣고 끝난다(서버는 외부를 호출하지 않는다). 그걸 꺼내 처리하는 게 배치 서버인데 아직 없어서,
+ * 지금은 이 커맨드가 1건씩 대신 돌린다.
+ *
+ * **공개 API 가 아니라 웹 스크래핑이고 법무 확인 전이다** — clients/kr-or-hira/README.md 참고.
+ */
+function addNpayWebCommands(hira: Command, source: EnvSource): void {
+  addExamples(
+    hira
+      .command('npay-code')
+      .description(
+        '비급여 항목 코드마스터(hira_npay_code) 적재. 요약(List2) 전량 페이징으로 코드·이름·분류코드를 채운다',
+      )
+      .action(async (): Promise<void> => {
+        await withAdminContext(source, async (context) => {
+          const out = await context.get(HiraNpayCodeSyncService).sync();
+          console.log(
+            `완료 ${out.total}종 (${out.processed}건 upsert, ${out.calls}콜)`,
+          );
+        });
+      }),
+    [
+      'hansapi-cli hira npay-code   # 코드마스터 전량 적재 (188콜, 저빈도 배치용)',
+    ],
+  );
+
+  const npay = hira
+    .command('npay-web')
+    .description('비급여(심평원 홈페이지 크롤). 큐를 꺼내 처리한다');
+
+  addExamples(
+    npay
+      .command('work')
+      .description('큐에서 갱신 요청을 꺼내 처리한다 (배치 서버 대역)')
+      .option(
+        '-n, --count <number>',
+        '처리할 건수. 기본 1 — 한 건씩 눈으로 확인하라는 뜻이다',
+        '1',
+      )
+      .action(async (options: { count: string }): Promise<void> => {
+        const count = Number(options.count);
+        await withAdminContext(source, async (context) => {
+          const service = context.get(HiraNpayWebSyncService);
+
+          for (let i = 0; i < count; i++) {
+            const done = await service.processNext();
+            if (!done) {
+              console.log('큐가 비었다.');
+              return;
+            }
+            console.log(
+              done.count < 0
+                ? `실패 ykiho=${done.ykiho} (사유는 job_queue.error 에 남았다)`
+                : `완료 ykiho=${done.ykiho} ${done.count}건`,
+            );
+          }
+        });
+      }),
+    [
+      'hansapi-cli hira npay-web work            # 큐에서 1건 처리',
+      'hansapi-cli hira npay-web work -n 10      # 10건 처리',
+    ],
+  );
+
+  addExamples(
+    npay
+      .command('crawl <ykiho>')
+      .description(
+        '큐를 거치지 않고 이 기관을 바로 긁는다 (동작 확인용). ykiho 는 암호화 요양기호다',
+      )
+      .action(async (ykiho: string): Promise<void> => {
+        await withAdminContext(source, async (context) => {
+          const n = await context.get(HiraNpayWebSyncService).crawl(ykiho);
+          console.log(
+            `완료 ${n}건 (0건이면 그 기관이 신고한 게 없다는 뜻이다)`,
+          );
+        });
+      }),
+    ['hansapi-cli hira npay-web crawl JDQ4MTAxMiM1MSMk...'],
+  );
+}
+
 export function hiraCommand(source: EnvSource): Command {
   const hira = new Command('hira').description(
     '건강보험심사평가원(HIRA) 공공데이터 API',
@@ -203,6 +290,8 @@ export function hiraCommand(source: EnvSource): Command {
 
   // 단계 배치. 계획 문서(docs/krdata-cache-plan.md)의 단계와 1:1 이다.
   hira.addCommand(stageSyncCommand('hira', source));
+
+  addNpayWebCommands(hira, source);
 
   const hospital = hira.command('hospital').description('병원 정보');
 

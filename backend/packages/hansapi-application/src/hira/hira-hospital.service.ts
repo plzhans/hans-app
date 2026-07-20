@@ -4,6 +4,8 @@ import { PrismaService } from '@hansapi/data';
 import type {
   ClinicTop5Item,
   ClinicTop5Response,
+  HospitalAssessmentItem,
+  HospitalAssessmentResponse,
   HospitalItem,
   HospitalListResponse,
   NonPaymentDetailItem,
@@ -91,6 +93,32 @@ export class HiraHospitalService {
       pageNo: command.page,
       numOfRows: command.size,
       totalCount,
+    });
+  }
+
+  /**
+   * 기관별 병원평가 등급.
+   *
+   * 한 기관에 한 행이라 1건 조회(getHospital)와 같은 봉투다. 평가항목은 item 에
+   * asmGrd01~24 로 가로로 붙는다(02·11 은 원본에 없다).
+   *
+   * **행이 없다는 건 평가대상이 아니라는 뜻이다.** 평가대상은 36,599곳으로 병원 전체(79,739)의
+   * 부분집합이다. 없는 게 오류가 아니므로 404 를 만들지 않는다(원본 API 와 같은 규칙).
+   *
+   * 등급 값은 원본 그대로 내보낸다 — 정수 1~5 와 문자열 '등급제외' 가 섞여 있고,
+   * 천식(asmGrd16)만 0·2~5·'양호' 를 쓴다. 그 인코딩 차이를 여기서 메우지 않는다.
+   * 미러는 원본을 보존하는 자리고, 정규화는 통합 병원 조회(HealthcareHospitalService)가 한다.
+   */
+  async getAssessment(ykiho: string): Promise<HospitalAssessmentResponse> {
+    const row = await this.prisma.hira_hospital_asm.findUnique({
+      where: { ykiho },
+    });
+
+    return toKrDataEnvelope<HospitalAssessmentItem>({
+      items: row ? [row.data as HospitalAssessmentItem] : [],
+      pageNo: 1,
+      numOfRows: row ? 1 : 0,
+      totalCount: row ? 1 : 0,
     });
   }
 

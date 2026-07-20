@@ -24,6 +24,7 @@ import type {
   HiraAddressCodeResponse,
   HiraCodeControllerListParams,
   HiraEquipmentCodeResponse,
+  HiraHospitalAssessmentResponse,
   HiraHospitalControllerGetNonPaymentsParams,
   HiraHospitalControllerListParams,
   HiraHospitalListResponse,
@@ -374,6 +375,113 @@ export function useHiraHospitalControllerGetNonPayments<TData = Awaited<ReturnTy
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHiraHospitalControllerGetNonPaymentsQueryOptions(ykiho,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHiraHospitalControllerGetAssessmentUrl = (ykiho: string,) => {
+
+
+
+
+  return `/data-go-kr/hira/hospitals/${ykiho}/asm`
+}
+
+/**
+ * 기관이 받은 평가항목별 등급. 응답 구조는 원본 API 와 동일하다.
+ *
+ * **한 기관에 1건이다** — 평가항목이 item 에 asmGrd01~24 로 가로로 붙는다(02·11 은 원본에 없다). 항목 번호의 이름은 /data-go-kr/hira/codes 가 아니라 통합 병원 상세가 붙여준다.
+ *
+ * **평가대상이 아니면 items 가 빈 배열이다** — 평가대상은 36,599곳으로 병원 전체의 부분집합이다. 대부분 의원(clCd=31)이라 병원급 전용은 아니다.
+ *
+ * **등급 값은 원본 그대로다.** 정수 1~5 와 문자열 `등급제외`(평가는 했으나 등급 미부여)가 섞여 온다. 키 자체가 없으면 평가대상 제외라는 뜻이라 `등급제외` 와 다르다 — 합치면 정보가 사라진다. 천식(asmGrd16)만 인코딩이 달라 1 대신 `양호`, 등급제외 대신 0 을 쓴다. 0 은 최하가 아니라 등급제외다.
+ * @summary 병원평가 등급 조회
+ */
+export const hiraHospitalControllerGetAssessment = async (ykiho: string, options?: RequestInit): Promise<HiraHospitalAssessmentResponse> => {
+
+  return reactFetch<HiraHospitalAssessmentResponse>(getHiraHospitalControllerGetAssessmentUrl(ykiho),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHiraHospitalControllerGetAssessmentQueryKey = (ykiho: string,) => {
+    return [
+    `/data-go-kr/hira/hospitals/${ykiho}/asm`
+    ] as const;
+    }
+
+
+export const getHiraHospitalControllerGetAssessmentQueryOptions = <TData = Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError = unknown>(ykiho: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHiraHospitalControllerGetAssessmentQueryKey(ykiho);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>> = ({ signal }) => hiraHospitalControllerGetAssessment(ykiho, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: ykiho !== null && ykiho !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HiraHospitalControllerGetAssessmentQueryResult = NonNullable<Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>>
+export type HiraHospitalControllerGetAssessmentQueryError = unknown
+
+
+export function useHiraHospitalControllerGetAssessment<TData = Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError = unknown>(
+ ykiho: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>,
+          TError,
+          Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHiraHospitalControllerGetAssessment<TData = Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError = unknown>(
+ ykiho: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>,
+          TError,
+          Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHiraHospitalControllerGetAssessment<TData = Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError = unknown>(
+ ykiho: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 병원평가 등급 조회
+ */
+
+export function useHiraHospitalControllerGetAssessment<TData = Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError = unknown>(
+ ykiho: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hiraHospitalControllerGetAssessment>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHiraHospitalControllerGetAssessmentQueryOptions(ykiho,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

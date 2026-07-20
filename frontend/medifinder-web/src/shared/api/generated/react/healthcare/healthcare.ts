@@ -23,7 +23,9 @@ import type {
 import type {
   HealthcareHospitalControllerSearch200,
   HealthcareHospitalControllerSearchParams,
-  HospitalDetailDto
+  HospitalDetailDto,
+  HospitalNonPaymentDto,
+  NonPaymentRequestResultDto
 } from '../../model';
 
 import { reactFetch } from '../../../mutator';
@@ -246,6 +248,218 @@ export function useHealthcareHospitalControllerGet<TData = Awaited<ReturnType<ty
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthcareHospitalControllerGetQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHealthcareHospitalControllerNonPaymentsUrl = (id: number,) => {
+
+
+
+
+  return `/healthcare/hospitals/${id}/hira-npay`
+}
+
+/**
+ * 병원이 신고한 비급여 항목별 가격. 대분류 → 표준코드로 묶어 **기관 전건을 한 번에** 돌려준다(페이지 없음).
+ *
+ * **빈 categories 가 정상이다.** 비급여를 신고한 기관은 3,511곳(전체의 4.4%)뿐이고, 의원(clCd=31)은 원본에 통째로 없어 늘 비어 있다. 병원이 없을 때만 404 다.
+ *
+ * **금액은 범위다.** 한 표준코드에 원본 행이 여럿일 수 있어서다(체외충격파가 단순/복잡 두 행). 단일가면 minAmount 와 maxAmount 가 같다 — 그때는 범위로 표시하지 마라.
+ *
+ * 상세(/healthcare/hospitals/:id)에 끼워 넣지 않은 이유는 95% 의 병원에게 헛짐이고 한 기관에 수백 행이기 때문이다(최다 1,048행).
+ * @summary 비급여 진료비
+ */
+export const healthcareHospitalControllerNonPayments = async (id: number, options?: RequestInit): Promise<HospitalNonPaymentDto> => {
+
+  return reactFetch<HospitalNonPaymentDto>(getHealthcareHospitalControllerNonPaymentsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthcareHospitalControllerNonPaymentsQueryKey = (id: number,) => {
+    return [
+    `/healthcare/hospitals/${id}/hira-npay`
+    ] as const;
+    }
+
+
+export const getHealthcareHospitalControllerNonPaymentsQueryOptions = <TData = Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError = unknown>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthcareHospitalControllerNonPaymentsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>> = ({ signal }) => healthcareHospitalControllerNonPayments(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthcareHospitalControllerNonPaymentsQueryResult = NonNullable<Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>>
+export type HealthcareHospitalControllerNonPaymentsQueryError = unknown
+
+
+export function useHealthcareHospitalControllerNonPayments<TData = Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError = unknown>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareHospitalControllerNonPayments<TData = Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError = unknown>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareHospitalControllerNonPayments<TData = Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError = unknown>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 비급여 진료비
+ */
+
+export function useHealthcareHospitalControllerNonPayments<TData = Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError = unknown>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthcareHospitalControllerNonPaymentsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHealthcareHospitalControllerRequestNonPaymentsUrl = (id: number,) => {
+
+
+
+
+  return `/healthcare/hospitals/${id}/hira-npay/request`
+}
+
+/**
+ * 이 병원의 비급여를 받아오도록 **요청만 한다.** 즉시 반영되지 않는다 — 큐에 등록되고 배치가 처리한다.
+ *
+ * **`source=requestable` 일 때만 의미가 있다.** 공개 API 에 이미 있으면(`hira`) 요청할 이유가 없고, 받아봤는데 없으면(`none`) 다시 요청해도 결과가 같다.
+ *
+ * **같은 병원을 여러 번 눌러도 큐에는 한 줄이다.** 처리 결과는 다음 조회의 `source` 로 나타난다(web|none).
+ * @summary 비급여 갱신 요청
+ */
+export const healthcareHospitalControllerRequestNonPayments = async (id: number, options?: RequestInit): Promise<NonPaymentRequestResultDto> => {
+
+  return reactFetch<NonPaymentRequestResultDto>(getHealthcareHospitalControllerRequestNonPaymentsUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthcareHospitalControllerRequestNonPaymentsQueryKey = (id: number,) => {
+    return [
+    'POST', `/healthcare/hospitals/${id}/hira-npay/request`
+    ] as const;
+    }
+
+
+export const getHealthcareHospitalControllerRequestNonPaymentsQueryOptions = <TData = Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError = unknown>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthcareHospitalControllerRequestNonPaymentsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>> = ({ signal }) => healthcareHospitalControllerRequestNonPayments(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthcareHospitalControllerRequestNonPaymentsQueryResult = NonNullable<Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>>
+export type HealthcareHospitalControllerRequestNonPaymentsQueryError = unknown
+
+
+export function useHealthcareHospitalControllerRequestNonPayments<TData = Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError = unknown>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareHospitalControllerRequestNonPayments<TData = Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError = unknown>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareHospitalControllerRequestNonPayments<TData = Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError = unknown>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 비급여 갱신 요청
+ */
+
+export function useHealthcareHospitalControllerRequestNonPayments<TData = Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError = unknown>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerRequestNonPayments>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthcareHospitalControllerRequestNonPaymentsQueryOptions(id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

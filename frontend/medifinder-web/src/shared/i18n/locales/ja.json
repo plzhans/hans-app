@@ -11,7 +11,35 @@
     "heroTitle": "近くの病院を探す",
     "heroSubtitle": "病院を検索し、診療情報を確認できます。",
     "searchPlaceholder": "検索語を入力",
-    "searchButton": "検索"
+    "searchButton": "検索",
+    "sections": {
+      "more": "もっと見る",
+      "empty": "表示する病院がありません",
+      "emergency": {
+        "title": "救急室",
+        "subtitle": "今すぐ受診したいとき・24時間"
+      },
+      "baby": {
+        "title": "夜間小児診療",
+        "subtitle": "夜間・休日の子どもの診療"
+      },
+      "tertiary": {
+        "title": "上級総合病院",
+        "subtitle": "3次・重症・希少疾患の高度医療"
+      },
+      "cancer": {
+        "title": "がん診療 優秀",
+        "subtitle": "適正性評価1等級・大腸・胃・乳房・肺がん"
+      },
+      "cardio": {
+        "title": "心・脳血管 優秀",
+        "subtitle": "適正性評価1等級・脳卒中・心臓"
+      },
+      "nicu": {
+        "title": "新生児集中治療室 優秀",
+        "subtitle": "適正性評価1等級・新生児の重症"
+      }
+    }
   },
   "common": {
     "loading": "読み込み中…",
@@ -38,6 +66,13 @@
       "more": "もっと見る"
     },
     "inpatient": "療養・精神",
+    "specialty": "専門分野",
+    "assessmentLabel": "健康保険審査評価院の評価",
+    "assessment": {
+      "cancer": "がん診療 優秀",
+      "cardio": "心・脳血管 優秀",
+      "nicu": "新生児集中治療室 優秀"
+    },
     "sido": "道・市",
     "sidoSearch": "道・市を検索",
     "sggu": "市郡区",
@@ -140,7 +175,21 @@
       "error": "自費診療の情報を読み込めませんでした。",
       "more": "もっと見る ({{shown}}/{{total}})",
       "won": "ウォン",
-      "variants": "{{count}}種"
+      "variants": "{{count}}種",
+      "request": "自費情報をリクエスト",
+      "requestHint": "この病院の自費診療情報はまだ取得できていません。リクエストすると、収集後の次回訪問時に表示されます。",
+      "requested": "リクエストを受け付けました。情報が収集されると次回訪問時に表示されます。",
+      "group": {
+        "test": "検査",
+        "vaccine": "予防接種",
+        "ultrasound": "超音波",
+        "mri": "MRI",
+        "physicalTherapy": "理学療法",
+        "room": "病室",
+        "dental": "歯科",
+        "docs": "証明書",
+        "etc": "その他"
+      }
     }
   },
   "map": {

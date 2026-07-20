@@ -1,23 +1,27 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   useHealthcareHospitalControllerSearch,
   useHealthcareHospitalControllerGet,
+  useHealthcareHospitalControllerNonPayments,
+  getHealthcareHospitalControllerNonPaymentsQueryOptions,
+  getHealthcareHospitalControllerNonPaymentsQueryKey,
+  healthcareHospitalControllerRequestNonPayments,
 } from '@/shared/api/generated/react/healthcare/healthcare';
-import {
-  useHiraHospitalControllerGetNonPayments,
-  getHiraHospitalControllerGetNonPaymentsQueryOptions,
-} from '@/shared/api/generated/react/hira/hira';
 import {
   useHealthcareMetaControllerSubjects,
   useHealthcareMetaControllerSubjectGroups,
   useHealthcareMetaControllerTiers,
   useHealthcareMetaControllerClasses,
+  useHealthcareMetaControllerSpecialties,
 } from '@/shared/api/generated/react/healthcare-meta/healthcare-meta';
 // 지역은 /healthcare/meta/regions 가 아니라 /address/regions 다(영문 주소 변환과 같은 주소 그룹).
 // region_code 는 도메인 무관이라(병원·학교·약국이 같이 쓴다) 헬스케어 밑에서 빠졌다.
 import { useRegionControllerList } from '@/shared/api/generated/react/address/address';
 import type {
-  HiraNonPaymentDetailItem,
+  HospitalNonPaymentDto,
+  NonPaymentCategoryDto,
+  NonPaymentItemDto,
+  NonPaymentPriceDto,
   HospitalSummaryDto,
   HospitalDetailDto,
   MetaCodeDto,
@@ -66,6 +70,15 @@ export interface HospitalSearchParams {
 
   /** 달빛어린이병원만 (야간·휴일 소아진료) */
   baby?: boolean;
+
+  /**
+   * 적정성평가 1등급 분야. cancer(암) · cardio(심뇌혈관) · nicu(신생아중환자실). 쉼표로 여러 개(OR).
+   * 병원급 이상만 의미가 있어 전국 목록으로 쓸 땐 tier=TIER2,TIER3 를 함께 건다.
+   */
+  assessment?: string;
+
+  /** 전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조. */
+  specialty?: string;
 }
 
 /** GET /healthcare/hospitals — 통합 병원 검색 */
@@ -81,6 +94,8 @@ export function useHospitalSearch(params: HospitalSearchParams) {
       name: params.name || undefined,
       emergency: params.emergency ? 'true' : undefined,
       baby: params.baby ? 'true' : undefined,
+      assessment: params.assessment || undefined,
+      specialty: params.specialty || undefined,
     },
     {
       query: {
@@ -103,103 +118,70 @@ export function useHospitalDetail(id: string | undefined) {
   });
 }
 
-export type NonPaymentItem = HiraNonPaymentDetailItem;
+export type NonPayment = HospitalNonPaymentDto;
+export type NonPaymentCategory = NonPaymentCategoryDto;
+export type NonPaymentItem = NonPaymentItemDto;
+export type NonPaymentPrice = NonPaymentPriceDto;
 
 /**
- * 비급여 한 페이지 크기.
- *
- * 100 은 서버의 MAX_PAGE_SIZE 다. 기관의 81% 가 100건 이하라 대부분 한 번에 끝난다
- * (평균 66건, 최다 1,048건 — 2026-07 실측). 나머지는 '더보기'로 이어 붙인다.
- */
-export const NPAY_PAGE_SIZE = 100;
-
-/** 비급여 조회 결과. 원본 봉투를 화면이 알 필요가 없어 여기서 푼다. */
-export interface NonPaymentPage {
-  items: NonPaymentItem[];
-  totalCount: number;
-}
-
-/**
- * 원본 봉투(response.body.items.item)를 푼다.
- *
- * **0건이면 items 가 빈 문자열('')로 온다** — 공공데이터포털 원본의 버릇이고, 미러도 같은
- * 봉투를 쓰므로 그대로 넘어온다. 1건이면 item 이 배열이 아니라 객체다. 둘 다 배열로 맞춘다.
- */
-function unwrapNpay(data: {
-  response?: {
-    body?: {
-      items?: unknown;
-      totalCount?: number;
-    };
-  };
-}): NonPaymentPage {
-  const body = data.response?.body;
-  const container = body?.items;
-  const raw =
-    container && typeof container === 'object'
-      ? (container as { item?: NonPaymentItem | NonPaymentItem[] }).item
-      : undefined;
-
-  return {
-    items: raw === undefined ? [] : Array.isArray(raw) ? raw : [raw],
-    totalCount: body?.totalCount ?? 0,
-  };
-}
-
-/**
- * GET /data-go-kr/hira/hospitals/{ykiho}/npay — 비급여 진료비.
+ * GET /healthcare/hospitals/{id}/hira-npay — 비급여 진료비.
  *
  * **통합 상세(useHospitalDetail)와 별개 호출이다.** 상세 응답에 끼워 넣지 않은 이유는 두 가지다 —
  * 비급여가 있는 기관이 3,511곳(전체의 4.4%)뿐이라 95% 에게는 헛짐이고, 한 기관에 수백 행이라
- * 탭을 열지도 않은 사람에게 실어 보낼 이유가 없다.
+ * 보지도 않을 사람에게 실어 보낼 이유가 없다.
  *
- * ykiho 가 없는 병원(NMC 만 있는 병원)은 호출하지 않는다.
+ * **페이지가 없다. 기관 전건이 한 번에 온다.** 예전에는 미러(/data-go-kr/hira/…/npay)를 직접
+ * 불러서 원본 봉투를 풀고(0건이면 items 가 빈 문자열, 1건이면 item 이 객체), 이름을 잘라
+ * 대분류를 만들고, 100건씩 받아 누적한 뒤 그룹핑했다. 그걸 전부 서버가 한다 — 여기는 받기만 한다.
  */
-export function useHospitalNonPayments(
-  ykiho: string | undefined,
-  page = 1,
-  enabled = true,
-) {
-  return useHiraHospitalControllerGetNonPayments(
-    ykiho ?? '',
-    { page, size: NPAY_PAGE_SIZE },
-    { query: { enabled: !!ykiho && enabled, select: unwrapNpay } },
-  );
+export function useHospitalNonPayments(id: string | undefined) {
+  return useHealthcareHospitalControllerNonPayments(Number(id ?? 0), {
+    query: { enabled: !!id },
+  });
 }
 
 /**
- * 비급여를 미리 받아 둔다. 탭에 마우스가 올라가거나 손이 닿을 때 부른다.
+ * 비급여를 미리 받아 둔다. 링크에 마우스가 올라가거나 손이 닿을 때 부른다.
  *
- * **이 레포에 프리페치 관례가 없어 여기서 처음 만든다**(2026-07). react-query 의 캐시에
- * 미리 채워 두면, 탭을 눌렀을 때 useHospitalNonPayments 가 같은 queryKey 로 캐시를 맞고
- * 로딩 없이 그린다. queryKey 가 어긋나면 조용히 두 번 부르게 되므로, 키를 손으로 만들지 않고
- * 생성된 queryOptions 를 그대로 쓴다.
+ * react-query 의 캐시에 미리 채워 두면, 눌렀을 때 useHospitalNonPayments 가 같은 queryKey 로
+ * 캐시를 맞고 로딩 없이 그린다. queryKey 가 어긋나면 조용히 두 번 부르게 되므로, 키를 손으로
+ * 만들지 않고 생성된 queryOptions 를 그대로 쓴다.
  *
  * prefetchQuery 는 이미 캐시에 있으면 아무것도 하지 않으므로 중복 호출 걱정이 없다.
  */
-export function useNonPaymentPrefetch(ykiho: string | undefined) {
+export function useNonPaymentPrefetch(id: string | undefined) {
   const queryClient = useQueryClient();
 
   return () => {
-    if (!ykiho) return;
+    if (!id) return;
     void queryClient.prefetchQuery(
-      getHiraHospitalControllerGetNonPaymentsQueryOptions(ykiho, {
-        page: 1,
-        size: NPAY_PAGE_SIZE,
-      }),
+      getHealthcareHospitalControllerNonPaymentsQueryOptions(Number(id)),
     );
   };
 }
 
 /**
- * 비급여 항목의 대분류. 'MRI진단료/근골격계/고관절' → 'MRI진단료'
+ * POST /healthcare/hospitals/{id}/hira-npay/request — 비급여 갱신 요청.
  *
- * **분류 코드가 아니라 이름을 잘라 만든 파생값이다.** 상세(Dtl) 응답에는 분류 체계가 없다 —
- * 중/소/상세분류 코드는 요약(List2)에만 있고, 그쪽은 기관별 조회가 안 된다(ykiho 를 무시한다).
- * 슬래시가 없으면 이름 전체가 그대로 대분류가 된다.
+ * **크롤을 트리거하지 않는다.** 서버는 큐에 넣고 끝이고, 배치(지금은 CLI)가 처리한다.
+ * 그래서 성공해도 데이터가 바로 오지 않는다 — source 가 pending 으로 바뀔 뿐이다.
+ *
+ * 성공하면 이 병원의 비급여 캐시를 무효화해서 조회를 다시 시킨다. 그래야 requestStatus 가
+ * pending 으로 갱신돼 화면이 "요청됨" 으로 바뀐다.
  */
-export function npayCategory(item: NonPaymentItem): string {
-  return (item.npayKorNm ?? '').split('/')[0] || '';
+export function useNonPaymentRequest(id: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      healthcareHospitalControllerRequestNonPayments(Number(id ?? 0)),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: getHealthcareHospitalControllerNonPaymentsQueryKey(
+          Number(id ?? 0),
+        ),
+      }),
+  });
 }
 
 /**
@@ -237,6 +219,13 @@ export function useSubjectGroups() {
 export function useHospitalTiers() {
   return useHealthcareMetaControllerTiers({
     query: { select: unwrap<MetaHospitalTierDto> },
+  });
+}
+
+/** 전문병원 지정분야 (관절·척추·심장 …). 상세 검색의 specialty 필터에 쓴다. */
+export function useSpecialties() {
+  return useHealthcareMetaControllerSpecialties({
+    query: { select: unwrap<MetaCodeDto> },
   });
 }
 

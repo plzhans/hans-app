@@ -235,6 +235,54 @@ model hira_code {
   @@index([cd_nm], map: "idx_hira_code_nm")
 }
 
+/// HIRA 비급여 항목 코드마스터. **hira_code 와 구조가 같다** — 코드값 + 이름 + i18n + 상위계층.
+/// 데이터 계보가 다르고(비급여 항목 vs 기관 속성) 655행 규모라, 통합하지 않고 규약만 따라 나눈다.
+/// (hira_hospital_asm 을 hira_code 와 나눈 것과 같은 판단.)
+///
+/// **계층은 중분류 > 소분류 > 항목 고정 3단이고 코드가 전부 중첩된다**(2026-07 실측 567/567):
+///   중분류 1010A(상급병실료) > 소분류 1010A010(1인실) > 항목 ABZ010001(상급병실료/1인실)
+/// 원본 npayKorNm 슬래시 깊이가 2~5로 보이지만 계층이 아니라 소분류 이름에 슬래시가 있어서다.
+/// 대분류(npayLdivCd)는 원본이 늘 비워 보내 담지 않는다.
+///
+/// **적재는 데이터가 들어올 때 한다** — 별도 전수 스캔이 아니라 관측된 것만 쌓는다(region_code 와 같은 방식).
+/// 분류코드는 요약(getNonPaymentItemHospList2)과 크롤(op='npay-web')에만 있다 —
+/// 상세(getNonPaymentItemHospDtlList)엔 npayCd 뿐이라 분류코드를 못 준다.
+///   · 요약 sync   : 페이징하며 distinct npayCd 를 코드·이름·분류코드까지 채운다(대부분 여기서 완성)
+///   · 크롤 적재   : 의원 전용 코드 등 남은 것을 upsert. **분류코드는 있을 때만 채운다**
+///                  (npayCd·이름만 아는 경로가 이미 채워둔 분류코드를 NULL 로 덮지 않게)
+model hira_npay_code {
+  /// 비급여 항목코드(원본 npayCd). 잎 코드다. number/string 혼재라 문자열로 고정한다.
+  cd String @id @db.VarChar(20)
+
+  /// 항목 전체명(원본 npayKorNm). '중분류/소분류/항목' 슬래시 결합 그대로.
+  cd_nm String @db.VarChar(400)
+  /// [i18n] asm 과 같은 규칙 — 지금 NULL, 나중에 AI 번역.
+  cd_nm_en String? @db.VarChar(400)
+  cd_nm_ja String? @db.VarChar(400)
+  cd_nm_zh String? @db.VarChar(400)
+
+  /// 소분류(원본 npaySdivCd/Nm). 중분류 코드로 시작해 중첩된다. 이름에 슬래시가 있을 수 있다.
+  /// **분류코드가 없는 경로(상세)로 먼저 만들어지면 NULL 일 수 있다.**
+  sdiv_cd String? @db.VarChar(20)
+  sdiv_nm String? @db.VarChar(400)
+
+  /// 중분류(원본 npayMdivCd/Nm). 상위 계층이자 화면 그룹 헤더. hira_code 의 tp/tp_nm 자리다.
+  mdiv_cd String? @db.VarChar(20)
+  mdiv_nm String? @db.VarChar(200)
+  /// [i18n] 화면에 그룹 헤더로 나가므로 번역이 필요하다. cd_nm 과 같은 규칙.
+  mdiv_nm_en String? @db.VarChar(200)
+  mdiv_nm_ja String? @db.VarChar(200)
+  mdiv_nm_zh String? @db.VarChar(200)
+
+  created_at DateTime @default(now()) @db.DateTime(0)
+  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  synced_at  DateTime @default(now()) @db.DateTime(0)
+
+  @@index([mdiv_cd], map: "idx_hira_npay_code_mdiv")
+  @@index([sdiv_cd], map: "idx_hira_npay_code_sdiv")
+  @@index([cd_nm], map: "idx_hira_npay_code_nm")
+}
+
 // 지역 목록 (검색 UI 용).
 //
 // 병원 데이터를 GROUP BY 해서 만드는 집계 테이블이다. 병원 sync 가 끝날 때마다 통째로 재생성한다.
@@ -300,6 +348,45 @@ model hira_region {
 // 8만 콜은 한 번에 못 끝낸다(개발계정 일 1,000건). 그래서 이어받기가 전제다.
 
 /// 배치 단계별 실행 상태. job 하나가 CLI 한 번의 실행 단위다.
+/// 사용자 요청 작업 큐. **메시지 브로커의 대체품이다** — MQ 가 없어서 테이블로 둔다.
+///
+/// 넣는 쪽과 꺼내는 쪽이 다르다:
+///   hansapi-server  '갱신 요청' 을 받으면 한 줄 넣는다. **그게 전부다.**
+///   배치            꺼내서 처리한다. 배치 서버가 없어서 지금은 hansapi-cli 가 1건씩 돌린다.
+///
+/// **요점은 서버가 외부를 호출하지 않는다는 것이다.** 크롤은 admin 계층에만 있고 서버는 마킹만 한다.
+/// 그래서 "서버는 로컬 DB 만 읽고 외부 API 호출은 admin 의 몫"이 그대로 성립한다.
+/// MQ 가 생기면 이 테이블만 걷어내면 된다 — 넣는 쪽·꺼내는 쪽이 이미 갈려 있다.
+model job_queue {
+  id Int @id @default(autoincrement())
+
+  /// 작업 종류. 지금은 npay-web 하나다 (심평원 홈페이지 비급여 크롤, clients/kr-or-hira).
+  tp String @db.VarChar(30)
+
+  /// 작업 대상. tp=npay-web 이면 **암호화 요양기호**다 (숫자 기관ID 가 아니다 — step1 이 그걸 만든다).
+  target String @db.VarChar(200)
+
+  /// pending | running | done | failed
+  /// running 은 배치가 집어간 상태다. 프로세스가 죽으면 남는데, CLI 로 1건씩 돌리는 지금은
+  /// 사람이 되돌리면 된다. 배치 서버가 붙으면 sync_state 처럼 스테일 판정이 필요하다.
+  status String @default("pending") @db.VarChar(10)
+
+  /// 실패 사유. status=failed 일 때만. 크롤은 마크업이 바뀌면 HiraWebError 로 터지므로
+  /// 그 메시지가 남아야 원인을 찾는다.
+  error String? @db.Text
+
+  created_at   DateTime  @default(now()) @db.DateTime(0)
+  updated_at   DateTime  @default(now()) @updatedAt @db.DateTime(0)
+  /// 처리를 끝낸 시각. 성공·실패 모두 찍는다.
+  processed_at DateTime? @db.DateTime(0)
+
+  /// **같은 대상은 한 줄이다.** 100명이 같은 병원을 눌러도 큐에는 하나만 쌓인다.
+  /// 처리된(done) 대상을 다시 요청하면 이 행의 status 를 pending 으로 되돌린다.
+  @@unique([tp, target], map: "uk_job_queue_tp_target")
+  /// 배치가 pending 을 오래된 순으로 꺼낸다.
+  @@index([status, created_at], map: "idx_job_queue_status")
+}
+
 model sync_state {
   /// 실행 단위 식별자. 예: nmc.1, nmc.2.A, hira.2, hira.4.equipment
   job String @id @db.VarChar(50)
@@ -582,6 +669,7 @@ model hira_hospital_npay {
   @@index([synced_at], map: "idx_hira_hospital_npay_synced_at")
 }
 
+
 // HIRA 개별 상세.
 //
 // NMC 는 basic 한 콜이면 병원 하나가 끝나지만, HIRA 는 11종 오퍼레이션을 다 불러야 끝난다.
@@ -594,13 +682,32 @@ model hira_hospital_detail {
   ykiho String @db.VarChar(200)
 
   /// 오퍼레이션. info | facility | equipment | special | specialty | nursing | food
-  ///            | subject | specialist | etc-staff | transport
+  ///            | subject | specialist | etc-staff | transport | npay-web
   ///
   /// top5(의원 상위질병5)는 적재 대상이 아니다 — 원본을 신뢰할 수 없어 뺐다
   /// (근거: clients/README.md). 과거에 받아둔 op='top5' 행이 남아 있을 수 있다.
+  ///
+  /// **npay-web 만 출처가 공개 API 가 아니다.** 심평원 홈페이지 스크래핑이다(clients/kr-or-hira).
+  /// 나머지는 data.go.kr 이다.
   op String @db.VarChar(20)
 
   /// 응답 item 원본. 1행짜리(info, facility)는 객체, 여러 행짜리는 배열로 들어온다.
+  ///
+  /// **op='npay-web' 은 봉투를 하나 쓴다:** `{ ykiho, npayPubList[] }`
+  ///   · ykiho        홈페이지의 **숫자 기관ID**('11100052'). 암호화 요양기호가 아니다.
+  ///                  원본이 item 마다 반복해서 주는 것을 위로 올렸다. 이게 있으면 다음 조회 때
+  ///                  step1(hospInfoAjax.do)을 건너뛴다 — 요청이 2번에서 1번이 된다.
+  ///   · npayPubList  응답의 npayPubList 그대로. 단 item 마다 반복되는 기관 단위 값 4개
+  ///                  (ykiho·yadmNm·clCd·clCdNm)는 뺐다 — 전부 hira_hospital 에 이미 있고,
+  ///                  한 기관에 수백 행이라 그대로 두면 그만큼 복제된다(중앙대병원 실측 16% 절감).
+  ///                  나머지 15필드는 원본 그대로다. **정규화하지 않는다** — 공개 API 가 아니라
+  ///                  구조 보증이 없어서, 바뀌면 원본이 남아 있어야 다시 매핑할 수 있다.
+  ///
+  /// 봉투의 npayMdivList 는 버린다(npayPubList 를 중분류로 묶은 중복). data.template(렌더된 HTML)도.
+  ///
+  /// **npayPubList 가 빈 배열이면 "긁었는데 0건" 이다.** 행 자체가 없으면 "아직 안 긁음" 이라
+  /// 둘이 갈린다(getClinicTop5 와 같은 규칙 — 0건도 행으로 남겨 재조회를 막는다).
+  /// 그래서 npayPubListGbn 은 따로 담지 않는다. 행이 남았다는 건 조회가 성공했다는 뜻이다.
   data Json
 
   created_at DateTime @default(now()) @db.DateTime(0)
@@ -942,6 +1049,23 @@ model healthcare_hospital {
 
   /// 달빛어린이병원인가 (NMC 달빛 목록에 있으면 true)
   baby_yn Boolean @default(false)
+
+  /// 적정성평가 1등급 파생 플래그. **빌드 때 hira_hospital_asm 에서 계산한다** (emergency_yn·baby_yn 과 같은 패턴).
+  ///
+  /// **왜 여기(healthcare_*)에 두나.** 검색은 원본 미러(hira_*)를 안 본다는 원칙 때문이다 — 미러를
+  /// 통째로 지워도 검색이 돌아야 한다. 응급실·달빛이 NMC 원본을 안 보고 이 플래그를 보는 것과 같다.
+  ///
+  /// **전국·2차 이상에서만 의미가 있다.** 암 수술·관상동맥우회술·NICU 는 병원급+ 일이라 의원은
+  /// 애초에 이 항목 등급을 안 받는다. 그래도 검색에서 tier 로 한 번 더 거른다(첫 페이지 섹션은 전국이라).
+  ///
+  /// 등급은 1(최상)~5. '1' 이면 우수로 본다. 분야별로 대표 항목을 OR 로 묶는다:
+  ///   cancer  대장암(12)·위암(13)·유방암(14)·폐암(15)
+  ///   cardio  급성기뇌졸중(01)·관상동맥우회술(06)
+  ///   nicu    신생아중환자실(20)
+  /// 항목 목록은 healthcare-build 의 ASM_EXCELLENT 가 유일한 출처다.
+  asm_cancer_yn Boolean @default(false)
+  asm_cardio_yn Boolean @default(false)
+  asm_nicu_yn   Boolean @default(false)
 
   /// 병원 등급. TIER1(의원급) | TIER2(병원급) | TIER3(상급종합) | NURSING | MENTAL | NULL(그 외)
   ///

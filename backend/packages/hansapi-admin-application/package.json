@@ -18,6 +18,7 @@
     "@hansapi/data": "workspace:*",
     "@kr-go/juso": "workspace:*",
     "@kr-go/nts": "workspace:*",
+    "@kr-or/hira": "workspace:*",
     "@krdata/core": "workspace:*",
     "@krdata/hira": "workspace:*",
     "@krdata/nmc": "workspace:*",

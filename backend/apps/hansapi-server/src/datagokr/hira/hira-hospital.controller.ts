@@ -9,6 +9,7 @@ import {
 import { HiraHospitalService } from '@hansapi/application';
 import type {
   ClinicTop5Response,
+  HospitalAssessmentResponse,
   HospitalListResponse,
   NonPaymentDetailResponse,
 } from '@krdata/hira';
@@ -26,6 +27,9 @@ const CLINIC_TOP5_SCHEMA = 'HiraClinicTop5Response';
 
 /** 비급여도 다른 서비스(nonPaymentDamtInfoService)라 봉투가 따로다. */
 const NPAY_SCHEMA = 'HiraNonPaymentDetailResponse';
+
+/** 병원평가도 다른 서비스(hospAsmInfoService1)라 봉투가 따로다. */
+const ASM_SCHEMA = 'HiraHospitalAssessmentResponse';
 
 /**
  * 건강보험심사평가원(HIRA) 병원 API.
@@ -94,6 +98,31 @@ export class HiraHospitalController {
       page: request.page,
       size: request.size,
     });
+  }
+
+  @Get(':ykiho/asm')
+  @ApiOperation({
+    summary: '병원평가 등급 조회',
+    description:
+      '기관이 받은 평가항목별 등급. 응답 구조는 원본 API 와 동일하다.\n\n' +
+      '**한 기관에 1건이다** — 평가항목이 item 에 asmGrd01~24 로 가로로 붙는다(02·11 은 원본에 없다). ' +
+      '항목 번호의 이름은 /data-go-kr/hira/codes 가 아니라 통합 병원 상세가 붙여준다.\n\n' +
+      '**평가대상이 아니면 items 가 빈 배열이다** — 평가대상은 36,599곳으로 병원 전체의 부분집합이다. ' +
+      '대부분 의원(clCd=31)이라 병원급 전용은 아니다.\n\n' +
+      '**등급 값은 원본 그대로다.** 정수 1~5 와 문자열 `등급제외`(평가는 했으나 등급 미부여)가 섞여 온다. ' +
+      '키 자체가 없으면 평가대상 제외라는 뜻이라 `등급제외` 와 다르다 — 합치면 정보가 사라진다. ' +
+      '천식(asmGrd16)만 인코딩이 달라 1 대신 `양호`, 등급제외 대신 0 을 쓴다. 0 은 최하가 아니라 등급제외다.',
+  })
+  @ApiParam({
+    name: 'ykiho',
+    description:
+      '암호화된 요양기호. 통합 병원 상세(/healthcare/hospitals/:id)의 ykiho 를 그대로 쓴다.',
+  })
+  @ApiOkResponse({ schema: krDataSchemaRef(ASM_SCHEMA) })
+  async getAssessment(
+    @Param('ykiho') ykiho: string,
+  ): Promise<HospitalAssessmentResponse> {
+    return this.hiraHospitalService.getAssessment(ykiho);
   }
 
   /**

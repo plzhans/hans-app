@@ -9,6 +9,8 @@ import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
 import { HiraStageService } from './hira/hira-stage.service';
 import { HiraAssessmentSyncService } from './hira/hira-assessment-sync.service';
 import { HiraNpaySyncService } from './hira/hira-npay-sync.service';
+import { HiraNpayCodeSyncService } from './hira/hira-npay-code-sync.service';
+import { HiraNpayWebSyncService } from './hira/hira-npay-web-sync.service';
 import { HiraSpecialtySyncService } from './hira/hira-specialty-sync.service';
 import { HiraSubjectSyncService } from './hira/hira-subject-sync.service';
 import { HiraCodeSyncService } from './hira/hira-code-sync.service';
@@ -78,6 +80,10 @@ export class AdminApplicationModule {
         HiraSpecialtySyncService,
         HiraAssessmentSyncService,
         HiraNpaySyncService,
+        // 비급여 항목 코드마스터. 요약(List2)에서 분류코드까지 뽑아 채운다.
+        HiraNpayCodeSyncService,
+        // 심평원 홈페이지 크롤. 서비스키를 안 쓰므로 KRDATA_CONFIG 와 무관하다.
+        HiraNpayWebSyncService,
         NmcBabySyncService,
         NmcBasicSyncService,
         HiraDetailSyncService,
@@ -111,6 +117,9 @@ export class AdminApplicationModule {
         HiraCodeSeedService,
         HealthcareBuildService,
         HealthcareDetailBuildService,
+        // CLI 가 큐를 1건씩 돌리는 데 쓴다. 배치 서버가 붙으면 그쪽이 같은 서비스를 쓴다.
+        HiraNpayWebSyncService,
+        HiraNpayCodeSyncService,
       ],
     };
   }

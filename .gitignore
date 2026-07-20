@@ -43,3 +43,6 @@ local-deploy-*.env
 # 배포 번들. build-backend.sh 가 앱마다 자립형 디렉터리(dist + node_modules)를 만든다.
 # **앱 하나가 350MB 를 넘는다.** 절대 커밋하지 않는다.
 backend/.deploy/
+
+# db-sync.sh 백업 (실데이터)
+backend/backups/

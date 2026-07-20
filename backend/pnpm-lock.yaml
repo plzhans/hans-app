@@ -290,6 +290,9 @@ importers:
       '@kr-go/nts':
         specifier: workspace:*
         version: link:../../clients/kr-go-nts
+      '@kr-or/hira':
+        specifier: workspace:*
+        version: link:../../clients/kr-or-hira
       '@krdata/core':
         specifier: workspace:*
         version: link:../../clients/krdata-core

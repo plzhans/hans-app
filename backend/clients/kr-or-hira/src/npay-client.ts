@@ -80,7 +80,16 @@ export class HiraNpayClient {
     await this.gate.wait();
     const { body } = await sendWithRetry(
       url,
-      { method: 'GET', headers: { Accept: 'text/html' } },
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'text/html',
+          // 사이트 안에서 넘어온 흐름을 따른다. step2 의 Referer 와 같은 취지다.
+          // **Origin 은 붙이지 않는다** — 브라우저는 same-origin GET 에 Origin 을 보내지 않는다.
+          // 붙이는 순간 오히려 브라우저가 아니라는 표식이 된다(step2 는 POST 라 붙는 게 맞다).
+          Referer: this.config.baseUrl,
+        },
+      },
       this.config,
     );
 

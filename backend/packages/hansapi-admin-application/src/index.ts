@@ -1,5 +1,11 @@
 export { AdminApplicationModule } from './admin-application.module';
 
+/** 심평원 홈페이지 비급여 크롤 적재. 큐(job_queue)를 꺼내 처리한다 — CLI/배치가 쓴다. */
+export { HiraNpayWebSyncService } from './hira/hira-npay-web-sync.service';
+
+/** 비급여 항목 코드마스터 적재. 요약(List2) 전량 페이징으로 코드·이름·분류코드를 채운다. */
+export { HiraNpayCodeSyncService } from './hira/hira-npay-code-sync.service';
+
 export { NmcHospitalSyncService } from './nmc/nmc-hospital-sync.service';
 export { HiraHospitalSyncService } from './hira/hira-hospital-sync.service';
 export { NmcQueryService } from './nmc/nmc-query.service';

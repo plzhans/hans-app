@@ -21,6 +21,7 @@ import { asString } from '../common/coerce';
 import { stationName } from './station';
 
 import {
+  AsmExcellentField,
   HospitalAssessment,
   HospitalAssessmentGroup,
   HospitalAssessmentItem,
@@ -29,6 +30,16 @@ import {
   HospitalSummary,
   HospitalTransport,
 } from './dto/hospital.result';
+
+/**
+ * 적정성평가 우수 분야 → healthcare_hospital 컬럼.
+ * 채우는 정의(어떤 asm 항목이냐)는 healthcare-build 의 ASM_EXCELLENT 가 갖는다. 여기는 읽기만 한다.
+ */
+const ASM_EXCELLENT_COLUMN: Record<AsmExcellentField, string> = {
+  cancer: 'asm_cancer_yn',
+  cardio: 'asm_cardio_yn',
+  nicu: 'asm_nicu_yn',
+};
 
 /**
  * 통합 병원 조회.
@@ -443,6 +454,22 @@ export class HealthcareHospitalService {
     }
     if (command.baby) {
       conditions.push(Prisma.sql`h.baby_yn = 1`);
+    }
+    if (command.asmExcellent?.length) {
+      // 빌드가 채워둔 파생 플래그를 그대로 탄다(원본 미러를 안 본다). 여러 분야면 OR.
+      const flags = command.asmExcellent.map(
+        (field) => Prisma.sql`h.${Prisma.raw(ASM_EXCELLENT_COLUMN[field])} = 1`,
+      );
+      conditions.push(Prisma.sql`(${Prisma.join(flags, ' OR ')})`);
+    }
+    if (command.specialtyCds?.length) {
+      // 전문병원 지정분야. capability 는 병원당 N행이라 EXISTS 로 건다(과목과 같은 방식).
+      conditions.push(Prisma.sql`EXISTS (
+        SELECT 1 FROM healthcare_hospital_capability cap
+         WHERE cap.hospital_id = h.id
+           AND cap.tp = 'specialty'
+           AND cap.cd IN (${Prisma.join(command.specialtyCds)})
+      )`);
     }
     if (command.subjectCds?.length) {
       // 조인이 아니라 EXISTS 다. 조인하면 병원이 과목 수만큼 중복된다.

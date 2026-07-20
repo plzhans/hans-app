@@ -49,6 +49,12 @@ const SPECS = [
     file: 'openapi/B551182/nonPaymentDamtInfoService.json',
     prefix: 'Hira',
   },
+  // 병원평가 등급.
+  {
+    pkg: '@krdata/hira',
+    file: 'openapi/B551182/hospAsmInfoService1.json',
+    prefix: 'Hira',
+  },
 ] as const;
 
 interface OpenApiSpec {

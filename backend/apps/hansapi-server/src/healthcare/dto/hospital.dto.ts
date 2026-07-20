@@ -100,6 +100,29 @@ export class HospitalSearchRequestDto {
   @IsOptional()
   @IsBooleanString()
   readonly baby?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '건강보험심사평가원 적정성평가 1등급 분야. 쉼표로 여러 개(OR).\n' +
+      '- `cancer` 암질환(대장·위·유방·폐암)\n' +
+      '- `cardio` 심뇌혈관(급성기뇌졸중·관상동맥우회술)\n' +
+      '- `nicu` 신생아중환자실\n\n' +
+      '**병원급 이상만 의미가 있다** — 의원은 이 항목을 평가받지 않는다. ' +
+      '전국 목록으로 쓸 땐 `tier=TIER2,TIER3` 를 함께 거는 것을 권장한다.',
+    example: 'cancer,cardio',
+  })
+  @IsOptional()
+  @IsString()
+  readonly assessment?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조.',
+    example: 'SPINE,JOINT',
+  })
+  @IsOptional()
+  @IsString()
+  readonly specialty?: string;
 }
 
 // ── 응답 ───────────────────────────────────────────────────

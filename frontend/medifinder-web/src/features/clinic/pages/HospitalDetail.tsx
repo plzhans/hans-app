@@ -7,7 +7,6 @@ import {
   MapPin,
   Phone,
   Globe,
-  Ambulance,
   Baby,
   Bus,
   Stethoscope,
@@ -17,7 +16,6 @@ import {
   ChevronDown,
   Copy,
   Check,
-  Receipt,
 } from 'lucide-react';
 import type { TransportRouteDto } from '@/shared/api/generated/model';
 import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
@@ -26,17 +24,20 @@ import { Spinner } from '@/shared/ui/Spinner';
 import { MapView } from '@/shared/components/map/MapView';
 import {
   metroCityOf,
+  resolveLine,
   splitLines,
-  stationLines,
   type MetroCity,
 } from '../lib/subwayLine';
 import { LineBadge } from '../components/LineBadge';
-import { NonPaymentPanel } from '../components/NonPaymentPanel';
+import { Section } from '../components/Section';
+import {
+  HospitalHeader,
+  DETAIL_TABS,
+  type DetailTab,
+} from '../components/HospitalHeader';
 import {
   useHospitalDetail,
   useNonPaymentPrefetch,
-  stationName,
-  stationLabel,
   formatTime,
   todayDay,
   tomorrowDay,
@@ -178,6 +179,16 @@ function TransportRow({
     stop.kindName ??
     t('clinic.transport.unknownStop');
 
+  // 지하철역 이름을 노선색으로 물들인다 — 배지 색과 같은 색을 이름에 얹으면 "어느 역이
+  // 어느 색" 인지가 눈에 바로 붙는다. 환승역은 색이 여럿이라 첫 배지(가장 왼쪽 노선)의
+  // 색을 따른다. 색을 못 찾은 노선뿐이거나 지하철이 아니면 undefined — 기본 먹색으로 둔다.
+  const subwayColor =
+    kind === 'subway'
+      ? stop.lines
+          .map((line) => resolveLine(line.no, city)?.bg)
+          .find(Boolean)
+      : undefined;
+
   return (
     <li className="py-2 text-sm">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
@@ -188,7 +199,7 @@ function TransportRow({
         */}
         {kind === 'subway' &&
           stop.lines.map((line) => (
-            <LineBadge key={line.no} line={line.no} city={city} />
+            <LineBadge key={line.no} line={line.no} city={city} full />
           ))}
 
         {/*
@@ -211,7 +222,12 @@ function TransportRow({
             </span>
           ))}
 
-        <span className="text-slate-900">{name}</span>
+        <span
+          className={cn('text-slate-900', subwayColor && 'font-bold')}
+          style={subwayColor ? { color: subwayColor } : undefined}
+        >
+          {name}
+        </span>
 
         {stop.dir && <span className="text-slate-900">{stop.dir}</span>}
 
@@ -237,43 +253,6 @@ function TransportRow({
         </div>
       )}
     </li>
-  );
-}
-
-function Section({
-  title,
-  icon,
-  children,
-  id,
-  first,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  /** 책갈피 대상. 헤더의 지역 줄에서 여기로 스크롤한다. */
-  id?: string;
-
-  /** 첫 섹션. 위쪽 구분선을 그리지 않는다 — 바로 위 탭의 밑줄과 겹쳐 이중선이 된다. */
-  first?: boolean;
-}) {
-  return (
-    <section
-      id={id}
-      /*
-        **카드가 아니다.** 예전엔 섹션마다 흰 카드(테두리+그림자)를 둘렀는데,
-        탭이 이미 구역을 나누고 있어 카드가 그 일을 두 번 한다 — 화면이 조각조각 끊긴다.
-        선 하나로 나누고 한 장의 흐름으로 읽히게 한다.
-        scroll-mt: sticky 바(56 + 44px)에 제목이 가리지 않도록 위를 비운다.
-      */
-      className={cn(first ? 'pt-1' : 'border-t border-slate-200 pt-5')}
-      style={{ scrollMarginTop: 'var(--detail-anchor-offset, 112px)' }}
-    >
-      <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-        {icon}
-        {title}
-      </h2>
-      <div className="mt-3">{children}</div>
-    </section>
   );
 }
 
@@ -384,50 +363,6 @@ function GradeBadge({ normalized }: { normalized: number | string }) {
   );
 }
 
-type DetailTab = 'subject' | 'care' | 'scale' | 'assessment' | 'location';
-
-/**
- * 지금 뭘 보고 있나. **책갈피(DetailTab)와 다른 층이다.**
- *
- *   info  병원의 모든 정보. 한 페이지에 다 있고 DetailTab 은 그 안의 책갈피다.
- *   npay  비급여 진료비. **여기만 진짜 전환이다** — info 를 감추고 이걸 그린다.
- *
- * 비급여만 전환인 이유는 성격이 달라서다. 나머지는 "이 병원은 어떤 곳인가" 를 이어서 읽는
- * 내용이라 스크롤로 흐르는 게 맞지만, 비급여는 가격표라 수백 줄이다(최다 1,048건).
- * 그걸 같은 페이지에 이어 붙이면 위치·평가가 저 아래로 밀려 아무도 못 본다.
- */
-type DetailView = 'info' | 'npay';
-
-/**
- * 비급여의 URL 해시. 책갈피들(#subject·#care…)과 같은 자리를 쓴다 —
- * 주소를 복사해 열면 그 탭이 펼쳐진 채로 시작한다.
- *
- * **책갈피와 달리 가리킬 DOM 이 없다.** 나머지는 `<section id>` 로 존재해서 브라우저가 알아서
- * 스크롤하지만, 비급여는 해시를 보고 화면을 갈아끼우는 쪽이라 우리가 직접 읽어야 한다.
- */
-const NPAY_HASH = 'npay';
-
-/**
- * 탭. **각각이 하나의 질문에 답한다.**
- *   소개  어떤 병원이고 어떻게 연락하나 (연락처·소개글)
- *   진료  언제 가고 무슨 진료를 받나 (진료시간·안내·진료과목·전문의)
- *   규모  얼마나 갖췄나 (종별·의료진·병상·장비)
- *   평가  심평원이 어떻게 평가했나 (요양급여 적정성 평가 등급)
- *   위치  어떻게 가나 (교통·주차·주소·지도)
- *
- * **평가는 데이터가 있을 때만 탭이 뜬다.** 다른 탭과 성격이 다르다 — 나머지는 병원의 속성이라
- * 값이 없어도 "없음" 이 말이 되지만, 평가는 애초에 평가대상이 아닌 병원이 절반이 넘는다
- * (79,739개 중 36,599개만 평가대상). 빈 탭을 띄우면 "평가가 나쁜가?" 로 읽힌다.
- */
-/** 탭 이름은 i18n 이 준다. 모듈 상수라 문구를 여기 둘 수 없다 — key 로 찾는다. */
-const DETAIL_TABS: { key: DetailTab }[] = [
-  { key: 'subject' },
-  { key: 'care' },
-  { key: 'scale' },
-  { key: 'assessment' },
-  { key: 'location' },
-];
-
 export default function HospitalDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -469,19 +404,8 @@ export default function HospitalDetailPage() {
    */
   const [tab, setTab] = useState<DetailTab>('subject');
 
-  /**
-   * 병원정보 / 비급여 전환. 책갈피(tab)와 다른 층이다 — DetailView 주석 참고.
-   *
-   * **URL 해시가 진실이다.** 상태를 여기 두고 해시를 따로 쓰면 뒤로가기·주소 복사에서
-   * 둘이 어긋난다. 그래서 해시를 바꾸는 것으로만 전환하고(openNpay), 이 값은 해시를
-   * 되읽어 따라간다(아래 hashchange 효과).
-   */
-  const [view, setView] = useState<DetailView>(
-    window.location.hash === `#${NPAY_HASH}` ? 'npay' : 'info',
-  );
-
-  /** 비급여를 미리 받아 둔다. 탭에 손이 닿는 순간 부른다. */
-  const prefetchNpay = useNonPaymentPrefetch(hospital?.sources?.ykiho);
+  /** 비급여를 미리 받아 둔다. 링크에 손이 닿는 순간 부른다. */
+  const prefetchNpay = useNonPaymentPrefetch(id);
 
   /**
    * 탭을 눌러 이동하는 **동안에는 스파이를 끈다.**
@@ -532,28 +456,10 @@ export default function HospitalDetailPage() {
 
     /*
       보통은 손대지 않는다 — `<a href="#care">` 가 해시도 스크롤도 알아서 한다.
-      아래 둘만 예외라 직접 처리하고, 그때도 **해시는 반드시 남긴다**(주소 복사용).
+      아래 하나만 예외라 직접 처리하고, 그때도 **해시는 반드시 남긴다**(주소 복사용).
       pushState 는 스크롤도 hashchange 도 일으키지 않아서, 우리가 원하는 것만 골라 할 수 있다.
     */
-    if (view === 'npay') {
-      /**
-       * 비급여를 보던 중이면 병원정보로 돌아온다.
-       *
-       * **앵커 이동을 직접 해야 한다.** 이 시점엔 섹션이 아직 DOM 에 없어서(비급여를 그리는 중)
-       * 브라우저의 기본 앵커 이동이 갈 곳을 못 찾는다. 그려진 뒤에 스크롤한다.
-       * 여기선 smooth 를 쓰지 않는다 — 화면이 통째로 바뀌는 마당에 부드러운 스크롤은 어지럽다.
-       */
-      event.preventDefault();
-      window.history.pushState(null, '', `#${key}`);
-      setView('info');
-      requestAnimationFrame(() => {
-        if (key === DETAIL_TABS[0].key) {
-          window.scrollTo({ top: 0 });
-        } else {
-          document.getElementById(key)?.scrollIntoView();
-        }
-      });
-    } else if (key === DETAIL_TABS[0].key) {
+    if (key === DETAIL_TABS[0].key) {
       /**
        * **첫 탭은 페이지 맨 위로 간다.**
        * 소개 섹션 위에는 헤더(배지·이름·지역)가 있는데, 섹션 앵커로 이동하면 그 헤더가
@@ -569,34 +475,6 @@ export default function HospitalDetailPage() {
     }, 500);
   };
 
-  /** 비급여로 전환. 해시를 남기고(주소 복사용) 스크롤을 위로 올린다 — 가격표를 중간부터 볼 이유가 없다. */
-  const openNpay = () => {
-    window.history.pushState(null, '', `#${NPAY_HASH}`);
-    setView('npay');
-    window.scrollTo({ top: 0 });
-  };
-
-  /**
-   * 뒤로가기·앞으로가기로 해시가 바뀐 경우를 따라간다.
-   *
-   * **탭 클릭은 여기로 오지 않는다.** 클릭 쪽은 pushState 라 hashchange 가 안 나고, 대신
-   * 그 자리에서 setView 를 한다. 여기는 브라우저가 히스토리를 되감을 때만 도는 길이다.
-   * (뒤로가기로 #npay 를 빠져나왔는데 화면이 그대로면 사용자는 앱이 멈춘 줄 안다.)
-   */
-  useEffect(() => {
-    const sync = () => {
-      const next = window.location.hash === `#${NPAY_HASH}` ? 'npay' : 'info';
-      setView((prev) => {
-        if (prev === next) return prev;
-        if (next === 'npay') window.scrollTo({ top: 0 });
-        return next;
-      });
-    };
-
-    window.addEventListener('hashchange', sync);
-    return () => window.removeEventListener('hashchange', sync);
-  }, []);
-
   /**
    * 해시를 달고 들어온 경우의 첫 스크롤.
    *
@@ -605,10 +483,10 @@ export default function HospitalDetailPage() {
    * 데이터가 온 뒤 한 번 직접 맞춰준다.
    */
   useEffect(() => {
-    if (!hospital || view !== 'info') return;
+    if (!hospital) return;
 
     const key = window.location.hash.slice(1);
-    if (!key || key === NPAY_HASH) return;
+    if (!key) return;
 
     // 첫 탭(#subject)은 맨 위가 맞다 — lockSpy 주석 참고.
     if (key === DETAIL_TABS[0].key) {
@@ -622,10 +500,6 @@ export default function HospitalDetailPage() {
   }, [hospital?.id]);
 
   useEffect(() => {
-    // 비급여를 보는 동안엔 섹션이 DOM 에 없다. 옵저버를 달 대상이 없을뿐더러,
-    // 돌아왔을 때 다시 달아야 하므로 view 가 바뀌면 통째로 다시 만든다.
-    if (view !== 'info') return;
-
     const offset = 56 + (stickyRef.current?.offsetHeight ?? 56);
 
     const observer = new IntersectionObserver(
@@ -653,7 +527,7 @@ export default function HospitalDetailPage() {
     }
 
     return () => observer.disconnect();
-  }, [hospital?.id, view]);
+  }, [hospital?.id]);
 
   if (isLoading) {
     return (
@@ -673,22 +547,6 @@ export default function HospitalDetailPage() {
    *   진료과목  declared          신고한 과목. 의사가 0명이어도 등재된다.
    *   표시과목  specialistCount>0 전문의가 실제로 있는 과목.
    */
-  /** 대표 지하철역. 여러 개면 첫 번째. 위치 섹션에는 출구·거리까지 그대로 보여준다. */
-  const subway = hospital.transport?.subway?.[0];
-
-  /**
-   * 헤더에 띄울 역 이름. **거리를 따지지 않는다 — 있으면 보여준다.**
-   *
-   * 원래는 "1km 이내로 확인된 것만" 이라는 규칙을 뒀는데, 원본이 거리와 소요시간을 같은 칸에
-   * 섞어 쓰고(20%가 "도보 5분" 식) 아예 비워두기도 해서 **멀쩡한 역세권 병원이 대거 탈락**했다.
-   * 강북삼성병원(서대문역 도보 5분)이 그랬다.
-   *
-   * 한국에서 지하철역은 위치를 가늠하는 1차 기준이다. 거리를 몰라 안 보여주는 손해가,
-   * 조금 먼 역을 보여주는 손해보다 크다. 정확한 거리는 교통 안내 섹션에 그대로 있다.
-   *
-   * 역 이름을 못 뽑는 하차지점("2번출구")만 뺀다 — 그건 어느 역인지 알 수 없어 쓸모가 없다.
-   */
-  const nearestStation = stationName(subway?.arrival);
 
   /**
    * 교통편을 수단별로 나누고, 그 안에서 **같은 하차지점끼리 묶는다.**
@@ -701,11 +559,6 @@ export default function HospitalDetailPage() {
    * 부산 1호선(주황)과 서울 1호선(남색)은 다른 노선이다 — 주소가 유일한 단서다.
    */
   const metroCity = metroCityOf(hospital.location?.address);
-
-  /** 헤더 역 이름 앞에 붙일 노선 배지. 역을 못 뽑았으면 붙을 데가 없다. */
-  const headerLines = nearestStation
-    ? stationLines(subway?.line, metroCity)
-    : [];
 
   /**
    * 교통편. **지하철과 버스를 "대중교통" 하나로 묶는다.**
@@ -739,7 +592,6 @@ export default function HospitalDetailPage() {
   const staff = hospital.staff;
   const beds = hospital.beds;
   const equipments = hospital.equipments ?? [];
-  const region = hospital.location?.region;
 
   // 역량(capability)은 type 으로 갈린다. 특수진료는 진료 섹션, 전문병원 지정은 규모 섹션에 붙인다.
   const capabilities = hospital.capabilities ?? [];
@@ -760,177 +612,19 @@ export default function HospitalDetailPage() {
       </button>
 
       {/*
-        병원 이름과 탭은 **함께 고정된다.** 탭을 눌러 구역을 옮겨도 "어느 병원을 보고 있나" 가
-        사라지면 안 된다 — 긴 페이지를 내려가다 보면 무슨 병원이었는지 잊는다.
+        병원 이름과 탭 바는 상세·비급여 페이지가 공유한다(HospitalHeader). 함께 고정돼서,
+        탭을 눌러 구역을 옮겨도 "어느 병원을 보고 있나" 가 사라지지 않는다.
       */}
-      <div
-        ref={stickyRef}
-        className="sticky top-14 z-20 -mx-4 !mt-0 bg-white/95 px-4 backdrop-blur"
-      >
-      {/* 배지 · 이름 · 규모 · 지역 */}
-      <header className="!mb-0 pb-3 pt-3">
-        {/*
-          응급실·달빛은 **이름보다 먼저 읽혀야 한다.**
-          "지금 갈 수 있나" 를 가르는 정보라, 이름 아래에 두면 스캔하다 놓친다.
-          병원 이름은 어차피 크고 굵어서 늦게 봐도 눈에 들어온다.
-        */}
-        {/*
-          배지 줄. **규모가 맨 앞이다** — "상급병원이냐 동네 의원이냐" 가 이 병원의 기본 성격이고,
-          응급실·달빛은 그 위에 얹히는 특성이다. 이름 옆에 따로 두면 배지가 두 곳에 흩어진다.
-        */}
-        {(hospital.tier ||
-          specialtyFields.length > 0 ||
-          hospital.emergency ||
-          hospital.baby) && (
-          <div className="mb-1.5 flex flex-wrap gap-1.5">
-            {hospital.tier && (
-              <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
-                {hospital.tier.name}
-              </span>
-            )}
-            {/*
-              전문병원 지정. 등급(1·2·3차) 바로 옆에 "척추 전문병원" 처럼 붙인다 —
-              등급과 함께 이 병원의 기본 성격을 말하는 정보라 같은 배지 줄에 둔다.
-            */}
-            {specialtyFields.map((c) => (
-              <span
-                key={c.code}
-                className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
-              >
-                {c.name
-                  ? `${c.name} ${t('clinic.specialtyHospital')}`
-                  : t('clinic.specialtyHospital')}
-              </span>
-            ))}
-            {hospital.emergency && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
-                <Ambulance className="h-3 w-3" /> {t('clinic.badge.emergencyDetail')}
-              </span>
-            )}
-            {hospital.baby && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                <Baby className="h-3 w-3" /> {t('clinic.badge.babyDetail')}
-              </span>
-            )}
-          </div>
-        )}
+      <HospitalHeader
+        hospital={hospital}
+        mode="detail"
+        stickyRef={stickyRef}
+        activeTab={tab}
+        onTabClick={lockSpy}
+        onRegionClick={(event) => lockSpy(event, 'location')}
+        prefetchNpay={prefetchNpay}
+      />
 
-        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{hospital.name}</h1>
-
-        {/*
-          지하철역 | 시도 | 시군구.
-          "거기 어떻게 가지" 에 가장 빨리 답하는 것이 지하철역이라 맨 앞에 둔다.
-          누르면 맨 아래 위치 섹션으로 이동한다 — 주소·지도를 찾아 스크롤하지 않아도 된다.
-        */}
-        {(region || nearestStation) && (
-          <a
-            href="#location"
-            /*
-              탭과 **같은 경로로 보낸다.** 그냥 앵커로 두면 스파이가 켜진 채 부드럽게 스크롤되고,
-              바로 앞 구역인 규모를 지나면서 탭이 규모로 바뀐 채 멈춘다. 잠그고 위치로 못 박는다.
-            */
-            onClick={(event) => lockSpy(event, 'location')}
-            className="mt-1 flex items-center gap-1 text-sm text-slate-500 no-underline transition-colors hover:text-primary-600"
-          >
-            {headerLines.map((line) => (
-              <LineBadge key={line} line={line} city={metroCity} />
-            ))}
-            <span>
-              {[
-                nearestStation &&
-                  stationLabel(nearestStation, headerLines.length > 0),
-                region?.sido?.name,
-                region?.name,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </span>
-          </a>
-        )}
-
-      </header>
-
-
-      {/*
-        앞의 다섯은 탭이 아니라 **책갈피**다. 내용을 감추지 않는다 — 전부 한 페이지에 있고,
-        탭은 그 위치로 데려다줄 뿐이다. 스크롤하면 지금 보고 있는 구역으로 표시가 따라온다.
-        (탭으로 구역을 감추면 "규모를 보려면 탭을 눌러야 한다"는 걸 사용자가 알아야 하는데,
-         대부분 모른 채 스크롤만 하다 나간다.)
-
-        **비급여만 다르다.** 그것만 진짜 전환이라 <a> 가 아니라 <button> 이고, 구분선으로
-        떼어 놓았다 — 생김새가 같으면 누르는 사람은 같은 동작을 기대한다.
-      */}
-      {/* 병원 이름은 위 헤더에 이미 있다. 여기서 또 쓰면 두 번 나온다. 탭만 남긴다. */}
-      <nav
-        role="tablist"
-        className="-mx-4 !mt-0 flex border-b border-slate-200 px-4"
-      >
-        {/* 평가 탭은 데이터가 있을 때만. 없는 병원이 절반이 넘는다(DETAIL_TABS 주석 참고). */}
-        {DETAIL_TABS.filter(
-          (detailTab) => detailTab.key !== 'assessment' || hospital.assessment,
-        ).map((detailTab) => (
-          <a
-            key={detailTab.key}
-            href={`#${detailTab.key}`}
-            role="tab"
-            aria-selected={tab === detailTab.key}
-            onClick={(event) => lockSpy(event, detailTab.key)}
-            className={cn(
-              '-mb-px border-b-2 px-4 py-2.5 text-sm no-underline transition-colors',
-              view === 'info' && tab === detailTab.key
-                ? 'border-primary-600 font-bold text-primary-700'
-                : 'border-transparent font-medium text-slate-500 hover:text-slate-800',
-            )}
-          >
-            {t(`clinic.tabs.${detailTab.key}`)}
-          </a>
-        ))}
-
-        {/*
-          비급여. **탭을 감추지 않는다** — 병원급 이상만 데이터가 있어서 대부분(의원 전체)은
-          비어 있지만, 그건 "없다" 는 사실 자체가 답이라 눌러서 확인할 수 있어야 한다.
-          평가 탭과 다른 이유가 이거다. 평가는 없을 때 "나쁜가?" 로 읽히지만 가격표는 그렇지 않다.
-
-          마우스·손이 닿으면 미리 받는다. 탭을 눌렀을 때는 이미 캐시에 있다.
-          onTouchStart 는 모바일에서 탭 직전 수십 ms 를 벌 뿐이지만, 그 사이 요청이 출발한다.
-        */}
-        <span aria-hidden className="my-2 w-px shrink-0 self-stretch bg-slate-200" />
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'npay'}
-          onClick={openNpay}
-          onMouseEnter={prefetchNpay}
-          onTouchStart={prefetchNpay}
-          onFocus={prefetchNpay}
-          className={cn(
-            '-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm transition-colors',
-            view === 'npay'
-              ? 'border-primary-600 font-bold text-primary-700'
-              : 'border-transparent font-medium text-slate-500 hover:text-slate-800',
-          )}
-        >
-          <Receipt className="h-3.5 w-3.5" />
-          {t('clinic.tabs.npay')}
-        </button>
-      </nav>
-      </div>
-
-      {/*
-        비급여는 병원정보를 **감춘다**. 이어 붙이지 않는 이유는 분량이다 —
-        서울아산병원이 1,048행이라, 같은 페이지에 두면 그 아래 위치·평가를 아무도 못 본다.
-      */}
-      {view === 'npay' ? (
-        <Section
-          first
-          title={t('clinic.npay.title')}
-          icon={<Receipt className="h-4 w-4 text-primary-600" />}
-        >
-          {/* ykiho 가 없는 병원(NMC 만 있는 병원)은 조회 자체가 불가능하다. 패널이 빈 상태로 처리한다. */}
-          <NonPaymentPanel ykiho={hospital.sources?.ykiho} />
-        </Section>
-      ) : (
-      <>
       <Section
         first
         id="subject"
@@ -1400,7 +1094,7 @@ export default function HospitalDetailPage() {
             */}
             {transitStops.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-slate-500">
+                <p className="text-sm font-semibold text-slate-600">
                   {t('clinic.transport.publicTransit')}
                 </p>
                 <ul className="mt-1 divide-y divide-slate-100 pl-3">
@@ -1440,7 +1134,7 @@ export default function HospitalDetailPage() {
         */}
         {hospital.parking?.capacity ? (
           <div className="mt-3">
-            <p className="text-xs font-medium text-slate-500">{t('clinic.parking')}</p>
+            <p className="text-sm font-semibold text-slate-600">{t('clinic.parking')}</p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <Stat label={t('clinic.parkingCapacity')} value={hospital.parking.capacity} />
               {hospital.parking.paid !== undefined && (
@@ -1522,8 +1216,6 @@ export default function HospitalDetailPage() {
         ) : null}
         </div>
       </Section>
-      </>
-      )}
     </div>
   );
 }

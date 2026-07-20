@@ -11,7 +11,35 @@
     "heroTitle": "가까운 병원을 찾아보세요",
     "heroSubtitle": "병원을 검색하고 진료 정보를 확인하세요.",
     "searchPlaceholder": "검색어를 입력하세요",
-    "searchButton": "검색"
+    "searchButton": "검색",
+    "sections": {
+      "more": "더보기",
+      "empty": "표시할 병원이 없어요",
+      "emergency": {
+        "title": "응급실",
+        "subtitle": "지금 당장 아플 때 · 24시간 진료"
+      },
+      "baby": {
+        "title": "달빛어린이병원",
+        "subtitle": "밤·휴일 소아 진료"
+      },
+      "tertiary": {
+        "title": "상급종합병원",
+        "subtitle": "3차 · 중증·희귀질환 진료"
+      },
+      "cancer": {
+        "title": "암 진료 우수",
+        "subtitle": "적정성평가 1등급 · 대장·위·유방·폐암"
+      },
+      "cardio": {
+        "title": "심뇌혈관 우수",
+        "subtitle": "적정성평가 1등급 · 뇌졸중·심장"
+      },
+      "nicu": {
+        "title": "신생아중환자실 우수",
+        "subtitle": "적정성평가 1등급 · 신생아 중증"
+      }
+    }
   },
   "common": {
     "loading": "불러오는 중…",
@@ -38,6 +66,13 @@
       "more": "더보기"
     },
     "inpatient": "요양·정신",
+    "specialty": "전문분야",
+    "assessmentLabel": "건강보험심사평가원 평가",
+    "assessment": {
+      "cancer": "암 진료 우수",
+      "cardio": "심뇌혈관 우수",
+      "nicu": "신생아중환자실 우수"
+    },
     "sido": "시도",
     "sidoSearch": "시도 검색",
     "sggu": "시군구",
@@ -140,7 +175,21 @@
       "error": "비급여 정보를 불러오지 못했습니다.",
       "more": "더보기 ({{shown}}/{{total}})",
       "won": "원",
-      "variants": "{{count}}종"
+      "variants": "{{count}}종",
+      "request": "비급여 정보 요청",
+      "requestHint": "이 병원의 비급여 정보를 아직 받아오지 못했습니다. 요청하면 수집 후 다음 방문 시 보여드립니다.",
+      "requested": "요청이 접수되었습니다. 정보가 수집되면 다음 방문 시 표시됩니다.",
+      "group": {
+        "test": "검사",
+        "vaccine": "예방접종",
+        "ultrasound": "초음파",
+        "mri": "MRI",
+        "physicalTherapy": "물리치료",
+        "room": "병실",
+        "dental": "치과",
+        "docs": "서류·증명",
+        "etc": "기타"
+      }
     }
   },
   "map": {

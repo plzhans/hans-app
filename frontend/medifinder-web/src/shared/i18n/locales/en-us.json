@@ -11,7 +11,35 @@
     "heroTitle": "Find a hospital near you",
     "heroSubtitle": "Search hospitals and check their care information.",
     "searchPlaceholder": "Enter a search term",
-    "searchButton": "Search"
+    "searchButton": "Search",
+    "sections": {
+      "more": "View all",
+      "empty": "No hospitals to show",
+      "emergency": {
+        "title": "Emergency Room",
+        "subtitle": "Around-the-clock urgent care"
+      },
+      "baby": {
+        "title": "Night Pediatric Care",
+        "subtitle": "Evenings and holidays for children"
+      },
+      "tertiary": {
+        "title": "Tertiary Hospitals",
+        "subtitle": "Top-level care for severe conditions"
+      },
+      "cancer": {
+        "title": "Top-rated Cancer Care",
+        "subtitle": "HIRA grade 1 · colon·stomach·breast·lung"
+      },
+      "cardio": {
+        "title": "Top-rated Heart & Stroke",
+        "subtitle": "HIRA grade 1 · stroke·cardiac"
+      },
+      "nicu": {
+        "title": "Top-rated Neonatal ICU",
+        "subtitle": "HIRA grade 1 · critical newborn care"
+      }
+    }
   },
   "common": {
     "loading": "Loading…",
@@ -38,6 +66,13 @@
       "more": "More"
     },
     "inpatient": "Nursing / Psychiatric",
+    "specialty": "Specialty field",
+    "assessmentLabel": "HIRA Assessment",
+    "assessment": {
+      "cancer": "Top-rated Cancer Care",
+      "cardio": "Top-rated Heart & Stroke",
+      "nicu": "Top-rated Neonatal ICU"
+    },
     "sido": "Province",
     "sidoSearch": "Search province",
     "sggu": "District",
@@ -140,7 +175,21 @@
       "error": "Could not load non-covered fee information.",
       "more": "Show more ({{shown}}/{{total}})",
       "won": " KRW",
-      "variants": "{{count}} types"
+      "variants": "{{count}} types",
+      "request": "Request fee info",
+      "requestHint": "This hospital's non-covered fees haven't been collected yet. Request it and we'll show them on your next visit.",
+      "requested": "Your request has been received. The information will appear on your next visit once collected.",
+      "group": {
+        "test": "Tests",
+        "vaccine": "Vaccines",
+        "ultrasound": "Ultrasound",
+        "mri": "MRI",
+        "physicalTherapy": "Physical therapy",
+        "room": "Rooms",
+        "dental": "Dental",
+        "docs": "Documents",
+        "etc": "Other"
+      }
     }
   },
   "map": {

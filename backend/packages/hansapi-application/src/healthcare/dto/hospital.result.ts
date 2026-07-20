@@ -377,4 +377,19 @@ export interface HospitalSearchCommand {
 
   /** 달빛어린이병원만 */
   baby?: boolean;
+
+  /**
+   * 적정성평가 1등급 분야. 여러 개면 OR.
+   *   cancer  암질환(대장·위·유방·폐암)
+   *   cardio  심뇌혈관(급성기뇌졸중·관상동맥우회술)
+   *   nicu    신생아중환자실
+   * healthcare_hospital 의 파생 플래그(asm_*_yn)를 그대로 탄다.
+   */
+  asmExcellent?: AsmExcellentField[];
+
+  /** 전문병원 지정분야 코드. healthcare_hospital_capability(tp='specialty'). 여러 개면 OR. */
+  specialtyCds?: string[];
 }
+
+/** 적정성평가 우수 분야. healthcare-build 의 ASM_EXCELLENT 키와 1:1. */
+export type AsmExcellentField = 'cancer' | 'cardio' | 'nicu';

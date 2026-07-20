@@ -51,4 +51,17 @@ emergency?: string;
  * 달빛어린이병원만 (야간·휴일 소아진료)
  */
 baby?: string;
+/**
+ * 건강보험심사평가원 적정성평가 1등급 분야. 쉼표로 여러 개(OR).
+ * - `cancer` 암질환(대장·위·유방·폐암)
+ * - `cardio` 심뇌혈관(급성기뇌졸중·관상동맥우회술)
+ * - `nicu` 신생아중환자실
+ *
+ * **병원급 이상만 의미가 있다** — 의원은 이 항목을 평가받지 않는다. 전국 목록으로 쓸 땐 `tier=TIER2,TIER3` 를 함께 거는 것을 권장한다.
+ */
+assessment?: string;
+/**
+ * 전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조.
+ */
+specialty?: string;
 };

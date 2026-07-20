@@ -4,6 +4,7 @@ import {
   NotFoundException,
   Param,
   ParseIntPipe,
+  Post,
   Query,
 } from '@nestjs/common';
 import {
@@ -12,7 +13,10 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { HealthcareHospitalService } from '@hansapi/application';
+import {
+  HealthcareHospitalService,
+  HealthcareNonPaymentService,
+} from '@hansapi/application';
 
 import { Lang } from '../common/lang.decorator';
 import type { SupportedLang } from '@hansapi/common';
@@ -25,6 +29,10 @@ import {
   HospitalSearchRequestDto,
   HospitalSummaryDto,
 } from './dto/hospital.dto';
+import {
+  HospitalNonPaymentDto,
+  NonPaymentRequestResultDto,
+} from './dto/npay.dto';
 
 /**
  * 통합 병원 API.
@@ -39,7 +47,10 @@ import {
 @Auth(AuthType.Jwt, AuthType.ApiKey)
 @Controller('healthcare/hospitals')
 export class HealthcareHospitalController {
-  constructor(private readonly service: HealthcareHospitalService) {}
+  constructor(
+    private readonly service: HealthcareHospitalService,
+    private readonly npay: HealthcareNonPaymentService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -63,6 +74,12 @@ export class HealthcareHospitalController {
         name: request.name,
         emergency: request.emergency === 'true',
         baby: request.baby === 'true',
+        // 아는 분야만 통과시킨다 — 낯선 값이 들어와도 필터가 조용히 무시되게.
+        asmExcellent: csv(request.assessment)?.filter(
+          (v): v is 'cancer' | 'cardio' | 'nicu' =>
+            v === 'cancer' || v === 'cardio' || v === 'nicu',
+        ),
+        specialtyCds: csv(request.specialty),
       },
       lang,
     );
@@ -88,6 +105,57 @@ export class HealthcareHospitalController {
       throw new NotFoundException(`병원을 찾을 수 없습니다: ${id}`);
     }
     return hospital;
+  }
+
+  @Get(':id/hira-npay')
+  @ApiOperation({
+    summary: '비급여 진료비',
+    description:
+      '병원이 신고한 비급여 항목별 가격. 대분류 → 표준코드로 묶어 **기관 전건을 한 번에** 돌려준다(페이지 없음).\n\n' +
+      '**빈 categories 가 정상이다.** 비급여를 신고한 기관은 3,511곳(전체의 4.4%)뿐이고, ' +
+      '의원(clCd=31)은 원본에 통째로 없어 늘 비어 있다. 병원이 없을 때만 404 다.\n\n' +
+      '**금액은 범위다.** 한 표준코드에 원본 행이 여럿일 수 있어서다(체외충격파가 단순/복잡 두 행). ' +
+      '단일가면 minAmount 와 maxAmount 가 같다 — 그때는 범위로 표시하지 마라.\n\n' +
+      '상세(/healthcare/hospitals/:id)에 끼워 넣지 않은 이유는 95% 의 병원에게 헛짐이고 ' +
+      '한 기관에 수백 행이기 때문이다(최다 1,048행).',
+  })
+  @ApiParam({ name: 'id', description: '통합 병원 id' })
+  @ApiOkResponse({ type: HospitalNonPaymentDto })
+  async nonPayments(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<HospitalNonPaymentDto> {
+    const npay = await this.npay.get(id);
+    if (!npay) {
+      throw new NotFoundException(`병원을 찾을 수 없습니다: ${id}`);
+    }
+    return npay;
+  }
+
+  @Post(':id/hira-npay/request')
+  @ApiOperation({
+    summary: '비급여 갱신 요청',
+    description:
+      '이 병원의 비급여를 받아오도록 **요청만 한다.** 즉시 반영되지 않는다 — 큐에 등록되고 배치가 처리한다.\n\n' +
+      '**`source=requestable` 일 때만 의미가 있다.** 공개 API 에 이미 있으면(`hira`) 요청할 이유가 없고, ' +
+      '받아봤는데 없으면(`none`) 다시 요청해도 결과가 같다.\n\n' +
+      '**같은 병원을 여러 번 눌러도 큐에는 한 줄이다.** 처리 결과는 다음 조회의 `source` 로 나타난다(web|none).',
+  })
+  @ApiParam({ name: 'id', description: '통합 병원 id' })
+  @ApiOkResponse({ type: NonPaymentRequestResultDto })
+  async requestNonPayments(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<NonPaymentRequestResultDto> {
+    const result = await this.npay.request(id);
+    if (!result) {
+      throw new NotFoundException(`병원을 찾을 수 없습니다: ${id}`);
+    }
+    if (result === 'unavailable') {
+      // HIRA 연동이 없는 병원. 큐에 넣어봐야 배치가 할 수 있는 게 없다.
+      throw new NotFoundException(
+        `HIRA 연동이 없어 비급여를 받아올 수 없는 병원입니다: ${id}`,
+      );
+    }
+    return { result };
   }
 }
 

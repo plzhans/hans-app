@@ -17,6 +17,9 @@ import { stripLang } from '@/shared/i18n/routing';
 const Home = lazy(() => import('@/features/home/pages/Home'));
 const Search = lazy(() => import('@/features/search/pages/Search'));
 const HospitalDetail = lazy(() => import('@/features/clinic/pages/HospitalDetail'));
+const HospitalNonPayment = lazy(
+  () => import('@/features/clinic/pages/HospitalNonPayment'),
+);
 const NotFound = lazy(() => import('@/features/home/pages/NotFound'));
 
 function PageLoader() {
@@ -55,6 +58,9 @@ const pages: RouteObject[] = [
   { index: true, element: <Home /> },
   { path: 'search', element: <Search /> },
   { path: 'hospitals/:id', element: <HospitalDetail /> },
+  // 비급여는 상세의 탭이 아니라 페이지다. 가격표가 수백 줄이라(최다 1,048행) 상세에 이어
+  // 붙이면 위치·평가가 저 아래로 밀린다. HospitalNonPayment 주석 참고.
+  { path: 'hospitals/:id/npay', element: <HospitalNonPayment /> },
   { path: '*', element: <NotFound /> },
 ];
 

@@ -11,7 +11,35 @@
     "heroTitle": "查找附近的医院",
     "heroSubtitle": "搜索医院并查看诊疗信息。",
     "searchPlaceholder": "请输入搜索词",
-    "searchButton": "搜索"
+    "searchButton": "搜索",
+    "sections": {
+      "more": "查看全部",
+      "empty": "暂无可显示的医院",
+      "emergency": {
+        "title": "急诊室",
+        "subtitle": "需要紧急就诊时 · 24小时"
+      },
+      "baby": {
+        "title": "夜间儿童医院",
+        "subtitle": "夜间和节假日的儿科诊疗"
+      },
+      "tertiary": {
+        "title": "三级综合医院",
+        "subtitle": "重症·疑难疾病的高级诊疗"
+      },
+      "cancer": {
+        "title": "癌症诊疗优秀",
+        "subtitle": "适当性评价1级 · 结肠·胃·乳腺·肺癌"
+      },
+      "cardio": {
+        "title": "心脑血管优秀",
+        "subtitle": "适当性评价1级 · 脑卒中·心脏"
+      },
+      "nicu": {
+        "title": "新生儿重症监护优秀",
+        "subtitle": "适当性评价1级 · 新生儿重症"
+      }
+    }
   },
   "common": {
     "loading": "加载中…",
@@ -38,6 +66,13 @@
       "more": "更多"
     },
     "inpatient": "疗养·精神",
+    "specialty": "专业领域",
+    "assessmentLabel": "健康保险审查评价院评价",
+    "assessment": {
+      "cancer": "癌症诊疗优秀",
+      "cardio": "心脑血管优秀",
+      "nicu": "新生儿重症监护优秀"
+    },
     "sido": "市道",
     "sidoSearch": "搜索市道",
     "sggu": "市郡区",
@@ -140,7 +175,21 @@
       "error": "无法加载自费诊疗信息。",
       "more": "查看更多 ({{shown}}/{{total}})",
       "won": "韩元",
-      "variants": "{{count}}种"
+      "variants": "{{count}}种",
+      "request": "请求自费信息",
+      "requestHint": "尚未获取该医院的自费诊疗信息。请求后，将在收集完成后的下次访问时显示。",
+      "requested": "已收到您的请求。信息收集完成后将在下次访问时显示。",
+      "group": {
+        "test": "检查",
+        "vaccine": "预防接种",
+        "ultrasound": "超声波",
+        "mri": "MRI",
+        "physicalTherapy": "物理治疗",
+        "room": "病房",
+        "dental": "牙科",
+        "docs": "证明",
+        "etc": "其他"
+      }
     }
   },
   "map": {

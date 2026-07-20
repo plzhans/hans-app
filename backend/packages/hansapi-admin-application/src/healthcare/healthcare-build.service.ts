@@ -29,6 +29,9 @@ interface BuiltHospital {
   estb_dd: string | null;
   emergency_yn: boolean;
   baby_yn: boolean;
+  asm_cancer_yn: boolean;
+  asm_cardio_yn: boolean;
+  asm_nicu_yn: boolean;
   intro: string | null;
   notice: string | null;
   directions: string | null;
@@ -77,6 +80,44 @@ export interface BuildResult {
 
 const CHUNK = 500;
 
+/** 한 병원의 적정성평가 우수(1등급) 여부. ykiho 로 붙인다. */
+interface AsmFlags {
+  cancer: boolean;
+  cardio: boolean;
+  nicu: boolean;
+}
+
+/**
+ * 분야별 "우수"의 정의. **여기가 유일한 출처다** — 스키마 주석(asm_*_yn)도 이걸 가리킨다.
+ *
+ * 등급은 1(최상)~5 라 '1' 이면 우수다. 분야마다 대표 항목을 OR 로 묶는다. 컬럼명은
+ * hira_hospital_asm 의 generated column(asm_01…)이고 원본 asmGrd 번호와 1:1 이다.
+ *
+ * 천식(16)은 안 쓴다 — 그 항목만 인코딩이 달라('양호'·0) '1' 비교가 안 통하는데, 어차피
+ * 우리 세 분야(암·심뇌혈관·NICU)에 안 들어간다. 여기 항목은 전부 일반 1~5 인코딩이다.
+ */
+const ASM_EXCELLENT: Record<keyof AsmFlags, readonly string[]> = {
+  // 대장암·위암·유방암·폐암
+  cancer: ['asm_12', 'asm_13', 'asm_14', 'asm_15'],
+  // 급성기뇌졸중·관상동맥우회술
+  cardio: ['asm_01', 'asm_06'],
+  // 신생아중환자실
+  nicu: ['asm_20'],
+};
+
+/** map 조회 결과(있을 수도, 없을 수도)를 세 컬럼으로 편다. 평가대상이 아니면 전부 false. */
+function asmFlagsOf(flags: AsmFlags | undefined): {
+  asm_cancer_yn: boolean;
+  asm_cardio_yn: boolean;
+  asm_nicu_yn: boolean;
+} {
+  return {
+    asm_cancer_yn: flags?.cancer ?? false,
+    asm_cardio_yn: flags?.cardio ?? false,
+    asm_nicu_yn: flags?.nicu ?? false,
+  };
+}
+
 /**
  * 통합 병원 빌드.
  *
@@ -108,24 +149,27 @@ export class HealthcareBuildService {
     const mapper = await CodeMapper.load(this.prisma);
     const locks = await HospitalLocks.load(this.prisma);
 
-    const [hira, nmc, links, baby, infos, transports] = await Promise.all([
-      this.loadHira(),
-      this.loadNmc(),
-      this.prisma.hira_nmc_link.findMany({
-        select: { ykiho: true, hpid: true },
-      }),
-      this.prisma.nmc_baby_hospital.findMany({ select: { hpid: true } }),
-      // HIRA 세부정보. 주차·찾아오는 길이 여기 있다.
-      this.prisma.hira_hospital_detail.findMany({
-        where: { op: 'info' },
-        select: { ykiho: true, data: true },
-      }),
-      // HIRA 교통정보. 병원당 N행이라 배열로 들어 있다.
-      this.prisma.hira_hospital_detail.findMany({
-        where: { op: 'transport' },
-        select: { ykiho: true, data: true },
-      }),
-    ]);
+    const [hira, nmc, links, baby, infos, transports, asmByYkiho] =
+      await Promise.all([
+        this.loadHira(),
+        this.loadNmc(),
+        this.prisma.hira_nmc_link.findMany({
+          select: { ykiho: true, hpid: true },
+        }),
+        this.prisma.nmc_baby_hospital.findMany({ select: { hpid: true } }),
+        // HIRA 세부정보. 주차·찾아오는 길이 여기 있다.
+        this.prisma.hira_hospital_detail.findMany({
+          where: { op: 'info' },
+          select: { ykiho: true, data: true },
+        }),
+        // HIRA 교통정보. 병원당 N행이라 배열로 들어 있다.
+        this.prisma.hira_hospital_detail.findMany({
+          where: { op: 'transport' },
+          select: { ykiho: true, data: true },
+        }),
+        // 적정성평가 1등급 파생 플래그. ykiho 로 붙인다.
+        this.loadAsmFlags(),
+      ]);
 
     const transportByYkiho = new Map(
       transports.map((row) => [row.ykiho, this.toTransport(row.data)]),
@@ -179,6 +223,8 @@ export class HealthcareBuildService {
         // 응급실·달빛은 NMC 만 안다.
         emergency_yn: n?.emergencyYn ?? false,
         baby_yn: n ? babySet.has(n.hpid) : false,
+        // 적정성평가 우수는 HIRA(ykiho)에만 있다. 평가대상이 아니면 map 에 없어 전부 false.
+        ...asmFlagsOf(asmByYkiho.get(h.ykiho)),
 
         // 소개·기타안내는 NMC 만 준다. 구조화된 진료시간이 못 담는 예외가 여기 자유 텍스트로 온다.
         intro: n?.intro ?? null,
@@ -232,6 +278,10 @@ export class HealthcareBuildService {
         estb_dd: null,
         emergency_yn: n.emergencyYn,
         baby_yn: babySet.has(n.hpid),
+        // NMC 전용 병원은 ykiho 가 없다 — 적정성평가(HIRA 개념)를 붙일 수 없어 전부 false.
+        asm_cancer_yn: false,
+        asm_cardio_yn: false,
+        asm_nicu_yn: false,
         intro: n.intro,
         notice: n.notice,
         directions: n.directions,
@@ -415,6 +465,9 @@ export class HealthcareBuildService {
       'estb_dd',
       'emergency_yn',
       'baby_yn',
+      'asm_cancer_yn',
+      'asm_cardio_yn',
+      'asm_nicu_yn',
       'intro',
       'notice',
       'directions',
@@ -434,6 +487,7 @@ export class HealthcareBuildService {
             ${r.ykiho}, ${r.hpid}, ${r.source}, ${r.name}, ${r.addr}, ${r.tel}, ${r.homepage},
             ${r.class_cd}, ${r.tier}, ${r.region_cd}, ${r.emdong_nm}, ${r.post_no},
             ${r.lat}, ${r.lon}, ${r.estb_dd}, ${r.emergency_yn}, ${r.baby_yn},
+            ${r.asm_cancer_yn}, ${r.asm_cardio_yn}, ${r.asm_nicu_yn},
             ${r.intro}, ${r.notice}, ${r.directions},
             ${r.park_qty}, ${r.park_paid}, ${r.park_note},
             ${r.transport === null ? null : Prisma.sql`CAST(${JSON.stringify(r.transport)} AS JSON)`},
@@ -447,6 +501,7 @@ export class HealthcareBuildService {
           (ykiho, hpid, source, name, addr, tel, homepage,
            class_cd, tier, region_cd, emdong_nm, post_no,
            lat, lon, estb_dd, emergency_yn, baby_yn,
+           asm_cancer_yn, asm_cardio_yn, asm_nicu_yn,
            intro, notice, directions, park_qty, park_paid, park_note,
            transport,
            status, built_at, created_at, updated_at)
@@ -457,6 +512,38 @@ export class HealthcareBuildService {
           built_at = NOW()
       `);
     }
+  }
+
+  /**
+   * 적정성평가 1등급을 분야별로 접어 ykiho→플래그 맵으로 만든다.
+   *
+   * asm_* 은 hira_hospital_asm 의 generated column(VIRTUAL)이라 SQL 에서 바로 '1' 비교가 된다.
+   * 한 분야라도 우수인 병원만 돌려준다 — 나머지는 map 에 없어 빌드에서 false 가 된다.
+   */
+  private async loadAsmFlags(): Promise<Map<string, AsmFlags>> {
+    const col = (field: keyof AsmFlags): Prisma.Sql =>
+      Prisma.join(
+        ASM_EXCELLENT[field].map((c) => Prisma.sql`${Prisma.raw(c)} = '1'`),
+        ' OR ',
+      );
+
+    const rows = await this.prisma.$queryRaw<
+      { ykiho: string; cancer: number; cardio: number; nicu: number }[]
+    >(Prisma.sql`
+      SELECT ykiho,
+             (${col('cancer')}) AS cancer,
+             (${col('cardio')}) AS cardio,
+             (${col('nicu')})   AS nicu
+        FROM hira_hospital_asm
+       WHERE (${col('cancer')}) OR (${col('cardio')}) OR (${col('nicu')})
+    `);
+
+    return new Map(
+      rows.map((r) => [
+        r.ykiho,
+        { cancer: !!r.cancer, cardio: !!r.cardio, nicu: !!r.nicu },
+      ]),
+    );
   }
 
   private async loadHira() {

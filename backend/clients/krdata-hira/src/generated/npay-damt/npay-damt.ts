@@ -24,9 +24,15 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
+  GetNonPaymentClassStatsParams,
+  GetNonPaymentItemCodesParams,
   GetNonPaymentItemHospDetailListParams,
   GetNonPaymentItemHospSummaryListParams,
+  GetNonPaymentRegionStatsParams,
+  NonPaymentClassStatResponse,
+  NonPaymentCodeResponse,
   NonPaymentDetailResponse,
+  NonPaymentRegionStatResponse,
   NonPaymentSummaryResponse,
 } from './model';
 
@@ -127,6 +133,155 @@ export const getNonPaymentItemHospSummaryList = async (
 ): Promise<getNonPaymentItemHospSummaryListResponse> => {
   return krDataMutator<getNonPaymentItemHospSummaryListResponse>(
     getGetNonPaymentItemHospSummaryListUrl(params),
+    {
+      ...options,
+      method: 'GET',
+    },
+  );
+};
+
+/**
+ * 비급여 공개 항목의 **대/중/소 3단 분류 사전**. 병원과 무관한 고정 목록이다(2026-07 실측 54행, 대분류 16개).
+
+**신고 데이터(getNonPaymentItemHospDetailList)의 `npayCd` 와 다른 코드 체계다.** 이쪽은 `divCd1/divCd2/divCd3`(A/A1100/…)이고, 신고 데이터는 `npayCd`(ABZ010001)다 — 코드가 직접 매칭되지 않는다(2026-07 실측). 이 서비스의 값은 **설명문(divCd*Dsc)** 이다 — 신고 데이터에 없는 항목 안내 텍스트를 준다.
+
+**가이드엔 파라미터가 없다지만 numOfRows 가 먹는다**(2026-07 실측) — 안 주면 기본 10건만 오므로, 전건 54 를 받으려면 numOfRows 를 크게 줘라.
+ * @summary 비급여 항목 분류사전
+ */
+export type getNonPaymentItemCodesResponse200 = {
+  data: NonPaymentCodeResponse;
+  status: 200;
+};
+
+export type getNonPaymentItemCodesResponseSuccess =
+  getNonPaymentItemCodesResponse200 & {
+    headers: Headers;
+  };
+export type getNonPaymentItemCodesResponse =
+  getNonPaymentItemCodesResponseSuccess;
+
+export const getGetNonPaymentItemCodesUrl = (
+  params?: GetNonPaymentItemCodesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/nonPaymentDamtInfoService/getNonPaymentItemCodeList?${stringifiedParams}`
+    : `/nonPaymentDamtInfoService/getNonPaymentItemCodeList`;
+};
+
+export const getNonPaymentItemCodes = async (
+  params?: GetNonPaymentItemCodesParams,
+  options?: RequestInit,
+): Promise<getNonPaymentItemCodesResponse> => {
+  return krDataMutator<getNonPaymentItemCodesResponse>(
+    getGetNonPaymentItemCodesUrl(params),
+    {
+      ...options,
+      method: 'GET',
+    },
+  );
+};
+
+/**
+ * 비급여 항목의 **종별 가격통계**(최대·최소·평균·중간). npayCd 하나당 한 행이라 **전체 비급여코드 목록으로도 쓸 수 있다**(2026-07 실측 655종).
+
+병원별 실제 신고가(getNonPaymentItemHospDetailList)를 종별로 집계한 통계값이다 — 특정 병원 가격이 아니다.
+ * @summary 비급여진료비용 종별정보(통계)
+ */
+export type getNonPaymentClassStatsResponse200 = {
+  data: NonPaymentClassStatResponse;
+  status: 200;
+};
+
+export type getNonPaymentClassStatsResponseSuccess =
+  getNonPaymentClassStatsResponse200 & {
+    headers: Headers;
+  };
+export type getNonPaymentClassStatsResponse =
+  getNonPaymentClassStatsResponseSuccess;
+
+export const getGetNonPaymentClassStatsUrl = (
+  params?: GetNonPaymentClassStatsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/nonPaymentDamtInfoService/getNonPaymentItemClcdList?${stringifiedParams}`
+    : `/nonPaymentDamtInfoService/getNonPaymentItemClcdList`;
+};
+
+export const getNonPaymentClassStats = async (
+  params?: GetNonPaymentClassStatsParams,
+  options?: RequestInit,
+): Promise<getNonPaymentClassStatsResponse> => {
+  return krDataMutator<getNonPaymentClassStatsResponse>(
+    getGetNonPaymentClassStatsUrl(params),
+    {
+      ...options,
+      method: 'GET',
+    },
+  );
+};
+
+/**
+ * 비급여 항목의 **지역(시도) 가격통계**(최대·최소·평균·중간). npayCd 하나당 한 행이다(2026-07 실측 655종).
+
+병원별 실제 신고가를 시도별로 집계한 통계값이다.
+ * @summary 비급여진료비용 지역별정보(통계)
+ */
+export type getNonPaymentRegionStatsResponse200 = {
+  data: NonPaymentRegionStatResponse;
+  status: 200;
+};
+
+export type getNonPaymentRegionStatsResponseSuccess =
+  getNonPaymentRegionStatsResponse200 & {
+    headers: Headers;
+  };
+export type getNonPaymentRegionStatsResponse =
+  getNonPaymentRegionStatsResponseSuccess;
+
+export const getGetNonPaymentRegionStatsUrl = (
+  params?: GetNonPaymentRegionStatsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/nonPaymentDamtInfoService/getNonPaymentItemSidoCdList?${stringifiedParams}`
+    : `/nonPaymentDamtInfoService/getNonPaymentItemSidoCdList`;
+};
+
+export const getNonPaymentRegionStats = async (
+  params?: GetNonPaymentRegionStatsParams,
+  options?: RequestInit,
+): Promise<getNonPaymentRegionStatsResponse> => {
+  return krDataMutator<getNonPaymentRegionStatsResponse>(
+    getGetNonPaymentRegionStatsUrl(params),
     {
       ...options,
       method: 'GET',

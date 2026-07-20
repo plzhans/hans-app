@@ -135,4 +135,30 @@ export default defineConfig({
       override: { mutator },
     },
   },
+  // 치료재료정보. 버전(1.2)은 스펙 내부 경로에만 있고 파일명은 중립이다(madmDtl 과 같은 규칙).
+  mcat: {
+    input: { target: './openapi/B551182/mcatInfoService.json' },
+    output: {
+      mode: 'split',
+      target: './src/generated/mcat/mcat.ts',
+      schemas: './src/generated/mcat/model',
+      client: 'fetch',
+      clean: true,
+      prettier: true,
+      override: { mutator },
+    },
+  },
+  // 신포괄기준정보. 분류코드의 신포괄 포괄구분 매핑.
+  ndrg: {
+    input: { target: './openapi/B551182/NdrgStdInfoService.json' },
+    output: {
+      mode: 'split',
+      target: './src/generated/ndrg/ndrg.ts',
+      schemas: './src/generated/ndrg/model',
+      client: 'fetch',
+      clean: true,
+      prettier: true,
+      override: { mutator },
+    },
+  },
 });

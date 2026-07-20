@@ -85,18 +85,37 @@ import type {
 import {
   getNonPaymentItemHospDetailList,
   getNonPaymentItemHospSummaryList,
+  getNonPaymentItemCodes,
+  getNonPaymentClassStats,
+  getNonPaymentRegionStats,
 } from './generated/npay-damt/npay-damt';
 import type {
   GetNonPaymentItemHospDetailListParams,
   GetNonPaymentItemHospSummaryListParams,
+  GetNonPaymentItemCodesParams,
+  GetNonPaymentClassStatsParams,
+  GetNonPaymentRegionStatsParams,
   NonPaymentDetailResponse,
   NonPaymentSummaryResponse,
+  NonPaymentCodeResponse,
+  NonPaymentClassStatResponse,
+  NonPaymentRegionStatResponse,
 } from './generated/npay-damt/model';
 import { getMajorComponentCodeList } from './generated/msup-cmpn/msup-cmpn';
 import type {
   GetMajorComponentCodeListParams,
   MajorComponentCodeResponse,
 } from './generated/msup-cmpn/model';
+import { getMaterialList } from './generated/mcat/mcat';
+import type {
+  GetMaterialListParams,
+  MaterialListResponse,
+} from './generated/mcat/model';
+import { getNewDrgPaymentList } from './generated/ndrg/ndrg';
+import type {
+  GetNewDrgPaymentListParams,
+  NewDrgPaymentResponse,
+} from './generated/ndrg/model';
 import { HiraConfig, withKrDataConfig } from './mutator';
 
 /** ykiho 기준 상세 조회의 공통 파라미터 */
@@ -553,6 +572,55 @@ export class HiraClient {
     return data;
   }
 
+  /**
+   * 비급여 항목의 **대/중/소 3단 분류 사전**. 병원과 무관한 고정 목록이다(2026-07 실측 54행).
+   *
+   * **신고 데이터(getNonPaymentDetails)의 npayCd 와 다른 코드 체계다** — 이쪽은 divCd1/2/3,
+   * 신고는 npayCd. 코드가 직접 매칭되지 않는다. 이 서비스의 값은 항목 **설명문**(divCd*Dsc)이다.
+   *
+   * **numOfRows 를 안 주면 기본 10건만 온다**(전건 54). 전건이 필요하면 크게 줘라.
+   */
+  async getNonPaymentCodes(
+    params: GetNonPaymentItemCodesParams = {},
+  ): Promise<NonPaymentCodeResponse> {
+    const { data } = await getNonPaymentItemCodes(
+      params,
+      withKrDataConfig(this.config),
+    );
+    return data;
+  }
+
+  /**
+   * 비급여 항목의 **종별 가격통계**(최대·최소·평균·중간). 병원별 신고가를 종별로 집계한 값이다.
+   *
+   * **npayCd 하나당 한 행이라 전체 비급여코드 목록으로도 쓸 수 있다**(2026-07 실측 655종).
+   * **행마다 필드가 다르다** — 값 있는 종별만 오므로 가격 필드가 전부 optional 이다.
+   */
+  async getNonPaymentClassStats(
+    params: GetNonPaymentClassStatsParams = {},
+  ): Promise<NonPaymentClassStatResponse> {
+    const { data } = await getNonPaymentClassStats(
+      params,
+      withKrDataConfig(this.config),
+    );
+    return data;
+  }
+
+  /**
+   * 비급여 항목의 **지역(시도) 가격통계**. npayCd 하나당 한 행이다(2026-07 실측 655종).
+   *
+   * 종별통계와 마찬가지로 **행마다 값 있는 지역만 온다** — 가격 필드가 전부 optional 이다.
+   */
+  async getNonPaymentRegionStats(
+    params: GetNonPaymentRegionStatsParams = {},
+  ): Promise<NonPaymentRegionStatResponse> {
+    const { data } = await getNonPaymentRegionStats(
+      params,
+      withKrDataConfig(this.config),
+    );
+    return data;
+  }
+
   // ── 의약품성분약효정보조회서비스 (목록형) ──────────
 
   /**
@@ -567,6 +635,49 @@ export class HiraClient {
     params: GetMajorComponentCodeListParams = {},
   ): Promise<MajorComponentCodeResponse> {
     const { data } = await getMajorComponentCodeList(
+      params,
+      withKrDataConfig(this.config),
+    );
+    return data;
+  }
+
+  // ── 치료재료정보서비스 ────────────────────────────
+
+  /**
+   * 치료재료(스텐트·리드선 등 물리적 재료)의 급여/비급여 목록.
+   *
+   * **비급여 진료비(getNonPaymentDetails)와 다른 축이다** — 저긴 기관이 받는 진료비,
+   * 여긴 재료 자체의 전국 공통 마스터(mcatCd·상한단가)다. 섞지 마라.
+   *
+   * **필터 없이 부르면 0건이다**(2026-07 실측 — items 가 빈 문자열로 온다). mcatCd/itmNm/
+   * mnfEntpNm/impEntpNm/mdivCd 중 하나는 줘라. 급여구분(payTpNm)은 급여/급여중지/삭제가
+   * 섞여 오니 비급여만 필요하면 호출부에서 걸러라.
+   */
+  async getMaterials(
+    params: GetMaterialListParams = {},
+  ): Promise<MaterialListResponse> {
+    const { data } = await getMaterialList(
+      params,
+      withKrDataConfig(this.config),
+    );
+    return data;
+  }
+
+  // ── 신포괄기준정보서비스 ──────────────────────────
+
+  /**
+   * 신포괄수가제에서 분류코드(행위·약제·치료재료)의 포괄구분 매핑.
+   *
+   * **코드의 이름·가격은 없다** — divCd 는 다른 서비스가 소유한 코드고(divTyCd 로 갈린다),
+   * 여긴 그 코드의 '신포괄에서의 취급'(포괄/비포괄/전액본인부담…)만 준다.
+   * **비급여 진료비(npayCd)와 무관하다.**
+   *
+   * **adtStaDd 가 필수다.** '20160101' 로 주면 전건 52,319건이다(2026-07 실측).
+   */
+  async getNewDrgPayments(
+    params: GetNewDrgPaymentListParams,
+  ): Promise<NewDrgPaymentResponse> {
+    const { data } = await getNewDrgPaymentList(
       params,
       withKrDataConfig(this.config),
     );

@@ -12,6 +12,8 @@ import { NmcRegionService } from './nmc/nmc-region.service';
 import { NmcSubjectService } from './nmc/nmc-subject.service';
 import { NmcHospitalService } from './nmc/nmc-hospital.service';
 import { HealthcareHospitalService } from './healthcare/healthcare-hospital.service';
+import { HealthcareNonPaymentService } from './healthcare/healthcare-npay.service';
+import { JobQueueService } from './common/job-queue.service';
 import { HealthcareMetaService } from './healthcare/healthcare-meta.service';
 import { HealthcareCodeCache } from './healthcare/healthcare-code.cache';
 import { HiraAsmCodeCache } from './healthcare/hira-asm-code.cache';
@@ -47,8 +49,11 @@ export class ApplicationModule {
         HiraAsmCodeCache,
         RegionCache,
         HealthcareHospitalService,
+        HealthcareNonPaymentService,
         HealthcareMetaService,
         RegionService,
+        // 작업 큐. 서버가 넣고 배치(CLI)가 꺼낸다 — MQ 대체품이다.
+        JobQueueService,
       ],
       exports: [
         HiraHospitalService,
@@ -64,8 +69,11 @@ export class ApplicationModule {
         HiraAsmCodeCache,
         RegionCache,
         HealthcareHospitalService,
+        HealthcareNonPaymentService,
         HealthcareMetaService,
         RegionService,
+        // 작업 큐. 서버가 넣고 배치(CLI)가 꺼낸다 — MQ 대체품이다.
+        JobQueueService,
       ],
     };
   }
