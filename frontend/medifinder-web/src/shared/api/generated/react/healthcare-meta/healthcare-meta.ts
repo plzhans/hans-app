@@ -63,7 +63,7 @@ export const getHealthcareMetaControllerSubjectsUrl = () => {
 }
 
 /**
- * 병원 검색의 subject 파라미터에 쓴다.
+ * 병원 검색의 subject 파라미터에 쓴다. 각 과목에 계열(field: 의/치/한)과 전문과목 여부(specialist)가 붙는다 — 화면이 계열로 그룹핑하고, 전문의 필터는 specialist=true 만 쓴다.
  * @summary 진료과목 코드
  */
 export const healthcareMetaControllerSubjects = async ( options?: RequestInit): Promise<HealthcareMetaControllerSubjects200> => {

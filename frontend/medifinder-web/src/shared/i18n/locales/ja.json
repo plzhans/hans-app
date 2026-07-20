@@ -96,7 +96,14 @@
     "collapse": "折りたたむ",
     "close": "閉じる",
     "more": "+{{count}}件",
-    "optionCount": "{{count}}件"
+    "optionCount": "{{count}}件",
+    "specialist": "専門医",
+    "specialistHint": "選択した診療科目に専門医が実際にいる病院を検索します。",
+    "field": {
+      "med": "医科",
+      "dent": "歯科",
+      "km": "韓方"
+    }
   },
   "clinic": {
     "badge": {

@@ -4,6 +4,9 @@ import {
   HOSPITAL_TIERS,
   SUBJECT_GROUPS,
   TIER_NAMES,
+  subjectField,
+  isSpecialtySubject,
+  type MedicalField,
 } from '@hansapi/data/seed';
 import {
   SUBWAY_STATIONS,
@@ -27,6 +30,21 @@ export interface MetaCode {
   code: string;
   name: string;
   description?: string;
+}
+
+/**
+ * 진료과목 항목. 코드 항목에 **계열(의/치/한)과 전문과목 여부**를 더한다.
+ * 화면이 계열로 그룹핑하고, 전문의 필터는 specialist=true 만 쓴다.
+ */
+export interface MetaSubject extends MetaCode {
+  /** 면허 계열. med(의과) | dent(치과) | km(한방). subjectField() 가 판정한다. */
+  field: MedicalField;
+
+  /**
+   * 전문의 보드가 있는 과목인가. 치과(일반)·한방응급만 false 다 — 원본이 전문과목 코드를 따로
+   * 주지 않아 우리가 정의한다(isSpecialtySubject).
+   */
+  specialist: boolean;
 }
 
 /**
@@ -181,6 +199,20 @@ export class HealthcareMetaService {
       code: entry.code,
       name: codeName(entry, lang),
       description: entry.cmt ?? undefined,
+    }));
+  }
+
+  /**
+   * 진료과목. 코드·이름에 **계열(의/치/한)과 전문과목 여부**를 붙여 내려준다.
+   * 화면은 계열로 그룹핑하고, 전문의 필터는 specialist=true 만 옵션으로 쓴다.
+   */
+  listSubjects(lang: SupportedLang = FALLBACK_LANG): MetaSubject[] {
+    return this.codes.list('subject').map((entry) => ({
+      code: entry.code,
+      name: codeName(entry, lang),
+      description: entry.cmt ?? undefined,
+      field: subjectField(entry.code),
+      specialist: isSpecialtySubject(entry.code),
     }));
   }
 

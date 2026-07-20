@@ -369,6 +369,12 @@ export interface HospitalSearchCommand {
    */
   subjectCds?: string[];
 
+  /**
+   * 전문의 있는 과목 코드. subjectCds 와 같은 진료과목 코드지만 **그 과목 전문의를 실제로 보유한**
+   * 병원만 건다(specialist_cnt > 0). subjectCds 는 신고만 하면 걸리는 것과 다르다. 여러 개면 OR.
+   */
+  specialistCds?: string[];
+
   /** 병원명 (부분 일치) */
   name?: string;
 

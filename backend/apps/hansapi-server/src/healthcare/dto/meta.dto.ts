@@ -12,6 +12,23 @@ export class MetaCodeDto {
   readonly description?: string;
 }
 
+/** 진료과목 항목. 코드에 계열(의/치/한)과 전문과목 여부를 더한다. */
+export class MetaSubjectDto extends MetaCodeDto {
+  @ApiProperty({
+    enum: ['med', 'dent', 'km'],
+    description:
+      '면허 계열. med(의과) · dent(치과) · km(한방). 화면이 이걸로 그룹핑한다.',
+  })
+  readonly field!: string;
+
+  @ApiProperty({
+    type: Boolean,
+    description:
+      '전문의 보드가 있는 과목인가. 치과(일반)·한방응급만 false. 전문의 필터는 true 인 것만 옵션으로 쓴다.',
+  })
+  readonly specialist!: boolean;
+}
+
 /**
  * 진료 분야 그룹. 기본 검색의 칩이다.
  *

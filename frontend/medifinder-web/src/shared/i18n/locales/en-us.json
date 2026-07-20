@@ -96,7 +96,14 @@
     "collapse": "Collapse",
     "close": "Close",
     "more": "+{{count}} more",
-    "optionCount": "{{count}} items"
+    "optionCount": "{{count}} items",
+    "specialist": "Specialists",
+    "specialistHint": "Finds hospitals that actually have a board-certified specialist in the selected department.",
+    "field": {
+      "med": "Medical",
+      "dent": "Dental",
+      "km": "Korean Medicine"
+    }
   },
   "clinic": {
     "badge": {

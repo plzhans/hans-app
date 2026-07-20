@@ -28,6 +28,7 @@ import type {
   HospitalSummaryDto,
   HospitalDetailDto,
   MetaCodeDto,
+  MetaSubjectDto,
   MetaHospitalTierDto,
   MetaSubjectGroupDto,
   MetaAssessmentGroupDto,
@@ -63,8 +64,11 @@ export interface HospitalSearchParams {
   /** 병원 등급. TIER1(의원급) | TIER2(병원급) | TIER3(상급종합) | NURSING | MENTAL. 쉼표로 여러 개. */
   tier?: string;
 
-  /** 진료과목 코드 (IM, PED …) */
+  /** 진료과목 코드 (IM, PED …) — 신고만 하면 걸린다. */
   subject?: string;
+
+  /** 전문의 있는 과목 코드. subject 와 같은 코드지만 그 과목 전문의를 실제로 보유한 병원만. 쉼표 OR. */
+  specialist?: string;
 
   /** 병원명 부분 일치 */
   name?: string;
@@ -101,6 +105,7 @@ export function useHospitalSearch(params: HospitalSearchParams) {
       category: params.category || undefined,
       tier: params.tier || undefined,
       subject: params.subject || undefined,
+      specialist: params.specialist || undefined,
       name: params.name || undefined,
       emergency: params.emergency ? 'true' : undefined,
       baby: params.baby ? 'true' : undefined,
@@ -208,9 +213,10 @@ export function useNonPaymentRequest(id: string | undefined) {
 const unwrap = <T>(data: { items?: T[] }): T[] => data.items ?? [];
 
 /** 참조 데이터. 검색 조건 드롭다운을 채운다. */
+/** 진료과목. 각 과목에 계열(field: 의/치/한)과 전문과목 여부(specialist)가 붙는다. */
 export function useSubjects() {
   return useHealthcareMetaControllerSubjects({
-    query: { select: unwrap<MetaCodeDto> },
+    query: { select: unwrap<MetaSubjectDto> },
   });
 }
 

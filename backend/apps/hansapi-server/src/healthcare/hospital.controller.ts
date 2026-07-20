@@ -71,6 +71,7 @@ export class HealthcareHospitalController {
         classCds: csv(request.category),
         tiers: csv(request.tier),
         subjectCds: csv(request.subject),
+        specialistCds: csv(request.specialist),
         name: request.name,
         emergency: request.emergency === 'true',
         baby: request.baby === 'true',

@@ -49,6 +49,7 @@ export {
 } from './healthcare/healthcare-meta.service';
 export type {
   MetaCode,
+  MetaSubject,
   MetaCodeType,
   MetaSubwayStation,
 } from './healthcare/healthcare-meta.service';

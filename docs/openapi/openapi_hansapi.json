@@ -766,6 +766,16 @@
             }
           },
           {
+            "name": "specialist",
+            "required": false,
+            "in": "query",
+            "description": "전문의 있는 과목 코드. 쉼표로 여러 개(OR). subject 와 같은 진료과목 코드지만 **그 과목 전문의를 실제로 보유한** 병원만 건다(subject 는 신고만 하면 걸림). 옵션 목록은 /healthcare/meta/subjects 의 specialist=true 인 과목.",
+            "schema": {
+              "example": "IM,ORTHO",
+              "type": "string"
+            }
+          },
+          {
             "name": "name",
             "required": false,
             "in": "query",
@@ -987,7 +997,7 @@
     },
     "/healthcare/meta/subjects": {
       "get": {
-        "description": "병원 검색의 subject 파라미터에 쓴다.",
+        "description": "병원 검색의 subject 파라미터에 쓴다. 각 과목에 계열(field: 의/치/한)과 전문과목 여부(specialist)가 붙는다 — 화면이 계열로 그룹핑하고, 전문의 필터는 specialist=true 만 쓴다.",
         "operationId": "HealthcareMetaController_subjects",
         "parameters": [],
         "responses": {
@@ -1005,7 +1015,7 @@
                         "items": {
                           "type": "array",
                           "items": {
-                            "$ref": "#/components/schemas/MetaCodeDto"
+                            "$ref": "#/components/schemas/MetaSubjectDto"
                           }
                         }
                       }
@@ -1628,12 +1638,12 @@
   "tags": [],
   "servers": [
     {
-      "url": "https://develop-api.plzhans.com",
-      "description": "Development"
-    },
-    {
       "url": "http://127.0.0.1:3000",
       "description": "Local"
+    },
+    {
+      "url": "https://develop-api.plzhans.com",
+      "description": "Development"
     }
   ],
   "components": {
@@ -2812,6 +2822,42 @@
         },
         "required": [
           "items"
+        ]
+      },
+      "MetaSubjectDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "IM"
+          },
+          "name": {
+            "type": "string",
+            "example": "내과"
+          },
+          "description": {
+            "type": "string",
+            "description": "설명"
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "med",
+              "dent",
+              "km"
+            ],
+            "description": "면허 계열. med(의과) · dent(치과) · km(한방). 화면이 이걸로 그룹핑한다."
+          },
+          "specialist": {
+            "type": "boolean",
+            "description": "전문의 보드가 있는 과목인가. 치과(일반)·한방응급만 false. 전문의 필터는 true 인 것만 옵션으로 쓴다."
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "field",
+          "specialist"
         ]
       },
       "MetaCodeDto": {

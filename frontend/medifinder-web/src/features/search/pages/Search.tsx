@@ -309,6 +309,7 @@ export default function SearchPage() {
     sido: searchParams.get('sido') ?? '',
     region: searchParams.get('region') ?? '',
     subject: searchParams.get('subject') ?? '',
+    specialist: searchParams.get('specialist') ?? '',
     tier: searchParams.get('tier') ?? '',
     // 전문분야·심평원 평가는 상세 검색 필터다. 첫 페이지 섹션의 "더보기"(?assessment=cancer)로도 들어온다.
     specialty: searchParams.get('specialty') ?? '',
@@ -332,6 +333,7 @@ export default function SearchPage() {
   const sido = draft.sido;
   const region = draft.region;
   const subject = draft.subject;
+  const specialist = draft.specialist;
   const tier = draft.tier;
 
   /** 고르는 중. URL 은 아직 안 건드린다. */
@@ -373,6 +375,7 @@ export default function SearchPage() {
   const equipment = draft.equipment;
 
   const subjectCds = subject ? subject.split(',') : [];
+  const specialistCds = specialist ? specialist.split(',') : [];
   const tierCds = tier ? tier.split(',') : [];
   const specialtyCds = specialty ? specialty.split(',') : [];
   const assessmentCds = assessment ? assessment.split(',') : [];
@@ -466,6 +469,7 @@ export default function SearchPage() {
     // 서버가 시도 코드를 받으면 그 시도의 시군구 전체로 확장해 준다.
     region: applied.region || applied.sido,
     subject: applied.subject,
+    specialist: applied.specialist,
     tier: applied.tier,
     emergency,
     baby,
@@ -514,6 +518,15 @@ export default function SearchPage() {
       name: subjects?.find((s) => s.code === code)?.name ?? code,
       remove: () =>
         update({ subject: subjectCds.filter((c) => c !== code).join(',') }),
+    })),
+    // 전문의 칩. 진료과목과 코드가 같아 접두어로 구분하고, 이름 뒤에 '전문의'를 붙여 표기한다.
+    ...specialistCds.map((code) => ({
+      code: `specialist:${code}`,
+      name: `${subjects?.find((s) => s.code === code)?.name ?? code} ${t('search.specialist')}`,
+      remove: () =>
+        update({
+          specialist: specialistCds.filter((c) => c !== code).join(','),
+        }),
     })),
     ...tierCds.map((code) => ({
       code,
@@ -802,6 +815,24 @@ export default function SearchPage() {
                 selected={subjectCds}
                 onChange={(codes) => update({ subject: codes.join(',') })}
                 collapsible
+                groupByField
+              />
+            )}
+
+            {/*
+              전문의. 진료과목과 같은 코드지만 그 과목 전문의를 실제로 보유한 병원만 건다
+              (진료과목은 신고만 하면 걸림). 옵션은 전문과목(specialist)만 — 치과·한방응급은 빠진다.
+              달빛 탭에서는 진료과목처럼 감춘다.
+            */}
+            {!baby && (
+              <FilterRow
+                label={t('search.specialist')}
+                hint={t('search.specialistHint')}
+                options={(subjects ?? []).filter((s) => s.specialist)}
+                selected={specialistCds}
+                onChange={(codes) => update({ specialist: codes.join(',') })}
+                collapsible
+                groupByField
               />
             )}
 
@@ -814,15 +845,6 @@ export default function SearchPage() {
               selected={specialtyCds}
               onChange={(codes) => update({ specialty: codes.join(',') })}
               featured={FEATURED_SPECIALTIES}
-            />
-
-            {/* 보유장비 (CT·MRI·PET …). */}
-            <FilterRow
-              label={t('search.equipment')}
-              options={equipments ?? []}
-              selected={equipmentCds}
-              onChange={(codes) => update({ equipment: codes.join(',') })}
-              featured={FEATURED_EQUIPMENTS}
             />
 
             {/*
@@ -840,6 +862,15 @@ export default function SearchPage() {
                 featured={FEATURED_ASSESSMENTS}
               />
             )}
+
+            {/* 보유장비 (CT·MRI·PET …). */}
+            <FilterRow
+              label={t('search.equipment')}
+              options={equipments ?? []}
+              selected={equipmentCds}
+              onChange={(codes) => update({ equipment: codes.join(',') })}
+              featured={FEATURED_EQUIPMENTS}
+            />
 
             {/*
               특수진료 (방문진료·치매주치의 등 시범사업). **일반인이 가장 덜 찾는 필터라 맨 아래.**
@@ -880,6 +911,7 @@ export default function SearchPage() {
               onClick={() =>
                 update({
                   subject: '',
+                  specialist: '',
                   tier: '',
                   specialty: '',
                   assessment: '',
@@ -997,7 +1029,13 @@ interface FilterOption {
   code: string;
   name: string;
   description?: string;
+
+  /** 면허 계열 (의/치/한). groupByField 일 때 이걸로 묶는다. 없으면 그룹 안 함. */
+  field?: 'med' | 'dent' | 'km';
 }
+
+/** 계열 소제목 순서. 의과 → 치과 → 한방. */
+const FIELD_ORDER: Array<'med' | 'dent' | 'km'> = ['med', 'dent', 'km'];
 
 /**
  * 상세검색 한 줄. 왼쪽에 항목명, 오른쪽에 체크박스 그리드.
@@ -1017,6 +1055,7 @@ function FilterRow({
   group,
   collapsible,
   featured,
+  groupByField,
 }: {
   label: string;
 
@@ -1035,6 +1074,12 @@ function FilterRow({
    * `+N` 을 눌러 펼친다. featured 순서대로 앞에 온다. collapsible 과는 같이 쓰지 않는다.
    */
   featured?: string[];
+
+  /**
+   * 옵션을 계열(의/치/한) 소제목으로 나눠 보여준다. option.field 로 묶는다.
+   * 진료과목·전문의처럼 계열이 있는 필터에 쓴다. collapsible 과 같이 쓴다(접었다 펴는 긴 목록).
+   */
+  groupByField?: boolean;
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -1134,35 +1179,45 @@ function FilterRow({
             **flex 다.** grid 로 열을 고정하면 항목이 3개뿐인 행(병원 규모)에서
             체크박스가 화면 폭만큼 벌어져 서로 멀어진다. flex 는 내용 폭만 차지한다.
           */}
-          <div className="flex flex-1 flex-wrap gap-x-5 gap-y-1.5">
-            {shown.map((option) => {
-              const codes = group ? option.code.split(',') : [option.code];
-              const checked = codes.every((code) => selected.includes(code));
-
-              return (
-                <label
+          {groupByField ? (
+            // 계열(의/치/한) 소제목으로 나눠 그린다. 해당 계열이 있는 것만.
+            <div className="flex-1 space-y-2">
+              {FIELD_ORDER.filter((f) =>
+                shown.some((o) => o.field === f),
+              ).map((f) => (
+                <div key={f}>
+                  <p className="!my-0 mb-1 text-xs font-semibold text-slate-400">
+                    {t(`search.field.${f}`)}
+                  </p>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                    {shown
+                      .filter((o) => o.field === f)
+                      .map((option) => (
+                        <FilterCheckbox
+                          key={option.code}
+                          option={option}
+                          group={group}
+                          selected={selected}
+                          onToggle={() => toggle(option)}
+                        />
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-1 flex-wrap gap-x-5 gap-y-1.5">
+              {shown.map((option) => (
+                <FilterCheckbox
                   key={option.code}
-                  title={option.description}
-                  className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(option)}
-                    className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span
-                    className={cn(
-                      'truncate',
-                      checked && 'font-medium text-primary-700',
-                    )}
-                  >
-                    {option.name}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
+                  option={option}
+                  group={group}
+                  selected={selected}
+                  onToggle={() => toggle(option)}
+                />
+              ))}
+            </div>
+          )}
 
           {/* featured: 오른쪽 위 끝에 고정된 +N / 닫기. self-start 라 여러 줄이어도 맨 위에 붙는다. */}
           {featured && (hidden > 0 || expanded) && (
@@ -1203,5 +1258,38 @@ function FilterRow({
         )}
       </div>
     </div>
+  );
+}
+
+/** 체크박스 하나. 평평/계열그룹 두 렌더가 공유한다. */
+function FilterCheckbox({
+  option,
+  group,
+  selected,
+  onToggle,
+}: {
+  option: FilterOption;
+  group?: boolean;
+  selected: string[];
+  onToggle: () => void;
+}) {
+  const codes = group ? option.code.split(',') : [option.code];
+  const checked = codes.every((code) => selected.includes(code));
+
+  return (
+    <label
+      title={option.description}
+      className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700"
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+      />
+      <span className={cn('truncate', checked && 'font-medium text-primary-700')}>
+        {option.name}
+      </span>
+    </label>
   );
 }

@@ -364,6 +364,22 @@ export function subjectField(subjectCd: string): MedicalField {
 }
 
 /**
+ * **전문의 보드가 없는 진료과목.** 진료과목 47종 중 이 둘만 전문과목이 아니다(2026-07 실측):
+ *   DENT   치과(일반 진료) — 세부 치과전문의는 따로 있다(구강악안면외과·치과보철과…)
+ *   KM_EM  한방응급 — 한방 응급 보드 자체가 없다
+ * 둘 다 원본에 specialist_cnt 가 통째로 NULL 이다. 나머지 45종 = 공식 전문과목(의26·치11·한8).
+ *
+ * **원본(HIRA)이 전문과목 코드를 따로 주지 않는다** — 전문의수(dtlSdrCnt)를 진료과목코드(dgsbjtCd)에
+ * 얹어줄 뿐이다. 그래서 "전문과목이냐"를 여기서 우리가 정의한다.
+ */
+export const NON_SPECIALTY_SUBJECTS = ['DENT', 'KM_EM'] as const;
+
+/** 전문과목(전문의 보드가 있는 과목)인가. 전문의 필터의 옵션 목록을 이걸로 거른다. */
+export function isSpecialtySubject(subjectCd: string): boolean {
+  return !(NON_SPECIALTY_SUBJECTS as readonly string[]).includes(subjectCd);
+}
+
+/**
  * 계열이 하나로 고정되는 기관. **의원급뿐이다.**
  *
  * 한의원·치과의원은 한의사·치과의사가 개설하고 본인만 진료한다. 다른 계열 과목이 있을 수 없다.

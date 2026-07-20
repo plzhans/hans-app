@@ -176,6 +176,8 @@ export * from './metaAssessmentGroupDto';
 export * from './metaAssessmentItemDto';
 export * from './metaCodeDto';
 export * from './metaHospitalTierDto';
+export * from './metaSubjectDto';
+export * from './metaSubjectDtoField';
 export * from './metaSubjectGroupDto';
 export * from './nmcBabyControllerListParams';
 export * from './nmcBabyHospitalListBody';

@@ -83,6 +83,17 @@ export class HospitalSearchRequestDto {
   @IsString()
   readonly subject?: string;
 
+  @ApiPropertyOptional({
+    description:
+      '전문의 있는 과목 코드. 쉼표로 여러 개(OR). subject 와 같은 진료과목 코드지만 ' +
+      '**그 과목 전문의를 실제로 보유한** 병원만 건다(subject 는 신고만 하면 걸림). ' +
+      '옵션 목록은 /healthcare/meta/subjects 의 specialist=true 인 과목.',
+    example: 'IM,ORTHO',
+  })
+  @IsOptional()
+  @IsString()
+  readonly specialist?: string;
+
   @ApiPropertyOptional({ description: '병원명 (부분 일치)' })
   @IsOptional()
   @IsString()

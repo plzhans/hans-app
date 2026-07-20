@@ -23,6 +23,8 @@ export {
   hospitalTier,
   type HospitalTier,
   subjectField,
+  isSpecialtySubject,
+  NON_SPECIALTY_SUBJECTS,
   type MedicalField,
   type SubjectGroupSeed,
   type HospitalTierSeed,

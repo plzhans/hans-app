@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.0.1
  */
 import type { ListResponseDto } from './listResponseDto';
-import type { MetaCodeDto } from './metaCodeDto';
+import type { MetaSubjectDto } from './metaSubjectDto';
 
 export type HealthcareMetaControllerSubjects200 = ListResponseDto & {
-  items?: MetaCodeDto[];
+  items?: MetaSubjectDto[];
 };

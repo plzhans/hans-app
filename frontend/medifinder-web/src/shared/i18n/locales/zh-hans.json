@@ -96,7 +96,14 @@
     "collapse": "收起",
     "close": "关闭",
     "more": "+{{count}}个",
-    "optionCount": "{{count}}个"
+    "optionCount": "{{count}}个",
+    "specialist": "专科医生",
+    "specialistHint": "查找所选诊疗科目实际拥有专科医生的医院。",
+    "field": {
+      "med": "医科",
+      "dent": "牙科",
+      "km": "韩医"
+    }
   },
   "clinic": {
     "badge": {

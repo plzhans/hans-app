@@ -11,6 +11,7 @@ import { ListResponseDto } from '../common/dto/list.response.dto';
 import {
   MetaAssessmentGroupDto,
   MetaCodeDto,
+  MetaSubjectDto,
   MetaHospitalTierDto,
   MetaSubjectGroupDto,
 } from './dto/meta.dto';
@@ -36,11 +37,13 @@ export class HealthcareMetaController {
   @Get('subjects')
   @ApiOperation({
     summary: '진료과목 코드',
-    description: '병원 검색의 subject 파라미터에 쓴다.',
+    description:
+      '병원 검색의 subject 파라미터에 쓴다. 각 과목에 계열(field: 의/치/한)과 ' +
+      '전문과목 여부(specialist)가 붙는다 — 화면이 계열로 그룹핑하고, 전문의 필터는 specialist=true 만 쓴다.',
   })
-  @ApiListResponse(MetaCodeDto)
-  subjects(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
-    return new ListResponseDto(this.service.listCodes('subject', lang));
+  @ApiListResponse(MetaSubjectDto)
+  subjects(@Lang() lang: SupportedLang): ListResponseDto<MetaSubjectDto> {
+    return new ListResponseDto(this.service.listSubjects(lang));
   }
 
   @Get('subject-groups')

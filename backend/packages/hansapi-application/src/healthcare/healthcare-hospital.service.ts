@@ -503,6 +503,17 @@ export class HealthcareHospitalService {
       )`);
     }
 
+    if (command.specialistCds?.length) {
+      // 진료과목과 같은 코드지만 **전문의를 실제로 보유한** 병원만(specialist_cnt > 0).
+      // 신고만 하면 걸리는 subjectCds 와 다르다.
+      conditions.push(Prisma.sql`EXISTS (
+        SELECT 1 FROM healthcare_hospital_subject s
+         WHERE s.hospital_id = h.id
+           AND s.subject_cd IN (${Prisma.join(command.specialistCds)})
+           AND s.specialist_cnt > 0
+      )`);
+    }
+
     return Prisma.join(conditions, ' AND ');
   }
 
