@@ -324,15 +324,16 @@ function tabOf(status: string): 'table' | 'json' {
             <thead>
               <tr>
                 <!--
-                  응답에는 'Required' 를 쓰지 않는다. 요청의 Required 와 뜻이 정반대라서다.
-                    요청  Required = 클라이언트가 반드시 **보내야** 한다  (의무)
+                  요청·응답 모두 'Required' 로 단어를 맞춘다. required 는 OpenAPI/JSON
+                  Schema 의 객체 스키마 키워드라 요청 바디든 응답 바디든 똑같이 쓴다 —
+                  "이 키가 그 객체에 반드시 있다" 는 뜻이고, 문맥에 따라 누가 보증하냐만 바뀐다.
+                    요청  required = 클라이언트가 반드시 **보내야** 한다  (의무)
                     응답  required = 서버가 반드시 **준다**              (보증)
-                  같은 단어를 쓰면 읽는 사람이 "내가 뭘 보내야 하지?" 로 읽는다.
-                  스키마의 required 는 그대로 읽되, 표시는 '항상 포함' 으로 한다.
+                  뜻이 갈리는 건 배지의 title(툴팁)로 풀어 준다.
                 -->
                 <th>Field</th>
                 <th>Type</th>
-                <th>항상 포함</th>
+                <th>Required</th>
                 <th>Description</th>
               </tr>
             </thead>
@@ -361,14 +362,14 @@ function tabOf(status: string): 'table' | 'json' {
                     v-if="row.required"
                     class="oa-p-required"
                     title="서버가 항상 내려주는 필드입니다. 없을 일이 없습니다."
-                    >항상</span
+                    >required</span
                   >
                   <!-- 없을 수 있다 = 폴백을 준비해야 한다. -->
                   <span
                     v-else
                     class="oa-p-optional"
                     title="값이 없으면 이 필드는 응답에서 생략됩니다."
-                    >없을 수 있음</span
+                    >optional</span
                   >
                 </td>
                 <td class="oa-p-desc">{{ row.description }}</td>

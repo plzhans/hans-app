@@ -143,8 +143,19 @@ function constraintsOf(p: any): string {
           <td class="oa-p-name"><code>{{ p.name }}</code></td>
           <td class="oa-p-type">{{ typeOf(p) }}</td>
           <td class="oa-p-req">
-            <span v-if="p.required" class="oa-p-required">필수</span>
-            <span v-else class="oa-p-optional">-</span>
+            <!-- 응답 표(ResponsesTable)와 단어를 맞춘다: required / optional. -->
+            <span
+              v-if="p.required"
+              class="oa-p-required"
+              title="반드시 보내야 하는 파라미터입니다. 없으면 요청이 거부됩니다."
+              >required</span
+            >
+            <span
+              v-else
+              class="oa-p-optional"
+              title="생략할 수 있는 파라미터입니다."
+              >optional</span
+            >
           </td>
           <td class="oa-p-constraints">{{ constraintsOf(p) }}</td>
           <td class="oa-p-desc">{{ p.description }}</td>
