@@ -335,10 +335,14 @@ export interface HospitalDetail extends HospitalSummary {
 }
 
 /** 목록 조회 조건 */
-export interface HospitalSearchCommand {
-  page: number;
-  size: number;
-
+/**
+ * 병원 검색 조건(페이지·스크롤 공통).
+ *
+ * 페이지네이션(page/size)과 무한 스크롤(size/afterId)이 **필터는 똑같이** 쓴다.
+ * 커서 방식만 다르므로 필터 필드를 여기 모아 두고, 각 명령이 자기 커서 필드를 얹어 확장한다.
+ * buildFilter 는 이 타입만 받는다 — 두 경로가 필터 조립을 한 벌로 공유한다.
+ */
+export interface HospitalFilterCommand {
   /**
    * 지역 코드. **시도·시군구 둘 다 받는다.**
    *
@@ -398,4 +402,41 @@ export interface HospitalSearchCommand {
 
   /** 보유장비 코드. healthcare_hospital_equipment. 여러 개면 OR. */
   equipmentCds?: string[];
+}
+
+/** 페이지네이션 검색 명령. 필터는 공통, 커서는 page/size(offset). */
+export interface HospitalSearchCommand extends HospitalFilterCommand {
+  page: number;
+  size: number;
+}
+
+/**
+ * 무한 스크롤 명령. 필터는 공통, 커서는 afterId(마지막으로 본 병원 id) 다.
+ *
+ * page/size(offset) 대신 id 커서를 쓰는 이유: offset 은 뒤로 갈수록 앞 행을 세느라 느려지고,
+ * 사이에 병원이 추가/삭제되면 페이지가 밀려 항목이 중복·누락된다. id 커서는 "이 id 다음부터" 라
+ * 그런 흔들림이 없다. afterId 가 없으면 첫 페이지다.
+ */
+export interface HospitalScrollCommand extends HospitalFilterCommand {
+  size: number;
+
+  /** 직전 응답 nextToken 으로 받은 마지막 병원 id. 이 id **초과**부터 검색한다. 없으면 처음부터. */
+  afterId?: number;
+}
+
+/**
+ * 무한 스크롤 결과. 페이지네이션과 달리 총건수·총페이지가 없다 —
+ * 스크롤은 "다음이 있냐" 만 알면 되고, 총건수는 매 호출 COUNT 를 강요해 비싸다.
+ */
+export interface HospitalScrollResult {
+  items: HospitalSummary[];
+
+  /**
+   * 다음 스크롤 커서. 다음 호출에 그대로 실어 보내면 이 지점 다음부터 이어 준다.
+   * **없으면(undefined) 다음 페이지가 없다는 뜻이다** — 스크롤을 멈춘다.
+   *
+   * 지금은 DB 기반이라 마지막 병원 id 를 문자열로 담는다. 나중에 검색 엔진으로 바뀌어도
+   * 커서 인코딩만 바뀔 뿐 계약(불투명 문자열)은 그대로라, 클라이언트는 내용을 해석하지 않는다.
+   */
+  nextToken?: string;
 }

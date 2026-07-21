@@ -26,8 +26,11 @@ import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
 import { ApiPageResponse } from '../common/dto/api-page-response.decorator';
 import { PageResponseDto } from '../common/dto/page.response.dto';
+import { ApiScrollResponse } from '../common/dto/api-scroll-response.decorator';
+import { ScrollResponseDto } from '../common/dto/scroll.response.dto';
 import {
   HospitalDetailDto,
+  HospitalScrollRequestDto,
   HospitalSearchRequestDto,
   HospitalSummaryDto,
 } from './dto/hospital.dto';
@@ -87,6 +90,43 @@ export class HealthcareHospitalController {
     );
 
     return new PageResponseDto(page, page.items);
+  }
+
+  @Get('scroll')
+  @ApiOperation({
+    summary: '병원 무한 스크롤',
+    description:
+      '검색(GET /healthcare/hospitals)과 **필터는 같고 페이징 방식만 다르다.** ' +
+      '페이지 번호 대신 nextToken 으로 이어 받는다 — 무한 스크롤 화면용이다.\n\n' +
+      '**첫 호출은 nextToken 없이** 필터만 보낸다. 응답의 nextToken 을 다음 호출에 ' +
+      '그대로 실어 보내면 이어진다. **nextToken 이 없으면 마지막 페이지다** — 그만 부른다.',
+  })
+  @ApiScrollResponse(HospitalSummaryDto)
+  async scroll(
+    @Query() request: HospitalScrollRequestDto,
+    @Lang() lang: SupportedLang,
+  ): Promise<ScrollResponseDto<HospitalSummaryDto>> {
+    const result = await this.service.scroll(
+      {
+        size: request.size,
+        afterId: parseToken(request.nextToken),
+        regionCd: request.region,
+        classCds: csv(request.category),
+        tiers: csv(request.tier),
+        subjectCds: csv(request.subject),
+        specialistCds: csv(request.specialist),
+        name: request.name,
+        emergency: request.emergency === 'true',
+        baby: request.baby === 'true',
+        asmItemCds: csv(request.assessment),
+        specialtyCds: csv(request.specialty),
+        specialCds: csv(request.special),
+        equipmentCds: csv(request.equipment),
+      },
+      lang,
+    );
+
+    return new ScrollResponseDto(result.items, result.nextToken);
   }
 
   @Get(':id')
@@ -161,6 +201,18 @@ export class HealthcareHospitalController {
     }
     return { result };
   }
+}
+
+/**
+ * nextToken → afterId(병원 id). 지금은 토큰이 곧 마지막 병원 id 라 그대로 파싱한다.
+ * 비었거나 숫자가 아니면 undefined(처음부터) — 조작된 토큰에 500 을 내지 않고 첫 페이지로 흘린다.
+ */
+function parseToken(token?: string): number | undefined {
+  if (!token) {
+    return undefined;
+  }
+  const id = Number(token);
+  return Number.isInteger(id) && id > 0 ? id : undefined;
 }
 
 /** 'A,B,C' → ['A','B','C']. 빈 값은 버린다 — 빈 문자열이 코드로 들어가면 아무것도 안 걸린다. */

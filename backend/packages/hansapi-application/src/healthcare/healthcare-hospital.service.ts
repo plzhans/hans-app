@@ -37,6 +37,9 @@ import {
   HospitalAssessmentGroup,
   HospitalAssessmentItem,
   HospitalDetail,
+  HospitalFilterCommand,
+  HospitalScrollCommand,
+  HospitalScrollResult,
   HospitalSearchCommand,
   HospitalSummary,
   HospitalTransport,
@@ -144,11 +147,48 @@ export class HealthcareHospitalService {
   }
 
   /**
+   * 무한 스크롤. 검색과 필터는 같고 **커서만 다르다** — page/size(offset) 대신
+   * afterId(마지막으로 본 병원 id) 이후를 이어 낸다.
+   *
+   * 총건수(COUNT)를 세지 않는다 — 스크롤엔 총페이지가 없고, 매 호출 COUNT 는 비싸다.
+   * 저장소가 size+1 개를 주므로, size 를 넘겨 받으면 "뒤가 더 있다" 는 뜻이다. 그럴 때만
+   * nextToken(= 잘라낸 마지막 항목의 id)을 실어 준다. size 이하면 nextToken 이 없다 = 끝.
+   */
+  async scroll(
+    command: HospitalScrollCommand,
+    lang: SupportedLang = FALLBACK_LANG,
+  ): Promise<HospitalScrollResult> {
+    const filter = this.buildFilter(command);
+
+    const rows = await this.repo.searchScroll(
+      filter,
+      lang,
+      command.afterId,
+      command.size,
+    );
+
+    // size+1 째가 있으면 뒤가 더 있다. 그 여분은 버리고 size 개만 응답한다.
+    const hasMore = rows.length > command.size;
+    const page = hasMore ? rows.slice(0, command.size) : rows;
+
+    const items = page.map((row) =>
+      this.toSummary(this.listRowToSource(row), lang),
+    );
+
+    return {
+      items,
+      // 커서는 응답에 실제로 담은 마지막 병원 id. 다음 호출이 이 id 초과부터 이어 받는다.
+      nextToken: hasMore ? String(items[items.length - 1].id) : undefined,
+    };
+  }
+
+  /**
    * 검색 명령을 저장소가 받을 원시 필터로 푼다. **캐시에 의존하는 결정은 여기서 끝낸다** —
    * 지역 코드를 시군구로 펴고(RegionCache), 적정성평가 항목을 검증된 컬럼명으로 바꾼다(asmCodes).
-   * 저장소는 캐시를 모른 채 SQL 만 조립한다.
+   * 저장소는 캐시를 모른 채 SQL 만 조립한다. 페이지·스크롤이 필터를 공유하므로 커서 무관한
+   * 공통 필터 타입만 받는다.
    */
-  private buildFilter(command: HospitalSearchCommand): HospitalSearchFilter {
+  private buildFilter(command: HospitalFilterCommand): HospitalSearchFilter {
     return {
       // 시도 코드가 오면 그 시도의 시군구 전체로 편다(시군구 코드면 자신뿐이라 등가).
       regionCds: command.regionCd

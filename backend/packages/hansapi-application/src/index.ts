@@ -61,6 +61,8 @@ export type {
   HospitalSummary,
   HospitalDetail,
   HospitalSearchCommand,
+  HospitalScrollCommand,
+  HospitalScrollResult,
   HospitalSubject,
   HospitalHours,
   HospitalStaff,

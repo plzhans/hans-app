@@ -93,6 +93,43 @@ export class HealthcareHospitalRepository {
   ): Promise<HospitalListRow[]> {
     const where = this.buildWhere(filter);
     return this.prisma.$queryRaw<HospitalListRow[]>(Prisma.sql`
+      ${this.selectFrom(lang)}
+       WHERE ${where}
+       ORDER BY h.id
+       LIMIT ${size} OFFSET ${(page - 1) * size}
+    `);
+  }
+
+  /**
+   * 무한 스크롤 한 묶음. **offset 이 아니라 id 커서(afterId)로** 다음 구간을 집는다.
+   *
+   * `h.id > afterId` 로 직전 마지막 이후만 읽으므로 정렬(ORDER BY h.id)이 커서와 일치한다.
+   * 서비스가 "다음이 더 있나" 를 알 수 있도록 **size+1 개를 뽑아** 넘긴다 — 서비스가 size 로 자르고
+   * 남는 1개의 존재로 nextToken 을 만들지 정한다. afterId 가 없으면 처음부터다.
+   */
+  searchScroll(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+    afterId: number | undefined,
+    size: number,
+  ): Promise<HospitalListRow[]> {
+    const where = this.buildWhere(filter);
+    const cursor =
+      afterId !== undefined ? Prisma.sql`AND h.id > ${afterId}` : Prisma.empty;
+    return this.prisma.$queryRaw<HospitalListRow[]>(Prisma.sql`
+      ${this.selectFrom(lang)}
+       WHERE ${where} ${cursor}
+       ORDER BY h.id
+       LIMIT ${size + 1}
+    `);
+  }
+
+  /**
+   * 목록 SELECT + FROM/JOIN 공통 조각. 페이지·스크롤이 **같은 프로젝션**을 써야
+   * 두 경로의 매핑(listRowToSource)이 한 벌로 유지된다. WHERE·ORDER·LIMIT 만 호출부가 얹는다.
+   */
+  private selectFrom(lang: SupportedLang): Prisma.Sql {
+    return Prisma.sql`
       SELECT h.id, h.name, h.tel, h.addr, h.post_no, h.lat, h.lon,
              h.emergency_yn, h.baby_yn, h.emdong_nm,
              i.name AS i18n_name,
@@ -107,11 +144,7 @@ export class HealthcareHospitalRepository {
         -- 이름은 부팅 때 올려둔 캐시(HealthcareCodeCache·RegionCache)에서 붙인다.
         -- 전문병원 지정은 병원당 최대 1건이라 이 JOIN 이 행을 늘리지 않는다.
         LEFT JOIN healthcare_hospital_capability spc ON spc.hospital_id = h.id AND spc.tp = 'specialty'
-        LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
-       WHERE ${where}
-       ORDER BY h.id
-       LIMIT ${size} OFFSET ${(page - 1) * size}
-    `);
+        LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}`;
   }
 
   /** 검색 조건에 맞는 총 건수. */

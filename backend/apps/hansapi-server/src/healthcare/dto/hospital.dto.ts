@@ -16,32 +16,15 @@ import {
 } from '@hansapi/application';
 
 /**
- * 통합 병원 검색 조건.
+ * 통합 병원 검색 **필터**(페이지·스크롤 공통).
  *
  * 코드는 전부 **우리 코드**다. 원본(HIRA/NMC) 코드가 아니다.
  * 목록은 /healthcare/meta/* 에서 받는다.
+ *
+ * 페이지네이션(HospitalSearchRequestDto)과 무한 스크롤(HospitalScrollRequestDto)이
+ * 이 필터를 그대로 물려받고 커서 필드만 각자 얹는다 — 필터를 한 곳에서만 고치면 된다.
  */
-export class HospitalSearchRequestDto {
-  @ApiPropertyOptional({ description: '페이지 번호', default: DEFAULT_PAGE })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  readonly page: number = DEFAULT_PAGE;
-
-  @ApiPropertyOptional({
-    description: '페이지 크기',
-    default: DEFAULT_PAGE_SIZE,
-    minimum: MIN_PAGE_SIZE,
-    maximum: MAX_PAGE_SIZE,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(MIN_PAGE_SIZE)
-  @Max(MAX_PAGE_SIZE)
-  readonly size: number = DEFAULT_PAGE_SIZE;
-
+export class HospitalFilterRequestDto {
   @ApiPropertyOptional({
     description: '시군구 코드. /address/regions 참조',
     example: '11001',
@@ -149,6 +132,61 @@ export class HospitalSearchRequestDto {
   @IsOptional()
   @IsString()
   readonly equipment?: string;
+}
+
+/**
+ * 페이지네이션 검색 조건. 필터(HospitalFilterRequestDto) + page/size(offset).
+ * 총건수·총페이지가 필요한 화면(페이지 번호 UI)이 쓴다.
+ */
+export class HospitalSearchRequestDto extends HospitalFilterRequestDto {
+  @ApiPropertyOptional({ description: '페이지 번호', default: DEFAULT_PAGE })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  readonly page: number = DEFAULT_PAGE;
+
+  @ApiPropertyOptional({
+    description: '페이지 크기',
+    default: DEFAULT_PAGE_SIZE,
+    minimum: MIN_PAGE_SIZE,
+    maximum: MAX_PAGE_SIZE,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(MIN_PAGE_SIZE)
+  @Max(MAX_PAGE_SIZE)
+  readonly size: number = DEFAULT_PAGE_SIZE;
+}
+
+/**
+ * 무한 스크롤 조건. 필터(HospitalFilterRequestDto) + nextToken 커서.
+ *
+ * page 가 없다 — 스크롤은 페이지 번호로 점프하지 않고 nextToken 으로 이어 받는다.
+ */
+export class HospitalScrollRequestDto extends HospitalFilterRequestDto {
+  @ApiPropertyOptional({
+    description:
+      '이어받기 커서. **직전 응답의 nextToken 을 그대로** 실어 보낸다. ' +
+      '비우면 처음부터다. 값은 불투명 문자열이니 클라이언트가 해석하지 마라.',
+  })
+  @IsOptional()
+  @IsString()
+  readonly nextToken?: string;
+
+  @ApiPropertyOptional({
+    description: '한 번에 가져올 개수',
+    default: DEFAULT_PAGE_SIZE,
+    minimum: MIN_PAGE_SIZE,
+    maximum: MAX_PAGE_SIZE,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(MIN_PAGE_SIZE)
+  @Max(MAX_PAGE_SIZE)
+  readonly size: number = DEFAULT_PAGE_SIZE;
 }
 
 // ── 응답 ───────────────────────────────────────────────────
