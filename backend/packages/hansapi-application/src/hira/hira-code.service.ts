@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
+import { HiraCodeRepository } from './hira-code.repository';
 import {
   HIRA_CODE_TYPE_DEFS,
   type HiraCodeResponse,
@@ -24,19 +24,12 @@ export interface HiraCodeListCommand {
  */
 @Injectable()
 export class HiraCodeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HiraCodeRepository) {}
 
   async listCodes(command: HiraCodeListCommand): Promise<HiraCodeResponse> {
-    const where = { tp: command.tp };
-
     const [rows, totalCount] = await Promise.all([
-      this.prisma.hira_code.findMany({
-        where,
-        orderBy: { cd: 'asc' },
-        skip: (command.page - 1) * command.size,
-        take: command.size,
-      }),
-      this.prisma.hira_code.count({ where }),
+      this.repo.list(command.tp, command.page, command.size),
+      this.repo.count(command.tp),
     ]);
 
     const { toItem } = HIRA_CODE_TYPE_DEFS[command.tp];

@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 
 import type {
   ClinicTop5Item,
@@ -14,6 +13,7 @@ import type {
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
 import { MirrorListCommand } from '../common/mirror.result';
+import { HiraHospitalRepository } from './hira-hospital.repository';
 
 /**
  * HIRA 원본 미러 조회.
@@ -26,18 +26,14 @@ import { MirrorListCommand } from '../common/mirror.result';
  */
 @Injectable()
 export class HiraHospitalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HiraHospitalRepository) {}
 
   async listHospitals(
     command: MirrorListCommand,
   ): Promise<HospitalListResponse> {
     const [rows, totalCount] = await Promise.all([
-      this.prisma.hira_hospital.findMany({
-        orderBy: { ykiho: 'asc' },
-        skip: (command.page - 1) * command.size,
-        take: command.size,
-      }),
-      this.prisma.hira_hospital.count(),
+      this.repo.listHospitals(command.page, command.size),
+      this.repo.countHospitals(),
     ]);
 
     return toKrDataEnvelope<HospitalItem>({
@@ -50,9 +46,7 @@ export class HiraHospitalService {
 
   /** 1건 조회. 없으면 items 가 빈 배열이고 totalCount 가 0 이다 (원본 API 와 같은 규칙). */
   async getHospital(ykiho: string): Promise<HospitalListResponse> {
-    const row = await this.prisma.hira_hospital.findUnique({
-      where: { ykiho },
-    });
+    const row = await this.repo.getHospital(ykiho);
 
     return toKrDataEnvelope<HospitalItem>({
       items: row ? [row.data as HospitalItem] : [],
@@ -79,13 +73,8 @@ export class HiraHospitalService {
     command: MirrorListCommand,
   ): Promise<NonPaymentDetailResponse> {
     const [rows, totalCount] = await Promise.all([
-      this.prisma.hira_hospital_npay.findMany({
-        where: { ykiho },
-        orderBy: { sno: 'asc' },
-        skip: (command.page - 1) * command.size,
-        take: command.size,
-      }),
-      this.prisma.hira_hospital_npay.count({ where: { ykiho } }),
+      this.repo.listNonPayments(ykiho, command.page, command.size),
+      this.repo.countNonPayments(ykiho),
     ]);
 
     return toKrDataEnvelope<NonPaymentDetailItem>({
@@ -110,9 +99,7 @@ export class HiraHospitalService {
    * 미러는 원본을 보존하는 자리고, 정규화는 통합 병원 조회(HealthcareHospitalService)가 한다.
    */
   async getAssessment(ykiho: string): Promise<HospitalAssessmentResponse> {
-    const row = await this.prisma.hira_hospital_asm.findUnique({
-      where: { ykiho },
-    });
+    const row = await this.repo.getAssessment(ykiho);
 
     return toKrDataEnvelope<HospitalAssessmentItem>({
       items: row ? [row.data as HospitalAssessmentItem] : [],
@@ -134,9 +121,7 @@ export class HiraHospitalService {
    * 오류로 주지 않으므로 여기서도 404 를 만들지 않는다.
    */
   async getClinicTop5(ykiho: string): Promise<ClinicTop5Response> {
-    const row = await this.prisma.hira_hospital_detail.findUnique({
-      where: { ykiho_op: { ykiho, op: 'top5' } },
-    });
+    const row = await this.repo.getClinicTop5(ykiho);
 
     // 적재는 0건 응답도 행으로 남긴다(재조회를 막으려고). 그때 data 는 객체가 아니라 []다.
     const item =

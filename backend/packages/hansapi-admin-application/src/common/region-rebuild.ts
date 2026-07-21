@@ -35,9 +35,7 @@ export async function rebuildNmcRegions(
        GROUP BY sido_nm, sggu_nm
     `;
 
-    return summarize(
-      await tx.nmc_region.findMany({ select: { sido_nm: true } }),
-    );
+    return summarize(await tx.nmcRegion.findMany({ select: { sidoNm: true } }));
   });
 }
 
@@ -63,14 +61,14 @@ export async function rebuildHiraRegions(
     `;
 
     return summarize(
-      await tx.hira_region.findMany({ select: { sido_nm: true } }),
+      await tx.hiraRegion.findMany({ select: { sidoNm: true } }),
     );
   });
 }
 
-function summarize(rows: { sido_nm: string | null }[]): RegionRebuildResult {
+function summarize(rows: { sidoNm: string | null }[]): RegionRebuildResult {
   return {
     regions: rows.length,
-    sidos: new Set(rows.map((row) => row.sido_nm)).size,
+    sidos: new Set(rows.map((row) => row.sidoNm)).size,
   };
 }

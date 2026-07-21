@@ -1,9 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 import type { HospitalFullDownItem, NmcClient } from '@krdata/nmc';
 
-import { upsertMirrorRows } from '../common/mirror-upsert';
-import { rebuildNmcRegions } from '../common/region-rebuild';
+import { NmcHospitalSyncRepository } from './nmc-hospital-sync.repository';
 import { NMC_CLIENT } from '../krdata.providers';
 import {
   resolveSyncOptions,
@@ -22,7 +20,7 @@ export class NmcHospitalSyncService {
   private readonly logger = new Logger(NmcHospitalSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: NmcHospitalSyncRepository,
     @Inject(NMC_CLIENT) private readonly client: NmcClient,
   ) {}
 
@@ -69,7 +67,7 @@ export class NmcHospitalSyncService {
     }
 
     // 지역 목록은 병원 데이터의 집계다. 적재가 끝났으니 다시 만든다.
-    const regions = await rebuildNmcRegions(this.prisma);
+    const regions = await this.repo.rebuildRegions();
     this.logger.log(
       `NMC 지역 갱신: 시도 ${regions.sidos}종 / 시군구 조합 ${regions.regions}건`,
     );
@@ -95,6 +93,6 @@ export class NmcHospitalSyncService {
       this.logger.warn(`hpid 가 없어 건너뛴 항목 ${skipped}건`);
     }
 
-    return upsertMirrorRows(this.prisma, 'nmc_hospital', 'hpid', rows);
+    return this.repo.upsertMirror(rows);
   }
 }

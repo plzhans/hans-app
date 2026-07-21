@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
+import { NmcSubjectRepository } from './nmc-subject.repository';
 
 /**
  * 병원의 진료과목 item.
@@ -22,17 +22,14 @@ export interface NmcSubjectItem {
  */
 @Injectable()
 export class NmcSubjectService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: NmcSubjectRepository) {}
 
   async listByHospital(hpid: string) {
-    const rows = await this.prisma.nmc_hospital_subject.findMany({
-      where: { hpid },
-      orderBy: { subject_cd: 'asc' },
-    });
+    const rows = await this.repo.listByHospital(hpid);
 
     const items: NmcSubjectItem[] = rows.map((row) => ({
-      subjectCd: row.subject_cd,
-      subjectNm: row.subject_nm ?? undefined,
+      subjectCd: row.subjectCd,
+      subjectNm: row.subjectNm ?? undefined,
     }));
 
     return toKrDataEnvelope({

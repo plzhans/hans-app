@@ -1,11 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { PrismaService } from '@hansapi/data';
 import type { HiraClient, NonPaymentSummaryItem } from '@krdata/hira';
 
 import { SyncOutcome } from '../common/sync-state.service';
 import { HIRA_CLIENT } from '../krdata.providers';
-import { NpayCodeRow, upsertNpayCodes } from './hira-npay-code.upsert';
+import { HiraNpayCodeSyncRepository } from './hira-npay-code-sync.repository';
+import { NpayCodeRow } from './hira-npay-code.upsert';
 
 /**
  * 요약은 전건 187,627건이다. **500건/페이지로 잘게 받는다** — 심평원 API 가 flaky 해서
@@ -31,7 +31,7 @@ export class HiraNpayCodeSyncService {
   private readonly logger = new Logger(HiraNpayCodeSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraNpayCodeSyncRepository,
     @Inject(HIRA_CLIENT) private readonly client: HiraClient,
   ) {}
 
@@ -72,7 +72,7 @@ export class HiraNpayCodeSyncService {
       );
     }
 
-    const upserted = await upsertNpayCodes(this.prisma, [...codes.values()]);
+    const upserted = await this.repo.upsertCodes([...codes.values()]);
     return { total: codes.size, processed: upserted, calls };
   }
 }

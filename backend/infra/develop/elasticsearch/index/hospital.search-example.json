@@ -1,0 +1,53 @@
+{
+  "from": 0,
+  "size": 20,
+  "track_total_hits": true,
+
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "multi_match": {
+            "query": "서대문",
+            "type": "best_fields",
+            "fields": [
+              "search.name.ko^5",
+              "search.name.en^5",
+              "search.name.ja^5",
+              "search.name.zh^5",
+              "search.place.ko^3",
+              "search.place.en^3",
+              "search.place.ja^3",
+              "search.place.zh^3",
+              "search.etc.ko^1",
+              "search.etc.en^1",
+              "search.etc.ja^1",
+              "search.etc.zh^1"
+            ]
+          }
+        }
+      ],
+
+      "filter": [
+        { "term": { "status": "active" } },
+        { "term": { "location.sido_cd": "11" } },
+        { "term": { "equipment_cds": "CT" } },
+        { "term": { "emergency": true } }
+      ],
+
+      "must_not": [{ "terms": { "tier": ["NURSING", "MENTAL"] } }]
+    }
+  },
+
+  "sort": [
+    "_score",
+    {
+      "_geo_distance": {
+        "location.point": { "lat": 37.5, "lon": 127.05 },
+        "order": "asc",
+        "unit": "km",
+        "mode": "min"
+      }
+    }
+  ]
+}

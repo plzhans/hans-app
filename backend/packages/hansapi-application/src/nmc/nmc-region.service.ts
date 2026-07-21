@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
 import { MirrorListCommand } from '../common/mirror.result';
+import { NmcRegionRepository } from './nmc-region.repository';
 
 /**
  * 지역 목록 item.
@@ -24,22 +24,18 @@ export interface NmcRegionItem {
  */
 @Injectable()
 export class NmcRegionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: NmcRegionRepository) {}
 
   async listRegions(command: MirrorListCommand) {
     const [rows, totalCount] = await Promise.all([
-      this.prisma.nmc_region.findMany({
-        orderBy: [{ sido_nm: 'asc' }, { sggu_nm: 'asc' }],
-        skip: (command.page - 1) * command.size,
-        take: command.size,
-      }),
-      this.prisma.nmc_region.count(),
+      this.repo.list(command.page, command.size),
+      this.repo.count(),
     ]);
 
     const items: NmcRegionItem[] = rows.map((row) => ({
-      sidoNm: row.sido_nm,
-      sgguNm: row.sggu_nm ?? undefined,
-      hospitalCount: row.hospital_cnt,
+      sidoNm: row.sidoNm,
+      sgguNm: row.sgguNm ?? undefined,
+      hospitalCount: row.hospitalCnt,
     }));
 
     return toKrDataEnvelope({

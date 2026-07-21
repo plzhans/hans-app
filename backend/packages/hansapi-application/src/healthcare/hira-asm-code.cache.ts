@@ -74,7 +74,7 @@ export class HiraAsmCodeCache implements OnApplicationBootstrap {
    * 새 맵을 만들어 마지막에 바꿔 끼우므로 로딩 중에도 옛 맵이 온전하다.
    */
   async reload(): Promise<void> {
-    const rows = await this.prisma.hira_code.findMany({
+    const rows = await this.prisma.hiraCode.findMany({
       where: { tp: { startsWith: 'asm' } },
       orderBy: [{ tp: 'asc' }, { cd: 'asc' }],
     });
@@ -87,18 +87,18 @@ export class HiraAsmCodeCache implements OnApplicationBootstrap {
         code: r.cd,
         groupCode: r.tp,
         name: {
-          nm: r.cd_nm ?? r.cd,
-          nm_en: r.cd_nm_en,
-          nm_ja: r.cd_nm_ja,
-          nm_zh: r.cd_nm_zh,
+          nm: r.cdNm ?? r.cd,
+          nm_en: r.cdNmEn,
+          nm_ja: r.cdNmJa,
+          nm_zh: r.cdNmZh,
         },
         groupName: {
-          nm: r.tp_nm,
-          nm_en: r.tp_nm_en,
-          nm_ja: r.tp_nm_ja,
-          nm_zh: r.tp_nm_zh,
+          nm: r.tpNm,
+          nm_en: r.tpNmEn,
+          nm_ja: r.tpNmJa,
+          nm_zh: r.tpNmZh,
         },
-        cmt: r.cd_cmt,
+        cmt: r.cdCmt,
       });
       if (!groups.includes(r.tp)) {
         groups.push(r.tp);

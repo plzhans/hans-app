@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Header, Param, Query } from '@nestjs/common';
 import {
   ApiOkResponse,
   ApiOperation,
@@ -10,6 +10,7 @@ import type { HospitalFullDownResponse } from '@krdata/nmc';
 
 import { Auth } from '../../auth/auth.decorator';
 import { AuthType } from '../../auth/auth-type.enum';
+import { DETAIL_CACHE_CONTROL } from '../../common/cache-control';
 import { krDataSchemaRef } from '../../krdata-schemas';
 import { MirrorListRequestDto } from '../dto/mirror-list.request.dto';
 
@@ -48,6 +49,7 @@ export class NmcHospitalController {
   }
 
   @Get(':hpid')
+  @Header('Cache-Control', DETAIL_CACHE_CONTROL)
   @ApiOperation({
     summary: '병원 상세 조회',
     description:

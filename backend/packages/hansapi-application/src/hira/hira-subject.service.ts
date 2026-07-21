@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 import type { SubjectInfoItem } from '@krdata/hira';
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
+import { HiraSubjectRepository } from './hira-subject.repository';
 
 /**
  * HIRA 병원의 진료과목 조회.
@@ -13,19 +13,16 @@ import { toKrDataEnvelope } from '../common/krdata-envelope';
  */
 @Injectable()
 export class HiraSubjectService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HiraSubjectRepository) {}
 
   async listByHospital(ykiho: string) {
-    const rows = await this.prisma.hira_hospital_subject.findMany({
-      where: { ykiho },
-      orderBy: { dgsbjt_cd: 'asc' },
-    });
+    const rows = await this.repo.listByHospital(ykiho);
 
     const items: SubjectInfoItem[] = rows.map((row) => ({
-      dgsbjtCd: row.dgsbjt_cd,
-      dgsbjtCdNm: row.dgsbjt_nm ?? undefined,
-      dgsbjtPrSdrCnt: row.sdr_cnt ?? undefined,
-      cdiagDrCnt: row.cdiag_cnt ?? undefined,
+      dgsbjtCd: row.dgsbjtCd,
+      dgsbjtCdNm: row.dgsbjtNm ?? undefined,
+      dgsbjtPrSdrCnt: row.sdrCnt ?? undefined,
+      cdiagDrCnt: row.cdiagCnt ?? undefined,
     }));
 
     return toKrDataEnvelope({

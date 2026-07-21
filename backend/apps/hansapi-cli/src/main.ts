@@ -22,6 +22,7 @@ import { healthcareCommand } from './commands/healthcare';
 import { hiraNmcCommand } from './commands/hira-nmc';
 import { i18nCommand } from './commands/i18n';
 import { nmcCommand } from './commands/nmc';
+import { esCommand } from './commands/es';
 import { addExamples, localizeHelp } from './help';
 
 /**
@@ -70,7 +71,8 @@ const program = new Command()
   .addCommand(healthcareCommand(envSource))
   .addCommand(i18nCommand(envSource))
   .addCommand(dbCommand(envSource))
-  .addCommand(syncStatusCommand(envSource));
+  .addCommand(syncStatusCommand(envSource))
+  .addCommand(esCommand(envSource));
 
 addExamples(program, [
   `hansapi-cli db status                     # 현재 환경: ${envSource.env}`,

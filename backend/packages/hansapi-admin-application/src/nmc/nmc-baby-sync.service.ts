@@ -1,10 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { PrismaService } from '@hansapi/data';
 // 달빛 목록은 병원 목록과 같은 item 타입을 쓴다(스펙이 그렇게 정의돼 있다).
 import type { HospitalListItem, NmcClient } from '@krdata/nmc';
 
-import { upsertMirrorRows } from '../common/mirror-upsert';
+import { NmcBabySyncRepository } from './nmc-baby-sync.repository';
 import { SyncOutcome } from '../common/sync-state.service';
 import { NMC_CLIENT } from '../krdata.providers';
 
@@ -22,7 +21,7 @@ export class NmcBabySyncService {
   private readonly logger = new Logger(NmcBabySyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: NmcBabySyncRepository,
     @Inject(NMC_CLIENT) private readonly client: NmcClient,
   ) {}
 
@@ -42,12 +41,7 @@ export class NmcBabySyncService {
         Boolean(row.key),
       );
 
-    const processed = await upsertMirrorRows(
-      this.prisma,
-      'nmc_baby_hospital',
-      'hpid',
-      rows,
-    );
+    const processed = await this.repo.upsertMirror(rows);
 
     this.logger.log(`NMC 달빛어린이병원 ${processed}건 적재`);
 

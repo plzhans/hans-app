@@ -1,13 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Page } from '@hansapi/common';
-import { Prisma, PrismaService } from '@hansapi/data';
-import { INPATIENT_TIERS, TIER_NAMES } from '@hansapi/data/seed';
+import { TIER_NAMES } from '@hansapi/data/seed';
+import type {
+  HealthcareHospital as HospitalModel,
+  HealthcareHospitalI18n as HospitalI18n,
+} from '@hansapi/data';
 import {
   FALLBACK_LANG,
   pickLangName,
   type SupportedLang,
 } from '@hansapi/common';
 
+import {
+  HealthcareHospitalRepository,
+  type HospitalSearchFilter,
+  type HospitalListRow,
+  type HospitalDetailModel,
+} from './healthcare-hospital.repository';
 import { HealthcareCodeCache, codeName } from './healthcare-code.cache';
 import {
   HiraAsmCodeCache,
@@ -18,6 +29,7 @@ import { RegionCache, regionName } from '../region/region.cache';
 import { annotateKo, pickText } from './hospital-text';
 
 import { asString } from '../common/coerce';
+import { CachePrefix } from '../common/cache-keys';
 import { stationName } from './station';
 
 import {
@@ -29,6 +41,56 @@ import {
   HospitalSummary,
   HospitalTransport,
 } from './dto/hospital.result';
+
+/**
+ * 요약(HospitalSummary) 매핑의 정규화된 입력.
+ *
+ * search 는 raw SQL flat row 를, get 은 Prisma 모델을 주므로 원천 모양이 다르다.
+ * 두 경로가 각자 이 형태로 맞춘 뒤 toSummary 하나로 매핑한다. 코드값은 asString 을 거친 뒤,
+ * 좌표·불리언은 이미 강제된 값으로 담는다.
+ */
+interface SummarySource {
+  id: number;
+  /** 한국어 원문 이름 */
+  name: string;
+  /** 번역명(없으면 null) */
+  i18nName: string | null;
+  classCd: string | null;
+  tierCd: string | null;
+  specialtyCd: string | null;
+  /** 지하철 하차지점 원문. 목록만 채우고 상세는 null(원래 동작). */
+  station: string | null;
+  stationLine: string | null;
+  regionCd: string | null;
+  tel: string | null;
+  emergency: boolean;
+  baby: boolean;
+  addr: string | null;
+  postNo: string | null;
+  emdongNm: string | null;
+  lat: number | undefined;
+  lon: number | undefined;
+}
+
+/**
+ * 캐시에 담는 언어무관 base. Prisma 원본 그대로지만, 매핑이 값을 방어적으로 강제(this.num 등)하므로
+ * lat/lon(Decimal)·날짜(DateTime)가 JSON round-trip 에서 문자열이 돼도 안전하다. BigInt 는 스키마에 없다.
+ */
+interface HospitalBase {
+  detail: HospitalDetailModel;
+  /** 병원평가 등급 원본(HIRA 미러). 릴레이션이 없어 loadBase 가 따로 읽어 담는다. */
+  assessment: Awaited<
+    ReturnType<HealthcareHospitalRepository['findAssessment']>
+  >;
+}
+
+/**
+ * i18n 캐시 래퍼. 번역이 없는 언어(null)도 담아 헛조회를 막되, cache miss(undefined)와 구분하려고
+ * 값을 v 로 감싼다(저장된 null 과 미조회를 확실히 가른다).
+ */
+interface HospitalI18nCache {
+  v: HospitalI18n | null;
+}
 
 /**
  * 통합 병원 조회.
@@ -52,192 +114,238 @@ import {
 @Injectable()
 export class HealthcareHospitalService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HealthcareHospitalRepository,
     // 코드 이름은 조인하지 않고 부팅 때 올려둔 캐시에서 붙인다.
     private readonly codes: HealthcareCodeCache,
     // 병원평가 항목 이름·그룹. healthcare_code 가 아니라 hira_code 라 캐시가 따로다.
     private readonly asmCodes: HiraAsmCodeCache,
     private readonly regions: RegionCache,
+    // 병원 상세 캐시(Redis). 무거운 매핑 결과를 통째로 담는다. best-effort 라 죽어도 DB 로 살아난다.
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async search(
     command: HospitalSearchCommand,
     lang: SupportedLang = FALLBACK_LANG,
   ): Promise<Page<HospitalSummary>> {
-    const where = this.buildWhere(command);
+    const filter = this.buildFilter(command);
 
     const [rows, total] = await Promise.all([
-      this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-        SELECT h.id, h.name, h.tel, h.addr, h.post_no, h.lat, h.lon,
-               h.emergency_yn, h.baby_yn, h.emdong_nm,
-               i.name AS i18n_name,
-               JSON_UNQUOTE(JSON_EXTRACT(h.transport, '$.subway[0].arrival')) AS station,
-               JSON_UNQUOTE(JSON_EXTRACT(h.transport, '$.subway[0].line')) AS station_line,
-               h.class_cd,
-               h.tier,
-               spc.cd AS specialty_cd,
-               h.region_cd
-          FROM healthcare_hospital h
-          -- 종별·전문병원분야·지역 이름은 조인하지 않는다 — 코드만 SELECT 하고
-          -- 이름은 부팅 때 올려둔 캐시(HealthcareCodeCache·RegionCache)에서 붙인다.
-          -- 전문병원 지정은 병원당 최대 1건이라 이 JOIN 이 행을 늘리지 않는다.
-          LEFT JOIN healthcare_hospital_capability spc ON spc.hospital_id = h.id AND spc.tp = 'specialty'
-          LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
-         WHERE ${where}
-         ORDER BY h.id
-         LIMIT ${command.size} OFFSET ${(command.page - 1) * command.size}
-      `),
-      this.prisma.$queryRaw<{ c: bigint }[]>(Prisma.sql`
-        SELECT COUNT(*) c FROM healthcare_hospital h WHERE ${where}
-      `),
+      this.repo.search(filter, lang, command.page, command.size),
+      this.repo.countSearch(filter),
     ]);
 
     return new Page(
-      rows.map((row) => this.toSummary(row, lang)),
+      rows.map((row) => this.toSummary(this.listRowToSource(row), lang)),
       command.page,
       command.size,
-      Number(total[0]?.c ?? 0),
+      total,
     );
   }
 
+  /**
+   * 검색 명령을 저장소가 받을 원시 필터로 푼다. **캐시에 의존하는 결정은 여기서 끝낸다** —
+   * 지역 코드를 시군구로 펴고(RegionCache), 적정성평가 항목을 검증된 컬럼명으로 바꾼다(asmCodes).
+   * 저장소는 캐시를 모른 채 SQL 만 조립한다.
+   */
+  private buildFilter(command: HospitalSearchCommand): HospitalSearchFilter {
+    return {
+      // 시도 코드가 오면 그 시도의 시군구 전체로 편다(시군구 코드면 자신뿐이라 등가).
+      regionCds: command.regionCd
+        ? this.regions.selfAndChildren(command.regionCd)
+        : undefined,
+      classCds: command.classCds,
+      tiers: command.tiers,
+      name: command.name,
+      emergency: command.emergency,
+      baby: command.baby,
+      // 아는 코드만 통과시켜 컬럼명을 만든다 — 인젝션을 막는다. 1등급 값은 '1' 이지만
+      // 천식(16)만 '양호' 다(원본 인코딩이 그 항목만 다르다).
+      asmExcellent: command.asmItemCds
+        ?.filter((code) => this.asmCodes.get(code))
+        .map((code) => ({
+          column: `asm_${code}`,
+          value: code === ASTHMA_CODE ? '양호' : '1',
+        })),
+      specialtyCds: command.specialtyCds,
+      specialCds: command.specialCds,
+      equipmentCds: command.equipmentCds,
+      subjectCds: command.subjectCds,
+      specialistCds: command.specialistCds,
+    };
+  }
+
+  /**
+   * 상세 조회 — base(언어무관 구조+평가)와 요청 언어 i18n 을 각각 캐싱하는 A-lazy 구조.
+   *   · hospital:{id}:base        — 무거운 join, 병원당 1번만 (모든 언어가 공유)
+   *   · hospital:{id}:i18n:{lang} — 요청 온 언어만 lazy 캐싱 (안 쓰는 언어는 안 담긴다)
+   * 코드명·지역명 현지화는 캐시에 넣지 않는다 — 부팅 때 올린 인메모리 캐시에서 읽을 때 붙이므로,
+   * 코드표 번역을 고쳐도 캐시 무효화 없이 즉시 반영된다.
+   *
+   * {id} 를 해시태그 {}로 감싸 클러스터에서도 base·i18n 이 같은 슬롯에 묶이게 한다(멀티키 mget/mdel 안전).
+   * 캐시는 best-effort — Redis 가 죽어도 DB 로 살아난다. 없는 병원은 캐싱하지 않는다.
+   */
   async get(
     id: number,
     lang: SupportedLang = FALLBACK_LANG,
   ): Promise<HospitalDetail | null> {
-    const rows = await this.prisma.$queryRaw<Record<string, unknown>[]>(
-      Prisma.sql`
-        SELECT h.id, h.name, h.tel, h.addr, h.post_no, h.lat, h.lon,
-               h.emergency_yn, h.baby_yn, h.emdong_nm, h.homepage, h.estb_dd,
-               h.ykiho, h.hpid,
-               h.intro, h.notice, h.directions, h.transport,
-               h.park_qty, h.park_paid, h.park_note,
-               i.name       AS i18n_name,
-               i.intro      AS i18n_intro,
-               i.notice     AS i18n_notice,
-               i.directions AS i18n_directions,
-               i.park_note  AS i18n_park_note,
-               i.transport  AS i18n_transport,
-               h.class_cd,
-               h.tier,
-               spc.cd AS specialty_cd,
-               h.region_cd
-          FROM healthcare_hospital h
-          -- 코드 이름은 조인 대신 캐시에서 붙인다(search 와 같은 이유).
-          -- 전문병원 지정은 병원당 최대 1건이라 이 JOIN 이 행을 늘리지 않는다.
-          LEFT JOIN healthcare_hospital_capability spc ON spc.hospital_id = h.id AND spc.tp = 'specialty'
-          LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ${lang}
-         WHERE h.id = ${id} AND h.status = 'active'
-      `,
-    );
+    const baseKey = this.baseKey(id);
+    const i18nKey = this.i18nKey(id, lang);
 
-    const row = rows[0];
-    if (!row) {
-      return null;
+    // base + 요청 언어 i18n 을 한 왕복(mget)으로 가져온다.
+    let base: HospitalBase | undefined;
+    let i18n: HospitalI18nCache | undefined;
+    try {
+      const [rawBase, rawI18n] = await this.cache.mget([baseKey, i18nKey]);
+      base = rawBase as HospitalBase | undefined;
+      i18n = rawI18n as HospitalI18nCache | undefined;
+    } catch {
+      // 캐시 조회 실패는 무시하고 DB 로 진행한다.
     }
 
-    // 이름·정렬(코드 sort)은 조인하지 않는다 — 코드만 읽고 캐시로 이름을 붙인 뒤 앱에서 정렬한다.
-    const [subjectRows, hours, staff, beds, equipmentRows, capabilityRows] =
-      await Promise.all([
-        this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT s.subject_cd, s.declared, s.doctor_cnt, s.specialist_cnt
-            FROM healthcare_hospital_subject s
-           WHERE s.hospital_id = ${id}
-        `),
-        this.prisma.healthcare_hospital_hours.findMany({
-          where: { hospital_id: id },
-          orderBy: [{ kind: 'asc' }, { day: 'asc' }],
-        }),
-        this.prisma.healthcare_hospital_staff.findUnique({
-          where: { hospital_id: id },
-        }),
-        this.prisma.healthcare_hospital_bed.findUnique({
-          where: { hospital_id: id },
-        }),
-        this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT e.equipment_cd, e.cnt
-            FROM healthcare_hospital_equipment e
-           WHERE e.hospital_id = ${id}
-        `),
-        this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-          SELECT cap.tp, cap.cd
-            FROM healthcare_hospital_capability cap
-           WHERE cap.hospital_id = ${id}
-        `),
-      ]);
+    // base 미스 → DB 로드 후 저장. 병원이 없으면 여기서 끝(존재하지 않는 id 는 캐싱하지 않는다).
+    if (base === undefined) {
+      const loaded = await this.loadBase(id);
+      if (!loaded) {
+        return null;
+      }
+      base = loaded;
+      await this.trySet(baseKey, base);
+    }
 
-    const subjects = this.buildSubjects(subjectRows, lang);
-    const equipments = this.buildEquipments(equipmentRows, lang);
-    const capabilities = this.buildCapabilities(capabilityRows, lang);
-    const assessment = await this.assessment(row.ykiho as string | null, lang);
+    // i18n 미스 → DB 로드 후 저장. 번역이 없어도(null) 캐싱해 헛조회를 막는다.
+    if (i18n === undefined) {
+      i18n = { v: await this.repo.findI18n(id, lang) };
+      await this.trySet(i18nKey, i18n);
+    }
 
-    const parkNote = this.text(row, 'park_note');
+    return this.assembleDetail(base, i18n.v, lang);
+  }
+
+  /** base 키. {id} 를 해시태그로 감싼다(클러스터 동일 슬롯 보장). */
+  private baseKey(id: number): string {
+    return `${CachePrefix.hospital}:{${id}}:base`;
+  }
+
+  /** 언어별 i18n 키. base 와 같은 해시태그라 mget/mdel 이 한 슬롯에서 처리된다. */
+  private i18nKey(id: number, lang: SupportedLang): string {
+    return `${CachePrefix.hospital}:{${id}}:i18n:${lang}`;
+  }
+
+  /** 캐시 저장(best-effort). 실패해도 응답은 이미 준비됐으니 삼킨다. */
+  private async trySet(key: string, value: unknown): Promise<void> {
+    try {
+      await this.cache.set(key, value, DETAIL_CACHE_TTL_MS);
+    } catch {
+      // 저장 실패는 무시한다.
+    }
+  }
+
+  /**
+   * 언어무관 base 를 DB 에서 읽는다(캐시 미스 때만). findDetail(구조) + findAssessment(평가 등급).
+   * 병원평가는 릴레이션이 없어(HIRA 미러) 따로 읽고, ykiho 없으면(NMC 전용) 평가가 없다.
+   */
+  private async loadBase(id: number): Promise<HospitalBase | null> {
+    const detail = await this.repo.findDetail(id);
+    if (!detail) {
+      return null;
+    }
+    const assessment = detail.ykiho
+      ? await this.repo.findAssessment(detail.ykiho)
+      : null;
+    return { detail, assessment };
+  }
+
+  /**
+   * base + 선택된 언어 i18n 을 최종 DTO 로 조합한다(캐시 미스든 히트든 매번 실행).
+   * 코드명·지역명·평가항목명 현지화는 여기서 인메모리 캐시로 붙인다 — 캐시에 담지 않는 이유다.
+   */
+  private assembleDetail(
+    base: HospitalBase,
+    i18n: HospitalI18n | null,
+    lang: SupportedLang,
+  ): HospitalDetail {
+    const row = base.detail;
+    const assessment = this.buildAssessment(base.assessment, lang);
+
+    const subjects = this.buildSubjects(row.subjects, lang);
+    const equipments = this.buildEquipments(row.equipments, lang);
+    const capabilities = this.buildCapabilities(row.capabilities, lang);
+
+    const parkNote = this.text(row.parkNote, i18n?.parkNote ?? null);
+
+    // 전문병원 지정분야는 capabilities(tp='specialty')에서 뽑는다 — 어차피 전량 딸려왔다.
+    const specialtyCd =
+      row.capabilities.find((c) => c.tp === 'specialty')?.cd ?? null;
 
     return {
-      ...this.toSummary(row, lang),
+      ...this.toSummary(this.detailToSource(row, i18n, specialtyCd), lang),
 
       // 번역된 이름 옆에 붙일 한국어 원문. 번역이 실제로 있을 때만 온다.
       // 외국인이 영문 링크를 한국인에게 보냈을 때 언어를 안 바꿔도 알아보게 하려는 것이다.
-      nameKo: annotateKo(String(row.name), row.i18n_name as string | null),
+      nameKo: annotateKo(row.name, i18n?.name ?? null),
 
       sources: {
-        ykiho: (row.ykiho as string | null) ?? undefined,
-        hpid: (row.hpid as string | null) ?? undefined,
+        ykiho: row.ykiho ?? undefined,
+        hpid: row.hpid ?? undefined,
       },
-      homepage: (row.homepage as string | null) ?? undefined,
-      establishedAt: (row.estb_dd as string | null) ?? undefined,
-      intro: this.text(row, 'intro'),
-      notice: this.text(row, 'notice'),
-      directions: this.text(row, 'directions'),
-      transport: this.transport(pickText(row.transport, row.i18n_transport)),
+      homepage: row.homepage ?? undefined,
+      establishedAt: row.estbDd ?? undefined,
+      intro: this.text(row.intro, i18n?.intro ?? null),
+      notice: this.text(row.notice, i18n?.notice ?? null),
+      directions: this.text(row.directions, i18n?.directions ?? null),
+      transport: this.transport(
+        pickText(row.transport, i18n?.transport ?? null),
+      ),
       parking:
-        row.park_qty !== null || parkNote !== undefined
+        row.parkQty !== null || parkNote !== undefined
           ? {
-              capacity: this.num(row.park_qty),
+              capacity: this.num(row.parkQty),
               paid:
-                row.park_paid === null || row.park_paid === undefined
+                row.parkPaid === null || row.parkPaid === undefined
                   ? undefined
-                  : Boolean(row.park_paid),
+                  : Boolean(row.parkPaid),
               note: parkNote,
             }
           : undefined,
 
       subjects,
 
-      hours: hours.map((h) => ({
+      hours: row.hours.map((h) => ({
         kind: h.kind,
         day: h.day,
-        open: h.open_time ?? undefined,
-        close: h.close_time ?? undefined,
-        breakStart: h.break_start ?? undefined,
-        breakEnd: h.break_end ?? undefined,
+        open: h.openTime ?? undefined,
+        close: h.closeTime ?? undefined,
+        breakStart: h.breakStart ?? undefined,
+        breakEnd: h.breakEnd ?? undefined,
       })),
 
-      staff: staff
+      staff: row.staff
         ? {
-            doctorTotal: staff.doctor_total ?? undefined,
-            specialist: staff.specialist ?? undefined,
-            resident: staff.resident ?? undefined,
-            intern: staff.intern ?? undefined,
-            generalDoctor: staff.general_doctor ?? undefined,
-            dentist: staff.dentist ?? undefined,
-            oriental: staff.oriental ?? undefined,
-            midwife: staff.midwife ?? undefined,
+            doctorTotal: row.staff.doctorTotal ?? undefined,
+            specialist: row.staff.specialist ?? undefined,
+            resident: row.staff.resident ?? undefined,
+            intern: row.staff.intern ?? undefined,
+            generalDoctor: row.staff.generalDoctor ?? undefined,
+            dentist: row.staff.dentist ?? undefined,
+            oriental: row.staff.oriental ?? undefined,
+            midwife: row.staff.midwife ?? undefined,
           }
         : undefined,
 
-      beds: beds
+      beds: row.beds
         ? {
-            total: beds.total ?? undefined,
-            standard: beds.standard ?? undefined,
-            higher: beds.higher ?? undefined,
-            icu: beds.icu ?? undefined,
-            emergency: beds.emergency ?? undefined,
-            operatingRoom: beds.operating_room ?? undefined,
-            delivery: beds.delivery ?? undefined,
-            neonatal: beds.neonatal ?? undefined,
-            isolation: beds.isolation ?? undefined,
-            psyOpen: beds.psy_open ?? undefined,
-            psyClosed: beds.psy_closed ?? undefined,
+            total: row.beds.total ?? undefined,
+            standard: row.beds.standard ?? undefined,
+            higher: row.beds.higher ?? undefined,
+            icu: row.beds.icu ?? undefined,
+            emergency: row.beds.emergency ?? undefined,
+            operatingRoom: row.beds.operatingRoom ?? undefined,
+            delivery: row.beds.delivery ?? undefined,
+            neonatal: row.beds.neonatal ?? undefined,
+            isolation: row.beds.isolation ?? undefined,
+            psyOpen: row.beds.psyOpen ?? undefined,
+            psyClosed: row.beds.psyClosed ?? undefined,
           }
         : undefined,
 
@@ -255,13 +363,13 @@ export class HealthcareHospitalService {
    * 그 의미를 유지한다 — 캐시에 없는 코드는 버리고(과목은 이름이 반드시 있어야 한다), sort 순으로 낸다.
    */
   private buildSubjects(
-    rows: Record<string, unknown>[],
+    rows: HospitalDetailModel['subjects'],
     lang: SupportedLang,
   ): HospitalDetail['subjects'] {
     return rows
       .map((s) => ({
         row: s,
-        entry: this.codes.get('subject', String(s.subject_cd)),
+        entry: this.codes.get('subject', String(s.subjectCd)),
       }))
       .filter((x) => x.entry !== undefined)
       .sort((a, b) => a.entry!.sort - b.entry!.sort)
@@ -269,20 +377,20 @@ export class HealthcareHospitalService {
         code: entry!.code,
         name: codeName(entry!, lang),
         declared: Boolean(row.declared),
-        doctorCount: this.num(row.doctor_cnt),
-        specialistCount: this.num(row.specialist_cnt),
+        doctorCount: this.num(row.doctorCnt),
+        specialistCount: this.num(row.specialistCnt),
       }));
   }
 
   /** 장비 목록. 과목과 같은 방식(코드표에 없는 장비는 버리고 sort 순). */
   private buildEquipments(
-    rows: Record<string, unknown>[],
+    rows: HospitalDetailModel['equipments'],
     lang: SupportedLang,
   ): HospitalDetail['equipments'] {
     return rows
       .map((e) => ({
         row: e,
-        entry: this.codes.get('equipment', String(e.equipment_cd)),
+        entry: this.codes.get('equipment', String(e.equipmentCd)),
       }))
       .filter((x) => x.entry !== undefined)
       .sort((a, b) => a.entry!.sort - b.entry!.sort)
@@ -298,26 +406,20 @@ export class HealthcareHospitalService {
    * 정렬은 tp → 코드 sort → cd. sort 는 캐시에서, 미상 코드는 뒤로 민다.
    */
   /**
-   * 심평원 병원평가. **이 서비스가 원본 미러를 읽는 유일한 곳이다**(클래스 주석 참고).
+   * 심평원 병원평가를 최종 형태로 조합한다. **등급 원본(HIRA 미러)은 loadBase 가 읽어 base 에 담아두고**,
+   * 여기서는 그 행을 받아 항목명만 인메모리로 현지화한다 — DB 접근이 없다.
    *
-   * ykiho 가 없으면(NMC 만 있는 병원) 조회조차 하지 않는다. 있어도 평가대상이 아니면
-   * 행이 없어 undefined 다 — 79,739개 중 36,599개만 평가대상이다.
+   * row 가 null 이면(ykiho 없는 NMC 전용 병원이거나 평가대상이 아님) undefined 다
+   * — 79,739개 중 36,599개만 평가대상이다.
    *
    * 등급은 asm_01~asm_24 컬럼에 원본 그대로 들어 있다(generated column). 평가대상이 아닌
    * 항목은 NULL 이라 목록에서 빠진다. **NULL 과 '등급제외' 는 다르다** —
    * 전자는 평가를 안 한 것이고 후자는 평가하고 등급을 안 매긴 것이다.
    */
-  private async assessment(
-    ykiho: string | null,
+  private buildAssessment(
+    row: HospitalBase['assessment'],
     lang: SupportedLang,
-  ): Promise<HospitalAssessment | undefined> {
-    if (!ykiho) {
-      return undefined;
-    }
-
-    const row = await this.prisma.hira_hospital_asm.findUnique({
-      where: { ykiho },
-    });
+  ): HospitalAssessment | undefined {
     if (!row) {
       return undefined;
     }
@@ -363,7 +465,7 @@ export class HealthcareHospitalService {
   }
 
   private buildCapabilities(
-    rows: Record<string, unknown>[],
+    rows: HospitalDetailModel['capabilities'],
     lang: SupportedLang,
   ): HospitalDetail['capabilities'] {
     return rows
@@ -387,200 +489,122 @@ export class HealthcareHospitalService {
   }
 
   /**
-   * 검색 조건.
-   *
-   * 진료과목은 별도 테이블이라 EXISTS 로 건다. 조인하면 병원이 과목 수만큼 중복된다.
-   * 지역·종별은 healthcare_hospital 의 인덱스(region_cd, class_cd)를 그대로 탄다.
+   * 요약(summary) 매핑의 입력. **search(raw SQL flat row)와 get(Prisma 모델)이 모양이 달라서**,
+   * 각 경로가 자기 원천에서 이 공통 형태로 먼저 정규화하고(listRowToSource·detailToSource),
+   * toSummary 는 이 하나만 받는다 — 매퍼를 한 벌로 유지한다.
    */
-  private buildWhere(command: HospitalSearchCommand): Prisma.Sql {
-    const conditions: Prisma.Sql[] = [Prisma.sql`h.status = 'active'`];
-
-    if (command.regionCd) {
-      /**
-       * 시도 코드로도 검색된다.
-       *
-       * 병원이 갖는 건 시군구 코드뿐이다. 시도 코드가 들어오면 그 시도의 시군구 전체로 편다 —
-       * 예전엔 SQL 서브쿼리(region_code)로 했지만, 이제 지역표가 메모리에 있으니
-       * 캐시가 [자신 + 하위 시군구] 를 펴서 IN 절에 넘긴다(시군구 코드면 자신뿐이라 등가).
-       */
-      const codes = this.regions.selfAndChildren(command.regionCd);
-      conditions.push(Prisma.sql`h.region_cd IN (${Prisma.join(codes)})`);
-    }
-    if (command.classCds?.length) {
-      conditions.push(
-        Prisma.sql`h.class_cd IN (${Prisma.join(command.classCds)})`,
-      );
-    }
-
-    if (command.tiers?.length) {
-      conditions.push(Prisma.sql`h.tier IN (${Prisma.join(command.tiers)})`);
-    } else {
-      // 등급을 안 고르면 요양·정신은 뺀다. 외래를 찾는 사람에게는 방해다.
-      // tier 가 NULL 인 것(기타)은 남긴다 — NULL NOT IN (...) 은 NULL 이라 IS NULL 을 따로 본다.
-      conditions.push(Prisma.sql`(
-        h.tier IS NULL OR h.tier NOT IN (${Prisma.join([...INPATIENT_TIERS])})
-      )`);
-    }
-    if (command.name) {
-      /**
-       * **병원 이름 또는 지하철역.**
-       *
-       * 사용자는 "혜화역" 이라고 친다 — 병원 이름을 모르니까. 한국에서 지하철역은 위치를
-       * 가늠하는 1차 기준이고, "혜화역 근처 병원" 이 자연스러운 검색어다.
-       * 이름만 걸면 "혜화역" 은 0건이 나오고, 사용자는 우리 검색이 고장난 줄 안다.
-       *
-       * 역 이름은 transport JSON 의 지하철 하차지점에 있다. "혜화역"·"혜화역 3번출구" 처럼
-       * 표기가 제각각이라 LIKE 로 건다. 병원 2,053곳만 지하철 정보가 있어 대상이 작다.
-       */
-      const keyword = `%${command.name}%`;
-      conditions.push(Prisma.sql`(
-        h.name LIKE ${keyword}
-        OR JSON_SEARCH(h.transport->'$.subway[*].arrival', 'one', ${keyword}) IS NOT NULL
-      )`);
-    }
-    if (command.emergency) {
-      conditions.push(Prisma.sql`h.emergency_yn = 1`);
-    }
-    if (command.baby) {
-      conditions.push(Prisma.sql`h.baby_yn = 1`);
-    }
-    if (command.asmItemCds?.length) {
-      /**
-       * 적정성평가 우수(1등급) 항목 필터. **검색이 원본 미러를 읽는 유일한 예외다.**
-       *
-       * 병원평가는 HIRA 전용이라 통합할 상대(NMC)가 없고, 사용자가 수정 요청할 값도 아니라
-       * healthcare_* 로 복제하지 않고 상세 페이지처럼 미러(hira_hospital_asm)를 직접 조인한다.
-       * 미러를 지우면 이 필터만 결과가 빈다(검색 자체는 동작). ykiho 없는 병원은 EXISTS 로 자연히 빠진다.
-       *
-       * **컬럼명을 코드로 만든다 — 아는 코드만 통과시켜 인젝션을 막는다.** asmCodes 캐시에 없는
-       * 코드는 버린다. 1등급 값은 '1' 이지만 천식(16)만 '양호' 다(원본 인코딩이 그 항목만 다르다).
-       */
-      const conds = command.asmItemCds
-        .filter((code) => this.asmCodes.get(code))
-        .map((code) => {
-          const excellent = code === ASTHMA_CODE ? '양호' : '1';
-          return Prisma.sql`ha.${Prisma.raw(`asm_${code}`)} = ${excellent}`;
-        });
-      if (conds.length) {
-        conditions.push(Prisma.sql`EXISTS (
-          SELECT 1 FROM hira_hospital_asm ha
-           WHERE ha.ykiho = h.ykiho AND (${Prisma.join(conds, ' OR ')})
-        )`);
-      }
-    }
-    if (command.specialtyCds?.length) {
-      // 전문병원 지정분야. capability 는 병원당 N행이라 EXISTS 로 건다(과목과 같은 방식).
-      conditions.push(Prisma.sql`EXISTS (
-        SELECT 1 FROM healthcare_hospital_capability cap
-         WHERE cap.hospital_id = h.id
-           AND cap.tp = 'specialty'
-           AND cap.cd IN (${Prisma.join(command.specialtyCds)})
-      )`);
-    }
-    if (command.specialCds?.length) {
-      // 특수진료(방문진료·치매주치의 등). 전문분야와 같은 테이블, tp 만 다르다.
-      conditions.push(Prisma.sql`EXISTS (
-        SELECT 1 FROM healthcare_hospital_capability cap
-         WHERE cap.hospital_id = h.id
-           AND cap.tp = 'special'
-           AND cap.cd IN (${Prisma.join(command.specialCds)})
-      )`);
-    }
-    if (command.equipmentCds?.length) {
-      // 보유장비(CT·MRI·PET …). 병원당 N행이라 EXISTS.
-      conditions.push(Prisma.sql`EXISTS (
-        SELECT 1 FROM healthcare_hospital_equipment e
-         WHERE e.hospital_id = h.id
-           AND e.equipment_cd IN (${Prisma.join(command.equipmentCds)})
-      )`);
-    }
-    if (command.subjectCds?.length) {
-      // 조인이 아니라 EXISTS 다. 조인하면 병원이 과목 수만큼 중복된다.
-      conditions.push(Prisma.sql`EXISTS (
-        SELECT 1 FROM healthcare_hospital_subject s
-         WHERE s.hospital_id = h.id
-           AND s.subject_cd IN (${Prisma.join(command.subjectCds)})
-      )`);
-    }
-
-    if (command.specialistCds?.length) {
-      // 진료과목과 같은 코드지만 **전문의를 실제로 보유한** 병원만(specialist_cnt > 0).
-      // 신고만 하면 걸리는 subjectCds 와 다르다.
-      conditions.push(Prisma.sql`EXISTS (
-        SELECT 1 FROM healthcare_hospital_subject s
-         WHERE s.hospital_id = h.id
-           AND s.subject_cd IN (${Prisma.join(command.specialistCds)})
-           AND s.specialist_cnt > 0
-      )`);
-    }
-
-    return Prisma.join(conditions, ' AND ');
-  }
-
-  private toSummary(
-    row: Record<string, unknown>,
-    lang: SupportedLang,
-  ): HospitalSummary {
-    const regionCd = row.region_cd as string | null;
-    const classCd = asString(row.class_cd);
-    const tierCd = asString(row.tier);
-    const specialtyCd = asString(row.specialty_cd);
-
+  private toSummary(src: SummarySource, lang: SupportedLang): HospitalSummary {
     // 지역·시도 이름은 조인이 아니라 캐시에서 붙인다. 시도 코드도 SQL 이 아니라
     // 지역 캐시가 아는 parent 다. 모르는 코드는 이름 대신 코드를 그대로 보여준다(빈칸보다 낫다).
-    const regionEntry = regionCd ? this.regions.get(regionCd) : undefined;
+    const regionEntry = src.regionCd
+      ? this.regions.get(src.regionCd)
+      : undefined;
     const sidoCd = regionEntry?.parentCode ?? undefined;
 
     // 역 이름을 못 뽑으면("2번출구" 처럼 역이 안 적힌 하차지점) 노선도 같이 버린다.
     // 노선만 남으면 화면엔 붙을 역이 없는 노선 배지가 뜬다.
-    const station = stationName(asString(row.station)) ?? undefined;
+    const station = stationName(src.station) ?? undefined;
 
     return {
-      id: Number(row.id),
+      id: src.id,
       // 번역이 있으면 번역, 없으면 한국어 원문. 목록도 번역된 이름으로 나가야
       // (lang, name) 인덱스가 의미를 갖는다 — 영어 사용자는 영문명으로 찾는다.
-      name: String(pickText(row.name, row.i18n_name)),
-      category: classCd
+      name: String(pickText(src.name, src.i18nName)),
+      category: src.classCd
         ? {
-            code: classCd,
-            name: this.codes.name('class', classCd, lang) ?? classCd,
+            code: src.classCd,
+            name: this.codes.name('class', src.classCd, lang) ?? src.classCd,
           }
         : undefined,
       // 등급 이름은 시드가 갖는다. DB 에는 코드만 넣어 두 곳에 이름이 생기지 않게 한다.
-      tier: tierCd ? this.tier(tierCd, lang) : undefined,
-      specialty: specialtyCd
+      tier: src.tierCd ? this.tier(src.tierCd, lang) : undefined,
+      specialty: src.specialtyCd
         ? {
-            code: specialtyCd,
+            code: src.specialtyCd,
             name:
-              this.codes.name('specialty', specialtyCd, lang) ?? specialtyCd,
+              this.codes.name('specialty', src.specialtyCd, lang) ??
+              src.specialtyCd,
           }
         : undefined,
-      tel: (row.tel as string | null) ?? undefined,
-      emergency: Boolean(row.emergency_yn),
-      baby: Boolean(row.baby_yn),
+      tel: src.tel ?? undefined,
+      emergency: src.emergency,
+      baby: src.baby,
       location: {
-        address: (row.addr as string | null) ?? undefined,
-        postNo: (row.post_no as string | null) ?? undefined,
-        lat: this.num(row.lat),
-        lon: this.num(row.lon),
+        address: src.addr ?? undefined,
+        postNo: src.postNo ?? undefined,
+        lat: src.lat,
+        lon: src.lon,
         station,
-        stationLine: station
-          ? (asString(row.station_line) ?? undefined)
-          : undefined,
-        region: regionCd
+        stationLine: station ? (src.stationLine ?? undefined) : undefined,
+        region: src.regionCd
           ? {
-              code: regionCd,
-              name: regionEntry ? regionName(regionEntry, lang) : regionCd,
+              code: src.regionCd,
+              name: regionEntry ? regionName(regionEntry, lang) : src.regionCd,
               sido: sidoCd
                 ? {
                     code: sidoCd,
                     name: this.regions.name(sidoCd, lang) ?? sidoCd,
                   }
                 : undefined,
-              emdong: (row.emdong_nm as string | null) ?? undefined,
+              emdong: src.emdongNm ?? undefined,
             }
           : undefined,
       },
+    };
+  }
+
+  /** 검색 결과 한 행(raw SQL 프로젝션) → 요약 입력. 드라이버가 섞어 준 타입을 여기서 강제한다. */
+  private listRowToSource(row: HospitalListRow): SummarySource {
+    return {
+      id: Number(row.id),
+      name: String(row.name),
+      i18nName: row.i18n_name,
+      classCd: asString(row.class_cd),
+      tierCd: asString(row.tier),
+      specialtyCd: asString(row.specialty_cd),
+      station: asString(row.station),
+      stationLine: asString(row.station_line),
+      regionCd: row.region_cd,
+      tel: row.tel,
+      emergency: Boolean(row.emergency_yn),
+      baby: Boolean(row.baby_yn),
+      addr: row.addr,
+      postNo: row.post_no,
+      emdongNm: row.emdong_nm,
+      lat: this.num(row.lat),
+      lon: this.num(row.lon),
+    };
+  }
+
+  /**
+   * 상세 병원 모델(+번역+전문분야) → 요약 입력.
+   *
+   * **상세는 목록과 달리 지하철역을 location 에 싣지 않는다** — 예전 상세 SQL 도 station 을
+   * 뽑지 않았다(역 정보는 응답의 transport 블록에 있다). 그 동작을 그대로 둔다(station: null).
+   */
+  private detailToSource(
+    row: HospitalModel,
+    i18n: HospitalI18n | null,
+    specialtyCd: string | null,
+  ): SummarySource {
+    return {
+      id: row.id,
+      name: row.name,
+      i18nName: i18n?.name ?? null,
+      classCd: row.classCd,
+      tierCd: row.tier,
+      specialtyCd,
+      station: null,
+      stationLine: null,
+      regionCd: row.regionCd,
+      tel: row.tel,
+      emergency: row.emergencyYn,
+      baby: row.babyYn,
+      addr: row.addr,
+      postNo: row.postNo,
+      emdongNm: row.emdongNm,
+      lat: this.num(row.lat),
+      lon: this.num(row.lon),
     };
   }
 
@@ -625,14 +649,8 @@ export class HealthcareHospitalService {
    *   2. Prisma.sql 에 컬럼식을 동적으로 끼워 넣으면 평탄화가 안 돼 바인딩 값으로 들어간다
    *      — 예전에 응답에 SQL 객체가 그대로 나간 적이 있다. 다시 밟지 않는다.
    */
-  private text(
-    row: Record<string, unknown>,
-    field: 'intro' | 'notice' | 'directions' | 'park_note',
-  ): string | undefined {
-    const picked = pickText(
-      row[field] as string | null,
-      row[`i18n_${field}`] as string | null,
-    );
+  private text(ko: string | null, i18n: string | null): string | undefined {
+    const picked = pickText(ko, i18n);
     return picked ?? undefined;
   }
 
@@ -671,3 +689,6 @@ function normalizeGrade(code: string, grade: string): number | 'X' {
 
 /** 천식. 이 항목만 등급 인코딩이 다르다. */
 const ASTHMA_CODE = '16';
+
+/** 병원 상세 캐시 TTL(ms). 상세는 admin 배치 재빌드 때만 바뀌어 자주 안 변한다. */
+const DETAIL_CACHE_TTL_MS = 5 * 60_000;

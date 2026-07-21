@@ -51,7 +51,7 @@ export class RegionCache implements OnApplicationBootstrap {
 
   /** 지역표를 다시 읽어 캐시를 통째로 교체한다. 부팅 시 자동 호출. */
   async reload(): Promise<void> {
-    const rows = await this.prisma.region_code.findMany({
+    const rows = await this.prisma.regionCode.findMany({
       orderBy: [{ sort: 'asc' }, { cd: 'asc' }],
     });
 
@@ -62,19 +62,19 @@ export class RegionCache implements OnApplicationBootstrap {
       const entry: RegionEntry = {
         code: r.cd,
         nm: r.nm,
-        nmEn: r.nm_en,
-        nmJa: r.nm_ja,
-        shortNm: r.short_nm,
+        nmEn: r.nmEn,
+        nmJa: r.nmJa,
+        shortNm: r.shortNm,
         level: r.level,
-        parentCode: r.parent_cd,
+        parentCode: r.parentCd,
         sort: r.sort,
       };
       byCode.set(r.cd, entry);
       all.push(entry);
-      if (r.parent_cd) {
-        const kids = childrenByParent.get(r.parent_cd);
+      if (r.parentCd) {
+        const kids = childrenByParent.get(r.parentCd);
         if (kids) kids.push(entry);
-        else childrenByParent.set(r.parent_cd, [entry]);
+        else childrenByParent.set(r.parentCd, [entry]);
       }
     }
 

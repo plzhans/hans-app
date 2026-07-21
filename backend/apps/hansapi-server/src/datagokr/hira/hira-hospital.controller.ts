@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Header, Param, Query } from '@nestjs/common';
 import {
   ApiExcludeEndpoint,
   ApiOkResponse,
@@ -16,6 +16,7 @@ import type {
 
 import { Auth } from '../../auth/auth.decorator';
 import { AuthType } from '../../auth/auth-type.enum';
+import { DETAIL_CACHE_CONTROL } from '../../common/cache-control';
 import { krDataSchemaRef } from '../../krdata-schemas';
 import { MirrorListRequestDto } from '../dto/mirror-list.request.dto';
 
@@ -62,6 +63,7 @@ export class HiraHospitalController {
   }
 
   @Get(':ykiho')
+  @Header('Cache-Control', DETAIL_CACHE_CONTROL)
   @ApiOperation({
     summary: '병원 상세 조회',
     description:
@@ -77,6 +79,7 @@ export class HiraHospitalController {
   }
 
   @Get(':ykiho/npay')
+  @Header('Cache-Control', DETAIL_CACHE_CONTROL)
   @ApiOperation({
     summary: '비급여 진료비 조회',
     description:
@@ -101,6 +104,7 @@ export class HiraHospitalController {
   }
 
   @Get(':ykiho/asm')
+  @Header('Cache-Control', DETAIL_CACHE_CONTROL)
   @ApiOperation({
     summary: '병원평가 등급 조회',
     description:

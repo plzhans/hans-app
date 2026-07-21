@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 import type { BabyHospitalListResponse, HospitalListItem } from '@krdata/nmc';
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
 import { MirrorListCommand } from '../common/mirror.result';
+import { NmcBabyRepository } from './nmc-baby.repository';
 
 /**
  * 달빛어린이병원·소아전문센터 조회.
@@ -15,18 +15,14 @@ import { MirrorListCommand } from '../common/mirror.result';
  */
 @Injectable()
 export class NmcBabyService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: NmcBabyRepository) {}
 
   async listBabyHospitals(
     command: MirrorListCommand,
   ): Promise<BabyHospitalListResponse> {
     const [rows, totalCount] = await Promise.all([
-      this.prisma.nmc_baby_hospital.findMany({
-        orderBy: { hpid: 'asc' },
-        skip: (command.page - 1) * command.size,
-        take: command.size,
-      }),
-      this.prisma.nmc_baby_hospital.count(),
+      this.repo.list(command.page, command.size),
+      this.repo.count(),
     ]);
 
     const items = rows.map((row) => row.data as HospitalListItem);

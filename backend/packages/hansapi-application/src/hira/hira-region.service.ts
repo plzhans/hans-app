@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
 import { MirrorListCommand } from '../common/mirror.result';
+import { HiraRegionRepository } from './hira-region.repository';
 
 /**
  * 지역 목록 item.
@@ -21,24 +21,20 @@ export interface HiraRegionItem {
 /** HIRA 지역 목록 조회. hira_region(병원 데이터 집계)을 읽는다. */
 @Injectable()
 export class HiraRegionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HiraRegionRepository) {}
 
   async listRegions(command: MirrorListCommand) {
     const [rows, totalCount] = await Promise.all([
-      this.prisma.hira_region.findMany({
-        orderBy: [{ sido_cd: 'asc' }, { sggu_cd: 'asc' }],
-        skip: (command.page - 1) * command.size,
-        take: command.size,
-      }),
-      this.prisma.hira_region.count(),
+      this.repo.list(command.page, command.size),
+      this.repo.count(),
     ]);
 
     const items: HiraRegionItem[] = rows.map((row) => ({
-      sidoCd: row.sido_cd,
-      sidoCdNm: row.sido_nm ?? undefined,
-      sgguCd: row.sggu_cd,
-      sgguCdNm: row.sggu_nm ?? undefined,
-      hospitalCount: row.hospital_cnt,
+      sidoCd: row.sidoCd,
+      sidoCdNm: row.sidoNm ?? undefined,
+      sgguCd: row.sgguCd,
+      sgguCdNm: row.sgguNm ?? undefined,
+      hospitalCount: row.hospitalCnt,
     }));
 
     return toKrDataEnvelope({

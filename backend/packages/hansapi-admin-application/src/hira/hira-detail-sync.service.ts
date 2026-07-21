@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapi/application';
-import { Prisma, PrismaService } from '@hansapi/data';
 import { KrDataQuotaError } from '@krdata/core';
 import type { HiraClient } from '@krdata/hira';
 
+import { HiraDetailSyncRepository } from './hira-detail-sync.repository';
 import { mapWithConcurrency } from '../common/pool';
 import { SyncOutcome } from '../common/sync-state.service';
 import { HIRA_CLIENT } from '../krdata.providers';
@@ -81,7 +81,7 @@ export class HiraDetailSyncService {
   private readonly logger = new Logger(HiraDetailSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraDetailSyncRepository,
     @Inject(HIRA_CLIENT) private readonly client: HiraClient,
   ) {}
 
@@ -175,52 +175,26 @@ export class HiraDetailSyncService {
    * hira_hospital_detail 에 행이 없으면 아직 안 받은 것이다. 오퍼레이션 수만큼 행이 차면 완성이다.
    * 커서를 따로 두지 않으므로 중단하고 다시 돌리면 미완성 병원부터 이어간다.
    */
-  private async nextTargets(
+  private nextTargets(
     options: DetailSyncOptions,
     ops: readonly HiraDetailOp[],
     take: number,
   ): Promise<string[]> {
     if (take <= 0) {
-      return [];
+      return Promise.resolve([]);
     }
 
-    const scope = this.scope(options);
-    const done = options.force
-      ? Prisma.sql`1 = 0`
-      : Prisma.sql`(
-          SELECT COUNT(*) FROM hira_hospital_detail d
-           WHERE d.ykiho = h.ykiho AND d.op IN (${Prisma.join(ops.map((op) => Prisma.sql`${op}`))})
-        ) >= ${ops.length}`;
-
-    const rows = await this.prisma.$queryRaw<{ ykiho: string }[]>(
-      Prisma.sql`
-        SELECT h.ykiho FROM hira_hospital h
-         WHERE ${scope} AND NOT ${done}
-         LIMIT ${take}
-      `,
+    return this.repo.pickTargets(
+      options.clCd,
+      options.excludeClCds,
+      ops,
+      options.force === true,
+      take,
     );
-    return rows.map((row) => row.ykiho);
   }
 
-  private async countTargets(options: DetailSyncOptions): Promise<number> {
-    const rows = await this.prisma.$queryRaw<{ c: bigint }[]>(
-      Prisma.sql`SELECT COUNT(*) c FROM hira_hospital h WHERE ${this.scope(options)}`,
-    );
-    return Number(rows[0]?.c ?? 0);
-  }
-
-  /** 등급 조건. cl_cd 는 generated column 이라 JSON 을 열지 않는다. */
-  private scope(options: DetailSyncOptions): Prisma.Sql {
-    if (options.clCd) {
-      return Prisma.sql`h.cl_cd = ${options.clCd}`;
-    }
-    if (options.excludeClCds?.length) {
-      const list = Prisma.join(
-        options.excludeClCds.map((cd) => Prisma.sql`${cd}`),
-      );
-      return Prisma.sql`(h.cl_cd IS NULL OR h.cl_cd NOT IN (${list}))`;
-    }
-    return Prisma.sql`1 = 1`;
+  private countTargets(options: DetailSyncOptions): Promise<number> {
+    return this.repo.countTargets(options.clCd, options.excludeClCds);
   }
 
   /**
@@ -243,7 +217,7 @@ export class HiraDetailSyncService {
       if (!alive.has(op)) {
         continue;
       }
-      if (!force && (await this.alreadyHave(ykiho, op))) {
+      if (!force && (await this.repo.hasDetail(ykiho, op))) {
         continue;
       }
 
@@ -267,7 +241,7 @@ export class HiraDetailSyncService {
         throw error;
       }
 
-      await this.store(ykiho, op, items);
+      await this.repo.storeDetail(ykiho, op, items);
 
       // 검색 축은 정규화 테이블에도 넣는다. 원본은 hira_hospital_detail 에 그대로 남는다.
       if (op === 'equipment') {
@@ -280,14 +254,6 @@ export class HiraDetailSyncService {
     }
 
     return calls;
-  }
-
-  private async alreadyHave(ykiho: string, op: string): Promise<boolean> {
-    const found = await this.prisma.hira_hospital_detail.findUnique({
-      where: { ykiho_op: { ykiho, op } },
-      select: { op: true },
-    });
-    return found !== null;
   }
 
   /** 오퍼레이션 하나 호출. 응답 item 을 배열로 정규화해 돌려준다. */
@@ -339,29 +305,6 @@ export class HiraDetailSyncService {
     }
   }
 
-  /**
-   * 원본 응답을 통째로 보관한다. 1행짜리(info, facility)는 객체로, 여러 행은 배열로 넣는다.
-   * 결과가 0건이어도 행을 만든다. 안 그러면 매번 다시 조회한다(전문병원이 아닌 병원의 specialty 등).
-   */
-  private async store(
-    ykiho: string,
-    op: HiraDetailOp,
-    items: Record<string, unknown>[],
-  ): Promise<void> {
-    const data = items.length === 1 ? items[0] : items;
-
-    await this.prisma.$executeRaw(
-      Prisma.sql`
-        INSERT INTO hira_hospital_detail (ykiho, op, data, created_at, updated_at, synced_at)
-        VALUES (${ykiho}, ${op}, CAST(${JSON.stringify(data)} AS JSON), NOW(), NOW(), NOW()) AS new
-        ON DUPLICATE KEY UPDATE
-          updated_at = IF(hira_hospital_detail.data = new.data, hira_hospital_detail.updated_at, NOW()),
-          synced_at  = NOW(),
-          data       = new.data
-      `,
-    );
-  }
-
   private async storeEquipment(
     ykiho: string,
     items: Record<string, unknown>[],
@@ -381,21 +324,7 @@ export class HiraDetailSyncService {
       return;
     }
 
-    const values = Prisma.join(
-      rows.map(
-        (row) =>
-          Prisma.sql`(${ykiho}, ${row.cd}, ${row.nm}, ${row.cnt}, NOW())`,
-      ),
-    );
-
-    await this.prisma.$executeRaw(
-      Prisma.sql`
-        INSERT INTO hira_hospital_equipment (ykiho, oft_cd, oft_nm, oft_cnt, synced_at)
-        VALUES ${values} AS new
-        ON DUPLICATE KEY UPDATE
-          oft_nm = new.oft_nm, oft_cnt = new.oft_cnt, synced_at = NOW()
-      `,
-    );
+    await this.repo.upsertEquipment(ykiho, rows);
   }
 
   private async storeSrch(
@@ -416,19 +345,7 @@ export class HiraDetailSyncService {
       return;
     }
 
-    const values = Prisma.join(
-      rows.map(
-        (row) => Prisma.sql`(${ykiho}, ${tp}, ${row.cd}, ${row.nm}, NOW())`,
-      ),
-    );
-
-    await this.prisma.$executeRaw(
-      Prisma.sql`
-        INSERT INTO hira_hospital_srch (ykiho, tp, srch_cd, srch_nm, synced_at)
-        VALUES ${values} AS new
-        ON DUPLICATE KEY UPDATE srch_nm = new.srch_nm, synced_at = NOW()
-      `,
-    );
+    await this.repo.upsertSrch(ykiho, tp, rows);
   }
 
   /**
@@ -452,25 +369,6 @@ export class HiraDetailSyncService {
       return;
     }
 
-    const values = Prisma.join(
-      rows.map(
-        (row) =>
-          Prisma.sql`(${ykiho}, ${row.cd}, ${row.nm}, ${row.sdr}, ${row.cdiag}, 'subject', NOW())`,
-      ),
-    );
-
-    await this.prisma.$executeRaw(
-      Prisma.sql`
-        INSERT INTO hira_hospital_subject
-          (ykiho, dgsbjt_cd, dgsbjt_nm, sdr_cnt, cdiag_cnt, source, synced_at)
-        VALUES ${values} AS new
-        ON DUPLICATE KEY UPDATE
-          dgsbjt_nm = new.dgsbjt_nm,
-          sdr_cnt   = new.sdr_cnt,
-          cdiag_cnt = new.cdiag_cnt,
-          source    = 'subject',
-          synced_at = NOW()
-      `,
-    );
+    await this.repo.upsertSubjects(ykiho, rows);
   }
 }

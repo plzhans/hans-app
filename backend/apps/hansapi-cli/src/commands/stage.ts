@@ -209,7 +209,7 @@ export function syncStatusCommand(source: EnvSource): Command {
               row.status,
               row.calls.toLocaleString(),
               row.processed.toLocaleString(),
-              row.last_success_at?.toLocaleString('ko-KR') ?? '-',
+              row.lastSuccessAt?.toLocaleString('ko-KR') ?? '-',
             ].join('\t'),
           );
         }

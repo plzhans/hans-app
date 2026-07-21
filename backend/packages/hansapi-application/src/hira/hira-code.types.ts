@@ -39,8 +39,8 @@ export function isHiraCodeType(value: string): value is HiraCodeType {
 /** hira_code 한 행. Prisma 모델의 부분집합이다. */
 export interface HiraCodeRow {
   cd: string;
-  cd_nm: string | null;
-  cd_cmt: string | null;
+  cdNm: string | null;
+  cdCmt: string | null;
 }
 
 /** 코드 종류별 원본 item 타입. tp 에 따라 필드명이 다르다. */
@@ -76,45 +76,45 @@ export const HIRA_CODE_TYPE_DEFS: Record<HiraCodeType, HiraCodeTypeDef> = {
     tpNm: '주소코드',
     toItem: (row): AddressCodeItem => ({
       addrCd: row.cd,
-      addrCdNm: row.cd_nm ?? undefined,
+      addrCdNm: row.cdNm ?? undefined,
     }),
   },
   class: {
     tpNm: '의료기관종별코드',
     toItem: (row): InstitutionClassCodeItem => ({
       clCd: row.cd,
-      clCdNm: row.cd_nm ?? undefined,
+      clCdNm: row.cdNm ?? undefined,
     }),
   },
   subject: {
     tpNm: '진료과목코드',
     toItem: (row): SubjectCodeItem => ({
       dgsbjtCd: row.cd,
-      dgsbjtCdNm: row.cd_nm ?? undefined,
-      dgsbjtCdCmmt: row.cd_cmt ?? undefined,
+      dgsbjtCdNm: row.cdNm ?? undefined,
+      dgsbjtCdCmmt: row.cdCmt ?? undefined,
     }),
   },
   equipment: {
     tpNm: '장비코드',
     toItem: (row): EquipmentCodeItem => ({
       oftCd: row.cd,
-      oftCdNm: row.cd_nm ?? undefined,
+      oftCdNm: row.cdNm ?? undefined,
     }),
   },
   specialty: {
     tpNm: '전문병원코드',
     toItem: (row): SearchCodeItem => ({
       srchCd: row.cd,
-      srchCdNm: row.cd_nm ?? undefined,
-      srchCdCmmt: row.cd_cmt ?? undefined,
+      srchCdNm: row.cdNm ?? undefined,
+      srchCdCmmt: row.cdCmt ?? undefined,
     }),
   },
   special: {
     tpNm: '특수진료코드',
     toItem: (row): SearchCodeItem => ({
       srchCd: row.cd,
-      srchCdNm: row.cd_nm ?? undefined,
-      srchCdCmmt: row.cd_cmt ?? undefined,
+      srchCdNm: row.cdNm ?? undefined,
+      srchCdCmmt: row.cdCmt ?? undefined,
     }),
   },
 };

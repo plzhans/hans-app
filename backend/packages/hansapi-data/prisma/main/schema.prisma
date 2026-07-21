@@ -5,6 +5,9 @@
 generator client {
   provider = "prisma-client-js"
 
+  // 상세 조회에서 자식 테이블을 relationLoadStrategy:'join' 으로 한 방에 가져오려고 켠다.
+  previewFeatures = ["relationJoins"]
+
   // 빌드(CI, amd64)와 배포 서버(arm64)의 아키텍처가 다르다.
   // 기본값은 "native" 뿐이라, amd64 에서 만든 번들을 arm64 서버에 풀면
   // Prisma 엔진이 없어서 부팅이 실패한다. 두 엔진을 다 담는다.
@@ -47,7 +50,7 @@ datasource db {
 //               → 이번 전체 sync 에 걸리지 않은 행 = 원본에서 사라진 병원(폐업) 판별에 쓴다.
 
 /// 국립중앙의료원(NMC) 병원. 출처: HsptlAsembySearchService/getHsptlMdcncFullDown
-model nmc_hospital {
+model NmcHospital {
   /// 기관ID
   hpid String @id @db.VarChar(20)
 
@@ -55,28 +58,28 @@ model nmc_hospital {
   data Json
 
   /// 최초 적재 시각
-  created_at DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
 
   /// 이 행이 마지막으로 수정된 시각.
   /// Prisma 로 수정하면(@updatedAt) 자동 갱신된다 — 관리자 화면의 수동 수정 등.
   /// sync 는 이 컬럼을 직접 제어한다. data 가 실제로 바뀔 때만 갱신하고, 아니면 그대로 둔다.
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
   /// API 에서 마지막으로 확인한 시각. sync 마다 갱신된다.
-  synced_at DateTime @default(now()) @db.DateTime(0)
+  syncedAt DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
   /// [generated] 시도명. data.sidoNm 에서 뽑는다.
   /// 원본 API 에는 없는 값이다. @krdata/nmc SDK 가 dutyAddr 를 파싱해 넣어 준다.
   /// NMC 는 지역을 코드로 주지 않아(검색 파라미터도 주소 부분일치) 주소에서 뽑는 수밖에 없다.
-  sido_nm String? @db.VarChar(20)
+  sidoNm String? @map("sido_nm") @db.VarChar(20)
 
   /// [generated] 시군구명. data.sgguNm 에서 뽑는다. 위와 같은 파생 필드다.
   /// 세종특별자치시처럼 시군구가 없는 지역은 NULL 이다.
-  sggu_nm String? @db.VarChar(30)
+  sgguNm String? @map("sggu_nm") @db.VarChar(30)
 
   /// [generated] 기관구분. data.dutyDiv (A=종합병원 B=병원 D=요양병원 E=한방병원 M=치과병원 C=의원…)
   /// 2단계 배치가 등급 순서로 돌기 위한 타겟팅 컬럼이다. JSON 을 매번 뒤지면 8만 행 풀스캔이다.
-  duty_div String? @db.VarChar(5)
+  dutyDiv String? @map("duty_div") @db.VarChar(5)
 
   /// 병원별 기본정보(basic) 응답 item 원본. 68개 필드가 들어온다.
   /// data(fulldown)와 수명주기가 다르다. fulldown 은 매일, basic 은 병원당 1콜이라 초기 1회 + 증분이다.
@@ -85,16 +88,17 @@ model nmc_hospital {
 
   /// basic 을 받은 시각. **NULL 인 병원이 곧 작업 큐다.**
   /// 8만 콜은 한 번에 못 끝내므로(개발계정 일 1,000건) 커서 없이 이걸로 이어받는다.
-  basic_synced_at DateTime? @db.DateTime(0)
+  basicSyncedAt DateTime? @map("basic_synced_at") @db.DateTime(0)
 
-  @@index([synced_at], map: "idx_nmc_hospital_synced_at")
-  @@index([updated_at], map: "idx_nmc_hospital_updated_at")
-  @@index([sido_nm, sggu_nm], map: "idx_nmc_hospital_region")
-  @@index([duty_div, basic_synced_at], map: "idx_nmc_hospital_basic_queue")
+  @@index([syncedAt], map: "idx_nmc_hospital_synced_at")
+  @@index([updatedAt], map: "idx_nmc_hospital_updated_at")
+  @@index([sidoNm, sgguNm], map: "idx_nmc_hospital_region")
+  @@index([dutyDiv, basicSyncedAt], map: "idx_nmc_hospital_basic_queue")
+  @@map("nmc_hospital")
 }
 
 /// 건강보험심사평가원(HIRA) 병원. 출처: hospInfoServicev2/getHospBasisList
-model hira_hospital {
+model HiraHospital {
   /// 암호화된 요양기호. 실측 80자이나 여유를 둔다.
   ykiho String @id @db.VarChar(200)
 
@@ -102,41 +106,42 @@ model hira_hospital {
   data Json
 
   /// 최초 적재 시각
-  created_at DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
 
   /// 이 행이 마지막으로 수정된 시각.
   /// Prisma 로 수정하면(@updatedAt) 자동 갱신된다 — 관리자 화면의 수동 수정 등.
   /// sync 는 이 컬럼을 직접 제어한다. data 가 실제로 바뀔 때만 갱신하고, 아니면 그대로 둔다.
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
   /// API 에서 마지막으로 확인한 시각. sync 마다 갱신된다.
-  synced_at DateTime @default(now()) @db.DateTime(0)
+  syncedAt DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
   /// [generated] 시도코드. data.sidoCd 에서 뽑는다. 원본이 그대로 주는 값이다.
   /// 폐지 코드가 남아 있을 수 있다 (예: 240000 광주 → 360000 전남광주 통합 후에도 3건 잔존).
-  sido_cd String? @db.VarChar(10)
+  sidoCd String? @map("sido_cd") @db.VarChar(10)
 
   /// [generated] 시도명. data.sidoCdNm
-  sido_nm String? @db.VarChar(20)
+  sidoNm String? @map("sido_nm") @db.VarChar(20)
 
   /// [generated] 시군구코드. data.sgguCd
-  sggu_cd String? @db.VarChar(10)
+  sgguCd String? @map("sggu_cd") @db.VarChar(10)
 
   /// [generated] 시군구명. data.sgguCdNm. 심평원 자체 표기다 (예: 수원팔달구, 광주북구).
-  sggu_nm String? @db.VarChar(30)
+  sgguNm String? @map("sggu_nm") @db.VarChar(30)
 
   /// [generated] 읍면동명. data.emdongNm. 원본에 동 코드는 없고 이름만 준다.
-  emdong_nm String? @db.VarChar(30)
+  emdongNm String? @map("emdong_nm") @db.VarChar(30)
 
   /// [generated] 종별코드. data.clCd (01=상급종합 11=종합 21=병원 28=요양 29=정신 41=치과병원 92=한방병원 31=의원…)
   /// 2~12단계 배치가 등급 단위로 돌기 위한 타겟팅 컬럼이다.
-  cl_cd String? @db.VarChar(5)
+  clCd String? @map("cl_cd") @db.VarChar(5)
 
-  @@index([synced_at], map: "idx_hira_hospital_synced_at")
-  @@index([updated_at], map: "idx_hira_hospital_updated_at")
-  @@index([sido_cd, sggu_cd], map: "idx_hira_hospital_region_cd")
-  @@index([sido_nm, sggu_nm, emdong_nm], map: "idx_hira_hospital_region_nm")
-  @@index([cl_cd], map: "idx_hira_hospital_cl_cd")
+  @@index([syncedAt], map: "idx_hira_hospital_synced_at")
+  @@index([updatedAt], map: "idx_hira_hospital_updated_at")
+  @@index([sidoCd, sgguCd], map: "idx_hira_hospital_region_cd")
+  @@index([sidoNm, sgguNm, emdongNm], map: "idx_hira_hospital_region_nm")
+  @@index([clCd], map: "idx_hira_hospital_cl_cd")
+  @@map("hira_hospital")
 }
 
 // 코드성 데이터.
@@ -152,25 +157,26 @@ model hira_hospital {
 /// 국립중앙의료원(NMC) 코드마스터. 출처: CodeMast/info
 /// cm_mid/cm_mnm 이 코드 종류, cm_sid/cm_snm 이 실제 코드다.
 /// 예) H010(설립구분) → F001(국립)
-model nmc_code {
+model NmcCode {
   /// 대분류코드 (cmMid). 코드 종류. 예: H010
-  cm_mid String @db.VarChar(20)
+  cmMid String @map("cm_mid") @db.VarChar(20)
 
   /// 소분류코드 (cmSid). 실제 코드값. 예: F001
-  cm_sid String @db.VarChar(20)
+  cmSid String @map("cm_sid") @db.VarChar(20)
 
   /// 코드명 (cmMnm). 코드 종류의 이름. 예: 설립구분
-  cm_mnm String? @db.VarChar(100)
+  cmMnm String? @map("cm_mnm") @db.VarChar(100)
 
   /// 코드약어 (cmSnm). 코드값의 이름. 예: 국립
-  cm_snm String? @db.VarChar(100)
+  cmSnm String? @map("cm_snm") @db.VarChar(100)
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
-  synced_at  DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
-  @@id([cm_mid, cm_sid])
-  @@index([cm_snm], map: "idx_nmc_code_snm")
+  @@id([cmMid, cmSid])
+  @@index([cmSnm], map: "idx_nmc_code_snm")
+  @@map("nmc_code")
 }
 
 /// 건강보험심사평가원(HIRA) 코드.
@@ -192,7 +198,7 @@ model nmc_code {
 /// 지금은 sync 가 HIRA_CODE_TYPES(6종)만 돌아 구조적으로 안전하다. 코드 sync 에 "원본에서
 /// 사라진 코드 정리" 같은 걸 넣는다면 **반드시 tp 를 그 6종으로 한정하라** — 안 그러면
 /// 시드가 넣은 asm* 이 조용히 날아간다.
-model hira_code {
+model HiraCode {
   /// 코드 종류. addr | class | subject | equipment | specialty | special | asm01~asm09
   /// API 가 주는 값이 아니라 우리가 붙이는 구분자다(엔드포인트별로 결정).
   ///
@@ -203,36 +209,37 @@ model hira_code {
 
   /// 코드 종류명. 주소코드 | 의료기관종별코드 | ... 우리가 붙이는 라벨이다.
   /// 병원평가는 여기가 그룹명이다(급성질환·만성질환…).
-  tp_nm String @db.VarChar(50)
+  tpNm String @map("tp_nm") @db.VarChar(50)
 
   /// [i18n] 코드 종류명 번역. **시드가 채우는 tp(asm*)만 값이 있다.**
   /// sync 가 채우는 6종은 원본이 한국어만 줘서 NULL 이고, 읽는 쪽이 한국어로 폴백한다.
-  tp_nm_en String? @db.VarChar(50)
-  tp_nm_ja String? @db.VarChar(50)
-  tp_nm_zh String? @db.VarChar(50)
+  tpNmEn String? @map("tp_nm_en") @db.VarChar(50)
+  tpNmJa String? @map("tp_nm_ja") @db.VarChar(50)
+  tpNmZh String? @map("tp_nm_zh") @db.VarChar(50)
 
   /// 코드값. 원본의 addrCd / clCd / dgsbjtCd / oftCd / srchCd
   /// asm* 은 원본 asmGrd 의 번호('01','03'…)다. hira_hospital_asm 의 컬럼명(asm_01…)과 1:1.
   cd String @db.VarChar(20)
 
   /// 코드명. 원본의 ...CdNm
-  cd_nm String? @db.VarChar(200)
+  cdNm String? @map("cd_nm") @db.VarChar(200)
 
   /// [i18n] 코드명 번역. tp_nm_* 과 같은 규칙 — asm* 만 값이 있고 나머지는 NULL 이다.
-  cd_nm_en String? @db.VarChar(200)
-  cd_nm_ja String? @db.VarChar(200)
-  cd_nm_zh String? @db.VarChar(200)
+  cdNmEn String? @map("cd_nm_en") @db.VarChar(200)
+  cdNmJa String? @map("cd_nm_ja") @db.VarChar(200)
+  cdNmZh String? @map("cd_nm_zh") @db.VarChar(200)
 
   /// 코드 설명. 원본의 ...CdCmmt. subject/specialty/special 에만 있다.
   /// asm* 은 시드가 우리 메모를 넣는다(원본에 설명이 없다).
-  cd_cmt String? @db.Text
+  cdCmt String? @map("cd_cmt") @db.Text
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
-  synced_at  DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
   @@id([tp, cd])
-  @@index([cd_nm], map: "idx_hira_code_nm")
+  @@index([cdNm], map: "idx_hira_code_nm")
+  @@map("hira_code")
 }
 
 /// HIRA 비급여 항목 코드마스터. **hira_code 와 구조가 같다** — 코드값 + 이름 + i18n + 상위계층.
@@ -250,37 +257,38 @@ model hira_code {
 ///   · 요약 sync   : 페이징하며 distinct npayCd 를 코드·이름·분류코드까지 채운다(대부분 여기서 완성)
 ///   · 크롤 적재   : 의원 전용 코드 등 남은 것을 upsert. **분류코드는 있을 때만 채운다**
 ///                  (npayCd·이름만 아는 경로가 이미 채워둔 분류코드를 NULL 로 덮지 않게)
-model hira_npay_code {
+model HiraNpayCode {
   /// 비급여 항목코드(원본 npayCd). 잎 코드다. number/string 혼재라 문자열로 고정한다.
   cd String @id @db.VarChar(20)
 
   /// 항목 전체명(원본 npayKorNm). '중분류/소분류/항목' 슬래시 결합 그대로.
-  cd_nm String @db.VarChar(400)
+  cdNm   String  @map("cd_nm") @db.VarChar(400)
   /// [i18n] asm 과 같은 규칙 — 지금 NULL, 나중에 AI 번역.
-  cd_nm_en String? @db.VarChar(400)
-  cd_nm_ja String? @db.VarChar(400)
-  cd_nm_zh String? @db.VarChar(400)
+  cdNmEn String? @map("cd_nm_en") @db.VarChar(400)
+  cdNmJa String? @map("cd_nm_ja") @db.VarChar(400)
+  cdNmZh String? @map("cd_nm_zh") @db.VarChar(400)
 
   /// 소분류(원본 npaySdivCd/Nm). 중분류 코드로 시작해 중첩된다. 이름에 슬래시가 있을 수 있다.
   /// **분류코드가 없는 경로(상세)로 먼저 만들어지면 NULL 일 수 있다.**
-  sdiv_cd String? @db.VarChar(20)
-  sdiv_nm String? @db.VarChar(400)
+  sdivCd String? @map("sdiv_cd") @db.VarChar(20)
+  sdivNm String? @map("sdiv_nm") @db.VarChar(400)
 
   /// 중분류(원본 npayMdivCd/Nm). 상위 계층이자 화면 그룹 헤더. hira_code 의 tp/tp_nm 자리다.
-  mdiv_cd String? @db.VarChar(20)
-  mdiv_nm String? @db.VarChar(200)
+  mdivCd   String? @map("mdiv_cd") @db.VarChar(20)
+  mdivNm   String? @map("mdiv_nm") @db.VarChar(200)
   /// [i18n] 화면에 그룹 헤더로 나가므로 번역이 필요하다. cd_nm 과 같은 규칙.
-  mdiv_nm_en String? @db.VarChar(200)
-  mdiv_nm_ja String? @db.VarChar(200)
-  mdiv_nm_zh String? @db.VarChar(200)
+  mdivNmEn String? @map("mdiv_nm_en") @db.VarChar(200)
+  mdivNmJa String? @map("mdiv_nm_ja") @db.VarChar(200)
+  mdivNmZh String? @map("mdiv_nm_zh") @db.VarChar(200)
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
-  synced_at  DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
-  @@index([mdiv_cd], map: "idx_hira_npay_code_mdiv")
-  @@index([sdiv_cd], map: "idx_hira_npay_code_sdiv")
-  @@index([cd_nm], map: "idx_hira_npay_code_nm")
+  @@index([mdivCd], map: "idx_hira_npay_code_mdiv")
+  @@index([sdivCd], map: "idx_hira_npay_code_sdiv")
+  @@index([cdNm], map: "idx_hira_npay_code_nm")
+  @@map("hira_npay_code")
 }
 
 // 지역 목록 (검색 UI 용).
@@ -296,45 +304,47 @@ model hira_npay_code {
 // NMC 와 HIRA 는 지역 체계가 달라(이름 vs 코드) 테이블을 합치지 않는다.
 
 /// NMC 지역 목록. nmc_hospital 의 sido_nm/sggu_nm 집계.
-model nmc_region {
+model NmcRegion {
   id Int @id @default(autoincrement())
 
   /// 시도명. @krdata/nmc SDK 가 dutyAddr 에서 뽑아 정규화한 값이다.
-  sido_nm String @db.VarChar(20)
+  sidoNm String @map("sido_nm") @db.VarChar(20)
 
   /// 시군구명. 세종특별자치시처럼 시군구가 없는 지역과 원본 주소 결손은 NULL 이다.
-  sggu_nm String? @db.VarChar(30)
+  sgguNm String? @map("sggu_nm") @db.VarChar(30)
 
   /// 이 지역의 병원 수. UI 에서 "강남구 (3,045)" 처럼 쓴다.
-  hospital_cnt Int
+  hospitalCnt Int @map("hospital_cnt")
 
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
-  @@index([sido_nm, sggu_nm], map: "idx_nmc_region")
+  @@index([sidoNm, sgguNm], map: "idx_nmc_region")
+  @@map("nmc_region")
 }
 
 /// HIRA 지역 목록. hira_hospital 의 시도·시군구 코드 집계.
-model hira_region {
+model HiraRegion {
   id Int @id @default(autoincrement())
 
   /// 시도코드. 폐지 코드가 남은 행도 데이터에 있는 한 그대로 나온다 (예: 240000 광주 3건).
-  sido_cd String @db.VarChar(10)
+  sidoCd String @map("sido_cd") @db.VarChar(10)
 
   /// 시도명
-  sido_nm String? @db.VarChar(20)
+  sidoNm String? @map("sido_nm") @db.VarChar(20)
 
   /// 시군구코드
-  sggu_cd String @db.VarChar(10)
+  sgguCd String @map("sggu_cd") @db.VarChar(10)
 
   /// 시군구명. 심평원 자체 표기다 (예: 수원팔달구, 광주북구).
-  sggu_nm String? @db.VarChar(30)
+  sgguNm String? @map("sggu_nm") @db.VarChar(30)
 
   /// 이 지역의 병원 수
-  hospital_cnt Int
+  hospitalCnt Int @map("hospital_cnt")
 
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
-  @@index([sido_cd, sggu_cd], map: "idx_hira_region")
+  @@index([sidoCd, sgguCd], map: "idx_hira_region")
+  @@map("hira_region")
 }
 
 // 동기화 상태.
@@ -357,7 +367,7 @@ model hira_region {
 /// **요점은 서버가 외부를 호출하지 않는다는 것이다.** 크롤은 admin 계층에만 있고 서버는 마킹만 한다.
 /// 그래서 "서버는 로컬 DB 만 읽고 외부 API 호출은 admin 의 몫"이 그대로 성립한다.
 /// MQ 가 생기면 이 테이블만 걷어내면 된다 — 넣는 쪽·꺼내는 쪽이 이미 갈려 있다.
-model job_queue {
+model JobQueue {
   id Int @id @default(autoincrement())
 
   /// 작업 종류. 지금은 npay-web 하나다 (심평원 홈페이지 비급여 크롤, clients/kr-or-hira).
@@ -375,19 +385,20 @@ model job_queue {
   /// 그 메시지가 남아야 원인을 찾는다.
   error String? @db.Text
 
-  created_at   DateTime  @default(now()) @db.DateTime(0)
-  updated_at   DateTime  @default(now()) @updatedAt @db.DateTime(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
   /// 처리를 끝낸 시각. 성공·실패 모두 찍는다.
-  processed_at DateTime? @db.DateTime(0)
+  processedAt DateTime? @map("processed_at") @db.DateTime(0)
 
   /// **같은 대상은 한 줄이다.** 100명이 같은 병원을 눌러도 큐에는 하나만 쌓인다.
   /// 처리된(done) 대상을 다시 요청하면 이 행의 status 를 pending 으로 되돌린다.
   @@unique([tp, target], map: "uk_job_queue_tp_target")
   /// 배치가 pending 을 오래된 순으로 꺼낸다.
-  @@index([status, created_at], map: "idx_job_queue_status")
+  @@index([status, createdAt], map: "idx_job_queue_status")
+  @@map("job_queue")
 }
 
-model sync_state {
+model SyncState {
   /// 실행 단위 식별자. 예: nmc.1, nmc.2.A, hira.2, hira.4.equipment
   job String @id @db.VarChar(50)
 
@@ -401,14 +412,14 @@ model sync_state {
   status String @db.VarChar(10)
 
   /// 이번 실행 시작 시각
-  started_at DateTime? @db.DateTime(0)
+  startedAt DateTime? @map("started_at") @db.DateTime(0)
 
   /// 이번 실행 종료 시각 (성공·실패 무관)
-  finished_at DateTime? @db.DateTime(0)
+  finishedAt DateTime? @map("finished_at") @db.DateTime(0)
 
   /// 마지막으로 **성공**한 시각. 스킵 판정의 기준이다.
   /// 원본 갱신주기가 일 1회이므로, 오늘 이미 성공했으면 다시 돌리지 않는다(--force 로 무시).
-  last_success_at DateTime? @db.DateTime(0)
+  lastSuccessAt DateTime? @map("last_success_at") @db.DateTime(0)
 
   /// 처리 대상 건수
   total Int @default(0)
@@ -420,14 +431,15 @@ model sync_state {
   calls Int @default(0)
 
   /// 소요 시간 (ms)
-  elapsed_ms Int @default(0)
+  elapsedMs Int @default(0) @map("elapsed_ms")
 
   /// 실패 사유
   error String? @db.Text
 
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
   @@index([provider, stage], map: "idx_sync_state_provider")
+  @@map("sync_state")
 }
 
 // 병원-진료과목 매핑.
@@ -439,63 +451,67 @@ model sync_state {
 // 덮어쓰며 추가 정보(전문의수 등)를 채운다. 구조가 같아 스키마 변경이 없다.
 
 /// NMC 병원-진료과목. 출처: QD 역조회 → basic 의 dgidIdName
-model nmc_hospital_subject {
+model NmcHospitalSubject {
   /// 기관ID
   hpid String @db.VarChar(20)
 
   /// 진료과목 코드. 코드마스터 D000 (예: D001=내과)
-  subject_cd String @db.VarChar(10)
+  subjectCd String @map("subject_cd") @db.VarChar(10)
 
   /// 진료과목명
-  subject_nm String? @db.VarChar(50)
+  subjectNm String? @map("subject_nm") @db.VarChar(50)
 
   /// list = QD 역조회 (1단계) | basic = 병원별 기본정보의 dgidIdName (2·3단계)
   source String @db.VarChar(10)
 
-  synced_at DateTime @default(now()) @db.DateTime(0)
+  syncedAt DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
-  @@id([hpid, subject_cd])
-  @@index([subject_cd], map: "idx_nmc_hospital_subject_cd")
+  @@id([hpid, subjectCd])
+  @@index([subjectCd], map: "idx_nmc_hospital_subject_cd")
+  @@map("nmc_hospital_subject")
 }
 
 /// HIRA 병원-진료과목. 출처: dgsbjtCd 역조회 → getSubjectInfo
-model hira_hospital_subject {
+model HiraHospitalSubject {
   /// 암호화된 요양기호
   ykiho String @db.VarChar(200)
 
   /// 진료과목 코드 (예: 01=내과)
-  dgsbjt_cd String @db.VarChar(10)
+  dgsbjtCd String @map("dgsbjt_cd") @db.VarChar(10)
 
   /// 진료과목명
-  dgsbjt_nm String? @db.VarChar(50)
+  dgsbjtNm String? @map("dgsbjt_nm") @db.VarChar(50)
 
   /// 과목별 전문의수. 역조회로는 알 수 없어 NULL 이다. getSubjectInfo 가 채운다.
-  sdr_cnt Int?
+  sdrCnt Int? @map("sdr_cnt")
 
   /// 선택진료의사수. 실측상 대부분 0 이다.
-  cdiag_cnt Int?
+  cdiagCnt Int? @map("cdiag_cnt")
 
   /// list = dgsbjtCd 역조회 (1단계) | subject = getSubjectInfo (개별 조회)
   source String @db.VarChar(10)
 
-  synced_at DateTime @default(now()) @db.DateTime(0)
+  syncedAt DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
-  @@id([ykiho, dgsbjt_cd])
-  @@index([dgsbjt_cd], map: "idx_hira_hospital_subject_cd")
+  @@id([ykiho, dgsbjtCd])
+  @@index([dgsbjtCd], map: "idx_hira_hospital_subject_cd")
+  @@map("hira_hospital_subject")
 }
 
 /// NMC 달빛어린이병원·소아전문센터. 출처: getBabyListInfoInqire (필터 없이 1콜)
 /// 병원 목록의 부분집합이지만 원본이 별도 API 라 테이블을 나눈다.
-model nmc_baby_hospital {
+model NmcBabyHospital {
   /// 기관ID
   hpid String @id @db.VarChar(20)
 
   /// API 응답 item 원본
   data Json
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
-  synced_at  DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.DateTime(0)
+
+  @@map("nmc_baby_hospital")
 }
 
 /// HIRA 병원평가 등급. 출처: hospAsmInfoService1/getHospAsmInfo (목록형, 37콜 전수)
@@ -511,21 +527,21 @@ model nmc_baby_hospital {
 /// 정규화 사본(항목별 등급)은 두지 않는다. 등급으로 필터링이 필요해지면 그때 JSON 에서 뽑는다.
 /// 평가항목이 asmGrd01~24 로 가로로 붙고(02·11 은 없다) 항목마다 값 도메인이 달라서
 /// (asmGrd16 천식만 0·2~5·'양호'), 섣불리 펼치면 원본을 잃는다.
-model hira_hospital_asm {
+model HiraHospitalAsm {
   /// 암호화된 요양기호
   ykiho String @id @db.VarChar(200)
 
   /// API 응답 item 원본. 등급은 정수 1~5 와 문자열 '등급제외' 가 섞여 온다.
   data Json
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
-  synced_at  DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
   /// [generated] 종별코드. data.clCd 에서 뽑는다.
   /// 원본은 '01'(상급종합)만 문자열이고 나머지는 숫자다 — 앞자리 0 은 JSON 숫자가 될 수 없다.
   /// JSON_UNQUOTE(JSON_EXTRACT(...)) 가 둘 다 문자열로 정규화한다.
-  cl_cd String? @db.VarChar(5)
+  clCd String? @map("cl_cd") @db.VarChar(5)
 
   // 평가항목 등급. asmGrd01~24 를 컬럼으로 편다. **02 와 11 은 원본에 없다.**
   // 원본 그대로 담는다. 등급이 숫자와 문자열로 섞여 오는데
@@ -618,8 +634,9 @@ model hira_hospital_asm {
   /// [generated] 고혈압·당뇨병. data.asmGrd24
   asm_24 String? @db.VarChar(10)
 
-  @@index([cl_cd], map: "idx_hira_hospital_asm_cl_cd")
-  @@index([synced_at], map: "idx_hira_hospital_asm_synced_at")
+  @@index([clCd], map: "idx_hira_hospital_asm_cl_cd")
+  @@index([syncedAt], map: "idx_hira_hospital_asm_synced_at")
+  @@map("hira_hospital_asm")
 }
 
 /// HIRA 비급여 진료비(기관별 실제 청구금액). 출처: nonPaymentDamtInfoService/getNonPaymentItemHospDtlList
@@ -633,7 +650,7 @@ model hira_hospital_asm {
 ///
 /// 요약(List2)과 섞지 마라. 성격이 반대다 — 여긴 기관의 **실제 청구금액**(curAmt) 한 행,
 /// 저긴 항목별 **가격 범위**(minPrc~maxPrc)다. 자세한 건 clients/krdata-hira/README.md 에 있다.
-model hira_hospital_npay {
+model HiraHospitalNpay {
   /// 암호화된 요양기호
   ykiho String @db.VarChar(200)
 
@@ -653,22 +670,22 @@ model hira_hospital_npay {
   /// urlAddr 은 병원 단위 값이라 그 기관의 모든 행에 같은 값이 반복된다 — 미러라 그대로 둔다.
   data Json
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
-  synced_at  DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
   /// [generated] 종별코드. hira_hospital_asm.cl_cd 와 같은 방식이다(위 주석 참고).
-  cl_cd String? @db.VarChar(5)
+  clCd String? @map("cl_cd") @db.VarChar(5)
 
   /// [generated] 비급여 항목코드. 항목별 가격 비교의 축이라 뽑아둔다.
-  npay_cd String? @db.VarChar(20)
+  npayCd String? @map("npay_cd") @db.VarChar(20)
 
   @@id([ykiho, sno])
-  @@index([cl_cd], map: "idx_hira_hospital_npay_cl_cd")
-  @@index([npay_cd], map: "idx_hira_hospital_npay_npay_cd")
-  @@index([synced_at], map: "idx_hira_hospital_npay_synced_at")
+  @@index([clCd], map: "idx_hira_hospital_npay_cl_cd")
+  @@index([npayCd], map: "idx_hira_hospital_npay_npay_cd")
+  @@index([syncedAt], map: "idx_hira_hospital_npay_synced_at")
+  @@map("hira_hospital_npay")
 }
-
 
 // HIRA 개별 상세.
 //
@@ -677,7 +694,7 @@ model hira_hospital_npay {
 // 그래서 (병원, 오퍼레이션) 한 쌍을 행으로 둔다. **행이 없으면 아직 안 받은 것**이라 이어받기가 자연스럽다.
 
 /// HIRA 병원별 상세. op 하나가 오퍼레이션 하나다.
-model hira_hospital_detail {
+model HiraHospitalDetail {
   /// 암호화된 요양기호
   ykiho String @db.VarChar(200)
 
@@ -710,31 +727,33 @@ model hira_hospital_detail {
   /// 그래서 npayPubListGbn 은 따로 담지 않는다. 행이 남았다는 건 조회가 성공했다는 뜻이다.
   data Json
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
-  synced_at  DateTime @default(now()) @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
   @@id([ykiho, op])
-  @@index([op, synced_at], map: "idx_hira_hospital_detail_op")
+  @@index([op, syncedAt], map: "idx_hira_hospital_detail_op")
+  @@map("hira_hospital_detail")
 }
 
 /// HIRA 병원 보유 장비. 검색 축이라 정규화한다. 출처: equipment (병원당 1콜)
-model hira_hospital_equipment {
+model HiraHospitalEquipment {
   ykiho String @db.VarChar(200)
 
   /// 장비코드 (코드 API 의 tp=equipment)
-  oft_cd String @db.VarChar(20)
+  oftCd String @map("oft_cd") @db.VarChar(20)
 
   /// 장비명
-  oft_nm String? @db.VarChar(100)
+  oftNm String? @map("oft_nm") @db.VarChar(100)
 
   /// 보유 대수
-  oft_cnt Int?
+  oftCnt Int? @map("oft_cnt")
 
-  synced_at DateTime @default(now()) @db.DateTime(0)
+  syncedAt DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
-  @@id([ykiho, oft_cd])
-  @@index([oft_cd], map: "idx_hira_hospital_equipment_cd")
+  @@id([ykiho, oftCd])
+  @@index([oftCd], map: "idx_hira_hospital_equipment_cd")
+  @@map("hira_hospital_equipment")
 }
 
 /// HIRA 전문병원 지정분야 · 특수진료. 둘 다 원본 필드명이 srchCd 로 같아 tp 로 가른다.
@@ -745,22 +764,23 @@ model hira_hospital_equipment {
 ///              이번 전수에 없던 행은 지운다 — 지정은 3년 주기라 탈락하는 곳이 있다.
 ///   special    개별 조회(MadmDtl 의 getSpclDiagInfo). 방문진료·치매주치의 등 시범사업.
 ///              목록형이 없어 여전히 병원당 1콜이다.
-model hira_hospital_srch {
+model HiraHospitalSrch {
   ykiho String @db.VarChar(200)
 
   /// specialty | special
   tp String @db.VarChar(20)
 
   /// 구분 코드 (원본 srchCd)
-  srch_cd String @db.VarChar(20)
+  srchCd String @map("srch_cd") @db.VarChar(20)
 
   /// 구분 코드명 (원본 srchCdNm)
-  srch_nm String? @db.VarChar(200)
+  srchNm String? @map("srch_nm") @db.VarChar(200)
 
-  synced_at DateTime @default(now()) @db.DateTime(0)
+  syncedAt DateTime @default(now()) @map("synced_at") @db.DateTime(0)
 
-  @@id([ykiho, tp, srch_cd])
-  @@index([tp, srch_cd], map: "idx_hira_hospital_srch_cd")
+  @@id([ykiho, tp, srchCd])
+  @@index([tp, srchCd], map: "idx_hira_hospital_srch_cd")
+  @@map("hira_hospital_srch")
 }
 
 // HIRA ↔ NMC 매칭.
@@ -778,7 +798,7 @@ model hira_hospital_srch {
 //   match  룰을 고칠 때마다 다시 계산된다. 리뷰 대기열과 판정 근거용. 서비스는 보지 않는다.
 
 /// 확정된 관계. **서비스가 쓰는 것은 이 테이블뿐이다.**
-model hira_nmc_link {
+model HiraNmcLink {
   /// HIRA 암호화 요양기호
   ykiho String @id @db.VarChar(200)
 
@@ -787,16 +807,18 @@ model hira_nmc_link {
 
   /// auto = 룰이 확정 | manual = 사람이 확정
   /// 재매칭은 manual 을 절대 덮어쓰지 않는다.
-  confirmed_by String @db.VarChar(10)
+  confirmedBy String @map("confirmed_by") @db.VarChar(10)
 
   /// 어떤 룰로 붙었나. tel_name | geo_name | tel_geo | manual
   rule String @db.VarChar(20)
 
-  linked_at DateTime @default(now()) @db.DateTime(0)
+  linkedAt DateTime @default(now()) @map("linked_at") @db.DateTime(0)
+
+  @@map("hira_nmc_link")
 }
 
 /// 매칭 판정 상태와 근거. 룰을 바꾸면 다시 계산된다.
-model hira_nmc_match {
+model HiraNmcMatch {
   ykiho String @id @db.VarChar(200)
 
   /// 판정된 상대. no_candidate 일 때만 NULL 이다.
@@ -812,33 +834,35 @@ model hira_nmc_match {
   ///   no_candidate 후보 자체가 없다 (HIRA 에만 있는 기관일 수 있다 — 정상)
   status String @db.VarChar(15)
 
-  rule       String? @db.VarChar(20)
-  score      Float?
+  rule      String? @db.VarChar(20)
+  score     Float?
   /// 이름 유사도 (문자 bigram Jaccard)
-  name_sim   Float?
+  nameSim   Float?  @map("name_sim")
   /// 좌표 거리 (m)
-  distance_m Int?
+  distanceM Int?    @map("distance_m")
 
-  evaluated_at DateTime @default(now()) @db.DateTime(0)
+  evaluatedAt DateTime @default(now()) @map("evaluated_at") @db.DateTime(0)
 
   @@index([status], map: "idx_hira_nmc_match_status")
+  @@map("hira_nmc_match")
 }
 
 /// review 상태의 후보들. 수동 매칭 화면이 이것을 보여준다.
 /// 저장해 두지 않으면 화면이 매번 8만 건을 다시 스캔해야 한다.
-model hira_nmc_match_candidate {
+model HiraNmcMatchCandidate {
   ykiho String @db.VarChar(200)
   hpid  String @db.VarChar(20)
 
   /// 1 = 최유력
   rank Int
 
-  score      Float
-  name_sim   Float
-  distance_m Int?
+  score     Float
+  nameSim   Float @map("name_sim")
+  distanceM Int?  @map("distance_m")
 
   @@id([ykiho, hpid])
   @@index([ykiho, rank], map: "idx_hira_nmc_candidate_rank")
+  @@map("hira_nmc_match_candidate")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -857,7 +881,7 @@ model hira_nmc_match_candidate {
 // 이 테이블은 sync 가 채우지 않는다. 시드 파일(prisma/seed/healthcare-code.seed.ts)이 원본이다.
 
 /// 의료 코드. 진료과목·종별·장비·중증처치를 tp 로 구분해 담는다.
-model healthcare_code {
+model HealthcareCode {
   /// subject(진료과목) | class(종별) | equipment(장비) | severe(중증처치) | specialty(전문병원) | special(특수진료)
   ///
   /// 병원평가(asm)는 여기 없다. 심평원이 직접 평가·부여하는 **HIRA 전용 개념**이라 통합할
@@ -881,34 +905,35 @@ model healthcare_code {
 
   /// 표시용 영어·일본어·중국어(간체) 이름. **비어 있으면 title(한국어)로 폴백한다** — 그래서 번역을
   /// 점진적으로 채울 수 있다. 새 코드가 생겨도 번역 없이 배포되고, 화면엔 한국어가 나온다(깨지지 않는다).
-  title_en String? @db.VarChar(100)
-  title_ja String? @db.VarChar(100)
-  title_zh String? @db.VarChar(100)
+  titleEn String? @map("title_en") @db.VarChar(100)
+  titleJa String? @map("title_ja") @db.VarChar(100)
+  titleZh String? @map("title_zh") @db.VarChar(100)
 
   cmt String? @db.Text
 
   /// HIRA 원본 코드. 1:N (안과1·안과2 처럼 원본이 쪼개 놓은 경우).
   /// 예: ["17"] · 없으면 NULL (NMC 에만 있는 코드)
-  hira_cd Json?
+  hiraCd Json? @map("hira_cd")
 
   /// NMC 원본 코드. 1:N (신·구 이름).
   /// 예: ["D031", "D019"] · 없으면 NULL (HIRA 에만 있는 코드)
-  nmc_cd Json?
+  nmcCd Json? @map("nmc_cd")
 
   sort Int @default(0)
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
   @@id([tp, cd])
   @@index([tp, sort], map: "idx_healthcare_code_sort")
+  @@map("healthcare_code")
 }
 
 /// 지역 코드. 도메인 무관(병원·학교·약국이 같이 쓴다)이라 접두사가 없다.
 ///
 /// 우리 코드는 법정동코드 체계를 따른다 (시도 2자리 / 시군구 5자리).
 /// HIRA 는 자체 코드를 주고(110001=강남구), NMC 는 **코드가 아예 없어 이름으로만** 매핑된다.
-model region_code {
+model RegionCode {
   /// 우리 코드. 시도 2자리, 시군구 5자리.
   cd String @id @db.VarChar(10)
 
@@ -919,8 +944,8 @@ model region_code {
   nm String @db.VarChar(50)
 
   /// 영어·일본어 이름(표시 전용). 비어 있으면 nm(한국어)으로 폴백한다.
-  nm_en String? @db.VarChar(50)
-  nm_ja String? @db.VarChar(50)
+  nmEn String? @map("nm_en") @db.VarChar(50)
+  nmJa String? @map("nm_ja") @db.VarChar(50)
 
   /// 화면 표시용 짧은 이름. "서울", "전남", "충북"
   ///
@@ -928,28 +953,29 @@ model region_code {
   /// ~도 계열은 관용 약칭(충북·경남)을 쓰고, 전남광주통합특별시는 새로 생긴 이름이라
   /// 약칭 자체가 없어 우리가 정한다. 그래서 코드 테이블에 값으로 들고 있는다.
   /// 시군구는 이름이 이미 짧아(강남구) 채우지 않는다 — 없으면 nm 을 쓴다.
-  short_nm String? @db.VarChar(20)
+  shortNm String? @map("short_nm") @db.VarChar(20)
 
   /// sido | sggu
   level String @db.VarChar(10)
 
   /// 시군구면 시도 코드. 시도면 NULL.
-  parent_cd String? @db.VarChar(10)
+  parentCd String? @map("parent_cd") @db.VarChar(10)
 
   /// HIRA 지역코드. 1:N 가능. 예: ["110001"]
-  hira_cd Json?
+  hiraCd Json? @map("hira_cd")
 
   /// NMC 는 지역을 코드로 주지 않는다. 주소에서 뽑은 이름으로 매핑한다.
   /// 예: ["강남구"] · 시도면 ["서울특별시", "서울"] 처럼 축약형까지 담는다.
-  nmc_nm Json?
+  nmcNm Json? @map("nmc_nm")
 
   sort Int @default(0)
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
   @@index([level, sort], map: "idx_region_code_level")
-  @@index([parent_cd], map: "idx_region_code_parent")
+  @@index([parentCd], map: "idx_region_code_parent")
+  @@map("region_code")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -969,7 +995,7 @@ model region_code {
 // 그래서 고친 필드만 유지되고 나머지는 최신 원본을 계속 따라간다.
 
 /// 통합 병원.
-model healthcare_hospital {
+model HealthcareHospital {
   /// 자체 식별자. 대외 API 가 노출하는 값이다.
   /// ykiho/hpid 를 PK 로 쓰면 한쪽에만 있는 병원이나 직접 등록한 병원을 담을 수 없다.
   /// 재생성 때 ykiho/hpid 로 기존 행을 찾아 **id 를 재사용**한다. 번호가 흔들리면 안 된다.
@@ -991,21 +1017,21 @@ model healthcare_hospital {
   homepage String? @db.VarChar(300)
 
   /// 종별. healthcare_code(tp='class') 의 cd
-  class_cd String? @db.VarChar(30)
+  classCd String? @map("class_cd") @db.VarChar(30)
 
   /// 시군구. region_code(level='sggu') 의 cd
-  region_cd String? @db.VarChar(10)
+  regionCd String? @map("region_cd") @db.VarChar(10)
 
   /// 읍면동. HIRA 만 주고 코드가 없어 이름 그대로 담는다.
-  emdong_nm String? @db.VarChar(30)
+  emdongNm String? @map("emdong_nm") @db.VarChar(30)
 
-  post_no String? @db.VarChar(10)
+  postNo String? @map("post_no") @db.VarChar(10)
 
   lat Decimal? @db.Decimal(10, 7)
   lon Decimal? @db.Decimal(10, 7)
 
   /// 개설일자 (HIRA estbDd)
-  estb_dd String? @db.VarChar(10)
+  estbDd String? @map("estb_dd") @db.VarChar(10)
 
   /// 병원 소개·진료 안내 (NMC dutyInf).
   /// "종합병원이며 산부인과 전문병원입니다. 진료과목은 …"
@@ -1021,13 +1047,13 @@ model healthcare_hospital {
   directions String? @db.Text
 
   /// 주차 가능대수 (HIRA info parkQty)
-  park_qty Int?
+  parkQty Int? @map("park_qty")
 
   /// 주차 유료 여부 (HIRA info parkXpnsYn)
-  park_paid Boolean?
+  parkPaid Boolean? @map("park_paid")
 
   /// 주차 안내 (HIRA info parkEtc)
-  park_note String? @db.Text
+  parkNote String? @map("park_note") @db.Text
 
   /// 대중교통. 출처: HIRA transport (getTrnsprtInfo).
   ///
@@ -1045,10 +1071,10 @@ model healthcare_hospital {
   transport Json?
 
   /// 응급실 운영 여부 (NMC dutyEryn=1)
-  emergency_yn Boolean @default(false)
+  emergencyYn Boolean @default(false) @map("emergency_yn")
 
   /// 달빛어린이병원인가 (NMC 달빛 목록에 있으면 true)
-  baby_yn Boolean @default(false)
+  babyYn Boolean @default(false) @map("baby_yn")
 
   /// 병원 등급. TIER1(의원급) | TIER2(병원급) | TIER3(상급종합) | NURSING | MENTAL | NULL(그 외)
   ///
@@ -1066,20 +1092,27 @@ model healthcare_hospital {
   status String @default("active") @db.VarChar(10)
 
   /// 배치가 마지막으로 재생성한 시각
-  built_at DateTime @default(now()) @db.DateTime(0)
+  builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
-  /// 번역(healthcare_hospital_i18n)의 역참조. Prisma 가 FK 를 표현하려면 양쪽이 다 있어야 한다.
-  /// 다른 자식 테이블에는 FK 가 없어서 이 관계 필드도 하나뿐이다.
-  i18n healthcare_hospital_i18n[]
+  /// 자식 테이블 역참조. FK(ON DELETE Cascade)로 묶여, 병원 행이 지워지면 자식도 함께 지워진다.
+  /// 부모는 status 로만 관리하고 실제로는 지우지 않으므로 사실상 발동하지 않는다.
+  i18n         HealthcareHospitalI18n[]
+  subjects     HealthcareHospitalSubject[]
+  hours        HealthcareHospitalHours[]
+  staff        HealthcareHospitalStaff?
+  beds         HealthcareHospitalBed?
+  equipments   HealthcareHospitalEquipment[]
+  capabilities HealthcareHospitalCapability[]
 
-  @@index([region_cd, class_cd], map: "idx_hc_hospital_region")
-  @@index([tier, region_cd], map: "idx_hc_hospital_tier")
+  @@index([regionCd, classCd], map: "idx_hc_hospital_region")
+  @@index([tier, regionCd], map: "idx_hc_hospital_tier")
   @@index([name], map: "idx_hc_hospital_name")
   @@index([status], map: "idx_hc_hospital_status")
   @@index([source], map: "idx_hc_hospital_source")
+  @@map("healthcare_hospital")
 }
 
 /// 병원 자유 텍스트의 번역. 한 병원 × 한 언어 = 한 행.
@@ -1101,8 +1134,8 @@ model healthcare_hospital {
 /// 한국어 폴백이 공짜다. lang='ko' 면 조인에 걸리는 행이 없어 원문이 그대로 나온다:
 ///   SELECT COALESCE(i.name, h.name) FROM healthcare_hospital h
 ///     LEFT JOIN healthcare_hospital_i18n i ON i.hospital_id = h.id AND i.lang = ?
-model healthcare_hospital_i18n {
-  hospital_id Int
+model HealthcareHospitalI18n {
+  hospitalId Int @map("hospital_id")
 
   /// BCP47. 'en' | 'ja' | 훗날 'zh-CN' 등. 한국어(원문)는 여기 담지 않는다 — 본체에 있다.
   lang String @db.VarChar(10)
@@ -1111,7 +1144,7 @@ model healthcare_hospital_i18n {
   intro      String? @db.Text
   notice     String? @db.Text
   directions String? @db.Text
-  park_note  String? @db.Text
+  parkNote   String? @map("park_note") @db.Text
 
   /// 번역된 대중교통. 원문과 **같은 모양**의 JSON 이다.
   /// 본체가 transport 를 행으로 안 쪼갠다고 정했으므로(위 주석) 번역본도 쪼개지 않는다.
@@ -1121,12 +1154,12 @@ model healthcare_hospital_i18n {
   /// 번역할 당시 원문의 MD5. 원문이 바뀌면 불일치 = 재번역 대상이다.
   /// **필드마다 원문이 다르므로 해시도 필드마다 있어야 한다.** name 만 바뀌었는데
   /// intro 까지 다시 번역하면 돈이 두 배로 든다.
-  name_src       String? @db.Char(32)
-  intro_src      String? @db.Char(32)
-  notice_src     String? @db.Char(32)
-  directions_src String? @db.Char(32)
-  park_note_src  String? @db.Char(32)
-  transport_src  String? @db.Char(32)
+  nameSrc       String? @map("name_src") @db.Char(32)
+  introSrc      String? @map("intro_src") @db.Char(32)
+  noticeSrc     String? @map("notice_src") @db.Char(32)
+  directionsSrc String? @map("directions_src") @db.Char(32)
+  parkNoteSrc   String? @map("park_note_src") @db.Char(32)
+  transportSrc  String? @map("transport_src") @db.Char(32)
 
   /// 무엇으로 번역했나. 'claude-haiku-4-5' | 'claude-sonnet-5' | 'dict'(역명 사전) | 'human'
   /// **'human' 인 행은 재번역 잡이 건드리지 않는다.** 사람이 고친 걸 기계가 덮으면 안 된다.
@@ -1134,23 +1167,24 @@ model healthcare_hospital_i18n {
 
   /// 연속 실패 횟수. 번역이 실패하면 값이 NULL 로 남는데, 상한이 없으면 그 행은
   /// **매 실행마다 영원히 재시도**된다. 3회면 대상에서 빼고 리포트한다.
-  attempt_count Int     @default(0) @db.TinyInt
-  last_error    String? @db.VarChar(200)
+  attemptCount Int     @default(0) @map("attempt_count") @db.TinyInt
+  lastError    String? @map("last_error") @db.VarChar(200)
 
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
   /// **이 스키마의 유일한 FK 다.** 다른 자식 테이블에는 없다.
   ///
   /// 지금은 병원 행을 지우지 않고 status='closed' 로만 둔다. 하지만 그건 **운영 정책**이지
   /// 구조적 보장이 아니다. 정책은 바뀌고, 데이터 정리 작업은 언젠가 들어온다.
   /// 그때 번역만 고아로 남는 걸 규율에 맡기지 않는다 — DB 가 강제하게 한다.
-  hospital healthcare_hospital @relation(fields: [hospital_id], references: [id], onDelete: Cascade, map: "fk_hc_hospital_i18n")
+  hospital HealthcareHospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade, map: "fk_hc_hospital_i18n")
 
-  @@id([hospital_id, lang])
+  @@id([hospitalId, lang])
   /// 영문·일문 병원명 검색·정렬. 이게 이 설계의 존재 이유다.
   @@index([lang, name], map: "idx_hc_hospital_i18n_name")
   /// 재번역 대상 스캔에서 이미 3회 실패한 행을 빨리 걷어낸다.
-  @@index([lang, attempt_count], map: "idx_hc_hospital_i18n_todo")
+  @@index([lang, attemptCount], map: "idx_hc_hospital_i18n_todo")
+  @@map("healthcare_hospital_i18n")
 }
 
 /// 진료시간.
@@ -1158,8 +1192,9 @@ model healthcare_hospital_i18n {
 /// kind 가 핵심이다. 달빛어린이병원은 **일반 진료시간과 다른 시간대**에 아이를 받는다.
 ///   연세의원  일반 09:00~19:00 (누구나) · 달빛 18:00~23:00 (소아)
 /// 두 시간을 합집합으로 뭉치면 성인이 21시에 갔다가 헛걸음한다. 나눠서 담고 나눠서 보여준다.
-model healthcare_hospital_hours {
-  hospital_id Int
+model HealthcareHospitalHours {
+  hospitalId Int                @map("hospital_id")
+  hospital   HealthcareHospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade, map: "fk_hc_hospital_hours")
 
   /// general(일반 진료) | baby(달빛어린이)
   kind String @db.VarChar(10)
@@ -1168,23 +1203,25 @@ model healthcare_hospital_hours {
   day Int
 
   /// HHMM. 예: '0900'
-  open_time  String? @db.VarChar(4)
-  close_time String? @db.VarChar(4)
+  openTime  String? @map("open_time") @db.VarChar(4)
+  closeTime String? @map("close_time") @db.VarChar(4)
 
   /// 점심시간 (HIRA info 의 lunchWeek 등에서 파싱)
-  break_start String? @db.VarChar(4)
-  break_end   String? @db.VarChar(4)
+  breakStart String? @map("break_start") @db.VarChar(4)
+  breakEnd   String? @map("break_end") @db.VarChar(4)
 
   /// 접수 마감 시각
-  reception_end String? @db.VarChar(4)
+  receptionEnd String? @map("reception_end") @db.VarChar(4)
 
-  @@id([hospital_id, kind, day])
-  @@index([day, open_time, close_time], map: "idx_hc_hours_open")
+  @@id([hospitalId, kind, day])
+  @@index([day, openTime, closeTime], map: "idx_hc_hours_open")
+  @@map("healthcare_hospital_hours")
 }
 
 /// 병상. 규모기관만 행이 생긴다 (의원급은 전부 0이라 만들지 않는다).
-model healthcare_hospital_bed {
-  hospital_id Int @id
+model HealthcareHospitalBed {
+  hospitalId Int                @id @map("hospital_id")
+  hospital   HealthcareHospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade, map: "fk_hc_hospital_bed")
 
   /// 허가 병상수
   total Int?
@@ -1202,7 +1239,7 @@ model healthcare_hospital_bed {
   emergency Int?
 
   /// 수술실
-  operating_room Int?
+  operatingRoom Int? @map("operating_room")
 
   /// 분만실
   delivery Int?
@@ -1214,19 +1251,22 @@ model healthcare_hospital_bed {
   isolation Int?
 
   /// 정신과 개방
-  psy_open Int?
+  psyOpen Int? @map("psy_open")
 
   /// 정신과 폐쇄
-  psy_closed Int?
+  psyClosed Int? @map("psy_closed")
+
+  @@map("healthcare_hospital_bed")
 }
 
 /// 인력. **총원이다.** 과목별 인원(healthcare_hospital_subject)과 합계가 다르다 —
 /// 한 의사가 두 과목을 담당하면 과목별로는 중복 계산되기 때문이다. 총원은 이 테이블에서 읽는다.
-model healthcare_hospital_staff {
-  hospital_id Int @id
+model HealthcareHospitalStaff {
+  hospitalId Int                @id @map("hospital_id")
+  hospital   HealthcareHospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade, map: "fk_hc_hospital_staff")
 
   /// 총 의사수 (HIRA drTotCnt). 중복 없는 실제 인원.
-  doctor_total Int?
+  doctorTotal Int? @map("doctor_total")
 
   /// 의과 전문의
   specialist Int?
@@ -1238,7 +1278,7 @@ model healthcare_hospital_staff {
   intern Int?
 
   /// 일반의
-  general_doctor Int?
+  generalDoctor Int? @map("general_doctor")
 
   /// 치과 전문의
   dentist Int?
@@ -1248,6 +1288,8 @@ model healthcare_hospital_staff {
 
   /// 조산사
   midwife Int?
+
+  @@map("healthcare_hospital_staff")
 }
 
 /// 진료과목.
@@ -1259,23 +1301,25 @@ model healthcare_hospital_staff {
 ///
 /// 두 API 가 완전히 정합적이지 않다 — 신고 목록에 없는데 전문의가 있는 과목도 실제로 있다.
 /// 한 행에 둘 다 담으니 그래도 정보가 사라지지 않는다.
-model healthcare_hospital_subject {
-  hospital_id Int
+model HealthcareHospitalSubject {
+  hospitalId Int                @map("hospital_id")
+  hospital   HealthcareHospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade, map: "fk_hc_hospital_subject")
 
   /// healthcare_code(tp='subject') 의 cd
-  subject_cd String @db.VarChar(30)
+  subjectCd String @map("subject_cd") @db.VarChar(30)
 
   /// 신고한 과목인가 (HIRA subject / NMC dgidIdName)
   declared Boolean @default(false)
 
   /// 과목별 의사수. **겸직이 중복 계산된다. 합산 금지.** 총원은 staff 를 봐라.
-  doctor_cnt Int?
+  doctorCnt Int? @map("doctor_cnt")
 
   /// 과목별 전문의수. 상세 조회(병원당 1콜)를 받아야 채워진다.
-  specialist_cnt Int?
+  specialistCnt Int? @map("specialist_cnt")
 
-  @@id([hospital_id, subject_cd])
-  @@index([subject_cd], map: "idx_hc_subject_cd")
+  @@id([hospitalId, subjectCd])
+  @@index([subjectCd], map: "idx_hc_subject_cd")
+  @@map("healthcare_hospital_subject")
 }
 
 /// 계열이 안 맞아서 통합 테이블에 넣지 않은 진료과목.
@@ -1289,14 +1333,14 @@ model healthcare_hospital_subject {
 ///
 /// 예: 한의원(자작나무한의원)에 NMC 가 `D026 치과` 를 달아 준다. 같은 병원을 HIRA 는 한방만 준다.
 /// 한의사는 치과 진료를 할 수 없으므로 NMC 가 틀렸다.
-model healthcare_subject_mismatch {
-  hospital_id Int
+model HealthcareSubjectMismatch {
+  hospitalId Int @map("hospital_id")
 
   /// healthcare_code(tp='subject') 의 cd. 거른 과목이다.
-  subject_cd String @db.VarChar(30)
+  subjectCd String @map("subject_cd") @db.VarChar(30)
 
   /// 그때 이 병원의 종별. 규칙이 왜 걸렸는지 재현하려면 필요하다.
-  class_cd String @db.VarChar(20)
+  classCd String @map("class_cd") @db.VarChar(20)
 
   /// 원본을 직접 확인할 때 쓴다. 둘 중 하나는 있다.
   ykiho String? @db.VarChar(200)
@@ -1309,32 +1353,36 @@ model healthcare_subject_mismatch {
   /// 확인한 사람이 남기는 메모
   memo String? @db.Text
 
-  first_seen_at DateTime @default(now()) @db.DateTime(0)
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.DateTime(0)
 
   /// 마지막 빌드에서도 여전히 나왔나. 오래되면 원본이 고쳤다는 뜻이다.
-  last_seen_at DateTime @default(now()) @db.DateTime(0)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.DateTime(0)
 
-  @@id([hospital_id, subject_cd])
-  @@index([status, last_seen_at], map: "idx_hc_mismatch_status")
+  @@id([hospitalId, subjectCd])
+  @@index([status, lastSeenAt], map: "idx_hc_mismatch_status")
+  @@map("healthcare_subject_mismatch")
 }
 
 /// 보유 장비. HIRA 만 준다.
-model healthcare_hospital_equipment {
-  hospital_id Int
+model HealthcareHospitalEquipment {
+  hospitalId Int                @map("hospital_id")
+  hospital   HealthcareHospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade, map: "fk_hc_hospital_equipment")
 
   /// healthcare_code(tp='equipment') 의 cd
-  equipment_cd String @db.VarChar(30)
+  equipmentCd String @map("equipment_cd") @db.VarChar(30)
 
   cnt Int?
 
-  @@id([hospital_id, equipment_cd])
-  @@index([equipment_cd], map: "idx_hc_equipment_cd")
+  @@id([hospitalId, equipmentCd])
+  @@index([equipmentCd], map: "idx_hc_equipment_cd")
+  @@map("healthcare_hospital_equipment")
 }
 
 /// 역량. 중증질환 처치가능(NMC)·전문병원 지정·특수진료(HIRA)를 한 테이블에 담는다.
 /// 셋 다 "이 병원이 무엇을 할 수 있나"를 코드로 말하는 같은 구조다.
-model healthcare_hospital_capability {
-  hospital_id Int
+model HealthcareHospitalCapability {
+  hospitalId Int                @map("hospital_id")
+  hospital   HealthcareHospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade, map: "fk_hc_hospital_capability")
 
   /// severe(중증처치) | specialty(전문병원) | special(특수진료)
   tp String @db.VarChar(20)
@@ -1343,8 +1391,9 @@ model healthcare_hospital_capability {
   /// 그래서 이 테이블에는 이름 컬럼을 두지 않는다(장비·과목과 같은 구조).
   cd String @db.VarChar(30)
 
-  @@id([hospital_id, tp, cd])
+  @@id([hospitalId, tp, cd])
   @@index([tp, cd], map: "idx_hc_capability_cd")
+  @@map("healthcare_hospital_capability")
 }
 
 /// 동기화 예외(잠금).
@@ -1361,17 +1410,17 @@ model healthcare_hospital_capability {
 /// [잠금 단위]
 ///   field = NULL    그 **행 전체**를 안 건드린다 (하위 테이블에 적합)
 ///   field = 'tel'   그 **컬럼만** 안 건드린다 (본체에 적합 — 전화만 잠그고 주소는 계속 갱신)
-model healthcare_hospital_lock {
+model HealthcareHospitalLock {
   id Int @id @default(autoincrement())
 
-  hospital_id Int
+  hospitalId Int @map("hospital_id")
 
   /// healthcare_hospital | healthcare_hospital_hours | healthcare_hospital_bed | ...
-  table_name String @db.VarChar(50)
+  tableName String @map("table_name") @db.VarChar(50)
 
   /// 1:N 테이블에서 어느 행인가. 예: {"kind":"general","day":1}
   /// 본체(healthcare_hospital)는 hospital_id 가 곧 PK 라 NULL 이다.
-  key_json Json?
+  keyJson Json? @map("key_json")
 
   /// 어느 컬럼인가. NULL 이면 행 전체를 잠근다.
   field String? @db.VarChar(50)
@@ -1379,13 +1428,14 @@ model healthcare_hospital_lock {
   /// 왜 잠갔나. "병원 요청: 야간진료 23시까지 (2026-07-13 전화 확인)"
   reason String? @db.Text
 
-  locked_by String? @db.VarChar(50)
+  lockedBy String? @map("locked_by") @db.VarChar(50)
 
-  created_at DateTime @default(now()) @db.DateTime(0)
-  updated_at DateTime @default(now()) @updatedAt @db.DateTime(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
-  @@index([hospital_id], map: "idx_hc_lock_hospital")
-  @@index([table_name], map: "idx_hc_lock_table")
+  @@index([hospitalId], map: "idx_hc_lock_hospital")
+  @@index([tableName], map: "idx_hc_lock_table")
+  @@map("healthcare_hospital_lock")
 }
 
 /// 통합 병원의 정보 종류별 원본 확인 상태.
@@ -1418,8 +1468,8 @@ model healthcare_hospital_lock {
 /// [주의] 미러를 실제로 지운 뒤에는 이 테이블을 재생성할 수 없다. 그 시점부터는 성격이
 /// healthcare_hospital_i18n 과 같아진다 — 지우면 되살릴 방법이 없다. REBUILD_TABLES 에
 /// 들어 있다면 그때 빼야 한다.
-model healthcare_hospital_section {
-  hospital_id Int
+model HealthcareHospitalSection {
+  hospitalId Int @map("hospital_id")
 
   /// 병원의 어떤 정보인가.
   ///   basic        이름·주소·종별·우편·개설일·홈페이지·좌표·전화
@@ -1460,11 +1510,12 @@ model healthcare_hospital_section {
   ///   synced_at NULL              아직 안 받음
   ///   synced_at 값 + source NULL  받았는데 **원본에 정말 없음**
   ///   synced_at 값 + source 있음  받았고 그쪽에서 옴
-  synced_at DateTime? @db.DateTime(0)
+  syncedAt DateTime? @map("synced_at") @db.DateTime(0)
 
   /// 배치가 마지막으로 이 행을 쓴 시각
-  built_at DateTime @default(now()) @db.DateTime(0)
+  builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
 
-  @@id([hospital_id, section])
-  @@index([section, synced_at], map: "idx_hc_section_synced")
+  @@id([hospitalId, section])
+  @@index([section, syncedAt], map: "idx_hc_section_synced")
+  @@map("healthcare_hospital_section")
 }

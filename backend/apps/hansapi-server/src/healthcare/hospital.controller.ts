@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Header,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -20,6 +21,7 @@ import {
 
 import { Lang } from '../common/lang.decorator';
 import type { SupportedLang } from '@hansapi/common';
+import { DETAIL_CACHE_CONTROL } from '../common/cache-control';
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
 import { ApiPageResponse } from '../common/dto/api-page-response.decorator';
@@ -88,6 +90,7 @@ export class HealthcareHospitalController {
   }
 
   @Get(':id')
+  @Header('Cache-Control', DETAIL_CACHE_CONTROL)
   @ApiOperation({
     summary: '병원 상세',
     description:
@@ -108,6 +111,7 @@ export class HealthcareHospitalController {
   }
 
   @Get(':id/hira-npay')
+  @Header('Cache-Control', DETAIL_CACHE_CONTROL)
   @ApiOperation({
     summary: '비급여 진료비',
     description:

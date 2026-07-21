@@ -1,0 +1,33 @@
+{
+  "name": "@hansapi/search",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Elasticsearch 색인 관리·병원 데이터 동기화 계층. 스키마 정의(정본)를 소유한다.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^9.0.0",
+    "@hansapi/common": "workspace:*",
+    "@hansapi/data": "workspace:*",
+    "@nestjs/common": "^11.0.1",
+    "@prisma/client": "^6.19.3",
+    "reflect-metadata": "^0.2.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "files": [
+    "dist",
+    "elasticsearch"
+  ],
+  "devDependencies": {
+    "@types/node": "^24.13.2"
+  }
+}

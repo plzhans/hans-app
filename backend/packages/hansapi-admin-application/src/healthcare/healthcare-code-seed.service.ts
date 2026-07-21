@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, PrismaService } from '@hansapi/data';
 import {
   HEALTHCARE_CODES,
   IGNORED_SOURCE_CODES,
   REGION_CODES,
   type HealthcareCodeSeed,
 } from '@hansapi/data/seed';
+
+import { HealthcareCodeSeedRepository } from './healthcare-code-seed.repository';
 
 export interface CodeSeedResult {
   seeded: number;
@@ -31,53 +32,25 @@ export interface CodeSeedResult {
 export class HealthcareCodeSeedService {
   private readonly logger = new Logger(HealthcareCodeSeedService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HealthcareCodeSeedRepository) {}
 
   async seed(): Promise<CodeSeedResult> {
     this.assertNoDuplicateMapping(HEALTHCARE_CODES);
 
-    const values = Prisma.join(
-      HEALTHCARE_CODES.map(
-        // title 은 표시용이라 생략하면 nm(관리용)을 복사한다.
-        (code) => Prisma.sql`(
-          ${code.tp}, ${code.cd}, ${code.nm}, ${code.title ?? code.nm},
-          ${code.title_en ?? null}, ${code.title_ja ?? null}, ${code.title_zh ?? null},
-          ${code.cmt ?? null},
-          ${code.hira_cd ? JSON.stringify(code.hira_cd) : null},
-          ${code.nmc_cd ? JSON.stringify(code.nmc_cd) : null},
-          ${code.sort}, NOW(), NOW()
-        )`,
-      ),
-    );
-
-    await this.prisma.$executeRaw(Prisma.sql`
-      INSERT INTO healthcare_code
-        (tp, cd, nm, title, title_en, title_ja, title_zh, cmt, hira_cd, nmc_cd, sort, created_at, updated_at)
-      VALUES ${values} AS new
-      ON DUPLICATE KEY UPDATE
-        nm = new.nm, title = new.title, title_en = new.title_en, title_ja = new.title_ja,
-        title_zh = new.title_zh,
-        cmt = new.cmt,
-        hira_cd = new.hira_cd, nmc_cd = new.nmc_cd,
-        sort = new.sort, updated_at = NOW()
-    `);
+    await this.repo.seedCodes(HEALTHCARE_CODES);
 
     // 시드에서 빠진 코드는 지운다. 시드가 원본이므로 DB 에만 있는 코드는 유령이다.
     const keep = HEALTHCARE_CODES.map((c) => `${c.tp}|${c.cd}`);
-    const existing = await this.prisma.healthcare_code.findMany({
-      select: { tp: true, cd: true },
-    });
+    const existing = await this.repo.findExistingCodes();
     const stale = existing.filter(
       (row) => !keep.includes(`${row.tp}|${row.cd}`),
     );
 
     for (const row of stale) {
-      await this.prisma.healthcare_code.delete({
-        where: { tp_cd: { tp: row.tp, cd: row.cd } },
-      });
+      await this.repo.deleteCode(row.tp, row.cd);
     }
 
-    await this.seedRegions();
+    await this.repo.seedRegions();
 
     const unmapped = await this.findUnmapped();
     for (const row of unmapped) {
@@ -92,37 +65,6 @@ export class HealthcareCodeSeedService {
       removed: stale.length,
       unmapped,
     };
-  }
-
-  /**
-   * 지역 코드. 시도는 법정동코드 2자리, 시군구는 자체 부여(시도+3자리)다.
-   * NMC 이름 매핑은 매칭된 병원 76,704쌍의 다수결로 뽑았다 — 사람이 짝지은 게 아니다.
-   */
-  private async seedRegions(): Promise<void> {
-    const values = Prisma.join(
-      REGION_CODES.map(
-        (region) => Prisma.sql`(
-          ${region.cd}, ${region.nm},
-          ${region.nm_en ?? null}, ${region.nm_ja ?? null},
-          ${region.short_nm ?? null},
-          ${region.level}, ${region.parent_cd ?? null},
-          ${region.hira_cd ? JSON.stringify(region.hira_cd) : null},
-          ${region.nmc_nm ? JSON.stringify(region.nmc_nm) : null},
-          ${region.sort}, NOW(), NOW()
-        )`,
-      ),
-    );
-
-    await this.prisma.$executeRaw(Prisma.sql`
-      INSERT INTO region_code
-        (cd, nm, nm_en, nm_ja, short_nm, level, parent_cd, hira_cd, nmc_nm, sort, created_at, updated_at)
-      VALUES ${values} AS new
-      ON DUPLICATE KEY UPDATE
-        nm = new.nm, nm_en = new.nm_en, nm_ja = new.nm_ja, short_nm = new.short_nm,
-        level = new.level, parent_cd = new.parent_cd,
-        hira_cd = new.hira_cd, nmc_nm = new.nmc_nm,
-        sort = new.sort, updated_at = NOW()
-    `);
   }
 
   /**
@@ -153,13 +95,13 @@ export class HealthcareCodeSeedService {
 
   /** 원본에는 있는데 시드에 없는 코드를 찾는다. 새 코드가 생기면 여기 걸린다. */
   private async findUnmapped(): Promise<CodeSeedResult['unmapped']> {
-    const codes = await this.prisma.healthcare_code.findMany();
+    const codes = await this.repo.findMappedCodes();
     const mapped = new Set<string>();
 
     for (const code of codes) {
       for (const [src, raw] of [
-        ['hira', code.hira_cd],
-        ['nmc', code.nmc_cd],
+        ['hira', code.hiraCd],
+        ['nmc', code.nmcCd],
       ] as const) {
         for (const sourceCode of (raw as string[] | null) ?? []) {
           mapped.add(`${code.tp}|${src}|${sourceCode}`);
@@ -177,12 +119,7 @@ export class HealthcareCodeSeedService {
 
     const unmapped: CodeSeedResult['unmapped'] = [];
 
-    const hira = await this.prisma.hira_code.findMany({
-      where: {
-        tp: { in: ['subject', 'class', 'equipment', 'specialty', 'special'] },
-      },
-      select: { tp: true, cd: true, cd_nm: true },
-    });
+    const hira = await this.repo.findHiraCodes();
     for (const row of hira) {
       if (
         !mapped.has(`${row.tp}|hira|${row.cd}`) &&
@@ -192,7 +129,7 @@ export class HealthcareCodeSeedService {
           tp: row.tp,
           src: 'hira',
           cd: row.cd,
-          nm: row.cd_nm ?? '',
+          nm: row.cdNm ?? '',
         });
       }
     }
@@ -203,20 +140,17 @@ export class HealthcareCodeSeedService {
       ['H000', 'class'],
     ];
     for (const [cmMid, tp] of nmcGroups) {
-      const rows = await this.prisma.nmc_code.findMany({
-        where: { cm_mid: cmMid },
-        select: { cm_sid: true, cm_snm: true },
-      });
+      const rows = await this.repo.findNmcCodes(cmMid);
       for (const row of rows) {
         if (
-          !mapped.has(`${tp}|nmc|${row.cm_sid}`) &&
-          !ignored(tp, 'nmc').includes(row.cm_sid)
+          !mapped.has(`${tp}|nmc|${row.cmSid}`) &&
+          !ignored(tp, 'nmc').includes(row.cmSid)
         ) {
           unmapped.push({
             tp,
             src: 'nmc',
-            cd: row.cm_sid,
-            nm: row.cm_snm ?? '',
+            cd: row.cmSid,
+            nm: row.cmSnm ?? '',
           });
         }
       }

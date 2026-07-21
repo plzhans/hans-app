@@ -25,6 +25,7 @@
 3. [Node 설치 (nvm)](#3-node-설치-nvm)
 4. [pm2 구축](#4-pm2-구축)
 5. [nginx 설치](#5-nginx-설치)
+6. [미들웨어 (Docker: Elasticsearch / Redis)](#6-미들웨어-docker-elasticsearch--redis)
 
 ---
 
@@ -179,3 +180,55 @@ acme.sh --install-cert -d develop-api.plzhans.com \
 ```
 
 > 80/443 포트도 **OCI Security List 에서 열어야** 외부에서 붙는다.
+
+---
+
+## 6. 미들웨어 (Docker: Elasticsearch / Redis)
+
+검색·캐시 미들웨어는 Docker 로 올린다. 스택별 설정은 각 폴더에 self-contained 로 있다:
+
+- 검색: [`develop/elasticsearch/`](./develop/elasticsearch/) — ES 9 + 다국어 형태소(nori/kuromoji/smartcn/icu)
+- 캐시/큐: [`develop/redis/`](./develop/redis/) — Redis 7 (AOF 영속화)
+
+### 6-1. Docker 설치
+
+```bash
+sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker ubuntu   # 재로그인 후 sudo 없이 docker 사용
+```
+
+### 6-2. 호스트 커널 파라미터 (필수)
+
+> 이건 **호스트 커널 설정**이라 Dockerfile/컨테이너 안에서 못 바꾼다. 서버에서 한 번만 잡아준다.
+> 안 잡으면 ES 는 기동 실패, Redis 는 백그라운드 저장(fork) 시 경고/실패가 난다.
+
+```bash
+# Elasticsearch: mmap 카운트 상한 (미설정 시 부팅 거부)
+echo 'vm.max_map_count=262144' | sudo tee /etc/sysctl.d/99-elasticsearch.conf
+
+# Redis: 백그라운드 저장(fork) 안정화
+echo 'vm.overcommit_memory=1'  | sudo tee /etc/sysctl.d/99-redis.conf
+
+# 재부팅 없이 즉시 반영
+sudo sysctl --system
+```
+
+### 6-3. 기동
+
+각 폴더는 독립 compose 다. `.env`(비밀번호)는 git 에 없으니 서버에서 직접 만든다.
+
+```bash
+# Elasticsearch
+cd ~/app/hansapi-develop/backend/infra/develop/elasticsearch
+echo 'ELASTIC_PASSWORD=<비밀번호>' > .env
+docker compose up -d --build
+
+# Redis
+cd ../redis
+echo 'REDIS_PASSWORD=<비밀번호>' > .env
+docker compose up -d
+```
+
+> **바인딩 주의**: 앱과 **같은 서버**면 `127.0.0.1:9200`/`127.0.0.1:6379` 로 loopback 바인딩(외부 차단).
+> 앱이 **다른 서버에서 WireGuard 로** 붙으면 각 compose 의 `ports` 를 `<wg-ip>:포트` 로 바꾼다.
+> 어느 쪽이든 **OCI Security List 에는 열지 않는다** — `0.0.0.0` 로 열어두면 인터넷에 노출된다.

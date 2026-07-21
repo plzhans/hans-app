@@ -51,7 +51,7 @@ export class HealthcareCodeCache implements OnApplicationBootstrap {
    * 교체는 새 맵을 만들어 마지막에 바꿔 끼우므로, 로딩 중에도 옛 맵이 온전하다.
    */
   async reload(): Promise<void> {
-    const rows = await this.prisma.healthcare_code.findMany({
+    const rows = await this.prisma.healthcareCode.findMany({
       orderBy: [{ tp: 'asc' }, { sort: 'asc' }, { cd: 'asc' }],
     });
 
@@ -62,9 +62,9 @@ export class HealthcareCodeCache implements OnApplicationBootstrap {
         code: r.cd,
         nm: r.nm,
         title: r.title,
-        titleEn: r.title_en,
-        titleJa: r.title_ja,
-        titleZh: r.title_zh,
+        titleEn: r.titleEn,
+        titleJa: r.titleJa,
+        titleZh: r.titleZh,
         cmt: r.cmt,
         sort: r.sort,
       };

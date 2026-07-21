@@ -1,16 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { Prisma, PrismaService } from '@hansapi/data';
 import type { NmcClient } from '@krdata/nmc';
 
+import { NmcSubjectSyncRepository } from './nmc-subject-sync.repository';
 import { NMC_CLIENT } from '../krdata.providers';
 import { SyncOutcome } from './../common/sync-state.service';
 
 /** 한 페이지에 받을 병원 수. 과목별 병원이 최대 2만여 건이다. */
 const PAGE_SIZE = 10_000;
-
-/** 한 번의 INSERT 에 담을 행 수 */
-const CHUNK_SIZE = 1_000;
 
 /**
  * NMC 병원-진료과목 매핑을 만든다. **역조회**로 만든다.
@@ -25,23 +22,19 @@ export class NmcSubjectSyncService {
   private readonly logger = new Logger(NmcSubjectSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: NmcSubjectSyncRepository,
     @Inject(NMC_CLIENT) private readonly client: NmcClient,
   ) {}
 
   async sync(): Promise<SyncOutcome> {
-    const subjects = await this.prisma.nmc_code.findMany({
-      where: { cm_mid: 'D000' },
-      orderBy: { cm_sid: 'asc' },
-      select: { cm_sid: true, cm_snm: true },
-    });
+    const subjects = await this.repo.findSubjects();
 
     let calls = 0;
     let processed = 0;
 
     for (const subject of subjects) {
-      const code = subject.cm_sid;
-      const name = subject.cm_snm;
+      const code = subject.cmSid;
+      const name = subject.cmSnm;
 
       let pageNo = 1;
       let fetched = 0;
@@ -67,7 +60,7 @@ export class NmcSubjectSyncService {
           .map((item) => asString(item.hpid))
           .filter((hpid): hpid is string => hpid !== null);
 
-        processed += await this.upsert(hpids, code, name);
+        processed += await this.repo.upsertLinks(hpids, code, name);
         fetched += items.length;
 
         if (fetched >= totalCount) {
@@ -82,42 +75,5 @@ export class NmcSubjectSyncService {
     }
 
     return { total: subjects.length, processed, calls };
-  }
-
-  /**
-   * 역조회 결과를 적재한다. source='list' 로 남긴다.
-   *
-   * 나중에 basic(dgidIdName)이 같은 키를 source='basic' 으로 덮어쓴다.
-   * 이미 basic 으로 채워진 행을 역조회가 되돌리지 않도록, source 가 'basic' 이면 건드리지 않는다.
-   */
-  private async upsert(
-    hpids: string[],
-    subjectCd: string,
-    subjectNm: string | null,
-  ): Promise<number> {
-    for (let i = 0; i < hpids.length; i += CHUNK_SIZE) {
-      const chunk = hpids.slice(i, i + CHUNK_SIZE);
-
-      const values = Prisma.join(
-        chunk.map(
-          (hpid) =>
-            Prisma.sql`(${hpid}, ${subjectCd}, ${subjectNm}, 'list', NOW())`,
-        ),
-      );
-
-      await this.prisma.$executeRaw(
-        Prisma.sql`
-          INSERT INTO nmc_hospital_subject
-            (hpid, subject_cd, subject_nm, source, synced_at)
-          VALUES ${values} AS new
-          ON DUPLICATE KEY UPDATE
-            subject_nm = new.subject_nm,
-            source     = IF(nmc_hospital_subject.source = 'basic', 'basic', new.source),
-            synced_at  = NOW()
-        `,
-      );
-    }
-
-    return hpids.length;
   }
 }

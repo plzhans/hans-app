@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 
 import type {
   HospitalFullDownItem,
@@ -8,6 +7,7 @@ import type {
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
 import { MirrorListCommand } from '../common/mirror.result';
+import { NmcHospitalRepository } from './nmc-hospital.repository';
 
 /**
  * NMC 원본 미러 조회.
@@ -17,18 +17,14 @@ import { MirrorListCommand } from '../common/mirror.result';
  */
 @Injectable()
 export class NmcHospitalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: NmcHospitalRepository) {}
 
   async listHospitals(
     command: MirrorListCommand,
   ): Promise<HospitalFullDownResponse> {
     const [rows, totalCount] = await Promise.all([
-      this.prisma.nmc_hospital.findMany({
-        orderBy: { hpid: 'asc' },
-        skip: (command.page - 1) * command.size,
-        take: command.size,
-      }),
-      this.prisma.nmc_hospital.count(),
+      this.repo.list(command.page, command.size),
+      this.repo.count(),
     ]);
 
     return toKrDataEnvelope<HospitalFullDownItem>({
@@ -41,7 +37,7 @@ export class NmcHospitalService {
 
   /** 1건 조회. 없으면 items 가 빈 배열이다 (원본 API 와 같은 규칙). */
   async getHospital(hpid: string): Promise<HospitalFullDownResponse> {
-    const row = await this.prisma.nmc_hospital.findUnique({ where: { hpid } });
+    const row = await this.repo.findByHpid(hpid);
 
     return toKrDataEnvelope<HospitalFullDownItem>({
       items: row ? [row.data as HospitalFullDownItem] : [],

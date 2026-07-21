@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, PrismaService } from '@hansapi/data';
 import {
   JOB_NPAY_WEB,
   JobQueueService,
@@ -8,10 +7,8 @@ import {
 } from '@hansapi/application';
 import { HiraNpayClient, HiraWebError, type NpayItem } from '@kr-or/hira';
 
-import { NpayCodeRow, upsertNpayCodes } from './hira-npay-code.upsert';
-
-/** hira_hospital_detail 의 op. 이것만 출처가 공개 API 가 아니다. */
-const OP = 'npay-web';
+import { HiraNpayWebSyncRepository } from './hira-npay-web-sync.repository';
+import { NpayCodeRow } from './hira-npay-code.upsert';
 
 /**
  * 기관 단위로 반복돼서 저장하지 않는 필드.
@@ -42,7 +39,7 @@ export class HiraNpayWebSyncService {
   private readonly client = new HiraNpayClient();
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraNpayWebSyncRepository,
     private readonly jobs: JobQueueService,
   ) {}
 
@@ -81,28 +78,14 @@ export class HiraNpayWebSyncService {
     const result = await this.client.listNonPaymentItems(encryptedYkiho);
     const record = toRecord(result.hospitalId, result.items);
 
-    await this.upsert(encryptedYkiho, record);
+    await this.repo.storeDetail(encryptedYkiho, record);
 
     // **코드마스터도 같이 채운다(계획 4단계).** 크롤 응답엔 분류코드가 다 있으니, 요약(List2)에
     // 없는 의원 전용 코드가 여기서 보완된다. 분류코드는 upsert 가 '있을 때만' 갱신하므로
     // 요약이 먼저 채운 값을 덮지 않는다. 실패해도 크롤 본체(위)는 이미 저장됐다.
-    await upsertNpayCodes(this.prisma, result.items.map(toCodeRow));
+    await this.repo.upsertCodes(result.items.map(toCodeRow));
 
     return record.npayPubList.length;
-  }
-
-  private async upsert(ykiho: string, record: NpayWebRecord): Promise<void> {
-    // JSON 으로 캐스팅해서 넣는다. 문자열로 두면 아래 비교(data = new.data)가 항상 거짓이 된다.
-    // updated_at 은 data 가 실제로 바뀐 경우에만 갱신한다 — SET 절이 왼쪽부터 평가되므로
-    // data 대입보다 앞에 둬야 비교 시점의 data 가 옛 값이다. (common/mirror-upsert.ts 와 같은 이유)
-    await this.prisma.$executeRaw(Prisma.sql`
-      INSERT INTO hira_hospital_detail (ykiho, op, data, created_at, updated_at, synced_at)
-      VALUES (${ykiho}, ${OP}, CAST(${JSON.stringify(record)} AS JSON), NOW(), NOW(), NOW()) AS new
-      ON DUPLICATE KEY UPDATE
-        updated_at = IF(hira_hospital_detail.data = new.data, hira_hospital_detail.updated_at, NOW()),
-        synced_at  = NOW(),
-        data       = new.data
-    `);
   }
 }
 

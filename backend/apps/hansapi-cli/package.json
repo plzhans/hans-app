@@ -15,6 +15,7 @@
     "@hansapi/admin-application": "workspace:*",
     "@hansapi/common": "workspace:*",
     "@hansapi/data": "workspace:*",
+    "@hansapi/search": "workspace:*",
     "@nestjs/common": "^11.1.27",
     "@nestjs/core": "^11.1.27",
     "commander": "^14.0.2",

@@ -7,6 +7,7 @@ import { NestFactory } from '@nestjs/core';
 import { EnvSource } from '@hansapi/common';
 import { AdminApplicationModule, I18nModule } from '@hansapi/admin-application';
 import { DataModule } from '@hansapi/data';
+import { SearchModule } from '@hansapi/search';
 
 /**
  * CLI 는 커맨드 파싱과 출력만 담당한다. 실제 로직은 응용·데이터 계층이 소유하고
@@ -78,6 +79,26 @@ export async function withDataContext<T>(
  * 번역을 DB 에 넣을 뿐, HIRA·NMC API 를 때리지 않는다. 서비스키가 없다고 번역 export 가
  * 못 돌 이유가 없다. 요구하는 게 적을수록 돌릴 수 있는 곳이 많다.
  */
+/**
+ * 검색(Elasticsearch) 커맨드용. DB + ES 만 쓴다.
+ *
+ * 공공데이터 서비스키를 요구하지 않는다 — 색인은 우리 DB(healthcare_*)를 읽어 ES 에 밀어 넣을 뿐
+ * 외부 API 를 때리지 않는다. 그래서 admin 컨텍스트가 아니라 SearchModule 만 띄운다.
+ * (SearchModule 이 내부에서 DataModule 을 물려 PrismaService 를 얻는다.)
+ */
+export async function withSearchContext<T>(
+  source: EnvSource,
+  run: (context: INestApplicationContext) => Promise<T>,
+  options: { verbose?: boolean } = {},
+): Promise<T> {
+  return withContext(
+    SearchModule.forRoot(source),
+    run,
+    options.verbose !== false,
+    false,
+  );
+}
+
 export async function withI18nContext<T>(
   source: EnvSource,
   run: (context: INestApplicationContext) => Promise<T>,

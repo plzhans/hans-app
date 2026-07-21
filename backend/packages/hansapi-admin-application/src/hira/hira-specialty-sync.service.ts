@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { Prisma, PrismaService } from '@hansapi/data';
 import type { HiraClient } from '@krdata/hira';
 
+import { HiraSpecialtySyncRepository } from './hira-specialty-sync.repository';
 import { SyncOutcome } from '../common/sync-state.service';
 import { HIRA_CLIENT } from '../krdata.providers';
 
@@ -30,16 +30,12 @@ export class HiraSpecialtySyncService {
   private readonly logger = new Logger(HiraSpecialtySyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraSpecialtySyncRepository,
     @Inject(HIRA_CLIENT) private readonly client: HiraClient,
   ) {}
 
   async sync(): Promise<SyncOutcome> {
-    const codes = await this.prisma.hira_code.findMany({
-      where: { tp: 'specialty' },
-      orderBy: { cd: 'asc' },
-      select: { cd: true, cd_nm: true },
-    });
+    const codes = await this.repo.findSpecialtyCodes();
 
     if (codes.length === 0) {
       // 코드가 없으면 돌 축이 없다. 1단계의 코드 동기화가 먼저다.
@@ -55,12 +51,12 @@ export class HiraSpecialtySyncService {
     // JS 의 new Date() 로 잡으면 밀리초가 붙어(12:00:00.500), 같은 초에 넣은 행
     // (synced_at=12:00:00)이 워터마크보다 "과거"가 돼 **방금 넣은 것이 지워진다.**
     // 앱과 DB 의 시계 오차도 같은 이유로 위험하다.
-    const startedAt = await this.now();
+    const startedAt = await this.repo.now();
 
     let calls = 0;
     let processed = 0;
 
-    for (const { cd, cd_nm: name } of codes) {
+    for (const { cd, cdNm: name } of codes) {
       let pageNo = 1;
       let fetched = 0;
 
@@ -101,14 +97,6 @@ export class HiraSpecialtySyncService {
     return { total: codes.length, processed, calls };
   }
 
-  /** DB 의 현재 시각. 워터마크를 앱 시계로 잡지 않기 위한 것이다. */
-  private async now(): Promise<Date> {
-    const rows = await this.prisma.$queryRaw<{ now: Date }[]>(
-      Prisma.sql`SELECT NOW() now`,
-    );
-    return rows[0].now;
-  }
-
   /**
    * 분야는 루프 변수(srchCd)가 정한다. 응답에는 없다.
    * srch_nm 은 hira_code 에서 가져온다 — 목록 API 가 코드명을 주지 않는다.
@@ -122,22 +110,7 @@ export class HiraSpecialtySyncService {
       return 0;
     }
 
-    const values = Prisma.join(
-      ykihos.map(
-        (ykiho) =>
-          Prisma.sql`(${ykiho}, 'specialty', ${srchCd}, ${srchNm}, NOW())`,
-      ),
-    );
-
-    await this.prisma.$executeRaw(
-      Prisma.sql`
-        INSERT INTO hira_hospital_srch (ykiho, tp, srch_cd, srch_nm, synced_at)
-        VALUES ${values} AS new
-        ON DUPLICATE KEY UPDATE
-          srch_nm   = new.srch_nm,
-          synced_at = NOW()
-      `,
-    );
+    await this.repo.upsertSrch(ykihos, srchCd, srchNm);
 
     return ykihos.length;
   }
@@ -153,15 +126,13 @@ export class HiraSpecialtySyncService {
    * tp='specialty' 만 건드린다. special(특수진료)은 여전히 개별 조회 소관이다.
    */
   private async removeStale(startedAt: Date): Promise<number> {
-    const removed = await this.prisma.hira_hospital_srch.deleteMany({
-      where: { tp: 'specialty', synced_at: { lt: startedAt } },
-    });
+    const removed = await this.repo.removeStale(startedAt);
 
-    if (removed.count > 0) {
+    if (removed > 0) {
       this.logger.log(
-        `HIRA 전문병원 지정 해제 ${removed.count.toLocaleString()}건 정리`,
+        `HIRA 전문병원 지정 해제 ${removed.toLocaleString()}건 정리`,
       );
     }
-    return removed.count;
+    return removed;
   }
 }

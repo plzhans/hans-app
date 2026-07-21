@@ -184,7 +184,7 @@ function codeTypeHelp(): string {
  */
 function codeColumns(tp: HiraCodeType): string[] {
   return Object.keys(
-    HIRA_CODE_TYPE_DEFS[tp].toItem({ cd: '', cd_nm: null, cd_cmt: null }),
+    HIRA_CODE_TYPE_DEFS[tp].toItem({ cd: '', cdNm: null, cdCmt: null }),
   );
 }
 

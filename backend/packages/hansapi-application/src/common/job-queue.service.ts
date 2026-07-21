@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
+
+import { JobQueueRepository } from './job-queue.repository';
 
 /** 작업 종류. 지금은 하나뿐이다. */
 export const JOB_NPAY_WEB = 'npay-web';
@@ -26,7 +27,7 @@ export interface Job {
  */
 @Injectable()
 export class JobQueueService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: JobQueueRepository) {}
 
   /**
    * 요청을 넣는다. **같은 대상이 이미 있으면 그 행을 pending 으로 되돌린다** —
@@ -35,70 +36,36 @@ export class JobQueueService {
    * 이미 pending 이면 그대로 둔다(created_at 이 밀리면 오래 기다린 요청이 뒤로 밀린다).
    */
   async enqueue(tp: string, target: string): Promise<Job> {
-    const row = await this.prisma.job_queue.upsert({
-      where: { tp_target: { tp, target } },
-      create: { tp, target, status: 'pending' },
-      update: { status: 'pending', error: null, processed_at: null },
-    });
+    const row = await this.repo.enqueue(tp, target);
     return toJob(row);
   }
 
   /** 대상 하나의 현재 상태. 큐에 없으면 null. */
   async find(tp: string, target: string): Promise<Job | null> {
-    const row = await this.prisma.job_queue.findUnique({
-      where: { tp_target: { tp, target } },
-    });
+    const row = await this.repo.find(tp, target);
     return row ? toJob(row) : null;
   }
 
   /**
    * 가장 오래 기다린 pending 하나를 집어 running 으로 바꾼다. 없으면 null.
    *
-   * **updateMany 로 집는다.** findFirst 로 고르고 update 하면 그 사이에 다른 워커가 같은 행을
-   * 집을 수 있다. status='pending' 조건을 UPDATE 에 넣어야 먼저 집은 쪽만 이긴다.
-   * (지금은 CLI 1개라 경쟁이 없지만, 배치 서버가 붙는 순간 필요해진다.)
+   * 낙관적 락(집었는지 여부)은 repo 가 처리한다 — 여기서는 집은 행을 Job 으로 감싸기만 한다.
    */
   async claim(tp: string): Promise<Job | null> {
-    const next = await this.prisma.job_queue.findFirst({
-      where: { tp, status: 'pending' },
-      orderBy: { created_at: 'asc' },
-    });
-    if (!next) {
-      return null;
-    }
-
-    const { count } = await this.prisma.job_queue.updateMany({
-      where: { id: next.id, status: 'pending' },
-      data: { status: 'running' },
-    });
-    if (count === 0) {
-      return null; // 다른 워커가 먼저 집었다.
-    }
-
-    return toJob({ ...next, status: 'running' });
+    const row = await this.repo.claim(tp);
+    return row ? toJob(row) : null;
   }
 
   async succeed(id: number): Promise<void> {
-    await this.prisma.job_queue.update({
-      where: { id },
-      data: { status: 'done', error: null, processed_at: new Date() },
-    });
+    await this.repo.succeed(id);
   }
 
   async fail(id: number, error: string): Promise<void> {
-    await this.prisma.job_queue.update({
-      where: { id },
-      // 사유가 길 수 있다(HTML 응답 조각 등). 원인을 찾을 만큼만 남긴다.
-      data: {
-        status: 'failed',
-        error: error.slice(0, 2_000),
-        processed_at: new Date(),
-      },
-    });
+    await this.repo.fail(id, error);
   }
 
   async countPending(tp: string): Promise<number> {
-    return this.prisma.job_queue.count({ where: { tp, status: 'pending' } });
+    return this.repo.countPending(tp);
   }
 }
 
@@ -108,8 +75,8 @@ function toJob(row: {
   target: string;
   status: string;
   error: string | null;
-  created_at: Date;
-  processed_at: Date | null;
+  createdAt: Date;
+  processedAt: Date | null;
 }): Job {
   return {
     id: row.id,
@@ -117,7 +84,7 @@ function toJob(row: {
     target: row.target,
     status: row.status as JobStatus,
     error: row.error ?? undefined,
-    createdAt: row.created_at,
-    processedAt: row.processed_at ?? undefined,
+    createdAt: row.createdAt,
+    processedAt: row.processedAt ?? undefined,
   };
 }

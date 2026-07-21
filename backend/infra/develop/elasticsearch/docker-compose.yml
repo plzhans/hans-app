@@ -1,0 +1,64 @@
+# Elasticsearch (develop 서버) — OCI ARM A1 · 2CPU · 12GB RAM 단일 노드.
+#
+# 이 폴더(elasticsearch/)는 self-contained 하다. 배포 시 이 폴더만 통째로 가져가면 된다.
+# Dockerfile 도 같은 폴더에 있어 build context 가 "." 이다.
+#
+# ── 실행 전 준비 ──────────────────────────────────────────────
+#   1) 같은 폴더에 .env 생성:  ELASTIC_PASSWORD=<원하는 비밀번호>
+#   2) 호스트 커널 파라미터(ES 필수, 컨테이너에서 못 바꿈):
+#        sudo sysctl -w vm.max_map_count=262144
+#        # 영구화: echo 'vm.max_map_count=262144' | sudo tee /etc/sysctl.d/99-es.conf
+#   3) docker compose up -d --build
+# ─────────────────────────────────────────────────────────────
+
+name: hansapi-search
+
+services:
+  elasticsearch:
+    build:
+      context: .
+      args:
+        ES_VERSION: '9.3.1'
+    image: hansapi/elasticsearch:9.3.1
+    container_name: hansapi-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      # 보안 on. develop 은 WireGuard 내부망이라 SSL 은 끈다(내부에서만 붙음).
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      # elastic 유저 초기 비밀번호 — .env 에서 주입(미설정 시 기동 거부).
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?ELASTIC_PASSWORD 를 .env 에 설정하세요}
+      # heap: 이 서버는 앱(pm2)도 같이 도므로 3g. ES 전용 서버면 4g 까지 올려도 됨.
+      #       Xms=Xmx 로 고정(리사이징 중 GC 튐 방지), RAM 의 50% 이하 유지.
+      - ES_JAVA_OPTS=-Xms3g -Xmx3g
+      # heap 이 스왑으로 밀려나 성능 급락하는 것 방지(아래 ulimits.memlock 과 한 쌍).
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      # 인덱스 영속화 — 컨테이너 재생성 때 데이터 유지.
+      - es-data:/usr/share/elasticsearch/data
+    ports:
+      # 외부 노출 금지. 같은 호스트의 앱만 붙으면 loopback, WireGuard 로 붙으면 wg IP 로 바꿀 것.
+      - '127.0.0.1:9200:9200'
+    healthcheck:
+      # 컨테이너 내부 env(ELASTIC_PASSWORD)를 쓰기 위해 compose 보간을 피해 $$ 로 이스케이프.
+      test:
+        [
+          'CMD-SHELL',
+          'curl -sf -u elastic:$$ELASTIC_PASSWORD http://localhost:9200/_cluster/health || exit 1',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  es-data:

@@ -42,10 +42,10 @@ export class CodeMapper {
       map.set(key, value);
     };
 
-    for (const row of await prisma.healthcare_code.findMany()) {
+    for (const row of await prisma.healthcareCode.findMany()) {
       for (const [src, raw] of [
-        ['hira', row.hira_cd],
-        ['nmc', row.nmc_cd],
+        ['hira', row.hiraCd],
+        ['nmc', row.nmcCd],
       ] as const) {
         for (const sourceCode of (raw as string[] | null) ?? []) {
           put(codes, `${row.tp}|${src}|${sourceCode}`, row.cd);
@@ -53,16 +53,16 @@ export class CodeMapper {
       }
     }
 
-    for (const row of await prisma.region_code.findMany()) {
-      for (const sourceCode of (row.hira_cd as string[] | null) ?? []) {
+    for (const row of await prisma.regionCode.findMany()) {
+      for (const sourceCode of (row.hiraCd as string[] | null) ?? []) {
         put(regions, `hira|${row.level}|${sourceCode}`, row.cd);
       }
       // NMC 는 코드가 없다. 시군구는 (시도, 시군구) 이름 쌍으로 찾는다 — '중구' 는 여러 시도에 있다.
-      for (const name of (row.nmc_nm as string[] | null) ?? []) {
+      for (const name of (row.nmcNm as string[] | null) ?? []) {
         if (row.level === 'sido') {
           put(sidoByName, name, row.cd);
-        } else if (row.parent_cd) {
-          put(regions, `nmc|${row.parent_cd}|${name}`, row.cd);
+        } else if (row.parentCd) {
+          put(regions, `nmc|${row.parentCd}|${name}`, row.cd);
         }
       }
     }

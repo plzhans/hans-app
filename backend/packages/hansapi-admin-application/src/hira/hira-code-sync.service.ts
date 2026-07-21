@@ -5,19 +5,15 @@ import {
   HIRA_CODE_TYPES,
   type HiraCodeType,
 } from '@hansapi/application';
-import { PrismaService } from '@hansapi/data';
-
 import {
   CodeSyncOptions,
   CodeSyncResult,
   DEFAULT_CODE_SYNC_ROWS,
 } from '../common/code-sync.types';
-import { CodeRow, upsertCodeRows } from '../common/code-upsert';
+import { CodeRow } from '../common/code-upsert';
+import { HiraCodeSyncRepository } from './hira-code-sync.repository';
 import { HIRA_CODE_FETCHERS } from './hira-code.fetchers';
 import { HiraQueryService } from './hira-query.service';
-
-const KEY_COLUMNS = ['tp', 'cd'] as const;
-const VALUE_COLUMNS = ['tp_nm', 'cd_nm', 'cd_cmt'] as const;
 
 export interface HiraCodeSyncOptions extends CodeSyncOptions {
   /** 특정 종류만 적재한다. 생략하면 6종 전부. */
@@ -41,7 +37,7 @@ export class HiraCodeSyncService {
   private readonly logger = new Logger(HiraCodeSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraCodeSyncRepository,
     private readonly api: HiraQueryService,
   ) {}
 
@@ -137,12 +133,6 @@ export class HiraCodeSyncService {
       this.logger.warn(`[${tp}] 코드값이 없어 건너뛴 항목 ${skipped}건`);
     }
 
-    return upsertCodeRows(
-      this.prisma,
-      'hira_code',
-      KEY_COLUMNS,
-      VALUE_COLUMNS,
-      rows,
-    );
+    return this.repo.upsertCodes(rows);
   }
 }

@@ -32,6 +32,8 @@
     "postinstall": "pnpm prisma:generate",
     "codegen:subway": "node -r @swc-node/register scripts/build-subway-station.ts",
     "prisma:generate": "prisma generate --schema prisma/main/schema.prisma && prisma generate --schema prisma/log/schema.prisma",
+    "schema:format": "prisma-case-format --file prisma/main/schema.prisma --table-case pascal --field-case camel",
+    "schema:format:check": "prisma-case-format --file prisma/main/schema.prisma --table-case pascal --field-case camel --dry-run",
     "prisma:migrate:dev": "dotenv -e ../../config/${APP_ENV:-develop}/${APP_ENV:-develop}.env -- prisma migrate dev --schema prisma/main/schema.prisma",
     "prisma:migrate:deploy": "dotenv -e ../../config/${APP_ENV:-develop}/${APP_ENV:-develop}.env -- prisma migrate deploy --schema prisma/main/schema.prisma",
     "prisma:migrate:status": "dotenv -e ../../config/${APP_ENV:-develop}/${APP_ENV:-develop}.env -- prisma migrate status --schema prisma/main/schema.prisma"
@@ -42,6 +44,7 @@
     "@types/node": "^24.13.2",
     "dotenv-cli": "^10.0.0",
     "exceljs": "^4.4.0",
-    "prisma": "^6.19.3"
+    "prisma": "^6.19.3",
+    "prisma-case-format": "2.2.1"
   }
 }

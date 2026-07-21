@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, PrismaService } from '@hansapi/data';
 import { HIRA_CODE_TYPES } from '@hansapi/application';
 import { HIRA_CODES } from '@hansapi/data/seed';
+
+import { HiraCodeSeedRepository } from './hira-code-seed.repository';
 
 export interface HiraCodeSeedResult {
   seeded: number;
@@ -24,45 +25,10 @@ export interface HiraCodeSeedResult {
 export class HiraCodeSeedService {
   private readonly logger = new Logger(HiraCodeSeedService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HiraCodeSeedRepository) {}
 
   async seed(): Promise<HiraCodeSeedResult> {
-    const values = Prisma.join(
-      HIRA_CODES.map(
-        (code) => Prisma.sql`(
-          ${code.tp}, ${code.cd}, ${code.tpNm}, ${code.cdNm},
-          ${code.tpNmEn}, ${code.tpNmJa}, ${code.tpNmZh},
-          ${code.cdNmEn}, ${code.cdNmJa}, ${code.cdNmZh},
-          ${code.cmt ?? null}, NOW(), NOW(), NOW()
-        )`,
-      ),
-    );
-
-    // synced_at 은 시드 행에선 의미가 없지만 NOT NULL 이라 채운다.
-    // updated_at 은 값이 실제로 바뀐 경우에만 갱신한다(NULL 안전 비교 <=>).
-    // SET 절은 왼쪽부터 평가되므로 updated_at 을 값 대입보다 앞에 둬야 비교 시점의 값이 옛 값이다.
-    await this.prisma.$executeRaw(Prisma.sql`
-      INSERT INTO hira_code
-        (tp, cd, tp_nm, cd_nm,
-         tp_nm_en, tp_nm_ja, tp_nm_zh,
-         cd_nm_en, cd_nm_ja, cd_nm_zh,
-         cd_cmt, created_at, updated_at, synced_at)
-      VALUES ${values} AS new
-      ON DUPLICATE KEY UPDATE
-        updated_at = IF(
-          hira_code.tp_nm <=> new.tp_nm AND hira_code.cd_nm <=> new.cd_nm
-            AND hira_code.tp_nm_en <=> new.tp_nm_en AND hira_code.tp_nm_ja <=> new.tp_nm_ja
-            AND hira_code.tp_nm_zh <=> new.tp_nm_zh
-            AND hira_code.cd_nm_en <=> new.cd_nm_en AND hira_code.cd_nm_ja <=> new.cd_nm_ja
-            AND hira_code.cd_nm_zh <=> new.cd_nm_zh
-            AND hira_code.cd_cmt <=> new.cd_cmt,
-          hira_code.updated_at, NOW()
-        ),
-        tp_nm = new.tp_nm, cd_nm = new.cd_nm,
-        tp_nm_en = new.tp_nm_en, tp_nm_ja = new.tp_nm_ja, tp_nm_zh = new.tp_nm_zh,
-        cd_nm_en = new.cd_nm_en, cd_nm_ja = new.cd_nm_ja, cd_nm_zh = new.cd_nm_zh,
-        cd_cmt = new.cd_cmt
-    `);
+    await this.repo.upsertSeed(HIRA_CODES);
 
     const removed = await this.removeStale();
 
@@ -82,16 +48,11 @@ export class HiraCodeSeedService {
   private async removeStale(): Promise<number> {
     const keep = new Set(HIRA_CODES.map((c) => `${c.tp}|${c.cd}`));
 
-    const existing = await this.prisma.hira_code.findMany({
-      where: { tp: { notIn: [...HIRA_CODE_TYPES] } },
-      select: { tp: true, cd: true },
-    });
+    const existing = await this.repo.findManagedCodes([...HIRA_CODE_TYPES]);
     const stale = existing.filter((row) => !keep.has(`${row.tp}|${row.cd}`));
 
     for (const row of stale) {
-      await this.prisma.hira_code.delete({
-        where: { tp_cd: { tp: row.tp, cd: row.cd } },
-      });
+      await this.repo.deleteCode(row.tp, row.cd);
       this.logger.log(`시드에서 빠진 코드 삭제: ${row.tp}/${row.cd}`);
     }
 

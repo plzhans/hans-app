@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 
+import { SyncStateRepository } from './sync-state.repository';
 import { DataProvider } from './provider';
 
 /** 한 번의 실행 단위. CLI 커맨드 하나에 대응한다. */
@@ -54,7 +54,7 @@ export function jobKey(job: SyncJob): string {
 export class SyncStateService {
   private readonly logger = new Logger(SyncStateService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: SyncStateRepository) {}
 
   /**
    * 마지막 성공이 maxAgeHours 이내면 true — 즉 아직 신선하니 다시 돌 필요가 없다.
@@ -66,10 +66,8 @@ export class SyncStateService {
    * --force 면 호출부가 이 판정을 무시한다.
    */
   async isFresh(job: SyncJob, maxAgeHours: number): Promise<boolean> {
-    const state = await this.prisma.sync_state.findUnique({
-      where: { job: jobKey(job) },
-    });
-    if (!state?.last_success_at) {
+    const state = await this.repo.find(jobKey(job));
+    if (!state?.lastSuccessAt) {
       return false;
     }
 
@@ -89,7 +87,7 @@ export class SyncStateService {
       return false;
     }
 
-    const ageMs = Date.now() - state.last_success_at.getTime();
+    const ageMs = Date.now() - state.lastSuccessAt.getTime();
     return ageMs < maxAgeHours * 60 * 60 * 1000;
   }
 
@@ -104,14 +102,12 @@ export class SyncStateService {
    * (하루치 10,000곳 × 11종)이라 몇 시간 단위다. 6시간이면 충분하다.
    */
   async isRunning(job: SyncJob): Promise<boolean> {
-    const state = await this.prisma.sync_state.findUnique({
-      where: { job: jobKey(job) },
-    });
+    const state = await this.repo.find(jobKey(job));
     if (state?.status !== 'running') {
       return false;
     }
 
-    const startedAt = state.started_at?.getTime();
+    const startedAt = state.startedAt?.getTime();
     if (startedAt === undefined) {
       return false;
     }
@@ -129,21 +125,7 @@ export class SyncStateService {
 
   /** 실행 시작을 기록한다. */
   async start(job: SyncJob): Promise<void> {
-    const key = jobKey(job);
-    const base = {
-      provider: job.provider,
-      stage: job.stage,
-      status: 'running',
-      started_at: new Date(),
-      finished_at: null,
-      error: null,
-    };
-
-    await this.prisma.sync_state.upsert({
-      where: { job: key },
-      create: { job: key, ...base },
-      update: base,
-    });
+    await this.repo.start(jobKey(job), job.provider, job.stage);
   }
 
   /**
@@ -161,18 +143,15 @@ export class SyncStateService {
     elapsedMs: number,
   ): Promise<void> {
     const now = new Date();
-    await this.prisma.sync_state.update({
-      where: { job: jobKey(job) },
-      data: {
-        status: outcome.limitReached ? 'partial' : 'done',
-        finished_at: now,
-        last_success_at: now,
-        total: outcome.total,
-        processed: outcome.processed,
-        calls: outcome.calls,
-        elapsed_ms: elapsedMs,
-        error: null,
-      },
+    await this.repo.update(jobKey(job), {
+      status: outcome.limitReached ? 'partial' : 'done',
+      finishedAt: now,
+      lastSuccessAt: now,
+      total: outcome.total,
+      processed: outcome.processed,
+      calls: outcome.calls,
+      elapsedMs,
+      error: null,
     });
   }
 
@@ -184,23 +163,17 @@ export class SyncStateService {
     const message = error instanceof Error ? error.message : String(error);
     this.logger.error(`${jobKey(job)} 실패: ${message}`);
 
-    await this.prisma.sync_state.update({
-      where: { job: jobKey(job) },
-      data: {
-        status: 'failed',
-        finished_at: new Date(),
-        elapsed_ms: elapsedMs,
-        error: message,
-      },
+    await this.repo.update(jobKey(job), {
+      status: 'failed',
+      finishedAt: new Date(),
+      elapsedMs,
+      error: message,
     });
   }
 
   /** 전체 상태 조회 (CLI `sync status`) */
   async list(provider?: DataProvider) {
-    return this.prisma.sync_state.findMany({
-      where: provider ? { provider } : {},
-      orderBy: [{ provider: 'asc' }, { stage: 'asc' }, { job: 'asc' }],
-    });
+    return this.repo.list(provider);
   }
 
   /**

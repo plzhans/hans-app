@@ -24,11 +24,11 @@ export class HospitalLocks {
     const fields = new Map<string, Set<string>>();
     const rows = new Set<string>();
 
-    for (const lock of await prisma.healthcare_hospital_lock.findMany()) {
+    for (const lock of await prisma.healthcareHospitalLock.findMany()) {
       const rowKey = HospitalLocks.rowKey(
-        lock.table_name,
-        lock.hospital_id,
-        lock.key_json,
+        lock.tableName,
+        lock.hospitalId,
+        lock.keyJson,
       );
 
       if (lock.field === null) {

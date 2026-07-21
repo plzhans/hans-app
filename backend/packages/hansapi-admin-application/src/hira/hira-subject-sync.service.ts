@@ -1,15 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { Prisma, PrismaService } from '@hansapi/data';
 import type { HiraClient } from '@krdata/hira';
 
+import { HiraSubjectSyncRepository } from './hira-subject-sync.repository';
 import { SyncOutcome } from '../common/sync-state.service';
 import { HIRA_CLIENT } from '../krdata.providers';
 
 /** 한 페이지에 받을 병원 수. 내과는 23,768건이라 페이징이 필요하다. */
 const PAGE_SIZE = 10_000;
-
-const CHUNK_SIZE = 1_000;
 
 /**
  * HIRA 병원-진료과목 매핑을 만든다. **역조회**로 만든다.
@@ -25,23 +23,19 @@ export class HiraSubjectSyncService {
   private readonly logger = new Logger(HiraSubjectSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraSubjectSyncRepository,
     @Inject(HIRA_CLIENT) private readonly client: HiraClient,
   ) {}
 
   async sync(): Promise<SyncOutcome> {
-    const subjects = await this.prisma.hira_code.findMany({
-      where: { tp: 'subject' },
-      orderBy: { cd: 'asc' },
-      select: { cd: true, cd_nm: true },
-    });
+    const subjects = await this.repo.findSubjectCodes();
 
     let calls = 0;
     let processed = 0;
 
     for (const subject of subjects) {
       const code = subject.cd;
-      const name = subject.cd_nm;
+      const name = subject.cdNm;
 
       let pageNo = 1;
       let fetched = 0;
@@ -93,28 +87,7 @@ export class HiraSubjectSyncService {
     dgsbjtCd: string,
     dgsbjtNm: string | null,
   ): Promise<number> {
-    for (let i = 0; i < ykihos.length; i += CHUNK_SIZE) {
-      const chunk = ykihos.slice(i, i + CHUNK_SIZE);
-
-      const values = Prisma.join(
-        chunk.map(
-          (ykiho) =>
-            Prisma.sql`(${ykiho}, ${dgsbjtCd}, ${dgsbjtNm}, 'list', NOW())`,
-        ),
-      );
-
-      await this.prisma.$executeRaw(
-        Prisma.sql`
-          INSERT INTO hira_hospital_subject
-            (ykiho, dgsbjt_cd, dgsbjt_nm, source, synced_at)
-          VALUES ${values} AS new
-          ON DUPLICATE KEY UPDATE
-            dgsbjt_nm = new.dgsbjt_nm,
-            source    = IF(hira_hospital_subject.source = 'subject', 'subject', new.source),
-            synced_at = NOW()
-        `,
-      );
-    }
+    await this.repo.upsertSubjects(ykihos, dgsbjtCd, dgsbjtNm);
 
     return ykihos.length;
   }

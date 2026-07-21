@@ -1,0 +1,259 @@
+{
+  "index_patterns": ["healthcare_hospital-v*"],
+  "composed_of": ["hansapi-analysis"],
+  "priority": 100,
+
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "30s"
+      }
+    },
+
+    "mappings": {
+      "dynamic": "strict",
+
+      "dynamic_templates": [
+        {
+          "asm_grades_as_integer": {
+            "path_match": "asm_grades.*",
+            "mapping": { "type": "integer" }
+          }
+        },
+        {
+          "asm_grade_counts_as_integer": {
+            "path_match": "asm_grade_counts.*",
+            "mapping": { "type": "integer" }
+          }
+        }
+      ],
+
+      "properties": {
+        "id": { "type": "long" },
+        "status": { "type": "keyword" },
+        "source": { "type": "keyword" },
+        "ykiho": { "type": "keyword" },
+        "hpid": { "type": "keyword" },
+
+        "name": {
+          "properties": {
+            "ko": {
+              "type": "keyword",
+              "normalizer": "keyword_fold",
+              "ignore_above": 256,
+              "copy_to": "search.name.ko"
+            },
+            "en": {
+              "type": "keyword",
+              "normalizer": "keyword_fold",
+              "ignore_above": 256,
+              "copy_to": "search.name.en"
+            },
+            "ja": {
+              "type": "keyword",
+              "normalizer": "keyword_fold",
+              "ignore_above": 256,
+              "copy_to": "search.name.ja"
+            },
+            "zh": {
+              "type": "keyword",
+              "normalizer": "keyword_fold",
+              "ignore_above": 256,
+              "copy_to": "search.name.zh"
+            }
+          }
+        },
+
+        "subway": {
+          "properties": {
+            "stations": {
+              "properties": {
+                "ko": { "type": "keyword", "copy_to": "search.place.ko" },
+                "en": { "type": "keyword", "copy_to": "search.place.en" },
+                "ja": { "type": "keyword", "copy_to": "search.place.ja" },
+                "zh": { "type": "keyword", "copy_to": "search.place.zh" }
+              }
+            },
+            "lines": { "type": "keyword" }
+          }
+        },
+
+        "search": {
+          "properties": {
+            "name": {
+              "properties": {
+                "ko": {
+                  "type": "text",
+                  "analyzer": "ko_text",
+                  "index_prefixes": { "min_chars": 1, "max_chars": 12 }
+                },
+                "en": {
+                  "type": "text",
+                  "analyzer": "generic_text",
+                  "index_prefixes": { "min_chars": 1, "max_chars": 12 }
+                },
+                "ja": {
+                  "type": "text",
+                  "analyzer": "ja_text",
+                  "index_prefixes": { "min_chars": 1, "max_chars": 12 }
+                },
+                "zh": {
+                  "type": "text",
+                  "analyzer": "zh_text",
+                  "index_prefixes": { "min_chars": 1, "max_chars": 12 }
+                }
+              }
+            },
+            "place": {
+              "properties": {
+                "ko": { "type": "text", "analyzer": "ko_text" },
+                "en": { "type": "text", "analyzer": "generic_text" },
+                "ja": { "type": "text", "analyzer": "ja_text" },
+                "zh": { "type": "text", "analyzer": "zh_text" }
+              }
+            },
+            "etc": {
+              "properties": {
+                "ko": { "type": "text", "analyzer": "ko_text" },
+                "en": { "type": "text", "analyzer": "generic_text" },
+                "ja": { "type": "text", "analyzer": "ja_text" },
+                "zh": { "type": "text", "analyzer": "zh_text" }
+              }
+            }
+          }
+        },
+
+        "location": {
+          "properties": {
+            "sido_cd": { "type": "keyword" },
+            "region_cd": { "type": "keyword" },
+            "emdong_nm": {
+              "properties": {
+                "ko": { "type": "keyword", "copy_to": "search.place.ko" }
+              }
+            },
+            "post_no": { "type": "keyword" },
+            "addr": {
+              "properties": {
+                "ko": {
+                  "type": "keyword",
+                  "ignore_above": 300,
+                  "copy_to": "search.place.ko"
+                },
+                "en": {
+                  "type": "keyword",
+                  "ignore_above": 300,
+                  "copy_to": "search.place.en"
+                }
+              }
+            },
+            "point": { "type": "geo_point" }
+          }
+        },
+
+        "class_cd": { "type": "keyword" },
+        "tier": { "type": "keyword" },
+
+        "tel": { "type": "keyword" },
+        "emergency": { "type": "boolean" },
+        "baby": { "type": "boolean" },
+
+        "subject_cds": { "type": "keyword" },
+        "specialist_subject_cds": { "type": "keyword" },
+        "equipment_cds": { "type": "keyword" },
+        "specialty_cds": { "type": "keyword" },
+        "special_cds": { "type": "keyword" },
+        "severe_cds": { "type": "keyword" },
+        "asm_excellent_cds": { "type": "keyword" },
+        "asm_grades": { "type": "object", "dynamic": true },
+        "asm_grade_counts": { "type": "object", "dynamic": true },
+        "asm_grades_raw": { "type": "object", "enabled": false },
+
+        "subjects": { "type": "object", "enabled": false },
+        "equipments": { "type": "object", "enabled": false },
+        "capabilities": { "type": "object", "enabled": false },
+        "hours": { "type": "object", "enabled": false },
+        "staff": { "type": "object", "enabled": false },
+        "beds": { "type": "object", "enabled": false },
+        "parking": { "type": "object", "enabled": false },
+
+        "homepage": {
+          "type": "text",
+          "analyzer": "domain",
+          "fields": { "kw": { "type": "keyword", "ignore_above": 300 } }
+        },
+        "estb_dd": { "type": "keyword", "index": false },
+
+        "intro": {
+          "properties": {
+            "ko": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.ko"
+            },
+            "en": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.en"
+            },
+            "ja": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.ja"
+            },
+            "zh": { "type": "text", "index": false, "copy_to": "search.etc.zh" }
+          }
+        },
+        "notice": {
+          "properties": {
+            "ko": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.ko"
+            },
+            "en": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.en"
+            },
+            "ja": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.ja"
+            },
+            "zh": { "type": "text", "index": false, "copy_to": "search.etc.zh" }
+          }
+        },
+        "directions": {
+          "properties": {
+            "ko": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.ko"
+            },
+            "en": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.en"
+            },
+            "ja": {
+              "type": "text",
+              "index": false,
+              "copy_to": "search.etc.ja"
+            },
+            "zh": { "type": "text", "index": false, "copy_to": "search.etc.zh" }
+          }
+        },
+        "transport": { "type": "object", "enabled": false },
+
+        "built_at": { "type": "date" }
+      }
+    }
+  },
+
+  "_meta": {
+    "description": "통합 병원 검색 인덱스. 1병원=1문서. 코드값만 저장(이름은 앱 캐시가 부착)."
+  }
+}

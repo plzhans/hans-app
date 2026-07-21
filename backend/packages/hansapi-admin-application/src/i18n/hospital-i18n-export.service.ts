@@ -6,7 +6,8 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, PrismaService } from '@hansapi/data';
+
+import { HospitalI18nExportRepository } from './hospital-i18n-export.repository';
 
 /** 번역 대상 필드. healthcare_hospital_i18n 의 컬럼과 같다. */
 export const I18N_FIELDS = [
@@ -84,7 +85,7 @@ const CHUNK = 2_000;
 export class HospitalI18nExportService {
   private readonly logger = new Logger(HospitalI18nExportService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HospitalI18nExportRepository) {}
 
   async export(options: I18nExportOptions): Promise<I18nExportResult> {
     const started = Date.now();
@@ -129,7 +130,7 @@ export class HospitalI18nExportService {
     let cursor = 0;
 
     for (;;) {
-      const rows = await this.chunk(options.lang, cursor);
+      const rows = await this.repo.loadPending(options.lang, cursor, CHUNK);
       if (rows.length === 0) {
         return;
       }
@@ -218,54 +219,6 @@ export class HospitalI18nExportService {
     }
 
     return null;
-  }
-
-  /**
-   * 번역할 게 하나라도 남은 병원만 읽는다.
-   *
-   * WHERE 절의 OR 여섯 줄이 곧 "번역 대상" 의 정의다. 이 조건을 서비스 코드가 아니라 SQL 에
-   * 둔 이유는 두 번째 실행부터 **네트워크로 안 넘겨도 되는 행을 안 넘기기** 위해서다.
-   * 8만 병원 중 실제로 재번역할 게 열 건이면 열 행만 온다.
-   *
-   * engine='human' 은 사람이 고친 번역이라 건드리지 않는다.
-   * attempt_count>=3 은 이미 세 번 실패한 것이다 — 계속 재시도하면 돈만 태운다.
-   */
-  private async chunk(
-    lang: string,
-    cursor: number,
-  ): Promise<Record<string, unknown>[]> {
-    return this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
-      SELECT h.id,
-             h.name,       CAST(MD5(h.name) AS CHAR)       AS name_md5,
-             h.intro,      CAST(MD5(h.intro) AS CHAR)      AS intro_md5,
-             h.notice,     CAST(MD5(h.notice) AS CHAR)     AS notice_md5,
-             h.directions, CAST(MD5(h.directions) AS CHAR) AS directions_md5,
-             h.park_note,  CAST(MD5(h.park_note) AS CHAR)  AS park_note_md5,
-             h.transport,  CAST(MD5(h.transport) AS CHAR)  AS transport_md5,
-             i.name       AS t_name,       i.name_src,
-             i.intro      AS t_intro,      i.intro_src,
-             i.notice     AS t_notice,     i.notice_src,
-             i.directions AS t_directions, i.directions_src,
-             i.park_note  AS t_park_note,  i.park_note_src,
-             i.transport  AS t_transport,  i.transport_src
-        FROM healthcare_hospital h
-        LEFT JOIN healthcare_hospital_i18n i
-               ON i.hospital_id = h.id AND i.lang = ${lang}
-       WHERE h.status = 'active'
-         AND h.id > ${cursor}
-         AND COALESCE(i.engine, '') <> 'human'
-         AND COALESCE(i.attempt_count, 0) < 3
-         AND (
-              (h.name       IS NOT NULL AND (i.name       IS NULL OR i.name_src       <> MD5(h.name)))
-           OR (h.intro      IS NOT NULL AND (i.intro      IS NULL OR i.intro_src      <> MD5(h.intro)))
-           OR (h.notice     IS NOT NULL AND (i.notice     IS NULL OR i.notice_src     <> MD5(h.notice)))
-           OR (h.directions IS NOT NULL AND (i.directions IS NULL OR i.directions_src <> MD5(h.directions)))
-           OR (h.park_note  IS NOT NULL AND (i.park_note  IS NULL OR i.park_note_src  <> MD5(h.park_note)))
-           OR (h.transport  IS NOT NULL AND (i.transport  IS NULL OR i.transport_src  <> MD5(h.transport)))
-         )
-       ORDER BY h.id
-       LIMIT ${CHUNK}
-    `);
   }
 
   /**

@@ -1,18 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { PrismaService } from '@hansapi/data';
 import type { CodeInfoItem } from '@krdata/nmc';
 
-import { CodeRow, upsertCodeRows } from '../common/code-upsert';
+import { CodeRow } from '../common/code-upsert';
 import {
   CodeSyncOptions,
   CodeSyncResult,
   DEFAULT_CODE_SYNC_ROWS,
 } from '../common/code-sync.types';
+import { NmcCodeSyncRepository } from './nmc-code-sync.repository';
 import { NmcQueryService } from './nmc-query.service';
-
-const KEY_COLUMNS = ['cm_mid', 'cm_sid'] as const;
-const VALUE_COLUMNS = ['cm_mnm', 'cm_snm'] as const;
 
 /**
  * NMC 코드마스터(CodeMast/info)를 로컬 DB(nmc_code)에 미러링한다.
@@ -25,7 +22,7 @@ export class NmcCodeSyncService {
   private readonly logger = new Logger(NmcCodeSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: NmcCodeSyncRepository,
     private readonly api: NmcQueryService,
   ) {}
 
@@ -99,12 +96,6 @@ export class NmcCodeSyncService {
       this.logger.warn(`cmMid/cmSid 가 없어 건너뛴 항목 ${skipped}건`);
     }
 
-    return upsertCodeRows(
-      this.prisma,
-      'nmc_code',
-      KEY_COLUMNS,
-      VALUE_COLUMNS,
-      rows,
-    );
+    return this.repo.upsertCodes(rows);
   }
 }

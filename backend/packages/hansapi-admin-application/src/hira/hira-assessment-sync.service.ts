@@ -1,8 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 import type { HiraClient, HospitalAssessmentItem } from '@krdata/hira';
 
-import { upsertMirrorRows } from '../common/mirror-upsert';
+import { HiraAssessmentSyncRepository } from './hira-assessment-sync.repository';
 import { SyncOutcome } from '../common/sync-state.service';
 import { HIRA_CLIENT } from '../krdata.providers';
 
@@ -25,7 +24,7 @@ export class HiraAssessmentSyncService {
   private readonly logger = new Logger(HiraAssessmentSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraAssessmentSyncRepository,
     @Inject(HIRA_CLIENT) private readonly client: HiraClient,
   ) {}
 
@@ -65,6 +64,6 @@ export class HiraAssessmentSyncService {
       this.logger.warn(`ykiho 가 없어 건너뛴 항목 ${skipped}건`);
     }
 
-    return upsertMirrorRows(this.prisma, 'hira_hospital_asm', 'ykiho', rows);
+    return this.repo.upsertMirror(rows);
   }
 }

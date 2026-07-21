@@ -1,9 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 import type { HiraClient, HospitalItem } from '@krdata/hira';
 
-import { upsertMirrorRows } from '../common/mirror-upsert';
-import { rebuildHiraRegions } from '../common/region-rebuild';
+import { HiraHospitalSyncRepository } from './hira-hospital-sync.repository';
 import { HIRA_CLIENT } from '../krdata.providers';
 import {
   resolveSyncOptions,
@@ -22,7 +20,7 @@ export class HiraHospitalSyncService {
   private readonly logger = new Logger(HiraHospitalSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraHospitalSyncRepository,
     @Inject(HIRA_CLIENT) private readonly client: HiraClient,
   ) {}
 
@@ -69,7 +67,7 @@ export class HiraHospitalSyncService {
     }
 
     // 지역 목록은 병원 데이터의 집계다. 적재가 끝났으니 다시 만든다.
-    const regions = await rebuildHiraRegions(this.prisma);
+    const regions = await this.repo.rebuildRegions();
     this.logger.log(
       `HIRA 지역 갱신: 시도 ${regions.sidos}종 / 시군구 조합 ${regions.regions}건`,
     );
@@ -95,6 +93,6 @@ export class HiraHospitalSyncService {
       this.logger.warn(`ykiho 가 없어 건너뛴 항목 ${skipped}건`);
     }
 
-    return upsertMirrorRows(this.prisma, 'hira_hospital', 'ykiho', rows);
+    return this.repo.upsertMirror(rows);
   }
 }

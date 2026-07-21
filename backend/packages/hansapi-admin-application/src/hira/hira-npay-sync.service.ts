@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Prisma, PrismaService } from '@hansapi/data';
 import type { HiraClient, NonPaymentDetailItem } from '@krdata/hira';
 
+import { HiraNpaySyncRepository } from './hira-npay-sync.repository';
 import { SyncOutcome } from '../common/sync-state.service';
 import { HIRA_CLIENT } from '../krdata.providers';
 
@@ -14,9 +14,6 @@ import { HIRA_CLIENT } from '../krdata.providers';
  * 잠시 쉬면 회복되지만, 배치가 그 상태에 빠지면 페이지마다 재시도가 붙어 더 오래 걸린다.
  */
 const PAGE_SIZE = 2_000;
-
-/** 한 번의 INSERT 에 담을 행 수. 너무 크면 max_allowed_packet 에 걸린다. */
-const CHUNK_SIZE = 500;
 
 /**
  * HIRA 비급여 진료비를 로컬 DB(hira_hospital_npay)에 미러링한다.
@@ -35,7 +32,7 @@ export class HiraNpaySyncService {
   private readonly logger = new Logger(HiraNpaySyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HiraNpaySyncRepository,
     @Inject(HIRA_CLIENT) private readonly client: HiraClient,
   ) {}
 
@@ -98,43 +95,11 @@ export class HiraNpaySyncService {
       this.logger.warn(`ykiho/sno 가 없어 건너뛴 항목 ${skipped}건`);
     }
 
-    let processed = 0;
-
-    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-      const chunk = rows.slice(i, i + CHUNK_SIZE);
-
-      // JSON 으로 캐스팅해서 넣는다. 문자열로 두면 아래 비교(data = new.data)가 항상 거짓이 된다.
-      const values = Prisma.join(
-        chunk.map(
-          (row) =>
-            Prisma.sql`(${row.ykiho}, ${row.sno}, CAST(${JSON.stringify(row)} AS JSON), NOW(), NOW(), NOW())`,
-        ),
-      );
-
-      // updated_at 은 data 가 실제로 바뀐 경우에만 갱신한다. SET 절이 왼쪽부터 평가되므로
-      // data 대입보다 앞에 둬야 비교 시점의 data 가 옛 값이다. (common/mirror-upsert.ts 와 같은 이유)
-      await this.prisma.$executeRaw(
-        Prisma.sql`
-          INSERT INTO hira_hospital_npay (ykiho, sno, data, created_at, updated_at, synced_at)
-          VALUES ${values} AS new
-          ON DUPLICATE KEY UPDATE
-            updated_at = IF(hira_hospital_npay.data = new.data, hira_hospital_npay.updated_at, NOW()),
-            synced_at  = NOW(),
-            data       = new.data
-        `,
-      );
-
-      processed += chunk.length;
-    }
-
-    return processed;
+    return this.repo.upsertMirror(rows);
   }
 
   /** 이번 전수에 없던 행 = 원본에서 사라진 항목. 병원이 비급여 항목을 내리면 여기로 떨어진다. */
-  private async deleteStale(startedAt: Date): Promise<number> {
-    const { count } = await this.prisma.hira_hospital_npay.deleteMany({
-      where: { synced_at: { lt: startedAt } },
-    });
-    return count;
+  private deleteStale(startedAt: Date): Promise<number> {
+    return this.repo.deleteStale(startedAt);
   }
 }

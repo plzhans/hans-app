@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapi/application';
-import { Prisma, PrismaService } from '@hansapi/data';
 import { KrDataQuotaError } from '@krdata/core';
 import type { HospitalBasisInfoItem, NmcClient } from '@krdata/nmc';
 
+import { NmcBasicSyncRepository } from './nmc-basic-sync.repository';
 import { mapWithConcurrency } from '../common/pool';
 import { SyncOutcome } from '../common/sync-state.service';
 import { NMC_CLIENT } from '../krdata.providers';
@@ -58,7 +58,7 @@ export class NmcBasicSyncService {
   private readonly logger = new Logger(NmcBasicSyncService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: NmcBasicSyncRepository,
     @Inject(NMC_CLIENT) private readonly client: NmcClient,
   ) {}
 
@@ -123,60 +123,25 @@ export class NmcBasicSyncService {
     return { total, processed, calls, limitReached };
   }
 
-  /**
-   * 작업 큐. 아직 안 받은 병원을 등급 순서로 꺼낸다.
-   *
-   * duty_div 는 generated column 이라 JSON 을 열지 않고 인덱스만 읽는다.
-   * FIELD() 로 등급 우선순위를 준다 — 종합병원부터, 요양병원은 맨 뒤.
-   */
-  private async nextTargets(
+  /** 작업 큐 한 배치. divs/clinics/force 를 풀어 저장소에 넘긴다. */
+  private nextTargets(
     options: BasicSyncOptions,
     take: number,
   ): Promise<string[]> {
-    const divs = options.divs ?? NMC_MAJOR_DIVS;
-    const order = Prisma.join(divs.map((div) => Prisma.sql`${div}`));
-
-    const scope = options.clinics
-      ? // 3단계: 규모기관이 아닌 전부 (의원·치과의원·한의원·보건소 등)
-        Prisma.sql`(duty_div IS NULL OR duty_div NOT IN (${order}))`
-      : Prisma.sql`duty_div IN (${order})`;
-
-    const notDone = options.force
-      ? Prisma.sql`1 = 1`
-      : Prisma.sql`basic_synced_at IS NULL`;
-
-    // 의원급은 등급 우선순위가 없다. 규모기관만 FIELD() 로 순서를 준다.
-    const rows = options.clinics
-      ? await this.prisma.$queryRaw<{ hpid: string }[]>(
-          Prisma.sql`SELECT hpid FROM nmc_hospital WHERE ${scope} AND ${notDone} LIMIT ${take}`,
-        )
-      : await this.prisma.$queryRaw<{ hpid: string }[]>(
-          Prisma.sql`
-            SELECT hpid FROM nmc_hospital
-             WHERE ${scope} AND ${notDone}
-             ORDER BY FIELD(duty_div, ${order})
-             LIMIT ${take}
-          `,
-        );
-
-    return rows.map((row) => row.hpid);
+    return this.repo.pickPending(
+      options.divs ?? NMC_MAJOR_DIVS,
+      options.clinics ?? false,
+      options.force ?? false,
+      take,
+    );
   }
 
-  private async countTargets(options: BasicSyncOptions): Promise<number> {
-    const divs = options.divs ?? NMC_MAJOR_DIVS;
-    const order = Prisma.join(divs.map((div) => Prisma.sql`${div}`));
-
-    const scope = options.clinics
-      ? Prisma.sql`(duty_div IS NULL OR duty_div NOT IN (${order}))`
-      : Prisma.sql`duty_div IN (${order})`;
-    const notDone = options.force
-      ? Prisma.sql`1 = 1`
-      : Prisma.sql`basic_synced_at IS NULL`;
-
-    const rows = await this.prisma.$queryRaw<{ c: bigint }[]>(
-      Prisma.sql`SELECT COUNT(*) c FROM nmc_hospital WHERE ${scope} AND ${notDone}`,
+  private countTargets(options: BasicSyncOptions): Promise<number> {
+    return this.repo.countPending(
+      options.divs ?? NMC_MAJOR_DIVS,
+      options.clinics ?? false,
+      options.force ?? false,
     );
-    return Number(rows[0]?.c ?? 0);
   }
 
   /** 한 병원의 basic 을 받아 저장하고, 진료과목을 코드로 환산해 갱신한다. */
@@ -194,14 +159,7 @@ export class NmcBasicSyncService {
     // 응답이 없어도 받았다는 사실은 남긴다. 안 그러면 매번 다시 조회한다.
     const data = item ?? {};
 
-    await this.prisma.$executeRaw(
-      Prisma.sql`
-        UPDATE nmc_hospital
-           SET basic = CAST(${JSON.stringify(data)} AS JSON),
-               basic_synced_at = NOW()
-         WHERE hpid = ${hpid}
-      `,
-    );
+    await this.repo.storeBasic(hpid, data);
 
     if (item) {
       await this.upsertSubjects(hpid, item);
@@ -230,32 +188,13 @@ export class NmcBasicSyncService {
       return;
     }
 
-    const codes = await this.prisma.nmc_code.findMany({
-      where: { cm_mid: 'D000', cm_snm: { in: names } },
-      select: { cm_sid: true, cm_snm: true },
-    });
+    const codes = await this.repo.findSubjectCodes(names);
 
     if (codes.length === 0) {
       return;
     }
 
-    const values = Prisma.join(
-      codes.map(
-        (code) =>
-          Prisma.sql`(${hpid}, ${code.cm_sid}, ${code.cm_snm}, 'basic', NOW())`,
-      ),
-    );
-
-    await this.prisma.$executeRaw(
-      Prisma.sql`
-        INSERT INTO nmc_hospital_subject (hpid, subject_cd, subject_nm, source, synced_at)
-        VALUES ${values} AS new
-        ON DUPLICATE KEY UPDATE
-          subject_nm = new.subject_nm,
-          source     = 'basic',
-          synced_at  = NOW()
-      `,
-    );
+    await this.repo.upsertSubjects(hpid, codes);
 
     const missing = names.length - codes.length;
     if (missing > 0) {

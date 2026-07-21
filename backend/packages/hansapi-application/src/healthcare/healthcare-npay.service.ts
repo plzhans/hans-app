@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@hansapi/data';
 import type { NonPaymentDetailItem } from '@krdata/hira';
 
 import { asString } from '../common/coerce';
@@ -10,6 +9,7 @@ import {
   NonPaymentItem,
   NonPaymentPriceDetail,
 } from './dto/npay.result';
+import { HealthcareNonPaymentRepository } from './healthcare-npay.repository';
 import type { NpayWebItem, NpayWebRecord } from './npay-web.record';
 
 /** hira_hospital_detail 의 op. 크롤 비급여만 출처가 공개 API 가 아니다. */
@@ -36,7 +36,7 @@ const OP_NPAY_WEB = 'npay-web';
 @Injectable()
 export class HealthcareNonPaymentService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: HealthcareNonPaymentRepository,
     private readonly jobs: JobQueueService,
   ) {}
 
@@ -47,10 +47,7 @@ export class HealthcareNonPaymentService {
    * 그때 source 가 왜 비었는지를 말해준다 — none(받아봤는데 없음) / requestable(아직 안 받아봄).
    */
   async get(hospitalId: number): Promise<HospitalNonPayment | null> {
-    const hospital = await this.prisma.healthcare_hospital.findUnique({
-      where: { id: hospitalId },
-      select: { ykiho: true },
-    });
+    const hospital = await this.repo.findHospitalYkiho(hospitalId);
 
     if (!hospital) {
       return null;
@@ -69,10 +66,7 @@ export class HealthcareNonPaymentService {
 
   /** 갱신 요청을 큐에 넣는다. **크롤하지 않는다** — 배치가 꺼내 간다. */
   async request(hospitalId: number): Promise<'queued' | 'unavailable' | null> {
-    const hospital = await this.prisma.healthcare_hospital.findUnique({
-      where: { id: hospitalId },
-      select: { ykiho: true },
-    });
+    const hospital = await this.repo.findHospitalYkiho(hospitalId);
 
     if (!hospital) {
       return null;
@@ -87,11 +81,7 @@ export class HealthcareNonPaymentService {
 
   /** 공개 API 미러. 전건이다 — sno 가 심평원이 매긴 게시 순서라 그 순서가 곧 화면 순서다. */
   private async fromHira(ykiho: string): Promise<HospitalNonPayment | null> {
-    const rows = await this.prisma.hira_hospital_npay.findMany({
-      where: { ykiho },
-      orderBy: { sno: 'asc' },
-      select: { data: true },
-    });
+    const rows = await this.repo.findHiraNpay(ykiho);
 
     if (rows.length === 0) {
       return null;
@@ -119,14 +109,11 @@ export class HealthcareNonPaymentService {
     if (codes.length === 0) {
       return new Map();
     }
-    const rows = await this.prisma.hira_npay_code.findMany({
-      where: { cd: { in: codes } },
-      select: { cd: true, mdiv_cd: true },
-    });
+    const rows = await this.repo.findNpayCodeMdiv(codes);
     return new Map(
       rows
-        .filter((r): r is { cd: string; mdiv_cd: string } => !!r.mdiv_cd)
-        .map((r) => [r.cd, r.mdiv_cd]),
+        .filter((r): r is { cd: string; mdivCd: string } => !!r.mdivCd)
+        .map((r) => [r.cd, r.mdivCd]),
     );
   }
 
@@ -135,10 +122,7 @@ export class HealthcareNonPaymentService {
    * 그때만 갱신 요청이 의미가 있으므로, 큐에 걸린 요청이 있으면 그 상태를 함께 알려준다.
    */
   private async fromWeb(ykiho: string): Promise<HospitalNonPayment> {
-    const row = await this.prisma.hira_hospital_detail.findUnique({
-      where: { ykiho_op: { ykiho, op: OP_NPAY_WEB } },
-      select: { data: true },
-    });
+    const row = await this.repo.findWebDetail(ykiho, OP_NPAY_WEB);
 
     if (row) {
       const record = row.data as unknown as NpayWebRecord;

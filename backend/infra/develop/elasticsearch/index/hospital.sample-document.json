@@ -1,0 +1,318 @@
+{
+  "id": 22306,
+  "status": "active",
+  "source": "hira_nmc",
+  "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQ3OSQ0NjEwMDIjNjEjJDEjJDQjJDgz",
+  "hpid": "A1100006",
+
+  "name": {
+    "ko": "강북삼성병원"
+  },
+
+  "subway": {
+    "stations": {
+      "ko": ["서대문역"]
+    },
+    "lines": ["5호선"]
+  },
+
+  "location": {
+    "sido_cd": "11",
+    "region_cd": "11016",
+    "emdong_nm": { "ko": "평동" },
+    "post_no": "03181",
+    "addr": {
+      "ko": "서울특별시 종로구 새문안로 29, (평동)"
+    },
+    "point": { "lat": 37.5684083, "lon": 126.96775 }
+  },
+
+  "class_cd": "TERTIARY",
+  "tier": "TIER3",
+
+  "tel": "02-2001-2001",
+  "emergency": true,
+  "baby": false,
+
+  "subject_cds": [
+    "ANES",
+    "CS",
+    "DERM",
+    "EM",
+    "ENDO",
+    "ENT",
+    "FM",
+    "GS",
+    "IM",
+    "LAB",
+    "NEURO",
+    "NM",
+    "NS",
+    "OBGY",
+    "OCC_ENV",
+    "OMFS",
+    "OPH",
+    "ORTHO",
+    "OS",
+    "PATH",
+    "PED",
+    "PERIO",
+    "PROS",
+    "PS",
+    "PSY",
+    "RAD",
+    "RAD_ONC",
+    "REHAB",
+    "URO"
+  ],
+  "specialist_subject_cds": [
+    "ANES",
+    "CS",
+    "GS",
+    "IM",
+    "NEURO",
+    "NS",
+    "OBGY",
+    "OS",
+    "PS",
+    "PSY"
+  ],
+  "equipment_cds": [
+    "BMD",
+    "CBCT",
+    "DIALYSIS",
+    "ESWL",
+    "FETAL_MONITOR",
+    "INCUBATOR",
+    "MAMMO",
+    "PET",
+    "US",
+    "XRAY"
+  ],
+  "specialty_cds": [],
+  "special_cds": [
+    "02",
+    "03",
+    "04",
+    "05",
+    "16",
+    "17",
+    "AS",
+    "C8",
+    "F2",
+    "KH",
+    "SE",
+    "SH",
+    "SS",
+    "SY",
+    "TI"
+  ],
+  "severe_cds": [
+    "ABDOMEN",
+    "BRAIN_HEMO",
+    "BRAIN_ISCH",
+    "BURN",
+    "DIALYSIS",
+    "ENDOSCOPY",
+    "LIMB",
+    "MI",
+    "PRETERM",
+    "PSYCH"
+  ],
+  "asm_excellent_cds": [
+    "01",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "12",
+    "13",
+    "14",
+    "15",
+    "17",
+    "18",
+    "19",
+    "20",
+    "22",
+    "23"
+  ],
+
+  "subjects": [
+    { "cd": "IM", "declared": true, "doctorCnt": 64, "specialistCnt": 64 },
+    { "cd": "GS", "declared": true, "doctorCnt": 17, "specialistCnt": 17 },
+    { "cd": "ANES", "declared": true, "doctorCnt": 12, "specialistCnt": 12 },
+    { "cd": "OBGY", "declared": true, "doctorCnt": 8, "specialistCnt": 8 },
+    { "cd": "NS", "declared": true, "doctorCnt": 8, "specialistCnt": 8 },
+    { "cd": "OS", "declared": true, "doctorCnt": 8, "specialistCnt": 8 },
+    { "cd": "NEURO", "declared": true, "doctorCnt": 8, "specialistCnt": 8 },
+    { "cd": "PSY", "declared": true, "doctorCnt": 6, "specialistCnt": 6 }
+  ],
+  "equipments": [
+    { "cd": "US", "cnt": 80 },
+    { "cd": "DIALYSIS", "cnt": 36 },
+    { "cd": "XRAY", "cnt": 20 },
+    { "cd": "FETAL_MONITOR", "cnt": 15 },
+    { "cd": "INCUBATOR", "cnt": 15 },
+    { "cd": "MAMMO", "cnt": 4 },
+    { "cd": "BMD", "cnt": 3 },
+    { "cd": "CBCT", "cnt": 1 },
+    { "cd": "ESWL", "cnt": 1 },
+    { "cd": "PET", "cnt": 1 }
+  ],
+  "capabilities": [
+    { "tp": "severe", "cd": "MI" },
+    { "tp": "severe", "cd": "BRAIN_HEMO" },
+    { "tp": "special", "cd": "03" },
+    { "tp": "special", "cd": "KH" }
+  ],
+  "hours": [
+    {
+      "kind": "general",
+      "day": 1,
+      "open": "0830",
+      "close": "1700",
+      "breakStart": "1230",
+      "breakEnd": "1330"
+    },
+    {
+      "kind": "general",
+      "day": 2,
+      "open": "0830",
+      "close": "1700",
+      "breakStart": "1230",
+      "breakEnd": "1330"
+    },
+    {
+      "kind": "general",
+      "day": 3,
+      "open": "0830",
+      "close": "1700",
+      "breakStart": "1230",
+      "breakEnd": "1330"
+    },
+    {
+      "kind": "general",
+      "day": 4,
+      "open": "0830",
+      "close": "1700",
+      "breakStart": "1230",
+      "breakEnd": "1330"
+    },
+    {
+      "kind": "general",
+      "day": 5,
+      "open": "0830",
+      "close": "1700",
+      "breakStart": "1230",
+      "breakEnd": "1330"
+    },
+    { "kind": "general", "day": 6, "open": "0830", "close": "1230" }
+  ],
+  "staff": {
+    "doctorTotal": 397,
+    "specialist": 255,
+    "resident": 108,
+    "intern": 26,
+    "dentist": 4
+  },
+  "beds": {
+    "total": 655,
+    "standard": 526,
+    "higher": 34,
+    "icu": 12,
+    "emergency": 20,
+    "operatingRoom": 16,
+    "delivery": 4,
+    "neonatal": 11,
+    "psyClosed": 18
+  },
+  "asm_grades": {
+    "01": 1,
+    "03": 1,
+    "04": 1,
+    "05": 1,
+    "06": 1,
+    "07": 1,
+    "08": 1,
+    "09": 2,
+    "12": 1,
+    "13": 1,
+    "14": 1,
+    "15": 1,
+    "17": 1,
+    "18": 1,
+    "19": 1,
+    "20": 1,
+    "21": 2,
+    "22": 1,
+    "23": 1
+  },
+  "asm_grade_counts": { "1": 17, "2": 2 },
+  "asm_grades_raw": {
+    "01": "1",
+    "03": "1",
+    "04": "1",
+    "05": "1",
+    "06": "1",
+    "07": "1",
+    "08": "1",
+    "09": "2",
+    "12": "1",
+    "13": "1",
+    "14": "1",
+    "15": "1",
+    "17": "1",
+    "18": "1",
+    "19": "1",
+    "20": "1",
+    "21": "2",
+    "22": "1",
+    "23": "1"
+  },
+  "parking": { "capacity": 298, "paid": true },
+
+  "homepage": "http://www.kbsmc.co.kr",
+  "estb_dd": "19790324",
+
+  "directions": {
+    "ko": "서대문역 4번 출구"
+  },
+
+  "transport": {
+    "ko": {
+      "subway": [
+        {
+          "kindName": "지하철",
+          "line": "5호선",
+          "arrival": "서대문역",
+          "dir": "4번 출구",
+          "distance": "도보 5분",
+          "note": null
+        }
+      ],
+      "bus": [
+        {
+          "kindName": "시내버스",
+          "line": "101, 710, 470, 471, 704, 720, 601",
+          "arrival": "서대문사거리, 적십자병원 앞",
+          "dir": null,
+          "distance": "10m",
+          "note": null
+        },
+        {
+          "kindName": "시내버스",
+          "line": "701, 704, 750B, 752, 706, 750A, 7021, 7024",
+          "arrival": "서대문역 앞",
+          "dir": null,
+          "distance": "50m",
+          "note": null
+        }
+      ],
+      "etc": []
+    }
+  },
+
+  "built_at": "2026-07-21T04:00:00Z"
+}

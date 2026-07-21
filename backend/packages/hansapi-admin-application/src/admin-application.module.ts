@@ -6,6 +6,27 @@ import { DataModule } from '@hansapi/data';
 import { HiraCodeReadService } from './hira/hira-code-read.service';
 import { HiraCodeSeedService } from './hira/hira-code-seed.service';
 import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
+import { HiraHospitalSyncRepository } from './hira/hira-hospital-sync.repository';
+import { NmcBasicSyncRepository } from './nmc/nmc-basic-sync.repository';
+import { NmcBabySyncRepository } from './nmc/nmc-baby-sync.repository';
+import { NmcCodeSyncRepository } from './nmc/nmc-code-sync.repository';
+import { NmcHospitalSyncRepository } from './nmc/nmc-hospital-sync.repository';
+import { NmcSubjectSyncRepository } from './nmc/nmc-subject-sync.repository';
+import { SyncStateRepository } from './common/sync-state.repository';
+import { HiraNmcMatchRepository } from './match/hira-nmc-match.repository';
+import { HospitalI18nExportRepository } from './i18n/hospital-i18n-export.repository';
+import { HiraAssessmentSyncRepository } from './hira/hira-assessment-sync.repository';
+import { HiraCodeSyncRepository } from './hira/hira-code-sync.repository';
+import { HiraCodeSeedRepository } from './hira/hira-code-seed.repository';
+import { HiraDetailSyncRepository } from './hira/hira-detail-sync.repository';
+import { HiraNpaySyncRepository } from './hira/hira-npay-sync.repository';
+import { HiraNpayCodeSyncRepository } from './hira/hira-npay-code-sync.repository';
+import { HiraNpayWebSyncRepository } from './hira/hira-npay-web-sync.repository';
+import { HiraSpecialtySyncRepository } from './hira/hira-specialty-sync.repository';
+import { HiraSubjectSyncRepository } from './hira/hira-subject-sync.repository';
+import { HealthcareCodeSeedRepository } from './healthcare/healthcare-code-seed.repository';
+import { HealthcareBuildRepository } from './healthcare/healthcare-build.repository';
+import { HealthcareDetailBuildRepository } from './healthcare/healthcare-detail-build.repository';
 import { HiraStageService } from './hira/hira-stage.service';
 import { HiraAssessmentSyncService } from './hira/hira-assessment-sync.service';
 import { HiraNpaySyncService } from './hira/hira-npay-sync.service';
@@ -58,6 +79,28 @@ export class AdminApplicationModule {
       // DB 조회는 application 계층(NmcHospitalService 등)이 소유한다. 여기서 재사용한다.
       imports: [DataModule.forRoot(source), ApplicationModule.forRoot(source)],
       providers: [
+        // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
+        HiraHospitalSyncRepository,
+        NmcBasicSyncRepository,
+        NmcBabySyncRepository,
+        NmcCodeSyncRepository,
+        NmcHospitalSyncRepository,
+        NmcSubjectSyncRepository,
+        SyncStateRepository,
+        HiraNmcMatchRepository,
+        HospitalI18nExportRepository,
+        HiraAssessmentSyncRepository,
+        HiraCodeSyncRepository,
+        HiraCodeSeedRepository,
+        HiraDetailSyncRepository,
+        HiraNpaySyncRepository,
+        HiraNpayCodeSyncRepository,
+        HiraNpayWebSyncRepository,
+        HiraSpecialtySyncRepository,
+        HiraSubjectSyncRepository,
+        HealthcareCodeSeedRepository,
+        HealthcareBuildRepository,
+        HealthcareDetailBuildRepository,
         { provide: KRDATA_CONFIG, useValue: config },
         ...krDataProviders,
         { provide: JUSO_CONFIG, useValue: jusoConfig },

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, PrismaService } from '@hansapi/data';
 
+import { HiraNmcMatchRepository } from './hira-nmc-match.repository';
 import {
   distanceMeters,
   nameSimilarity,
@@ -39,7 +39,7 @@ interface NmcRow {
   lon: number | null;
 }
 
-interface Scored {
+export interface Scored {
   hpid: string;
   score: number;
   nameSim: number;
@@ -47,6 +47,18 @@ interface Scored {
 
   /** 전화번호가 완전히 일치했나. 판정에서 다시 계산하지 않도록 여기 담아 둔다. */
   telMatch: boolean;
+}
+
+/** 한 병원(ykiho)에 대한 판정 결과 한 건. persist 로 넘어가는 저장 payload 다. */
+export interface MatchDecision {
+  ykiho: string;
+  hpid: string | null;
+  status: string;
+  rule: string | null;
+  score: number | null;
+  nameSim: number | null;
+  distance: number | null;
+  candidates: Scored[];
 }
 
 export interface MatchOptions {
@@ -81,7 +93,7 @@ export interface MatchResult {
 export class HiraNmcMatchService {
   private readonly logger = new Logger(HiraNmcMatchService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HiraNmcMatchRepository) {}
 
   async match(options: MatchOptions = {}): Promise<MatchResult> {
     const startedAt = Date.now();
@@ -89,13 +101,8 @@ export class HiraNmcMatchService {
     const [hira, nmc, links, rejected] = await Promise.all([
       this.loadHira(),
       this.loadNmc(),
-      this.prisma.hira_nmc_link.findMany({
-        select: { ykiho: true, hpid: true, confirmed_by: true },
-      }),
-      this.prisma.hira_nmc_match.findMany({
-        where: { status: 'rejected' },
-        select: { ykiho: true, hpid: true },
-      }),
+      this.repo.loadLinks(),
+      this.repo.loadRejected(),
     ]);
 
     this.logger.log(
@@ -105,13 +112,13 @@ export class HiraNmcMatchService {
     // 확정된 것은 건너뛴다. --recheck 면 auto 만 다시 본다(manual 은 사람이 정한 것이라 그대로).
     const skipYkiho = new Set(
       links
-        .filter((link) => !options.recheck || link.confirmed_by === 'manual')
+        .filter((link) => !options.recheck || link.confirmedBy === 'manual')
         .map((link) => link.ykiho),
     );
     // 이미 확정에 쓰인 NMC 병원은 후보에서 뺀다. 1:1 이라 두 번 쓰일 수 없다.
     const usedHpid = new Set(
       links
-        .filter((link) => !options.recheck || link.confirmed_by === 'manual')
+        .filter((link) => !options.recheck || link.confirmedBy === 'manual')
         .map((link) => link.hpid),
     );
     // 거부는 (ykiho, hpid) 쌍이다. 다른 후보가 생기면 다시 검토된다.
@@ -147,16 +154,7 @@ export class HiraNmcMatchService {
       }
     }
 
-    const decisions: {
-      ykiho: string;
-      hpid: string | null;
-      status: string;
-      rule: string | null;
-      score: number | null;
-      nameSim: number | null;
-      distance: number | null;
-      candidates: Scored[];
-    }[] = [];
+    const decisions: MatchDecision[] = [];
 
     // 한 NMC 병원이 두 HIRA 병원에 붙는 것을 막는다(1:1). 먼저 확정된 쪽이 가져간다.
     const claimed = new Set<string>();
@@ -269,15 +267,7 @@ export class HiraNmcMatchService {
   private decide(
     _target: HiraRow,
     candidates: Scored[],
-  ): {
-    hpid: string | null;
-    status: string;
-    rule: string | null;
-    score: number | null;
-    nameSim: number | null;
-    distance: number | null;
-    candidates: Scored[];
-  } {
+  ): Omit<MatchDecision, 'ykiho'> {
     const none = {
       hpid: null,
       status: 'no_candidate',
@@ -336,22 +326,7 @@ export class HiraNmcMatchService {
   }
 
   private async loadHira(): Promise<HiraRow[]> {
-    const rows = await this.prisma.$queryRaw<
-      {
-        ykiho: string;
-        nm: string | null;
-        tel: string | null;
-        lat: number | null;
-        lon: number | null;
-      }[]
-    >(Prisma.sql`
-      SELECT ykiho,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.yadmNm')) nm,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.telno'))  tel,
-             JSON_EXTRACT(data, '$.YPos') lat,
-             JSON_EXTRACT(data, '$.XPos') lon
-        FROM hira_hospital
-    `);
+    const rows = await this.repo.loadHiraRows();
 
     return rows.map((row) => ({
       ykiho: row.ykiho,
@@ -363,22 +338,7 @@ export class HiraNmcMatchService {
   }
 
   private async loadNmc(): Promise<NmcRow[]> {
-    const rows = await this.prisma.$queryRaw<
-      {
-        hpid: string;
-        nm: string | null;
-        tel: string | null;
-        lat: number | null;
-        lon: number | null;
-      }[]
-    >(Prisma.sql`
-      SELECT hpid,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyName')) nm,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyTel1')) tel,
-             JSON_EXTRACT(data, '$.wgs84Lat') lat,
-             JSON_EXTRACT(data, '$.wgs84Lon') lon
-        FROM nmc_hospital
-    `);
+    const rows = await this.repo.loadNmcRows();
 
     return rows.map((row) => ({
       hpid: row.hpid,
@@ -390,63 +350,22 @@ export class HiraNmcMatchService {
   }
 
   /** 판정 결과를 저장한다. link 는 확정된 것만, candidate 는 review 인 것만. */
-  private async persist(
-    decisions: {
-      ykiho: string;
-      hpid: string | null;
-      status: string;
-      rule: string | null;
-      score: number | null;
-      nameSim: number | null;
-      distance: number | null;
-      candidates: Scored[];
-    }[],
-  ): Promise<void> {
+  private async persist(decisions: MatchDecision[]): Promise<void> {
     const CHUNK = 500;
 
     for (let i = 0; i < decisions.length; i += CHUNK) {
       const chunk = decisions.slice(i, i + CHUNK);
 
-      const matchValues = Prisma.join(
-        chunk.map(
-          (d) =>
-            Prisma.sql`(${d.ykiho}, ${d.hpid}, ${d.status}, ${d.rule}, ${d.score}, ${d.nameSim}, ${d.distance}, NOW())`,
-        ),
-      );
-      await this.prisma.$executeRaw(Prisma.sql`
-        INSERT INTO hira_nmc_match
-          (ykiho, hpid, status, rule, score, name_sim, distance_m, evaluated_at)
-        VALUES ${matchValues} AS new
-        ON DUPLICATE KEY UPDATE
-          hpid = new.hpid, status = new.status, rule = new.rule,
-          score = new.score, name_sim = new.name_sim, distance_m = new.distance_m,
-          evaluated_at = NOW()
-      `);
+      await this.repo.upsertMatches(chunk);
 
       const confirmed = chunk.filter((d) => d.status === 'auto' && d.hpid);
       if (confirmed.length > 0) {
-        const linkValues = Prisma.join(
-          confirmed.map(
-            (d) =>
-              Prisma.sql`(${d.ykiho}, ${d.hpid}, 'auto', ${d.rule}, NOW())`,
-          ),
-        );
-        // manual 로 확정된 행은 건드리지 않는다(사람이 정한 것이다).
-        await this.prisma.$executeRaw(Prisma.sql`
-          INSERT INTO hira_nmc_link (ykiho, hpid, confirmed_by, rule, linked_at)
-          VALUES ${linkValues} AS new
-          ON DUPLICATE KEY UPDATE
-            hpid         = IF(hira_nmc_link.confirmed_by = 'manual', hira_nmc_link.hpid, new.hpid),
-            rule         = IF(hira_nmc_link.confirmed_by = 'manual', hira_nmc_link.rule, new.rule),
-            confirmed_by = hira_nmc_link.confirmed_by
-        `);
+        await this.repo.upsertLinks(confirmed);
       }
 
       const reviews = chunk.filter((d) => d.status === 'review');
       if (reviews.length > 0) {
-        await this.prisma.hira_nmc_match_candidate.deleteMany({
-          where: { ykiho: { in: reviews.map((d) => d.ykiho) } },
-        });
+        await this.repo.deleteCandidates(reviews.map((d) => d.ykiho));
 
         const rows = reviews.flatMap((d) =>
           d.candidates.map((c, index) => ({
@@ -454,12 +373,12 @@ export class HiraNmcMatchService {
             hpid: c.hpid,
             rank: index + 1,
             score: c.score,
-            name_sim: c.nameSim,
-            distance_m: c.distance,
+            nameSim: c.nameSim,
+            distanceM: c.distance,
           })),
         );
         if (rows.length > 0) {
-          await this.prisma.hira_nmc_match_candidate.createMany({ data: rows });
+          await this.repo.createCandidates(rows);
         }
       }
     }
@@ -467,10 +386,7 @@ export class HiraNmcMatchService {
 
   /** 상태별 집계 (CLI status) */
   async summary(): Promise<{ status: string; count: number }[]> {
-    const rows = await this.prisma.hira_nmc_match.groupBy({
-      by: ['status'],
-      _count: { status: true },
-    });
+    const rows = await this.repo.countByStatus();
     return rows
       .map((row) => ({ status: row.status, count: row._count.status }))
       .sort((a, b) => b.count - a.count);

@@ -1,14 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapi/application';
-import { Prisma, PrismaService } from '@hansapi/data';
 import { hospitalTier, IGNORED_SOURCE_CODES } from '@hansapi/data/seed';
 
-import { CodeMapper } from './code-mapper';
-import { HospitalLocks } from './hospital-lock';
+import { HealthcareBuildRepository } from './healthcare-build.repository';
 import { normalizeTel, hiraAreaCode, nmcAreaCode } from './phone';
 
 /** 한 병원의 통합 결과 */
-interface BuiltHospital {
+export interface BuiltHospital {
   ykiho: string | null;
   hpid: string | null;
   source: 'hira_nmc' | 'hira' | 'nmc';
@@ -39,7 +37,7 @@ interface BuiltHospital {
 }
 
 /** 교통편 하나. 원본에 코드가 없어 전부 원문 그대로다. */
-interface TransportRoute {
+export interface TransportRoute {
   /** 원본 trafNm. "지하철", "마을버스" — 분류는 kind 로 하되 표기는 이걸 쓴다. */
   kindName: string | null;
   /** lineNo. "2호선", "21A", "용인경전철" — 숫자만 오지 않는다. */
@@ -55,7 +53,7 @@ interface TransportRoute {
 }
 
 /** 수단별로 묶는다. 화면도 수단별 섹션으로 그린다. */
-interface HospitalTransport {
+export interface HospitalTransport {
   subway: TransportRoute[];
   bus: TransportRoute[];
   etc: TransportRoute[];
@@ -74,8 +72,6 @@ export interface BuildResult {
   unmappedRegion: number;
   elapsedMs: number;
 }
-
-const CHUNK = 500;
 
 /**
  * 통합 병원 빌드.
@@ -101,30 +97,22 @@ const CHUNK = 500;
 export class HealthcareBuildService {
   private readonly logger = new Logger(HealthcareBuildService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: HealthcareBuildRepository) {}
 
   async build(): Promise<BuildResult> {
     const startedAt = Date.now();
-    const mapper = await CodeMapper.load(this.prisma);
-    const locks = await HospitalLocks.load(this.prisma);
+    const mapper = await this.repo.loadCodeMapper();
+    const locks = await this.repo.loadLocks();
 
     const [hira, nmc, links, baby, infos, transports] = await Promise.all([
       this.loadHira(),
       this.loadNmc(),
-      this.prisma.hira_nmc_link.findMany({
-        select: { ykiho: true, hpid: true },
-      }),
-      this.prisma.nmc_baby_hospital.findMany({ select: { hpid: true } }),
+      this.repo.loadLinks(),
+      this.repo.loadBabyHospitals(),
       // HIRA 세부정보. 주차·찾아오는 길이 여기 있다.
-      this.prisma.hira_hospital_detail.findMany({
-        where: { op: 'info' },
-        select: { ykiho: true, data: true },
-      }),
+      this.repo.loadInfoDetails(),
       // HIRA 교통정보. 병원당 N행이라 배열로 들어 있다.
-      this.prisma.hira_hospital_detail.findMany({
-        where: { op: 'transport' },
-        select: { ykiho: true, data: true },
-      }),
+      this.repo.loadTransportDetails(),
     ]);
 
     const transportByYkiho = new Map(
@@ -243,7 +231,7 @@ export class HealthcareBuildService {
       });
     }
 
-    await this.upsert(built, locks);
+    await this.repo.upsertHospitals(built, locks);
 
     const result: BuildResult = {
       hospitals: built.length,
@@ -327,7 +315,7 @@ export class HealthcareBuildService {
    * 이러면 시내버스·광역버스·마을버스가 전부 bus 로 흡수된다. 원문(kindName)은 버리지 않는다 —
    * 화면에 "마을버스 5" 로 정확히 적으려면 필요하다.
    */
-  private toTransport(data: Prisma.JsonValue): HospitalTransport | null {
+  private toTransport(data: unknown): HospitalTransport | null {
     const items = (Array.isArray(data) ? data : [data]) as Record<
       string,
       unknown
@@ -368,112 +356,8 @@ export class HealthcareBuildService {
     return total > 0 ? result : null;
   }
 
-  /**
-   * upsert. **id 를 재사용한다** — 대외 API 가 노출하는 값이라 재생성마다 바뀌면 안 된다.
-   * ykiho 나 hpid 가 UNIQUE 라 ON DUPLICATE KEY 가 기존 행을 찾아 준다.
-   *
-   * source='manual'(직접 등록)은 건드리지 않는다.
-   */
-  private async upsert(
-    rows: BuiltHospital[],
-    locks: HospitalLocks,
-  ): Promise<void> {
-    // 잠긴 컬럼은 기존 값을 유지한다. 병원이 요청해서 사람이 고친 값이다.
-    // 컬럼 단위라 전화번호만 잠가도 주소·종별은 계속 최신을 따라간다.
-    const lockedIds = (field: string): Set<number> =>
-      locks.lockedHospitalsFor('healthcare_hospital', field);
-
-    const keep = (field: string): Prisma.Sql => {
-      const ids = lockedIds(field);
-      const self = Prisma.raw(`healthcare_hospital.${field}`);
-      const fresh = Prisma.raw(`new.${field}`);
-
-      // source='manual'(직접 등록)은 통째로 보존한다. 잠긴 컬럼도 보존한다.
-      const locked =
-        ids.size === 0
-          ? Prisma.sql`healthcare_hospital.source = 'manual'`
-          : Prisma.sql`healthcare_hospital.source = 'manual'
-              OR healthcare_hospital.id IN (${Prisma.join([...ids])})`;
-
-      return Prisma.sql`${Prisma.raw(field)} = IF(${locked}, ${self}, ${fresh})`;
-    };
-
-    const FIELDS = [
-      'hpid',
-      'source',
-      'name',
-      'addr',
-      'tel',
-      'homepage',
-      'class_cd',
-      'tier',
-      'region_cd',
-      'emdong_nm',
-      'post_no',
-      'lat',
-      'lon',
-      'estb_dd',
-      'emergency_yn',
-      'baby_yn',
-      'intro',
-      'notice',
-      'directions',
-      'park_qty',
-      'park_paid',
-      'park_note',
-      'transport',
-    ];
-    const updates = Prisma.join(FIELDS.map(keep));
-
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const chunk = rows.slice(i, i + CHUNK);
-
-      const values = Prisma.join(
-        chunk.map(
-          (r) => Prisma.sql`(
-            ${r.ykiho}, ${r.hpid}, ${r.source}, ${r.name}, ${r.addr}, ${r.tel}, ${r.homepage},
-            ${r.class_cd}, ${r.tier}, ${r.region_cd}, ${r.emdong_nm}, ${r.post_no},
-            ${r.lat}, ${r.lon}, ${r.estb_dd}, ${r.emergency_yn}, ${r.baby_yn},
-            ${r.intro}, ${r.notice}, ${r.directions},
-            ${r.park_qty}, ${r.park_paid}, ${r.park_note},
-            ${r.transport === null ? null : Prisma.sql`CAST(${JSON.stringify(r.transport)} AS JSON)`},
-            'active', NOW(), NOW(), NOW()
-          )`,
-        ),
-      );
-
-      await this.prisma.$executeRaw(Prisma.sql`
-        INSERT INTO healthcare_hospital
-          (ykiho, hpid, source, name, addr, tel, homepage,
-           class_cd, tier, region_cd, emdong_nm, post_no,
-           lat, lon, estb_dd, emergency_yn, baby_yn,
-           intro, notice, directions, park_qty, park_paid, park_note,
-           transport,
-           status, built_at, created_at, updated_at)
-        VALUES ${values} AS new
-        ON DUPLICATE KEY UPDATE
-          ${updates},
-          status = 'active',
-          built_at = NOW()
-      `);
-    }
-  }
-
   private async loadHira() {
-    const rows = await this.prisma.$queryRaw<
-      Record<string, unknown>[]
-    >(Prisma.sql`
-      SELECT ykiho, cl_cd, sggu_cd, emdong_nm,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.yadmNm'))  nm,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.addr'))    addr,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.telno'))   tel,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.hospUrl')) url,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.postNo'))  post_no,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.estbDd'))  estb_dd,
-             JSON_EXTRACT(data, '$.YPos') lat,
-             JSON_EXTRACT(data, '$.XPos') lon
-        FROM hira_hospital
-    `);
+    const rows = await this.repo.loadHiraRows();
 
     return rows.map((r) => ({
       ykiho: String(r.ykiho),
@@ -492,23 +376,7 @@ export class HealthcareBuildService {
   }
 
   private async loadNmc() {
-    const rows = await this.prisma.$queryRaw<
-      Record<string, unknown>[]
-    >(Prisma.sql`
-      SELECT hpid, duty_div, sido_nm, sggu_nm,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyName')) nm,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyAddr')) addr,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyTel1')) tel,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.postCdn1')) post1,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.postCdn2')) post2,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyEryn')) eryn,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyInf')) intro,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyEtc')) notice,
-             JSON_UNQUOTE(JSON_EXTRACT(data, '$.dutyMapimg')) directions,
-             JSON_EXTRACT(data, '$.wgs84Lat') lat,
-             JSON_EXTRACT(data, '$.wgs84Lon') lon
-        FROM nmc_hospital
-    `);
+    const rows = await this.repo.loadNmcRows();
 
     return rows.map((r) => ({
       hpid: String(r.hpid),
