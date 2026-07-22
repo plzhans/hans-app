@@ -28,7 +28,7 @@ export const COMPONENT_TEMPLATE_NAME = 'hansapi-analysis';
 export const COMPONENT_TEMPLATE_FILENAME =
   'component-template.hansapi-analysis.json';
 
-/** 통합 병원 alias. 병원 데이터 색인(HealthcareHospitalIndexService)이 이 이름으로 upsert 한다. */
+/** 통합 병원 alias. 병원 데이터 색인(HealthcareHospitalIndexer)이 이 이름으로 upsert 한다. */
 export const HEALTHCARE_HOSPITAL_ALIAS = 'healthcare_hospital';
 
 /**

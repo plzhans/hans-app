@@ -16,6 +16,7 @@
     "@hansapi/application": "workspace:*",
     "@hansapi/common": "workspace:*",
     "@hansapi/data": "workspace:*",
+    "@hansapi/search": "workspace:*",
     "@kr-go/juso": "workspace:*",
     "@kr-go/nts": "workspace:*",
     "@kr-or/hira": "workspace:*",

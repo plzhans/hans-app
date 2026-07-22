@@ -8,6 +8,13 @@ export { HiraNpayCodeSyncService } from './hira/hira-npay-code-sync.service';
 
 export { NmcHospitalSyncService } from './nmc/nmc-hospital-sync.service';
 export { HiraHospitalSyncService } from './hira/hira-hospital-sync.service';
+
+/** 병원 ES 색인 오케스트레이션(DB→문서→ES). CLI(es hospital)가 쓴다. */
+export { HealthcareIndexService } from './healthcare/healthcare-index.service';
+export type {
+  IndexResult,
+  ReindexResult,
+} from './healthcare/healthcare-index.service';
 export { NmcQueryService } from './nmc/nmc-query.service';
 export { NmcHospitalReadService } from './nmc/nmc-hospital-read.service';
 export type { NmcHospitalListOptions } from './nmc/nmc-hospital-read.service';

@@ -15,9 +15,7 @@
   "dependencies": {
     "@elastic/elasticsearch": "^9.0.0",
     "@hansapi/common": "workspace:*",
-    "@hansapi/data": "workspace:*",
     "@nestjs/common": "^11.0.1",
-    "@prisma/client": "^6.19.3",
     "reflect-metadata": "^0.2.2"
   },
   "scripts": {

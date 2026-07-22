@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { EnvSource } from '@hansapi/common';
 import { ApplicationModule } from '@hansapi/application';
 import { DataModule } from '@hansapi/data';
+import { SearchModule } from '@hansapi/search';
 
 import { HiraCodeReadService } from './hira/hira-code-read.service';
 import { HiraCodeSeedService } from './hira/hira-code-seed.service';
@@ -27,6 +28,8 @@ import { HiraSubjectSyncRepository } from './hira/hira-subject-sync.repository';
 import { HealthcareCodeSeedRepository } from './healthcare/healthcare-code-seed.repository';
 import { HealthcareBuildRepository } from './healthcare/healthcare-build.repository';
 import { HealthcareDetailBuildRepository } from './healthcare/healthcare-detail-build.repository';
+import { HealthcareIndexRepository } from './healthcare/healthcare-index.repository';
+import { HealthcareIndexService } from './healthcare/healthcare-index.service';
 import { HiraStageService } from './hira/hira-stage.service';
 import { HiraAssessmentSyncService } from './hira/hira-assessment-sync.service';
 import { HiraNpaySyncService } from './hira/hira-npay-sync.service';
@@ -77,7 +80,13 @@ export class AdminApplicationModule {
     return {
       module: AdminApplicationModule,
       // DB 조회는 application 계층(NmcHospitalService 등)이 소유한다. 여기서 재사용한다.
-      imports: [DataModule.forRoot(source), ApplicationModule.forRoot(source)],
+      // SearchModule 은 ES 색인용이다 — 순수 ES(Prisma 무관)라 두 번째 DB 풀을 끌어오지 않는다.
+      // ElasticsearchService 는 지연 연결이라 ES 가 죽어 있어도 부팅한다(색인 실행 때 드러난다).
+      imports: [
+        DataModule.forRoot(source),
+        ApplicationModule.forRoot(source),
+        SearchModule.forRoot(source),
+      ],
       providers: [
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         HiraHospitalSyncRepository,
@@ -101,6 +110,9 @@ export class AdminApplicationModule {
         HealthcareCodeSeedRepository,
         HealthcareBuildRepository,
         HealthcareDetailBuildRepository,
+        // ES 색인: DB 읽기(repo) + 오케스트레이션(service). ES 쓰기 프리미티브는 SearchModule 이 준다.
+        HealthcareIndexRepository,
+        HealthcareIndexService,
         { provide: KRDATA_CONFIG, useValue: config },
         ...krDataProviders,
         { provide: JUSO_CONFIG, useValue: jusoConfig },
@@ -160,6 +172,8 @@ export class AdminApplicationModule {
         HiraCodeSeedService,
         HealthcareBuildService,
         HealthcareDetailBuildService,
+        // ES 색인 오케스트레이션. CLI(es hospital)가 호출한다.
+        HealthcareIndexService,
         // CLI 가 큐를 1건씩 돌리는 데 쓴다. 배치 서버가 붙으면 그쪽이 같은 서비스를 쓴다.
         HiraNpayWebSyncService,
         HiraNpayCodeSyncService,

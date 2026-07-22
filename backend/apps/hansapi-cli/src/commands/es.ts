@@ -2,13 +2,10 @@ import * as path from 'node:path';
 
 import { Command } from 'commander';
 import { EnvSource } from '@hansapi/common';
-import {
-  ElasticsearchService,
-  HealthcareHospitalIndexService,
-  SearchSchemaService,
-} from '@hansapi/search';
+import { ElasticsearchService, SearchSchemaService } from '@hansapi/search';
+import { HealthcareIndexService } from '@hansapi/admin-application';
 
-import { withSearchContext } from '../context';
+import { withAdminContext, withSearchContext } from '../context';
 import { addExamples } from '../help';
 
 /**
@@ -162,16 +159,21 @@ function registerHospital(es: Command, source: EnvSource): void {
         '--fresh',
         '색인 전에 기존 문서를 전량 비운다(비활성·삭제된 병원의 잔여 문서 제거 — 인덱스를 활성 DB와 정확히 일치시킴)',
       )
+      .option(
+        '--prune',
+        'upsert 후 DB 에 없는(하드 삭제 + status 비활성) 병원 문서를 ES 에서 정리한다(대사)',
+      )
       .action(
         async (options: {
           quiet?: boolean;
           fresh?: boolean;
+          prune?: boolean;
         }): Promise<void> => {
           const started = Date.now();
-          const result = await withSearchContext(
+          const result = await withAdminContext(
             source,
             async (ctx) => {
-              const svc = ctx.get(HealthcareHospitalIndexService);
+              const svc = ctx.get(HealthcareIndexService);
 
               // 색인할 인덱스가 없으면 스스로 만든다(그 인덱스만). 만들었을 때만 알린다.
               const created = await ctx
@@ -191,20 +193,24 @@ function registerHospital(es: Command, source: EnvSource): void {
                   );
                 }
               }
-              return svc.syncAll(
+              const indexResult = await svc.syncAll(
                 options.quiet
                   ? undefined
-                  : (processed, total) => {
+                  : (processed, total, target) => {
                       const pct =
                         total > 0
                           ? ((processed / total) * 100).toFixed(1)
                           : '0.0';
                       const secs = ((Date.now() - started) / 1000).toFixed(1);
+                      // 어느 인덱스에 색인 중인지 함께 보여준다(in-place 라 target = alias).
                       process.stdout.write(
-                        `  색인 중… ${processed.toLocaleString()} / ${total.toLocaleString()} (${pct}%)  ${secs}초   \r`,
+                        `  ${target}: 색인 중… ${processed.toLocaleString()} / ${total.toLocaleString()} (${pct}%)  ${secs}초   \r`,
                       );
                     },
               );
+              // 대사는 upsert 뒤에 돈다 — 방금 활성화된 병원까지 반영된 상태로 유지 대상을 잡는다.
+              const pruned = options.prune ? await svc.reconcile() : 0;
+              return { ...indexResult, pruned };
             },
             { verbose: !options.quiet },
           );
@@ -216,16 +222,89 @@ function registerHospital(es: Command, source: EnvSource): void {
               `병원 색인 완료${options.fresh ? ' (fresh: 비우고 재색인)' : ''}`,
               `  대상      : ${result.total.toLocaleString()}`,
               `  성공      : ${result.indexed.toLocaleString()}`,
-              `  실패      : ${result.failed.toLocaleString()}`,
+              `  실패      : ${result.failed.toLocaleString()} (ES 색인 거부)`,
+              `  건너뜀    : ${result.skipped.toLocaleString()} (문서 변환 실패)`,
+              ...(options.prune
+                ? [
+                    `  정리(삭제): ${result.pruned.toLocaleString()} (DB 에 없는·비활성 문서)`,
+                  ]
+                : []),
               `  소요 시간 : ${((Date.now() - started) / 1000).toFixed(1)}초`,
             ].join('\n'),
           );
+          // 변환 실패가 있으면 성공으로 끝내지 않는다 — 인덱스가 조용히 반쪽나는 걸 막는다.
+          if (result.skipped > 0) {
+            process.exitCode = 1;
+          }
         },
       ),
     [
       'hansapi-cli es hospital sync',
+      'hansapi-cli es hospital sync --prune',
       'hansapi-cli es hospital sync --fresh',
       'hansapi-cli es hospital sync --quiet',
+    ],
+  );
+
+  addExamples(
+    hospital
+      .command('reindex')
+      .description(
+        '무중단 재색인(blue-green) — 새 버전 인덱스에 전량 색인 후 alias 를 원자 스왑하고 옛 버전 삭제. stale 문서가 남지 않는다',
+      )
+      .option('--quiet', '진행 로그를 숨긴다')
+      .action(async (options: { quiet?: boolean }): Promise<void> => {
+        const started = Date.now();
+        const result = await withAdminContext(
+          source,
+          (ctx) => {
+            const svc = ctx.get(HealthcareIndexService);
+            const alias = svc.indexName;
+            return svc.reindex(
+              options.quiet
+                ? undefined
+                : (processed, total, target) => {
+                    const pct =
+                      total > 0
+                        ? ((processed / total) * 100).toFixed(1)
+                        : '0.0';
+                    const secs = ((Date.now() - started) / 1000).toFixed(1);
+                    // 어느 인덱스에 색인 중인지 함께 보여준다(alias → 새 버전 인덱스).
+                    process.stdout.write(
+                      `  ${alias} → ${target}: 색인 중… ${processed.toLocaleString()} / ${total.toLocaleString()} (${pct}%)  ${secs}초   \r`,
+                    );
+                  },
+            );
+          },
+          { verbose: !options.quiet },
+        );
+        if (!options.quiet) {
+          process.stdout.write('\n');
+        }
+        console.log(
+          [
+            result.swapped
+              ? '재색인 완료 (alias 스왑됨)'
+              : '⚠️ 재색인 중단 — 색인 건수 미달로 스왑 안 함(라이브는 옛 인덱스 유지)',
+            `  새 인덱스 : ${result.newIndex}`,
+            `  대상      : ${result.total.toLocaleString()}`,
+            `  성공      : ${result.indexed.toLocaleString()}`,
+            `  실패      : ${result.failed.toLocaleString()} (ES 색인 거부)`,
+            `  건너뜀    : ${result.skipped.toLocaleString()} (문서 변환 실패)`,
+            result.swapped
+              ? `  삭제한 옛 인덱스 : ${result.droppedIndices.join(', ') || '없음'}`
+              : `  새 인덱스 ${result.newIndex} 는 삭제됨`,
+            `  소요 시간 : ${((Date.now() - started) / 1000).toFixed(1)}초`,
+          ].join('\n'),
+        );
+        // 스왑까지 못 갔으면(가드 실패) 성공으로 끝내지 않는다.
+        if (!result.swapped) {
+          process.exitCode = 1;
+        }
+      }),
+    [
+      'hansapi-cli es hospital reindex',
+      'hansapi-cli es hospital reindex --quiet',
     ],
   );
 
@@ -243,8 +322,8 @@ function registerHospital(es: Command, source: EnvSource): void {
         process.exitCode = 1;
         return;
       }
-      const deleted = await withSearchContext(source, (ctx) =>
-        ctx.get(HealthcareHospitalIndexService).clearData(),
+      const deleted = await withAdminContext(source, (ctx) =>
+        ctx.get(HealthcareIndexService).clearData(),
       );
       console.log(`병원 문서 비움 완료 (${deleted.toLocaleString()}건 삭제)`);
     });
@@ -255,8 +334,8 @@ function registerHospital(es: Command, source: EnvSource): void {
     .description('특정 병원 1건을 색인한다')
     .action(async (idArg: string): Promise<void> => {
       const id = parseId(idArg);
-      const result = await withSearchContext(source, (ctx) =>
-        ctx.get(HealthcareHospitalIndexService).syncOne(id),
+      const result = await withAdminContext(source, (ctx) =>
+        ctx.get(HealthcareIndexService).syncOne(id),
       );
       console.log(
         result.found
@@ -274,8 +353,8 @@ function registerHospital(es: Command, source: EnvSource): void {
     .description('특정 병원 1건을 색인에서 삭제한다')
     .action(async (idArg: string): Promise<void> => {
       const id = parseId(idArg);
-      const result = await withSearchContext(source, (ctx) =>
-        ctx.get(HealthcareHospitalIndexService).deleteOne(id),
+      const result = await withAdminContext(source, (ctx) =>
+        ctx.get(HealthcareIndexService).deleteOne(id),
       );
       console.log(
         result.deleted

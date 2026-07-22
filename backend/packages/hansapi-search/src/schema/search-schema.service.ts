@@ -51,7 +51,7 @@ export interface SchemaStatus {
 
 /**
  * ES 스키마/설정 관리. 코드 정본(schema/*.json)을 ES 에 적용하고, 살아있는 상태를 덤프하고,
- * 통째로 리셋한다. **데이터(문서)는 건드리지 않는다** — 그건 HealthcareHospitalIndexService 다.
+ * 통째로 리셋한다. **데이터(문서)는 건드리지 않는다** — 그건 색인 오케스트레이션(admin) 몫이다.
  *
  * **여러 인덱스를 함께 다룬다.** INDEX_DEFINITIONS 를 순회하므로, 인덱스가 늘면(pharmacy…)
  * 이 서비스는 바뀌지 않고 레지스트리에 한 줄만 추가하면 된다.
@@ -118,6 +118,109 @@ export class SearchSchemaService {
     return this.createIndexIfMissing(def);
   }
 
+  // ── blue-green 재색인용 ────────────────────────────────────────────────
+  //
+  // 무중단 재색인은 라이브 alias 를 건드리지 않고 **새 버전 인덱스**에 전량 색인한 뒤, 검증에
+  // 통과하면 alias 를 원자 스왑한다. 색인·문서 조립은 admin(HealthcareIndexService)이 하고,
+  // 여기는 그 오케스트레이션이 쓰는 인덱스/alias 프리미티브만 제공한다.
+
+  /**
+   * 다음 버전 인덱스를 만든다(name-v{max+1}, 하나도 없으면 -v1). 새 인덱스에 매핑이 붙도록
+   * 템플릿을 먼저 올린다. **alias 는 건드리지 않는다** — 색인이 끝난 뒤 swapAlias 로 교체한다.
+   */
+  async createNextVersion(name: string): Promise<string> {
+    const def = INDEX_DEFINITIONS.find((d) => d.name === name);
+    if (!def) {
+      throw new Error(`등록되지 않은 인덱스: ${name}`);
+    }
+    // 시작 전에 거른다 — 맨이름 인덱스가 있으면 어차피 마지막 swapAlias 에서 실패한다.
+    // 8만 건 색인을 헛으로 돌리지 말고 여기서 즉시 던진다.
+    await this.assertNotBareIndex(aliasOf(name));
+    await this.putComponentTemplate();
+    await this.putIndexTemplate(def);
+
+    const versions = await this.listVersions(name);
+    const next = (versions.at(-1) ?? 0) + 1;
+    const index = `${name}-v${next}`;
+    // 인덱스 템플릿(index_patterns: name-v*)이 생성 시점에 매핑을 붙인다(-v1 생성과 동일 경로).
+    await this.client.indices.create({ index });
+    this.logger.log(`새 버전 인덱스 생성: ${index}`);
+    return index;
+  }
+
+  /**
+   * alias 를 toIndex 로 **원자 교체**한다(updateAliases 라 조회 다운타임이 없다). 기존에 가리키던
+   * 인덱스에서는 뗀다. alias 가 아직 없으면(최초 색인) 그냥 붙인다.
+   *
+   * **직전에 가리키던 인덱스명들을 반환한다** — 호출부가 "방금 물러난 라이브 인덱스"만 골라 지우게.
+   * 다른 버전(v1 등)은 다른 목적으로 살아있을 수 있으므로 여기서 임의로 손대지 않는다.
+   */
+  async swapAlias(name: string, toIndex: string): Promise<string[]> {
+    const alias = aliasOf(name);
+    const actions: estypes.IndicesUpdateAliasesAction[] = [
+      { add: { index: toIndex, alias } },
+    ];
+    const previous: string[] = [];
+    if (await this.client.indices.existsAlias({ name: alias })) {
+      const got = await this.client.indices.getAlias({ name: alias });
+      for (const old of Object.keys(got)) {
+        if (old !== toIndex) {
+          previous.push(old);
+          actions.push({ remove: { index: old, alias } });
+        }
+      }
+    }
+    await this.client.indices.updateAliases({ actions });
+    this.logger.log(`alias '${alias}' → '${toIndex}' 원자 교체`);
+    return previous;
+  }
+
+  /** 인덱스 1개 삭제(없어도 조용히). 스왑 후 직전 라이브 인덱스 정리·가드 실패 시 새 버전 되돌리기에 쓴다. */
+  async dropIndex(index: string): Promise<void> {
+    await this.client.indices.delete({ index }, { ignore: [404] });
+    this.logger.log(`인덱스 삭제: ${index}`);
+  }
+
+  /**
+   * name 이 정상 상태(alias 이거나 아예 없음)인지 확인한다. **접미사 없는 맨이름 실제 인덱스**로
+   * 존재하면(require_alias 이전 잔재) 같은 이름의 alias 를 만들 수 없어 색인이 불가하므로 즉시 던진다
+   * — 색인을 다 돌리고 swapAlias 에서 실패하지 말고, 시작 전에 알아채게 한다.
+   */
+  private async assertNotBareIndex(name: string): Promise<void> {
+    if (await this.client.indices.existsAlias({ name })) {
+      return; // alias — 정상
+    }
+    if (await this.client.indices.exists({ index: name })) {
+      // alias 는 아닌데 그 이름 인덱스가 실재한다 = 맨이름 잔재.
+      throw new Error(
+        `'${name}' 이 alias 가 아니라 같은 이름의 실제 인덱스로 존재한다(맨이름 잔재) — ` +
+          `같은 이름의 alias 를 만들 수 없어 색인할 수 없다. 그 인덱스를 지운 뒤 다시 시도하라 ` +
+          `(수동: DELETE /${name}, 또는 전체 정리: es schema delete).`,
+      );
+    }
+    // 둘 다 아니면 아직 아무것도 없음 — 최초 색인이라 정상.
+  }
+
+  /**
+   * 현재 존재하는 name-v* 인덱스의 버전 번호를 오름차순으로. 없으면 빈 배열.
+   * alias 가 무엇을 가리키든 무관하게 **실재하는 버전 인덱스**만 본다(잔재 포함).
+   */
+  private async listVersions(name: string): Promise<number[]> {
+    const found = await this.client.indices.get(
+      { index: indexPatternOf(name) },
+      { ignore: [404] },
+    );
+    const re = new RegExp(`^${name}-v(\\d+)$`);
+    const versions: number[] = [];
+    for (const index of Object.keys(found ?? {})) {
+      const m = re.exec(index);
+      if (m) {
+        versions.push(Number(m[1]));
+      }
+    }
+    return versions.sort((a, b) => a - b);
+  }
+
   private async putComponentTemplate(): Promise<void> {
     await this.client.cluster.putComponentTemplate({
       name: COMPONENT_TEMPLATE_NAME,
@@ -148,6 +251,8 @@ export class SearchSchemaService {
       this.logger.log(`alias '${alias}' 이미 존재 — 인덱스는 그대로 둔다`);
       return { name: def.name, aliasTarget: alias };
     }
+    // alias 를 새로 만들어야 하는데, 그 이름 맨이름 인덱스가 있으면 못 만든다 — 먼저 걸러 명확히 던진다.
+    await this.assertNotBareIndex(alias);
     const initial = initialIndexOf(def.name);
     await this.client.indices.create({ index: initial });
     await this.client.indices.putAlias({ index: initial, name: alias });
