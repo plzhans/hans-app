@@ -1,0 +1,16 @@
+{
+  "name": "@hansapp/auth-sdk",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "HansApp(plzhans) 로그인 SDK. 외부 앱이 plzhans 로 SSO 로그인하고 토큰을 관리한다.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/preferences": "^6.0.3"
+  }
+}

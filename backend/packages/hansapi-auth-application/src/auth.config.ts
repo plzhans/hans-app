@@ -79,6 +79,24 @@ function readProviderCredentials(
 }
 
 /**
+ * 카카오 자격증명. 카카오는 **REST API 키를 client_id(KAKAO_CLIENT_ID)로** 쓰고,
+ * client secret(KAKAO_CLIENT_SECRET)은 선택이다(콘솔 '카카오 로그인 > 보안'에서 켰을 때만).
+ * JS 키는 브라우저 SDK 용이라 서버 리다이렉트 로그인엔 쓰지 않는다. client_id 만 있으면 활성화한다.
+ */
+function readKakaoCredentials(
+  source: EnvSource,
+): OAuthProviderCredentials | undefined {
+  const clientId = optionalString(source, 'KAKAO_CLIENT_ID');
+  if (!clientId) {
+    return undefined;
+  }
+  return Object.freeze({
+    clientId,
+    clientSecret: optionalString(source, 'KAKAO_CLIENT_SECRET') ?? '',
+  });
+}
+
+/**
  * EnvSource 에서 인증 설정을 뽑아 검증한다.
  * JWT_SECRET 이 없으면 부팅 시점에 즉시 실패한다.
  */
@@ -119,23 +137,19 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
     oauth: Object.freeze({
       google: readProviderCredentials(
         source,
-        'GOOGLE_OAUTH_CLIENT_ID',
-        'GOOGLE_OAUTH_CLIENT_SECRET',
+        'GOOGLE_CLIENT_ID',
+        'GOOGLE_CLIENT_SECRET',
       ),
       naver: readProviderCredentials(
         source,
-        'NAVER_OAUTH_CLIENT_ID',
-        'NAVER_OAUTH_CLIENT_SECRET',
+        'NAVER_CLIENT_ID',
+        'NAVER_CLIENT_SECRET',
       ),
-      kakao: readProviderCredentials(
-        source,
-        'KAKAO_OAUTH_CLIENT_ID',
-        'KAKAO_OAUTH_CLIENT_SECRET',
-      ),
+      kakao: readKakaoCredentials(source),
       line: readProviderCredentials(
         source,
-        'LINE_OAUTH_CLIENT_ID',
-        'LINE_OAUTH_CLIENT_SECRET',
+        'LINE_CLIENT_ID',
+        'LINE_CLIENT_SECRET',
       ),
     }),
   });

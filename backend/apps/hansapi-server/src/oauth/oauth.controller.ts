@@ -19,7 +19,12 @@ import {
 } from '@hansapi/auth-application';
 import type { AuthTokens, AuthUser } from '@hansapi/auth-application';
 
-import { TokenRequestDto, TokenResponseDto } from '../auth/dto/auth.dto';
+import {
+  AuthorizeRequestDto,
+  AuthorizeResponseDto,
+  TokenRequestDto,
+  TokenResponseDto,
+} from '../auth/dto/auth.dto';
 import {
   clearRefreshCookie,
   readRefreshCookie,
@@ -72,6 +77,27 @@ export class OAuthController {
     }
 
     return respondTokens(res, tokens);
+  }
+
+  @Post('authorize')
+  @Auth(AuthType.Jwt)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'SSO 인가코드 발급',
+    description:
+      '로그인된 사용자에 대해 다른 클라이언트(앱)의 복귀 URL(return_to, 허용목록)로 넘길 1회용 ' +
+      '인가코드를 발급한다. 클라이언트는 이 code 를 /oauth/token 으로 교환한다.',
+  })
+  @ApiOkResponse({ type: AuthorizeResponseDto })
+  async authorize(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AuthorizeRequestDto,
+  ): Promise<AuthorizeResponseDto> {
+    const code = await this.grants.issueAuthorizationCode(
+      user.userId,
+      dto.returnTo,
+    );
+    return { code };
   }
 
   @Delete('logout')

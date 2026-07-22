@@ -50,10 +50,20 @@ export class SocialAuthGuard implements CanActivate {
     const state = this.buildState(req);
     // redirect_uri 를 요청 호스트에서 조립한다: {scheme}://{host}/auth/:provider/callback
     const callbackURL = `${externalBaseUrl(req)}/auth/${key}/callback`;
+    // provider 별 인가 파라미터. 기본은 세션이 있으면 계정 선택 없이 자동 로그인되므로,
+    // **매번 계정 선택/재로그인 화면**을 강제한다.
+    //  - google: prompt=select_account (계정 선택 화면)
+    //  - naver:  auth_type=reprompt   (이미 로그인돼 있어도 로그인·동의 화면 재노출) → passport-naver-v2 가 authType 을 auth_type 으로 전달
+    const extra =
+      key === 'google'
+        ? { prompt: 'select_account' }
+        : key === 'naver'
+          ? { authType: 'reprompt' }
+          : {};
     const BaseGuard = PassportAuthGuard(key);
     const guard = new (class extends BaseGuard {
       getAuthenticateOptions() {
-        return { state, session: false, callbackURL };
+        return { state, session: false, callbackURL, ...extra };
       }
     })();
 

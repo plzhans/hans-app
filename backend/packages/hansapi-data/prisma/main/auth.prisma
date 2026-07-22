@@ -28,6 +28,9 @@ model User {
   /// 권한
   role UserRole @default(USER)
 
+  /// 등급. 앱(App) 생성 한도를 결정한다. UNLIMITED 는 무제한(운영자 계정 등).
+  tier UserTier @default(BASIC)
+
   /// 최초 가입 수단(EMAIL 포함). 이후 다른 소셜을 연동해도 값은 바뀌지 않는다.
   joinType AuthProvider @map("join_type")
 
@@ -36,10 +39,11 @@ model User {
   /// 탈퇴 시각(status=WITHDRAWN 이 된 시점). 활성 계정은 null.
   withdrawnAt DateTime? @map("withdrawn_at")
 
-  oauths    UserOAuth[]
-  tokens    UserToken[]
-  sessions  UserTokenSession[]
-  authCodes UserAuthCode[]
+  oauths         UserOAuth[]
+  tokens         UserToken[]
+  sessions       UserTokenSession[]
+  authCodes      UserAuthCode[]
+  appMemberships AppMember[]
 
   @@map("user")
 }
@@ -176,6 +180,13 @@ enum UserStatus {
 enum UserRole {
   USER
   ADMIN
+}
+
+/// 등급. 앱 생성 한도를 결정한다(한도 매핑은 애플리케이션 설정). UNLIMITED 는 무제한.
+enum UserTier {
+  BASIC
+  PRO
+  UNLIMITED
 }
 
 /// 가입/로그인 수단(EMAIL 포함). User.joinType 에 쓴다.

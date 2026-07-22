@@ -16,6 +16,8 @@ import { UserTokenRepository } from './repository/user-token.repository';
 import { TokenSessionRepository } from './repository/token-session.repository';
 import { AuthCodeRepository } from './repository/auth-code.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
+import { AppRepository } from './app/app.repository';
+import { AppService } from './app/app.service';
 import { SocialService } from './social/social.service';
 import { SocialTicketService } from './social/social-ticket.service';
 import { SocialAuthGuard } from './social/social-auth.guard';
@@ -77,6 +79,9 @@ export class AuthModule {
         SocialService,
         SocialAuthGuard,
         ...strategyProviders,
+        // 앱(개발자 플랫폼)
+        AppRepository,
+        AppService,
       ],
       exports: [
         AUTH_CONFIG,
@@ -88,6 +93,7 @@ export class AuthModule {
         SocialService,
         SocialAuthGuard,
         SocialTicketService,
+        AppService,
       ],
     };
   }

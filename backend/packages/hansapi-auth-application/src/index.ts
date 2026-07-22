@@ -5,6 +5,14 @@ export { AuthModule } from './auth-application.module';
 export { AuthService } from './auth.service';
 export type { AuthResult, RequestMeta } from './auth.service';
 export { OAuthTokenService } from './oauth-token.service';
+export { AppService } from './app/app.service';
+export type {
+  AppDetail,
+  CreatedApiKey,
+  CreatedClient,
+} from './app/app.service';
+// 앱 도메인 엔티티 타입(서버 컨트롤러 매핑용). 서버는 @hansapi/data 를 직접 의존하지 않는다.
+export type { App, AppApiKey, AppClient } from '@hansapi/data';
 export { TokenService } from './token/token.service';
 export type { AuthTokens } from './token/token.service';
 export { ActionLogService } from './log/action-log.service';

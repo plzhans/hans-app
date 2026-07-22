@@ -21,11 +21,11 @@ export class SignupRequestDto {
   @MaxLength(72)
   readonly password!: string;
 
-  @ApiPropertyOptional({ description: '표시 이름', example: '홍길동' })
-  @IsOptional()
+  @ApiProperty({ description: '표시 이름', example: '홍길동' })
   @IsString()
+  @MinLength(1)
   @MaxLength(100)
-  readonly name?: string;
+  readonly name!: string;
 }
 
 /** 이메일 로그인 요청 */
@@ -132,6 +132,25 @@ export class TokenResponseDto {
     example: '2026-09-20T12:00:00.000Z',
   })
   readonly refreshExpiresAt!: string;
+}
+
+/**
+ * SSO 인가코드 발급 요청. 로그인된 사용자가 다른 클라이언트(앱)로 로그인을 릴레이할 때,
+ * 그 앱의 복귀 URL(return_to)로 넘길 1회용 코드를 요청한다.
+ */
+export class AuthorizeRequestDto {
+  @ApiProperty({
+    description: '코드를 실어 돌려보낼 클라이언트 URL(허용목록 오리진만)',
+    example: 'https://medifinder.kr/auth/callback',
+  })
+  @IsString()
+  readonly returnTo!: string;
+}
+
+/** SSO 인가코드 응답. 클라이언트는 이 code 를 /oauth/token 으로 교환한다. */
+export class AuthorizeResponseDto {
+  @ApiProperty({ description: '1회용 인가코드(ac_...)' })
+  readonly code!: string;
 }
 
 /** 내 정보 응답 */

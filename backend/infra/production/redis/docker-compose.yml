@@ -1,0 +1,41 @@
+# Redis (develop 서버) — OCI ARM A1 · 2CPU · 12GB RAM.
+#
+# 이 폴더(redis/)는 self-contained 하다. 배포 시 이 폴더만 통째로 가져가면 된다.
+# Redis 는 얹을 플러그인이 없어 커스텀 이미지가 불필요 → Dockerfile 없이 공식 이미지 직접 참조.
+# 운영 튜닝은 redis.conf(마운트), 비밀번호는 .env(--requirepass) 로 분리.
+#
+# ── 실행 전 준비 ──────────────────────────────────────────────
+#   1) 같은 폴더에 .env 생성:  REDIS_PASSWORD=<원하는 비밀번호>
+#   2) (권장) 호스트 커널 파라미터 — 백그라운드 저장 시 fork 실패/경고 방지:
+#        sudo sysctl -w vm.overcommit_memory=1
+#        # 영구화: echo 'vm.overcommit_memory=1' | sudo tee /etc/sysctl.d/99-redis.conf
+#   3) docker compose up -d
+# ─────────────────────────────────────────────────────────────
+
+name: hansapi-redis
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: hansapi-redis
+    restart: unless-stopped
+    # conf 파일 + 비밀번호(플래그) 병합. 비밀값은 conf 에 안 남기고 여기서 .env 주입.
+    command:
+      [
+        'redis-server',
+        '--requirepass',
+        '${REDIS_PASSWORD:?REDIS_PASSWORD 를 .env 에 설정하세요}',
+      ]
+    volumes:
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      # AOF/RDB 영속화 — 컨테이너 재생성 때 데이터 유지.
+      - ./data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      # 컨테이너 내부 env(REDIS_PASSWORD)를 쓰기 위해 compose 보간을 피해 $$ 로 이스케이프.
+      test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

@@ -17,6 +17,7 @@
     "api:sync": "pnpm spec:local && pnpm api:gen"
   },
   "dependencies": {
+    "@hansapp/auth-sdk": "link:../auth-sdk",
     "@radix-ui/react-popover": "^1.1.19",
     "@radix-ui/react-select": "^2.3.3",
     "@tanstack/react-query": "^5.62.0",

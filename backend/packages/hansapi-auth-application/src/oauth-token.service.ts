@@ -1,6 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ActionResult, UserAction, UserStatus } from '@hansapi/data';
 
+import { AUTH_CONFIG } from './auth.config';
+import type { AuthConfig } from './auth.config';
 import { RequestMeta } from './auth.service';
 import { ActionLogService } from './log/action-log.service';
 import { UserRepository } from './repository/user.repository';
@@ -14,10 +21,31 @@ import { AuthTokens, TokenService } from './token/token.service';
 @Injectable()
 export class OAuthTokenService {
   constructor(
+    @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly tokens: TokenService,
     private readonly users: UserRepository,
     private readonly log: ActionLogService,
   ) {}
+
+  /**
+   * SSO 인가코드 발급. 로그인된 사용자가 다른 클라이언트로 로그인을 릴레이할 때,
+   * return_to(허용목록 오리진)로 넘길 1회용 코드를 만든다.
+   */
+  async issueAuthorizationCode(
+    userId: number,
+    returnTo: string,
+  ): Promise<string> {
+    let origin: string;
+    try {
+      origin = new URL(returnTo).origin;
+    } catch {
+      throw new BadRequestException('return_to 형식이 올바르지 않습니다.');
+    }
+    if (!this.config.allowedOrigins.includes(origin)) {
+      throw new BadRequestException('허용되지 않은 return_to 입니다.');
+    }
+    return this.tokens.issueAuthCode(userId);
+  }
 
   /** grant_type=authorization_code. 릴레이 인가코드 → 세션·토큰 발급. */
   async exchangeAuthorizationCode(

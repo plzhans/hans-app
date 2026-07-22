@@ -1,0 +1,14 @@
+import { createAuthClient } from '@hansapp/auth-sdk';
+
+/**
+ * HansApp 로그인 SDK 클라이언트(싱글턴).
+ * - authWebUrl: plzhans 로그인 UI(hansapp-web)
+ * - apiBaseUrl: 인증 API
+ * 로그인 후 이 앱의 /auth/callback 으로 code 가 돌아온다.
+ */
+export const authClient = createAuthClient({
+  authWebUrl: import.meta.env.VITE_AUTH_WEB_URL as string,
+  apiBaseUrl: import.meta.env.VITE_HANSAPI_BASE_URL as string,
+  callbackPath: '/auth/callback',
+  storageKey: 'medifinder.auth',
+});

@@ -40,12 +40,19 @@ export type {
   UserTokenSession,
   UserAuthCode,
   UserWithdrawal,
+  // 개발자 플랫폼(app.prisma) 도메인 모델
+  App,
+  AppMember,
+  AppApiKey,
+  AppClient,
 } from '../generated/main';
 
 // 인증 도메인 enum(값으로도 쓰므로 type-only 가 아니다).
 export {
   UserStatus,
   UserRole,
+  UserTier,
+  AppRole,
   AuthProvider,
   OAuthProvider,
   TokenPurpose,

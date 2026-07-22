@@ -11,6 +11,7 @@ import { AppService } from './app.service';
 import { AuthController } from './auth/auth.controller';
 import { SocialController } from './auth/social.controller';
 import { OAuthController } from './oauth/oauth.controller';
+import { AppsController } from './apps/app.controller';
 import { AddressController } from './address/address.controller';
 import { AddressService } from './address/address.service';
 import { BusinessController } from './business/business.controller';
@@ -44,6 +45,7 @@ export class AppModule {
         AuthController,
         SocialController,
         OAuthController,
+        AppsController,
         HiraHospitalController,
         NmcHospitalController,
         HiraCodeController,

@@ -1,0 +1,159 @@
+import { TokenStorage, type StoredTokens } from './storage';
+
+export interface AuthClientConfig {
+  /** HansApp 웹(로그인 UI) base. 예: https://plzhans.com 또는 http://localhost:5273 */
+  authWebUrl: string;
+  /** 인증 API base. 예: https://api.plzhans.com 또는 http://localhost:3000 */
+  apiBaseUrl: string;
+  /** 이 앱(클라이언트)에서 code 를 받을 콜백 경로. 기본 /auth/callback */
+  callbackPath?: string;
+  /** 토큰 저장 키(앱마다 격리). 기본 hansapp.auth.tokens */
+  storageKey?: string;
+}
+
+/** /oauth/token 응답. */
+interface TokenResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  refreshToken: string;
+  refreshExpiresAt: string;
+}
+
+export interface CallbackResult {
+  ok: boolean;
+  /** 실패/보류 사유. 'no_code' | 'email_exists' | 'pending' | ... */
+  error?: string;
+}
+
+/**
+ * HansApp 로그인 SDK 클라이언트.
+ *
+ * 흐름: login() → plzhans 로그인 UI 로 이동 → 로그인 후 이 앱의 콜백으로 code 복귀
+ *      → handleCallback() 이 code 를 토큰으로 교환·저장 → fetchWithAuth()/getAccessToken() 사용.
+ */
+export class HansAppAuthClient {
+  private readonly storage: TokenStorage;
+  private cached: StoredTokens | null = null;
+
+  constructor(private readonly config: AuthClientConfig) {
+    this.storage = new TokenStorage(config.storageKey ?? 'hansapp.auth.tokens');
+  }
+
+  private get callbackUrl(): string {
+    const path = this.config.callbackPath ?? '/auth/callback';
+    return `${window.location.origin}${path}`;
+  }
+
+  /** plzhans 로그인 UI 로 전체 페이지 이동한다. 로그인 후 이 앱의 콜백으로 code 가 돌아온다. */
+  login(returnTo: string = this.callbackUrl): void {
+    const url = `${this.config.authWebUrl}/auth/login?return_to=${encodeURIComponent(returnTo)}`;
+    window.location.href = url;
+  }
+
+  /**
+   * 콜백 페이지에서 호출한다. URL 의 code 를 토큰으로 교환·저장한다.
+   * 신규 소셜(pending)·에러는 그대로 사유를 반환한다(SSO 소비앱은 가입 UI 를 안 그리므로).
+   */
+  async handleCallback(search: string = window.location.search): Promise<CallbackResult> {
+    const params = new URLSearchParams(search);
+    const error = params.get('error');
+    if (error) return { ok: false, error };
+    if (params.get('pending')) return { ok: false, error: 'pending' };
+    const code = params.get('code');
+    if (!code) return { ok: false, error: 'no_code' };
+
+    const res = await fetch(`${this.config.apiBaseUrl}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grant_type: 'authorization_code', code }),
+    });
+    if (!res.ok) return { ok: false, error: `exchange_failed_${res.status}` };
+    await this.store((await res.json()) as TokenResponse);
+    return { ok: true };
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    return (await this.getSession()) != null;
+  }
+
+  /** 저장된 access token. 없으면 null. 만료 검증은 fetchWithAuth 의 401 재시도에 맡긴다. */
+  async getAccessToken(): Promise<string | null> {
+    return (await this.getSession())?.accessToken ?? null;
+  }
+
+  /** access token 을 붙여 API 를 호출한다. 401 이면 refresh 후 1회 재시도. */
+  async fetchWithAuth(path: string, init: RequestInit = {}): Promise<Response> {
+    const call = async (): Promise<Response> => {
+      const headers = new Headers(init.headers);
+      const s = await this.getSession();
+      if (s) headers.set('Authorization', `Bearer ${s.accessToken}`);
+      if (init.body && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
+      return fetch(`${this.config.apiBaseUrl}${path}`, { ...init, headers });
+    };
+    let res = await call();
+    if (res.status === 401 && (await this.refresh())) {
+      res = await call();
+    }
+    return res;
+  }
+
+  async logout(): Promise<void> {
+    const s = await this.getSession();
+    if (s) {
+      try {
+        await fetch(`${this.config.apiBaseUrl}/oauth/logout`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${s.accessToken}` },
+        });
+      } catch {
+        // 서버 폐기 실패해도 로컬은 비운다.
+      }
+    }
+    this.cached = null;
+    await this.storage.clear();
+  }
+
+  // ---- 내부 ----
+
+  private async getSession(): Promise<StoredTokens | null> {
+    if (!this.cached) this.cached = await this.storage.load();
+    return this.cached;
+  }
+
+  private async store(t: TokenResponse): Promise<void> {
+    const tokens: StoredTokens = {
+      accessToken: t.accessToken,
+      refreshToken: t.refreshToken,
+      refreshExpiresAt: t.refreshExpiresAt,
+    };
+    this.cached = tokens;
+    await this.storage.save(tokens);
+  }
+
+  private async refresh(): Promise<boolean> {
+    const s = await this.getSession();
+    if (!s?.refreshToken) return false;
+    const res = await fetch(`${this.config.apiBaseUrl}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'refresh_token',
+        refresh_token: s.refreshToken,
+      }),
+    });
+    if (!res.ok) {
+      this.cached = null;
+      await this.storage.clear();
+      return false;
+    }
+    await this.store((await res.json()) as TokenResponse);
+    return true;
+  }
+}
+
+export function createAuthClient(config: AuthClientConfig): HansAppAuthClient {
+  return new HansAppAuthClient(config);
+}

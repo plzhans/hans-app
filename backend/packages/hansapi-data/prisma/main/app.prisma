@@ -1,0 +1,123 @@
+// 개발자 플랫폼 도메인: 앱(App) 등록 + API 키 + OAuth 클라이언트.
+// 멀티파일 스키마의 한 조각으로 default.prisma 의 generator·datasource(메인 DB)를 공유한다.
+// 서드파티가 자기 서비스를 "앱"으로 등록하고, 그 아래 API 키(서버용)와 클라이언트(브라우저/OAuth)를 만든다.
+//
+// **이 파일만 들어내면 개발자 플랫폼 스키마를 통째로 이관**할 수 있게 도메인을 한 파일에 모은다.
+
+/// 앱. 서드파티가 등록하는 서비스 단위. 사용자 tier 로 생성 한도가 정해진다.
+model App {
+  id Int @id @default(autoincrement())
+
+  /// 앱 이름(표시용)
+  name String @db.VarChar(100)
+
+  /// 생성자 유저 id(감사 마킹, 불변). 접근 권한은 members(AppMember)로 관리한다.
+  createdBy Int @map("created_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members AppMember[]
+  apiKeys AppApiKey[]
+  clients AppClient[]
+
+  @@index([createdBy])
+  @@map("app")
+}
+
+/// 앱 멤버(접근 권한). 지금은 생성자 1명(OWNER)만 들어간다. 초대·추가는 추후 확장.
+/// owner 도 별도 컬럼이 아니라 role=OWNER 인 멤버로 표현한다(GitHub/GCP IAM 방식).
+model AppMember {
+  id Int @id @default(autoincrement())
+
+  appId  Int @map("app_id")
+  userId Int @map("user_id")
+
+  /// 역할. OWNER(앱당 1명, 삭제·소유) / ADMIN(관리) / MEMBER(읽기).
+  role AppRole @default(MEMBER)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  app  App  @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 한 사람은 앱당 한 행.
+  @@unique([appId, userId])
+  @@index([userId])
+  @@map("app_member")
+}
+
+enum AppRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+/// API 키. 백엔드 API 를 서버-서버로 직접 호출할 때 쓰는 시크릿.
+/// 원문은 생성 시 1회만 노출하고, 서버엔 SHA-256 해시와 표시용 접두사만 저장한다.
+model AppApiKey {
+  id Int @id @default(autoincrement())
+
+  appId Int @map("app_id")
+
+  /// 키 이름(용도 구분)
+  name String @db.VarChar(100)
+
+  /// 표시용 접두사(예: sk_live_ab12…). 목록에서 어떤 키인지 식별용.
+  keyPrefix String @map("key_prefix") @db.VarChar(20)
+
+  /// SHA-256(원문) hex 64자
+  keyHash String @map("key_hash") @db.Char(64)
+
+  /// 마지막 사용 시각(사용량/감사용). 미사용이면 null.
+  lastUsedAt DateTime? @map("last_used_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([appId])
+  @@map("app_api_key")
+}
+
+/// OAuth 클라이언트(브라우저/SPA). 구글 OAuth 클라이언트와 동일한 개념.
+/// - origins: 자바스크립트 원본 주소. 서버가 이 clientId 기준으로 해당 origin 만 CORS 허용.
+/// - redirectUris: 로그인 후 돌아올 인증된 경로(return_to 화이트리스트).
+/// 시크릿은 없다(공개 clientId). 서버 시크릿이 필요하면 AppApiKey 를 쓴다.
+model AppClient {
+  id Int @id @default(autoincrement())
+
+  appId Int @map("app_id")
+
+  /// 공개 클라이언트 식별자(예: cl_ab12…). 전역 유일.
+  clientId String @unique @map("client_id") @db.VarChar(40)
+
+  /// 클라이언트 이름
+  name String @db.VarChar(100)
+
+  /// 자바스크립트 원본 목록(CORS 허용 대상). string[] JSON.
+  origins Json
+
+  /// 로그인 복귀 허용 경로 목록(return_to 화이트리스트). string[] JSON.
+  redirectUris Json @map("redirect_uris")
+
+  /// 클라이언트 보안 비밀번호. 원문(cs_...)은 발급 시 1회만 노출, 서버엔 SHA-256 해시만.
+  clientSecretHash String @map("client_secret_hash") @db.Char(64)
+
+  /// 표시용 시크릿 뒤 4자(****1Yl_ 처럼 마스킹 표기용).
+  secretSuffix String @map("secret_suffix") @db.VarChar(8)
+
+  /// 시크릿 발급/재발급 시각.
+  secretCreatedAt DateTime @map("secret_created_at")
+
+  /// 마지막 사용 시각(OAuth 사용 시 갱신). 미사용이면 null.
+  lastUsedAt DateTime? @map("last_used_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([appId])
+  @@map("app_client")
+}

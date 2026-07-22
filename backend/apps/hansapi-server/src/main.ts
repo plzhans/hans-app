@@ -11,6 +11,7 @@ import { exitIfVersionFlag, loadEnv, resolveAppEnv } from '@hansapi/common';
 // TODO: 실제 발급되는 public/user 토큰 체계로 대체.
 const PUBLIC_TEST_TOKEN = 'test';
 import { AppModule } from './app.module';
+import { HttpErrorFilter } from './common/http-error.filter';
 import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
 import {
   OPENAPI_JSON_PATH,
@@ -77,13 +78,19 @@ async function bootstrap() {
         token === PUBLIC_TEST_TOKEN;
 
       // refresh 는 httpOnly 쿠키로 오가므로 credentials 를 허용한다.
-      callback(null, { origin: allowed ? requestOrigin : false, credentials: true });
+      callback(null, {
+        origin: allowed ? requestOrigin : false,
+        credentials: true,
+      });
     },
   );
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   // 응답에서 값이 없는(null) 프로퍼티를 제거한다(스프링 non_null 정책과 통일).
   app.useGlobalInterceptors(new StripNullInterceptor());
+  // 전역 예외 필터. 브라우저 페이지 이동(Accept: text/html)엔 HTML 에러 페이지를,
+  // SPA fetch 엔 기존 JSON 을 응답한다(소셜 로그인 콜백이 주소창에 JSON 을 노출하지 않게).
+  app.useGlobalFilters(new HttpErrorFilter());
 
   // APP_ENV 가 'production' 이 아닐 때만 Swagger 문서를 노출한다.
   const swaggerEnabled = envSource.env !== 'production';
