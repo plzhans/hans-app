@@ -21,6 +21,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  HealthcareHospitalControllerScroll200,
+  HealthcareHospitalControllerScrollParams,
   HealthcareHospitalControllerSearch200,
   HealthcareHospitalControllerSearchParams,
   HospitalDetailDto,
@@ -147,6 +149,116 @@ export function useHealthcareHospitalControllerSearch<TData = Awaited<ReturnType
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthcareHospitalControllerSearchQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHealthcareHospitalControllerScrollUrl = (params?: HealthcareHospitalControllerScrollParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/healthcare/hospitals/scroll?${stringifiedParams}` : `/healthcare/hospitals/scroll`
+}
+
+/**
+ * 검색(GET /healthcare/hospitals)과 **필터는 같고 페이징 방식만 다르다.** 페이지 번호 대신 nextToken 으로 이어 받는다 — 무한 스크롤 화면용이다.
+ *
+ * **첫 호출은 nextToken 없이** 필터만 보낸다. 응답의 nextToken 을 다음 호출에 그대로 실어 보내면 이어진다. **nextToken 이 없으면 마지막 페이지다** — 그만 부른다.
+ * @summary 병원 무한 스크롤
+ */
+export const healthcareHospitalControllerScroll = async (params?: HealthcareHospitalControllerScrollParams, options?: RequestInit): Promise<HealthcareHospitalControllerScroll200> => {
+
+  return reactFetch<HealthcareHospitalControllerScroll200>(getHealthcareHospitalControllerScrollUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthcareHospitalControllerScrollQueryKey = (params?: HealthcareHospitalControllerScrollParams,) => {
+    return [
+    `/healthcare/hospitals/scroll`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getHealthcareHospitalControllerScrollQueryOptions = <TData = Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError = unknown>(params?: HealthcareHospitalControllerScrollParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthcareHospitalControllerScrollQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>> = ({ signal }) => healthcareHospitalControllerScroll(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthcareHospitalControllerScrollQueryResult = NonNullable<Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>>
+export type HealthcareHospitalControllerScrollQueryError = unknown
+
+
+export function useHealthcareHospitalControllerScroll<TData = Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError = unknown>(
+ params: undefined |  HealthcareHospitalControllerScrollParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareHospitalControllerScroll<TData = Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError = unknown>(
+ params?: HealthcareHospitalControllerScrollParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareHospitalControllerScroll<TData = Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError = unknown>(
+ params?: HealthcareHospitalControllerScrollParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 병원 무한 스크롤
+ */
+
+export function useHealthcareHospitalControllerScroll<TData = Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError = unknown>(
+ params?: HealthcareHospitalControllerScrollParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerScroll>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthcareHospitalControllerScrollQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

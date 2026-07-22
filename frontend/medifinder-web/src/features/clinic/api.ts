@@ -1,6 +1,11 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+} from '@tanstack/react-query';
 import {
   useHealthcareHospitalControllerSearch,
+  healthcareHospitalControllerScroll,
   useHealthcareHospitalControllerGet,
   useHealthcareHospitalControllerNonPayments,
   getHealthcareHospitalControllerNonPaymentsQueryOptions,
@@ -126,6 +131,45 @@ export function useHospitalSearch(params: HospitalSearchParams) {
       },
     },
   );
+}
+
+/** 무한스크롤 필터. 검색과 같지만 page 가 없다 — nextToken 커서로 이어 받는다. */
+export type HospitalScrollParams = Omit<HospitalSearchParams, 'page'>;
+
+/**
+ * GET /healthcare/hospitals/scroll — 무한스크롤(Elasticsearch 기본).
+ *
+ * page/size(offset) 대신 nextToken 커서로 다음 묶음을 이어 받는다. db 를 넘기지 않으므로 **ES** 로
+ * 조회한다. getNextPageParam 이 nextToken 을 반환하면 다음 페이지가 있는 것이고, undefined 면 끝이다
+ * (hasNextPage=false). 필터가 바뀌면 queryKey 가 바뀌어 스크롤이 처음부터 다시 시작한다.
+ */
+export function useHospitalScroll(params: HospitalScrollParams) {
+  const query = {
+    size: params.size,
+    region: params.region || undefined,
+    category: params.category || undefined,
+    tier: params.tier || undefined,
+    subject: params.subject || undefined,
+    specialist: params.specialist || undefined,
+    name: params.name || undefined,
+    emergency: params.emergency ? 'true' : undefined,
+    baby: params.baby ? 'true' : undefined,
+    assessment: params.assessment || undefined,
+    specialty: params.specialty || undefined,
+    special: params.special || undefined,
+    equipment: params.equipment || undefined,
+  };
+  return useInfiniteQuery({
+    queryKey: ['hospital-scroll', query],
+    queryFn: ({ pageParam }) =>
+      healthcareHospitalControllerScroll({
+        ...query,
+        nextToken: pageParam || undefined,
+      }),
+    initialPageParam: '' as string,
+    // nextToken 이 있으면 다음 커서, 없으면 undefined → 다음 페이지 없음.
+    getNextPageParam: (last) => last.nextToken || undefined,
+  });
 }
 
 /** GET /healthcare/hospitals/{id} — 통합 병원 상세 */

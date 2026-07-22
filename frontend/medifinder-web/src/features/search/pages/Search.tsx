@@ -6,7 +6,7 @@ import { Combobox } from '@/shared/ui/Combobox';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import {
-  useHospitalSearch,
+  useHospitalScroll,
   useSubjects,
   useSubjectGroups,
   useHospitalTiers,
@@ -291,7 +291,6 @@ const MORE_TABS = TABS.slice(3);
 export default function SearchPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [page, setPage] = useState(1);
 
   /**
    * **상태가 두 겹이다.**
@@ -349,7 +348,6 @@ export default function SearchPage() {
       else next.delete(key);
     }
     setSearchParams(next, { replace: true });
-    setPage(1);
   };
 
   /** 탭은 진입점이라 즉시 검색한다. 초안도 함께 갱신해 화면이 어긋나지 않게 한다. */
@@ -363,7 +361,6 @@ export default function SearchPage() {
       else next.delete(key);
     }
     setSearchParams(next, { replace: true });
-    setPage(1);
   };
 
   /** 고르는 중인 조건이 검색된 것과 다른가. 다르면 검색 버튼을 강조한다. */
@@ -460,8 +457,15 @@ export default function SearchPage() {
     }))
     .filter((g) => g.items.length > 0);
 
-  const { data, isLoading, isError, isFetching } = useHospitalSearch({
-    page,
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useHospitalScroll({
     size: PAGE_SIZE,
     // **URL(applied)로만 검색한다.** draft 를 쓰면 고르는 족족 요청이 나간다.
     name: applied.q,
@@ -479,9 +483,25 @@ export default function SearchPage() {
     equipment: applied.equipment,
   });
 
-  const items = data?.items ?? [];
-  const total = data?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // 모든 페이지의 항목을 이어 붙인다. 필터가 바뀌면 useInfiniteQuery 가 새 키로 처음부터 다시 쌓는다.
+  const items = data?.pages.flatMap((p) => p.items ?? []) ?? [];
+
+  // 무한스크롤: 리스트 끝 센티넬이 화면에 들어오면(바닥 근처) 다음 페이지를 당긴다.
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: '200px' }, // 바닥 200px 전에 미리 로드해 끊김을 줄인다
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   /**
    * 선택된 필터를 배지로 펼친다. 진료과목·종별·전문분야·평가를 한 줄에 모은다.
@@ -940,8 +960,10 @@ export default function SearchPage() {
 
       {/* 결과 목록의 제목 줄. 카드 바로 위에 붙여 "이 아래가 결과" 임을 잇는다. */}
       <p className="mb-2 mt-5 pl-1 text-sm font-medium text-slate-700">
-        {isLoading ? t('common.loading') : t('search.count', { count: total })}
-        {isFetching && !isLoading && (
+        {isLoading
+          ? t('common.loading')
+          : t('search.count', { count: items.length })}
+        {isFetching && !isLoading && !isFetchingNextPage && (
           <span className="ml-1 font-normal text-slate-400">
             {t('search.refreshing')}
           </span>
@@ -967,25 +989,11 @@ export default function SearchPage() {
         <p className="py-12 text-center text-slate-500">{t('search.empty')}</p>
       )}
 
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-3">
-          <Button
-            variant="secondary"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            {t('search.prev')}
-          </Button>
-          <span className="text-sm text-slate-600">
-            {page} / {totalPages}
-          </span>
-          <Button
-            variant="secondary"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            {t('search.next')}
-          </Button>
+      {/* 무한스크롤 센티넬 — 화면에 들어오면(바닥 근처) 다음 페이지를 부른다 */}
+      <div ref={sentinelRef} className="h-1" aria-hidden />
+      {isFetchingNextPage && (
+        <div className="py-6 text-center">
+          <Spinner />
         </div>
       )}
 
