@@ -3,6 +3,7 @@ import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-option
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import { config } from 'dotenv';
+import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
 import { exitIfVersionFlag, loadEnv, resolveAppEnv } from '@hansapi/common';
 
@@ -29,6 +30,9 @@ const envSource = loadEnv(__dirname, resolveAppEnv(), config);
 async function bootstrap() {
   const app = await NestFactory.create(AppModule.forRoot(envSource));
 
+  // refresh token 은 httpOnly 쿠키로 오간다. 쿠키 파싱을 켠다(/oauth/token refresh grant 가 읽음).
+  app.use(cookieParser());
+
   // CORS: SDK 가 실어보내는 Bearer 토큰으로 허용 origin 을 동적으로 판별한다.
   //  - 지금:  토큰이 'test' 이면 요청 origin 을 그대로 반사(허용)한다.
   //  - 나중:  토큰에서 app(project) id 를 추출해, 그 앱에 등록된 origin 목록과
@@ -46,7 +50,7 @@ async function bootstrap() {
 
       // 브라우저 요청이 아니면(Origin 없음: 서버/curl 등) CORS 제약 대상이 아니다.
       if (!requestOrigin) {
-        callback(null, { origin: true });
+        callback(null, { origin: true, credentials: true });
         return;
       }
 
@@ -60,7 +64,8 @@ async function bootstrap() {
       // TODO: token -> appId 추출 후, 앱에 등록된 origin 목록과 대조하도록 교체.
       const allowed = isPreflight || token === PUBLIC_TEST_TOKEN;
 
-      callback(null, { origin: allowed ? requestOrigin : false });
+      // refresh 는 httpOnly 쿠키로 오가므로 credentials 를 허용한다.
+      callback(null, { origin: allowed ? requestOrigin : false, credentials: true });
     },
   );
 

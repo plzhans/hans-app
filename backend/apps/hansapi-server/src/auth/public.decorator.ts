@@ -1,6 +1,3 @@
-import { SetMetadata } from '@nestjs/common';
-
-/** 전역 AuthGuard 를 우회(인증 없이 허용)하는 라우트에 붙인다. 예: 헬스체크. */
-export const IS_PUBLIC_KEY = 'isPublic';
-
-export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+// @Public 데코레이터는 인증 응용 계층(@hansapi/auth-application)이 소유한다.
+// 서버 내부 import 경로 안정성을 위해 여기서 재노출한다.
+export { Public } from '@hansapi/auth-application';

@@ -1,0 +1,202 @@
+// 인증(계정/토큰) 도메인 모델. 멀티파일 스키마의 한 조각으로, default.prisma 의
+// generator·datasource(메인 DB)를 공유한다. → 별도 커넥션/클라이언트를 만들지 않는다.
+//
+// **이 파일만 따로 들어내면 인증 스키마를 통째로 이관할 수 있게** 도메인을 한 파일에 모아 둔다.
+// (공공데이터 도메인과 섞지 않는다.)
+
+/// 회원. 이메일 계정이 기본이고, 소셜 연동도 항상 이 회원에 매핑된다.
+/// 회원 규모가 크지 않아 PK 는 Int(회원번호)로 둔다.
+model User {
+  /// 회원번호
+  id Int @id @default(autoincrement())
+
+  /// 로그인·식별용 이메일. 전역 유일. 소셜 가입도 이메일을 받아 채운다.
+  email String @unique @db.VarChar(320)
+
+  /// 이메일 소유 검증 여부. 소셜 provider 가 검증된 이메일을 주면 true 로 생성한다.
+  emailVerified Boolean @default(false) @map("email_verified")
+
+  /// bcrypt 해시(60자). 소셜 전용 계정은 null.
+  password String? @db.VarChar(60)
+
+  /// 표시 이름
+  name String? @db.VarChar(100)
+
+  /// 계정 상태. WITHDRAWN 은 탈퇴(로그인 차단). 하드삭제는 30일 뒤 배치가 수행한다.
+  status UserStatus @default(ACTIVE)
+
+  /// 권한
+  role UserRole @default(USER)
+
+  /// 최초 가입 수단(EMAIL 포함). 이후 다른 소셜을 연동해도 값은 바뀌지 않는다.
+  joinType AuthProvider @map("join_type")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  /// 탈퇴 시각(status=WITHDRAWN 이 된 시점). 활성 계정은 null.
+  withdrawnAt DateTime? @map("withdrawn_at")
+
+  oauths    UserOAuth[]
+  tokens    UserToken[]
+  sessions  UserTokenSession[]
+  authCodes UserAuthCode[]
+
+  @@map("user")
+}
+
+/// 계정 ↔ 외부 소셜 연동 매핑(1:N). 한 회원이 여러 provider 를 붙일 수 있다.
+model UserOAuth {
+  id Int @id @default(autoincrement())
+
+  userId Int @map("user_id")
+
+  /// 소셜 provider
+  provider OAuthProvider
+
+  /// provider 가 준 고유 식별자(OIDC subject / provider user id)
+  providerId String @map("provider_id") @db.VarChar(191)
+
+  /// provider 가 준 이메일(참고용, 검증 여부는 provider 마다 다름)
+  email String? @db.VarChar(320)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 같은 소셜 계정은 한 번만 연동된다.
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("user_oauth")
+}
+
+/// 이메일 인증 / 비밀번호 재설정용 일회성 토큰. 원문 대신 SHA-256 해시만 저장한다.
+model UserToken {
+  id Int @id @default(autoincrement())
+
+  userId Int @map("user_id")
+
+  /// 용도
+  purpose TokenPurpose
+
+  /// SHA-256(token) hex 64자
+  tokenHash String @map("token_hash") @db.Char(64)
+
+  expiresAt  DateTime  @map("expires_at")
+  /// 사용(소비) 시각. 재사용 방지.
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("user_token")
+}
+
+/// refresh 세션. 불투명 refresh 토큰의 서버측 저장소.
+/// 토큰 원문은 저장하지 않고 secret 의 SHA-256 해시만 둔다. rotate 시 만료를 연장한다(sliding).
+model UserTokenSession {
+  /// 세션 식별자. refresh 토큰에 내장돼 조회 키로 쓰인다.
+  sessionId String @id @map("session_id") @db.VarChar(64)
+
+  userId Int @map("user_id")
+
+  /// SHA-256(secret) hex 64자. rotate 마다 새 secret 으로 교체된다.
+  secretHash String @map("secret_hash") @db.Char(64)
+
+  /// 발급 기기 정보(로그인 기기 목록·개별 로그아웃용)
+  userAgent String? @map("user_agent") @db.VarChar(255)
+  ip        String? @db.VarChar(45)
+
+  /// 만료 시각. rotate 마다 갱신(연장)된다.
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_token_session")
+}
+
+/// 소셜 콜백 → SPA 프론트로 넘기는 1회용 인가코드(릴레이).
+/// 코드 페이로드를 통째로 저장하지 않고 식별자(sid)만 보관해 로우를 최소화한다.
+model UserAuthCode {
+  /// 코드 식별자
+  sid String @id @db.VarChar(32)
+
+  userId Int @map("user_id")
+
+  /// SHA-256(secret) hex 64자
+  secretHash String @map("secret_hash") @db.Char(64)
+
+  /// 만료 시각(~30초)
+  expiresAt DateTime @map("expires_at")
+  /// 사용(소비) 시각. 1회용 보장.
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_auth_code")
+}
+
+/// 탈퇴 기록. 개인정보 최소 항목만 보관하며, 가입 중복 체크가 이 표도 조회한다.
+/// purgeAt 이 지나면 배치가 정리한다(그 시점에 User 하드삭제도 함께 수행) → 이메일 재사용 가능.
+model UserWithdrawal {
+  id Int @id @default(autoincrement())
+
+  /// 원래 회원번호
+  originalUserId Int @map("original_user_id")
+
+  /// 가입 이메일(재가입 차단 조회 키)
+  email String @db.VarChar(320)
+
+  /// 이름
+  name String? @db.VarChar(100)
+
+  withdrawnAt DateTime @default(now()) @map("withdrawn_at")
+
+  /// 정리(파기) 예정 시각 = withdrawnAt + 30일. 이후 이 행과 User 를 삭제한다.
+  purgeAt DateTime @map("purge_at")
+
+  @@index([email])
+  @@index([purgeAt])
+  @@map("user_withdrawal")
+}
+
+/// 계정 상태
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  WITHDRAWN
+}
+
+/// 권한
+enum UserRole {
+  USER
+  ADMIN
+}
+
+/// 가입/로그인 수단(EMAIL 포함). User.joinType 에 쓴다.
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  NAVER
+  KAKAO
+  LINE
+}
+
+/// 외부 소셜 provider(EMAIL 제외). UserOAuth.provider 에 쓴다.
+enum OAuthProvider {
+  GOOGLE
+  NAVER
+  KAKAO
+  LINE
+}
+
+/// 일회성 토큰 용도
+enum TokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}

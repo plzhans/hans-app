@@ -33,7 +33,33 @@ export type {
   NmcHospitalSubject,
   JobQueue,
   SyncState,
+  // 인증(auth.prisma) 도메인 모델
+  User,
+  UserOAuth,
+  UserToken,
+  UserTokenSession,
+  UserAuthCode,
+  UserWithdrawal,
 } from '../generated/main';
+
+// 인증 도메인 enum(값으로도 쓰므로 type-only 가 아니다).
+export {
+  UserStatus,
+  UserRole,
+  AuthProvider,
+  OAuthProvider,
+  TokenPurpose,
+} from '../generated/main';
+
+// 로그 DB(log 스키마) 인증 이벤트 로그. Prisma 네임스페이스도 별도 export
+// (main 과 log 는 다른 client 라 Create 입력 타입 등이 서로 다르다).
+export type { UserActionLog } from '../generated/log';
+export { Prisma as LogPrisma } from '../generated/log';
+export {
+  UserAction,
+  ActionResult,
+  AuthProvider as LogAuthProvider,
+} from '../generated/log';
 
 export { PrismaLogService } from './prisma-log.service';
 export { PrismaMigrationService, DB_TARGETS } from './prisma-migration.service';

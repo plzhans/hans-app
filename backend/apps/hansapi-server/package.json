@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@hansapi/application": "workspace:*",
+    "@hansapi/auth-application": "workspace:*",
     "@hansapi/common": "workspace:*",
     "@kr-go/juso": "workspace:*",
     "@kr-go/nts": "workspace:*",
@@ -36,6 +37,7 @@
     "@nestjs/swagger": "^11.4.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
@@ -46,6 +48,7 @@
     "@nestjs/testing": "^11.1.27",
     "@swc-node/register": "^1.11.1",
     "@swc/core": "^1.15.43",
+    "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.1.0",

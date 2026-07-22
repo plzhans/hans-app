@@ -1,10 +1,3 @@
-/**
- * 지원하는 인증 방식. 현재는 모두 Authorization: Bearer 헤더로 토큰을 수신하며,
- * 토큰 값의 접두사로 실제 방식을 구분한다(추후 구현).
- */
-export enum AuthType {
-  /** JWT 토큰 */
-  Jwt = 'jwt',
-  /** API Key */
-  ApiKey = 'apikey',
-}
+// 인증 방식 enum 은 인증 응용 계층(@hansapi/auth-application)이 소유한다.
+// 서버 내부 import 경로 안정성을 위해 여기서 재노출한다.
+export { AuthType } from '@hansapi/auth-application';

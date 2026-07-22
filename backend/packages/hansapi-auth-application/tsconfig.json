@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "nodenext",
+    // 선언 파일(.d.ts)은 만들지 않는다. 이 패키지의 유일한 소비자는 hansapi-server(app)이고
+    // app 은 customConditions:["src"] 로 소스를 직접 읽으므로 dist 의 .d.ts 를 쓰지 않는다.
+    // passport 믹스인 전략(PassportStrategy)은 pnpm 가상 경로를 참조하는 추론 타입이라
+    // .d.ts 로 이름 지을 수 없어 TS2742 를 낸다(런타임 JS emit 에는 영향 없다).
+    "declaration": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["node"],
+    "moduleResolution": "nodenext"
+  },
+  "include": ["src"]
+}

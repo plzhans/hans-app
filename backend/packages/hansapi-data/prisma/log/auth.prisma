@@ -1,0 +1,69 @@
+// 인증 이벤트 로그 모델. 멀티파일 스키마의 한 조각으로, default.prisma 의
+// generator·datasource(로그 DB, LOG_DATABASE_URL)를 공유한다.
+//
+// 로그인/로그아웃/가입/비번변경/소셜연동/탈퇴를 이벤트성으로 한 테이블에 적재한다.
+// 메인 DB 와 별도 client 라 userId 는 관계 없이 값만 보관한다(로그는 지워도 감사 흔적 유지).
+
+/// 사용자 인증 이벤트 로그. action 은 MySQL 네이티브 ENUM(내부적으로 1바이트 정수)이라
+/// 대량 적재에도 저장 낭비가 없다.
+model UserActionLog {
+  id BigInt @id @default(autoincrement())
+
+  /// 회원번호. 로그인 실패 등 회원이 특정되지 않으면 null.
+  userId Int? @map("user_id")
+
+  /// 이벤트 종류
+  action UserAction
+
+  /// 결과
+  result ActionResult
+
+  /// 로그인/가입/연동 시 수단
+  provider AuthProvider?
+
+  /// 실패 사유(간단 코드/메시지)
+  failReason String? @map("fail_reason") @db.VarChar(100)
+
+  /// 발급/폐기된 refresh 세션 식별자
+  sessionId String? @map("session_id") @db.VarChar(64)
+
+  ip        String? @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(255)
+
+  /// 액션별 부가정보(예: 연동 provider, 구 이메일→신규 등)
+  detail Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, action])
+  @@index([createdAt])
+  @@map("user_action_log")
+}
+
+/// 인증 이벤트 종류. 토큰 갱신(refresh)은 매 시간 발생해 로그가 폭증하므로 기록하지 않는다.
+enum UserAction {
+  LOGIN
+  LOGOUT
+  SIGNUP
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+  EMAIL_VERIFY
+  OAUTH_LINK
+  OAUTH_UNLINK
+  WITHDRAW
+}
+
+/// 이벤트 결과
+enum ActionResult {
+  SUCCESS
+  FAIL
+}
+
+/// 로그용 수단(EMAIL 포함). 메인 스키마와 별도 DB 라 enum 을 여기에도 정의한다.
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  NAVER
+  KAKAO
+  LINE
+}

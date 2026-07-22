@@ -1,0 +1,42 @@
+{
+  "name": "@hansapi/auth-application",
+  "version": "0.0.1",
+  "private": true,
+  "description": "인증/인가 응용 계층. 토큰 발급·검증, 소셜 연동, 가드가 여기 있다. hansapi-server 가 이 패키지를 참조한다.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@hansapi/common": "workspace:*",
+    "@hansapi/data": "workspace:*",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/swagger": "^11.4.5",
+    "bcryptjs": "^3.0.2",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-jwt": "^4.0.1",
+    "passport-kakao": "^1.0.1",
+    "passport-line-auth": "^0.2.9",
+    "passport-naver-v2": "^2.0.8",
+    "reflect-metadata": "^0.2.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.13.2",
+    "@types/passport-google-oauth20": "^2.0.16",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/passport-oauth2": "^1.4.17"
+  }
+}
