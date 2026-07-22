@@ -36,7 +36,7 @@ import {
 import {
   clearRefreshCookie,
   requestMeta,
-  setRefreshCookie,
+  respondTokens,
 } from './refresh-cookie';
 
 /**
@@ -197,20 +197,11 @@ export class AuthController {
     await this.authService.verifyEmail(dto.token, requestMeta(req));
   }
 
-  /** refresh 는 쿠키로 세팅하고 바디에는 access 만 담는다. */
+  /** refresh 를 쿠키+바디로, access 는 바디로 반환한다. */
   private respondWithTokens(
     res: Response,
     result: AuthResult,
   ): TokenResponseDto {
-    setRefreshCookie(
-      res,
-      result.tokens.refreshToken,
-      result.tokens.refreshExpiresAt,
-    );
-    return {
-      accessToken: result.tokens.accessToken,
-      tokenType: result.tokens.tokenType,
-      expiresIn: result.tokens.expiresIn,
-    };
+    return respondTokens(res, result.tokens);
   }
 }

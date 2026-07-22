@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
-import type { RequestMeta } from '@hansapi/auth-application';
+import type { AuthTokens, RequestMeta } from '@hansapi/auth-application';
+
+import type { TokenResponseDto } from './dto/auth.dto';
 
 /**
  * refresh token 은 httpOnly 쿠키로만 오간다(자바스크립트 접근 차단, XSS 시 탈취 방지).
@@ -35,6 +37,24 @@ export function readRefreshCookie(req: Request): string | undefined {
     req as unknown as { cookies?: Record<string, string> }
   ).cookies;
   return cookies?.[REFRESH_COOKIE];
+}
+
+/**
+ * 발급 토큰을 응답으로 변환한다. refresh 를 httpOnly 쿠키로 세팅(웹 보호)하는 동시에
+ * 바디에도 담아(모바일·크로스플랫폼 스토리지) 어느 클라이언트든 쓸 수 있게 한다.
+ */
+export function respondTokens(
+  res: Response,
+  tokens: AuthTokens,
+): TokenResponseDto {
+  setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt);
+  return {
+    accessToken: tokens.accessToken,
+    tokenType: tokens.tokenType,
+    expiresIn: tokens.expiresIn,
+    refreshToken: tokens.refreshToken,
+    refreshExpiresAt: tokens.refreshExpiresAt.toISOString(),
+  };
 }
 
 /** 로그·세션 기록용 요청 부가정보(IP·UA)를 뽑는다. */

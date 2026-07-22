@@ -31,6 +31,12 @@ export type CallbackOutcome =
   | { kind: 'linked' } // 연동 완료
   | { kind: 'error'; error: string };
 
+/** handleCallback 결과: 판정(outcome) + 복귀 URL(returnTo, 가드에서 허용목록 검증됨). */
+export interface CallbackResult {
+  outcome: CallbackOutcome;
+  returnTo?: string;
+}
+
 /** OAuthProvider → 가입수단(AuthProvider). 키 이름이 같아 그대로 매핑된다. */
 function toJoinType(provider: OAuthProvider): AuthProvider {
   return AuthProvider[provider as keyof typeof AuthProvider];
@@ -57,18 +63,27 @@ export class SocialService {
     private readonly log: ActionLogService,
   ) {}
 
-  /** provider 콜백 처리. state(로그인/연동 의도)에 따라 분기한다. */
+  /** provider 콜백 처리. state 의도에 따라 분기하고, 복귀 URL(returnTo)을 함께 돌려준다. */
   async handleCallback(
     profile: SocialProfile,
     stateToken: string,
     meta: RequestMeta,
-  ): Promise<CallbackOutcome> {
+  ): Promise<CallbackResult> {
     const state = this.tickets.verifyState(stateToken);
     const existing = await this.oauths.findByProvider(
       profile.provider,
       profile.providerId,
     );
+    const outcome = await this.resolveOutcome(state, profile, existing, meta);
+    return { outcome, returnTo: state.returnTo };
+  }
 
+  private async resolveOutcome(
+    state: { intent: 'login' | 'link'; userId?: number },
+    profile: SocialProfile,
+    existing: { userId: number } | null,
+    meta: RequestMeta,
+  ): Promise<CallbackOutcome> {
     if (state.intent === 'link') {
       return this.handleLink(state.userId, profile, existing, meta);
     }

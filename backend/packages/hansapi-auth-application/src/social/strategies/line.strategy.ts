@@ -18,7 +18,8 @@ export class LineStrategy extends PassportStrategy(Strategy, 'line') {
     super({
       channelID: cfg?.clientId ?? '',
       channelSecret: cfg?.clientSecret ?? '',
-      callbackURL: `${config.oauth.callbackBaseUrl}/auth/line/callback`,
+      // 실제 redirect_uri 는 요청 호스트에서 SocialAuthGuard 가 주입한다(여긴 미사용 placeholder).
+      callbackURL: 'http://localhost/auth/line/callback',
       scope: ['profile', 'openid', 'email'],
     });
   }

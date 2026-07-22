@@ -33,8 +33,17 @@ async function bootstrap() {
   // refresh token 은 httpOnly 쿠키로 오간다. 쿠키 파싱을 켠다(/oauth/token refresh grant 가 읽음).
   app.use(cookieParser());
 
+  // 인증 프론트(plzhans.com 등) 오리진 허용 목록. 로그인/가입은 토큰 없이 호출되므로
+  // 'test' 토큰 규칙으로는 통과할 수 없다 — 명시적 allowlist(env, 콤마구분)로 허용한다.
+  //   AUTH_ALLOWED_ORIGINS=http://localhost:5173,https://plzhans.com
+  const authAllowedOrigins = (envSource.get('AUTH_ALLOWED_ORIGINS') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   // CORS: SDK 가 실어보내는 Bearer 토큰으로 허용 origin 을 동적으로 판별한다.
-  //  - 지금:  토큰이 'test' 이면 요청 origin 을 그대로 반사(허용)한다.
+  //  - 인증 프론트 오리진(AUTH_ALLOWED_ORIGINS)은 토큰 없이도 허용한다(로그인 진입).
+  //  - 토큰이 'test' 이면 요청 origin 을 그대로 반사(허용)한다.
   //  - 나중:  토큰에서 app(project) id 를 추출해, 그 앱에 등록된 origin 목록과
   //          대조하도록 실제-요청 분기를 교체한다.
   //
@@ -60,9 +69,12 @@ async function bootstrap() {
       const isPreflight = req.method === 'OPTIONS';
 
       // preflight 는 토큰이 없어 판별 불가 → 반사해 통과(실제 검증은 가드에서).
-      // 실제 요청은 지금은 test 토큰일 때만 반사한다.
+      // 실제 요청은 인증 프론트 오리진이거나 test 토큰일 때 반사한다.
       // TODO: token -> appId 추출 후, 앱에 등록된 origin 목록과 대조하도록 교체.
-      const allowed = isPreflight || token === PUBLIC_TEST_TOKEN;
+      const allowed =
+        isPreflight ||
+        authAllowedOrigins.includes(requestOrigin) ||
+        token === PUBLIC_TEST_TOKEN;
 
       // refresh 는 httpOnly 쿠키로 오가므로 credentials 를 허용한다.
       callback(null, { origin: allowed ? requestOrigin : false, credentials: true });

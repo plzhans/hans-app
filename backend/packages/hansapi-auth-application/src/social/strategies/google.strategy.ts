@@ -15,7 +15,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: cfg?.clientId ?? '',
       clientSecret: cfg?.clientSecret ?? '',
-      callbackURL: `${config.oauth.callbackBaseUrl}/auth/google/callback`,
+      // 실제 redirect_uri 는 요청 호스트에서 SocialAuthGuard 가 주입한다(여긴 미사용 placeholder).
+      callbackURL: 'http://localhost/auth/google/callback',
       scope: ['email', 'profile'],
     });
   }

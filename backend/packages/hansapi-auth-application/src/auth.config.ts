@@ -37,11 +37,10 @@ export interface AuthConfig {
   readonly withdrawalRetentionDays: number;
 
   /**
-   * 소셜 콜백이 인가코드를 실어 리다이렉트할 프론트 URL(SPA).
-   * 예: https://app.example.com/oauth/callback → `?code=ac_...` 를 붙여 보낸다.
-   * 소셜을 아직 안 쓰면 비어 있어도 된다.
+   * 허용 오리진 목록(AUTH_ALLOWED_ORIGINS). CORS 뿐 아니라 소셜 return_to(로그인 후 복귀 URL)
+   * 검증에도 쓴다 — 여기 없는 오리진으로는 코드를 실어 리다이렉트하지 않는다(오픈 리다이렉트 방지).
    */
-  readonly frontendRedirectUrl: string;
+  readonly allowedOrigins: readonly string[];
 
   /** bcrypt 코스트(라운드). 기본 10 */
   readonly bcryptRounds: number;
@@ -57,11 +56,8 @@ export interface OAuthProviderCredentials {
 }
 
 export interface OAuthConfig {
-  /**
-   * 콜백 redirect_uri 조립 기준 URL(백엔드). 최종 redirect_uri = `{base}/auth/:provider/callback`.
-   * 예: https://api.example.com. 비어 있으면 소셜 시작 시 에러를 낸다.
-   */
-  readonly callbackBaseUrl: string;
+  // redirect_uri 는 별도 base URL 을 두지 않고 요청이 들어온 호스트에서 조립한다
+  // ({scheme}://{host}/auth/:provider/callback, SocialAuthGuard 참고).
   readonly google?: OAuthProviderCredentials;
   readonly naver?: OAuthProviderCredentials;
   readonly kakao?: OAuthProviderCredentials;
@@ -115,31 +111,31 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
       'AUTH_WITHDRAWAL_RETENTION_DAYS',
       30,
     ),
-    frontendRedirectUrl:
-      optionalString(source, 'AUTH_FRONTEND_REDIRECT_URL') ?? '',
+    allowedOrigins: (optionalString(source, 'AUTH_ALLOWED_ORIGINS') ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
     bcryptRounds: optionalNumber(source, 'AUTH_BCRYPT_ROUNDS', 10),
     oauth: Object.freeze({
-      callbackBaseUrl:
-        optionalString(source, 'AUTH_OAUTH_CALLBACK_BASE_URL') ?? '',
       google: readProviderCredentials(
         source,
-        'AUTH_GOOGLE_CLIENT_ID',
-        'AUTH_GOOGLE_CLIENT_SECRET',
+        'GOOGLE_OAUTH_CLIENT_ID',
+        'GOOGLE_OAUTH_CLIENT_SECRET',
       ),
       naver: readProviderCredentials(
         source,
-        'AUTH_NAVER_CLIENT_ID',
-        'AUTH_NAVER_CLIENT_SECRET',
+        'NAVER_OAUTH_CLIENT_ID',
+        'NAVER_OAUTH_CLIENT_SECRET',
       ),
       kakao: readProviderCredentials(
         source,
-        'AUTH_KAKAO_CLIENT_ID',
-        'AUTH_KAKAO_CLIENT_SECRET',
+        'KAKAO_OAUTH_CLIENT_ID',
+        'KAKAO_OAUTH_CLIENT_SECRET',
       ),
       line: readProviderCredentials(
         source,
-        'AUTH_LINE_CLIENT_ID',
-        'AUTH_LINE_CLIENT_SECRET',
+        'LINE_OAUTH_CLIENT_ID',
+        'LINE_OAUTH_CLIENT_SECRET',
       ),
     }),
   });

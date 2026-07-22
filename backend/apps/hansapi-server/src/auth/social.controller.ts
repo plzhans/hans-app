@@ -5,7 +5,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Inject,
   Param,
   Post,
   Req,
@@ -21,7 +20,6 @@ import {
 import type { Request, Response } from 'express';
 import {
   Auth,
-  AUTH_CONFIG,
   AuthType,
   CurrentUser,
   Public,
@@ -30,7 +28,6 @@ import {
   toOAuthProvider,
 } from '@hansapi/auth-application';
 import type {
-  AuthConfig,
   AuthUser,
   CallbackOutcome,
   SocialProfile,
@@ -41,7 +38,7 @@ import {
   LinkPrepareResponseDto,
   SocialRegisterRequestDto,
 } from './dto/social.dto';
-import { requestMeta, setRefreshCookie } from './refresh-cookie';
+import { requestMeta, respondTokens } from './refresh-cookie';
 
 /**
  * 소셜 로그인(인증) 엔드포인트. 백엔드가 provider 콜백을 받아 처리한 뒤,
@@ -51,10 +48,7 @@ import { requestMeta, setRefreshCookie } from './refresh-cookie';
 @ApiTags('auth-social')
 @Controller('auth')
 export class SocialController {
-  constructor(
-    private readonly social: SocialService,
-    @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
-  ) {}
+  constructor(private readonly social: SocialService) {}
 
   @Post('social/register')
   @Public()
@@ -74,16 +68,7 @@ export class SocialController {
       { ticket: dto.ticket, email: dto.email },
       requestMeta(req),
     );
-    setRefreshCookie(
-      res,
-      result.tokens.refreshToken,
-      result.tokens.refreshExpiresAt,
-    );
-    return {
-      accessToken: result.tokens.accessToken,
-      tokenType: result.tokens.tokenType,
-      expiresIn: result.tokens.expiresIn,
-    };
+    return respondTokens(res, result.tokens);
   }
 
   @Post('social/link/prepare')
@@ -123,12 +108,12 @@ export class SocialController {
       throw new BadRequestException('소셜 프로필을 확인할 수 없습니다.');
     }
     const state = typeof req.query.state === 'string' ? req.query.state : '';
-    const outcome = await this.social.handleCallback(
+    const { outcome, returnTo } = await this.social.handleCallback(
       profile,
       state,
       requestMeta(req),
     );
-    res.redirect(this.buildRedirect(outcome));
+    res.redirect(this.buildRedirect(returnTo, outcome));
   }
 
   @Delete(':provider/link')
@@ -151,15 +136,17 @@ export class SocialController {
     await this.social.unlink(user.userId, provider, requestMeta(req));
   }
 
-  /** 콜백 결과를 프론트 리다이렉트 URL 로 변환한다. redirect URL 미설정 시 JSON 으로 반환하기 위해 예외. */
-  private buildRedirect(outcome: CallbackOutcome): string {
-    const base = this.config.frontendRedirectUrl;
-    if (!base) {
+  /** 콜백 결과를 프론트 복귀 URL(returnTo)에 실어 리다이렉트 대상으로 변환한다. */
+  private buildRedirect(
+    returnTo: string | undefined,
+    outcome: CallbackOutcome,
+  ): string {
+    if (!returnTo) {
       throw new BadRequestException(
-        'AUTH_FRONTEND_REDIRECT_URL 이 설정되지 않았습니다.',
+        '복귀 URL(return_to)이 없습니다. 로그인 시작 시 return_to 를 전달하세요.',
       );
     }
-    const url = new URL(base);
+    const url = new URL(returnTo);
     switch (outcome.kind) {
       case 'code':
         url.searchParams.set('code', outcome.code);

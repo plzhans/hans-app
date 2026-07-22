@@ -15,7 +15,8 @@ export class NaverStrategy extends PassportStrategy(Strategy, 'naver') {
     super({
       clientID: cfg?.clientId ?? '',
       clientSecret: cfg?.clientSecret ?? '',
-      callbackURL: `${config.oauth.callbackBaseUrl}/auth/naver/callback`,
+      // 실제 redirect_uri 는 요청 호스트에서 SocialAuthGuard 가 주입한다(여긴 미사용 placeholder).
+      callbackURL: 'http://localhost/auth/naver/callback',
     });
   }
 

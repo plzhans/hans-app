@@ -109,7 +109,11 @@ export class TokenRequestDto {
   readonly refresh_token?: string;
 }
 
-/** 로그인/토큰 응답. refresh token 은 httpOnly 쿠키로 내려가고 바디에는 담지 않는다. */
+/**
+ * 로그인/토큰 응답.
+ * refresh token 은 httpOnly 쿠키로도 내려가지만(웹 전용 보호), 모바일·크로스플랫폼 스토리지
+ * 보관을 위해 **바디에도 함께 담는다.** 클라이언트는 편한 쪽을 쓴다.
+ */
 export class TokenResponseDto {
   @ApiProperty({ description: 'access token(JWT)' })
   readonly accessToken!: string;
@@ -119,6 +123,15 @@ export class TokenResponseDto {
 
   @ApiProperty({ description: 'access token 만료(초)', example: 3600 })
   readonly expiresIn!: number;
+
+  @ApiProperty({ description: 'refresh token(불투명, rt_...)' })
+  readonly refreshToken!: string;
+
+  @ApiProperty({
+    description: 'refresh token 만료 시각(ISO8601)',
+    example: '2026-09-20T12:00:00.000Z',
+  })
+  readonly refreshExpiresAt!: string;
 }
 
 /** 내 정보 응답 */

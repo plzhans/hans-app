@@ -24,7 +24,7 @@ import {
   clearRefreshCookie,
   readRefreshCookie,
   requestMeta,
-  setRefreshCookie,
+  respondTokens,
 } from '../auth/refresh-cookie';
 
 /**
@@ -71,12 +71,7 @@ export class OAuthController {
       tokens = await this.grants.refresh(refreshToken);
     }
 
-    setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt);
-    return {
-      accessToken: tokens.accessToken,
-      tokenType: tokens.tokenType,
-      expiresIn: tokens.expiresIn,
-    };
+    return respondTokens(res, tokens);
   }
 
   @Delete('logout')

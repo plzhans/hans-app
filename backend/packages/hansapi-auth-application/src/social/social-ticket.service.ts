@@ -11,21 +11,38 @@ import { OAuthProvider } from '@hansapi/data';
 export class SocialTicketService {
   constructor(private readonly jwt: JwtService) {}
 
-  /** OAuth state(로그인/연동 의도 운반). provider 왕복 후 콜백에서 검증한다. */
-  signState(payload: { intent: 'login' | 'link'; userId?: number }): string {
+  /**
+   * OAuth state(로그인/연동 의도 + 복귀 URL 운반). provider 왕복 후 콜백에서 검증한다.
+   * returnTo 는 로그인 성공 후 코드를 실어 돌려보낼 프론트 URL(가드에서 허용목록 검증 완료).
+   */
+  signState(payload: {
+    intent: 'login' | 'link';
+    userId?: number;
+    returnTo?: string;
+  }): string {
     return this.jwt.sign(
-      { typ: 'oauth_state', intent: payload.intent, uid: payload.userId },
+      {
+        typ: 'oauth_state',
+        intent: payload.intent,
+        uid: payload.userId,
+        rt: payload.returnTo,
+      },
       { expiresIn: 600 },
     );
   }
 
-  verifyState(token: string): { intent: 'login' | 'link'; userId?: number } {
+  verifyState(token: string): {
+    intent: 'login' | 'link';
+    userId?: number;
+    returnTo?: string;
+  } {
     const p = this.verify<{
       typ: string;
       intent: 'login' | 'link';
       uid?: number;
+      rt?: string;
     }>(token, 'oauth_state');
-    return { intent: p.intent, userId: p.uid };
+    return { intent: p.intent, userId: p.uid, returnTo: p.rt };
   }
 
   /** 연동(link) 시작 토큰. 로그인 상태에서 발급받아 GET /auth/:provider?link_token= 로 넘긴다. */
