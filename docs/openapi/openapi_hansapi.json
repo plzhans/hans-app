@@ -704,6 +704,124 @@
         "operationId": "HealthcareHospitalController_search",
         "parameters": [
           {
+            "name": "region",
+            "required": false,
+            "in": "query",
+            "description": "시군구 코드. /address/regions 참조",
+            "schema": {
+              "example": "11001",
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "description": "종별 코드. 쉼표로 여러 개(OR). /healthcare/meta/classes 참조.",
+            "schema": {
+              "example": "CLINIC,HOSPITAL",
+              "type": "string"
+            }
+          },
+          {
+            "name": "tier",
+            "required": false,
+            "in": "query",
+            "description": "병원 등급. TIER1(의원급) | TIER2(병원급) | TIER3(상급종합) | NURSING | MENTAL. 쉼표로 여러 개(OR).\n\n**비워두면 NURSING·MENTAL 이 빠진다** — 장기 입원 시설이라 외래 검색에 섞이면 방해다. `tier=NURSING` 으로 지정하면 나온다.\n\n/healthcare/meta/tiers 참조.",
+            "schema": {
+              "example": "TIER1",
+              "type": "string"
+            }
+          },
+          {
+            "name": "subject",
+            "required": false,
+            "in": "query",
+            "description": "진료과목 코드. 쉼표로 여러 개(OR). /healthcare/meta/subjects 참조.\n\n진료 분야 그룹(치과·한방 등)은 /healthcare/meta/subject-groups 에서 받아 **코드로 펼쳐서** 넘긴다. 이 API 는 그룹을 모른다.",
+            "schema": {
+              "example": "DENT,ORTHO,PERIO",
+              "type": "string"
+            }
+          },
+          {
+            "name": "specialist",
+            "required": false,
+            "in": "query",
+            "description": "전문의 있는 과목 코드. 쉼표로 여러 개(OR). subject 와 같은 진료과목 코드지만 **그 과목 전문의를 실제로 보유한** 병원만 건다(subject 는 신고만 하면 걸림). 옵션 목록은 /healthcare/meta/subjects 의 specialist=true 인 과목.",
+            "schema": {
+              "example": "IM,ORTHO",
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "description": "병원명 (부분 일치)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "emergency",
+            "required": false,
+            "in": "query",
+            "description": "응급실 운영 병원만",
+            "schema": {
+              "example": "true",
+              "type": "string"
+            }
+          },
+          {
+            "name": "baby",
+            "required": false,
+            "in": "query",
+            "description": "달빛어린이병원만 (야간·휴일 소아진료)",
+            "schema": {
+              "example": "true",
+              "type": "string"
+            }
+          },
+          {
+            "name": "assessment",
+            "required": false,
+            "in": "query",
+            "description": "건강보험심사평가원 적정성평가 **항목 코드**(원본 asmGrd 번호). 그 항목에서 1등급(우수)인 병원. 쉼표로 여러 개(OR). 코드·분야 목록은 /healthcare/meta/assessments 참조 (예: 12=대장암, 01=급성기뇌졸중, 20=신생아중환자실).\n\n**병원급 이상만 의미가 있다** — 의원은 이 항목을 평가받지 않는다.",
+            "schema": {
+              "example": "12,13,14,15",
+              "type": "string"
+            }
+          },
+          {
+            "name": "specialty",
+            "required": false,
+            "in": "query",
+            "description": "전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조.",
+            "schema": {
+              "example": "SPINE,JOINT",
+              "type": "string"
+            }
+          },
+          {
+            "name": "special",
+            "required": false,
+            "in": "query",
+            "description": "특수진료 코드. 쉼표로 여러 개(OR). /healthcare/meta/specials 참조.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "equipment",
+            "required": false,
+            "in": "query",
+            "description": "보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조.",
+            "schema": {
+              "example": "CT,MRI",
+              "type": "string"
+            }
+          },
+          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -724,7 +842,50 @@
               "default": 20,
               "type": "number"
             }
-          },
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PageResponseDto"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/HospitalSummaryDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "병원 검색",
+        "tags": [
+          "healthcare"
+        ]
+      }
+    },
+    "/healthcare/hospitals/scroll": {
+      "get": {
+        "description": "검색(GET /healthcare/hospitals)과 **필터는 같고 페이징 방식만 다르다.** 페이지 번호 대신 nextToken 으로 이어 받는다 — 무한 스크롤 화면용이다.\n\n**첫 호출은 nextToken 없이** 필터만 보낸다. 응답의 nextToken 을 다음 호출에 그대로 실어 보내면 이어진다. **nextToken 이 없으면 마지막 페이지다** — 그만 부른다.",
+        "operationId": "HealthcareHospitalController_scroll",
+        "parameters": [
           {
             "name": "region",
             "required": false,
@@ -842,6 +1003,37 @@
               "example": "CT,MRI",
               "type": "string"
             }
+          },
+          {
+            "name": "nextToken",
+            "required": false,
+            "in": "query",
+            "description": "이어받기 커서. **직전 응답의 nextToken 을 그대로** 실어 보낸다. 비우면 처음부터다. 값은 불투명 문자열이니 클라이언트가 해석하지 마라.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "size",
+            "required": false,
+            "in": "query",
+            "description": "한 번에 가져올 개수",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "db",
+            "required": false,
+            "in": "query",
+            "description": "**원천 선택(테스트용).** 기본은 Elasticsearch 검색이고, `true` 면 DB 로 조회한다. ES 장애 환경에서 DB 로 우회하려고 둔 스위치다 — 평상시엔 지정하지 마라.\n\n**nextToken 은 원천마다 형식이 다르다**(DB↔ES 호환 안 됨). 스크롤 도중 db 값을 바꾸면 커서가 맞지 않으니, 한 스크롤 세션 안에서는 db 를 고정해라.",
+            "schema": {
+              "example": "false",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -852,7 +1044,7 @@
                 "schema": {
                   "allOf": [
                     {
-                      "$ref": "#/components/schemas/PageResponseDto"
+                      "$ref": "#/components/schemas/ScrollResponseDto"
                     },
                     {
                       "properties": {
@@ -875,7 +1067,7 @@
             "bearer": []
           }
         ],
-        "summary": "병원 검색",
+        "summary": "병원 무한 스크롤",
         "tags": [
           "healthcare"
         ]
@@ -2175,6 +2367,25 @@
           "location",
           "emergency",
           "baby"
+        ]
+      },
+      "ScrollResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "목록 항목",
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "nextToken": {
+            "type": "string",
+            "description": "다음 스크롤 커서. 다음 호출에 그대로 실어 보내면 이 지점 다음부터 이어 준다. **없으면 다음 페이지가 없다는 뜻이다** — 스크롤을 멈춘다. 불투명 문자열이니 해석하지 마라."
+          }
+        },
+        "required": [
+          "items"
         ]
       },
       "SourcesDto": {

@@ -5,7 +5,11 @@ export type { SearchConfig } from './search.config';
 
 export { ElasticsearchService } from './elasticsearch.service';
 
-export { INDEX_DEFINITIONS, DEFAULT_SCHEMA_DIR } from './schema/index';
+export {
+  INDEX_DEFINITIONS,
+  DEFAULT_SCHEMA_DIR,
+  HEALTHCARE_HOSPITAL_ALIAS,
+} from './schema/index';
 export type { IndexDefinition } from './schema/index';
 export { SearchSchemaService } from './schema/search-schema.service';
 export type {

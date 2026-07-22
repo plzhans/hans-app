@@ -5,7 +5,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { estypes } from '@elastic/elasticsearch';
 
 import { ElasticsearchService } from '../elasticsearch.service';
-import { SEARCH_CONFIG, SearchConfig } from '../search.config';
+import { SEARCH_CONFIG, type SearchConfig } from '../search.config';
 import {
   COMPONENT_TEMPLATE_FILENAME,
   COMPONENT_TEMPLATE_NAME,

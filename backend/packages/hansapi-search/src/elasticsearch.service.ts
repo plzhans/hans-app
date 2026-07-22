@@ -1,7 +1,7 @@
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
 
-import { SEARCH_CONFIG, SearchConfig } from './search.config';
+import { SEARCH_CONFIG, type SearchConfig } from './search.config';
 
 /**
  * Elasticsearch 클라이언트 서비스.

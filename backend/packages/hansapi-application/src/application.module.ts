@@ -3,6 +3,11 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
 import { EnvSource, optionalString } from '@hansapi/common';
 import { DataModule } from '@hansapi/data';
+import {
+  buildSearchConfig,
+  ElasticsearchService,
+  SEARCH_CONFIG,
+} from '@hansapi/search';
 
 import { HiraCodeService } from './hira/hira-code.service';
 import { HiraCodeRepository } from './hira/hira-code.repository';
@@ -24,6 +29,7 @@ import { NmcHospitalService } from './nmc/nmc-hospital.service';
 import { NmcHospitalRepository } from './nmc/nmc-hospital.repository';
 import { HealthcareHospitalService } from './healthcare/healthcare-hospital.service';
 import { HealthcareHospitalRepository } from './healthcare/healthcare-hospital.repository';
+import { HealthcareHospitalSearchRepository } from './healthcare/healthcare-hospital-search.repository';
 import { HealthcareNonPaymentService } from './healthcare/healthcare-npay.service';
 import { HealthcareNonPaymentRepository } from './healthcare/healthcare-npay.repository';
 import { JobQueueService } from './common/job-queue.service';
@@ -68,6 +74,12 @@ export class ApplicationModule {
       module: ApplicationModule,
       imports: [DataModule.forRoot(source), cacheModule],
       providers: [
+        // ES 검색(무한 스크롤의 기본 원천). SearchModule 전체가 아니라 조회에 필요한 것만 단다
+        // — 색인 서비스·두 번째 Prisma 풀을 서버에 끌어오지 않으려는 것이다. ElasticsearchService 는
+        // 지연 연결이라 ELASTICSEARCH_URL 만 있으면 부팅하고, ES 가 죽어 있어도 뜬다(db=true 로 우회).
+        { provide: SEARCH_CONFIG, useValue: buildSearchConfig(source) },
+        ElasticsearchService,
+        HealthcareHospitalSearchRepository,
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         HiraCodeRepository,
         HiraRegionRepository,

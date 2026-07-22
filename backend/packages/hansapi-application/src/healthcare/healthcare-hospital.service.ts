@@ -15,10 +15,12 @@ import {
 
 import {
   HealthcareHospitalRepository,
+  type HospitalScrollSource,
   type HospitalSearchFilter,
   type HospitalListRow,
   type HospitalDetailModel,
 } from './healthcare-hospital.repository';
+import { HealthcareHospitalSearchRepository } from './healthcare-hospital-search.repository';
 import { HealthcareCodeCache, codeName } from './healthcare-code.cache';
 import {
   HiraAsmCodeCache,
@@ -118,6 +120,8 @@ interface HospitalI18nCache {
 export class HealthcareHospitalService {
   constructor(
     private readonly repo: HealthcareHospitalRepository,
+    // 무한 스크롤의 ES 원천. repo 와 같은 계약(HospitalScrollSource)이라 scroll 이 골라 쓴다.
+    private readonly searchRepo: HealthcareHospitalSearchRepository,
     // 코드 이름은 조인하지 않고 부팅 때 올려둔 캐시에서 붙인다.
     private readonly codes: HealthcareCodeCache,
     // 병원평가 항목 이름·그룹. healthcare_code 가 아니라 hira_code 라 캐시가 따로다.
@@ -147,38 +151,32 @@ export class HealthcareHospitalService {
   }
 
   /**
-   * 무한 스크롤. 검색과 필터는 같고 **커서만 다르다** — page/size(offset) 대신
-   * afterId(마지막으로 본 병원 id) 이후를 이어 낸다.
+   * 무한 스크롤. 검색과 필터는 같고 **커서만 다르다** — page/size(offset) 대신 nextToken 으로 잇는다.
    *
-   * 총건수(COUNT)를 세지 않는다 — 스크롤엔 총페이지가 없고, 매 호출 COUNT 는 비싸다.
-   * 저장소가 size+1 개를 주므로, size 를 넘겨 받으면 "뒤가 더 있다" 는 뜻이다. 그럴 때만
-   * nextToken(= 잘라낸 마지막 항목의 id)을 실어 준다. size 이하면 nextToken 이 없다 = 끝.
+   * **원천을 db 플래그로 고른다.** 기본은 ES(searchRepo), `db=true` 면 DB(repo) — ES 장애 때
+   * 우회하려고 심은 테스트 스위치다. 둘 다 같은 계약(HospitalScrollSource)이라 이 아래는 동일하다:
+   * 저장소가 size+1 로 다음 페이지 유무를 판정해 size 개 행 + 다음 nextToken 을 주고, 서비스는 요약으로
+   * 매핑만 한다. nextToken 이 없으면 다음 페이지가 없다는 뜻이다(총건수는 세지 않는다 — 스크롤엔 불필요).
    */
   async scroll(
     command: HospitalScrollCommand,
     lang: SupportedLang = FALLBACK_LANG,
   ): Promise<HospitalScrollResult> {
     const filter = this.buildFilter(command);
+    const source: HospitalScrollSource = command.db
+      ? this.repo
+      : this.searchRepo;
 
-    const rows = await this.repo.searchScroll(
+    const { rows, nextToken } = await source.searchScroll(
       filter,
       lang,
-      command.afterId,
+      command.nextToken,
       command.size,
     );
 
-    // size+1 째가 있으면 뒤가 더 있다. 그 여분은 버리고 size 개만 응답한다.
-    const hasMore = rows.length > command.size;
-    const page = hasMore ? rows.slice(0, command.size) : rows;
-
-    const items = page.map((row) =>
-      this.toSummary(this.listRowToSource(row), lang),
-    );
-
     return {
-      items,
-      // 커서는 응답에 실제로 담은 마지막 병원 id. 다음 호출이 이 id 초과부터 이어 받는다.
-      nextToken: hasMore ? String(items[items.length - 1].id) : undefined,
+      items: rows.map((row) => this.toSummary(this.listRowToSource(row), lang)),
+      nextToken,
     };
   }
 
@@ -199,14 +197,11 @@ export class HealthcareHospitalService {
       name: command.name,
       emergency: command.emergency,
       baby: command.baby,
-      // 아는 코드만 통과시켜 컬럼명을 만든다 — 인젝션을 막는다. 1등급 값은 '1' 이지만
-      // 천식(16)만 '양호' 다(원본 인코딩이 그 항목만 다르다).
-      asmExcellent: command.asmItemCds
-        ?.filter((code) => this.asmCodes.get(code))
-        .map((code) => ({
-          column: `asm_${code}`,
-          value: code === ASTHMA_CODE ? '양호' : '1',
-        })),
+      // 아는 코드만 통과시킨다 — 저장소가 이 코드로 컬럼명(DB)이나 텀(ES)을 만들므로
+      // 검증이 인젝션을 막는다. 1등급 값·컬럼 조립은 저장소가 자기 방식으로 한다.
+      asmExcellentCds: command.asmItemCds?.filter((code) =>
+        this.asmCodes.get(code),
+      ),
       specialtyCds: command.specialtyCds,
       specialCds: command.specialCds,
       equipmentCds: command.equipmentCds,

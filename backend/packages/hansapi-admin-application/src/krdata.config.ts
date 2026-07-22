@@ -1,9 +1,4 @@
-import {
-  EnvSource,
-  optionalNumber,
-  optionalString,
-  requireString,
-} from '@hansapi/common';
+import { EnvSource, optionalNumber, optionalString } from '@hansapi/common';
 
 /** 공공데이터포털 설정 주입 토큰 */
 export const KRDATA_CONFIG = Symbol('KRDATA_CONFIG');
@@ -38,12 +33,16 @@ export interface KrDataAppConfig {
 }
 
 /**
- * EnvSource 에서 공공데이터 설정을 뽑아 검증한다.
- * 서비스키가 없으면 부팅 시점에 즉시 실패한다. sync 를 실행하는 순간이 아니라.
+ * EnvSource 에서 공공데이터 설정을 뽑는다.
+ *
+ * **서비스키는 선택이다(없으면 빈 문자열).** admin 계층에도 외부 API 를 안 때리는 커맨드가 있어서다
+ * — 예컨대 ES 색인은 우리 DB 를 읽어 ES 에 밀 뿐 data.go.kr 을 호출하지 않는다. 그런 커맨드까지
+ * 키를 요구하면 못 돌린다. 그래서 서버(app.module)와 같은 방침을 쓴다 — 키 없이 떠도 되고, 키가
+ * **정말 필요한 sync 는 호출 시점에** 401/403 으로 드러난다(부팅 때가 아니라).
  */
 export function buildKrDataConfig(source: EnvSource): KrDataAppConfig {
   return Object.freeze({
-    serviceKey: requireString(source, 'KRDATA_SERVICE_KEY'),
+    serviceKey: optionalString(source, 'KRDATA_SERVICE_KEY') ?? '',
     maxRetry: optionalNumber(source, 'KRDATA_MAX_RETRY', 3),
     readTimeoutMs: optionalNumber(source, 'KRDATA_READ_TIMEOUT_MS', 60_000),
     hiraDetailVersion:

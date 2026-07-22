@@ -12,8 +12,10 @@
     }
   },
   "dependencies": {
+    "@elastic/elasticsearch": "^9.0.0",
     "@hansapi/common": "workspace:*",
     "@hansapi/data": "workspace:*",
+    "@hansapi/search": "workspace:*",
     "@keyv/redis": "^5.1.6",
     "@krdata/hira": "workspace:*",
     "@krdata/nmc": "workspace:*",

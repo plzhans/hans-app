@@ -321,12 +321,18 @@ importers:
 
   packages/hansapi-application:
     dependencies:
+      '@elastic/elasticsearch':
+        specifier: ^9.0.0
+        version: 9.4.2
       '@hansapi/common':
         specifier: workspace:*
         version: link:../hansapi-common
       '@hansapi/data':
         specifier: workspace:*
         version: link:../hansapi-data
+      '@hansapi/search':
+        specifier: workspace:*
+        version: link:../hansapi-search
       '@keyv/redis':
         specifier: ^5.1.6
         version: 5.1.6(@opentelemetry/api@1.4.1)(keyv@5.6.0)

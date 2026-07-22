@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { ElasticsearchService } from '../elasticsearch.service';
-import { SEARCH_CONFIG, SearchConfig } from '../search.config';
+import { SEARCH_CONFIG, type SearchConfig } from '../search.config';
 import { HEALTHCARE_HOSPITAL_ALIAS } from '../schema/index';
 import { HealthcareHospitalIndexRepository } from './healthcare-hospital-index.repository';
 import {

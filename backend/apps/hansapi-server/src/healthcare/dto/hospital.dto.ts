@@ -187,6 +187,18 @@ export class HospitalScrollRequestDto extends HospitalFilterRequestDto {
   @Min(MIN_PAGE_SIZE)
   @Max(MAX_PAGE_SIZE)
   readonly size: number = DEFAULT_PAGE_SIZE;
+
+  @ApiPropertyOptional({
+    description:
+      '**원천 선택(테스트용).** 기본은 Elasticsearch 검색이고, `true` 면 DB 로 조회한다. ' +
+      'ES 장애 환경에서 DB 로 우회하려고 둔 스위치다 — 평상시엔 지정하지 마라.\n\n' +
+      '**nextToken 은 원천마다 형식이 다르다**(DB↔ES 호환 안 됨). 스크롤 도중 db 값을 바꾸면 ' +
+      '커서가 맞지 않으니, 한 스크롤 세션 안에서는 db 를 고정해라.',
+    example: 'false',
+  })
+  @IsOptional()
+  @IsBooleanString()
+  readonly db?: string;
 }
 
 // ── 응답 ───────────────────────────────────────────────────

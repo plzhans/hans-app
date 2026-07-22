@@ -411,17 +411,26 @@ export interface HospitalSearchCommand extends HospitalFilterCommand {
 }
 
 /**
- * 무한 스크롤 명령. 필터는 공통, 커서는 afterId(마지막으로 본 병원 id) 다.
+ * 무한 스크롤 명령. 필터는 공통, 커서는 nextToken(불투명 문자열) 이다.
  *
- * page/size(offset) 대신 id 커서를 쓰는 이유: offset 은 뒤로 갈수록 앞 행을 세느라 느려지고,
- * 사이에 병원이 추가/삭제되면 페이지가 밀려 항목이 중복·누락된다. id 커서는 "이 id 다음부터" 라
- * 그런 흔들림이 없다. afterId 가 없으면 첫 페이지다.
+ * page/size(offset) 대신 커서를 쓰는 이유: offset 은 뒤로 갈수록 앞 행을 세느라 느려지고,
+ * 사이에 병원이 추가/삭제되면 페이지가 밀려 항목이 중복·누락된다. 커서는 "이 지점 다음부터" 라
+ * 그런 흔들림이 없다. nextToken 이 없으면 첫 페이지다.
  */
 export interface HospitalScrollCommand extends HospitalFilterCommand {
   size: number;
 
-  /** 직전 응답 nextToken 으로 받은 마지막 병원 id. 이 id **초과**부터 검색한다. 없으면 처음부터. */
-  afterId?: number;
+  /**
+   * 이어받기 커서(직전 응답의 nextToken). **불투명 문자열이다** — 원천이 해석한다
+   * (DB: 마지막 병원 id, ES: base64(search_after)). 없으면 처음부터.
+   */
+  nextToken?: string;
+
+  /**
+   * **원천 선택 스위치.** true 면 DB 조회, 없거나 false 면 ES 조회(기본). ES 장애 환경에서
+   * DB 로 우회하려고 심은 테스트 인자다 — 평상시엔 ES 로 동작한다.
+   */
+  db?: boolean;
 }
 
 /**

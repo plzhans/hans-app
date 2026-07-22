@@ -30,13 +30,43 @@ export interface HospitalSearchFilter {
   name?: string;
   emergency?: boolean;
   baby?: boolean;
-  /** 적정성평가 우수(1등급) 필터. column 은 검증된 코드로 만든 컬럼명이라 raw 로 끼워도 안전하다. */
-  asmExcellent?: { column: string; value: string }[];
+  /**
+   * 적정성평가 우수(1등급) 항목 코드('01','12','16' …). **서비스가 asm 코드표로 검증한 값만** 온다.
+   * 저장소별로 거는 방식이 달라(DB 는 asm_XX 컬럼, ES 는 asm_excellent_cds 텀) 원시 코드로 넘기고
+   * 각 저장소가 자기 형태로 푼다. 코드는 검증됐으므로 컬럼명으로 조립해도 인젝션이 안 된다.
+   */
+  asmExcellentCds?: string[];
   specialtyCds?: string[];
   specialCds?: string[];
   equipmentCds?: string[];
   subjectCds?: string[];
   specialistCds?: string[];
+}
+
+/**
+ * 무한 스크롤 한 묶음. **커서 방식(offset/id/search_after)에 무관한 공통 반환**이다.
+ * 저장소가 size+1 로 다음 페이지 유무를 판정해 딱 size 개만 담고, 다음 커서(nextToken)를 만든다.
+ * nextToken 이 없으면 다음 페이지가 없다는 뜻이다.
+ */
+export interface HospitalScrollRows {
+  rows: HospitalListRow[];
+  nextToken?: string;
+}
+
+/**
+ * 무한 스크롤 원천. DB(HealthcareHospitalRepository)와 ES(HealthcareHospitalSearchRepository)가
+ * **같은 계약으로** 구현한다 — 서비스는 db 플래그로 둘 중 하나를 골라 대행시킬 뿐, 결과 모양은 같다.
+ *
+ * nextToken 은 **불투명 커서**다. DB 는 마지막 병원 id, ES 는 base64(search_after) 를 담지만
+ * 서비스·클라이언트는 내용을 해석하지 않는다 — 다음 호출에 그대로 되돌려주면 이어진다.
+ */
+export interface HospitalScrollSource {
+  searchScroll(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+    nextToken: string | undefined,
+    size: number,
+  ): Promise<HospitalScrollRows>;
 }
 
 /**
@@ -81,7 +111,7 @@ export type HospitalDetailModel = Prisma.HealthcareHospitalGetPayload<{
 }>;
 
 @Injectable()
-export class HealthcareHospitalRepository {
+export class HealthcareHospitalRepository implements HospitalScrollSource {
   constructor(private readonly prisma: PrismaService) {}
 
   /** 검색 한 페이지. 종별·전문병원분야·지역 이름은 조인하지 않는다 — 코드만 뽑고 이름은 서비스가 캐시에서 붙인다. */
@@ -101,27 +131,35 @@ export class HealthcareHospitalRepository {
   }
 
   /**
-   * 무한 스크롤 한 묶음. **offset 이 아니라 id 커서(afterId)로** 다음 구간을 집는다.
+   * 무한 스크롤 한 묶음(DB). **offset 이 아니라 id 커서로** 다음 구간을 집는다.
    *
-   * `h.id > afterId` 로 직전 마지막 이후만 읽으므로 정렬(ORDER BY h.id)이 커서와 일치한다.
-   * 서비스가 "다음이 더 있나" 를 알 수 있도록 **size+1 개를 뽑아** 넘긴다 — 서비스가 size 로 자르고
-   * 남는 1개의 존재로 nextToken 을 만들지 정한다. afterId 가 없으면 처음부터다.
+   * nextToken 은 직전 응답의 마지막 병원 id 다(불투명하지만 여기선 곧 id). 디코딩해 `h.id > afterId`
+   * 로 그 이후만 읽으므로 정렬(ORDER BY h.id)이 커서와 일치한다. **size+1 개를 뽑아** 다음 페이지
+   * 유무를 판정하고, 남으면 size 로 자른 뒤 마지막 id 를 다음 nextToken 으로 준다(없으면 끝).
    */
-  searchScroll(
+  async searchScroll(
     filter: HospitalSearchFilter,
     lang: SupportedLang,
-    afterId: number | undefined,
+    nextToken: string | undefined,
     size: number,
-  ): Promise<HospitalListRow[]> {
+  ): Promise<HospitalScrollRows> {
+    const afterId = decodeIdToken(nextToken);
     const where = this.buildWhere(filter);
     const cursor =
       afterId !== undefined ? Prisma.sql`AND h.id > ${afterId}` : Prisma.empty;
-    return this.prisma.$queryRaw<HospitalListRow[]>(Prisma.sql`
+    const rows = await this.prisma.$queryRaw<HospitalListRow[]>(Prisma.sql`
       ${this.selectFrom(lang)}
        WHERE ${where} ${cursor}
        ORDER BY h.id
        LIMIT ${size + 1}
     `);
+
+    const hasMore = rows.length > size;
+    const page = hasMore ? rows.slice(0, size) : rows;
+    return {
+      rows: page,
+      nextToken: hasMore ? String(page[page.length - 1].id) : undefined,
+    };
   }
 
   /**
@@ -251,7 +289,7 @@ export class HealthcareHospitalRepository {
     if (filter.baby) {
       conditions.push(Prisma.sql`h.baby_yn = 1`);
     }
-    if (filter.asmExcellent?.length) {
+    if (filter.asmExcellentCds?.length) {
       /**
        * 적정성평가 우수(1등급) 항목 필터. **검색이 원본 미러를 읽는 유일한 예외다.**
        *
@@ -259,10 +297,14 @@ export class HealthcareHospitalRepository {
        * healthcare_* 로 복제하지 않고 상세 페이지처럼 미러(hira_hospital_asm)를 직접 조인한다.
        * 미러를 지우면 이 필터만 결과가 빈다(검색 자체는 동작). ykiho 없는 병원은 EXISTS 로 자연히 빠진다.
        *
-       * **컬럼명은 서비스가 아는 코드만으로 만들어 넘겼다 — 그래서 raw 로 끼워도 인젝션이 안 된다.**
+       * 코드는 **서비스가 asm 코드표로 검증한 값**만 오므로 `asm_${코드}` 컬럼으로 조립해도
+       * 인젝션이 안 된다. 1등급 값은 '1' 이지만 천식(16)만 '양호' 다(원본 인코딩이 그 항목만 다르다).
        */
-      const conds = filter.asmExcellent.map(
-        ({ column, value }) => Prisma.sql`ha.${Prisma.raw(column)} = ${value}`,
+      const conds = filter.asmExcellentCds.map(
+        (code) =>
+          Prisma.sql`ha.${Prisma.raw(`asm_${code}`)} = ${
+            code === ASTHMA_ASM_CODE ? '양호' : '1'
+          }`,
       );
       conditions.push(Prisma.sql`EXISTS (
         SELECT 1 FROM hira_hospital_asm ha
@@ -317,4 +359,19 @@ export class HealthcareHospitalRepository {
 
     return Prisma.join(conditions, ' AND ');
   }
+}
+
+/** 천식. 이 항목만 1등급을 '양호' 로 표기한다(원본 인코딩). 나머지는 '1'. */
+const ASTHMA_ASM_CODE = '16';
+
+/**
+ * DB 스크롤 nextToken → afterId(병원 id). 지금은 토큰이 곧 마지막 병원 id 라 그대로 파싱한다.
+ * 비었거나 양의 정수가 아니면 undefined(처음부터) — 조작된 토큰에 500 을 내지 않고 첫 페이지로 흘린다.
+ */
+function decodeIdToken(token: string | undefined): number | undefined {
+  if (!token) {
+    return undefined;
+  }
+  const id = Number(token);
+  return Number.isInteger(id) && id > 0 ? id : undefined;
 }

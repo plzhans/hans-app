@@ -109,7 +109,9 @@ export class HealthcareHospitalController {
     const result = await this.service.scroll(
       {
         size: request.size,
-        afterId: parseToken(request.nextToken),
+        nextToken: request.nextToken,
+        // 기본 ES. db=true 일 때만 DB 로 우회한다(테스트 스위치).
+        db: request.db === 'true',
         regionCd: request.region,
         classCds: csv(request.category),
         tiers: csv(request.tier),
@@ -201,18 +203,6 @@ export class HealthcareHospitalController {
     }
     return { result };
   }
-}
-
-/**
- * nextToken → afterId(병원 id). 지금은 토큰이 곧 마지막 병원 id 라 그대로 파싱한다.
- * 비었거나 숫자가 아니면 undefined(처음부터) — 조작된 토큰에 500 을 내지 않고 첫 페이지로 흘린다.
- */
-function parseToken(token?: string): number | undefined {
-  if (!token) {
-    return undefined;
-  }
-  const id = Number(token);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
 }
 
 /** 'A,B,C' → ['A','B','C']. 빈 값은 버린다 — 빈 문자열이 코드로 들어가면 아무것도 안 걸린다. */

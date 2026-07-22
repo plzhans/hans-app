@@ -44,7 +44,9 @@ async function withContext<T>(
 
 /**
  * 공공데이터 API 를 쓰는 커맨드용. 조회·sync 가 여기에 해당한다.
- * 서비스키가 없으면 컨텍스트 생성 시점에 실패한다.
+ *
+ * 서비스키는 **선택이다** — admin 계층에 외부 API 를 안 쓰는 커맨드(ES 색인 등)도 있어 키 없이도
+ * 뜬다(서버와 같은 방침). 키가 정말 필요한 sync 는 호출 시점에 401/403·E0001 로 드러난다.
  */
 export async function withAdminContext<T>(
   source: EnvSource,
