@@ -1,9 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { SupportedLang } from '@hansapi/common';
 import { INPATIENT_TIERS } from '@hansapi/data/seed';
 import {
   ElasticsearchService,
   HEALTHCARE_HOSPITAL_ALIAS,
+  SEARCH_CONFIG,
+  aliasOf,
+  type SearchConfig,
   type HealthcareHospitalDoc,
 } from '@hansapi/search';
 import type {
@@ -32,7 +35,15 @@ import type {
  */
 @Injectable()
 export class HealthcareHospitalSearchRepository implements HospitalScrollSource {
-  constructor(private readonly es: ElasticsearchService) {}
+  /** env 접두사가 붙은 물리 alias(develop-healthcare_hospital). 검색은 이 이름으로만 조회한다. */
+  private readonly alias: string;
+
+  constructor(
+    private readonly es: ElasticsearchService,
+    @Inject(SEARCH_CONFIG) config: SearchConfig,
+  ) {
+    this.alias = aliasOf(HEALTHCARE_HOSPITAL_ALIAS, config.env);
+  }
 
   async searchScroll(
     filter: HospitalSearchFilter,
@@ -43,11 +54,13 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
     const searchAfter = decodeSearchAfter(nextToken);
 
     const res = await this.es.client.search<Partial<HealthcareHospitalDoc>>({
-      index: HEALTHCARE_HOSPITAL_ALIAS,
+      index: this.alias,
       // size+1 로 다음 페이지 유무를 판정한다(DB 경로와 같은 규칙).
       size: size + 1,
-      // id 는 유일하므로 이 하나로 전순서가 잡힌다 — search_after 커서가 안정적이다.
-      sort: [{ id: 'asc' }],
+      // **관련도(_score) 우선, id 로 tie-break.** id 가 유일키라 [_score,id] 가 전순서를 보장해
+      // search_after 커서가 안정적이다(단일 샤드라 _score 도 결정적). 키워드가 없으면 모든 문서
+      // _score 가 같아 자연히 id 순이 된다 — 기존 동작과 동일하다.
+      sort: [{ _score: { order: 'desc' } }, { id: 'asc' }],
       search_after: searchAfter,
       track_total_hits: false,
       // 요약에 필요한 필드만 가져온다(상세는 별도 API). 본문 payload 를 줄인다.
@@ -63,7 +76,17 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
         'subway',
         'location',
       ],
-      query: { bool: { filter: this.buildFilter(filter, lang) } },
+      query: {
+        bool: {
+          // 코드 필터는 점수 무관(filter 컨텍스트, 캐시된다).
+          filter: this.buildFilter(filter),
+          // **키워드는 must(점수 컨텍스트)에 둔다** — 그래야 관련도 정렬이 산다.
+          // 키워드가 없으면 must 를 빼서 순수 필터 질의로 둔다(전건 _score 균일 → id 순).
+          ...(filter.name
+            ? { must: this.keywordQuery(filter.name, lang) }
+            : {}),
+        },
+      },
     });
 
     const hits = res.hits.hits;
@@ -79,14 +102,53 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
   }
 
   /**
-   * HospitalSearchFilter → ES bool filter 절. **DB buildWhere 와 의미를 맞춘다.**
-   * scoring 이 필요없는 조건은 전부 filter 컨텍스트에 둔다(정렬은 id 라 점수 무관).
+   * 키워드(병원명·지하철역·지명) 질의. **filter 가 아니라 must 로 들어가 관련도(_score)를 만든다.**
+   *
+   * 색인 시 copy_to 로 모아둔 search.name / search.place 를 언어별로 친다. **이름을 지명보다
+   * 위로** 올리려 name 에 부스트(^3)를 준다("혜화역 정형외과" 에서 이름이 딱 맞는 병원이 상단).
+   * best_fields — 이름이든 지명이든 가장 잘 맞는 필드의 점수를 취한다.
    */
-  private buildFilter(
-    filter: HospitalSearchFilter,
+  private keywordQuery(
+    keyword: string,
     lang: SupportedLang,
-  ): QueryDslQueryContainer[] {
+  ): QueryDslQueryContainer {
+    // 입력이 **전부 한글 자음(초성)**이면 초성 검색이다 — 색인해둔 name_chosung 에 prefix 로 건다
+    // ("ㅅㅇㅂㅇ" → "서울병원"). 공백은 무시한다(name_chosung 은 공백 없이 색인됨).
+    const chosung = keyword.replace(/\s+/g, '');
+    if (chosung.length > 0 && /^[ㄱ-ㅎ]+$/.test(chosung)) {
+      return { prefix: { name_chosung: chosung } };
+    }
+    // 일반 키워드: 이름(^3 부스트)·지명을 관련도로 친다.
+    return {
+      multi_match: {
+        query: keyword,
+        fields: [`search.name.${lang}^3`, `search.place.${lang}`],
+        type: 'best_fields',
+      },
+    };
+  }
+
+  /**
+   * HospitalSearchFilter → ES bool filter 절(코드 조건). **DB buildWhere 와 의미를 맞춘다.**
+   * 점수가 필요없는 조건만 여기 둔다(filter 컨텍스트, 캐시). 키워드는 keywordQuery 로 must 에 간다.
+   */
+  private buildFilter(filter: HospitalSearchFilter): QueryDslQueryContainer[] {
     const must: QueryDslQueryContainer[] = [{ term: { status: 'active' } }];
+
+    // id 단건 조회(id:/hira:/nmc:). **다른 조건은 무시**하고 그 id 로만 건다(요양·정신 기본 제외 등에
+    // 걸려 단건이 안 나오는 걸 막는다). id 는 long, ykiho/hpid 는 keyword 라 term 이 정확 매칭한다.
+    if (filter.id !== undefined || filter.hira || filter.nmc) {
+      if (filter.id !== undefined) {
+        must.push({ term: { id: filter.id } });
+      }
+      if (filter.hira) {
+        must.push({ term: { ykiho: filter.hira } });
+      }
+      if (filter.nmc) {
+        must.push({ term: { hpid: filter.nmc } });
+      }
+      return must;
+    }
 
     if (filter.regionCds?.length) {
       // 서비스가 시도→시군구로 이미 편 목록. 시도 코드 자신은 region_cd 와 안 맞지만 하위가 다 걸린다.
@@ -102,18 +164,6 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
       // (= DB 의 tier IS NULL 통과와 등가).
       must.push({
         bool: { must_not: [{ terms: { tier: [...INPATIENT_TIERS] } }] },
-      });
-    }
-    if (filter.name) {
-      // 병원명 또는 지하철역·지명. 색인 시 copy_to 로 모아둔 search.name / search.place 를 언어별로 친다.
-      must.push({
-        bool: {
-          should: [
-            { match: { [`search.name.${lang}`]: filter.name } },
-            { match: { [`search.place.${lang}`]: filter.name } },
-          ],
-          minimum_should_match: 1,
-        },
       });
     }
     if (filter.emergency) {

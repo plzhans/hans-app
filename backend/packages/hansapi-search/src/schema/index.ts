@@ -57,9 +57,26 @@ export const INDEX_DEFINITIONS: readonly IndexDefinition[] = [
 export const resolveSchemaDir = (override?: string): string =>
   override && override.length ? override : DEFAULT_SCHEMA_DIR;
 
-/** alias 이름(= 베이스 이름). 앱·색인은 이 이름으로만 접근한다. */
-export const aliasOf = (name: string): string => name;
+/**
+ * 환경 격리 접두사. 물리 인덱스 이름은 `<env>-<name>` 이다(develop-healthcare_hospital). 한 ES 클러스터를
+ * 여러 환경이 공유해도 안 겹친다 — 인덱스 이름이 유일한 격리 단위라 **여기 한 곳에서만** 접두사를 붙인다
+ * (Redis 의 키 namespace 와 동형). 논리 이름(INDEX_DEFINITIONS.name)은 접두사를 모른다. 새 인덱스가
+ * 늘어도 이 함수만 통과하면 자동으로 env 격리된다.
+ */
+const withEnv = (name: string, env: string): string => `${env}-${name}`;
+
+/** alias 이름(물리). 앱·색인은 이 이름으로만 접근한다. */
+export const aliasOf = (name: string, env: string): string =>
+  withEnv(name, env);
+/** 특정 버전 인덱스 이름(물리). */
+export const versionIndexOf = (
+  name: string,
+  env: string,
+  version: number,
+): string => `${withEnv(name, env)}-v${version}`;
 /** 최초 생성 버전 인덱스. */
-export const initialIndexOf = (name: string): string => `${name}-v1`;
-/** 버전 인덱스 판별 패턴(리셋·조회에서 name-v* 를 훑을 때). */
-export const indexPatternOf = (name: string): string => `${name}-v*`;
+export const initialIndexOf = (name: string, env: string): string =>
+  versionIndexOf(name, env, 1);
+/** 버전 인덱스 판별 패턴(리셋·조회에서 <env>-name-v* 를 훑을 때). */
+export const indexPatternOf = (name: string, env: string): string =>
+  `${withEnv(name, env)}-v*`;

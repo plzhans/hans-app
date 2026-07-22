@@ -21,6 +21,13 @@ export interface SearchConfig {
   /** ES 노드 URL. 자격증명은 URL 에 담는다: http://user:pass@127.0.0.1:9200 */
   readonly node: string;
 
+  /**
+   * 환경 이름(develop·production·local). **인덱스 이름 접두사**로 쓴다 — 한 ES 클러스터를 여러 환경이
+   * 공유해도 인덱스가 안 겹치게(예: develop-healthcare_hospital). Redis 가 env 를 키 namespace 로
+   * 거는 것과 같은 격리다. 접두사 적용은 이름 해석 헬퍼(schema/index.ts) 한 곳에서만 한다.
+   */
+  readonly env: string;
+
   /** 대량 색인 배치 크기(keyset 페이지·bulk 묶음). 인덱스와 무관한 전역 값이라 여기 둔다. */
   readonly batchSize: number;
 
@@ -41,6 +48,8 @@ export interface SearchConfig {
 export function buildSearchConfig(source: EnvSource): SearchConfig {
   return Object.freeze({
     node: requireString(source, 'ELASTICSEARCH_URL'),
+    // 인덱스 접두사로 쓸 환경 이름. Redis 키 namespace 와 같은 값(source.env)이라 격리가 한 스위치로 묶인다.
+    env: source.env,
     batchSize: optionalNumber(source, 'ELASTICSEARCH_BATCH_SIZE', 1000),
     schemaDir: optionalString(source, 'ELASTICSEARCH_SCHEMA_DIR'),
   });

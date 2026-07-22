@@ -187,6 +187,12 @@ export class HealthcareHospitalService {
    * 공통 필터 타입만 받는다.
    */
   private buildFilter(command: HospitalFilterCommand): HospitalSearchFilter {
+    // 키워드가 `id:{id}` / `hira:{ykiho}` / `nmc:{hpid}` 면 **id 단건 조회**다 — 다른 필터를
+    // 통째로 버리고 그 id 로만 건다. 저장소가 이 필드를 보고 조기 반환한다.
+    const idLookup = parseIdLookup(command.name);
+    if (idLookup) {
+      return idLookup;
+    }
     return {
       // 시도 코드가 오면 그 시도의 시군구 전체로 편다(시군구 코드면 자신뿐이라 등가).
       regionCds: command.regionCd
@@ -696,6 +702,34 @@ export class HealthcareHospitalService {
     const parsed = Number(value);
     return Number.isNaN(parsed) ? undefined : parsed;
   }
+}
+
+/**
+ * 검색 키워드의 **id 단건 조회 문법**을 뽑는다.
+ *   `id:{통합병원id}` → { id }   `hira:{ykiho}` → { hira }   `nmc:{hpid}` → { nmc }
+ *
+ * 접두사는 대소문자 무관, 값(id·요양기호·기관ID)은 원문 그대로 둔다(대소문자 유지). 그 외에는 null
+ * (일반 키워드 검색). `id:` 는 양의 정수만 인정한다 — 아니면 null 로 흘려 일반 검색이 되게 한다.
+ * 필터 필드명은 원본 이름(hira/nmc)으로 둔다 — 저장소가 컬럼(ykiho/hpid)으로 옮긴다.
+ */
+function parseIdLookup(raw?: string): HospitalSearchFilter | null {
+  const match = /^(id|hira|nmc):(.+)$/i.exec(raw?.trim() ?? '');
+  if (!match) {
+    return null;
+  }
+  const kind = match[1].toLowerCase();
+  const value = match[2].trim();
+  if (!value) {
+    return null;
+  }
+  if (kind === 'hira') {
+    return { hira: value };
+  }
+  if (kind === 'nmc') {
+    return { nmc: value };
+  }
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? { id } : null;
 }
 
 /**

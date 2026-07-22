@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { SortResults } from '@elastic/elasticsearch/lib/api/types';
 
 import { ElasticsearchService } from '../elasticsearch.service';
-import { HEALTHCARE_HOSPITAL_ALIAS } from '../schema/index';
+import { SEARCH_CONFIG, type SearchConfig } from '../search.config';
+import { HEALTHCARE_HOSPITAL_ALIAS, aliasOf } from '../schema/index';
 import { HealthcareHospitalDoc } from './healthcare-hospital-doc';
 
 /** bulk 색인 결과. 총건수는 데이터소스를 흘린 쪽(오케스트레이터)이 안다. */
@@ -24,10 +25,15 @@ export interface BulkIndexResult {
  */
 @Injectable()
 export class HealthcareHospitalIndexer {
-  /** 이 인덱서가 다루는 인덱스(=alias) 이름. 오케스트레이터가 ensure 대상으로 참조한다. */
-  readonly indexName = HEALTHCARE_HOSPITAL_ALIAS;
+  /** 이 인덱서가 다루는 인덱스(=alias) 이름. env 접두사가 붙은 물리 alias 다. */
+  readonly indexName: string;
 
-  constructor(private readonly es: ElasticsearchService) {}
+  constructor(
+    private readonly es: ElasticsearchService,
+    @Inject(SEARCH_CONFIG) config: SearchConfig,
+  ) {
+    this.indexName = aliasOf(HEALTHCARE_HOSPITAL_ALIAS, config.env);
+  }
 
   private get client() {
     return this.es.client;
@@ -42,21 +48,23 @@ export class HealthcareHospitalIndexer {
    */
   async bulkIndex(
     datasource: AsyncIterator<HealthcareHospitalDoc>,
-    target: string = HEALTHCARE_HOSPITAL_ALIAS,
+    target?: string,
   ): Promise<BulkIndexResult> {
-    // require_alias: alias 로 쓸 때만 켠다 — 오타·미존재로 'healthcare_hospital' 맨이름 인덱스가
-    // 자동 생성되는 사고를 막는다. 재색인은 실재하는 버전 인덱스를 지정하므로 이 가드가 필요 없다.
-    const requireAlias = target === HEALTHCARE_HOSPITAL_ALIAS;
+    // 기본은 alias(in-place sync). 재색인은 새 버전 인덱스를 명시적으로 넘긴다.
+    const idx = target ?? this.indexName;
+    // require_alias: alias 로 쓸 때만 켠다 — 오타·미존재로 맨이름 인덱스가 자동 생성되는 사고를
+    // 막는다. 재색인은 실재하는 버전 인덱스를 지정하므로 이 가드가 필요 없다.
+    const requireAlias = idx === this.indexName;
     const result = await this.client.helpers.bulk<HealthcareHospitalDoc>({
       datasource,
       onDocument: (doc) => ({
         index: {
-          _index: target,
+          _index: idx,
           _id: String(doc.id),
           require_alias: requireAlias,
         },
       }),
-      refreshOnCompletion: target,
+      refreshOnCompletion: idx,
     });
     return { indexed: result.successful, failed: result.failed };
   }
@@ -64,7 +72,7 @@ export class HealthcareHospitalIndexer {
   /** alias 인덱스의 문서를 전량 비운다(인덱스·매핑은 그대로). 삭제 건수 반환. */
   async clearData(): Promise<number> {
     const result = await this.client.deleteByQuery({
-      index: HEALTHCARE_HOSPITAL_ALIAS,
+      index: this.indexName,
       query: { match_all: {} },
       refresh: true,
     });
@@ -74,7 +82,7 @@ export class HealthcareHospitalIndexer {
   /** 조립된 문서 1건을 색인(upsert). 문서 조립은 오케스트레이터가 한다. */
   async indexOne(doc: HealthcareHospitalDoc): Promise<void> {
     await this.client.index({
-      index: HEALTHCARE_HOSPITAL_ALIAS,
+      index: this.indexName,
       id: String(doc.id),
       document: doc,
       refresh: true,
@@ -84,7 +92,7 @@ export class HealthcareHospitalIndexer {
   /** 병원 1건 삭제. 없어도 조용히 지나간다. */
   async deleteOne(id: number): Promise<{ deleted: boolean }> {
     const result = await this.client.delete(
-      { index: HEALTHCARE_HOSPITAL_ALIAS, id: String(id), refresh: true },
+      { index: this.indexName, id: String(id), refresh: true },
       { ignore: [404] },
     );
     return { deleted: result?.result === 'deleted' };
@@ -101,7 +109,7 @@ export class HealthcareHospitalIndexer {
    * 전량을 먼저 스캔해 지울 목록을 확정한 뒤 삭제하므로 스캔 중 인덱스를 건드리지 않는다.
    */
   async deleteAbsent(keepIds: Set<number>): Promise<number> {
-    const alias = HEALTHCARE_HOSPITAL_ALIAS;
+    const alias = this.indexName;
     const pageSize = 10000;
     let searchAfter: SortResults | undefined;
     const toDelete: string[] = [];

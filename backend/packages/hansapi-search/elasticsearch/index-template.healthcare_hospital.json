@@ -66,6 +66,8 @@
           }
         },
 
+        "name_chosung": { "type": "keyword", "ignore_above": 64 },
+
         "subway": {
           "properties": {
             "stations": {

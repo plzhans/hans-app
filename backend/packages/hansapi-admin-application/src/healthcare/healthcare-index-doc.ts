@@ -147,6 +147,8 @@ export function buildHealthcareHospitalDoc(
     hpid: h.hpid ?? undefined,
 
     name: langText({ ko: h.name }, row.i18n, 'name'),
+    // 초성 검색용. 한국어 원문 이름에서만 뽑는다(초성은 한글 개념).
+    name_chosung: toChosung(h.name) || undefined,
 
     subway: buildSubway(h.transport, row.i18n),
 
@@ -447,6 +449,46 @@ function numericGrade(code: string, value: string): number | undefined {
 }
 
 // ── 소도구 ────────────────────────────────────────────────────────────────
+
+/** 한글 초성 19자. 음절 인덱스 (code-0xAC00)/588 로 뽑는다(588 = 중성21 × 종성28). */
+const CHOSEONG = [
+  'ㄱ',
+  'ㄲ',
+  'ㄴ',
+  'ㄷ',
+  'ㄸ',
+  'ㄹ',
+  'ㅁ',
+  'ㅂ',
+  'ㅃ',
+  'ㅅ',
+  'ㅆ',
+  'ㅇ',
+  'ㅈ',
+  'ㅉ',
+  'ㅊ',
+  'ㅋ',
+  'ㅌ',
+  'ㅍ',
+  'ㅎ',
+];
+
+/**
+ * 한국어 이름 → 초성 문자열. "서울병원" → "ㅅㅇㅂㅇ".
+ *
+ * **한글 음절만** 초성으로 바꾸고 비한글(숫자·영문·기호·공백)은 **버린다** — 초성 검색은 한글 자음만
+ * 보므로 노이즈를 빼야 "ㅇㅇ" 으로 "365의원" 같은 이름도 걸린다. 한글이 없으면 빈 문자열.
+ */
+function toChosung(name: string): string {
+  let out = '';
+  for (const ch of name) {
+    const code = ch.charCodeAt(0);
+    if (code >= 0xac00 && code <= 0xd7a3) {
+      out += CHOSEONG[Math.floor((code - 0xac00) / 588)];
+    }
+  }
+  return out;
+}
 
 function isLang(value: string): value is Lang {
   return (SUPPORTED_LANGS as readonly string[]).includes(value);

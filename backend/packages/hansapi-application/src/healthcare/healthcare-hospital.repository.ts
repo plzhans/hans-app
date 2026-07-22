@@ -28,6 +28,15 @@ export interface HospitalSearchFilter {
   /** 비면 repo 가 입원계열(요양·정신) 제외 기본조건을 건다. */
   tiers?: string[];
   name?: string;
+  /**
+   * id 단건 조회. 키워드 `id:{통합병원id}`→id, `hira:{요양기호}`→hira, `nmc:{기관ID}`→nmc 로 온다.
+   * **하나라도 있으면 다른 필터는 무시하고 그 id 로만 건다**(단건 조회 의도) — 저장소가 조기 반환한다.
+   * 셋 다 유일키라 최대 1건이다. **필드명은 원본 이름(hira/nmc)** 이고, 저장소가 실제 컬럼
+   * (ykiho/hpid)으로 옮긴다 — 원본 컬럼명이 헷갈려서 도메인 이름으로 받는다.
+   */
+  id?: number;
+  hira?: string;
+  nmc?: string;
   emergency?: boolean;
   baby?: boolean;
   /**
@@ -244,6 +253,21 @@ export class HealthcareHospitalRepository implements HospitalScrollSource {
    */
   private buildWhere(filter: HospitalSearchFilter): Prisma.Sql {
     const conditions: Prisma.Sql[] = [Prisma.sql`h.status = 'active'`];
+
+    // id 단건 조회(id:/hira:/nmc:). **다른 조건은 무시**하고 그 id 로만 건다 — 요양·정신 기본 제외 등
+    // 일반 검색 규칙에 걸려 단건이 안 나오는 걸 막는다. 셋 다 @unique 라 최대 1건이다.
+    if (filter.id !== undefined || filter.hira || filter.nmc) {
+      if (filter.id !== undefined) {
+        conditions.push(Prisma.sql`h.id = ${filter.id}`);
+      }
+      if (filter.hira) {
+        conditions.push(Prisma.sql`h.ykiho = ${filter.hira}`);
+      }
+      if (filter.nmc) {
+        conditions.push(Prisma.sql`h.hpid = ${filter.nmc}`);
+      }
+      return Prisma.join(conditions, ' AND ');
+    }
 
     if (filter.regionCds?.length) {
       // 시도 코드도 검색된다 — 서비스가 [자신 + 하위 시군구] 로 펴서 넘긴다(시군구면 자신뿐이라 등가).

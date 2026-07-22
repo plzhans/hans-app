@@ -9,6 +9,7 @@ export {
   INDEX_DEFINITIONS,
   DEFAULT_SCHEMA_DIR,
   HEALTHCARE_HOSPITAL_ALIAS,
+  aliasOf,
 } from './schema/index';
 export type { IndexDefinition } from './schema/index';
 export { SearchSchemaService } from './schema/search-schema.service';

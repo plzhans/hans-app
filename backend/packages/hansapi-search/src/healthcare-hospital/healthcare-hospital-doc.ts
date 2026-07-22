@@ -26,6 +26,9 @@ export interface HealthcareHospitalDoc {
 
   name: LangMap;
 
+  /** 한국어 이름의 초성 문자열("서울병원"→"ㅅㅇㅂㅇ"). 초성 검색용, 한글만(비한글은 버린다). */
+  name_chosung?: string;
+
   subway?: {
     stations?: LangListMap;
     lines?: string[];
