@@ -176,9 +176,10 @@ function registerHospital(es: Command, source: EnvSource): void {
               const svc = ctx.get(HealthcareIndexService);
 
               // 색인할 인덱스가 없으면 스스로 만든다(그 인덱스만). 만들었을 때만 알린다.
+              // ensure 는 **논리 이름**을 받는다(INDEX_DEFINITIONS 조회 → env 접두사는 내부에서 붙임).
               const created = await ctx
                 .get(SearchSchemaService)
-                .ensure(svc.indexName);
+                .ensure(svc.logicalName);
               if (created?.createdIndex && !options.quiet) {
                 console.log(
                   `  인덱스 없음 → 생성: ${created.createdIndex} (alias ${created.aliasTarget})`,

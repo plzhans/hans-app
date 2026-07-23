@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   HealthcareHospitalDoc,
   HealthcareHospitalIndexer,
+  HEALTHCARE_HOSPITAL_ALIAS,
   SearchSchemaService,
   SEARCH_CONFIG,
   type SearchConfig,
@@ -71,10 +72,17 @@ export class HealthcareIndexService {
     @Inject(SEARCH_CONFIG) private readonly config: SearchConfig,
   ) {}
 
-  /** 색인 대상 인덱스(=alias) 이름. sync 가 이 인덱스만 ensure 하도록 노출한다. */
+  /** 색인 대상 alias 의 **물리 이름**(env 접두사 포함, develop-healthcare_hospital). 진행 표시·상태용. */
   get indexName(): string {
     return this.indexer.indexName;
   }
+
+  /**
+   * **논리 이름**(healthcare_hospital). 스키마 op(ensure·createNextVersion·swapAlias)은 이 이름으로
+   * INDEX_DEFINITIONS 를 찾고, env 접두사는 SearchSchemaService 가 내부에서 붙인다. 물리 이름을
+   * 넘기면 레지스트리 조회가 실패하니(등록되지 않은 인덱스), 스키마 op 에는 반드시 이걸 쓴다.
+   */
+  readonly logicalName = HEALTHCARE_HOSPITAL_ALIAS;
 
   /**
    * **in-place 색인.** 활성 병원 전량을 현재 alias 인덱스에 그대로 bulk upsert 한다(라이브 인덱스를
@@ -93,10 +101,9 @@ export class HealthcareIndexService {
    * 깨진 색인이 서비스를 망가뜨릴 수 없다(in-place sweep 방식의 "몇 건만 색인 → 전체 삭제" 함정 제거).
    */
   async reindex(onProgress?: IndexProgress): Promise<ReindexResult> {
-    const name = this.indexer.indexName;
-
-    // 1) 새 버전 인덱스 생성 — 라이브 alias 는 건드리지 않는다.
-    const newIndex = await this.schema.createNextVersion(name);
+    // 스키마 op 은 **논리 이름**으로 부른다(env 접두사는 SearchSchemaService 가 내부에서 붙인다).
+    // 1) 새 버전 인덱스 생성 — 라이브 alias 는 건드리지 않는다. 반환은 물리 인덱스명.
+    const newIndex = await this.schema.createNextVersion(this.logicalName);
 
     // 2) 전량을 새 인덱스에 색인.
     const result = await this.indexAll(newIndex, onProgress);
@@ -113,8 +120,8 @@ export class HealthcareIndexService {
       return { ...result, newIndex, swapped: false, droppedIndices: [] };
     }
 
-    // 4) alias 원자 스왑. 반환값은 방금 물러난 라이브 인덱스(직전 alias 대상).
-    const previous = await this.schema.swapAlias(name, newIndex);
+    // 4) alias 원자 스왑(논리 이름). 반환값은 방금 물러난 라이브 인덱스(직전 alias 대상).
+    const previous = await this.schema.swapAlias(this.logicalName, newIndex);
 
     // 5) **직전 라이브 인덱스만** 삭제한다. 그보다 오래된 버전(v1 등)은 다른 목적으로 살아있을 수
     //    있으므로 건드리지 않는다 — 스왑이 alias 에서 뗀 것만 정리한다.
