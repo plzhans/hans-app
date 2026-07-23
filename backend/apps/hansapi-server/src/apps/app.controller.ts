@@ -33,6 +33,7 @@ import {
   AppDetailDto,
   AppSummaryDto,
   ClientDto,
+  CreateApiKeyDto,
   CreateAppDto,
   CreateClientDto,
   CreatedApiKeyDto,
@@ -81,25 +82,35 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<AppDetailDto> {
     const app = await this.apps.getApp(user.userId, id);
+    // 삭제된 앱은 정보를 가려 내려준다(기본정보만, 키·클라이언트는 숨김).
+    const deleted = app.deletedAt != null;
     return {
       id: app.id,
       name: app.name,
+      status: app.status,
+      deletedAt: app.deletedAt ? app.deletedAt.toISOString() : null,
       createdBy: app.createdBy,
       createdAt: app.createdAt.toISOString(),
-      apiKeys: app.apiKeys.map(toApiKeySummary),
-      clients: app.clients.map(toClient),
+      apiKeyLimit: app.apiKeyLimit,
+      apiKeys: deleted ? [] : app.apiKeys.map(toApiKeySummary),
+      clients: deleted ? [] : app.clients.map(toClient),
     };
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '앱 이름 변경' })
+  @ApiOperation({ summary: '앱 수정(이름·상태)' })
   @ApiOkResponse({ type: AppSummaryDto })
-  async rename(
+  async update(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAppDto,
   ): Promise<AppSummaryDto> {
-    return toAppSummary(await this.apps.renameApp(user.userId, id, dto.name));
+    return toAppSummary(
+      await this.apps.updateApp(user.userId, id, {
+        name: dto.name,
+        status: dto.status,
+      }),
+    );
   }
 
   @Delete(':id')
@@ -115,18 +126,49 @@ export class AppsController {
   // ---- API 키 ----
 
   @Post(':id/api-keys')
-  @HttpCode(200)
   @ApiOperation({
-    summary: '서비스 키 발급/재발급',
+    summary: '서비스 키 발급',
     description:
-      '앱당 1개라 기존 키가 있으면 교체(재발급)한다. 원문(sk_...)은 이 응답에서만 확인 가능하다.',
+      '이름을 지정해 발급한다. 앱당 상한(App.apiKeyLimit, 기본 3)까지 여러 개 가능. 원문(sk_...)은 이 응답에서만 확인 가능하다.',
   })
-  @ApiOkResponse({ type: CreatedApiKeyDto })
-  async issueApiKey(
+  @ApiCreatedResponse({ type: CreatedApiKeyDto })
+  async createApiKey(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateApiKeyDto,
   ): Promise<CreatedApiKeyDto> {
-    const { apiKey, plainKey } = await this.apps.issueApiKey(user.userId, id);
+    const { apiKey, plainKey } = await this.apps.createApiKey(
+      user.userId,
+      id,
+      dto.name,
+    );
+    return {
+      id: apiKey.id,
+      name: apiKey.name,
+      key: plainKey,
+      keyPrefix: apiKey.keyPrefix,
+      createdAt: apiKey.createdAt.toISOString(),
+    };
+  }
+
+  @Post(':id/api-keys/:keyId/regenerate')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: '서비스 키 재발급',
+    description:
+      '행(id)은 유지하고 값만 새로 만든다. 기존 값은 즉시 무효화. 원문은 이 응답에서만 확인 가능.',
+  })
+  @ApiOkResponse({ type: CreatedApiKeyDto })
+  async regenerateApiKey(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('keyId', ParseIntPipe) keyId: number,
+  ): Promise<CreatedApiKeyDto> {
+    const { apiKey, plainKey } = await this.apps.regenerateApiKey(
+      user.userId,
+      id,
+      keyId,
+    );
     return {
       id: apiKey.id,
       name: apiKey.name,
@@ -161,8 +203,9 @@ export class AppsController {
 
   @Post(':id/clients')
   @ApiOperation({
-    summary: '클라이언트 등록(앱당 1개)',
-    description: 'client secret 원문(cs_...)은 이 응답에서만 확인 가능하다.',
+    summary: '클라이언트 등록(플랫폼별, 앱당 여러 개)',
+    description:
+      'type=WEB|IOS|ANDROID. WEB 만 client secret 을 발급하며 이 응답에서만 확인 가능하다(네이티브는 PKCE).',
   })
   @ApiCreatedResponse({ type: CreatedClientDto })
   async createClient(
@@ -173,7 +216,17 @@ export class AppsController {
     const { client, plainSecret } = await this.apps.createClient(
       user.userId,
       id,
-      { name: dto.name, origins: dto.origins, redirectUris: dto.redirectUris },
+      {
+        type: dto.type,
+        name: dto.name,
+        clientId: dto.clientId,
+        origins: dto.origins,
+        redirectUris: dto.redirectUris,
+        bundleId: dto.bundleId,
+        teamId: dto.teamId,
+        packageName: dto.packageName,
+        fingerprints: dto.fingerprints,
+      },
     );
     return { ...toClient(client), secret: plainSecret };
   }
@@ -239,6 +292,8 @@ function toAppSummary(a: App): AppSummaryDto {
   return {
     id: a.id,
     name: a.name,
+    status: a.status,
+    deletedAt: a.deletedAt ? a.deletedAt.toISOString() : null,
     createdBy: a.createdBy,
     createdAt: a.createdAt.toISOString(),
   };
@@ -259,10 +314,12 @@ function toClient(c: AppClient): ClientDto {
     id: c.id,
     clientId: c.clientId,
     name: c.name,
-    origins: (c.origins as string[] | null) ?? [],
-    redirectUris: (c.redirectUris as string[] | null) ?? [],
-    secretSuffix: c.secretSuffix,
-    secretCreatedAt: c.secretCreatedAt.toISOString(),
+    type: c.type,
+    origins: (c.origins as string[] | null) ?? null,
+    redirectUris: (c.redirectUris as string[] | null) ?? null,
+    secretSuffix: c.secretSuffix ?? null,
+    secretCreatedAt: c.secretCreatedAt ? c.secretCreatedAt.toISOString() : null,
+    config: (c.config as Record<string, unknown> | null) ?? null,
     lastUsedAt: c.lastUsedAt ? c.lastUsedAt.toISOString() : null,
     createdAt: c.createdAt.toISOString(),
   };

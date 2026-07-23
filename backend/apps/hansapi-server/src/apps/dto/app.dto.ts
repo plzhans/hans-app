@@ -1,34 +1,59 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { AppClientType, AppStatus } from '@hansapi/auth-application';
 import {
   ArrayMaxSize,
   IsArray,
+  IsEnum,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
 
 // ---- 앱 ----
 
+/** 이름 규칙(앱·클라이언트 공통): 영어 대소문자와 하이픈(-)만. */
+const NAME_PATTERN = /^[a-zA-Z-]+$/;
+const APP_NAME_PATTERN = NAME_PATTERN;
+const APP_NAME_MESSAGE = '앱 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
+const CLIENT_NAME_MESSAGE =
+  '클라이언트 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
+
 export class CreateAppDto {
-  @ApiProperty({ description: '앱 이름', example: '내 서비스' })
+  @ApiProperty({ description: '앱 이름(영어·하이픈)', example: 'my-service' })
   @IsString()
   @MinLength(1)
   @MaxLength(100)
+  @Matches(APP_NAME_PATTERN, { message: APP_NAME_MESSAGE })
   readonly name!: string;
 }
 
 export class UpdateAppDto {
-  @ApiProperty({ description: '앱 이름', example: '내 서비스' })
+  @ApiPropertyOptional({
+    description: '앱 이름(영어·하이픈)',
+    example: 'my-service',
+  })
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  readonly name!: string;
+  @Matches(APP_NAME_PATTERN, { message: APP_NAME_MESSAGE })
+  readonly name?: string;
+
+  @ApiPropertyOptional({ enum: AppStatus, description: '앱 상태' })
+  @IsOptional()
+  @IsEnum(AppStatus)
+  readonly status?: AppStatus;
 }
 
 export class AppSummaryDto {
   @ApiProperty() readonly id!: number;
   @ApiProperty() readonly name!: string;
+  @ApiProperty({ enum: AppStatus, description: '앱 상태' })
+  readonly status!: AppStatus;
+  @ApiPropertyOptional({ description: '삭제 시각(null 이면 삭제 안 됨)' })
+  readonly deletedAt?: string | null;
   @ApiProperty({ description: '생성자 회원번호' }) readonly createdBy!: number;
   @ApiProperty() readonly createdAt!: string;
 }
@@ -47,31 +72,45 @@ export class ClientDto {
   @ApiProperty({ description: '공개 클라이언트 식별자' })
   readonly clientId!: string;
   @ApiProperty() readonly name!: string;
-  @ApiProperty({ type: [String], description: '승인된 JavaScript 원본' })
-  readonly origins!: string[];
-  @ApiProperty({ type: [String], description: '승인된 리디렉션 URI' })
-  readonly redirectUris!: string[];
-  @ApiProperty({ description: '보안 비밀번호 뒤 4자(마스킹 표기용)' })
-  readonly secretSuffix!: string;
-  @ApiProperty({ description: '보안 비밀번호 발급 시각' })
-  readonly secretCreatedAt!: string;
+  @ApiProperty({ enum: AppClientType, description: '플랫폼 타입' })
+  readonly type!: AppClientType;
+  // WEB
+  @ApiPropertyOptional({
+    type: [String],
+    description: '[WEB] 승인된 JavaScript 원본',
+  })
+  readonly origins?: string[] | null;
+  @ApiPropertyOptional({
+    type: [String],
+    description: '[WEB] 승인된 리디렉션 URI',
+  })
+  readonly redirectUris?: string[] | null;
+  @ApiPropertyOptional({
+    description: '[WEB] 보안 비밀번호 뒤 4자(마스킹 표기용)',
+  })
+  readonly secretSuffix?: string | null;
+  @ApiPropertyOptional({ description: '[WEB] 보안 비밀번호 발급 시각' })
+  readonly secretCreatedAt?: string | null;
+  // NATIVE(iOS: {bundleId}, Android: {packageName, fingerprints[]})
+  @ApiPropertyOptional({ description: '[NATIVE] 플랫폼 식별자', type: Object })
+  readonly config?: Record<string, unknown> | null;
   @ApiPropertyOptional({ description: '마지막 사용 시각' })
   readonly lastUsedAt?: string | null;
   @ApiProperty() readonly createdAt!: string;
 }
 
-/** 클라이언트 생성 응답. secret(원문)은 이 응답에서만 확인 가능. */
+/** 클라이언트 생성 응답. secret(원문)은 WEB 일 때만, 이 응답에서만 확인 가능. */
 export class CreatedClientDto extends ClientDto {
-  @ApiProperty({
-    description: '클라이언트 보안 비밀번호 원문(cs_...). 다시 볼 수 없습니다.',
+  @ApiPropertyOptional({
+    description: '[WEB] 클라이언트 보안 비밀번호 원문. 다시 볼 수 없습니다.',
   })
-  readonly secret!: string;
+  readonly secret?: string;
 }
 
 /** 시크릿 재발급 응답. */
 export class SecretResponseDto {
   @ApiProperty({
-    description: '새 보안 비밀번호 원문(cs_...). 다시 볼 수 없습니다.',
+    description: '새 보안 비밀번호 원문. 다시 볼 수 없습니다.',
   })
   readonly secret!: string;
 }
@@ -79,14 +118,28 @@ export class SecretResponseDto {
 export class AppDetailDto {
   @ApiProperty() readonly id!: number;
   @ApiProperty() readonly name!: string;
+  @ApiProperty({ enum: AppStatus, description: '앱 상태' })
+  readonly status!: AppStatus;
+  @ApiPropertyOptional({ description: '삭제 시각(null 이면 삭제 안 됨)' })
+  readonly deletedAt?: string | null;
   @ApiProperty({ description: '생성자 회원번호' }) readonly createdBy!: number;
   @ApiProperty() readonly createdAt!: string;
+  @ApiProperty({ description: '서비스 키 발급 상한' })
+  readonly apiKeyLimit!: number;
   @ApiProperty({ type: [ApiKeySummaryDto] })
   readonly apiKeys!: ApiKeySummaryDto[];
   @ApiProperty({ type: [ClientDto] }) readonly clients!: ClientDto[];
 }
 
 // ---- API 키 ----
+
+export class CreateApiKeyDto {
+  @ApiProperty({ description: '키 이름(용도 구분)', example: 'server-prod' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  readonly name!: string;
+}
 
 /** 키 발급 응답. key(원문)는 이 응답에서만 확인 가능하다. */
 export class CreatedApiKeyDto {
@@ -103,51 +156,140 @@ export class CreatedApiKeyDto {
 // ---- 클라이언트 ----
 
 export class CreateClientDto {
-  @ApiProperty({ description: '클라이언트 이름', example: 'web' })
+  @ApiProperty({ enum: AppClientType, description: '플랫폼 타입' })
+  @IsEnum(AppClientType)
+  readonly type!: AppClientType;
+
+  @ApiProperty({ description: '클라이언트 이름(영어·하이픈)', example: 'web' })
   @IsString()
   @MinLength(1)
   @MaxLength(100)
+  @Matches(NAME_PATTERN, { message: CLIENT_NAME_MESSAGE })
   readonly name!: string;
 
-  @ApiProperty({
-    type: [String],
-    description: '자바스크립트 원본(scheme://host[:port])',
-    example: ['https://app.example.com'],
+  @ApiPropertyOptional({
+    description:
+      'Client ID 직접 지정(소문자·숫자·하이픈, 2~30자). 저장 시 cl_fixed_ 접두사가 붙는다. 비우면 cl_{appId}_{id}-{랜덤} 자동 발급. 멀티 환경에서 값을 고정하려면 지정.',
+    example: 'medifinder-web',
   })
-  @IsArray()
-  @IsString({ each: true })
-  @ArrayMaxSize(20)
-  readonly origins!: string[];
-
-  @ApiProperty({
-    type: [String],
-    description: '로그인 후 복귀 허용 URL',
-    example: ['https://app.example.com/auth/callback'],
-  })
-  @IsArray()
-  @IsString({ each: true })
-  @ArrayMaxSize(20)
-  readonly redirectUris!: string[];
-}
-
-export class UpdateClientDto {
-  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MaxLength(100)
-  readonly name?: string;
+  @Matches(/^[a-z0-9][a-z0-9-]{1,29}$/, {
+    message:
+      'Client ID 는 소문자·숫자·하이픈만, 2~30자, 하이픈으로 시작할 수 없습니다.',
+  })
+  readonly clientId?: string;
 
-  @ApiPropertyOptional({ type: [String] })
+  // ---- WEB ----
+  @ApiPropertyOptional({
+    type: [String],
+    description: '[WEB] 자바스크립트 원본(scheme://host[:port])',
+    example: ['https://app.example.com'],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @ArrayMaxSize(20)
   readonly origins?: string[];
 
-  @ApiPropertyOptional({ type: [String] })
+  @ApiPropertyOptional({
+    type: [String],
+    description: '[WEB] 로그인 후 복귀 허용 URL',
+    example: ['https://app.example.com/auth/callback'],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @ArrayMaxSize(20)
   readonly redirectUris?: string[];
+
+  // ---- iOS ----
+  @ApiPropertyOptional({
+    description: '[iOS] Bundle ID',
+    example: 'com.example.app',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  readonly bundleId?: string;
+
+  @ApiPropertyOptional({
+    description: '[iOS] Apple Team ID (Universal Links 검증용)',
+    example: 'ABCDE12345',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  readonly teamId?: string;
+
+  // ---- Android ----
+  @ApiPropertyOptional({
+    description: '[Android] 패키지명',
+    example: 'com.example.app',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  readonly packageName?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: '[Android] SHA-256 인증서 지문',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(20)
+  readonly fingerprints?: string[];
+}
+
+export class UpdateClientDto {
+  @ApiPropertyOptional({ description: '클라이언트 이름(영어·하이픈)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Matches(NAME_PATTERN, { message: CLIENT_NAME_MESSAGE })
+  readonly name?: string;
+
+  @ApiPropertyOptional({ type: [String], description: '[WEB]' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(20)
+  readonly origins?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: '[WEB]' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(20)
+  readonly redirectUris?: string[];
+
+  @ApiPropertyOptional({ description: '[iOS] Bundle ID' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  readonly bundleId?: string;
+
+  @ApiPropertyOptional({ description: '[iOS] Apple Team ID' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  readonly teamId?: string;
+
+  @ApiPropertyOptional({ description: '[Android] 패키지명' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  readonly packageName?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: '[Android] SHA-256 지문',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(20)
+  readonly fingerprints?: string[];
 }

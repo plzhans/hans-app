@@ -1,14 +1,23 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { App, AppApiKey, AppClient, AppMember, AppRole } from '@hansapi/data';
+import {
+  App,
+  AppApiKey,
+  AppClient,
+  AppClientType,
+  AppMember,
+  AppRole,
+  AppStatus,
+} from '@hansapi/data';
 
 import { UserRepository } from '../repository/user.repository';
 import { randomToken, sha256hex } from '../token/crypto.util';
-import { APP_LIMIT_BY_TIER, CLIENT_LIMIT_PER_APP } from './app.constants';
+import { APP_LIMIT_BY_TIER } from './app.constants';
 import { AppRepository } from './app.repository';
 
 /** 앱 상세(키·클라이언트·멤버 포함). */
@@ -24,15 +33,46 @@ export interface CreatedApiKey {
   plainKey: string;
 }
 
-/** 클라이언트 생성 결과. plainSecret 은 이때 딱 한 번만 반환된다. */
+/** 클라이언트 생성 결과. plainSecret 은 WEB 일 때만, 그것도 이때 딱 한 번 반환된다. */
 export interface CreatedClient {
   client: AppClient;
-  plainSecret: string;
+  plainSecret?: string;
 }
 
-/** 클라이언트 시크릿 원문·해시·표시suffix 를 만든다. */
+/** 클라이언트 생성 입력. type 에 따라 필요한 필드가 다르다(서비스에서 검증). */
+export interface CreateClientInput {
+  type: AppClientType;
+  name: string;
+  /** 공개 식별자. 지정하면 그 값으로(멀티 환경에서 고정), 비우면 랜덤 발급. */
+  clientId?: string;
+  /** WEB */
+  origins?: string[];
+  redirectUris?: string[];
+  /** IOS */
+  bundleId?: string;
+  teamId?: string;
+  /** ANDROID */
+  packageName?: string;
+  fingerprints?: string[];
+}
+
+/** 클라이언트 수정 입력(부분). 대상 클라이언트의 type 에 맞는 필드만 반영된다. */
+export interface UpdateClientInput {
+  name?: string;
+  origins?: string[];
+  redirectUris?: string[];
+  bundleId?: string;
+  teamId?: string;
+  packageName?: string;
+  fingerprints?: string[];
+}
+
+/**
+ * 클라이언트 시크릿 원문·해시·표시suffix 를 만든다.
+ * client_id 와 항상 함께 쓰이므로 별도 접두사를 두지 않는다(순수 랜덤).
+ */
 function genClientSecret(): { plain: string; hash: string; suffix: string } {
-  const plain = `cs_${randomToken(24)}`;
+  const plain = randomToken(24);
   return { plain, hash: sha256hex(plain), suffix: plain.slice(-4) };
 }
 
@@ -88,30 +128,78 @@ export class AppService {
     return app;
   }
 
-  /** 앱 이름 변경. ADMIN 이상. */
-  async renameApp(userId: number, appId: number, name: string): Promise<App> {
+  /** 앱 수정(이름·상태). ADMIN 이상. */
+  async updateApp(
+    userId: number,
+    appId: number,
+    input: { name?: string; status?: AppStatus },
+  ): Promise<App> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
-    return this.apps.renameApp(appId, name.trim());
+    return this.apps.updateApp(appId, {
+      ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+    });
   }
 
+  /** 앱 삭제. 소프트 삭제(deletedAt) + 하위 키·클라이언트 DISABLED. 완전 삭제는 배치가 한다. */
   async deleteApp(userId: number, appId: number): Promise<void> {
     await this.assertMember(userId, appId, AppRole.OWNER);
-    await this.apps.delete(appId);
+    await this.apps.softDelete(appId);
   }
 
   // ---- API 키 ----
 
-  /** 서비스 키 발급/재발급. 앱당 1개라 기존 키를 교체한다. plainKey 는 이때만 반환. */
-  async issueApiKey(userId: number, appId: number): Promise<CreatedApiKey> {
+  /**
+   * 서비스 키 발급. 앱당 상한(App.apiKeyLimit, 기본 3)을 넘으면 거부한다.
+   * 이름을 지정해 여러 개 발급할 수 있다(rotation). plainKey 는 이때만 반환.
+   */
+  async createApiKey(
+    userId: number,
+    appId: number,
+    name: string,
+  ): Promise<CreatedApiKey> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
-    await this.apps.deleteAllApiKeys(appId); // 재발급: 기존 교체
-    const plainKey = `sk_${randomToken(24)}`;
-    const keyPrefix = plainKey.slice(0, 11); // sk_ + 앞 8자
-    const apiKey = await this.apps.createApiKey({
+    const app = await this.apps.findApp(appId);
+    if (!app) {
+      throw new NotFoundException('앱을 찾을 수 없습니다.');
+    }
+    const count = await this.apps.countApiKeys(appId);
+    if (count >= app.apiKeyLimit) {
+      throw new ForbiddenException(
+        `서비스 키는 앱당 ${app.apiKeyLimit}개까지 발급할 수 있습니다.`,
+      );
+    }
+    // 키 원문에 appId·행 id 를 박는다: sk_{appId}_{keyId}_{random}.
+    //  - 키값만 봐도 어느 앱/키인지 식별 가능(로그·유출 추적)
+    //  - 검증 시 파싱한 id 로 O(1) 조회 후 해시 비교(스캔 불필요)
+    // prefix(표시·조회용)는 랜덤을 뺀 sk_{appId}_{keyId}. hash 는 원문 전체의 SHA-256.
+    let plainKey = '';
+    const apiKey = await this.apps.createApiKeyWithId(
       appId,
-      name: 'service',
-      keyPrefix,
+      name.trim(),
+      (id) => {
+        plainKey = `sk_${appId}_${id}_${randomToken(24)}`;
+        return { keyPrefix: `sk_${appId}_${id}`, keyHash: sha256hex(plainKey) };
+      },
+    );
+    return { apiKey, plainKey };
+  }
+
+  /** 서비스 키 재발급. 행(id)은 유지하고 값·해시만 교체한다(형식 sk_{appId}_{keyId}_{rand}). */
+  async regenerateApiKey(
+    userId: number,
+    appId: number,
+    keyId: number,
+  ): Promise<CreatedApiKey> {
+    await this.assertMember(userId, appId, AppRole.ADMIN);
+    const key = await this.apps.findApiKey(appId, keyId);
+    if (!key) {
+      throw new NotFoundException('API 키를 찾을 수 없습니다.');
+    }
+    const plainKey = `sk_${appId}_${keyId}_${randomToken(24)}`;
+    const apiKey = await this.apps.updateApiKeyHash(keyId, {
       keyHash: sha256hex(plainKey),
+      keyPrefix: `sk_${appId}_${keyId}`,
     });
     return { apiKey, plainKey };
   }
@@ -135,49 +223,116 @@ export class AppService {
 
   // ---- 클라이언트 ----
 
-  /** 클라이언트 등록(앱당 1개). client secret 원문은 이때만 반환. */
+  /**
+   * 클라이언트 등록. 앱당 여러 개(플랫폼별). type 에 따라 필드가 갈린다.
+   * WEB 만 secret 을 발급하며 원문은 이때만 반환된다(네이티브는 PKCE, secret 없음).
+   */
   async createClient(
     userId: number,
     appId: number,
-    input: { name: string; origins: string[]; redirectUris: string[] },
+    input: CreateClientInput,
   ): Promise<CreatedClient> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
-    const existing = await this.apps.countClients(appId);
-    if (existing >= CLIENT_LIMIT_PER_APP) {
-      throw new ConflictException(
-        `클라이언트는 앱당 ${CLIENT_LIMIT_PER_APP}개만 등록할 수 있습니다. 더 필요하면 앱을 분리하세요.`,
-      );
+
+    // type 별 컬럼과 (WEB 만) 시크릿을 먼저 계산한다.
+    let extra: {
+      origins?: string[];
+      redirectUris?: string[];
+      clientSecretHash?: string;
+      secretSuffix?: string;
+      secretCreatedAt?: Date;
+      config?: Record<string, unknown>;
+    };
+    let plainSecret: string | undefined;
+
+    switch (input.type) {
+      case AppClientType.WEB: {
+        const secret = genClientSecret();
+        plainSecret = secret.plain;
+        extra = {
+          origins: normalizeList(input.origins ?? []),
+          redirectUris: normalizeList(input.redirectUris ?? []),
+          clientSecretHash: secret.hash,
+          secretSuffix: secret.suffix,
+          secretCreatedAt: new Date(),
+        };
+        break;
+      }
+      case AppClientType.IOS: {
+        const bundleId = input.bundleId?.trim();
+        if (!bundleId) {
+          throw new BadRequestException('Bundle ID 를 입력하세요.');
+        }
+        const teamId = input.teamId?.trim();
+        extra = { config: { bundleId, ...(teamId ? { teamId } : {}) } };
+        break;
+      }
+      case AppClientType.ANDROID: {
+        const packageName = input.packageName?.trim();
+        if (!packageName) {
+          throw new BadRequestException('패키지명을 입력하세요.');
+        }
+        extra = {
+          config: {
+            packageName,
+            fingerprints: normalizeList(input.fingerprints ?? []),
+          },
+        };
+        break;
+      }
+      default:
+        throw new BadRequestException('알 수 없는 클라이언트 타입입니다.');
     }
-    const secret = genClientSecret();
-    const client = await this.apps.createClient({
+
+    const fields = {
       appId,
-      clientId: `cl_${randomToken(15)}`,
       name: input.name.trim(),
-      origins: normalizeList(input.origins),
-      redirectUris: normalizeList(input.redirectUris),
-      clientSecretHash: secret.hash,
-      secretSuffix: secret.suffix,
-      secretCreatedAt: new Date(),
+      type: input.type,
+      ...extra,
+    };
+    const specified = input.clientId?.trim();
+
+    // 지정: cl_fixed_{입력값}. 미지정: cl_{appId}_{rowId}-{rand} (행 id 기반, 트랜잭션).
+    // clientId 전역 유일 → 중복(주로 지정값)이면 P2002 를 409 로 변환한다.
+    const client = await (
+      specified
+        ? this.apps.createClient({
+            ...fields,
+            clientId: `cl_fixed_${specified}`,
+          })
+        : this.apps.createClientAutoId(fields, randomToken(9))
+    ).catch((e: unknown) => {
+      if (isUniqueViolation(e)) {
+        throw new ConflictException('이미 사용 중인 Client ID 입니다.');
+      }
+      throw e;
     });
-    return { client, plainSecret: secret.plain };
+
+    return { client, plainSecret };
   }
 
-  /** 클라이언트 시크릿 재발급. 새 원문은 이때만 반환. */
+  /** 클라이언트 시크릿 재발급. WEB 만 가능. 새 원문은 이때만 반환. */
   async regenerateClientSecret(
     userId: number,
     appId: number,
     clientPk: number,
   ): Promise<string> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
+    const client = await this.apps.findClient(appId, clientPk);
+    if (!client) {
+      throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
+    }
+    if (client.type !== AppClientType.WEB) {
+      throw new BadRequestException(
+        '네이티브 클라이언트에는 시크릿이 없습니다(PKCE 사용).',
+      );
+    }
     const secret = genClientSecret();
-    const n = await this.apps.updateClientSecret(appId, clientPk, {
+    await this.apps.updateClientSecret(appId, clientPk, {
       clientSecretHash: secret.hash,
       secretSuffix: secret.suffix,
       secretCreatedAt: new Date(),
     });
-    if (n === 0) {
-      throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
-    }
     return secret.plain;
   }
 
@@ -186,20 +341,58 @@ export class AppService {
     return this.apps.listClients(appId);
   }
 
+  /** 클라이언트 수정. 대상의 type 에 맞는 필드만 반영한다. */
   async updateClient(
     userId: number,
     appId: number,
     clientPk: number,
-    input: { name?: string; origins?: string[]; redirectUris?: string[] },
+    input: UpdateClientInput,
   ): Promise<void> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
-    const updated = await this.apps.updateClient(appId, clientPk, {
-      name: input.name?.trim(),
-      origins: input.origins ? normalizeList(input.origins) : undefined,
-      redirectUris: input.redirectUris
-        ? normalizeList(input.redirectUris)
-        : undefined,
-    });
+    const client = await this.apps.findClient(appId, clientPk);
+    if (!client) {
+      throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
+    }
+
+    const data: {
+      name?: string;
+      origins?: string[];
+      redirectUris?: string[];
+      config?: Record<string, unknown>;
+    } = {};
+    if (input.name !== undefined) {
+      data.name = input.name.trim();
+    }
+    switch (client.type) {
+      case AppClientType.WEB:
+        if (input.origins) data.origins = normalizeList(input.origins);
+        if (input.redirectUris)
+          data.redirectUris = normalizeList(input.redirectUris);
+        break;
+      case AppClientType.IOS:
+        if (input.bundleId !== undefined || input.teamId !== undefined) {
+          const cfg = (client.config as Record<string, unknown> | null) ?? {};
+          const bundleId =
+            input.bundleId?.trim() ?? (cfg.bundleId as string | undefined);
+          const teamId =
+            input.teamId?.trim() ?? (cfg.teamId as string | undefined);
+          data.config = { bundleId, ...(teamId ? { teamId } : {}) };
+        }
+        break;
+      case AppClientType.ANDROID:
+        if (input.packageName || input.fingerprints) {
+          const cfg = (client.config as Record<string, unknown> | null) ?? {};
+          data.config = {
+            packageName: input.packageName?.trim() ?? cfg.packageName,
+            fingerprints: input.fingerprints
+              ? normalizeList(input.fingerprints)
+              : (cfg.fingerprints ?? []),
+          };
+        }
+        break;
+    }
+
+    const updated = await this.apps.updateClient(appId, clientPk, data);
     if (updated === 0) {
       throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
     }
@@ -238,5 +431,14 @@ export class AppService {
 function normalizeList(list: string[]): string[] {
   return Array.from(
     new Set(list.map((s) => s.trim()).filter((s) => s.length > 0)),
+  );
+}
+
+/** Prisma 고유 제약 위반(P2002). AppClient 의 유일 컬럼은 clientId 뿐이다. */
+function isUniqueViolation(e: unknown): boolean {
+  return (
+    typeof e === 'object' &&
+    e !== null &&
+    (e as { code?: string }).code === 'P2002'
   );
 }

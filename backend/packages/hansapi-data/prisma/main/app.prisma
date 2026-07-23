@@ -14,6 +14,16 @@ model App {
   /// 생성자 유저 id(감사 마킹, 불변). 접근 권한은 members(AppMember)로 관리한다.
   createdBy Int @map("created_by")
 
+  /// 서비스 키(app_api_key) 발급 상한. 기본 3. 앱별로 더 필요하면 이 값만 올린다(코드 상수 아님).
+  apiKeyLimit Int @default(3) @map("api_key_limit")
+
+  /// 앱 상태. **인증은 이 값만 본다** — DISABLED 면 거부. 소프트 삭제 시에도 DISABLED 로 내린다.
+  status AppStatus @default(ACTIVE)
+
+  /// 소프트 삭제 시각. non-null 이면 삭제된 앱 — 목록·접근에서 제외하고 배치가 N일 후 완전 삭제한다.
+  /// (인증 거부는 status 로 판정하므로 이 값은 목록 숨김·정리 타이밍 용도다.)
+  deletedAt DateTime? @map("deleted_at")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -53,6 +63,11 @@ enum AppRole {
   MEMBER
 }
 
+enum AppStatus {
+  ACTIVE
+  DISABLED
+}
+
 /// API 키. 백엔드 API 를 서버-서버로 직접 호출할 때 쓰는 시크릿.
 /// 원문은 생성 시 1회만 노출하고, 서버엔 SHA-256 해시와 표시용 접두사만 저장한다.
 model AppApiKey {
@@ -69,6 +84,9 @@ model AppApiKey {
   /// SHA-256(원문) hex 64자
   keyHash String @map("key_hash") @db.Char(64)
 
+  /// 키 상태. 앱 소프트 삭제 시 DISABLED 로 내린다(인증 거부).
+  status AppStatus @default(ACTIVE)
+
   /// 마지막 사용 시각(사용량/감사용). 미사용이면 null.
   lastUsedAt DateTime? @map("last_used_at")
 
@@ -80,10 +98,12 @@ model AppApiKey {
   @@map("app_api_key")
 }
 
-/// OAuth 클라이언트(브라우저/SPA). 구글 OAuth 클라이언트와 동일한 개념.
-/// - origins: 자바스크립트 원본 주소. 서버가 이 clientId 기준으로 해당 origin 만 CORS 허용.
-/// - redirectUris: 로그인 후 돌아올 인증된 경로(return_to 화이트리스트).
-/// 시크릿은 없다(공개 clientId). 서버 시크릿이 필요하면 AppApiKey 를 쓴다.
+/// OAuth 클라이언트. 구글처럼 **플랫폼별 별도 클라이언트**(WEB/IOS/ANDROID)로 등록한다.
+/// 앱당 여러 개 가능하며 type 에 따라 채워지는 필드가 갈린다.
+/// - WEB    : origins(CORS 허용 원본) + redirectUris(return_to 화이트리스트) + client secret.
+/// - IOS    : config = { bundleId }. secret 없음(공개 클라이언트, PKCE).
+/// - ANDROID: config = { packageName, fingerprints[] }. secret 없음(공개 클라이언트, PKCE).
+/// 네이티브 redirect 는 식별자에서 커스텀 스킴을 파생한다(런타임 배선 시 확정).
 model AppClient {
   id Int @id @default(autoincrement())
 
@@ -92,23 +112,32 @@ model AppClient {
   /// 공개 클라이언트 식별자(예: cl_ab12…). 전역 유일.
   clientId String @unique @map("client_id") @db.VarChar(40)
 
-  /// 클라이언트 이름
+  /// 클라이언트 이름(플랫폼 구분용, 예: "웹", "iOS 앱").
   name String @db.VarChar(100)
 
-  /// 자바스크립트 원본 목록(CORS 허용 대상). string[] JSON.
-  origins Json
+  /// 플랫폼 타입.
+  type AppClientType
 
-  /// 로그인 복귀 허용 경로 목록(return_to 화이트리스트). string[] JSON.
-  redirectUris Json @map("redirect_uris")
+  /// [WEB] 자바스크립트 원본 목록(CORS 허용 대상). string[] JSON. 네이티브는 null.
+  origins Json?
 
-  /// 클라이언트 보안 비밀번호. 원문(cs_...)은 발급 시 1회만 노출, 서버엔 SHA-256 해시만.
-  clientSecretHash String @map("client_secret_hash") @db.Char(64)
+  /// [WEB] 로그인 복귀 허용 경로 목록(return_to 화이트리스트). string[] JSON. 네이티브는 null.
+  redirectUris Json? @map("redirect_uris")
 
-  /// 표시용 시크릿 뒤 4자(****1Yl_ 처럼 마스킹 표기용).
-  secretSuffix String @map("secret_suffix") @db.VarChar(8)
+  /// [WEB] 클라이언트 보안 비밀번호. 원문(cs_...)은 발급 시 1회만 노출, 서버엔 SHA-256 해시만. 네이티브는 null.
+  clientSecretHash String? @map("client_secret_hash") @db.Char(64)
 
-  /// 시크릿 발급/재발급 시각.
-  secretCreatedAt DateTime @map("secret_created_at")
+  /// [WEB] 표시용 시크릿 뒤 4자(****1Yl_ 처럼 마스킹 표기용). 네이티브는 null.
+  secretSuffix String? @map("secret_suffix") @db.VarChar(8)
+
+  /// [WEB] 시크릿 발급/재발급 시각. 네이티브는 null.
+  secretCreatedAt DateTime? @map("secret_created_at")
+
+  /// [NATIVE] 플랫폼 식별자. iOS={ bundleId }, Android={ packageName, fingerprints:[] }. 웹은 null.
+  config Json?
+
+  /// 클라이언트 상태. 앱 소프트 삭제 시 DISABLED 로 내린다(인증 거부).
+  status AppStatus @default(ACTIVE)
 
   /// 마지막 사용 시각(OAuth 사용 시 갱신). 미사용이면 null.
   lastUsedAt DateTime? @map("last_used_at")
@@ -120,4 +149,10 @@ model AppClient {
 
   @@index([appId])
   @@map("app_client")
+}
+
+enum AppClientType {
+  WEB
+  IOS
+  ANDROID
 }

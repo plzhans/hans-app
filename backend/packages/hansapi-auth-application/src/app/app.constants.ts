@@ -10,8 +10,8 @@ export const APP_LIMIT_BY_TIER: Record<UserTier, number | null> = {
   [UserTier.UNLIMITED]: null,
 };
 
-/** 앱당 서비스(API) 키 발급 한도. 1개(발급/재발급으로 교체). */
-export const API_KEY_LIMIT_PER_APP = 1;
-
-/** 앱당 클라이언트 한도. 1개(더 필요하면 앱을 분리). */
-export const CLIENT_LIMIT_PER_APP = 1;
+/**
+ * 앱당 서비스(API) 키 발급 한도의 **기본값**. 실제 상한은 App.apiKeyLimit 컬럼을 쓴다
+ * (앱별로 값을 올려 늘릴 수 있게). 이 상수는 신규 앱 생성 시 컬럼 기본값 참고용.
+ */
+export const DEFAULT_API_KEY_LIMIT = 3;

@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE `app` ADD COLUMN `deleted_at` DATETIME(3) NULL;
+
+-- AlterTable
+ALTER TABLE `app_api_key` ADD COLUMN `status` ENUM('ACTIVE', 'DISABLED') NOT NULL DEFAULT 'ACTIVE';
+
+-- AlterTable
+ALTER TABLE `app_client` ADD COLUMN `status` ENUM('ACTIVE', 'DISABLED') NOT NULL DEFAULT 'ACTIVE';

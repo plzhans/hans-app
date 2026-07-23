@@ -53,6 +53,8 @@ export {
   UserRole,
   UserTier,
   AppRole,
+  AppStatus,
+  AppClientType,
   AuthProvider,
   OAuthProvider,
   TokenPurpose,

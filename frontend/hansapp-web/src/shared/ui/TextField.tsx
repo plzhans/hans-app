@@ -3,16 +3,20 @@ import { cn } from '@/shared/lib/cn';
 
 interface Props extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
+  hint?: string;
   error?: string;
 }
 
 export const TextField = forwardRef<HTMLInputElement, Props>(
-  ({ label, error, className, ...rest }, ref) => {
+  ({ label, hint, error, className, ...rest }, ref) => {
     return (
       <label className="block">
         <span className="mb-1 block text-sm font-medium text-gray-700">
           {label}
         </span>
+        {hint && (
+          <p className="mb-1 -mt-0.5 text-xs text-gray-400">{hint}</p>
+        )}
         <input
           ref={ref}
           {...rest}
