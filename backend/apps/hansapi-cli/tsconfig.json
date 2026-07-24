@@ -15,5 +15,15 @@
     "emitDecoratorMetadata": true,
     "types": ["node"]
   },
-  "include": ["src"]
+  // 타입 없는 passport 패키지(kakao/line)의 ambient 선언을 프로그램에 끌어온다.
+  //
+  // CLI 는 customConditions:["src"] 로 auth 패키지의 **소스**를 직접 컴파일한다. 그때
+  // 전략 파일이 passport-kakao/passport-line-auth 를 import 하는데, 그 선언 파일은
+  // 아무도 import 하지 않아 CLI 프로그램에 안 들어온다 → "선언 파일을 찾을 수 없음" 오류.
+  // 소스에 삼중슬래시 참조를 넣는 방법도 있으나 lint 규칙(triple-slash-reference)에 걸린다.
+  // .d.ts 는 emit 대상이 아니라서 rootDir 밖에 있어도 문제되지 않는다.
+  "include": [
+    "src",
+    "../../packages/hansapi-auth-application/src/social/passport-social.d.ts"
+  ]
 }

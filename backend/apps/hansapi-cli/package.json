@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hansapi/admin-application": "workspace:*",
+    "@hansapi/auth-application": "workspace:*",
     "@hansapi/common": "workspace:*",
     "@hansapi/data": "workspace:*",
     "@hansapi/search": "workspace:*",

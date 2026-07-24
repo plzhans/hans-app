@@ -96,6 +96,9 @@ importers:
       '@hansapi/admin-application':
         specifier: workspace:*
         version: link:../../packages/hansapi-admin-application
+      '@hansapi/auth-application':
+        specifier: workspace:*
+        version: link:../../packages/hansapi-auth-application
       '@hansapi/common':
         specifier: workspace:*
         version: link:../../packages/hansapi-common

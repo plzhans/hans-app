@@ -103,6 +103,18 @@ export class AppService {
     return this.apps.listAppsForUser(userId);
   }
 
+  /**
+   * 이메일로 사용자 id 를 찾는다. **로그인 컨텍스트가 없는 호출자(CLI)** 가 소유자를 지정할 때 쓴다.
+   * 저장소를 밖으로 열지 않으려고 서비스가 대신 해석해 준다.
+   */
+  async resolveUserIdByEmail(email: string): Promise<number> {
+    const user = await this.users.findByEmail(email.trim());
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    return user.id;
+  }
+
   /** 앱 생성. 등급별 한도(내가 OWNER 인 앱 수)를 초과하면 거부한다. */
   async createApp(userId: number, name: string): Promise<App> {
     const user = await this.users.findById(userId);

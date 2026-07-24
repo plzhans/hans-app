@@ -6,6 +6,7 @@ import {
 import { NestFactory } from '@nestjs/core';
 import { EnvSource } from '@hansapi/common';
 import { AdminApplicationModule, I18nModule } from '@hansapi/admin-application';
+import { AuthModule } from '@hansapi/auth-application';
 import { DataModule } from '@hansapi/data';
 import { SearchModule } from '@hansapi/search';
 
@@ -112,4 +113,18 @@ export async function withI18nContext<T>(
     options.verbose !== false,
     false,
   );
+}
+
+/**
+ * 앱·키·클라이언트 관리 커맨드용. 인증 응용 계층(AuthModule)만 띄운다.
+ *
+ * 공공데이터 서비스키·ES 를 요구하지 않는다 — 키 발급은 우리 DB 만 만진다.
+ * AUTH_JWT_SECRET 은 AuthModule 이 필수로 요구하므로 없으면 여기서 즉시 실패한다.
+ * 전역 캐시(CacheModule)가 없으므로 AccessCache 는 메모리로만 동작한다(@Optional).
+ */
+export async function withAuthContext<T>(
+  source: EnvSource,
+  run: (context: INestApplicationContext) => Promise<T>,
+): Promise<T> {
+  return withContext(AuthModule.forRoot(source), run, false, false);
 }

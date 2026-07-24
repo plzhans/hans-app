@@ -4,6 +4,13 @@ packages:
   # 외부 API SDK. hansapi 도메인에 의존하지 않으며 단독 배포 가능해야 한다.
   - 'clients/*'
 
+# 스크립트 실행 전 의존성 검증을 끈다.
+#
+# **pnpm 11 은 이 설정을 .npmrc 가 아니라 여기서 읽는다.** .npmrc 에만 두면 무시되고,
+# 검증이 켜진 채로 `pnpm install --production` 을 시도하다 "node_modules 를 전부 지우고
+# 다시 깔까요?" 를 묻는다 — 승낙하면 devDependencies(typescript·swc·prisma CLI)가 날아간다.
+verifyDepsBeforeRun: false
+
 # 빌드 스크립트(postinstall 등) 실행 허용 여부 (pnpm 11 approve-builds).
 # 네이티브/코드젠 패키지는 true, 텔레메트리(scarf)는 false.
 allowBuilds:
