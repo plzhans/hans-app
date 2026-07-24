@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { socialLoginUrl, type SocialProvider } from '@/shared/api/auth';
+import { createPkceRequest } from '@/shared/auth/pkce';
 import { GoogleIcon, KakaoIcon, LineIcon, NaverIcon } from './socialIcons';
 
 type Item = {
@@ -44,10 +45,34 @@ const PROVIDERS: Item[] = [
 export function SocialButtons({
   returnTo,
   clientId,
+  codeChallenge,
+  clientState,
 }: {
   returnTo?: string;
   clientId?: string;
+  /** 외부 앱이 만든 challenge. 있으면 그대로 전달하고, 없으면 포털이 자기 것을 만든다. */
+  codeChallenge?: string;
+  /** 외부 앱의 state. 해석하지 않고 왕복시켜 최종 복귀 URL 에 돌려준다. */
+  clientState?: string;
 }) {
+  /**
+   * 소셜 시작 URL 로 이동한다. 로그인 끝에 인가코드가 나오므로 PKCE challenge 가 필요하다.
+   *
+   * 외부 SSO 면 그 앱이 만든 걸 그대로 넘긴다 — 포털이 새로 만들면 verifier 를 가진 쪽과
+   * 짝이 어긋난다. 포털 자체 로그인이면 포털이 당사자이므로 직접 만들어 보관한다.
+   */
+  const start = async (provider: SocialProvider) => {
+    const challenge =
+      codeChallenge ?? (await createPkceRequest()).codeChallenge;
+    window.location.href = socialLoginUrl(
+      provider,
+      returnTo,
+      clientId,
+      challenge,
+      clientState,
+    );
+  };
+
   return (
     <div className="grid grid-cols-2 gap-2">
       {PROVIDERS.map((p) => (
@@ -55,7 +80,7 @@ export function SocialButtons({
           key={p.key}
           type="button"
           onClick={() => {
-            window.location.href = socialLoginUrl(p.key, returnTo, clientId);
+            void start(p.key);
           }}
           className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${p.className}`}
         >

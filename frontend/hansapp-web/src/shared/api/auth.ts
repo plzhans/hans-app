@@ -41,10 +41,17 @@ export function emailSignup(
 }
 
 /** 소셜 콜백에서 받은 릴레이 인가코드를 토큰으로 교환한다. */
-export function exchangeCode(code: string): Promise<TokenResponse> {
+export function exchangeCode(
+  code: string,
+  codeVerifier: string,
+): Promise<TokenResponse> {
   return apiFetch('/oauth/token', {
     method: 'POST',
-    body: JSON.stringify({ grant_type: 'authorization_code', code }),
+    body: JSON.stringify({
+      grant_type: 'authorization_code',
+      code,
+      code_verifier: codeVerifier,
+    }),
   });
 }
 
@@ -76,11 +83,15 @@ export function logout(): Promise<void> {
  */
 export function authorize(
   returnTo: string,
+  codeChallenge: string,
   clientId?: string,
 ): Promise<{ code: string }> {
   return apiFetch(
     '/oauth/authorize',
-    { method: 'POST', body: JSON.stringify({ returnTo, clientId }) },
+    {
+      method: 'POST',
+      body: JSON.stringify({ returnTo, clientId, codeChallenge }),
+    },
     { auth: true },
   );
 }
@@ -92,11 +103,20 @@ export function authorize(
 export async function relayCodeIfNeeded(
   returnTo?: string,
   clientId?: string,
+  codeChallenge?: string,
+  clientState?: string,
 ): Promise<boolean> {
   if (!returnTo) return false;
-  const { code } = await authorize(returnTo, clientId);
+  // challenge 는 **그 앱이 만든 것**을 그대로 넘긴다. 포털이 새로 만들면 verifier 를
+  // 가진 쪽(그 앱)과 짝이 안 맞아 교환이 실패한다.
+  if (!codeChallenge) {
+    throw new Error('code_challenge is required for SSO relay.');
+  }
+  const { code } = await authorize(returnTo, codeChallenge, clientId);
   const url = new URL(returnTo);
   url.searchParams.set('code', code);
+  // 그 앱이 보낸 state 를 그대로 돌려준다. verifier 조회 키라 없으면 교환이 안 된다.
+  if (clientState) url.searchParams.set('state', clientState);
   window.location.href = url.toString();
   return true;
 }
@@ -113,8 +133,15 @@ export function socialLoginUrl(
   provider: SocialProvider,
   returnTo: string = `${window.location.origin}/auth/callback`,
   clientId?: string,
+  codeChallenge?: string,
+  clientState?: string,
 ): string {
   const params = new URLSearchParams({ return_to: returnTo });
   if (clientId) params.set('client_id', clientId);
+  if (clientState) params.set('client_state', clientState);
+  if (codeChallenge) {
+    params.set('code_challenge', codeChallenge);
+    params.set('code_challenge_method', 'S256');
+  }
   return `${API_BASE_URL}/auth/${provider}?${params.toString()}`;
 }

@@ -81,6 +81,7 @@ export class OAuthController {
         dto.code,
         requestMeta(req),
         origin,
+        dto.code_verifier,
       );
     } else {
       const fromBody = dto.refresh_token;
@@ -115,6 +116,7 @@ export class OAuthController {
       user.userId,
       dto.returnTo,
       dto.clientId,
+      dto.codeChallenge,
     );
     return { code };
   }

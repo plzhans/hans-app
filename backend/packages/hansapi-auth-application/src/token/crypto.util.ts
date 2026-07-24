@@ -17,6 +17,15 @@ export function sha256hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+/**
+ * SHA-256 을 base64url 로. **PKCE(RFC 7636) 의 S256 변환**이 이 형식을 요구한다.
+ * hex 가 아닌 이유는 스펙이 그렇게 정했기 때문이다 — 클라이언트가 만드는 challenge 와
+ * 글자 단위로 같아야 대조가 된다.
+ */
+export function sha256base64url(value: string): string {
+  return createHash('sha256').update(value).digest('base64url');
+}
+
 /** hex 문자열 두 개를 상수시간 비교한다. 길이가 다르면 false. */
 export function timingSafeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) {

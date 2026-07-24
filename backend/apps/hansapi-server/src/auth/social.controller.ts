@@ -110,12 +110,12 @@ export class SocialController {
       throw new BadRequestException('Social profile is unavailable.');
     }
     const state = typeof req.query.state === 'string' ? req.query.state : '';
-    const { outcome, returnTo } = await this.social.handleCallback(
+    const { outcome, returnTo, clientState } = await this.social.handleCallback(
       profile,
       state,
       requestMeta(req),
     );
-    res.redirect(this.buildRedirect(returnTo, outcome));
+    res.redirect(this.buildRedirect(returnTo, outcome, clientState));
   }
 
   @Delete(':provider/link')
@@ -142,6 +142,7 @@ export class SocialController {
   private buildRedirect(
     returnTo: string | undefined,
     outcome: CallbackOutcome,
+    clientState?: string,
   ): string {
     if (!returnTo) {
       throw new BadRequestException(
@@ -149,6 +150,11 @@ export class SocialController {
       );
     }
     const url = new URL(returnTo);
+    // 클라이언트가 보낸 state 를 그대로 반환한다(RFC 6749 §4.1.2). 그 앱이 CSRF 대조와
+    // PKCE verifier 조회 키로 쓰므로, 없으면 교환 자체를 못 한다.
+    if (clientState) {
+      url.searchParams.set('state', clientState);
+    }
     switch (outcome.kind) {
       case 'code':
         url.searchParams.set('code', outcome.code);

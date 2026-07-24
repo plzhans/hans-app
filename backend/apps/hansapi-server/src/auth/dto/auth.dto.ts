@@ -107,6 +107,16 @@ export class TokenRequestDto {
   @IsOptional()
   @IsString()
   readonly refresh_token?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'PKCE code_verifier(RFC 7636). authorization_code grant 에 **필수**다. ' +
+      '인가 요청 때 보낸 code_challenge 의 원본으로, BASE64URL(SHA256(이 값)) 이 일치해야 한다.',
+    example: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+  })
+  @IsOptional()
+  @IsString()
+  readonly code_verifier?: string;
 }
 
 /**
@@ -157,6 +167,15 @@ export class AuthorizeRequestDto {
   @IsOptional()
   @IsString()
   readonly clientId?: string;
+
+  @ApiProperty({
+    description:
+      'PKCE code_challenge = BASE64URL(SHA256(code_verifier)), 43자. S256 만 받는다. ' +
+      '발급되는 코드에 기록되어 교환 때 code_verifier 와 대조된다.',
+    example: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+  })
+  @IsString()
+  readonly codeChallenge!: string;
 }
 
 /** SSO 인가코드 응답. 클라이언트는 이 code 를 /oauth/token 으로 교환한다. */

@@ -137,6 +137,15 @@ model UserAuthCode {
   /// 코드가 탈취돼도 다른 출처에서는 교환되지 않는다(RFC 6749 가 client_id 를 묶는 이유).
   clientId String? @map("client_id") @db.VarChar(40)
 
+  /// PKCE(RFC 7636) code_challenge. BASE64URL(SHA256(verifier)) 43자, S256 방식만 받는다.
+  ///
+  /// 발급 요청이 준 값을 그대로 보관했다가, 교환 때 클라이언트가 보내는 code_verifier 를
+  /// 같은 방식으로 해시해 대조한다. **원본(verifier)은 서버가 끝까지 모른다** — 그래서
+  /// 이 값이 새어도, DB 가 통째로 털려도 그것만으로는 코드를 교환할 수 없다.
+  ///
+  /// nullable 인 건 기존 행 때문이다. 새로 발급되는 코드에는 항상 채워진다.
+  codeChallenge String? @map("code_challenge") @db.VarChar(128)
+
   /// SHA-256(secret) hex 64자
   secretHash String @map("secret_hash") @db.Char(64)
 

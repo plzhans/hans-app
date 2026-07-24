@@ -46,6 +46,8 @@ export interface AuthTokens {
 export interface ConsumedAuthCode {
   readonly userId: number;
   readonly clientId: string | null;
+  /** PKCE code_challenge(S256). 호출측이 code_verifier 와 대조한다. */
+  readonly codeChallenge: string | null;
 }
 
 /**
@@ -196,6 +198,7 @@ export class TokenService {
   async issueAuthCode(
     userId: number,
     clientId: string | null = null,
+    codeChallenge: string | null = null,
   ): Promise<string> {
     const sid = randomToken(12);
     const secret = randomToken(24);
@@ -203,6 +206,7 @@ export class TokenService {
       sid,
       userId,
       clientId,
+      codeChallenge,
       secretHash: sha256hex(secret),
       expiresAt: new Date(Date.now() + this.config.authCodeTtlSec * 1000),
     });
@@ -235,6 +239,10 @@ export class TokenService {
     if (consumed === 0) {
       throw new UnauthorizedException('Authorization code already used.');
     }
-    return { userId: row.userId, clientId: row.clientId };
+    return {
+      userId: row.userId,
+      clientId: row.clientId,
+      codeChallenge: row.codeChallenge,
+    };
   }
 }

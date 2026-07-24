@@ -86,6 +86,7 @@ export class SocialAuthGuard implements CanActivate {
     const { returnTo, clientId } = await this.resolveReturnTo(req);
 
     if (linkToken) {
+      // 연동은 인가코드를 만들지 않으므로 PKCE 대상이 아니다.
       const { userId } = this.tickets.verifyLinkPrepare(linkToken);
       return this.tickets.signState({
         intent: 'link',
@@ -94,7 +95,32 @@ export class SocialAuthGuard implements CanActivate {
         clientId,
       });
     }
-    return this.tickets.signState({ intent: 'login', returnTo, clientId });
+
+    // 로그인은 끝에서 인가코드가 나오므로 challenge 가 있어야 한다.
+    // 여기서 안 받으면 콜백에서 코드를 만들 때 붙일 값이 없다(그 요청엔 쿼리가 없다).
+    const codeChallenge =
+      typeof req.query.code_challenge === 'string'
+        ? req.query.code_challenge
+        : undefined;
+    if (returnTo && !codeChallenge) {
+      throw new BadRequestException('code_challenge is required (PKCE, S256).');
+    }
+    // 클라이언트의 state 는 우리가 해석하지 않는다. 최종 리다이렉트에 그대로 돌려주기 위해
+    // 왕복시킬 뿐이다. 크기를 남이 정하므로 상한을 둔다 — 안 두면 우리 state·URL 이 같이 부푼다.
+    const clientState =
+      typeof req.query.client_state === 'string'
+        ? req.query.client_state
+        : undefined;
+    if (clientState && clientState.length > 512) {
+      throw new BadRequestException('client_state is too long (max 512).');
+    }
+    return this.tickets.signState({
+      intent: 'login',
+      returnTo,
+      clientId,
+      codeChallenge,
+      clientState,
+    });
   }
 
   /**

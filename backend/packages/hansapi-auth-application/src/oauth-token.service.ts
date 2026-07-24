@@ -8,6 +8,11 @@ import {
 import { ActionResult, AppStatus, UserAction, UserStatus } from '@hansapi/data';
 
 import { AccessCache } from './app/access-cache.service';
+import {
+  sha256base64url,
+  sha256hex,
+  timingSafeEqualHex,
+} from './token/crypto.util';
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
 import { RequestMeta } from './auth.service';
@@ -38,7 +43,12 @@ export class OAuthTokenService {
     userId: number,
     returnTo: string,
     clientId?: string,
+    codeChallenge?: string,
   ): Promise<string> {
+    // PKCE 는 **모든 인가코드에 필수**다. 선택으로 두면 공격자가 challenge 를 빼고 요청해
+    // 검증을 건너뛸 수 있다(downgrade). 예외를 두지 않아야 그 경로가 안 생긴다.
+    const challenge = assertCodeChallenge(codeChallenge);
+
     let origin: string;
     try {
       origin = new URL(returnTo).origin;
@@ -59,14 +69,14 @@ export class OAuthTokenService {
           'return_to is not a registered redirect URI.',
         );
       }
-      return this.tokens.issueAuthCode(userId, client.clientId);
+      return this.tokens.issueAuthCode(userId, client.clientId, challenge);
     }
 
     // 1st-party(hansapp-web): 자기 자신은 클라이언트로 등록하지 않으므로 전역 허용목록을 본다.
     if (!this.config.allowedOrigins.includes(origin)) {
       throw new BadRequestException('return_to not allowed.');
     }
-    return this.tokens.issueAuthCode(userId, null);
+    return this.tokens.issueAuthCode(userId, null, challenge);
   }
 
   /**
@@ -125,8 +135,11 @@ export class OAuthTokenService {
     code: string,
     meta: RequestMeta,
     requestOrigin?: string,
+    codeVerifier?: string,
   ): Promise<AuthTokens> {
-    const { userId, clientId } = await this.tokens.consumeAuthCode(code);
+    const { userId, clientId, codeChallenge } =
+      await this.tokens.consumeAuthCode(code);
+    assertCodeVerifier(codeChallenge, codeVerifier);
     await this.assertExchangeOrigin(clientId, requestOrigin);
     const user = await this.users.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
@@ -169,5 +182,54 @@ export class OAuthTokenService {
       sessionId,
       ...meta,
     });
+  }
+}
+
+/** PKCE code_challenge 로 허용하는 길이(RFC 7636 은 verifier 43~128자, S256 결과는 43자). */
+const CHALLENGE_LENGTH = 43;
+
+/**
+ * 발급 요청의 code_challenge 를 검증한다. **없으면 거부한다.**
+ *
+ * 선택 사항으로 두면 "challenge 를 빼고 요청해서 검증을 건너뛰는" 우회로가 생긴다(downgrade).
+ * S256 만 받는다 — plain 은 challenge 가 곧 verifier 라 아무 보호가 안 된다(RFC 7636 §7.2).
+ */
+function assertCodeChallenge(value?: string): string {
+  const challenge = value?.trim();
+  if (!challenge) {
+    throw new BadRequestException('code_challenge is required (PKCE, S256).');
+  }
+  // S256 결과는 base64url 43자로 길이가 고정이다. 형식이 어긋나면 클라이언트 구현 오류다.
+  if (
+    challenge.length !== CHALLENGE_LENGTH ||
+    !/^[A-Za-z0-9\-_]+$/.test(challenge)
+  ) {
+    throw new BadRequestException(
+      'code_challenge must be BASE64URL(SHA256(code_verifier)).',
+    );
+  }
+  return challenge;
+}
+
+/**
+ * 교환 요청의 code_verifier 를 코드에 박힌 challenge 와 대조한다.
+ *
+ * challenge 가 없는 코드(마이그레이션 이전 발급분)는 검증을 건너뛰지 않고 **거부한다** —
+ * 건너뛰면 그게 곧 우회로다. 인가코드 수명이 30초라 실제로 걸릴 코드는 없다.
+ */
+function assertCodeVerifier(challenge: string | null, verifier?: string): void {
+  if (!challenge) {
+    throw new UnauthorizedException('Authorization code is not usable.');
+  }
+  const value = verifier?.trim();
+  if (!value) {
+    throw new BadRequestException('code_verifier is required (PKCE).');
+  }
+  // 양쪽을 한 번 더 hex 로 해싱해 길이를 고정한 뒤 상수시간 비교한다.
+  // 그냥 비교하면 길이가 다를 때 즉시 false 라, 길이 정보가 타이밍으로 샌다.
+  const expected = sha256hex(challenge);
+  const actual = sha256hex(sha256base64url(value));
+  if (!timingSafeEqualHex(expected, actual)) {
+    throw new UnauthorizedException('code_verifier mismatch.');
   }
 }

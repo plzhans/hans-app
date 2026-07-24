@@ -1,3 +1,4 @@
+import { createPkceRequest, takeVerifier } from './pkce';
 import { TokenStorage, type StoredTokens } from './storage';
 
 export interface AuthClientConfig {
@@ -30,7 +31,7 @@ interface TokenResponse {
 
 export interface CallbackResult {
   ok: boolean;
-  /** 실패/보류 사유. 'no_code' | 'email_exists' | 'pending' | ... */
+  /** 실패/보류 사유. 'no_code' | 'no_verifier' | 'email_exists' | 'pending' | ... */
   error?: string;
 }
 
@@ -53,11 +54,20 @@ export class HansAppAuthClient {
     return `${window.location.origin}${path}`;
   }
 
-  /** plzhans 로그인 UI 로 전체 페이지 이동한다. 로그인 후 이 앱의 콜백으로 code 가 돌아온다. */
-  login(returnTo: string = this.callbackUrl): void {
+  /**
+   * plzhans 로그인 UI 로 전체 페이지 이동한다. 로그인 후 이 앱의 콜백으로 code 가 돌아온다.
+   *
+   * 이동 **전에** PKCE verifier 를 만들어 보관한다. 전체 페이지 이동이라 JS 힙이 통째로
+   * 사라지므로, 메모리에 두면 돌아왔을 때 교환할 수가 없다.
+   */
+  async login(returnTo: string = this.callbackUrl): Promise<void> {
+    const { state, codeChallenge } = await createPkceRequest();
     const params = new URLSearchParams({
       return_to: returnTo,
       client_id: this.config.clientId,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+      state,
     });
     window.location.href = `${this.config.authWebUrl}/auth/login?${params.toString()}`;
   }
@@ -74,10 +84,19 @@ export class HansAppAuthClient {
     const code = params.get('code');
     if (!code) return { ok: false, error: 'no_code' };
 
+    // state 로 이 흐름의 verifier 를 꺼낸다. 없으면 이 브라우저가 시작한 로그인이 아니다 —
+    // 남이 심어 놓은 code 를 교환하려는 시도(code injection)일 수 있으므로 여기서 끊는다.
+    const codeVerifier = await takeVerifier(params.get('state'));
+    if (!codeVerifier) return { ok: false, error: 'no_verifier' };
+
     const res = await fetch(`${this.config.apiBaseUrl}/oauth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grant_type: 'authorization_code', code }),
+      body: JSON.stringify({
+        grant_type: 'authorization_code',
+        code,
+        code_verifier: codeVerifier,
+      }),
     });
     if (!res.ok) return { ok: false, error: `exchange_failed_${res.status}` };
     await this.store((await res.json()) as TokenResponse);

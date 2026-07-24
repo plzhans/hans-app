@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { exchangeCode, socialRegister } from '@/shared/api/auth';
+import { takeVerifier } from '@/shared/auth/pkce';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
@@ -59,7 +60,13 @@ export default function Callback() {
       return;
     }
     if (code) {
-      void finish(exchangeCode(code));
+      // 이 브라우저가 시작한 흐름의 verifier 를 꺼낸다. 없으면 교환하지 않는다.
+      const verifier = takeVerifier();
+      if (!verifier) {
+        setPhase('error');
+        return;
+      }
+      void finish(exchangeCode(code, verifier));
       return;
     }
     if (pending) {

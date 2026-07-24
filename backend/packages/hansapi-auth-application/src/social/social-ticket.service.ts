@@ -34,6 +34,13 @@ export class SocialTicketService {
     returnTo?: string;
     /** 복귀 대상 클라이언트. 없으면 1st-party(인증 포털). 발급될 인가코드에 박힌다. */
     clientId?: string;
+    /** PKCE code_challenge(S256). 해시라 노출돼도 안전하므로 state 로 운반한다. */
+    codeChallenge?: string;
+    /**
+     * 클라이언트(외부 앱)가 만든 state. **우리는 해석하지 않고 최종 리다이렉트에 그대로 돌려준다.**
+     * 그 앱이 CSRF 대조와 verifier 조회 키로 쓰므로, 왕복을 견뎌야 한다.
+     */
+    clientState?: string;
   }): string {
     return this.jwt.sign(
       {
@@ -42,6 +49,8 @@ export class SocialTicketService {
         user_id: payload.userId,
         redirect_uri: payload.returnTo,
         client_id: payload.clientId,
+        code_challenge: payload.codeChallenge,
+        client_state: payload.clientState,
       },
       { expiresIn: 600 },
     );
@@ -52,6 +61,8 @@ export class SocialTicketService {
     userId?: number;
     returnTo?: string;
     clientId?: string;
+    codeChallenge?: string;
+    clientState?: string;
   } {
     const p = this.verify<{
       token_use: string;
@@ -59,12 +70,16 @@ export class SocialTicketService {
       user_id?: number;
       redirect_uri?: string;
       client_id?: string;
+      code_challenge?: string;
+      client_state?: string;
     }>(token, 'oauth_state');
     return {
       intent: p.intent,
       userId: p.user_id,
       returnTo: p.redirect_uri,
       clientId: p.client_id,
+      codeChallenge: p.code_challenge,
+      clientState: p.client_state,
     };
   }
 

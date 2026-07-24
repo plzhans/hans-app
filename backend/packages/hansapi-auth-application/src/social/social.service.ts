@@ -35,6 +35,8 @@ export type CallbackOutcome =
 export interface CallbackResult {
   outcome: CallbackOutcome;
   returnTo?: string;
+  /** 클라이언트가 보낸 state. 최종 리다이렉트에 그대로 실어 돌려준다(우리는 해석하지 않는다). */
+  clientState?: string;
 }
 
 /** OAuthProvider → 가입수단(AuthProvider). 키 이름이 같아 그대로 매핑된다. */
@@ -75,11 +77,20 @@ export class SocialService {
       profile.providerId,
     );
     const outcome = await this.resolveOutcome(state, profile, existing, meta);
-    return { outcome, returnTo: state.returnTo };
+    return {
+      outcome,
+      returnTo: state.returnTo,
+      clientState: state.clientState,
+    };
   }
 
   private async resolveOutcome(
-    state: { intent: 'login' | 'link'; userId?: number; clientId?: string },
+    state: {
+      intent: 'login' | 'link';
+      userId?: number;
+      clientId?: string;
+      codeChallenge?: string;
+    },
     profile: SocialProfile,
     existing: { userId: number } | null,
     meta: RequestMeta,
@@ -95,6 +106,7 @@ export class SocialService {
       const code = await this.tokens.issueAuthCode(
         existing.userId,
         state.clientId ?? null,
+        state.codeChallenge ?? null,
       );
       return { kind: 'code', code };
     }

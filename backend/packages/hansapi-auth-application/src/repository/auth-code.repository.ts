@@ -13,6 +13,8 @@ export class AuthCodeRepository {
     userId: number;
     /** 발급 대상 클라이언트. null 이면 1st-party(hansapp-web). */
     clientId: string | null;
+    /** PKCE code_challenge(S256). 교환 때 verifier 와 대조한다. */
+    codeChallenge: string | null;
     secretHash: string;
     expiresAt: Date;
   }): Promise<UserAuthCode> {
