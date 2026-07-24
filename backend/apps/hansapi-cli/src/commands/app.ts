@@ -332,6 +332,30 @@ export function appCommand(source: EnvSource): Command {
     ],
   );
 
+  addExamples(
+    withOwner(
+      app
+        .command('client-delete')
+        .description(
+          '클라이언트를 삭제한다(하드 삭제 — 앱 삭제와 달리 행이 사라진다)',
+        )
+        .requiredOption('--app <id>', '앱 id', Number)
+        .requiredOption(
+          '--client <pk>',
+          '클라이언트 id(내부 pk, app show 로 확인)',
+          Number,
+        ),
+    ).action(
+      async (options: OwnerOptions & { app: number; client: number }) => {
+        await run(source, options.owner, (svc, userId) =>
+          svc.deleteClient(userId, options.app, options.client),
+        );
+        printJson({ deleted: options.client }, true);
+      },
+    ),
+    ['hansapi-cli app client-delete --app 10002 --client 100008'],
+  );
+
   // ---- 오리진 / 리디렉션 추가 ----
   addExamples(
     withOwner(
