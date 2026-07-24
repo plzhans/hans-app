@@ -13,6 +13,7 @@ import {
   AppMember,
   AppRole,
   AppStatus,
+  UserTier,
 } from '@hansapi/data';
 
 import { UserRepository } from '../repository/user.repository';
@@ -27,6 +28,14 @@ export type AppDetail = App & {
   clients: AppClient[];
   members: AppMember[];
 };
+
+/** 사용자 등급과 그 등급이 정하는 앱 한도. appLimit 이 null 이면 무제한(UNLIMITED). */
+export interface UserTierInfo {
+  email: string;
+  tier: UserTier;
+  appLimit: number | null;
+  appCount: number;
+}
 
 /** API 키 발급 결과. plainKey 는 이때 딱 한 번만 반환된다(이후 조회 불가). */
 export interface CreatedApiKey {
@@ -113,6 +122,45 @@ export class AppService {
       throw new NotFoundException('User not found.');
     }
     return user.id;
+  }
+
+  /**
+   * 사용자 등급 조회. 현재 등급과 앱 한도, 이미 쓴 개수를 함께 준다.
+   * 한도 해석(APP_LIMIT_BY_TIER)이 여기 있으므로 호출자가 다시 계산하지 않게 한다.
+   */
+  async getUserTier(userId: number): Promise<UserTierInfo> {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    return {
+      email: user.email,
+      tier: user.tier,
+      appLimit: APP_LIMIT_BY_TIER[user.tier],
+      appCount: await this.apps.countOwnerApps(userId),
+    };
+  }
+
+  /**
+   * 사용자 등급 변경. **운영자 전용**이다 — 등급이 앱 생성 한도를 정하므로 본인이 올릴 수
+   * 있으면 한도가 의미를 잃는다. 그래서 포털·API 에는 통로를 두지 않고 CLI 로만 연다.
+   *
+   * 낮추는 것도 막지 않는다. 이미 만든 앱은 그대로 두고 **다음 생성부터** 걸린다
+   * (createApp 이 생성 시점에만 한도를 본다). 이미 한도를 넘긴 상태가 될 수 있는데,
+   * 그게 앱을 강제로 지우는 것보다 낫다.
+   */
+  async setUserTier(userId: number, tier: UserTier): Promise<UserTierInfo> {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    const updated = await this.users.updateTier(userId, tier);
+    return {
+      email: updated.email,
+      tier: updated.tier,
+      appLimit: APP_LIMIT_BY_TIER[updated.tier],
+      appCount: await this.apps.countOwnerApps(userId),
+    };
   }
 
   /** 앱 생성. 등급별 한도(내가 OWNER 인 앱 수)를 초과하면 거부한다. */

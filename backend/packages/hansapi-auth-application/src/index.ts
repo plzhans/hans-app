@@ -12,11 +12,13 @@ export type {
   CreatedClient,
   CreateClientInput,
   UpdateClientInput,
+  UserTierInfo,
 } from './app/app.service';
 // 앱 도메인 엔티티 타입(서버 컨트롤러 매핑용). 서버는 @hansapi/data 를 직접 의존하지 않는다.
 export type { App, AppApiKey, AppClient } from '@hansapi/data';
 // 앱/클라이언트 enum(값으로 씀 — DTO @IsEnum·컨트롤러 매핑).
-export { AppClientType, AppStatus } from '@hansapi/data';
+// UserTier 는 CLI 가 --tier 값을 검증할 때 값으로 쓴다.
+export { AppClientType, AppStatus, UserTier } from '@hansapi/data';
 export { TokenService } from './token/token.service';
 export type { AuthTokens } from './token/token.service';
 export { ActionLogService } from './log/action-log.service';

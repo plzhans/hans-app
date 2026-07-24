@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { AuthProvider, PrismaService, User, UserStatus } from '@hansapi/data';
+import {
+  AuthProvider,
+  PrismaService,
+  User,
+  UserStatus,
+  UserTier,
+} from '@hansapi/data';
 
 /**
  * 회원 저장소. DB 접근·쿼리 조립만 담당한다(캐시·정책은 서비스가).
@@ -45,6 +51,11 @@ export class UserRepository {
       where: { id },
       data: { emailVerified: true },
     });
+  }
+
+  /** 등급 변경. 앱 생성 한도(APP_LIMIT_BY_TIER)를 정하는 값이라 운영자만 건드린다. */
+  updateTier(id: number, tier: UserTier): Promise<User> {
+    return this.prisma.user.update({ where: { id }, data: { tier } });
   }
 
   /** 탈퇴 처리: 상태를 WITHDRAWN 으로 바꾸고 탈퇴 시각을 남긴다(하드삭제는 배치가 수행). */

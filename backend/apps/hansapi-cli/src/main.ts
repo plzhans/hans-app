@@ -24,6 +24,7 @@ import { i18nCommand } from './commands/i18n';
 import { nmcCommand } from './commands/nmc';
 import { esCommand } from './commands/es';
 import { appCommand } from './commands/app';
+import { userCommand } from './commands/user';
 import { addExamples, localizeHelp } from './help';
 
 /**
@@ -74,7 +75,8 @@ const program = new Command()
   .addCommand(dbCommand(envSource))
   .addCommand(syncStatusCommand(envSource))
   .addCommand(esCommand(envSource))
-  .addCommand(appCommand(envSource));
+  .addCommand(appCommand(envSource))
+  .addCommand(userCommand(envSource));
 
 addExamples(program, [
   `hansapi-cli db status                     # 현재 환경: ${envSource.env}`,
