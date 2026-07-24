@@ -20,6 +20,8 @@ interface Wrapped<T> {
  *
  *   internalMap(프로세스 메모리, 기본 5분) → cache(Redis, 기본 10분) → DB
  *
+ * 캐시가 빈 순간(재시작·TTL 만료)에 같은 키로 요청이 몰려도 조회는 1회다(single-flight).
+ *
  * cache 는 전역 CacheModule(ApplicationModule 이 REDIS_URL 로 등록)을 빌려 쓴다. 없으면
  * (auth 단독 구동) internalMap 만으로 동작한다 — 그래서 @Optional 이다.
  *
@@ -33,6 +35,16 @@ export class AccessCache {
     string,
     { w: Wrapped<unknown>; exp: number }
   >();
+
+  /**
+   * 진행 중인 조회(single-flight). 같은 키를 동시에 여러 요청이 물으면 **한 번만 조회**하고
+   * 나머지는 그 Promise 에 편승한다 — 캐시가 빈 순간(재시작·TTL 만료)에 요청이 몰려도
+   * DB/Redis 를 한 번만 때린다.
+   *
+   * Node 는 싱글스레드라 락이 필요 없다: 아래 read() 의 `get → set` 구간에 await 가 없어
+   * 원자적으로 실행되므로, 두 번째 요청은 반드시 등록된 Promise 를 본다.
+   */
+  private readonly inflight = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly apps: AppRepository,
@@ -64,8 +76,11 @@ export class AccessCache {
     return this.drop(`${PREFIX}:client:${clientId}`);
   }
 
-  /** internalMap → cache → DB 순으로 읽고, 읽은 값을 아래에서 위로 채운다. */
-  private async read<T>(
+  /**
+   * internalMap → cache → DB 순으로 읽고, 읽은 값을 아래에서 위로 채운다.
+   * 메모리 히트가 아니면 single-flight 로 묶어 같은 키의 동시 조회를 1회로 합친다.
+   */
+  private read<T>(
     key: string,
     load: () => Promise<T | null>,
   ): Promise<T | null> {
@@ -75,18 +90,33 @@ export class AccessCache {
         // LRU: 최근 사용으로 올린다(Map 은 삽입 순서를 지키므로 재삽입 = 맨 뒤로).
         this.internalMap.delete(key);
         this.internalMap.set(key, hit);
-        return hit.w.v as T | null;
+        return Promise.resolve(hit.w.v as T | null);
       }
       this.internalMap.delete(key); // 만료분은 여기서 정리한다.
     }
 
+    // 여기부터 끝까지 await 가 없다 — 다른 요청이 끼어들기 전에 inflight 에 등록된다.
+    const running = this.inflight.get(key);
+    if (running) {
+      return running as Promise<T | null>;
+    }
+    const p = this.load(key, load).finally(() => this.inflight.delete(key));
+    this.inflight.set(key, p);
+    return p;
+  }
+
+  /** 공유 캐시 → DB 순으로 실제로 읽어 오고, 읽은 값을 위 계층에 채운다. */
+  private async load<T>(
+    key: string,
+    fromDb: () => Promise<T | null>,
+  ): Promise<T | null> {
     const cached = await this.cache?.get<Wrapped<T>>(key);
     if (cached) {
       this.putInternal(key, cached);
       return cached.v;
     }
 
-    const wrapped: Wrapped<T> = { v: await load() };
+    const wrapped: Wrapped<T> = { v: await fromDb() };
     this.putInternal(key, wrapped);
     await this.cache?.set(key, wrapped, this.config.sharedTtlSec * 1000);
     return wrapped.v;
@@ -113,6 +143,8 @@ export class AccessCache {
 
   private async drop(key: string): Promise<void> {
     this.internalMap.delete(key);
+    // 진행 중이던 조회에 이후 요청이 편승하지 않게 한다(그 조회는 무효화 이전 값일 수 있다).
+    this.inflight.delete(key);
     await this.cache?.del(key);
   }
 }

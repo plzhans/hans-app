@@ -45,6 +45,12 @@ async function bootstrap() {
   //  - 그 외: 인증 헤더를 실을 요청만 통과. 쿠키는 안 준다(credentials 없음 → 타 사이트가
   //          쿠키를 실어 /oauth/token 을 호출해 응답을 읽는 것을 브라우저가 막는다).
   //  프리플라이트는 헤더 "이름"만 예고하므로 access-control-request-headers 를 같이 본다.
+  //
+  // maxAge: 프리플라이트 응답을 브라우저가 캐시하는 시간(초). X-Client-Id 는 커스텀 헤더라
+  // GET 이어도 매번 프리플라이트가 붙는데, 기본 캐시가 아주 짧아(크롬 5초) 호출마다 왕복이 2배가 된다.
+  // 10분으로 두면 그 구간 동안 프리플라이트를 건너뛴다(정책을 바꿔도 최대 10분 뒤 반영된다는 뜻).
+  const CORS_MAX_AGE_SEC = 600;
+
   app.enableCors(
     (
       req: Request,
@@ -52,12 +58,16 @@ async function bootstrap() {
     ) => {
       const origin = req.headers.origin;
       if (!origin) {
-        callback(null, { origin: true });
+        callback(null, { origin: true, maxAge: CORS_MAX_AGE_SEC });
         return;
       }
 
       if (authAllowedOrigins.includes(origin)) {
-        callback(null, { origin, credentials: true });
+        callback(null, {
+          origin,
+          credentials: true,
+          maxAge: CORS_MAX_AGE_SEC,
+        });
         return;
       }
 
@@ -67,7 +77,10 @@ async function bootstrap() {
         !!req.headers['x-client-id'] ||
         !!req.headers.authorization;
 
-      callback(null, { origin: hasAuthKey ? origin : false });
+      callback(null, {
+        origin: hasAuthKey ? origin : false,
+        maxAge: CORS_MAX_AGE_SEC,
+      });
     },
   );
 
