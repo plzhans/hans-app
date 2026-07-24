@@ -70,11 +70,17 @@ export function logout(): Promise<void> {
 /**
  * SSO 인가코드 발급(로그인 상태). 외부 클라이언트의 복귀 URL(return_to)로 넘길 1회용 code 를 받는다.
  * 이메일 로그인 뒤 그 클라이언트로 코드를 실어 돌려보낼 때 쓴다.
+ *
+ * clientId 를 넘기면 서버가 그 클라이언트의 등록 리디렉션 URI 와 returnTo 를 대조하고,
+ * 발급되는 code 에 clientId 를 박는다. 없으면 1st-party(이 포털) 복귀로 본다.
  */
-export function authorize(returnTo: string): Promise<{ code: string }> {
+export function authorize(
+  returnTo: string,
+  clientId?: string,
+): Promise<{ code: string }> {
   return apiFetch(
     '/oauth/authorize',
-    { method: 'POST', body: JSON.stringify({ returnTo }) },
+    { method: 'POST', body: JSON.stringify({ returnTo, clientId }) },
     { auth: true },
   );
 }
@@ -83,9 +89,12 @@ export function authorize(returnTo: string): Promise<{ code: string }> {
  * 로그인 성공 후 처리. return_to(외부 클라이언트 복귀 URL)가 있으면 인가코드를 받아
  * 그 URL 로 리다이렉트하고 true 를 반환한다(SSO). 없으면 아무것도 안 하고 false.
  */
-export async function relayCodeIfNeeded(returnTo?: string): Promise<boolean> {
+export async function relayCodeIfNeeded(
+  returnTo?: string,
+  clientId?: string,
+): Promise<boolean> {
   if (!returnTo) return false;
-  const { code } = await authorize(returnTo);
+  const { code } = await authorize(returnTo, clientId);
   const url = new URL(returnTo);
   url.searchParams.set('code', code);
   window.location.href = url.toString();
@@ -96,11 +105,16 @@ export async function relayCodeIfNeeded(returnTo?: string): Promise<boolean> {
  * 소셜 로그인 시작 URL(전체 페이지 리다이렉트). 백엔드가 provider 인가 페이지로 넘긴다.
  * returnTo 로 복귀 URL을 넘기면 로그인 완료 후 백엔드가 그 URL 에 code/pending 을 실어 돌려보낸다.
  * 기본은 이 앱의 /auth/callback(자체 로그인). 외부 클라이언트 SSO 면 그 앱의 콜백을 넘긴다.
- * (백엔드 AUTH_ALLOWED_ORIGINS 에 해당 오리진이 있어야 함)
+ *
+ * clientId 를 함께 넘기면 백엔드가 그 클라이언트의 등록 리디렉션 URI 로 returnTo 를 검증하고
+ * state 에 실어 콜백까지 운반한다. 없으면 1st-party 로 보고 AUTH_ALLOWED_ORIGINS 를 본다.
  */
 export function socialLoginUrl(
   provider: SocialProvider,
   returnTo: string = `${window.location.origin}/auth/callback`,
+  clientId?: string,
 ): string {
-  return `${API_BASE_URL}/auth/${provider}?return_to=${encodeURIComponent(returnTo)}`;
+  const params = new URLSearchParams({ return_to: returnTo });
+  if (clientId) params.set('client_id', clientId);
+  return `${API_BASE_URL}/auth/${provider}?${params.toString()}`;
 }

@@ -130,6 +130,13 @@ model UserAuthCode {
 
   userId Int @map("user_id")
 
+  /// 이 코드를 발급받은 클라이언트(AppClient.clientId). **null 이면 1st-party**(hansapp-web).
+  ///
+  /// 발급 시점에 서버가 정하므로 위조할 수 없다. 교환(/oauth/token) 때 이 값으로
+  /// 요청 Origin 을 대조한다 — null 이면 AUTH_ALLOWED_ORIGINS, 있으면 그 클라이언트의 origins.
+  /// 코드가 탈취돼도 다른 출처에서는 교환되지 않는다(RFC 6749 가 client_id 를 묶는 이유).
+  clientId String? @map("client_id") @db.VarChar(40)
+
   /// SHA-256(secret) hex 64자
   secretHash String @map("secret_hash") @db.Char(64)
 

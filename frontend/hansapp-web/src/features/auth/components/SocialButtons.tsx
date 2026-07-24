@@ -39,8 +39,15 @@ const PROVIDERS: Item[] = [
 /**
  * 소셜 로그인 버튼들. 클릭 시 백엔드 시작 URL 로 전체 페이지 리다이렉트한다.
  * returnTo 가 있으면(외부 클라이언트 SSO) 그 앱으로 code 를 실어 복귀시킨다.
+ * clientId 는 그 복귀 대상을 서버가 검증·귀속하는 데 쓴다(없으면 1st-party).
  */
-export function SocialButtons({ returnTo }: { returnTo?: string }) {
+export function SocialButtons({
+  returnTo,
+  clientId,
+}: {
+  returnTo?: string;
+  clientId?: string;
+}) {
   return (
     <div className="grid grid-cols-2 gap-2">
       {PROVIDERS.map((p) => (
@@ -48,7 +55,7 @@ export function SocialButtons({ returnTo }: { returnTo?: string }) {
           key={p.key}
           type="button"
           onClick={() => {
-            window.location.href = socialLoginUrl(p.key, returnTo);
+            window.location.href = socialLoginUrl(p.key, returnTo, clientId);
           }}
           className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${p.className}`}
         >

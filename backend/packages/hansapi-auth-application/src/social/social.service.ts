@@ -79,7 +79,7 @@ export class SocialService {
   }
 
   private async resolveOutcome(
-    state: { intent: 'login' | 'link'; userId?: number },
+    state: { intent: 'login' | 'link'; userId?: number; clientId?: string },
     profile: SocialProfile,
     existing: { userId: number } | null,
     meta: RequestMeta,
@@ -90,7 +90,12 @@ export class SocialService {
 
     // 로그인 의도
     if (existing) {
-      const code = await this.tokens.issueAuthCode(existing.userId);
+      // state 의 clientId 를 코드에 박는다. 이 값은 진입 시 가드가 정했고 서명으로 보호된다 —
+      // 그래야 토큰 교환 때 "이 코드는 medifinder 것" 을 서버가 알 수 있다.
+      const code = await this.tokens.issueAuthCode(
+        existing.userId,
+        state.clientId ?? null,
+      );
       return { kind: 'code', code };
     }
 

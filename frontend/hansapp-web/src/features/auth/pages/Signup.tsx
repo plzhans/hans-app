@@ -15,10 +15,20 @@ interface Form {
   name: string;
 }
 
+/** SSO 릴레이 파라미터(return_to·client_id)를 보존해 링크를 만든다. 하나라도 빠지면 귀속이 끊긴다. */
+function relayLink(path: string, returnTo?: string, clientId?: string): string {
+  if (!returnTo) return path;
+  const params = new URLSearchParams({ return_to: returnTo });
+  if (clientId) params.set('client_id', clientId);
+  return `${path}?${params.toString()}`;
+}
+
 export default function Signup() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const returnTo = params.get('return_to') ?? undefined;
+  // 그 클라이언트의 공개 ID. 서버가 return_to 검증과 코드 귀속에 쓴다.
+  const clientId = params.get('client_id') ?? undefined;
   const authenticate = useAuthStore((s) => s.authenticate);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -33,7 +43,7 @@ export default function Signup() {
     try {
       const tokens = await emailSignup(email, password, name);
       await authenticate(tokens);
-      if (!(await relayCodeIfNeeded(returnTo))) {
+      if (!(await relayCodeIfNeeded(returnTo, clientId))) {
         navigate('/', { replace: true });
       }
     } catch (e) {
@@ -100,9 +110,7 @@ export default function Signup() {
         이미 계정이 있으신가요?{' '}
         <Link
           to={
-            returnTo
-              ? `/auth/login?return_to=${encodeURIComponent(returnTo)}`
-              : '/auth/login'
+            relayLink('/auth/login', returnTo, clientId)
           }
           className="font-semibold text-primary hover:underline"
         >

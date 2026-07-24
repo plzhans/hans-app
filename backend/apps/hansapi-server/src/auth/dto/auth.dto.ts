@@ -140,11 +140,23 @@ export class TokenResponseDto {
  */
 export class AuthorizeRequestDto {
   @ApiProperty({
-    description: '코드를 실어 돌려보낼 클라이언트 URL(허용목록 오리진만)',
+    description:
+      '코드를 실어 돌려보낼 클라이언트 URL. clientId 를 주면 그 클라이언트에 등록된 ' +
+      '리디렉션 URI 와 정확히 일치해야 하고, 없으면 1st-party 허용목록 오리진이어야 한다.',
     example: 'https://medifinder.kr/auth/callback',
   })
   @IsString()
   readonly returnTo!: string;
+
+  @ApiPropertyOptional({
+    description:
+      '외부 앱의 공개 클라이언트 ID. 생략하면 1st-party(인증 포털 자신)로 간주한다. ' +
+      '이 값은 발급되는 코드에 기록되어, 토큰 교환 때 요청 Origin 대조의 기준이 된다.',
+    example: 'cl_fixed_medifinder',
+  })
+  @IsOptional()
+  @IsString()
+  readonly clientId?: string;
 }
 
 /** SSO 인가코드 응답. 클라이언트는 이 code 를 /oauth/token 으로 교환한다. */

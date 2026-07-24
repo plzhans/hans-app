@@ -9,6 +9,8 @@ import { createAuthClient } from '@hansapp/auth-sdk';
 export const authClient = createAuthClient({
   authWebUrl: import.meta.env.VITE_AUTH_WEB_URL as string,
   apiBaseUrl: import.meta.env.VITE_HANSAPI_BASE_URL as string,
+  // 데이터 API 의 X-Client-Id 와 같은 값이다. 로그인·토큰 교환도 이 클라이언트에 귀속된다.
+  clientId: import.meta.env.VITE_HANSAPI_CLIENT_ID as string,
   callbackPath: '/auth/callback',
   storageKey: 'medifinder.auth',
 });

@@ -11,6 +11,8 @@ export class AuthCodeRepository {
   create(input: {
     sid: string;
     userId: number;
+    /** 발급 대상 클라이언트. null 이면 1st-party(hansapp-web). */
+    clientId: string | null;
     secretHash: string;
     expiresAt: Date;
   }): Promise<UserAuthCode> {

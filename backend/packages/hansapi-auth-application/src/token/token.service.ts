@@ -42,6 +42,12 @@ export interface AuthTokens {
   readonly refreshExpiresAt: Date;
 }
 
+/** 소비된 인가코드의 내용. clientId 가 null 이면 1st-party(hansapp-web) 발급이다. */
+export interface ConsumedAuthCode {
+  readonly userId: number;
+  readonly clientId: string | null;
+}
+
 /**
  * 토큰 발급·검증·저장의 중심.
  * - access token: JWT(HS256), stateless. 서명·만료만으로 검증한다.
@@ -180,13 +186,23 @@ export class TokenService {
 
   // ---- 인가코드(릴레이) ----
 
-  /** 소셜 콜백에서 프론트로 넘길 1회용 인가코드를 발급한다. */
-  async issueAuthCode(userId: number): Promise<string> {
+  /**
+   * 소셜 콜백에서 프론트로 넘길 1회용 인가코드를 발급한다.
+   *
+   * clientId 는 **발급 시점에 서버가 정해 코드에 박는다**(요청이 나중에 주장하는 값이 아니다).
+   * 교환 때 이 값으로 요청 Origin 을 대조하므로, 코드가 새어도 다른 출처에서는 못 쓴다.
+   * null 이면 1st-party(hansapp-web) 발급이다.
+   */
+  async issueAuthCode(
+    userId: number,
+    clientId: string | null = null,
+  ): Promise<string> {
     const sid = randomToken(12);
     const secret = randomToken(24);
     await this.authCodes.create({
       sid,
       userId,
+      clientId,
       secretHash: sha256hex(secret),
       expiresAt: new Date(Date.now() + this.config.authCodeTtlSec * 1000),
     });
@@ -194,10 +210,12 @@ export class TokenService {
   }
 
   /**
-   * 인가코드를 소비하고 회원번호를 반환한다(1회용).
+   * 인가코드를 소비하고 **회원번호와 발급 대상 클라이언트**를 반환한다(1회용).
    * 형식 오류·미존재·만료·이미 소비·secret 불일치는 401.
+   *
+   * clientId 를 같이 주는 이유: 호출측이 이 값으로 요청 Origin 을 대조해야 하기 때문이다.
    */
-  async consumeAuthCode(code: string): Promise<number> {
+  async consumeAuthCode(code: string): Promise<ConsumedAuthCode> {
     const parsed = parseToken(code, AUTH_CODE_PREFIX);
     if (!parsed) {
       throw new UnauthorizedException('Invalid authorization code.');
@@ -217,6 +235,6 @@ export class TokenService {
     if (consumed === 0) {
       throw new UnauthorizedException('Authorization code already used.');
     }
-    return row.userId;
+    return { userId: row.userId, clientId: row.clientId };
   }
 }

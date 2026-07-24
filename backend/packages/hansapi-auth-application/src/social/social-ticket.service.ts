@@ -19,6 +19,8 @@ export class SocialTicketService {
     intent: 'login' | 'link';
     userId?: number;
     returnTo?: string;
+    /** 복귀 대상 클라이언트. 없으면 1st-party(인증 포털). 발급될 인가코드에 박힌다. */
+    clientId?: string;
   }): string {
     return this.jwt.sign(
       {
@@ -26,6 +28,7 @@ export class SocialTicketService {
         intent: payload.intent,
         uid: payload.userId,
         rt: payload.returnTo,
+        cid: payload.clientId,
       },
       { expiresIn: 600 },
     );
@@ -35,14 +38,21 @@ export class SocialTicketService {
     intent: 'login' | 'link';
     userId?: number;
     returnTo?: string;
+    clientId?: string;
   } {
     const p = this.verify<{
       typ: string;
       intent: 'login' | 'link';
       uid?: number;
       rt?: string;
+      cid?: string;
     }>(token, 'oauth_state');
-    return { intent: p.intent, userId: p.uid, returnTo: p.rt };
+    return {
+      intent: p.intent,
+      userId: p.uid,
+      returnTo: p.rt,
+      clientId: p.cid,
+    };
   }
 
   /** 연동(link) 시작 토큰. 로그인 상태에서 발급받아 GET /auth/:provider?link_token= 로 넘긴다. */

@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ActionResult, UserAction, UserStatus } from '@hansapi/data';
+import { ActionResult, AppStatus, UserAction, UserStatus } from '@hansapi/data';
 
+import { AccessCache } from './app/access-cache.service';
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
 import { RequestMeta } from './auth.service';
@@ -25,6 +27,7 @@ export class OAuthTokenService {
     private readonly tokens: TokenService,
     private readonly users: UserRepository,
     private readonly log: ActionLogService,
+    private readonly access: AccessCache,
   ) {}
 
   /**
@@ -34,6 +37,7 @@ export class OAuthTokenService {
   async issueAuthorizationCode(
     userId: number,
     returnTo: string,
+    clientId?: string,
   ): Promise<string> {
     let origin: string;
     try {
@@ -41,18 +45,89 @@ export class OAuthTokenService {
     } catch {
       throw new BadRequestException('Malformed return_to.');
     }
+
+    // 외부 앱: 등록된 리디렉션 URI 와 **정확히** 일치해야 한다(OAuth 의 redirect_uri 규칙).
+    // 오리진만 보면 같은 사이트의 아무 경로로나 코드를 흘릴 수 있다.
+    if (clientId) {
+      const client = await this.access.getClient(clientId);
+      if (!client || client.status !== AppStatus.ACTIVE) {
+        throw new BadRequestException('Unknown client.');
+      }
+      const allowed = (client.redirectUris as string[] | null) ?? [];
+      if (!allowed.includes(returnTo)) {
+        throw new BadRequestException(
+          'return_to is not a registered redirect URI.',
+        );
+      }
+      return this.tokens.issueAuthCode(userId, client.clientId);
+    }
+
+    // 1st-party(hansapp-web): 자기 자신은 클라이언트로 등록하지 않으므로 전역 허용목록을 본다.
     if (!this.config.allowedOrigins.includes(origin)) {
       throw new BadRequestException('return_to not allowed.');
     }
-    return this.tokens.issueAuthCode(userId);
+    return this.tokens.issueAuthCode(userId, null);
   }
 
-  /** grant_type=authorization_code. 릴레이 인가코드 → 세션·토큰 발급. */
+  /**
+   * **1st-party 전용 오리진 검사.** 쿠키를 자격증명으로 쓰는 경로가 호출한다.
+   *
+   * 쿠키는 브라우저가 교차출처 요청에도 자동으로 실어 보내므로, 오리진을 안 보면 아무 사이트나
+   * 남의 쿠키로 토큰을 받아갈 수 있다(CSRF). 바디로 받은 토큰에는 이 문제가 없다 —
+   * 그 값을 아는 것 자체가 자격이라 브라우저가 대신 붙여주지 않는다.
+   */
+  assertFirstPartyOrigin(origin?: string): void {
+    if (origin && !this.config.allowedOrigins.includes(origin)) {
+      throw new ForbiddenException('Origin not allowed.');
+    }
+  }
+
+  /**
+   * 토큰 교환 요청의 Origin 을 코드의 발급 대상과 대조한다.
+   *
+   * Origin 이 없으면(서버-서버·네이티브·curl) 통과시킨다 — 브라우저 교차출처 위협이 아니고,
+   * Origin 은 브라우저만 강제로 채우는 헤더라 없다고 의심할 근거가 없다. FirstPartyGuard 와 같은 규칙이다.
+   */
+  private async assertExchangeOrigin(
+    clientId: string | null,
+    origin?: string,
+  ): Promise<void> {
+    if (!origin) {
+      return;
+    }
+    if (!clientId) {
+      if (!this.config.allowedOrigins.includes(origin)) {
+        throw new ForbiddenException('Origin not allowed.');
+      }
+      return;
+    }
+    const client = await this.access.getClient(clientId);
+    const origins = (client?.origins as string[] | null) ?? [];
+    if (
+      !client ||
+      client.status !== AppStatus.ACTIVE ||
+      !origins.includes(origin)
+    ) {
+      throw new ForbiddenException('Origin not allowed.');
+    }
+  }
+
+  /**
+   * grant_type=authorization_code. 릴레이 인가코드 → 세션·토큰 발급.
+   *
+   * **오리진 검사를 코드에 박힌 clientId 기준으로 한다.** 요청이 스스로 신고한 값이 아니라
+   * 발급 시점에 서버가 정한 값이라 위조할 수 없다.
+   *
+   * 검사 실패해도 코드는 이미 소비된 상태다(consume 이 먼저다). 의도한 동작이다 —
+   * 잘못된 출처에서 한 번이라도 시도된 코드는 다시 못 쓰는 게 맞다.
+   */
   async exchangeAuthorizationCode(
     code: string,
     meta: RequestMeta,
+    requestOrigin?: string,
   ): Promise<AuthTokens> {
-    const userId = await this.tokens.consumeAuthCode(code);
+    const { userId, clientId } = await this.tokens.consumeAuthCode(code);
+    await this.assertExchangeOrigin(clientId, requestOrigin);
     const user = await this.users.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Account is not available.');

@@ -45,14 +45,22 @@ import {
 export class OAuthController {
   constructor(private readonly grants: OAuthTokenService) {}
 
+  /**
+   * **@FirstPartyOnly() 를 붙이지 않는다.** 외부 앱(등록된 클라이언트)도 여기서 토큰을 받아야 하기 때문이다.
+   * 대신 오리진 검사를 경로별로 나눈다 — 라우트 하나에 자격증명 출처가 셋이라 규칙이 다르다.
+   *
+   *   authorization_code : 코드에 박힌 clientId 기준으로 검사(서버가 발급 때 정한 값이라 위조 불가)
+   *   refresh_token(쿠키) : 1st-party 만. 브라우저가 자동으로 실어 보내므로 CSRF 방어가 필요하다
+   *   refresh_token(바디) : 검사 없음. 값을 아는 것 자체가 자격이고 브라우저가 대신 붙여주지 않는다
+   */
   @Post('token')
   @Public()
-  @FirstPartyOnly()
   @HttpCode(200)
   @ApiOperation({
     summary: '토큰 발급/갱신',
     description:
-      'grant_type=authorization_code 는 소셜 릴레이 인가코드(code)를 토큰으로 교환한다. ' +
+      'grant_type=authorization_code 는 인가코드(code)를 토큰으로 교환한다. 코드에 기록된 ' +
+      '클라이언트의 등록 오리진과 요청 Origin 이 일치해야 한다. ' +
       'grant_type=refresh_token 은 refresh token(바디 또는 httpOnly 쿠키)을 rotate 하고 새 토큰을 발급한다.',
   })
   @ApiOkResponse({ type: TokenResponseDto })
@@ -61,6 +69,9 @@ export class OAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
+    const origin =
+      typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+
     let tokens: AuthTokens;
     if (dto.grant_type === 'authorization_code') {
       if (!dto.code) {
@@ -69,11 +80,16 @@ export class OAuthController {
       tokens = await this.grants.exchangeAuthorizationCode(
         dto.code,
         requestMeta(req),
+        origin,
       );
     } else {
-      const refreshToken = dto.refresh_token ?? readRefreshCookie(req);
+      const fromBody = dto.refresh_token;
+      const refreshToken = fromBody ?? readRefreshCookie(req);
       if (!refreshToken) {
         throw new BadRequestException('refresh_token is required.');
+      }
+      if (!fromBody) {
+        this.grants.assertFirstPartyOrigin(origin);
       }
       tokens = await this.grants.refresh(refreshToken);
     }
@@ -98,6 +114,7 @@ export class OAuthController {
     const code = await this.grants.issueAuthorizationCode(
       user.userId,
       dto.returnTo,
+      dto.clientId,
     );
     return { code };
   }

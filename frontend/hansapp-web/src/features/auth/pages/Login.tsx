@@ -14,11 +14,21 @@ interface Form {
   password: string;
 }
 
+/** SSO 릴레이 파라미터(return_to·client_id)를 보존해 링크를 만든다. 하나라도 빠지면 귀속이 끊긴다. */
+function relayLink(path: string, returnTo?: string, clientId?: string): string {
+  if (!returnTo) return path;
+  const params = new URLSearchParams({ return_to: returnTo });
+  if (clientId) params.set('client_id', clientId);
+  return `${path}?${params.toString()}`;
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   // 외부 클라이언트(medifinder 등)가 SSO 로 넘긴 복귀 URL. 있으면 로그인 후 그쪽으로 code 를 실어 복귀.
   const returnTo = params.get('return_to') ?? undefined;
+  // 그 클라이언트의 공개 ID. 서버가 return_to 검증과 코드 귀속에 쓴다.
+  const clientId = params.get('client_id') ?? undefined;
   const authenticate = useAuthStore((s) => s.authenticate);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -33,7 +43,7 @@ export default function Login() {
       const tokens = await emailLogin(email, password);
       await authenticate(tokens);
       // SSO 면 외부 앱으로 복귀, 아니면 자체 홈으로.
-      if (!(await relayCodeIfNeeded(returnTo))) {
+      if (!(await relayCodeIfNeeded(returnTo, clientId))) {
         navigate('/', { replace: true });
       }
     } catch (e) {
@@ -73,15 +83,13 @@ export default function Login() {
         또는
         <span className="h-px flex-1 bg-gray-200" />
       </div>
-      <SocialButtons returnTo={returnTo} />
+      <SocialButtons returnTo={returnTo} clientId={clientId} />
 
       <p className="mt-6 text-center text-sm text-gray-500">
         계정이 없으신가요?{' '}
         <Link
           to={
-            returnTo
-              ? `/auth/signup?return_to=${encodeURIComponent(returnTo)}`
-              : '/auth/signup'
+            relayLink('/auth/signup', returnTo, clientId)
           }
           className="font-semibold text-primary hover:underline"
         >
