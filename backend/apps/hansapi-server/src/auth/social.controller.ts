@@ -22,6 +22,7 @@ import {
   Auth,
   AuthType,
   CurrentUser,
+  FirstPartyOnly,
   Public,
   SocialAuthGuard,
   SocialService,
@@ -52,6 +53,7 @@ export class SocialController {
 
   @Post('social/register')
   @Public()
+  @FirstPartyOnly()
   @HttpCode(200)
   @ApiOperation({
     summary: '소셜 신규 가입 확정',

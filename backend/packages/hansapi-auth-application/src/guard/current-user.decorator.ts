@@ -18,7 +18,7 @@ export const CurrentUser = createParamDecorator(
       .switchToHttp()
       .getRequest<Request & { user?: AuthUser }>();
     if (!request.user) {
-      throw new UnauthorizedException('인증 정보가 없습니다.');
+      throw new UnauthorizedException('No authentication context.');
     }
     return request.user;
   },

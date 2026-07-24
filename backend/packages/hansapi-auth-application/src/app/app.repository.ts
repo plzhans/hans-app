@@ -243,6 +243,11 @@ export class AppRepository {
     return this.prisma.appClient.findFirst({ where: { id: clientPk, appId } });
   }
 
+  /** 공개 clientId 로 클라이언트 단건 조회(인증 검증용). */
+  findClientByClientId(clientId: string): Promise<AppClient | null> {
+    return this.prisma.appClient.findUnique({ where: { clientId } });
+  }
+
   updateClient(
     appId: number,
     clientPk: number,

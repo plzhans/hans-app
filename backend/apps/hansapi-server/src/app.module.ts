@@ -2,7 +2,11 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { EnvSource, optionalString } from '@hansapi/common';
 import { ApplicationModule } from '@hansapi/application';
-import { AuthModule, AuthGuard } from '@hansapi/auth-application';
+import {
+  AuthModule,
+  AuthGuard,
+  FirstPartyGuard,
+} from '@hansapi/auth-application';
 import { NtsClient } from '@kr-go/nts';
 import { JusoClient } from '@kr-go/juso';
 
@@ -62,6 +66,9 @@ export class AppModule {
       ],
       providers: [
         AppService,
+        // 전역 오리진 가드. @FirstPartyOnly() 라우트(쿠키·토큰을 다루는 1st-party 흐름)만
+        // Origin 을 화이트리스트로 검사한다. @Public 여부와 무관하게 동작하므로 먼저 등록한다.
+        { provide: APP_GUARD, useExisting: FirstPartyGuard },
         // 전역 인증 가드. @Public() 라우트는 우회한다.
         // 가드 본체는 AuthModule 이 제공·export 하므로 인스턴스를 재사용한다(useExisting).
         { provide: APP_GUARD, useExisting: AuthGuard },

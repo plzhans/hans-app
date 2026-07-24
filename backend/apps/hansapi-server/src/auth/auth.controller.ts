@@ -19,6 +19,7 @@ import {
   AuthService,
   AuthType,
   CurrentUser,
+  FirstPartyOnly,
   Public,
 } from '@hansapi/auth-application';
 import type { AuthResult, AuthUser } from '@hansapi/auth-application';
@@ -52,6 +53,7 @@ export class AuthController {
 
   @Post('signup')
   @Public()
+  @FirstPartyOnly()
   @ApiOperation({
     summary: '이메일 회원가입',
     description:
@@ -69,6 +71,7 @@ export class AuthController {
 
   @Post('login')
   @Public()
+  @FirstPartyOnly()
   @HttpCode(200)
   @ApiOperation({
     summary: '이메일 로그인',
@@ -138,6 +141,7 @@ export class AuthController {
 
   @Post('password/reset-request')
   @Public()
+  @FirstPartyOnly()
   @HttpCode(202)
   @ApiOperation({
     summary: '비밀번호 재설정 요청',
@@ -154,6 +158,7 @@ export class AuthController {
 
   @Post('password/reset')
   @Public()
+  @FirstPartyOnly()
   @HttpCode(204)
   @ApiOperation({
     summary: '비밀번호 재설정 확정',
@@ -185,6 +190,7 @@ export class AuthController {
 
   @Post('email/verify')
   @Public()
+  @FirstPartyOnly()
   @HttpCode(204)
   @ApiOperation({
     summary: '이메일 인증 확정',

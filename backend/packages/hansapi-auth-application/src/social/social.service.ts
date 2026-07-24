@@ -195,7 +195,7 @@ export class SocialService {
   ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('유효하지 않은 계정입니다.');
+      throw new UnauthorizedException('Invalid account.');
     }
     const links = await this.oauths.listByUser(userId);
     const target = links.find((l) => l.provider === provider);

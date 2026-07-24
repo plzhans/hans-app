@@ -13,13 +13,13 @@ export const SWAGGER_PATH = 'docs';
 // (기본값 /docs-json 대신 사용)
 export const OPENAPI_JSON_PATH = 'openapi.json';
 
-// Bearer 토큰 인증 정의. API 키를 Authorization: Bearer <token> 헤더로 보낸다.
-// 모든 오퍼레이션에 전역으로 적용한다.
-// - securityScheme 이름(스펙 문서/문서 UI 에서 참조하는 키)
+// Bearer 인증 정의. Authorization: Bearer <token> 로 보낸다.
+//  - 사용자 access token(JWT)  또는  서비스 키(sk_{appId}_{keyId}_{rand}) 공용.
+// securityScheme 이름(스펙/문서 UI 에서 참조하는 키).
 export const BEARER_SCHEME = 'bearer';
-// - 문서 "Try it" 플레이그라운드에 기본으로 채워 넣을 토큰(임시 고정값).
-//   추후 실제 발급 토큰으로 대체한다.
-const BEARER_EXAMPLE = 'test';
+// 클라이언트 인증 정의. X-Client-Id 헤더로 공개 클라이언트 식별자를 보낸다(WEB 은 오리진도 검사).
+export const CLIENT_ID_SCHEME = 'client-id';
+export const CLIENT_ID_HEADER = 'X-Client-Id';
 
 interface ServerDef {
   url: string;
@@ -107,8 +107,25 @@ export function buildOpenApiDocument(
     // Bearer 토큰 인증 스킴을 선언한다. 전역 요구가 아니라 @Auth() 데코레이터가 붙은
     // 컨트롤러/핸들러에만 적용된다(@ApiBearerAuth). 헬스체크(@Public)에는 적용되지 않는다.
     .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'API Key' },
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT or service key(sk_...)',
+        description:
+          '사용자 access token(JWT) 또는 서비스 키(sk_{appId}_{keyId}_{rand}).',
+      },
       BEARER_SCHEME,
+    )
+    // 클라이언트 인증: X-Client-Id 헤더. 서비스 키 없이 이 헤더만 보내면 클라이언트로 인증한다.
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: CLIENT_ID_HEADER,
+        description:
+          '공개 클라이언트 식별자(clientId). WEB 은 Origin 도 검사됨.',
+      },
+      CLIENT_ID_SCHEME,
     );
 
   // servers 목록(오버라이드 > OPENAPI_SERVERS env > 기본)을 순서대로 넣는다.
@@ -121,16 +138,6 @@ export function buildOpenApiDocument(
   // nmc/hira 응답은 원본 API 구조를 그대로 돌려준다. 그 스키마(필드 설명 포함)는
   // 우리가 소유한 SDK 스펙에 이미 있으므로 문서에 합쳐 넣고 $ref 로 가리킨다.
   mergeKrDataSchemas(document);
-
-  // 문서 "Try it" 플레이그라운드가 토큰 입력을 기본값으로 채우도록 securityScheme 에
-  // 예시값을 심는다. 단 production 환경 스펙에는 기본 토큰을 노출하지 않는다.
-  const scheme = document.components?.securitySchemes?.[BEARER_SCHEME];
-  if (scheme && !('$ref' in scheme) && resolveAppEnv() !== 'production') {
-    Object.assign(scheme, {
-      example: BEARER_EXAMPLE,
-      'x-example': BEARER_EXAMPLE,
-    });
-  }
 
   return document;
 }

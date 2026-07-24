@@ -31,6 +31,10 @@ export type { SocialProfile } from './social/social.types';
 
 // 가드·데코레이터(서버가 컨트롤러에서 쓴다)
 export { AuthGuard } from './guard/auth.guard';
+export { FirstPartyGuard } from './guard/first-party.guard';
+export { FirstPartyOnly } from './guard/first-party.decorator';
+export { ApiAccessService } from './app/api-access.service';
+export type { ApiAccess } from './app/api-access.service';
 export { Auth } from './guard/auth.decorator';
 export { Public } from './guard/public.decorator';
 export { CurrentUser } from './guard/current-user.decorator';

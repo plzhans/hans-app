@@ -55,7 +55,7 @@ export class OAuthTokenService {
     const userId = await this.tokens.consumeAuthCode(code);
     const user = await this.users.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('사용할 수 없는 계정입니다.');
+      throw new UnauthorizedException('Account is not available.');
     }
     const tokens = await this.tokens.issueLogin(user.id, user.role, meta);
     await this.log.record({
@@ -75,7 +75,7 @@ export class OAuthTokenService {
     if (!user || user.status !== UserStatus.ACTIVE) {
       // 탈퇴·정지 계정의 잔존 세션은 즉시 폐기한다.
       await this.tokens.revokeSession(rotated.sessionId);
-      throw new UnauthorizedException('사용할 수 없는 계정입니다.');
+      throw new UnauthorizedException('Account is not available.');
     }
     return this.tokens.buildTokens(user.id, user.role, rotated);
   }

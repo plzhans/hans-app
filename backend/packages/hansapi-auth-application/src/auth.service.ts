@@ -106,9 +106,7 @@ export class AuthService {
         failReason: !user ? 'user_not_found' : 'bad_credentials',
         ...meta,
       });
-      throw new UnauthorizedException(
-        '이메일 또는 비밀번호가 올바르지 않습니다.',
-      );
+      throw new UnauthorizedException('Invalid email or password.');
     }
 
     const tokens = await this.issueLoginTokens(user, meta, AuthProvider.EMAIL);
@@ -158,7 +156,7 @@ export class AuthService {
   ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('유효하지 않은 계정입니다.');
+      throw new UnauthorizedException('Invalid account.');
     }
     if (
       !user.password ||
@@ -171,7 +169,7 @@ export class AuthService {
         failReason: 'bad_credentials',
         ...meta,
       });
-      throw new UnauthorizedException('현재 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException('Current password is incorrect.');
     }
     await this.users.updatePassword(
       user.id,
@@ -252,7 +250,7 @@ export class AuthService {
   async getProfile(userId: number): Promise<User> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('유효하지 않은 계정입니다.');
+      throw new UnauthorizedException('Invalid account.');
     }
     return user;
   }

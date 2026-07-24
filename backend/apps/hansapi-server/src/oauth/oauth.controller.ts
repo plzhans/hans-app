@@ -14,6 +14,7 @@ import {
   Auth,
   AuthType,
   CurrentUser,
+  FirstPartyOnly,
   OAuthTokenService,
   Public,
 } from '@hansapi/auth-application';
@@ -46,6 +47,7 @@ export class OAuthController {
 
   @Post('token')
   @Public()
+  @FirstPartyOnly()
   @HttpCode(200)
   @ApiOperation({
     summary: '토큰 발급/갱신',
@@ -101,6 +103,7 @@ export class OAuthController {
   }
 
   @Delete('logout')
+  @FirstPartyOnly()
   @Auth(AuthType.Jwt)
   @HttpCode(204)
   @ApiOperation({

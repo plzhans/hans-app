@@ -7,9 +7,6 @@ import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
 import { exitIfVersionFlag, loadEnv, resolveAppEnv } from '@hansapi/common';
 
-// SDK 가 실어보내는 임시 공개 토큰. 이 값이면 요청 origin 을 그대로 반사한다.
-// TODO: 실제 발급되는 public/user 토큰 체계로 대체.
-const PUBLIC_TEST_TOKEN = 'test';
 import { AppModule } from './app.module';
 import { HttpErrorFilter } from './common/http-error.filter';
 import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
@@ -42,46 +39,35 @@ async function bootstrap() {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  // CORS: SDK 가 실어보내는 Bearer 토큰으로 허용 origin 을 동적으로 판별한다.
-  //  - 인증 프론트 오리진(AUTH_ALLOWED_ORIGINS)은 토큰 없이도 허용한다(로그인 진입).
-  //  - 토큰이 'test' 이면 요청 origin 을 그대로 반사(허용)한다.
-  //  - 나중:  토큰에서 app(project) id 를 추출해, 그 앱에 등록된 origin 목록과
-  //          대조하도록 실제-요청 분기를 교체한다.
-  //
-  // 주의) CORS preflight(OPTIONS)에는 브라우저가 Authorization 헤더를 싣지 않는다.
-  //       preflight 단계에선 토큰을 볼 수 없으므로 일단 origin 을 반사해 통과시키고,
-  //       실제 토큰↔origin 검증은 이후 가드(실제 요청 단계)에서 수행한다.
+  // CORS. **인가가 아니라 최소 관문**이다 — 실제 검증(키/클라 status·오리진)은 AuthGuard 가 한다.
+  //  - Origin 없음(서버·curl·네이티브): CORS 대상 아님 → 통과
+  //  - 1st-party(AUTH_ALLOWED_ORIGINS): 통과 + credentials(refresh 쿠키가 오가야 함)
+  //  - 그 외: 인증 헤더를 실을 요청만 통과. 쿠키는 안 준다(credentials 없음 → 타 사이트가
+  //          쿠키를 실어 /oauth/token 을 호출해 응답을 읽는 것을 브라우저가 막는다).
+  //  프리플라이트는 헤더 "이름"만 예고하므로 access-control-request-headers 를 같이 본다.
   app.enableCors(
     (
       req: Request,
       callback: (err: Error | null, options: CorsOptions) => void,
     ) => {
-      const requestOrigin = req.headers.origin;
-
-      // 브라우저 요청이 아니면(Origin 없음: 서버/curl 등) CORS 제약 대상이 아니다.
-      if (!requestOrigin) {
-        callback(null, { origin: true, credentials: true });
+      const origin = req.headers.origin;
+      if (!origin) {
+        callback(null, { origin: true });
         return;
       }
 
-      const token = (req.headers.authorization ?? '')
-        .replace(/^Bearer\s+/i, '')
-        .trim();
-      const isPreflight = req.method === 'OPTIONS';
+      if (authAllowedOrigins.includes(origin)) {
+        callback(null, { origin, credentials: true });
+        return;
+      }
 
-      // preflight 는 토큰이 없어 판별 불가 → 반사해 통과(실제 검증은 가드에서).
-      // 실제 요청은 인증 프론트 오리진이거나 test 토큰일 때 반사한다.
-      // TODO: token -> appId 추출 후, 앱에 등록된 origin 목록과 대조하도록 교체.
-      const allowed =
-        isPreflight ||
-        authAllowedOrigins.includes(requestOrigin) ||
-        token === PUBLIC_TEST_TOKEN;
+      const asked = String(req.headers['access-control-request-headers'] ?? '');
+      const hasAuthKey =
+        /x-client-id|authorization/i.test(asked) ||
+        !!req.headers['x-client-id'] ||
+        !!req.headers.authorization;
 
-      // refresh 는 httpOnly 쿠키로 오가므로 credentials 를 허용한다.
-      callback(null, {
-        origin: allowed ? requestOrigin : false,
-        credentials: true,
-      });
+      callback(null, { origin: hasAuthKey ? origin : false });
     },
   );
 

@@ -9,6 +9,48 @@ import {
 export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
 
 /**
+ * API 접근 캐시 설정 주입 토큰. AccessCache 는 AuthConfig 전체가 아니라 이 조각만 받는다
+ * (필요한 것만 주입해 의존을 좁힌다).
+ */
+export const ACCESS_CACHE_CONFIG = Symbol('ACCESS_CACHE_CONFIG');
+
+/**
+ * 1st-party 허용 오리진 목록 주입 토큰(= AuthConfig.allowedOrigins).
+ * FirstPartyGuard 는 설정 전체가 아니라 이 목록만 받는다.
+ */
+export const ALLOWED_ORIGINS = Symbol('ALLOWED_ORIGINS');
+
+/**
+ * API 접근 캐시(서비스 키·클라이언트) TTL. 인증마다 DB 를 때리지 않으려는 2단 캐시의 설정이다.
+ *   프로세스 메모리(memoryTtlSec) → 공유 캐시 Redis(sharedTtlSec) → DB
+ *
+ * TTL 을 짧게 두는 이유: 무효화(키 삭제·재발급)와 조회가 겹치면 **조회가 옛 값을 캐시에 다시
+ * 심을 수 있다**(cache-aside 경쟁). 이 창을 원천 차단하려면 SET NX 가 필요한데 cache-manager 에는
+ * 없다. 그래서 "완전 차단" 대신 **TTL 로 피해를 한정**한다 — 최악이라도 sharedTtlSec 안에 자가 치유된다.
+ */
+export interface AccessCacheConfig {
+  /**
+   * 프로세스 메모리 TTL(초). 기본 300(5분).
+   * 인스턴스마다 따로라, 무효화가 다른 인스턴스에 퍼지는 지연이 곧 이 값이다.
+   */
+  readonly memoryTtlSec: number;
+
+  /**
+   * 프로세스 메모리 캐시 최대 엔트리 수. 기본 10000. 초과하면 LRU 로 가장 오래된 것부터 버린다.
+   * **없으면 무한 증식한다** — 존재하지 않는 키/clientId 조회도 "없음"으로 캐싱되므로,
+   * 무작위 값을 계속 던지면 메모리가 계속 불어난다. 그 상한이다.
+   */
+  readonly memoryMaxEntries: number;
+
+  /**
+   * 공유 캐시(Redis) TTL(초). 기본 600(10분).
+   * 메모리 캐시가 만료돼도 여기서 받으므로 DB 조회는 이 주기로만 일어난다
+   * (키 하나당 10분에 1회 수준이라 부하가 아니다).
+   */
+  readonly sharedTtlSec: number;
+}
+
+/**
  * 인증 응용 계층이 필요로 하는 설정. 이 계층이 스스로 정의하고 검증한다.
  *
  * JWT_SECRET 은 필수다(없으면 부팅 거부). 나머지 만료·보존 값은 기본값을 둔다.
@@ -35,6 +77,9 @@ export interface AuthConfig {
 
   /** 탈퇴 기록 보존일수. 이후 배치가 정리하며 이메일 재사용을 푼다. 기본 30일 */
   readonly withdrawalRetentionDays: number;
+
+  /** API 접근 캐시(서비스 키·클라이언트) TTL 설정. */
+  readonly accessCache: AccessCacheConfig;
 
   /**
    * 허용 오리진 목록(AUTH_ALLOWED_ORIGINS). CORS 뿐 아니라 소셜 return_to(로그인 후 복귀 URL)
@@ -124,6 +169,23 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
       'AUTH_PASSWORD_RESET_TTL_SEC',
       60 * 60,
     ),
+    accessCache: Object.freeze({
+      memoryTtlSec: optionalNumber(
+        source,
+        'AUTH_ACCESS_CACHE_MEMORY_TTL_SEC',
+        5 * 60,
+      ),
+      memoryMaxEntries: optionalNumber(
+        source,
+        'AUTH_ACCESS_CACHE_MEMORY_MAX',
+        10_000,
+      ),
+      sharedTtlSec: optionalNumber(
+        source,
+        'AUTH_ACCESS_CACHE_SHARED_TTL_SEC',
+        10 * 60,
+      ),
+    }),
     withdrawalRetentionDays: optionalNumber(
       source,
       'AUTH_WITHDRAWAL_RETENTION_DAYS',

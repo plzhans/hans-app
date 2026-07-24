@@ -1,44 +1,63 @@
 # 공통
 
-모든 API 에 똑같이 적용되는 규칙입니다. **요청 하나에 두 헤더가 필요합니다.**
+모든 API 에 똑같이 적용되는 규칙입니다. **요청에 인증 헤더가 필요합니다**(언어 헤더는 선택).
 
 ```http
 GET /healthcare/hospitals?region=11680
-Authorization: Bearer <API_KEY>     # 인증   — 없으면 401
-Accept-Language: en                 # 다국어 — 없으면 한국어
+Authorization: Bearer sk_...        # 인증(서비스 키)  — 없으면 401
+Accept-Language: en                 # 다국어           — 없으면 한국어
 ```
 
 ## 인증
 
-모든 API 요청에는 발급받은 **API 키**가 필요합니다. API 키를 HTTP `Authorization` 헤더에
-**Bearer 토큰**으로 담아 보냅니다.
+API 접근 인증은 **두 가지 방식**이 있습니다. **앱 관리 콘솔**(plzhans 포털)에서 앱을 등록하고
+용도에 맞게 발급합니다. 요청에는 둘 중 **하나**만 실으면 됩니다.
 
-```
-Authorization: Bearer <API_KEY>
-```
+| 방식 | 헤더 | 언제 쓰나 |
+| --- | --- | --- |
+| **서비스 키** | `Authorization: Bearer sk_...` | 서버 → 서버(백엔드에서 호출). 오리진은 보지 않음 |
+| **클라이언트 ID** | `X-Client-Id: <clientId>` | 브라우저·네이티브 앱. WEB 은 등록한 오리진에서만 |
 
-- `<API_KEY>` 자리에 발급받은 키를 넣습니다.
-- 모든 엔드포인트에 공통으로 적용됩니다.
-- 헤더가 없거나 키가 유효하지 않으면 **401** 이 옵니다.
+헤더가 없거나 유효하지 않으면 **401** 이 옵니다.
+
+### 서비스 키 (서버용)
+
+발급받은 서비스 키를 `Authorization` 헤더에 **Bearer** 로 담습니다. 형식은
+`sk_{appId}_{keyId}_{랜덤}` 이라 키값만 봐도 어느 앱·키인지 식별됩니다(서버는 원문을 저장하지
+않고 SHA-256 해시만으로 검증).
 
 ```bash
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-  "https://api.plzhans.com/data-go-kr/hira/hospitals?name=서울"
-```
-
-```js
-await fetch('https://api.plzhans.com/data-go-kr/hira/hospitals?name=서울', {
-  headers: { Authorization: 'Bearer YOUR_API_KEY' },
-});
+curl -H "Authorization: Bearer sk_10000_1_XXXXXXXXXXXX" \
+  "https://api.plzhans.com/healthcare/hospitals?region=11680"
 ```
 
 ::: warning
-API 키는 외부에 노출되지 않도록 주의하세요. 클라이언트(브라우저)에 직접 넣기보다 서버에서
-프록시하는 것을 권장합니다.
+서비스 키는 **비밀값**입니다. 브라우저·앱에 넣지 말고 **서버에서만** 쓰세요. 유출되면 콘솔에서 즉시
+재발급하면 이전 키는 무효화됩니다.
 :::
 
+### 클라이언트 ID (브라우저·앱용)
+
+클라이언트 ID 는 **공개 식별자**라 숨길 필요가 없습니다. `X-Client-Id` 헤더로 보냅니다.
+
+```js
+await fetch('https://api.plzhans.com/healthcare/hospitals?region=11680', {
+  headers: { 'X-Client-Id': 'YOUR_CLIENT_ID' },
+});
+```
+
+- **WEB 클라이언트**: 요청 **Origin** 이 콘솔에 등록한 *승인된 JavaScript 원본* 과 일치해야 합니다
+  (브라우저 CORS + 서버 검증). 등록 안 된 도메인에서의 호출은 거부됩니다.
+- **iOS / Android 클라이언트**: 커스텀 스킴·PKCE 기반(런타임은 추후). 지금은 식별자 등록 용도.
+
+### 발급 방법
+
+1. **앱 관리 콘솔**에서 앱을 등록합니다.
+2. 서버용이면 **서비스 키**를 발급하고, 브라우저·앱용이면 **클라이언트**를 생성합니다(WEB/iOS/Android).
+3. WEB 클라이언트는 호출할 도메인을 **승인된 JavaScript 원본**에 등록합니다.
+
 ::: tip
-문서의 각 API 페이지에서 **Try it** 을 사용할 때도 상단/요청 패널의 토큰 입력란에 API 키를 넣으면
+각 API 페이지의 **Try it** 상단 **Authorize** 에서 Bearer(서비스 키) 또는 X-Client-Id 를 입력하면
 인증된 요청으로 테스트할 수 있습니다.
 :::
 

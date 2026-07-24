@@ -8,14 +8,23 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
 import { TokenService } from '../token/token.service';
+import { ApiAccessService } from '../app/api-access.service';
+import type { ApiAccess } from '../app/api-access.service';
+import { AuthType } from './auth-type.enum';
+import { AUTH_TYPES_KEY } from './auth.decorator';
 import { AuthUser } from './auth-user';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
+/** 요청에 실린 인증 결과. JWT 면 user, API 접근이면 apiAccess 가 채워진다. */
+type AuthedRequest = Request & { user?: AuthUser; apiAccess?: ApiAccess };
+
 /**
- * 전역 인증 가드. Authorization: Bearer <access token> 을 검증한다.
+ * 전역 인증 가드. 라우트가 선언한 인증 방식(@Auth(...))에 따라 검증한다.
  * - @Public() 라우트는 우회한다(로그인·가입·소셜 콜백 등).
- * - access token(JWT)의 서명·만료를 검증하고 request.user 에 사용자 정보를 채운다.
- * - 검증 실패는 401.
+ * - AuthType.ApiKey: 외부 앱의 API 접근(서비스 키 Bearer sk_... 또는 X-Client-Id). request.apiAccess 채움.
+ * - AuthType.Jwt: 사용자 access token(JWT). request.user 채움.
+ * - 둘 다 선언된 라우트는, 요청에 API 접근 자격(sk_/X-Client-Id)이 있으면 그쪽을, 없으면 JWT 를 쓴다.
+ * - 어느 방식도 통과 못 하면 401.
  *
  * refresh token 은 여기서 다루지 않는다 — /oauth/token 에서만 교환된다.
  */
@@ -24,9 +33,10 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tokenService: TokenService,
+    private readonly apiAccess: ApiAccessService,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -35,30 +45,46 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    const request = context
-      .switchToHttp()
-      .getRequest<Request & { user?: AuthUser }>();
-    const token = this.extractToken(request);
-    if (!token) {
-      throw new UnauthorizedException('인증 토큰이 필요합니다.');
+    const request = context.switchToHttp().getRequest<AuthedRequest>();
+    const authTypes = this.reflector.getAllAndOverride<AuthType[]>(
+      AUTH_TYPES_KEY,
+      [context.getHandler(), context.getClass()],
+    ) ?? [AuthType.Jwt];
+
+    // API 접근(서비스 키/클라이언트)을 지원하고, 요청에 그 자격이 실려 있으면 우선 처리한다.
+    if (
+      authTypes.includes(AuthType.ApiKey) &&
+      this.apiAccess.hasCredentials(request)
+    ) {
+      request.apiAccess = await this.apiAccess.authenticate(request);
+      return true;
     }
 
-    const payload = this.tokenService.verifyAccessToken(token);
-    request.user = {
-      userId: Number(payload.sub),
-      role: payload.role,
-      sessionId: payload.sid,
-    };
-    return true;
+    // 사용자 access token(JWT).
+    if (authTypes.includes(AuthType.Jwt)) {
+      const token = this.extractToken(request);
+      if (!token) {
+        throw new UnauthorizedException('Authentication token is required.');
+      }
+      const payload = this.tokenService.verifyAccessToken(token);
+      request.user = {
+        userId: Number(payload.sub),
+        role: payload.role,
+        sessionId: payload.sid,
+      };
+      return true;
+    }
+
+    throw new UnauthorizedException('Authentication credentials are required.');
   }
 
-  /** Authorization: Bearer <token> 에서 토큰을 추출한다. */
+  /** Authorization: Bearer <token> 에서 토큰을 추출한다. 스킴은 대소문자 무관(RFC 7235). */
   private extractToken(request: Request): string | null {
     const header = request.headers.authorization;
     if (!header) {
       return null;
     }
-    const [scheme, value] = header.split(' ');
-    return scheme === 'Bearer' && value ? value : null;
+    const [scheme, value] = header.trim().split(/\s+/);
+    return scheme?.toLowerCase() === 'bearer' && value ? value : null;
   }
 }

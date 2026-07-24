@@ -72,7 +72,7 @@ export class TokenService {
     try {
       return this.jwt.verify<AccessTokenPayload>(token);
     } catch {
-      throw new UnauthorizedException('유효하지 않거나 만료된 토큰입니다.');
+      throw new UnauthorizedException('Invalid or expired token.');
     }
   }
 
@@ -114,20 +114,18 @@ export class TokenService {
   async rotateRefreshToken(refreshToken: string): Promise<RotatedSession> {
     const parsed = parseToken(refreshToken, REFRESH_PREFIX);
     if (!parsed) {
-      throw new UnauthorizedException('유효하지 않은 refresh token 입니다.');
+      throw new UnauthorizedException('Invalid refresh token.');
     }
     const session = await this.sessions.findById(parsed.id);
     if (!session) {
-      throw new UnauthorizedException('세션을 찾을 수 없습니다.');
+      throw new UnauthorizedException('Session not found.');
     }
     if (session.expiresAt.getTime() <= Date.now()) {
       await this.sessions.delete(session.sessionId);
-      throw new UnauthorizedException(
-        '세션이 만료되었습니다. 다시 로그인하세요.',
-      );
+      throw new UnauthorizedException('Session expired. Please sign in again.');
     }
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
-      throw new UnauthorizedException('refresh token 이 일치하지 않습니다.');
+      throw new UnauthorizedException('Refresh token mismatch.');
     }
 
     const newSecret = randomToken(24);
@@ -202,22 +200,22 @@ export class TokenService {
   async consumeAuthCode(code: string): Promise<number> {
     const parsed = parseToken(code, AUTH_CODE_PREFIX);
     if (!parsed) {
-      throw new UnauthorizedException('유효하지 않은 인가코드입니다.');
+      throw new UnauthorizedException('Invalid authorization code.');
     }
     const row = await this.authCodes.findById(parsed.id);
     if (!row || row.consumedAt) {
-      throw new UnauthorizedException('사용할 수 없는 인가코드입니다.');
+      throw new UnauthorizedException('Authorization code is not usable.');
     }
     if (row.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('인가코드가 만료되었습니다.');
+      throw new UnauthorizedException('Authorization code expired.');
     }
     if (!timingSafeEqualHex(row.secretHash, sha256hex(parsed.secret))) {
-      throw new UnauthorizedException('인가코드가 일치하지 않습니다.');
+      throw new UnauthorizedException('Authorization code mismatch.');
     }
     // 원자적 1회 소비: 아직 소비되지 않은 건만 마킹. 경쟁 시 count=0 이면 거부.
     const consumed = await this.authCodes.consume(row.sid, new Date());
     if (consumed === 0) {
-      throw new UnauthorizedException('이미 사용된 인가코드입니다.');
+      throw new UnauthorizedException('Authorization code already used.');
     }
     return row.userId;
   }

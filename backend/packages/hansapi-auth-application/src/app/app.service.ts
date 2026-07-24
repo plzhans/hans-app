@@ -19,6 +19,7 @@ import { UserRepository } from '../repository/user.repository';
 import { randomToken, sha256hex } from '../token/crypto.util';
 import { APP_LIMIT_BY_TIER } from './app.constants';
 import { AppRepository } from './app.repository';
+import { AccessCache } from './access-cache.service';
 
 /** 앱 상세(키·클라이언트·멤버 포함). */
 export type AppDetail = App & {
@@ -95,6 +96,7 @@ export class AppService {
   constructor(
     private readonly users: UserRepository,
     private readonly apps: AppRepository,
+    private readonly cache: AccessCache,
   ) {}
 
   listApps(userId: number): Promise<App[]> {
@@ -135,6 +137,7 @@ export class AppService {
     input: { name?: string; status?: AppStatus },
   ): Promise<App> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
+    // 인증은 키·클라이언트의 status 만 보므로 앱 이름/상태 변경은 접근 캐시에 영향이 없다.
     return this.apps.updateApp(appId, {
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
@@ -144,7 +147,16 @@ export class AppService {
   /** 앱 삭제. 소프트 삭제(deletedAt) + 하위 키·클라이언트 DISABLED. 완전 삭제는 배치가 한다. */
   async deleteApp(userId: number, appId: number): Promise<void> {
     await this.assertMember(userId, appId, AppRole.OWNER);
+    // 하위 키·클라이언트가 DISABLED 되므로, 캐시된 항목을 키 단위로 무효화한다.
+    const [keys, clients] = await Promise.all([
+      this.apps.listApiKeys(appId),
+      this.apps.listClients(appId),
+    ]);
     await this.apps.softDelete(appId);
+    await Promise.all([
+      ...keys.map((k) => this.cache.invalidateApiKey(appId, k.id)),
+      ...clients.map((c) => this.cache.invalidateClient(c.clientId)),
+    ]);
   }
 
   // ---- API 키 ----
@@ -182,6 +194,7 @@ export class AppService {
         return { keyPrefix: `sk_${appId}_${id}`, keyHash: sha256hex(plainKey) };
       },
     );
+    // 새로 만든 id 라 캐시에 있을 수 없다 — 무효화 불필요.
     return { apiKey, plainKey };
   }
 
@@ -201,6 +214,7 @@ export class AppService {
       keyHash: sha256hex(plainKey),
       keyPrefix: `sk_${appId}_${keyId}`,
     });
+    await this.cache.invalidateApiKey(appId, keyId);
     return { apiKey, plainKey };
   }
 
@@ -219,6 +233,7 @@ export class AppService {
     if (deleted === 0) {
       throw new NotFoundException('API 키를 찾을 수 없습니다.');
     }
+    await this.cache.invalidateApiKey(appId, keyId);
   }
 
   // ---- 클라이언트 ----
@@ -308,6 +323,8 @@ export class AppService {
       throw e;
     });
 
+    // 지정 clientId 였다면 "없음"이 캐싱돼 있을 수 있으므로 비운다.
+    await this.cache.invalidateClient(client.clientId);
     return { client, plainSecret };
   }
 
@@ -333,6 +350,7 @@ export class AppService {
       secretSuffix: secret.suffix,
       secretCreatedAt: new Date(),
     });
+    await this.cache.invalidateClient(client.clientId);
     return secret.plain;
   }
 
@@ -396,6 +414,7 @@ export class AppService {
     if (updated === 0) {
       throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
     }
+    await this.cache.invalidateClient(client.clientId);
   }
 
   async deleteClient(
@@ -404,10 +423,13 @@ export class AppService {
     clientPk: number,
   ): Promise<void> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
-    const deleted = await this.apps.deleteClient(appId, clientPk);
-    if (deleted === 0) {
+    // 캐시 무효화에 공개 clientId 가 필요하므로 삭제 전에 읽어 둔다.
+    const client = await this.apps.findClient(appId, clientPk);
+    if (!client) {
       throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
     }
+    await this.apps.deleteClient(appId, clientPk);
+    await this.cache.invalidateClient(client.clientId);
   }
 
   /** 멤버십 + 최소 역할 검증. 멤버가 아니면 404(존재 노출 방지), 권한 부족이면 403. */

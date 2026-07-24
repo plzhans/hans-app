@@ -4,12 +4,18 @@ import { PassportModule } from '@nestjs/passport';
 import { EnvSource } from '@hansapi/common';
 import { DataModule } from '@hansapi/data';
 
-import { AUTH_CONFIG, buildAuthConfig } from './auth.config';
+import {
+  ACCESS_CACHE_CONFIG,
+  ALLOWED_ORIGINS,
+  AUTH_CONFIG,
+  buildAuthConfig,
+} from './auth.config';
 import { AuthService } from './auth.service';
 import { OAuthTokenService } from './oauth-token.service';
 import { TokenService } from './token/token.service';
 import { ActionLogService } from './log/action-log.service';
 import { AuthGuard } from './guard/auth.guard';
+import { FirstPartyGuard } from './guard/first-party.guard';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
 import { UserTokenRepository } from './repository/user-token.repository';
@@ -18,6 +24,8 @@ import { AuthCodeRepository } from './repository/auth-code.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
 import { AppRepository } from './app/app.repository';
 import { AppService } from './app/app.service';
+import { AccessCache } from './app/access-cache.service';
+import { ApiAccessService } from './app/api-access.service';
 import { SocialService } from './social/social.service';
 import { SocialTicketService } from './social/social-ticket.service';
 import { SocialAuthGuard } from './social/social-auth.guard';
@@ -61,6 +69,10 @@ export class AuthModule {
       ],
       providers: [
         { provide: AUTH_CONFIG, useValue: config },
+        // AccessCache 는 설정 전체가 아니라 캐시 TTL 조각만 받는다.
+        { provide: ACCESS_CACHE_CONFIG, useValue: config.accessCache },
+        // FirstPartyGuard 는 오리진 목록만 받는다.
+        { provide: ALLOWED_ORIGINS, useValue: config.allowedOrigins },
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         UserRepository,
         UserOAuthRepository,
@@ -74,6 +86,7 @@ export class AuthModule {
         AuthService,
         OAuthTokenService,
         AuthGuard,
+        FirstPartyGuard,
         // 소셜
         SocialTicketService,
         SocialService,
@@ -82,6 +95,9 @@ export class AuthModule {
         // 앱(개발자 플랫폼)
         AppRepository,
         AppService,
+        // API 접근 인증(서비스 키/클라이언트) + 조회 캐시
+        AccessCache,
+        ApiAccessService,
       ],
       exports: [
         AUTH_CONFIG,
@@ -90,10 +106,12 @@ export class AuthModule {
         OAuthTokenService,
         ActionLogService,
         AuthGuard,
+        FirstPartyGuard,
         SocialService,
         SocialAuthGuard,
         SocialTicketService,
         AppService,
+        ApiAccessService,
       ],
     };
   }
