@@ -9,7 +9,7 @@
 #
 #   ./backend/scripts/build.sh                              # 1번 — 번들
 #   ./backend/scripts/local-deploy.sh develop hansapi-server      # N번 — 환경 + 앱
-#   ./backend/scripts/local-deploy.sh develop hansapi-batch       # 앱마다 따로 (서버가 달라도 된다)
+#   ./backend/scripts/local-deploy.sh develop cli                 # 앱마다 따로 (서버가 달라도 된다)
 #   ./backend/scripts/local-deploy.sh production hansapi-server
 #   ./backend/scripts/local-deploy.sh develop config              # 설정만 (.env + config/), 앱은 안 건드림
 #
@@ -62,7 +62,7 @@ usage() {
   echo >&2
   echo "예:" >&2
   echo "  $(basename "$0") develop hansapi-server" >&2
-  echo "  $(basename "$0") production hansapi-batch" >&2
+  echo "  $(basename "$0") develop cli              # 상주하지 않는 앱. 배포 루트에 실행 래퍼가 깔린다" >&2
   echo "  $(basename "$0") develop config            # 설정만 (.env + config/)" >&2
   echo >&2
 

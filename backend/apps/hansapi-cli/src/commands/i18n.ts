@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
 import { Command, InvalidArgumentError } from 'commander';
-import { EnvSource, rootDir } from '@hansapi/common';
+import { EnvSource, findRootDir } from '@hansapi/common';
 import {
   HospitalI18nExportService,
   I18N_FIELDS,
@@ -19,8 +19,19 @@ import { addExamples } from '../help';
  */
 const LANGS = ['en', 'ja'] as const;
 
-/** 기본 출력 경로. backend/temp/ — cwd 가 아니라 __dirname 기준이라 어디서 실행하든 같다. */
-const DEFAULT_OUT = join(rootDir(__dirname), 'temp');
+/**
+ * 기본 출력 경로.
+ *
+ *   개발   backend/temp/    __dirname 에서 마커(pnpm-workspace.yaml)로 찾는다 — 어디서 실행하든 같다.
+ *   배포   <배포루트>/temp/  번들엔 마커가 없다. cwd 가 곧 배포 루트다(실행 래퍼가 맞춰 준다).
+ *
+ * **rootDir 을 쓰면 안 된다.** 그건 못 찾으면 던진다. 이 값은 모듈 로드 시점에 계산되므로
+ * 던지는 순간 `--out` 을 쓰지도 않는 커맨드(db, sync …)까지 전부 뜨지 못한다.
+ * 실제로 서버에 올린 CLI 가 그렇게 죽었다.
+ */
+function defaultOut(): string {
+  return join(findRootDir(__dirname) ?? process.cwd(), 'temp');
+}
 
 export function i18nCommand(source: EnvSource): Command {
   const i18n = new Command('i18n').description('병원 자유 텍스트 번역');
@@ -45,7 +56,7 @@ export function i18nCommand(source: EnvSource): Command {
       .option('--limit <n>', '앞에서 N 건만. 샘플 확인용', (value) =>
         positiveInt(value, '--limit'),
       )
-      .option('--out <dir>', '출력 디렉토리', DEFAULT_OUT)
+      .option('--out <dir>', '출력 디렉토리', defaultOut())
       .option(
         '--force',
         '번역이 채워진 파일도 덮어쓴다. 기본은 거부한다 — 그 파일이 다음 작업의 결과물이다',

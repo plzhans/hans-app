@@ -11,6 +11,7 @@
 #   cd backend && pnpm -r build                           # 1번. dist 를 만든다
 #   ./backend/scripts/deploy-backend.sh hansapi-server    # N번. 앱마다(서버마다) 따로 번들·전송
 #   ./backend/scripts/deploy-backend.sh api               # 별칭도 받는다 (lib/apps.sh)
+#   ./backend/scripts/deploy-backend.sh cli               # 상주하지 않는 앱도 같은 방식으로 간다
 #
 # **이 스크립트는 오로지 환경변수로만 값을 받는다.** 그 변수를 누가 채우는지는 모른다:
 #   로컬:  local-deploy.sh 가 채워서 부른다
@@ -26,7 +27,8 @@
 #                                 config/nginx-*.conf ← 정적 설정 (infra/<환경>/config/ 통째)
 #                                 acme.sh 인증서는 여기 넣지 않는다(서버가 따로 관리).
 #     bin/hansapi-server/       ← 번들 (dist + node_modules)
-#     bin/hansapi-batch/        ← 앱이 늘면 형제로 붙는다
+#     bin/hansapi-cli/          ← 앱이 늘면 형제로 붙는다
+#     hansapi-cli               ← 실행 래퍼 (상주하지 않는 앱에만. 아래 [상주 앱과 커맨드 앱])
 #     logs/                     ← pm2 로그
 #
 #   **앱은 실행 위치(cwd) 기준으로 설정을 찾는다** (envFiles @hansapi/common).
@@ -35,8 +37,31 @@
 #     서버   cwd = <배포경로>   → <배포경로>/config/<환경>.env
 #     개발   cwd = backend      → backend/config/<환경>/<환경>.env
 #
-#   그래서 **pm2 의 cwd 가 배포 경로여야 한다.** ecosystem.config.js 가 `cwd: __dirname` 을
-#   쓰고 그 파일이 배포 루트에 놓이므로 자동으로 맞는다 — 경로를 어디에도 하드코딩하지 않는다.
+#   그래서 **cwd 가 배포 경로여야 한다.** pm2 는 ecosystem.config.js 가 `cwd: __dirname` 을
+#   쓰고 그 파일이 배포 루트에 놓이므로 자동으로 맞는다. 커맨드 앱은 실행 래퍼가 자기 위치로
+#   cd 한 뒤 실행한다 — 어느 쪽도 경로를 하드코딩하지 않는다.
+#
+# [상주 앱과 커맨드 앱]
+#   **앱이 스스로 말한다 — package.json 의 bin.** 목록을 스크립트에 두지 않는다.
+#
+#     bin 이 있다   커맨드 앱 (hansapi-cli)     사람이 부르는 명령. 상주하지 않는다.
+#                                               → 배포 루트에 실행 래퍼. pm2·ecosystem 없음.
+#     없다          상주 앱   (hansapi-server)  → pm2 startOrReload
+#
+#   **CLI 는 pm2 로 띄우는 물건이 아니라 ecosystem.config.js 와 아무 상관이 없다.** 그래서
+#   ecosystem 을 보내지도, 거기 있는지 묻지도 않는다. 앱의 성격을 남의 설정 파일에서
+#   유추하면(=거기 없으니 CLI 겠지) 이름 한 글자가 어긋나는 날 서버가 커맨드 앱이 된다.
+#
+#   래퍼는 배포 루트에 앱 이름 그대로 놓인다. 하는 일은 둘뿐이다: 자기 위치로 cd (설정을
+#   찾는 기준), nvm 소싱 (비대화형 ssh 는 ~/.bashrc 를 안 읽는다).
+#
+#     ssh ubuntu@10.0.0.101
+#     ~/app/hansapi-develop/hansapi-cli sync-status    # 어디서 부르든 cwd 는 배포 루트다
+#
+#   **환경은 래퍼가 정하지 않는다.** APP_ENV 를 박지 않으므로 CLI 기본값(develop)이 쓰이고,
+#   config/develop.env 를 읽는다. 다른 환경은 `--env <이름>` 으로 준다.
+#   (env 파일 안의 APP_ENV 로는 환경이 바뀌지 않는다 — 환경을 먼저 정하고 그 환경의 파일을
+#   읽는 순서라, 파일 안의 값은 이미 정해진 뒤에 들어온다.)
 #
 # [환경 이름]
 #   앱과 GitHub 이 **같은 이름을 쓴다**: local | develop | production (APP_ENVS).
@@ -110,6 +135,21 @@ else
 fi
 
 APP_ENV="${APP_ENV:-develop}"
+
+# **상주 앱인지 커맨드 앱인지는 앱이 스스로 말한다** — package.json 의 bin (헤더의 [상주 앱과 커맨드 앱]).
+#
+#   bin 이 있다   커맨드 앱   사람이 부르는 명령이다(hansapi-cli). 상주하지 않으니 pm2 도, ecosystem 도 없다.
+#   없다          상주 앱     pm2 가 띄우고 지킨다(hansapi-server).
+#
+# **pm2 구성에 묻지 않는다.** CLI 는 pm2 로 띄울 것이 아니라 ecosystem 에 등장할 일 자체가
+# 없다 — "거기 없으니 CLI 겠지" 는 앱의 성격을 남의 설정 파일에서 유추하는 것이고, 유추는
+# 언젠가 틀린다(ecosystem 의 이름 한 글자가 어긋나면 서버가 커맨드 앱이 된다).
+# bin 은 그 앱이 명령이라는 선언이고, 그건 앱 자신만 알 수 있다.
+is_service=1
+if [ "$config_only" != 1 ] &&
+  jq -e 'has("bin")' "$REPO_ROOT/backend/apps/$app/package.json" >/dev/null 2>&1; then
+  is_service=0
+fi
 
 group() {
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::group::$1"; else echo "▶ $1"; fi
@@ -190,8 +230,10 @@ remote_ip="${ssh_host#*@}"                   # 10.0.0.101
 
 if [ "$config_only" = 1 ]; then
   echo "배포(설정만): config/ → $ssh_host:$deploy_path/config   (APP_ENV=$APP_ENV)"
+elif [ "$is_service" = 1 ]; then
+  echo "배포: $app → $ssh_host:$deploy_path/bin/$app   (APP_ENV=$APP_ENV, pm2)"
 else
-  echo "배포: $app → $ssh_host:$deploy_path/bin/$app   (APP_ENV=$APP_ENV)"
+  echo "배포: $app → $ssh_host:$deploy_path/bin/$app   (APP_ENV=$APP_ENV, 커맨드 앱 — pm2 없음)"
 fi
 
 # wg-quick 은 인터페이스와 라우팅을 건드리므로 root 여야 한다.
@@ -393,14 +435,23 @@ if [ "$config_only" != 1 ]; then
   # 번들
   scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
     "$tarball" "$ssh_host:$stg/bundle.tar.gz"
-  # pm2 구성 · node 버전 (있으면). 배포 루트에 놓일 이름 그대로 스테이징한다.
-  ecosystem_src="$REPO_ROOT/backend/infra/$APP_ENV/ecosystem.config.js"
-  [ -f "$ecosystem_src" ] && scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
-    "$ecosystem_src" "$ssh_host:$stg/ecosystem.config.js"
+  # pm2 구성 (있으면). 배포 루트에 놓일 이름 그대로 스테이징한다.
+  # **커맨드 앱에는 보내지 않는다.** pm2 가 띄우지 않는 앱이라 ecosystem 이 할 일이 없다.
+  # 보내봐야 상주 앱 배포가 이미 놓아둔 같은 파일을 덮어쓸 뿐이고, "CLI 배포가 서버의 pm2
+  # 구성을 건드린다" 는 관계가 생긴다 — 없는 편이 낫다.
+  if [ "$is_service" = 1 ]; then
+    ecosystem_src="$REPO_ROOT/backend/infra/$APP_ENV/ecosystem.config.js"
+    if [ -f "$ecosystem_src" ]; then
+      scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
+        "$ecosystem_src" "$ssh_host:$stg/ecosystem.config.js"
+    else
+      echo "⚠️  pm2 구성이 없다: backend/infra/$APP_ENV/ecosystem.config.js — 서버의 기존 것을 쓴다."
+    fi
+  fi
+  # node 버전은 둘 다 필요하다. pm2 도, 커맨드 앱의 실행 래퍼도 `nvm use` 로 이 파일을 읽는다.
   nvmrc_src="$REPO_ROOT/backend/.nvmrc"
   [ -f "$nvmrc_src" ] && scp -i "$key_file" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known_hosts" \
     "$nvmrc_src" "$ssh_host:$stg/.nvmrc"
-  [ -f "$ecosystem_src" ] || echo "⚠️  pm2 구성이 없다: backend/infra/$APP_ENV/ecosystem.config.js — 서버의 기존 것을 쓴다."
 fi
 echo "  → $ssh_host:$stg"
 endgroup
@@ -436,7 +487,9 @@ fi
 #   7. 실행경로에 번들 옮김 (bin swap: cur→old, new→cur)
 #   8. 실행경로에 설정 옮김 (config: 내용만 덮어쓰기) + pm2 구성·.nvmrc 배치
 #   9. 새 버전 출력
+#   9-1. 커맨드 앱이면 실행 래퍼 설치 (상주 앱은 건너뛴다)
 #  10. 서비스 시작 (pm2 startOrReload — 안 떠 있으면 띄우고 떠 있으면 무중단 reload)
+#      커맨드 앱은 상주하지 않으므로 아무것도 하지 않는다
 #
 # **pm2 이름 규칙: <환경>-<앱>.** ecosystem 의 name 과 정확히 같아야 --only 가 먹는다.
 # nvm 을 명시적으로 소싱한다 — `ssh host '명령'` 은 비대화형이라 ~/.bashrc 를 안 읽어서(우분투
@@ -445,13 +498,16 @@ fi
 pm2_name="$APP_ENV-$app"
 
 group "교체 & 재시작"
-echo "  cd $deploy_path && pm2 startOrReload ecosystem.config.js --only $pm2_name (nvm 소싱 후)"
+if [ "$is_service" = 1 ]; then
+  echo "  cd $deploy_path && pm2 startOrReload ecosystem.config.js --only $pm2_name (nvm 소싱 후)"
+fi
 remote_run "$ssh_host" \
   "root=$(rq "$deploy_path")" \
   "app=$(rq "$app")" \
   "app_env=$(rq "$APP_ENV")" \
   "stg=$(rq "$stg")" \
   "pm2_name=$(rq "$pm2_name")" \
+  "is_service=$(rq "$is_service")" \
   "restart_override=$(rq "${HANSAPI_DEPLOY_RESTART_CMD:-}")" <<'REMOTE'
   root=$(eval echo "$root")   # ~ 를 원격 셸이 푼다
   export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
@@ -505,11 +561,37 @@ remote_run "$ssh_host" \
   echo "  배포됨:    $cur"
   echo "  새 버전:   $(pv "$cur")"
 
+  # 9-1. 커맨드 앱이면 배포 루트에 실행 래퍼를 깐다 (상주 앱은 pm2 가 띄우므로 필요 없다 —
+  #      래퍼를 깔아두면 서버를 손으로 한 벌 더 띄우는 사고가 난다).
+  #      **cwd 를 배포 루트로 맞추는 것이 핵심이다.** 앱은 cwd 기준으로 config/<환경>.env 를 찾는다.
+  #      환경은 래퍼가 정하지 않는다 — 설정 파일(config/<환경>.env)이 APP_ENV 를 들고 있고,
+  #      다른 환경을 보려면 `--env <이름>` 을 준다.
+  #      래퍼 본문은 원격 셸이 아니라 파일에 그대로 들어가야 하므로 인용부호 안의 $ 를 펴지 않는다.
+  if [ "$is_service" != 1 ]; then
+    runner="$root/$app"
+    {
+      printf '#!/usr/bin/env bash\n'
+      printf '# deploy-backend.sh 가 만든다. 고쳐도 다음 배포에서 덮어쓴다.\n'
+      printf 'set -euo pipefail\n'
+      printf 'root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\n'
+      printf 'cd "$root"   # 앱이 cwd 기준으로 config/<환경>.env 를 찾는다\n'
+      printf 'export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"\n'
+      printf '[ -f "$root/.nvmrc" ] && nvm use >/dev/null 2>&1 || true\n'
+      printf 'exec node %q "$@"\n' "./bin/$app/dist/main.js"
+    } > "$runner.new"
+    chmod 755 "$runner.new"
+    mv "$runner.new" "$runner"   # 교체는 mv 한 순간뿐. 돌고 있는 래퍼가 반쯤 바뀌지 않는다
+    echo "  실행 래퍼: $runner   (cwd=$root)"
+  fi
+
   # 10. 서비스 시작 (무중단). startOrReload: 안 떠 있으면 띄우고, 떠 있으면 graceful reload.
   #     --update-env: ecosystem 의 env 가 바뀌었으면 반영. pm2 save: 재부팅 후에도 살아나게 저장.
+  #     커맨드 앱은 상주하지 않으므로 재시작할 것이 없다 — 다음 호출부터 새 번들이 돈다.
   cd "$root" && nvm use >/dev/null 2>&1 || true
   if [ -n "$restart_override" ]; then
     eval "$restart_override"
+  elif [ "$is_service" != 1 ]; then
+    echo "  재시작 없음 (커맨드 앱). 실행: $root/$app --help"
   elif [ -f "$root/ecosystem.config.js" ]; then
     pm2 startOrReload ecosystem.config.js --only "$pm2_name" --update-env && pm2 save
   else
@@ -518,4 +600,8 @@ remote_run "$ssh_host" \
 REMOTE
 endgroup
 
-echo "✅ $app $version → $ssh_host:$deploy_path/bin/$app   (pm2: $pm2_name)"
+if [ "$is_service" = 1 ]; then
+  echo "✅ $app $version → $ssh_host:$deploy_path/bin/$app   (pm2: $pm2_name)"
+else
+  echo "✅ $app $version → $ssh_host:$deploy_path/bin/$app   (실행: $deploy_path/$app)"
+fi
