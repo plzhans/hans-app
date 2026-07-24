@@ -39,10 +39,10 @@ export class OAuthTokenService {
     try {
       origin = new URL(returnTo).origin;
     } catch {
-      throw new BadRequestException('return_to 형식이 올바르지 않습니다.');
+      throw new BadRequestException('Malformed return_to.');
     }
     if (!this.config.allowedOrigins.includes(origin)) {
-      throw new BadRequestException('허용되지 않은 return_to 입니다.');
+      throw new BadRequestException('return_to not allowed.');
     }
     return this.tokens.issueAuthCode(userId);
   }

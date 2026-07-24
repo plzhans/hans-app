@@ -80,11 +80,11 @@ export class BusinessService {
       if (error instanceof NtsError) {
         if (CLIENT_ERROR_CODES.has(error.errorCode)) {
           throw new BadRequestException(
-            `사업자 정보 요청이 올바르지 않습니다 (${error.errorCode}).`,
+            `Invalid business lookup request (${error.errorCode}).`,
           );
         }
         throw new ServiceUnavailableException(
-          '국세청 사업자등록 서비스를 일시적으로 이용할 수 없습니다.',
+          'The NTS business registration service is temporarily unavailable.',
         );
       }
       throw error;

@@ -75,11 +75,11 @@ export class AddressService {
       if (error instanceof JusoError) {
         if (INPUT_ERROR_CODES.has(error.errorCode)) {
           throw new BadRequestException(
-            error.message || '검색어가 올바르지 않습니다.',
+            error.message || 'Invalid search keyword.',
           );
         }
         throw new ServiceUnavailableException(
-          '주소 검색 서비스를 일시적으로 이용할 수 없습니다.',
+          'The address search service is temporarily unavailable.',
         );
       }
       throw error;

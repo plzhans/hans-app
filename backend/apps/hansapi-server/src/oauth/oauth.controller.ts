@@ -64,7 +64,7 @@ export class OAuthController {
     let tokens: AuthTokens;
     if (dto.grant_type === 'authorization_code') {
       if (!dto.code) {
-        throw new BadRequestException('code 가 필요합니다.');
+        throw new BadRequestException('code is required.');
       }
       tokens = await this.grants.exchangeAuthorizationCode(
         dto.code,
@@ -73,7 +73,7 @@ export class OAuthController {
     } else {
       const refreshToken = dto.refresh_token ?? readRefreshCookie(req);
       if (!refreshToken) {
-        throw new BadRequestException('refresh_token 이 필요합니다.');
+        throw new BadRequestException('refresh_token is required.');
       }
       tokens = await this.grants.refresh(refreshToken);
     }

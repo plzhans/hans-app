@@ -135,12 +135,12 @@ export class SocialService {
       payload.providerId,
     );
     if (dup) {
-      throw new ConflictException('이미 가입된 소셜 계정입니다.');
+      throw new ConflictException('Social account already linked.');
     }
 
     const email = normalizeEmail(payload.email ?? input.email ?? '');
     if (!email) {
-      throw new BadRequestException('이메일이 필요합니다.');
+      throw new BadRequestException('Email is required.');
     }
     await this.authService.assertEmailAvailable(email);
 
@@ -200,12 +200,12 @@ export class SocialService {
     const links = await this.oauths.listByUser(userId);
     const target = links.find((l) => l.provider === provider);
     if (!target) {
-      throw new BadRequestException('연동되지 않은 provider 입니다.');
+      throw new BadRequestException('Provider is not linked.');
     }
     // 비밀번호도 없고 이 연동이 유일한 로그인 수단이면 해제 불가.
     if (!user.password && links.length <= 1) {
       throw new BadRequestException(
-        '마지막 로그인 수단은 해제할 수 없습니다. 먼저 비밀번호를 설정하세요.',
+        'Cannot unlink the last sign-in method. Set a password first.',
       );
     }
     await this.oauths.delete(userId, provider);

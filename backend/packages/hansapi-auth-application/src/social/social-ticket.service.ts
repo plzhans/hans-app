@@ -111,10 +111,10 @@ export class SocialTicketService {
     try {
       payload = this.jwt.verify<T>(token);
     } catch {
-      throw new BadRequestException('유효하지 않거나 만료된 토큰입니다.');
+      throw new BadRequestException('Invalid or expired token.');
     }
     if (payload.typ !== expected) {
-      throw new BadRequestException('토큰 용도가 올바르지 않습니다.');
+      throw new BadRequestException('Token purpose mismatch.');
     }
     return payload;
   }

@@ -147,7 +147,7 @@ export class HealthcareHospitalController {
   ): Promise<HospitalDetailDto> {
     const hospital = await this.service.get(id, lang);
     if (!hospital) {
-      throw new NotFoundException(`병원을 찾을 수 없습니다: ${id}`);
+      throw new NotFoundException(`Hospital not found: ${id}`);
     }
     return hospital;
   }
@@ -172,7 +172,7 @@ export class HealthcareHospitalController {
   ): Promise<HospitalNonPaymentDto> {
     const npay = await this.npay.get(id);
     if (!npay) {
-      throw new NotFoundException(`병원을 찾을 수 없습니다: ${id}`);
+      throw new NotFoundException(`Hospital not found: ${id}`);
     }
     return npay;
   }
@@ -193,12 +193,12 @@ export class HealthcareHospitalController {
   ): Promise<NonPaymentRequestResultDto> {
     const result = await this.npay.request(id);
     if (!result) {
-      throw new NotFoundException(`병원을 찾을 수 없습니다: ${id}`);
+      throw new NotFoundException(`Hospital not found: ${id}`);
     }
     if (result === 'unavailable') {
       // HIRA 연동이 없는 병원. 큐에 넣어봐야 배치가 할 수 있는 게 없다.
       throw new NotFoundException(
-        `HIRA 연동이 없어 비급여를 받아올 수 없는 병원입니다: ${id}`,
+        `Hospital has no HIRA link, non-payment data unavailable: ${id}`,
       );
     }
     return { result };

@@ -107,7 +107,7 @@ export class SocialController {
   ): Promise<void> {
     const profile = req.user;
     if (!profile) {
-      throw new BadRequestException('소셜 프로필을 확인할 수 없습니다.');
+      throw new BadRequestException('Social profile is unavailable.');
     }
     const state = typeof req.query.state === 'string' ? req.query.state : '';
     const { outcome, returnTo } = await this.social.handleCallback(
@@ -133,7 +133,7 @@ export class SocialController {
   ): Promise<void> {
     const provider = toOAuthProvider(providerParam);
     if (!provider) {
-      throw new BadRequestException('지원하지 않는 소셜 provider 입니다.');
+      throw new BadRequestException('Unsupported social provider.');
     }
     await this.social.unlink(user.userId, provider, requestMeta(req));
   }
@@ -145,7 +145,7 @@ export class SocialController {
   ): string {
     if (!returnTo) {
       throw new BadRequestException(
-        '복귀 URL(return_to)이 없습니다. 로그인 시작 시 return_to 를 전달하세요.',
+        'Missing return_to. Provide return_to when starting sign-in.',
       );
     }
     const url = new URL(returnTo);

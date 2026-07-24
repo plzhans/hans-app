@@ -107,14 +107,14 @@ export class AppService {
   async createApp(userId: number, name: string): Promise<App> {
     const user = await this.users.findById(userId);
     if (!user) {
-      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+      throw new NotFoundException('User not found.');
     }
     const limit = APP_LIMIT_BY_TIER[user.tier];
     if (limit !== null) {
       const count = await this.apps.countOwnerApps(userId);
       if (count >= limit) {
         throw new ForbiddenException(
-          `앱 생성 한도(${limit}개)를 초과했습니다. 등급을 올리면 더 만들 수 있습니다.`,
+          `App limit reached (${limit}). Upgrade your tier to create more.`,
         );
       }
     }
@@ -125,7 +125,7 @@ export class AppService {
     await this.assertMember(userId, appId);
     const app = await this.apps.getDetail(appId);
     if (!app) {
-      throw new NotFoundException('앱을 찾을 수 없습니다.');
+      throw new NotFoundException('App not found.');
     }
     return app;
   }
@@ -173,12 +173,12 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const app = await this.apps.findApp(appId);
     if (!app) {
-      throw new NotFoundException('앱을 찾을 수 없습니다.');
+      throw new NotFoundException('App not found.');
     }
     const count = await this.apps.countApiKeys(appId);
     if (count >= app.apiKeyLimit) {
       throw new ForbiddenException(
-        `서비스 키는 앱당 ${app.apiKeyLimit}개까지 발급할 수 있습니다.`,
+        `Service key limit reached (${app.apiKeyLimit} per app).`,
       );
     }
     // 키 원문에 appId·행 id 를 박는다: sk_{appId}_{keyId}_{random}.
@@ -207,7 +207,7 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const key = await this.apps.findApiKey(appId, keyId);
     if (!key) {
-      throw new NotFoundException('API 키를 찾을 수 없습니다.');
+      throw new NotFoundException('API key not found.');
     }
     const plainKey = `sk_${appId}_${keyId}_${randomToken(24)}`;
     const apiKey = await this.apps.updateApiKeyHash(keyId, {
@@ -231,7 +231,7 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const deleted = await this.apps.deleteApiKey(appId, keyId);
     if (deleted === 0) {
-      throw new NotFoundException('API 키를 찾을 수 없습니다.');
+      throw new NotFoundException('API key not found.');
     }
     await this.cache.invalidateApiKey(appId, keyId);
   }
@@ -276,7 +276,7 @@ export class AppService {
       case AppClientType.IOS: {
         const bundleId = input.bundleId?.trim();
         if (!bundleId) {
-          throw new BadRequestException('Bundle ID 를 입력하세요.');
+          throw new BadRequestException('Bundle ID is required.');
         }
         const teamId = input.teamId?.trim();
         extra = { config: { bundleId, ...(teamId ? { teamId } : {}) } };
@@ -285,7 +285,7 @@ export class AppService {
       case AppClientType.ANDROID: {
         const packageName = input.packageName?.trim();
         if (!packageName) {
-          throw new BadRequestException('패키지명을 입력하세요.');
+          throw new BadRequestException('Package name is required.');
         }
         extra = {
           config: {
@@ -296,7 +296,7 @@ export class AppService {
         break;
       }
       default:
-        throw new BadRequestException('알 수 없는 클라이언트 타입입니다.');
+        throw new BadRequestException('Unknown client type.');
     }
 
     const fields = {
@@ -318,7 +318,7 @@ export class AppService {
         : this.apps.createClientAutoId(fields, randomToken(9))
     ).catch((e: unknown) => {
       if (isUniqueViolation(e)) {
-        throw new ConflictException('이미 사용 중인 Client ID 입니다.');
+        throw new ConflictException('Client ID already in use.');
       }
       throw e;
     });
@@ -337,11 +337,11 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const client = await this.apps.findClient(appId, clientPk);
     if (!client) {
-      throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
+      throw new NotFoundException('Client not found.');
     }
     if (client.type !== AppClientType.WEB) {
       throw new BadRequestException(
-        '네이티브 클라이언트에는 시크릿이 없습니다(PKCE 사용).',
+        'Native clients have no secret (PKCE is used).',
       );
     }
     const secret = genClientSecret();
@@ -369,7 +369,7 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const client = await this.apps.findClient(appId, clientPk);
     if (!client) {
-      throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
+      throw new NotFoundException('Client not found.');
     }
 
     const data: {
@@ -412,7 +412,7 @@ export class AppService {
 
     const updated = await this.apps.updateClient(appId, clientPk, data);
     if (updated === 0) {
-      throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
+      throw new NotFoundException('Client not found.');
     }
     await this.cache.invalidateClient(client.clientId);
   }
@@ -426,7 +426,7 @@ export class AppService {
     // 캐시 무효화에 공개 clientId 가 필요하므로 삭제 전에 읽어 둔다.
     const client = await this.apps.findClient(appId, clientPk);
     if (!client) {
-      throw new NotFoundException('클라이언트를 찾을 수 없습니다.');
+      throw new NotFoundException('Client not found.');
     }
     await this.apps.deleteClient(appId, clientPk);
     await this.cache.invalidateClient(client.clientId);
@@ -440,10 +440,10 @@ export class AppService {
   ): Promise<AppMember> {
     const membership = await this.apps.getMembership(userId, appId);
     if (!membership) {
-      throw new NotFoundException('앱을 찾을 수 없습니다.');
+      throw new NotFoundException('App not found.');
     }
     if (ROLE_RANK[membership.role] < ROLE_RANK[minRole]) {
-      throw new ForbiddenException('권한이 없습니다.');
+      throw new ForbiddenException('Insufficient permissions.');
     }
     return membership;
   }

@@ -37,14 +37,12 @@ export class SocialAuthGuard implements CanActivate {
     const providerParam = Array.isArray(rawParam) ? rawParam[0] : rawParam;
     const provider = toOAuthProvider(providerParam ?? '');
     if (!provider) {
-      throw new BadRequestException('지원하지 않는 소셜 provider 입니다.');
+      throw new BadRequestException('Unsupported social provider.');
     }
     const key = toStrategyName(provider) as
       'google' | 'naver' | 'kakao' | 'line';
     if (!this.config.oauth[key]) {
-      throw new NotFoundException(
-        `소셜 provider(${key})가 설정되지 않았습니다.`,
-      );
+      throw new NotFoundException(`Social provider is not configured: ${key}`);
     }
 
     const state = this.buildState(req);
@@ -100,10 +98,10 @@ export class SocialAuthGuard implements CanActivate {
     try {
       origin = new URL(raw).origin;
     } catch {
-      throw new BadRequestException('return_to 형식이 올바르지 않습니다.');
+      throw new BadRequestException('Malformed return_to.');
     }
     if (!this.config.allowedOrigins.includes(origin)) {
-      throw new BadRequestException('허용되지 않은 return_to 입니다.');
+      throw new BadRequestException('return_to not allowed.');
     }
     return raw;
   }

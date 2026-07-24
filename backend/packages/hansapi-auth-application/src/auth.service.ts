@@ -120,9 +120,7 @@ export class AuthService {
   async withdraw(userId: number, meta: RequestMeta): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user || user.status === 'WITHDRAWN') {
-      throw new BadRequestException(
-        '이미 탈퇴했거나 존재하지 않는 계정입니다.',
-      );
+      throw new BadRequestException('Account is withdrawn or does not exist.');
     }
 
     const now = new Date();
@@ -261,7 +259,7 @@ export class AuthService {
   async assertEmailAvailable(email: string): Promise<void> {
     const active = await this.users.findActiveByEmail(email);
     if (active) {
-      throw new ConflictException('이미 가입된 이메일입니다.');
+      throw new ConflictException('Email already registered.');
     }
     const withdrawn = await this.withdrawals.findActiveByEmail(
       email,
@@ -269,7 +267,7 @@ export class AuthService {
     );
     if (withdrawn) {
       throw new ConflictException(
-        '탈퇴 후 재가입 제한기간입니다. 잠시 후 다시 시도하세요.',
+        'Re-signup is restricted after withdrawal. Please try again later.',
       );
     }
   }
@@ -323,14 +321,14 @@ export class AuthService {
   ): Promise<{ userId: number }> {
     const record = await this.userTokens.findByHash(purpose, sha256hex(raw));
     if (!record || record.consumedAt) {
-      throw new BadRequestException('유효하지 않은 토큰입니다.');
+      throw new BadRequestException('Invalid token.');
     }
     if (record.expiresAt.getTime() <= Date.now()) {
-      throw new BadRequestException('토큰이 만료되었습니다.');
+      throw new BadRequestException('Token expired.');
     }
     const consumed = await this.userTokens.consume(record.id, new Date());
     if (consumed === 0) {
-      throw new BadRequestException('이미 사용된 토큰입니다.');
+      throw new BadRequestException('Token already used.');
     }
     return { userId: record.userId };
   }
