@@ -31,7 +31,10 @@ pnpm api:gen      # docs/openapi/openapi_hansapi.json → src/shared/api/schema.
 | 변수 | 설명 |
 |---|---|
 | `VITE_HANSAPI_BASE_URL` | hansapi-server base URL (공유 백엔드) |
-| `VITE_HANSAPI_KEY` | 인증 토큰(Authorization: Bearer). 통합 병원 API 는 Jwt/ApiKey 필요 |
+| `VITE_HANSAPI_CLIENT_ID` | hansapi WEB 클라이언트 ID. `X-Client-Id` 헤더로 전송된다. 공개값이며, 서버가 이 ID 에 등록된 오리진과 요청 `Origin` 을 대조한다 |
+
+> 서비스 키(`sk_...`)는 **프론트에 두지 않는다.** 오리진 검사를 받지 않는 비밀값이라
+> 번들에 포함되는 순간 그대로 유출된다 — 서버-서버 호출에서만 쓴다.
 
 ## 알려진 제약 (TODO)
 
