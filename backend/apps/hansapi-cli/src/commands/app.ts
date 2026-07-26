@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { EnvSource } from '@hansapi/common';
-import { AppService } from '@hansapi/auth-application';
+import { AppService, AppStatus } from '@hansapi/auth-application';
 import type { AppClient, CreateClientInput } from '@hansapi/auth-application';
 
 import { withAuthContext } from '../context';
@@ -133,15 +133,44 @@ export function appCommand(source: EnvSource): Command {
     withOwner(
       app
         .command('create')
-        .description('앱을 등록한다')
-        .requiredOption('--name <name>', '앱 이름(영어·하이픈만)'),
-    ).action(async (options: OwnerOptions & { name: string }) => {
-      const created = await run(source, options.owner, (apps, userId) =>
-        apps.createApp(userId, options.name),
-      );
-      printJson({ id: created.id, name: created.name }, true);
-    }),
+        .description('앱을 등록한다(CLI 는 관리자라 기본 승인됨)')
+        .requiredOption('--name <name>', '앱 이름(영어·하이픈만)')
+        .option(
+          '--pending',
+          '미승인(PENDING) 상태로 만든다. 콘솔 사용자 흐름 재현용',
+        ),
+    ).action(
+      async (options: OwnerOptions & { name: string; pending?: boolean }) => {
+        // CLI 로 만든다는 건 관리자 손을 탔다는 뜻이라 기본 ACTIVE 다.
+        // 미승인 상태가 필요하면 --pending 을 명시한다.
+        const status = options.pending ? AppStatus.PENDING : AppStatus.ACTIVE;
+        const created = await run(source, options.owner, (apps, userId) =>
+          apps.createApp(userId, options.name, status),
+        );
+        printJson(
+          { id: created.id, name: created.name, status: created.status },
+          true,
+        );
+      },
+    ),
     ['hansapi-cli app create --name medifinder --owner me@example.com'],
+  );
+
+  addExamples(
+    app
+      .command('approve')
+      .description(
+        '앱을 승인한다(PENDING→ACTIVE, 하위 PENDING 키·클라이언트도 함께). 운영자용',
+      )
+      .requiredOption('--app <id>', '승인할 앱 id', Number)
+      .action(async (options: { app: number }) => {
+        // 승인은 소유자가 아니라 운영자 행위다 — withOwner 를 붙이지 않는다.
+        const app = await withAuthContext(source, (context) =>
+          context.get(AppService).approveApp(options.app),
+        );
+        printJson({ id: app.id, name: app.name, status: app.status }, true);
+      }),
+    ['hansapi-cli app approve --app 10002'],
   );
 
   withOwner(app.command('list').description('내 앱 목록')).action(

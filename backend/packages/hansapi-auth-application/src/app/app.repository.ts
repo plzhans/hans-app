@@ -34,14 +34,42 @@ export class AppRepository {
   }
 
   /** 앱 + 생성자를 OWNER 멤버로 한 번에 만든다(트랜잭션). */
-  createAppWithOwner(userId: number, name: string): Promise<App> {
+  createAppWithOwner(
+    userId: number,
+    name: string,
+    status: AppStatus,
+  ): Promise<App> {
     return this.prisma.app.create({
       data: {
         name,
+        status,
         createdBy: userId,
         members: { create: { userId, role: AppRole.OWNER } },
       },
     });
+  }
+
+  /**
+   * 앱 승인: 앱과 그 하위 **PENDING** 키·클라이언트를 ACTIVE 로 올린다(트랜잭션).
+   * DISABLED 는 건드리지 않는다 — 사용자가 끈 것을 승인이 되살리면 안 된다.
+   */
+  approve(appId: number): Promise<void> {
+    return this.prisma
+      .$transaction(async (tx) => {
+        await tx.app.update({
+          where: { id: appId },
+          data: { status: AppStatus.ACTIVE },
+        });
+        await tx.appApiKey.updateMany({
+          where: { appId, status: AppStatus.PENDING },
+          data: { status: AppStatus.ACTIVE },
+        });
+        await tx.appClient.updateMany({
+          where: { appId, status: AppStatus.PENDING },
+          data: { status: AppStatus.ACTIVE },
+        });
+      })
+      .then(() => undefined);
   }
 
   /** 사용자의 앱 내 멤버십(역할). 멤버가 아니면 null. */
@@ -128,11 +156,18 @@ export class AppRepository {
   createApiKeyWithId(
     appId: number,
     name: string,
+    status: AppStatus,
     build: (id: number) => { keyPrefix: string; keyHash: string },
   ): Promise<AppApiKey> {
     return this.prisma.$transaction(async (tx) => {
       const created = await tx.appApiKey.create({
-        data: { appId, name, keyPrefix: 'pending', keyHash: 'pending' },
+        data: {
+          appId,
+          name,
+          status,
+          keyPrefix: 'pending',
+          keyHash: 'pending',
+        },
       });
       const { keyPrefix, keyHash } = build(created.id);
       return tx.appApiKey.update({
@@ -283,6 +318,7 @@ interface ClientCreateFields {
   clientId: string;
   name: string;
   type: AppClientType;
+  status: AppStatus;
   origins?: string[];
   redirectUris?: string[];
   clientSecretHash?: string;
@@ -300,6 +336,7 @@ function buildClientData(
     clientId: input.clientId,
     name: input.name,
     type: input.type,
+    status: input.status,
     ...(input.origins ? { origins: input.origins } : {}),
     ...(input.redirectUris ? { redirectUris: input.redirectUris } : {}),
     ...(input.clientSecretHash

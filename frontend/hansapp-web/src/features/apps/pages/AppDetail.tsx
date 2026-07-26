@@ -79,6 +79,7 @@ export default function AppDetail() {
           <DeletedAppView app={app} />
         ) : (
           <>
+            {app.status === 'PENDING' && <PendingNotice />}
             <BasicInfoSection appId={appId} app={app} onChange={invalidate} />
             <ServiceKeySection appId={appId} app={app} onChange={invalidate} />
             <ClientSection appId={appId} app={app} onChange={invalidate} />
@@ -91,6 +92,24 @@ export default function AppDetail() {
 }
 
 // ---- 공통 ----
+
+/**
+ * 미승인 안내. 발급은 되지만 인증에는 쓸 수 없다는 걸 명시한다.
+ *
+ * 키·클라이언트 폼과 발급 자체는 그대로 동작한다(진짜 키 값이 나온다) — 이 배너는 "왜
+ * 아직 안 되는가"를 알려줄 뿐이다. 승인되면 하위 키·클라이언트가 함께 활성화된다.
+ */
+function PendingNotice() {
+  return (
+    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <p className="font-semibold">심사 중입니다.</p>
+      <p className="mt-1 text-amber-700">
+        키와 클라이언트는 지금도 발급되지만, 앱이 승인되기 전까지는 실제 API
+        호출에 사용할 수 없습니다. 승인되면 발급해 둔 키가 함께 활성화됩니다.
+      </p>
+    </div>
+  );
+}
 
 /** 시크릿 마스킹 기본 형식. 비밀 부분을 별표(*)로 가린다. */
 function maskSecret(value: string): string {
@@ -521,8 +540,13 @@ function ServiceKeySection({
                 onClick={() => setSelectedId(k.id)}
                 className="grid w-full cursor-pointer grid-cols-[1.4fr_1.2fr_96px_96px_36px] items-center gap-2 border-b border-gray-100 px-3 py-3 text-left text-sm transition last:border-0 hover:bg-gray-50"
               >
-                <span className="truncate font-medium text-gray-800">
-                  {k.name}
+                <span className="flex min-w-0 items-center gap-1.5 font-medium text-gray-800">
+                  <span className="truncate">{k.name}</span>
+                  {k.status === 'PENDING' && (
+                    <span className="shrink-0 text-xs font-semibold text-amber-600">
+                      심사 중
+                    </span>
+                  )}
                 </span>
                 <code className="truncate text-gray-500">{k.keyPrefix}…</code>
                 <span className="text-gray-500">{k.createdAt.slice(0, 10)}</span>
@@ -833,8 +857,13 @@ function ClientSection({
                 onClick={() => setSelectedId(c.id)}
                 className="grid w-full grid-cols-[1.4fr_100px_72px_1.6fr] items-center gap-2 border-b border-gray-100 px-3 py-3 text-left text-sm transition last:border-0 hover:bg-gray-50"
               >
-                <span className="truncate font-medium text-gray-800">
-                  {c.name}
+                <span className="flex min-w-0 items-center gap-1.5 font-medium text-gray-800">
+                  <span className="truncate">{c.name}</span>
+                  {c.status === 'PENDING' && (
+                    <span className="shrink-0 text-xs font-semibold text-amber-600">
+                      심사 중
+                    </span>
+                  )}
                 </span>
                 <span className="text-gray-500">{c.createdAt.slice(0, 10)}</span>
                 <span className="text-gray-600">{TYPE_LABEL[c.type]}</span>

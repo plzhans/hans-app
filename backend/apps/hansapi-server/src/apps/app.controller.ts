@@ -303,6 +303,7 @@ function toApiKeySummary(k: AppApiKey): ApiKeySummaryDto {
   return {
     id: k.id,
     name: k.name,
+    status: k.status,
     keyPrefix: k.keyPrefix,
     lastUsedAt: k.lastUsedAt ? k.lastUsedAt.toISOString() : null,
     createdAt: k.createdAt.toISOString(),
@@ -314,6 +315,7 @@ function toClient(c: AppClient): ClientDto {
     id: c.id,
     clientId: c.clientId,
     name: c.name,
+    status: c.status,
     type: c.type,
     origins: (c.origins as string[] | null) ?? null,
     redirectUris: (c.redirectUris as string[] | null) ?? null,

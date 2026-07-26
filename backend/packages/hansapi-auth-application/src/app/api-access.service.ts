@@ -56,10 +56,16 @@ export class ApiAccessService {
       throw new UnauthorizedException('Malformed service key.');
     }
     const key = await this.cache.getApiKey(parsed.appId, parsed.keyId);
-    if (!key || key.status !== AppStatus.ACTIVE) {
+    // 존재 여부·해시는 상태와 무관하게 먼저 본다. PENDING 안내를 해시 검증보다 앞에 두면
+    // 아무 키나 넣어보고 appId/keyId 가 실재하는지 떠볼 수 있다(enumeration).
+    if (!key || !timingSafeEqualHex(key.keyHash, sha256hex(token))) {
       throw new UnauthorizedException('Invalid service key.');
     }
-    if (!timingSafeEqualHex(key.keyHash, sha256hex(token))) {
+    // 진짜 키임이 확인된 뒤에만 미승인 사유를 알려 준다.
+    if (key.status === AppStatus.PENDING) {
+      throw new UnauthorizedException('This app is pending approval.');
+    }
+    if (key.status !== AppStatus.ACTIVE) {
       throw new UnauthorizedException('Invalid service key.');
     }
     return { appId: key.appId, via: 'service', keyId: key.id };
@@ -68,7 +74,15 @@ export class ApiAccessService {
   /** 클라이언트 검증: 캐시 조회 → status 확인 → WEB 이면 오리진 대조. */
   private async viaClient(clientId: string, req: Request): Promise<ApiAccess> {
     const client = await this.cache.getClient(clientId);
-    if (!client || client.status !== AppStatus.ACTIVE) {
+    if (!client) {
+      throw new UnauthorizedException('Invalid client.');
+    }
+    // clientId 는 추측 불가한 40자라, 그걸 아는 것 자체가 존재를 아는 것이다 —
+    // PENDING 사유를 알려도 새로 새는 정보가 없다(서비스 키와 상황이 다르다).
+    if (client.status === AppStatus.PENDING) {
+      throw new UnauthorizedException('This app is pending approval.');
+    }
+    if (client.status !== AppStatus.ACTIVE) {
       throw new UnauthorizedException('Invalid client.');
     }
     if (client.type === AppClientType.WEB) {

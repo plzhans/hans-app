@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 
-export type AppStatus = 'ACTIVE' | 'DISABLED';
+export type AppStatus = 'PENDING' | 'ACTIVE' | 'DISABLED';
 
 export interface AppSummary {
   id: number;
@@ -14,6 +14,7 @@ export interface AppSummary {
 export interface ApiKeySummary {
   id: number;
   name: string;
+  status: AppStatus;
   keyPrefix: string;
   lastUsedAt?: string | null;
   createdAt: string;
@@ -32,6 +33,7 @@ export interface AppClient {
   id: number;
   clientId: string;
   name: string;
+  status: AppStatus;
   type: AppClientType;
   // WEB 전용
   origins?: string[] | null;

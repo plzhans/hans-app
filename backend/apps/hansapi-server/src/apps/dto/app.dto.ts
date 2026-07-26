@@ -61,6 +61,11 @@ export class AppSummaryDto {
 export class ApiKeySummaryDto {
   @ApiProperty() readonly id!: number;
   @ApiProperty() readonly name!: string;
+  @ApiProperty({
+    enum: AppStatus,
+    description: 'PENDING 이면 승인 전이라 인증에 쓸 수 없다',
+  })
+  readonly status!: AppStatus;
   @ApiProperty({ description: '표시용 접두사(원문은 생성 시 1회만 확인 가능)' })
   readonly keyPrefix!: string;
   @ApiPropertyOptional() readonly lastUsedAt?: string | null;
@@ -72,6 +77,11 @@ export class ClientDto {
   @ApiProperty({ description: '공개 클라이언트 식별자' })
   readonly clientId!: string;
   @ApiProperty() readonly name!: string;
+  @ApiProperty({
+    enum: AppStatus,
+    description: 'PENDING 이면 승인 전이라 인증에 쓸 수 없다',
+  })
+  readonly status!: AppStatus;
   @ApiProperty({ enum: AppClientType, description: '플랫폼 타입' })
   readonly type!: AppClientType;
   // WEB

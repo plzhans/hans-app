@@ -163,8 +163,17 @@ export class AppService {
     };
   }
 
-  /** 앱 생성. 등급별 한도(내가 OWNER 인 앱 수)를 초과하면 거부한다. */
-  async createApp(userId: number, name: string): Promise<App> {
+  /**
+   * 앱 생성. 등급별 한도(내가 OWNER 인 앱 수)를 초과하면 거부한다.
+   *
+   * status 기본은 **PENDING**(콘솔 사용자 경로) — 승인 전까지 하위 키·클라이언트도 미승인이라
+   * 인증이 거부된다. CLI(관리자)는 ACTIVE 를 넘겨 즉시 사용 가능한 앱을 만든다.
+   */
+  async createApp(
+    userId: number,
+    name: string,
+    status: AppStatus = AppStatus.PENDING,
+  ): Promise<App> {
     const user = await this.users.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found.');
@@ -178,7 +187,7 @@ export class AppService {
         );
       }
     }
-    return this.apps.createAppWithOwner(userId, name.trim());
+    return this.apps.createAppWithOwner(userId, name.trim(), status);
   }
 
   async getApp(userId: number, appId: number): Promise<AppDetail> {
@@ -219,6 +228,40 @@ export class AppService {
     ]);
   }
 
+  /**
+   * 앱 승인. 앱과 그 하위 **PENDING** 키·클라이언트를 ACTIVE 로 올린다.
+   *
+   * **운영자 전용이라 소유자 검증(assertMember)을 하지 않는다** — 소유자가 자기 앱을 승인할 수
+   * 있으면 게이트가 무의미하다. CLI 가 운영자 게이트 역할을 한다(user tier 변경과 같은 성격).
+   *
+   * 방금 켜진 키/클라이언트는 승인 전 조회로 PENDING 상태가 캐시에 남아 있을 수 있으므로
+   * 무효화한다 — 다음 요청이 DB 에서 ACTIVE 를 새로 읽는다(삭제 시 무효화와 대칭).
+   */
+  async approveApp(appId: number): Promise<App> {
+    const app = await this.apps.findApp(appId);
+    if (!app) {
+      throw new NotFoundException('App not found.');
+    }
+    if (app.status === AppStatus.ACTIVE) {
+      return app; // 이미 승인됨 — 멱등.
+    }
+    // 무효화 대상: 이번에 PENDING→ACTIVE 로 켜지는 것들만.
+    const [keys, clients] = await Promise.all([
+      this.apps.listApiKeys(appId),
+      this.apps.listClients(appId),
+    ]);
+    await this.apps.approve(appId);
+    await Promise.all([
+      ...keys
+        .filter((k) => k.status === AppStatus.PENDING)
+        .map((k) => this.cache.invalidateApiKey(appId, k.id)),
+      ...clients
+        .filter((c) => c.status === AppStatus.PENDING)
+        .map((c) => this.cache.invalidateClient(c.clientId)),
+    ]);
+    return { ...app, status: AppStatus.ACTIVE };
+  }
+
   // ---- API 키 ----
 
   /**
@@ -246,9 +289,12 @@ export class AppService {
     //  - 검증 시 파싱한 id 로 O(1) 조회 후 해시 비교(스캔 불필요)
     // prefix(표시·조회용)는 랜덤을 뺀 sk_{appId}_{keyId}. hash 는 원문 전체의 SHA-256.
     let plainKey = '';
+    // 키는 앱의 승인 상태를 따라간다. PENDING 앱에서 만들면 키도 PENDING(인증 거부) →
+    // 앱 승인 시 함께 ACTIVE 로 켜진다. ACTIVE 앱이면 키도 바로 ACTIVE.
     const apiKey = await this.apps.createApiKeyWithId(
       appId,
       name.trim(),
+      app.status,
       (id) => {
         plainKey = `sk_${appId}_${id}_${randomToken(24)}`;
         return { keyPrefix: `sk_${appId}_${id}`, keyHash: sha256hex(plainKey) };
@@ -308,6 +354,10 @@ export class AppService {
     input: CreateClientInput,
   ): Promise<CreatedClient> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
+    const app = await this.apps.findApp(appId);
+    if (!app) {
+      throw new NotFoundException('App not found.');
+    }
 
     // type 별 컬럼과 (WEB 만) 시크릿을 먼저 계산한다.
     let extra: {
@@ -363,6 +413,8 @@ export class AppService {
       appId,
       name: input.name.trim(),
       type: input.type,
+      // 클라이언트도 앱의 승인 상태를 따라간다(키와 동일). 앱 승인 시 함께 ACTIVE 로 켜진다.
+      status: app.status,
       ...extra,
     };
     const specified = input.clientId?.trim();

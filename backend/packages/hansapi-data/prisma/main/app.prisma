@@ -17,8 +17,10 @@ model App {
   /// 서비스 키(app_api_key) 발급 상한. 기본 3. 앱별로 더 필요하면 이 값만 올린다(코드 상수 아님).
   apiKeyLimit Int @default(3) @map("api_key_limit")
 
-  /// 앱 상태. **인증은 이 값만 본다** — DISABLED 면 거부. 소프트 삭제 시에도 DISABLED 로 내린다.
-  status AppStatus @default(ACTIVE)
+  /// 앱 상태. PENDING(미승인)·ACTIVE(승인)·DISABLED(삭제·차단).
+  /// **인증이 직접 보는 건 앱이 아니라 키/클라이언트의 status 다.** 앱 상태는 승인 흐름과
+  /// 하위 발급물의 상태를 정하는 축이다 — 승인 시 이 값이 ACTIVE 로 가며 하위 PENDING 도 함께 켜진다.
+  status AppStatus @default(PENDING)
 
   /// 소프트 삭제 시각. non-null 이면 삭제된 앱 — 목록·접근에서 제외하고 배치가 N일 후 완전 삭제한다.
   /// (인증 거부는 status 로 판정하므로 이 값은 목록 숨김·정리 타이밍 용도다.)
@@ -64,7 +66,11 @@ enum AppRole {
 }
 
 enum AppStatus {
+  /// 미승인. 발급은 되지만 인증은 거부된다(ACTIVE 만 통과). 승인 시 ACTIVE 로 전환된다.
+  /// 콘솔에서 사용자가 만든 앱·키·클라이언트의 기본 상태다(CLI 는 관리자라 기본 ACTIVE).
+  PENDING
   ACTIVE
+  /// 꺼짐 — 사용자 off · 소프트 삭제 · 차단. **승인이 되살리지 않는다**(사용자 의도 보존).
   DISABLED
 }
 
@@ -85,7 +91,7 @@ model AppApiKey {
   keyHash String @map("key_hash") @db.Char(64)
 
   /// 키 상태. 앱 소프트 삭제 시 DISABLED 로 내린다(인증 거부).
-  status AppStatus @default(ACTIVE)
+  status AppStatus @default(PENDING)
 
   /// 마지막 사용 시각(사용량/감사용). 미사용이면 null.
   lastUsedAt DateTime? @map("last_used_at")
@@ -137,7 +143,7 @@ model AppClient {
   config Json?
 
   /// 클라이언트 상태. 앱 소프트 삭제 시 DISABLED 로 내린다(인증 거부).
-  status AppStatus @default(ACTIVE)
+  status AppStatus @default(PENDING)
 
   /// 마지막 사용 시각(OAuth 사용 시 갱신). 미사용이면 null.
   lastUsedAt DateTime? @map("last_used_at")
