@@ -9,6 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
   Auth,
@@ -55,6 +56,9 @@ export class OAuthController {
    */
   @Post('token')
   @Public()
+  // 인가코드 교환·refresh 는 정상 흐름이면 IP 당 저빈도다. 위조 code/verifier 무차별 시도와
+  // 정크 요청이 DB·검증 연산에 닿기 전에 IP 당 60초 20회로 조인다(전역 300 보다 타이트).
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @HttpCode(200)
   @ApiOperation({
     summary: '토큰 발급/갱신',

@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
 import { config } from 'dotenv';
 import cookieParser from 'cookie-parser';
@@ -25,8 +26,34 @@ exitIfVersionFlag(__dirname);
 // 설정을 계층으로 쌓아 EnvSource 로 만든다. 어떤 키가 필수인지는 각 계층이 판단한다.
 const envSource = loadEnv(__dirname, resolveAppEnv(), config);
 
+/**
+ * Express 'trust proxy' 설정을 env 에서 파싱한다.
+ * 프록시(nginx/LB/CDN) 뒤에 있을 때만 켠다 — req.ip 와 rate limit 이 X-Forwarded-For 의
+ * 실제 클라이언트 IP 를 쓰게 한다. 무조건 켜면 XFF 위조로 IP 기반 한도를 우회당하므로
+ * 반드시 env 로 명시한다(미설정 시 끔 = 소켓 IP 사용).
+ *   TRUST_PROXY=1            신뢰 프록시 홉 수(권장: 앞단 프록시 개수)
+ *   TRUST_PROXY=10.0.0.0/8   신뢰할 프록시 IP/서브넷(콤마 구분) 또는 'loopback' 등 프리셋
+ *   TRUST_PROXY=true|false
+ */
+function parseTrustProxy(raw?: string): boolean | number | string | undefined {
+  const v = raw?.trim();
+  if (!v) return undefined;
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  if (/^\d+$/.test(v)) return Number(v);
+  return v;
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule.forRoot(envSource));
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule.forRoot(envSource),
+  );
+
+  // 프록시 뒤라면 실제 클라 IP 를 인식하도록 trust proxy 를 켠다(rate limit 정확도). env 로만 켠다.
+  const trustProxy = parseTrustProxy(envSource.get('TRUST_PROXY'));
+  if (trustProxy !== undefined) {
+    app.set('trust proxy', trustProxy);
+  }
 
   // refresh token 은 httpOnly 쿠키로 오간다. 쿠키 파싱을 켠다(/oauth/token refresh grant 가 읽음).
   app.use(cookieParser());
