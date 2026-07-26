@@ -15,4 +15,12 @@ while IFS= read -r file; do
   sops --decrypt "$file" > "$output"
 done
 
+# JWT 서명 개인키(*.key.enc). binary 모드로 복호화한다(env-encrypt.sh 의 짝).
+find config -type f -name '*.key.enc' 2>/dev/null |
+while IFS= read -r file; do
+  output="${file%.enc}"
+  echo "Decrypting (binary): $file -> $output"
+  sops --decrypt --input-type binary --output-type binary "$file" > "$output"
+done
+
 echo "Done."

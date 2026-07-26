@@ -11,4 +11,12 @@ while IFS= read -r file; do
   sops --encrypt "$file" > "$file.enc"
 done
 
+# JWT 서명 개인키(PEM). config/ 아래 *.key 만 대상으로 한다(node_modules 등 오염 방지).
+# PEM 은 dotenv/json 이 아니므로 binary 모드로 통째 암호화한다.
+find config -type f -name '*.key' ! -name '*.enc' 2>/dev/null |
+while IFS= read -r file; do
+  echo "Encrypting (binary): $file -> $file.enc"
+  sops --encrypt --input-type binary --output-type binary "$file" > "$file.enc"
+done
+
 echo "Done."

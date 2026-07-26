@@ -22,6 +22,15 @@ export type { App, AppApiKey, AppClient } from '@hansapi/data';
 export { AppClientType, AppStatus, UserTier } from '@hansapi/data';
 export { TokenService } from './token/token.service';
 export { JwtKeyService } from './token/jwt-key.service';
+export {
+  generateAccessKeyPair,
+  publicJwkFromPem,
+  publicPemFromPem,
+  jwkThumbprint,
+  algForCurve,
+  type AccessAlg,
+  type GeneratedKey,
+} from './token/jwt-keygen';
 export type { AuthTokens } from './token/token.service';
 export { ActionLogService } from './log/action-log.service';
 

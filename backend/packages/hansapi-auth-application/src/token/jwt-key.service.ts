@@ -5,19 +5,20 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { createHash, createPrivateKey, createPublicKey } from 'node:crypto';
+import { createPublicKey } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { AUTH_CONFIG } from '../auth.config';
 import type { AuthConfig } from '../auth.config';
+import {
+  algForCurve,
+  jwkThumbprint,
+  publicJwkFromPem,
+  type AccessAlg,
+} from './jwt-keygen';
 
-/** 허용하는 JWT alg(RFC 7518). 파일명 접미사(`<kid>_<alg>`) 검증에 쓴다. 지금은 EC 계열만. */
-type AccessAlg = 'ES256' | 'ES384' | 'ES512';
 const KNOWN_ALGS = new Set<AccessAlg>(['ES256', 'ES384', 'ES512']);
-
-/** kid = JWK thumbprint(RFC 7638) 앞 16자. 파일명·JWT 헤더·JWKS 에 쓰는 짧은 식별자. */
-const KID_LEN = 16;
 
 interface LoadedKey {
   readonly kid: string;
@@ -221,30 +222,16 @@ export class JwtKeyService {
   }
 
   private buildKey(pem: string, alg: AccessAlg, isPrivate: boolean): LoadedKey {
-    // 공개 JWK 를 뽑는다. 개인키 export('jwk')엔 d(개인 스칼라)가 들어가므로 떼어낸다.
-    // (KeyObject 를 createPublicKey 에 직접 넘기면 @types/node 버전에 따라 타입이 안 맞아,
-    //  JWK 를 경유해 이식성 있게 처리한다.)
-    let publicJwk: Record<string, string>;
-    if (isPrivate) {
-      publicJwk = createPrivateKey(pem).export({ format: 'jwk' }) as Record<
-        string,
-        string
-      >;
-      delete publicJwk.d; // 개인 스칼라 제거 → 공개 JWK
-    } else {
-      publicJwk = createPublicKey(pem).export({ format: 'jwk' }) as Record<
-        string,
-        string
-      >;
-    }
-    const kid = this.thumbprint(publicJwk);
-    const implied = this.algForCurve(publicJwk.crv);
+    const publicJwk = publicJwkFromPem(pem, isPrivate);
+    const kid = jwkThumbprint(publicJwk);
+    const implied = algForCurve(publicJwk.crv);
     if (implied && implied !== alg) {
       this.logger.warn(
         `Key ${kid}: filename alg=${alg} but curve implies ${implied}.`,
       );
     }
-    // 입력 타입은 @types/node 버전마다 이름이 달라(JsonWebKeyInput 등), 버전 무관하게 캐스팅한다.
+    // 검증용 SPKI PEM 을 공개 JWK 에서 되만든다. 입력 타입은 @types/node 버전마다 이름이 달라
+    // (JsonWebKeyInput 등), 버전 무관하게 캐스팅한다.
     const publicPem = createPublicKey({
       key: publicJwk,
       format: 'jwk',
@@ -259,24 +246,5 @@ export class JwtKeyService {
       privatePem: isPrivate ? pem : undefined,
       jwk: { ...publicJwk, kid, alg, use: 'sig' },
     };
-  }
-
-  /** RFC 7638 JWK thumbprint 의 앞 KID_LEN 자. EC 는 {crv,kty,x,y}, RSA 는 {e,kty,n} 정렬. */
-  private thumbprint(jwk: Record<string, string>): string {
-    const canonical =
-      jwk.kty === 'EC'
-        ? JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y })
-        : JSON.stringify({ e: jwk.e, kty: jwk.kty, n: jwk.n });
-    return createHash('sha256')
-      .update(canonical)
-      .digest('base64url')
-      .slice(0, KID_LEN);
-  }
-
-  private algForCurve(crv?: string): AccessAlg | null {
-    if (crv === 'P-256') return 'ES256';
-    if (crv === 'P-384') return 'ES384';
-    if (crv === 'P-521') return 'ES512';
-    return null;
   }
 }
