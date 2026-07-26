@@ -58,11 +58,6 @@ export function timingSafeEqualHex(a: string, b: string): boolean {
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
-/** `<id>.<secret>` 로 조립한다. */
-export function composeToken(id: string, secret: string): string {
-  return `${id}.${secret}`;
-}
-
 /** HMAC 태그 길이(hex). 96비트 — DB 조회 전 정크 거절용 사전 필터라 이 정도면 충분하다. */
 const SIGNED_TAG_HEX_LEN = 24;
 
@@ -112,23 +107,4 @@ export function parseSignedToken(
     return null;
   }
   return { id, secret };
-}
-
-/**
- * `<prefix><id>.<secret>` 을 분해한다. 형식이 어긋나면 null.
- * prefix 예: 'rt_'(refresh), 'ac_'(인가코드).
- */
-export function parseToken(
-  raw: string,
-  prefix: string,
-): { id: string; secret: string } | null {
-  if (!raw.startsWith(prefix)) {
-    return null;
-  }
-  const body = raw.slice(prefix.length);
-  const dot = body.indexOf('.');
-  if (dot <= 0 || dot === body.length - 1) {
-    return null;
-  }
-  return { id: body.slice(0, dot), secret: body.slice(dot + 1) };
 }

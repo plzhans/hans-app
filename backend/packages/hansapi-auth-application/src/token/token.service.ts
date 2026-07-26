@@ -9,10 +9,8 @@ import { AuthCodeRepository } from '../repository/auth-code.repository';
 import { TokenSessionRepository } from '../repository/token-session.repository';
 import {
   composeSignedToken,
-  composeToken,
   hmacSha256hex,
   parseSignedToken,
-  parseToken,
   randomToken,
   sha256hex,
   timingSafeEqualHex,
@@ -62,10 +60,11 @@ export interface ConsumedAuthCode {
 @Injectable()
 export class TokenService {
   /**
-   * 인가코드 HMAC 사전검증용 키. jwtSecret 에서 도메인 분리해 파생한다
+   * 토큰 HMAC 사전검증용 키. jwtSecret 에서 **토큰 종류별로 도메인 분리해** 파생한다
    * (별도 env 불필요, JWT 서명키와 용도 분리). 태그는 보안 경계가 아니라 DB 조회 전 값싼 관문이다.
    */
   private readonly authCodeTagKey: string;
+  private readonly refreshTagKey: string;
 
   constructor(
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
@@ -74,6 +73,10 @@ export class TokenService {
     private readonly authCodes: AuthCodeRepository,
   ) {
     this.authCodeTagKey = hmacSha256hex(config.jwtSecret, 'auth-code-tag-v1');
+    this.refreshTagKey = hmacSha256hex(
+      config.jwtSecret,
+      'refresh-token-tag-v1',
+    );
   }
 
   // ---- access token (JWT) ----
@@ -121,7 +124,9 @@ export class TokenService {
     });
     return {
       sessionId,
-      refreshToken: REFRESH_PREFIX + composeToken(sessionId, secret),
+      refreshToken:
+        REFRESH_PREFIX +
+        composeSignedToken(sessionId, secret, this.refreshTagKey),
       expiresAt,
     };
   }
@@ -131,7 +136,12 @@ export class TokenService {
    * 형식 오류·미존재·만료·secret 불일치는 모두 401.
    */
   async rotateRefreshToken(refreshToken: string): Promise<RotatedSession> {
-    const parsed = parseToken(refreshToken, REFRESH_PREFIX);
+    // HMAC 태그부터 검증한다. 위조·변조·정크 토큰은 여기서 DB 조회 없이 탈락한다(저사양 보호).
+    const parsed = parseSignedToken(
+      refreshToken,
+      REFRESH_PREFIX,
+      this.refreshTagKey,
+    );
     if (!parsed) {
       throw new UnauthorizedException('Invalid refresh token.');
     }
@@ -159,7 +169,9 @@ export class TokenService {
     return {
       userId: session.userId,
       sessionId: session.sessionId,
-      refreshToken: REFRESH_PREFIX + composeToken(session.sessionId, newSecret),
+      refreshToken:
+        REFRESH_PREFIX +
+        composeSignedToken(session.sessionId, newSecret, this.refreshTagKey),
       expiresAt,
     };
   }
