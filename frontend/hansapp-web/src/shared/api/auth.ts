@@ -29,14 +29,24 @@ export function emailLogin(email: string, password: string): Promise<TokenRespon
   });
 }
 
+/** 가입 인증 코드 발송(계정 생성 전). 이미 가입된 이메일이면 409, 발송 상한 초과면 429. */
+export function requestSignupCode(email: string): Promise<void> {
+  return apiFetch('/auth/signup/request-code', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+/** 이메일 가입 확정. 메일로 받은 코드를 함께 보내 검증된 계정을 만든다. */
 export function emailSignup(
   email: string,
   password: string,
-  name?: string,
+  name: string,
+  code: string,
 ): Promise<TokenResponse> {
   return apiFetch('/auth/signup', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name }),
+    body: JSON.stringify({ email, password, name, code }),
   });
 }
 
@@ -55,14 +65,52 @@ export function exchangeCode(
   });
 }
 
-/** 소셜 신규 가입 확정(pending 티켓 + 필요 시 이메일). */
+/**
+ * 비밀번호 재설정 요청. 가입 이메일로 인증 코드를 보낸다.
+ * 존재 여부와 무관하게 서버는 202 로 답한다(계정 유무 노출 방지).
+ */
+export function requestPasswordReset(email: string): Promise<void> {
+  return apiFetch('/auth/password/reset-request', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+/** 비밀번호 재설정 확정. 메일로 받은 코드 + 새 비밀번호. 성공 시 전체 세션이 폐기된다. */
+export function resetPassword(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  return apiFetch('/auth/password/reset', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+}
+
+/**
+ * 소셜 가입 인증 코드 발송. provider 가 이메일을 검증하지 않은 경우(code_required)에 쓴다.
+ * provider 가 이메일을 안 준 경우 email 을 함께 보낸다.
+ */
+export function socialRegisterRequestCode(
+  ticket: string,
+  email?: string,
+): Promise<void> {
+  return apiFetch('/auth/social/register/request-code', {
+    method: 'POST',
+    body: JSON.stringify({ ticket, email }),
+  });
+}
+
+/** 소셜 신규 가입 확정(pending 티켓 + 필요 시 이메일·인증 코드). */
 export function socialRegister(
   ticket: string,
   email?: string,
+  code?: string,
 ): Promise<TokenResponse> {
   return apiFetch('/auth/social/register', {
     method: 'POST',
-    body: JSON.stringify({ ticket, email }),
+    body: JSON.stringify({ ticket, email, code }),
   });
 }
 

@@ -10,6 +10,15 @@ import {
   AUTH_CONFIG,
   buildAuthConfig,
 } from './auth.config';
+import {
+  MAIL_CONFIG,
+  OTP_CONFIG,
+  buildMailConfig,
+  buildOtpConfig,
+} from './mail/mail.config';
+import { EmailVerificationRepository } from './mail/email-verification.repository';
+import { EmailVerificationService } from './mail/email-verification.service';
+import { MailService } from './mail/mail.service';
 import { AuthService } from './auth.service';
 import { OAuthTokenService } from './oauth-token.service';
 import { TokenService } from './token/token.service';
@@ -18,7 +27,6 @@ import { AuthGuard } from './guard/auth.guard';
 import { FirstPartyGuard } from './guard/first-party.guard';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
-import { UserTokenRepository } from './repository/user-token.repository';
 import { TokenSessionRepository } from './repository/token-session.repository';
 import { AuthCodeRepository } from './repository/auth-code.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
@@ -49,6 +57,8 @@ import { LineStrategy } from './social/strategies/line.strategy';
 export class AuthModule {
   static forRoot(source: EnvSource): DynamicModule {
     const config = buildAuthConfig(source);
+    const mailConfig = buildMailConfig(source);
+    const otpConfig = buildOtpConfig(source);
 
     // 설정된 소셜 provider 의 전략만 등록한다(키가 없으면 전략을 만들지 않는다 → 서버는 그대로 뜬다).
     const strategyProviders: Provider[] = [];
@@ -69,6 +79,12 @@ export class AuthModule {
       ],
       providers: [
         { provide: AUTH_CONFIG, useValue: config },
+        { provide: MAIL_CONFIG, useValue: mailConfig },
+        { provide: OTP_CONFIG, useValue: otpConfig },
+        // 이메일 인증 코드(OTP) 발급·검증 + 메일 발송
+        EmailVerificationRepository,
+        EmailVerificationService,
+        MailService,
         // AccessCache 는 설정 전체가 아니라 캐시 TTL 조각만 받는다.
         { provide: ACCESS_CACHE_CONFIG, useValue: config.accessCache },
         // FirstPartyGuard 는 오리진 목록만 받는다.
@@ -76,7 +92,6 @@ export class AuthModule {
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         UserRepository,
         UserOAuthRepository,
-        UserTokenRepository,
         TokenSessionRepository,
         AuthCodeRepository,
         WithdrawalRepository,
@@ -101,6 +116,8 @@ export class AuthModule {
       ],
       exports: [
         AUTH_CONFIG,
+        MAIL_CONFIG,
+        EmailVerificationService,
         TokenService,
         AuthService,
         OAuthTokenService,

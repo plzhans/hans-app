@@ -69,12 +69,6 @@ export interface AuthConfig {
   /** 소셜 콜백→프론트 릴레이 인가코드 만료(초). 기본 30초 */
   readonly authCodeTtlSec: number;
 
-  /** 이메일 인증 토큰 만료(초). 기본 24시간 */
-  readonly emailVerifyTtlSec: number;
-
-  /** 비밀번호 재설정 토큰 만료(초). 기본 1시간 */
-  readonly passwordResetTtlSec: number;
-
   /** 탈퇴 기록 보존일수. 이후 배치가 정리하며 이메일 재사용을 푼다. 기본 30일 */
   readonly withdrawalRetentionDays: number;
 
@@ -159,16 +153,6 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
       60 * 24 * 60 * 60,
     ),
     authCodeTtlSec: optionalNumber(source, 'AUTH_CODE_TTL_SEC', 30),
-    emailVerifyTtlSec: optionalNumber(
-      source,
-      'AUTH_EMAIL_VERIFY_TTL_SEC',
-      24 * 60 * 60,
-    ),
-    passwordResetTtlSec: optionalNumber(
-      source,
-      'AUTH_PASSWORD_RESET_TTL_SEC',
-      60 * 60,
-    ),
     accessCache: Object.freeze({
       memoryTtlSec: optionalNumber(
         source,

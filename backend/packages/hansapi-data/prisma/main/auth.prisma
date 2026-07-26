@@ -40,7 +40,6 @@ model User {
   withdrawnAt DateTime? @map("withdrawn_at")
 
   oauths         UserOAuth[]
-  tokens         UserToken[]
   sessions       UserTokenSession[]
   authCodes      UserAuthCode[]
   appMemberships AppMember[]
@@ -73,27 +72,36 @@ model UserOAuth {
   @@map("user_oauth")
 }
 
-/// 이메일 인증 / 비밀번호 재설정용 일회성 토큰. 원문 대신 SHA-256 해시만 저장한다.
-model UserToken {
+/// 이메일 인증 코드(OTP). **가입 전(계정 없음) 단계에서도 쓰므로 userId 가 아니라 이메일로 키한다.**
+///
+/// 미가입 이메일이 평문으로 쌓이면 유출 시 수집 대상이 되므로, 이메일도 코드도 **원문을 저장하지 않고**
+/// 서버 pepper 로 HMAC-SHA256 한 해시만 둔다(엔트로피가 낮아 평범한 SHA-256 은 사전 대입에 뚫린다).
+/// 발송 이력이자 검증 상태 저장소다 — 시간당 발송 상한도 이 테이블의 created_at 으로 센다.
+model EmailVerification {
   id Int @id @default(autoincrement())
 
-  userId Int @map("user_id")
+  /// HMAC-SHA256(정규화 이메일, pepper) hex 64자. 조회·시간당 카운트 키. 평문 이메일은 저장하지 않는다.
+  emailHash String @map("email_hash") @db.Char(64)
 
-  /// 용도
-  purpose TokenPurpose
+  /// 용도(가입/비밀번호 재설정)
+  purpose EmailVerifyPurpose
 
-  /// SHA-256(token) hex 64자
-  tokenHash String @map("token_hash") @db.Char(64)
+  /// HMAC-SHA256(코드, pepper) hex 64자. 코드 원문은 저장하지 않는다.
+  codeHash String @map("code_hash") @db.Char(64)
+
+  /// 검증 시도 횟수. 상한 초과 시 코드를 폐기(소비 처리)한다.
+  attempts Int @default(0)
 
   expiresAt  DateTime  @map("expires_at")
-  /// 사용(소비) 시각. 재사용 방지.
+  /// 사용(소비) 시각. 성공·시도초과·재발송 시 채워 재사용을 막는다.
   consumedAt DateTime? @map("consumed_at")
   createdAt  DateTime  @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, purpose])
-  @@map("user_token")
+  /// 조회(용도별 최신 활성 코드)
+  @@index([emailHash, purpose])
+  /// 시간당 발송량 카운트
+  @@index([emailHash, createdAt])
+  @@map("email_verification")
 }
 
 /// refresh 세션. 불투명 refresh 토큰의 서버측 저장소.
@@ -222,8 +230,9 @@ enum OAuthProvider {
   LINE
 }
 
-/// 일회성 토큰 용도
-enum TokenPurpose {
-  EMAIL_VERIFY
+/// 이메일 인증 코드(OTP) 용도. EmailVerification.purpose 에 쓴다.
+/// SIGNUP: 이메일 가입/소셜 미검증 이메일 확정. PASSWORD_RESET: 비밀번호 재설정.
+enum EmailVerifyPurpose {
+  SIGNUP
   PASSWORD_RESET
 }

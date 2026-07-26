@@ -46,13 +46,6 @@ export class UserRepository {
     });
   }
 
-  markEmailVerified(id: number): Promise<User> {
-    return this.prisma.user.update({
-      where: { id },
-      data: { emailVerified: true },
-    });
-  }
-
   /** 등급 변경. 앱 생성 한도(APP_LIMIT_BY_TIER)를 정하는 값이라 운영자만 건드린다. */
   updateTier(id: number, tier: UserTier): Promise<User> {
     return this.prisma.user.update({ where: { id }, data: { tier } });

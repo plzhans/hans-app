@@ -1,4 +1,10 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomInt,
+  timingSafeEqual,
+} from 'node:crypto';
 
 /**
  * 인증 토큰(refresh·인가코드)의 공통 암호 유틸.
@@ -15,6 +21,24 @@ export function randomToken(bytes = 24): string {
 /** SHA-256 hex(64자). secret 저장·비교용. */
 export function sha256hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+/**
+ * HMAC-SHA256 hex(64자). **저장 전 pepper(서버 시크릿)를 섞는다.**
+ * 이메일·OTP 코드처럼 엔트로피가 낮은 값은 평범한 SHA-256 만으로는 사전 대입으로 복원되므로,
+ * DB 가 유출돼도 시크릿 없이는 되돌릴 수 없게 keyed hash 를 쓴다.
+ */
+export function hmacSha256hex(value: string, key: string): string {
+  return createHmac('sha256', key).update(value).digest('hex');
+}
+
+/** 앞자리 0 을 포함하는 length 자리 숫자 코드. 암호학적 난수(randomInt) 사용. */
+export function randomNumericCode(length: number): string {
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += randomInt(0, 10).toString();
+  }
+  return code;
 }
 
 /**

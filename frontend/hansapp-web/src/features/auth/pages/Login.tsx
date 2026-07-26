@@ -82,6 +82,20 @@ export default function Login() {
           error={errors.password?.message}
           {...register('password', { required: '비밀번호를 입력하세요.' })}
         />
+        <div className="text-right">
+          <Link
+            to={relayLink(
+              '/auth/forgot-password',
+              returnTo,
+              clientId,
+              codeChallenge,
+              clientState,
+            )}
+            className="text-sm text-gray-500 hover:text-primary hover:underline"
+          >
+            비밀번호를 잊으셨나요?
+          </Link>
+        </div>
         {serverError && (
           <p className="whitespace-pre-line text-sm text-red-500">{serverError}</p>
         )}

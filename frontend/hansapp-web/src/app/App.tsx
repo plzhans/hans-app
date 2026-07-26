@@ -6,6 +6,7 @@ import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
 import Login from '@/features/auth/pages/Login';
 import Signup from '@/features/auth/pages/Signup';
+import ForgotPassword from '@/features/auth/pages/ForgotPassword';
 import Callback from '@/features/auth/pages/Callback';
 import Home from '@/features/auth/pages/Home';
 
@@ -63,6 +64,14 @@ export default function App() {
           element={
             <GuestOnly>
               <Signup />
+            </GuestOnly>
+          }
+        />
+        <Route
+          path="/auth/forgot-password"
+          element={
+            <GuestOnly>
+              <ForgotPassword />
             </GuestOnly>
           }
         />

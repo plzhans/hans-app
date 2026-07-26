@@ -31,8 +31,11 @@ export class NaverStrategy extends PassportStrategy(Strategy, 'naver') {
       providerId: String(profile.id),
       email,
       name: profile.name ?? profile.nickname ?? null,
-      // 네이버 이메일은 검증된 계정 이메일이다.
-      emailVerified: !!email,
+      // 네이버는 이메일 검증 플래그를 주지 않는다(구글의 email_verified, 카카오의
+      // is_email_verified 에 해당하는 값이 응답에 없다). 게다가 이 이메일은 identity 가 아니라
+      // 사용자가 바꿀 수 있는 연락용 이메일이다. 검증됨으로 신뢰하면 안 되므로 false 로 둔다.
+      // 우리 코드 인증을 거쳐야 소유로 인정한다.
+      emailVerified: false,
     };
   }
 }

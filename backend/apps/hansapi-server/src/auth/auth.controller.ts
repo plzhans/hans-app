@@ -23,14 +23,17 @@ import {
   Public,
 } from '@hansapi/auth-application';
 import type { AuthResult, AuthUser } from '@hansapi/auth-application';
+import type { SupportedLang } from '@hansapi/common';
+
+import { Lang } from '../common/lang.decorator';
 
 import {
   ChangePasswordRequestDto,
-  EmailVerifyConfirmDto,
   LoginRequestDto,
   MeResponseDto,
   PasswordResetConfirmDto,
   PasswordResetRequestDto,
+  SignupCodeRequestDto,
   SignupRequestDto,
   TokenResponseDto,
 } from './dto/auth.dto';
@@ -51,13 +54,29 @@ import {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('signup/request-code')
+  @Public()
+  @FirstPartyOnly()
+  @HttpCode(202)
+  @ApiOperation({
+    summary: '가입 인증 코드 발송',
+    description:
+      '가입할 이메일로 인증 코드를 보낸다(계정 생성 전). 이미 가입된 이메일이면 409. 같은 이메일로 1시간 5통·재발송 쿨다운을 초과하면 429.',
+  })
+  async requestSignupCode(
+    @Body() dto: SignupCodeRequestDto,
+    @Lang() lang: SupportedLang,
+  ): Promise<void> {
+    await this.authService.requestSignupCode(dto.email, lang);
+  }
+
   @Post('signup')
   @Public()
   @FirstPartyOnly()
   @ApiOperation({
     summary: '이메일 회원가입',
     description:
-      '이메일/비밀번호로 가입한다. 이미 가입된 이메일이거나 탈퇴 후 재가입 제한기간이면 409. 성공 시 곧바로 로그인 토큰을 발급한다.',
+      '사전에 발송된 인증 코드를 검증하고 계정을 만든다(검증된 이메일만 계정을 소유). 코드가 틀리거나 만료면 400, 이미 가입된 이메일이거나 탈퇴 후 재가입 제한기간이면 409. 성공 시 곧바로 로그인 토큰을 발급한다.',
   })
   @ApiCreatedResponse({ type: TokenResponseDto })
   async signup(
@@ -146,14 +165,13 @@ export class AuthController {
   @ApiOperation({
     summary: '비밀번호 재설정 요청',
     description:
-      '가입 이메일로 재설정 링크를 보낸다(메일러 연동 전까지는 응답에 임시로 토큰을 담는다). 존재 여부와 무관하게 202.',
+      '가입 이메일로 인증 코드를 보낸다. 계정 유무·대상 여부와 무관하게 202(존재 노출 방지). 발송 상한 초과 시 429.',
   })
   async requestPasswordReset(
     @Body() dto: PasswordResetRequestDto,
-  ): Promise<{ token: string | null }> {
-    // TODO(mailer): 메일러 연동 후 토큰을 응답에서 제거하고 이메일로만 전달한다.
-    const token = await this.authService.requestPasswordReset(dto.email);
-    return { token };
+    @Lang() lang: SupportedLang,
+  ): Promise<void> {
+    await this.authService.requestPasswordReset(dto.email, lang);
   }
 
   @Post('password/reset')
@@ -163,44 +181,13 @@ export class AuthController {
   @ApiOperation({
     summary: '비밀번호 재설정 확정',
     description:
-      '재설정 토큰으로 새 비밀번호를 설정한다. 성공 시 전체 세션이 폐기된다.',
+      '메일로 받은 인증 코드로 새 비밀번호를 설정한다. 코드가 틀리거나 만료면 400. 성공 시 전체 세션이 폐기된다.',
   })
   async resetPassword(
     @Body() dto: PasswordResetConfirmDto,
     @Req() req: Request,
   ): Promise<void> {
     await this.authService.resetPassword(dto, requestMeta(req));
-  }
-
-  @Post('email/verify-request')
-  @Auth(AuthType.Jwt)
-  @HttpCode(202)
-  @ApiOperation({
-    summary: '이메일 인증 요청',
-    description:
-      '현재 계정의 이메일 인증 링크를 발송한다(메일러 연동 전까지는 응답에 임시로 토큰을 담는다).',
-  })
-  async requestEmailVerify(
-    @CurrentUser() user: AuthUser,
-  ): Promise<{ token: string }> {
-    // TODO(mailer): 메일러 연동 후 토큰을 응답에서 제거한다.
-    const token = await this.authService.requestEmailVerify(user.userId);
-    return { token };
-  }
-
-  @Post('email/verify')
-  @Public()
-  @FirstPartyOnly()
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '이메일 인증 확정',
-    description: '이메일 인증 토큰을 확인한다.',
-  })
-  async verifyEmail(
-    @Body() dto: EmailVerifyConfirmDto,
-    @Req() req: Request,
-  ): Promise<void> {
-    await this.authService.verifyEmail(dto.token, requestMeta(req));
   }
 
   /** refresh 를 쿠키+바디로, access 는 바디로 반환한다. */

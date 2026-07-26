@@ -9,21 +9,20 @@ import bcrypt from 'bcryptjs';
 import {
   ActionResult,
   AuthProvider,
-  TokenPurpose,
+  EmailVerifyPurpose,
   User,
   UserAction,
 } from '@hansapi/data';
 
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
+import { EmailVerificationService } from './mail/email-verification.service';
 import { ActionLogService } from './log/action-log.service';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
-import { UserTokenRepository } from './repository/user-token.repository';
 import { TokenSessionRepository } from './repository/token-session.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
 import { AuthTokens, TokenService } from './token/token.service';
-import { randomToken, sha256hex } from './token/crypto.util';
 
 /** 요청 부가정보(로그·세션 기록용). */
 export interface RequestMeta {
@@ -47,27 +46,59 @@ export class AuthService {
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
-    private readonly userTokens: UserTokenRepository,
     private readonly sessions: TokenSessionRepository,
     private readonly withdrawals: WithdrawalRepository,
     private readonly tokens: TokenService,
     private readonly log: ActionLogService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   /**
-   * 이메일 가입. 성공 시 곧바로 로그인 토큰을 발급한다.
+   * 가입용 인증 코드 발송. **계정 생성 전** 단계다 — 이메일 소유를 먼저 증명시킨다.
+   * 이미 가입된 이메일이면 거부한다(가입은 어차피 최종 단계에서 중복을 드러낸다).
+   */
+  async requestSignupCode(emailRaw: string, locale?: string): Promise<void> {
+    const email = normalizeEmail(emailRaw);
+    await this.assertEmailAvailable(email);
+    await this.emailVerification.issueAndSend(
+      EmailVerifyPurpose.SIGNUP,
+      email,
+      {
+        locale,
+      },
+    );
+  }
+
+  /**
+   * 이메일 가입. **가입 전에 발송된 코드 검증을 통과해야** 계정을 만든다 —
+   * 검증된 이메일만 계정을 소유하므로 스쿼팅·미검증 계정이 생기지 않는다.
+   * 성공 시 계정은 emailVerified=true 로 생성되고 곧바로 로그인 토큰을 발급한다.
    * 중복 체크는 활성 계정과 탈퇴 기록(재가입 제한기간)을 함께 본다.
    */
   async signup(
-    input: { email: string; password: string; name?: string | null },
+    input: {
+      email: string;
+      password: string;
+      name?: string | null;
+      code: string;
+    },
     meta: RequestMeta,
   ): Promise<AuthResult> {
     const email = normalizeEmail(input.email);
     await this.assertEmailAvailable(email);
 
+    const verified = await this.emailVerification.verify(
+      EmailVerifyPurpose.SIGNUP,
+      email,
+      input.code,
+    );
+    if (!verified) {
+      throw new BadRequestException('Invalid or expired verification code.');
+    }
+
     const user = await this.users.create({
       email,
-      emailVerified: false,
+      emailVerified: true,
       password: await this.hashPassword(input.password),
       name: input.name ?? null,
       joinType: AuthProvider.EMAIL,
@@ -182,63 +213,48 @@ export class AuthService {
   }
 
   /**
-   * 비밀번호 재설정 토큰 발급. 원문 토큰을 반환하며, 메일 발송은 상위(메일러)가 맡는다.
-   * 소셜 전용 계정은 재설정 대상이 아니다. 존재하지 않는 이메일도 동일 응답을 위해 조용히 null.
+   * 비밀번호 재설정 코드 발송. 소셜 전용 계정(비밀번호 없음)은 재설정 대상이 아니다.
+   * 존재하지 않는/대상이 아닌 이메일도 동일 응답(202)을 위해 조용히 넘어간다(계정 유무 노출 방지).
    */
-  async requestPasswordReset(emailRaw: string): Promise<string | null> {
+  async requestPasswordReset(emailRaw: string, locale?: string): Promise<void> {
     const email = normalizeEmail(emailRaw);
     const user = await this.users.findActiveByEmail(email);
     if (!user || !user.password) {
-      return null;
+      return;
     }
-    return this.issueUserToken(
-      user.id,
-      TokenPurpose.PASSWORD_RESET,
-      this.config.passwordResetTtlSec,
+    await this.emailVerification.issueAndSend(
+      EmailVerifyPurpose.PASSWORD_RESET,
+      email,
+      { locale },
     );
   }
 
-  /** 재설정 토큰으로 새 비밀번호를 설정한다. 성공 시 전체 세션을 폐기한다(보안). */
+  /** 메일로 받은 코드로 새 비밀번호를 설정한다. 성공 시 전체 세션을 폐기한다(보안). */
   async resetPassword(
-    input: { token: string; newPassword: string },
+    input: { email: string; code: string; newPassword: string },
     meta: RequestMeta,
   ): Promise<void> {
-    const record = await this.consumeUserToken(
-      TokenPurpose.PASSWORD_RESET,
-      input.token,
+    const email = normalizeEmail(input.email);
+    const ok = await this.emailVerification.verify(
+      EmailVerifyPurpose.PASSWORD_RESET,
+      email,
+      input.code,
     );
+    if (!ok) {
+      throw new BadRequestException('Invalid or expired verification code.');
+    }
+    const user = await this.users.findActiveByEmail(email);
+    if (!user) {
+      throw new BadRequestException('Account not found.');
+    }
     await this.users.updatePassword(
-      record.userId,
+      user.id,
       await this.hashPassword(input.newPassword),
     );
-    await this.sessions.deleteAllByUser(record.userId);
+    await this.sessions.deleteAllByUser(user.id);
     await this.log.record({
-      userId: record.userId,
+      userId: user.id,
       action: UserAction.PASSWORD_RESET,
-      result: ActionResult.SUCCESS,
-      ...meta,
-    });
-  }
-
-  /** 이메일 인증 토큰 발급(원문 반환, 발송은 상위). */
-  async requestEmailVerify(userId: number): Promise<string> {
-    return this.issueUserToken(
-      userId,
-      TokenPurpose.EMAIL_VERIFY,
-      this.config.emailVerifyTtlSec,
-    );
-  }
-
-  /** 이메일 인증 토큰 확인 → emailVerified=true. */
-  async verifyEmail(token: string, meta: RequestMeta): Promise<void> {
-    const record = await this.consumeUserToken(
-      TokenPurpose.EMAIL_VERIFY,
-      token,
-    );
-    await this.users.markEmailVerified(record.userId);
-    await this.log.record({
-      userId: record.userId,
-      action: UserAction.EMAIL_VERIFY,
       result: ActionResult.SUCCESS,
       ...meta,
     });
@@ -297,40 +313,6 @@ export class AuthService {
     for (const link of links) {
       await this.oauths.delete(userId, link.provider);
     }
-  }
-
-  private async issueUserToken(
-    userId: number,
-    purpose: TokenPurpose,
-    ttlSec: number,
-  ): Promise<string> {
-    await this.userTokens.deleteByUserAndPurpose(userId, purpose);
-    const raw = randomToken(24);
-    await this.userTokens.create({
-      userId,
-      purpose,
-      tokenHash: sha256hex(raw),
-      expiresAt: new Date(Date.now() + ttlSec * 1000),
-    });
-    return raw;
-  }
-
-  private async consumeUserToken(
-    purpose: TokenPurpose,
-    raw: string,
-  ): Promise<{ userId: number }> {
-    const record = await this.userTokens.findByHash(purpose, sha256hex(raw));
-    if (!record || record.consumedAt) {
-      throw new BadRequestException('Invalid token.');
-    }
-    if (record.expiresAt.getTime() <= Date.now()) {
-      throw new BadRequestException('Token expired.');
-    }
-    const consumed = await this.userTokens.consume(record.id, new Date());
-    if (consumed === 0) {
-      throw new BadRequestException('Token already used.');
-    }
-    return { userId: record.userId };
   }
 }
 

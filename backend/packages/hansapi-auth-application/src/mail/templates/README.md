@@ -29,13 +29,12 @@
 
 ### 공통
 
-| 플레이스홀더           | 의미                                      | 예시                             |
-| ---------------------- | ----------------------------------------- | -------------------------------- |
-| `{{appName}}`          | 서비스 표시명                             | `HansAPI`                        |
-| `{{appUrl}}`           | 서비스 홈 URL (로고 링크)                 | `https://hansapi.co.kr`          |
-| `{{userNameGreeting}}` | 인사말 뒤 이름 조각. **없으면 빈 문자열** | ` 홍길동 님` / `` (앞 공백 포함) |
-| `{{supportEmail}}`     | 문의 메일 주소                            | `support@hansapi.co.kr`          |
-| `{{year}}`             | 푸터 저작권 연도                          | `2026`                           |
+| 플레이스홀더           | 의미                                       | 예시                             |
+| ---------------------- | ------------------------------------------ | -------------------------------- |
+| `{{appName}}`          | 서비스 표시명(`APP_NAME`)                  | `HansApp`                        |
+| `{{appUrl}}`           | 서비스 홈 URL(`APP_PUBLIC_URL`, 로고 링크) | `https://plzhans.com`            |
+| `{{userNameGreeting}}` | 인사말 뒤 이름 조각. **없으면 빈 문자열**  | ` 홍길동 님` / `` (앞 공백 포함) |
+| `{{year}}`             | 푸터 저작권 연도                           | `2026`                           |
 
 ### 코드 메일 (`email-verification`, `password-reset`)
 
@@ -46,12 +45,12 @@
 
 ### 코드(OTP)와 만료
 
-인증 토큰은 [`AuthService.requestEmailVerify`](../../auth.service.ts) / `requestPasswordReset` 가
-발급한다. 코드 방식으로 가려면 이 발급부를 **짧은 숫자 코드 + 짧은 TTL**(예: 6자리 / 10분)로
-맞춰야 한다 — 현재 기본값(이메일 인증 24h, 비번 재설정 1h)은 링크 기준이라 코드에는 길다.
+인증 코드는 [`EmailVerificationService`](../email-verification.service.ts) 가 발급·검증한다
+(6자리·기본 10분 TTL·시도제한·1시간 발송 상한). 발송은 `issueAndSend` → [`MailService`](../mail.service.ts)
+가 이 템플릿을 렌더해 SMTP 로 보낸다. 코드·이메일은 원문 대신 HMAC 해시로만 DB(`email_verification`)에 남는다.
 
-- `{{expiresMinutes}}` 는 실제 코드 TTL 과 반드시 일치시킬 것. 화면 안내와 서버 만료가 어긋나면
-  "코드가 유효하다는데 안 된다"는 혼란이 생긴다.
+- `{{expiresMinutes}}` 는 실제 코드 TTL(`MAIL_OTP_TTL_SEC`, 기본 600초)과 자동으로 맞춰진다
+  (MailService 가 `expiresInSec/60` 으로 채운다).
 - 코드는 숫자 6자리를 권장(입력·읽기 쉬움). 자릿수를 바꾸면 `.code-box` 의 `letter-spacing`/
   `font-size` 를 눈으로 확인할 것(모바일은 `.sm-code` 로 축소된다).
 

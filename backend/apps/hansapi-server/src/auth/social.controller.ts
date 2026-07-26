@@ -33,10 +33,14 @@ import type {
   CallbackOutcome,
   SocialProfile,
 } from '@hansapi/auth-application';
+import type { SupportedLang } from '@hansapi/common';
+
+import { Lang } from '../common/lang.decorator';
 
 import { TokenResponseDto } from './dto/auth.dto';
 import {
   LinkPrepareResponseDto,
+  SocialRegisterCodeRequestDto,
   SocialRegisterRequestDto,
 } from './dto/social.dto';
 import { requestMeta, respondTokens } from './refresh-cookie';
@@ -50,6 +54,22 @@ import { requestMeta, respondTokens } from './refresh-cookie';
 @Controller('auth')
 export class SocialController {
   constructor(private readonly social: SocialService) {}
+
+  @Post('social/register/request-code')
+  @Public()
+  @FirstPartyOnly()
+  @HttpCode(202)
+  @ApiOperation({
+    summary: '소셜 가입 인증 코드 발송',
+    description:
+      'provider 가 이메일을 검증하지 않은 경우(콜백 code_required) 가입 이메일로 코드를 보낸다. provider 가 이메일을 안 준 경우 email 을 함께 보낸다.',
+  })
+  async requestRegisterCode(
+    @Body() dto: SocialRegisterCodeRequestDto,
+    @Lang() lang: SupportedLang,
+  ): Promise<void> {
+    await this.social.requestRegisterCode(dto.ticket, dto.email, lang);
+  }
 
   @Post('social/register')
   @Public()
@@ -67,7 +87,7 @@ export class SocialController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
     const result = await this.social.register(
-      { ticket: dto.ticket, email: dto.email },
+      { ticket: dto.ticket, email: dto.email, code: dto.code },
       requestMeta(req),
     );
     return respondTokens(res, result.tokens);
@@ -163,6 +183,12 @@ export class SocialController {
         url.searchParams.set('pending', outcome.ticket);
         if (outcome.emailRequired) {
           url.searchParams.set('email_required', '1');
+        }
+        if (outcome.codeRequired) {
+          url.searchParams.set('code_required', '1');
+        }
+        if (outcome.email) {
+          url.searchParams.set('email', outcome.email);
         }
         break;
       case 'linked':

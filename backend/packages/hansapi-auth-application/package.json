@@ -29,13 +29,15 @@
     "passport-kakao": "^1.0.1",
     "passport-line-auth": "^0.2.9",
     "passport-naver-v2": "^2.0.8",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "nodemailer": "^6.9.16"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json && mkdir -p dist/mail/templates && cp src/mail/templates/*.html dist/mail/templates/"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/nodemailer": "^6.4.17",
     "@types/node": "^24.13.2",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/passport-jwt": "^4.0.1",

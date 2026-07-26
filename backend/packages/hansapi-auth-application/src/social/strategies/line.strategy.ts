@@ -60,7 +60,9 @@ export class LineStrategy extends PassportStrategy(Strategy, 'line') {
       providerId: String(providerId),
       email,
       name: profile.displayName ?? profile._json?.name ?? null,
-      emailVerified: !!email,
+      // 이메일 존재만으로 검증됨으로 치지 않는다. 신뢰 등급은 우리 코드 인증으로만 올린다
+      // (구글의 email_verified 처럼 명시 검증 신호가 있는 provider 만 true 로 둔다).
+      emailVerified: false,
     };
   }
 }

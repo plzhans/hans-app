@@ -8,7 +8,15 @@ import {
   MinLength,
 } from 'class-validator';
 
-/** 이메일 가입 요청 */
+/** 가입 인증 코드 발송 요청(계정 생성 전) */
+export class SignupCodeRequestDto {
+  @ApiProperty({ description: '가입할 이메일', example: 'user@example.com' })
+  @IsEmail()
+  @MaxLength(320)
+  readonly email!: string;
+}
+
+/** 이메일 가입 요청. 사전에 발송된 인증 코드를 함께 보낸다. */
 export class SignupRequestDto {
   @ApiProperty({ description: '이메일', example: 'user@example.com' })
   @IsEmail()
@@ -26,6 +34,12 @@ export class SignupRequestDto {
   @MinLength(1)
   @MaxLength(100)
   readonly name!: string;
+
+  @ApiProperty({ description: '메일로 받은 인증 코드', example: '846210' })
+  @IsString()
+  @MinLength(4)
+  @MaxLength(12)
+  readonly code!: string;
 }
 
 /** 이메일 로그인 요청 */
@@ -52,31 +66,30 @@ export class ChangePasswordRequestDto {
   readonly newPassword!: string;
 }
 
-/** 비밀번호 재설정 요청(이메일로 링크 발송) */
+/** 비밀번호 재설정 요청(가입 이메일로 인증 코드 발송) */
 export class PasswordResetRequestDto {
   @ApiProperty({ description: '가입 이메일' })
   @IsEmail()
   readonly email!: string;
 }
 
-/** 비밀번호 재설정 확정 */
+/** 비밀번호 재설정 확정. 메일로 받은 인증 코드로 새 비밀번호를 설정한다. */
 export class PasswordResetConfirmDto {
-  @ApiProperty({ description: '재설정 토큰(메일로 받은 값)' })
+  @ApiProperty({ description: '가입 이메일' })
+  @IsEmail()
+  readonly email!: string;
+
+  @ApiProperty({ description: '메일로 받은 인증 코드', example: '846210' })
   @IsString()
-  readonly token!: string;
+  @MinLength(4)
+  @MaxLength(12)
+  readonly code!: string;
 
   @ApiProperty({ description: '새 비밀번호(8자 이상)' })
   @IsString()
   @MinLength(8)
   @MaxLength(72)
   readonly newPassword!: string;
-}
-
-/** 이메일 인증 확정 */
-export class EmailVerifyConfirmDto {
-  @ApiProperty({ description: '이메일 인증 토큰' })
-  @IsString()
-  readonly token!: string;
 }
 
 /**

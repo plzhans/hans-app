@@ -36,10 +36,10 @@ export type {
   // 인증(auth.prisma) 도메인 모델
   User,
   UserOAuth,
-  UserToken,
   UserTokenSession,
   UserAuthCode,
   UserWithdrawal,
+  EmailVerification,
   // 개발자 플랫폼(app.prisma) 도메인 모델
   App,
   AppMember,
@@ -57,7 +57,7 @@ export {
   AppClientType,
   AuthProvider,
   OAuthProvider,
-  TokenPurpose,
+  EmailVerifyPurpose,
 } from '../generated/main';
 
 // 로그 DB(log 스키마) 인증 이벤트 로그. Prisma 네임스페이스도 별도 export
