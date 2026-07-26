@@ -8,7 +8,10 @@ import { AccessTokenPayload } from '../guard/auth-user';
 import { AuthCodeRepository } from '../repository/auth-code.repository';
 import { TokenSessionRepository } from '../repository/token-session.repository';
 import {
+  composeSignedToken,
   composeToken,
+  hmacSha256hex,
+  parseSignedToken,
   parseToken,
   randomToken,
   sha256hex,
@@ -58,12 +61,20 @@ export interface ConsumedAuthCode {
  */
 @Injectable()
 export class TokenService {
+  /**
+   * 인가코드 HMAC 사전검증용 키. jwtSecret 에서 도메인 분리해 파생한다
+   * (별도 env 불필요, JWT 서명키와 용도 분리). 태그는 보안 경계가 아니라 DB 조회 전 값싼 관문이다.
+   */
+  private readonly authCodeTagKey: string;
+
   constructor(
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly jwt: JwtService,
     private readonly sessions: TokenSessionRepository,
     private readonly authCodes: AuthCodeRepository,
-  ) {}
+  ) {
+    this.authCodeTagKey = hmacSha256hex(config.jwtSecret, 'auth-code-tag-v1');
+  }
 
   // ---- access token (JWT) ----
 
@@ -210,7 +221,9 @@ export class TokenService {
       secretHash: sha256hex(secret),
       expiresAt: new Date(Date.now() + this.config.authCodeTtlSec * 1000),
     });
-    return AUTH_CODE_PREFIX + composeToken(sid, secret);
+    return (
+      AUTH_CODE_PREFIX + composeSignedToken(sid, secret, this.authCodeTagKey)
+    );
   }
 
   /**
@@ -220,7 +233,12 @@ export class TokenService {
    * clientId 를 같이 주는 이유: 호출측이 이 값으로 요청 Origin 을 대조해야 하기 때문이다.
    */
   async consumeAuthCode(code: string): Promise<ConsumedAuthCode> {
-    const parsed = parseToken(code, AUTH_CODE_PREFIX);
+    // HMAC 태그부터 검증한다. 위조·변조·정크 코드는 여기서 DB 조회 없이 탈락한다(저사양 보호).
+    const parsed = parseSignedToken(
+      code,
+      AUTH_CODE_PREFIX,
+      this.authCodeTagKey,
+    );
     if (!parsed) {
       throw new UnauthorizedException('Invalid authorization code.');
     }

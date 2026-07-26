@@ -63,6 +63,57 @@ export function composeToken(id: string, secret: string): string {
   return `${id}.${secret}`;
 }
 
+/** HMAC 태그 길이(hex). 96비트 — DB 조회 전 정크 거절용 사전 필터라 이 정도면 충분하다. */
+const SIGNED_TAG_HEX_LEN = 24;
+
+/**
+ * HMAC 태그를 붙여 조립한다: `<id>.<secret>.<tag>`.
+ * tag = HMAC-SHA256(key, `<id>.<secret>`) 의 앞 24자.
+ *
+ * **DB 조회 전에 위조·변조·정크 토큰을 인메모리(상수시간)로 걸러내기 위한 사전 관문이다.**
+ * 보안 경계는 여전히 DB 의 secretHash — 태그는 값싼 필터라 잘라 써도 된다.
+ */
+export function composeSignedToken(
+  id: string,
+  secret: string,
+  key: string,
+): string {
+  const body = `${id}.${secret}`;
+  const tag = hmacSha256hex(body, key).slice(0, SIGNED_TAG_HEX_LEN);
+  return `${body}.${tag}`;
+}
+
+/**
+ * `<prefix><id>.<secret>.<tag>` 를 분해하고 HMAC 태그를 상수시간 검증한다.
+ * 형식 오류·태그 불일치는 null → 호출측이 **DB 조회 없이** 거절한다.
+ * id·secret 은 base64url 이라 '.' 을 포함하지 않으므로 3분할이 안전하다.
+ */
+export function parseSignedToken(
+  raw: string,
+  prefix: string,
+  key: string,
+): { id: string; secret: string } | null {
+  if (!raw.startsWith(prefix)) {
+    return null;
+  }
+  const parts = raw.slice(prefix.length).split('.');
+  if (parts.length !== 3) {
+    return null;
+  }
+  const [id, secret, tag] = parts;
+  if (!id || !secret || !tag) {
+    return null;
+  }
+  const expected = hmacSha256hex(`${id}.${secret}`, key).slice(
+    0,
+    SIGNED_TAG_HEX_LEN,
+  );
+  if (!timingSafeEqualHex(expected, tag)) {
+    return null;
+  }
+  return { id, secret };
+}
+
 /**
  * `<prefix><id>.<secret>` 을 분해한다. 형식이 어긋나면 null.
  * prefix 예: 'rt_'(refresh), 'ac_'(인가코드).
