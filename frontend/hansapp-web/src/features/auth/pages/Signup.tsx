@@ -28,7 +28,7 @@ function relayLink(
   clientState?: string,
 ): string {
   if (!returnTo) return path;
-  const params = new URLSearchParams({ return_to: returnTo });
+  const params = new URLSearchParams({ redirect_uri: returnTo });
   if (clientId) params.set('client_id', clientId);
   if (codeChallenge) params.set('code_challenge', codeChallenge);
   if (clientState) params.set('state', clientState);
@@ -43,7 +43,7 @@ function relayLink(
 export default function Signup() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const returnTo = params.get('return_to') ?? undefined;
+  const returnTo = params.get('redirect_uri') ?? undefined;
   const clientId = params.get('client_id') ?? undefined;
   const codeChallenge = params.get('code_challenge') ?? undefined;
   const clientState = params.get('state') ?? undefined;

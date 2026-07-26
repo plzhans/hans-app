@@ -23,7 +23,7 @@ function relayLink(
   clientState?: string,
 ): string {
   if (!returnTo) return path;
-  const params = new URLSearchParams({ return_to: returnTo });
+  const params = new URLSearchParams({ redirect_uri: returnTo });
   if (clientId) params.set('client_id', clientId);
   if (codeChallenge) params.set('code_challenge', codeChallenge);
   if (clientState) params.set('state', clientState);
@@ -34,7 +34,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   // 외부 클라이언트(medifinder 등)가 SSO 로 넘긴 복귀 URL. 있으면 로그인 후 그쪽으로 code 를 실어 복귀.
-  const returnTo = params.get('return_to') ?? undefined;
+  const returnTo = params.get('redirect_uri') ?? undefined;
   // 그 클라이언트의 공개 ID. 서버가 return_to 검증과 코드 귀속에 쓴다.
   const clientId = params.get('client_id') ?? undefined;
   // 외부 앱이 만든 PKCE challenge. 포털은 **전달만** 한다 — verifier 는 그 앱에 있다.

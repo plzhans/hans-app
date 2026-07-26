@@ -60,11 +60,13 @@ export class HansAppAuthClient {
    * 이동 **전에** PKCE verifier 를 만들어 보관한다. 전체 페이지 이동이라 JS 힙이 통째로
    * 사라지므로, 메모리에 두면 돌아왔을 때 교환할 수가 없다.
    */
-  async login(returnTo: string = this.callbackUrl): Promise<void> {
+  async login(redirectUri: string = this.callbackUrl): Promise<void> {
     const { state, codeChallenge } = await createPkceRequest();
+    // OAuth2 표준 authorization 요청 파라미터. redirect_uri·response_type=code·PKCE(S256).
     const params = new URLSearchParams({
-      return_to: returnTo,
+      response_type: 'code',
       client_id: this.config.clientId,
+      redirect_uri: redirectUri,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
       state,

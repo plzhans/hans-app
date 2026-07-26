@@ -53,7 +53,7 @@ export class OAuthTokenService {
     try {
       origin = new URL(returnTo).origin;
     } catch {
-      throw new BadRequestException('Malformed return_to.');
+      throw new BadRequestException('Malformed redirect_uri.');
     }
 
     // 외부 앱: 등록된 리디렉션 URI 와 **정확히** 일치해야 한다(OAuth 의 redirect_uri 규칙).
@@ -66,7 +66,7 @@ export class OAuthTokenService {
       const allowed = (client.redirectUris as string[] | null) ?? [];
       if (!allowed.includes(returnTo)) {
         throw new BadRequestException(
-          'return_to is not a registered redirect URI.',
+          'redirect_uri is not a registered redirect URI.',
         );
       }
       return this.tokens.issueAuthCode(userId, client.clientId, challenge);
@@ -74,7 +74,7 @@ export class OAuthTokenService {
 
     // 1st-party(hansapp-web): 자기 자신은 클라이언트로 등록하지 않으므로 전역 허용목록을 본다.
     if (!this.config.allowedOrigins.includes(origin)) {
-      throw new BadRequestException('return_to not allowed.');
+      throw new BadRequestException('redirect_uri not allowed.');
     }
     return this.tokens.issueAuthCode(userId, null, challenge);
   }

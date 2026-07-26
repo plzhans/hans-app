@@ -164,12 +164,12 @@ export class TokenResponseDto {
 export class AuthorizeRequestDto {
   @ApiProperty({
     description:
-      '코드를 실어 돌려보낼 클라이언트 URL. clientId 를 주면 그 클라이언트에 등록된 ' +
-      '리디렉션 URI 와 정확히 일치해야 하고, 없으면 1st-party 허용목록 오리진이어야 한다.',
+      'OAuth2 redirect_uri — 코드를 실어 돌려보낼 클라이언트 URL. clientId 를 주면 그 클라이언트에 ' +
+      '등록된 리디렉션 URI 와 정확히 일치해야 하고, 없으면 1st-party 허용목록 오리진이어야 한다.',
     example: 'https://medifinder.kr/auth/callback',
   })
   @IsString()
-  readonly returnTo!: string;
+  readonly redirectUri!: string;
 
   @ApiPropertyOptional({
     description:

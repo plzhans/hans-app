@@ -136,14 +136,16 @@ export class SocialAuthGuard implements CanActivate {
     req: Request,
   ): Promise<{ returnTo?: string; clientId?: string }> {
     const raw =
-      typeof req.query.return_to === 'string' ? req.query.return_to : undefined;
+      typeof req.query.redirect_uri === 'string'
+        ? req.query.redirect_uri
+        : undefined;
     if (!raw) return {};
 
     let origin: string;
     try {
       origin = new URL(raw).origin;
     } catch {
-      throw new BadRequestException('Malformed return_to.');
+      throw new BadRequestException('Malformed redirect_uri.');
     }
 
     const clientId =
@@ -157,14 +159,14 @@ export class SocialAuthGuard implements CanActivate {
       const allowed = (client.redirectUris as string[] | null) ?? [];
       if (!allowed.includes(raw)) {
         throw new BadRequestException(
-          'return_to is not a registered redirect URI.',
+          'redirect_uri is not a registered redirect URI.',
         );
       }
       return { returnTo: raw, clientId: client.clientId };
     }
 
     if (!this.config.allowedOrigins.includes(origin)) {
-      throw new BadRequestException('return_to not allowed.');
+      throw new BadRequestException('redirect_uri not allowed.');
     }
     return { returnTo: raw };
   }

@@ -130,7 +130,7 @@ export function logout(): Promise<void> {
  * 발급되는 code 에 clientId 를 박는다. 없으면 1st-party(이 포털) 복귀로 본다.
  */
 export function authorize(
-  returnTo: string,
+  redirectUri: string,
   codeChallenge: string,
   clientId?: string,
 ): Promise<{ code: string }> {
@@ -138,7 +138,7 @@ export function authorize(
     '/oauth/authorize',
     {
       method: 'POST',
-      body: JSON.stringify({ returnTo, clientId, codeChallenge }),
+      body: JSON.stringify({ redirectUri, clientId, codeChallenge }),
     },
     { auth: true },
   );
@@ -184,7 +184,7 @@ export function socialLoginUrl(
   codeChallenge?: string,
   clientState?: string,
 ): string {
-  const params = new URLSearchParams({ return_to: returnTo });
+  const params = new URLSearchParams({ redirect_uri: returnTo });
   if (clientId) params.set('client_id', clientId);
   if (clientState) params.set('client_state', clientState);
   if (codeChallenge) {

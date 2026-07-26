@@ -74,6 +74,12 @@ export interface AuthConfig {
   readonly issuer?: string;
 
   /**
+   * OAuth2 authorization_endpoint(AUTH_AUTHORIZE_URL). **프론트 로그인 URL** 이다(API issuer 와 호스트가 다르다).
+   * 예: https://plzhans.com/auth/login. discovery 문서에 그대로 실린다. 미설정이면 authorization_endpoint 를 뺀다.
+   */
+  readonly authorizeUrl?: string;
+
+  /**
    * access token 검증 때 **허용할 iss 목록**(AUTH_ALLOWED_ISSUERS, 콤마구분). 자기 issuer 는 자동 포함된다.
    * 로컬이 dev DB 에 붙어 로컬(127.0.0.1)·dev 양쪽 발급 토큰을 다 받아야 하는 경우처럼 발급처가 여럿일 때 쓴다.
    * 비면 iss 검증을 하지 않는다(issuer 도 없을 때).
@@ -173,6 +179,7 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
     jwtSecret: requireString(source, 'AUTH_JWT_SECRET'),
     jwtKeyDir: optionalString(source, 'AUTH_JWT_KEY_DIR'),
     issuer,
+    authorizeUrl: optionalString(source, 'AUTH_AUTHORIZE_URL'),
     allowedIssuers: Object.freeze(allowedIssuers),
     accessTokenTtlSec: optionalNumber(
       source,

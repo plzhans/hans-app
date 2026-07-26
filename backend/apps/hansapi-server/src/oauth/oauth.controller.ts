@@ -108,7 +108,7 @@ export class OAuthController {
   @ApiOperation({
     summary: 'SSO 인가코드 발급',
     description:
-      '로그인된 사용자에 대해 다른 클라이언트(앱)의 복귀 URL(return_to, 허용목록)로 넘길 1회용 ' +
+      '로그인된 사용자에 대해 다른 클라이언트(앱)의 redirect_uri(허용목록)로 넘길 1회용 ' +
       '인가코드를 발급한다. 클라이언트는 이 code 를 /oauth/token 으로 교환한다.',
   })
   @ApiOkResponse({ type: AuthorizeResponseDto })
@@ -118,7 +118,7 @@ export class OAuthController {
   ): Promise<AuthorizeResponseDto> {
     const code = await this.grants.issueAuthorizationCode(
       user.userId,
-      dto.returnTo,
+      dto.redirectUri,
       dto.clientId,
       dto.codeChallenge,
     );

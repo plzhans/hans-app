@@ -151,16 +151,31 @@ export class JwtKeyService {
     return { keys: [...this.keys.values()].map((k) => k.jwk) };
   }
 
-  /** OIDC discovery 문서(부분). issuer 미설정이면 jwks_uri 는 생략된다. */
+  /**
+   * OAuth2/OIDC discovery 문서. 소비자(medifinder 등)는 이 하나로 로그인·토큰·공개키 주소를 알아낸다.
+   *   authorization_endpoint = 프론트 로그인 URL(AUTH_AUTHORIZE_URL, 호스트가 issuer 와 다름)
+   *   token_endpoint·jwks_uri = issuer 기준으로 조립
+   * 우리 흐름은 authorization_code + PKCE(S256) 만 지원한다(id_token/scope 없음, 공개 클라이언트).
+   */
   discovery(): Record<string, unknown> {
+    const issuer = this.config.issuer;
     const algs = [...new Set([...this.keys.values()].map((k) => k.alg))];
     return {
-      issuer: this.config.issuer,
-      ...(this.config.issuer
-        ? { jwks_uri: `${this.config.issuer}/.well-known/jwks.json` }
+      ...(issuer ? { issuer } : {}),
+      ...(this.config.authorizeUrl
+        ? { authorization_endpoint: this.config.authorizeUrl }
         : {}),
-      id_token_signing_alg_values_supported: algs,
+      ...(issuer
+        ? {
+            token_endpoint: `${issuer}/oauth/token`,
+            jwks_uri: `${issuer}/.well-known/jwks.json`,
+          }
+        : {}),
+      grant_types_supported: ['authorization_code', 'refresh_token'],
       response_types_supported: ['code'],
+      code_challenge_methods_supported: ['S256'],
+      token_endpoint_auth_methods_supported: ['none'],
+      id_token_signing_alg_values_supported: algs,
       subject_types_supported: ['public'],
     };
   }
