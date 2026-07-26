@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AppClientType, AppStatus } from '@hansapi/auth-application';
+import {
+  AppClientType,
+  AppReviewState,
+  AppStatus,
+} from '@hansapi/auth-application';
 import {
   ArrayMaxSize,
   IsArray,
@@ -52,6 +56,16 @@ export class AppSummaryDto {
   @ApiProperty() readonly name!: string;
   @ApiProperty({ enum: AppStatus, description: '앱 상태' })
   readonly status!: AppStatus;
+  @ApiProperty({
+    enum: ['DRAFT', 'REVIEWING', 'REJECTED', 'APPROVED', 'DISABLED'],
+    description:
+      '심사 세부 상태(표시용). DRAFT=작성 중, REVIEWING=심사 중, REJECTED=거절됨, APPROVED=승인, DISABLED=삭제',
+  })
+  readonly reviewState!: AppReviewState;
+  @ApiPropertyOptional({
+    description: '거절 사유(REJECTED 일 때만). 사용자가 보고 고쳐 재요청한다.',
+  })
+  readonly rejectionReason?: string | null;
   @ApiPropertyOptional({ description: '삭제 시각(null 이면 삭제 안 됨)' })
   readonly deletedAt?: string | null;
   @ApiProperty({ description: '생성자 회원번호' }) readonly createdBy!: number;
@@ -130,6 +144,16 @@ export class AppDetailDto {
   @ApiProperty() readonly name!: string;
   @ApiProperty({ enum: AppStatus, description: '앱 상태' })
   readonly status!: AppStatus;
+  @ApiProperty({
+    enum: ['DRAFT', 'REVIEWING', 'REJECTED', 'APPROVED', 'DISABLED'],
+    description:
+      '심사 세부 상태(표시용). DRAFT=작성 중, REVIEWING=심사 중, REJECTED=거절됨, APPROVED=승인, DISABLED=삭제',
+  })
+  readonly reviewState!: AppReviewState;
+  @ApiPropertyOptional({
+    description: '거절 사유(REJECTED 일 때만). 사용자가 보고 고쳐 재요청한다.',
+  })
+  readonly rejectionReason?: string | null;
   @ApiPropertyOptional({ description: '삭제 시각(null 이면 삭제 안 됨)' })
   readonly deletedAt?: string | null;
   @ApiProperty({ description: '생성자 회원번호' }) readonly createdBy!: number;

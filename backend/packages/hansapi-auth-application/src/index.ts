@@ -5,9 +5,10 @@ export { AuthModule } from './auth-application.module';
 export { AuthService } from './auth.service';
 export type { AuthResult, RequestMeta } from './auth.service';
 export { OAuthTokenService } from './oauth-token.service';
-export { AppService } from './app/app.service';
+export { AppService, reviewStateOf } from './app/app.service';
 export type {
   AppDetail,
+  AppReviewState,
   CreatedApiKey,
   CreatedClient,
   CreateClientInput,

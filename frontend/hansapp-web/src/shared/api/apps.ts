@@ -2,10 +2,20 @@ import { apiFetch } from './client';
 
 export type AppStatus = 'PENDING' | 'ACTIVE' | 'DISABLED';
 
+/** 심사 세부 상태(표시용). status·요청·거절 조합에서 서버가 파생해 내려준다. */
+export type AppReviewState =
+  | 'DRAFT'
+  | 'REVIEWING'
+  | 'REJECTED'
+  | 'APPROVED'
+  | 'DISABLED';
+
 export interface AppSummary {
   id: number;
   name: string;
   status: AppStatus;
+  reviewState: AppReviewState;
+  rejectionReason?: string | null;
   deletedAt?: string | null;
   createdBy: number;
   createdAt: string;
@@ -88,6 +98,14 @@ export const updateApp = (
   apiFetch<AppSummary>(
     `/apps/${id}`,
     { method: 'PATCH', body: JSON.stringify(input) },
+    auth,
+  );
+
+/** 심사 요청(거절된 앱의 재요청도 이 경로). PENDING 앱만 가능. */
+export const requestReview = (id: number) =>
+  apiFetch<AppSummary>(
+    `/apps/${id}/review-request`,
+    { method: 'POST' },
     auth,
   );
 

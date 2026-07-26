@@ -29,6 +29,30 @@ export type AppDetail = App & {
   members: AppMember[];
 };
 
+/**
+ * 앱의 심사 세부 상태(표시용). status·reviewRequestedAt·rejectionReason 조합에서 파생된다.
+ * 인증과 무관하다 — 인증은 키/클라이언트의 status 만 본다.
+ */
+export type AppReviewState =
+  | 'DRAFT' // PENDING + 요청 안 함
+  | 'REVIEWING' // PENDING + 요청됨, 사유 없음
+  | 'REJECTED' // PENDING + 사유 있음
+  | 'APPROVED' // ACTIVE
+  | 'DISABLED'; // DISABLED(삭제·차단)
+
+/** 앱 → 심사 세부 상태. 삭제 여부는 호출측이 deletedAt 으로 따로 판단한다. */
+export function reviewStateOf(app: {
+  status: AppStatus;
+  reviewRequestedAt: Date | null;
+  rejectionReason: string | null;
+}): AppReviewState {
+  if (app.status === AppStatus.ACTIVE) return 'APPROVED';
+  if (app.status === AppStatus.DISABLED) return 'DISABLED';
+  if (app.rejectionReason) return 'REJECTED';
+  if (app.reviewRequestedAt) return 'REVIEWING';
+  return 'DRAFT';
+}
+
 /** 사용자 등급과 그 등급이 정하는 앱 한도. appLimit 이 null 이면 무제한(UNLIMITED). */
 export interface UserTierInfo {
   email: string;
@@ -260,6 +284,51 @@ export class AppService {
         .map((c) => this.cache.invalidateClient(c.clientId)),
     ]);
     return { ...app, status: AppStatus.ACTIVE };
+  }
+
+  /**
+   * 심사 요청. **소유자(ADMIN 이상)** 가 콘솔에서 누른다.
+   *
+   * PENDING 앱만 가능하다 — 이미 승인(ACTIVE)됐거나 삭제(DISABLED)된 앱은 요청 대상이 아니다.
+   * 거절된 앱('심사됨' + 사유)도 status 는 PENDING 이라, 이 경로가 재요청까지 겸한다
+   * (요청 시각 갱신 + 사유 삭제 → 다시 '심사 중').
+   */
+  async requestReviewApp(userId: number, appId: number): Promise<App> {
+    await this.assertMember(userId, appId, AppRole.ADMIN);
+    const app = await this.apps.findApp(appId);
+    if (!app) {
+      throw new NotFoundException('App not found.');
+    }
+    if (app.status !== AppStatus.PENDING) {
+      throw new BadRequestException(
+        'Only a pending app can be submitted for review.',
+      );
+    }
+    return this.apps.requestReview(appId);
+  }
+
+  /**
+   * 심사 거절. **운영자 전용**(approveApp 과 같은 성격이라 assertMember 하지 않는다).
+   * 사유를 남기면 사용자가 콘솔에서 보고 고쳐 재요청한다. status 는 PENDING 그대로다.
+   */
+  async rejectApp(appId: number, reason: string): Promise<App> {
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      throw new BadRequestException('Rejection reason is required.');
+    }
+    const app = await this.apps.findApp(appId);
+    if (!app) {
+      throw new NotFoundException('App not found.');
+    }
+    if (app.status !== AppStatus.PENDING) {
+      throw new BadRequestException('Only a pending app can be rejected.');
+    }
+    return this.apps.reject(appId, trimmed);
+  }
+
+  /** 운영자 심사 대기함: 소유자 무관, 심사 요청됐고 아직 처리 안 된 앱들. */
+  listReviewQueue(): Promise<App[]> {
+    return this.apps.listReviewRequested();
   }
 
   // ---- API 키 ----

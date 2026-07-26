@@ -173,6 +173,68 @@ export function appCommand(source: EnvSource): Command {
     ['hansapi-cli app approve --app 10002'],
   );
 
+  addExamples(
+    withOwner(
+      app
+        .command('request-review')
+        .description('앱 심사를 요청한다(콘솔 사용자 행위 미러). PENDING 앱만')
+        .requiredOption('--app <id>', '앱 id', Number),
+    ).action(async (options: OwnerOptions & { app: number }) => {
+      const app = await run(source, options.owner, (svc, userId) =>
+        svc.requestReviewApp(userId, options.app),
+      );
+      printJson(
+        {
+          id: app.id,
+          name: app.name,
+          reviewRequestedAt: app.reviewRequestedAt,
+        },
+        true,
+      );
+    }),
+    ['hansapi-cli app request-review --app 10005'],
+  );
+
+  addExamples(
+    app
+      .command('reject')
+      .description(
+        '앱 심사를 거절한다(사유 필수). 사용자가 고쳐 재요청한다. 운영자용',
+      )
+      .requiredOption('--app <id>', '거절할 앱 id', Number)
+      .requiredOption('--reason <text>', '거절 사유(사용자에게 노출된다)')
+      .action(async (options: { app: number; reason: string }) => {
+        const app = await withAuthContext(source, (context) =>
+          context.get(AppService).rejectApp(options.app, options.reason),
+        );
+        printJson(
+          { id: app.id, name: app.name, rejectionReason: app.rejectionReason },
+          true,
+        );
+      }),
+    [
+      'hansapi-cli app reject --app 10005 --reason "오리진에 운영 도메인이 없습니다"',
+    ],
+  );
+
+  app
+    .command('review-queue')
+    .description('심사 요청된 앱 목록(소유자 무관). 운영자 심사 대기함')
+    .action(async () => {
+      const apps = await withAuthContext(source, (context) =>
+        context.get(AppService).listReviewQueue(),
+      );
+      printJson(
+        apps.map((a) => ({
+          id: a.id,
+          name: a.name,
+          createdBy: a.createdBy,
+          reviewRequestedAt: a.reviewRequestedAt ?? undefined,
+        })),
+        true,
+      );
+    });
+
   withOwner(app.command('list').description('내 앱 목록')).action(
     async (options: OwnerOptions) => {
       const apps = await run(source, options.owner, (svc, userId) =>

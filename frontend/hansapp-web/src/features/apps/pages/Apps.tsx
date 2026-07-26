@@ -188,7 +188,7 @@ export default function Apps() {
                     {app.name}
                   </span>
                   <span>
-                    <StatusBadge status={app.status} />
+                    <StatusBadge status={app.status} reviewState={app.reviewState} />
                   </span>
                   <span className="text-sm text-gray-500">
                     {app.createdAt.slice(0, 10)}

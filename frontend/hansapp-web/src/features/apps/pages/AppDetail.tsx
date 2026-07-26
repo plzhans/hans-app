@@ -25,6 +25,7 @@ import {
   getApp,
   regenerateApiKey,
   regenerateClientSecret,
+  requestReview,
   updateApp,
   updateClient,
   type ApiKeySummary,
@@ -79,7 +80,9 @@ export default function AppDetail() {
           <DeletedAppView app={app} />
         ) : (
           <>
-            {app.status === 'PENDING' && <PendingNotice />}
+            {app.status === 'PENDING' && (
+              <ReviewNotice appId={appId} app={app} onChange={invalidate} />
+            )}
             <BasicInfoSection appId={appId} app={app} onChange={invalidate} />
             <ServiceKeySection appId={appId} app={app} onChange={invalidate} />
             <ClientSection appId={appId} app={app} onChange={invalidate} />
@@ -94,19 +97,84 @@ export default function AppDetail() {
 // ---- 공통 ----
 
 /**
- * 미승인 안내. 발급은 되지만 인증에는 쓸 수 없다는 걸 명시한다.
+ * 심사 안내 배너(PENDING 앱 전용). 심사 세부 상태(reviewState)에 따라 셋으로 갈린다.
  *
- * 키·클라이언트 폼과 발급 자체는 그대로 동작한다(진짜 키 값이 나온다) — 이 배너는 "왜
- * 아직 안 되는가"를 알려줄 뿐이다. 승인되면 하위 키·클라이언트가 함께 활성화된다.
+ * 어느 상태든 키·클라이언트 폼과 발급 자체는 그대로 동작한다(진짜 키 값이 나온다) —
+ * 승인 전까지 인증만 거부된다. 배너는 "지금 어느 단계인지"와 다음 행동을 안내한다.
+ *  - DRAFT     작성 중 → '심사 요청' 버튼
+ *  - REVIEWING 심사 중 → 대기 안내
+ *  - REJECTED  거절됨 → 사유 표시 + '다시 심사 요청'
  */
-function PendingNotice() {
+function ReviewNotice({
+  appId,
+  app,
+  onChange,
+}: {
+  appId: number;
+  app: AppDetailT;
+  onChange: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const submit = useMutation({
+    mutationFn: () => requestReview(appId),
+    onSuccess: () => {
+      setError(null);
+      onChange();
+    },
+    onError: (e) => setError(errorMessage(e, '심사 요청에 실패했습니다.')),
+  });
+
+  const rejected = app.reviewState === 'REJECTED';
+  const reviewing = app.reviewState === 'REVIEWING';
+
   return (
     <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <p className="font-semibold">심사 중입니다.</p>
-      <p className="mt-1 text-amber-700">
-        키와 클라이언트는 지금도 발급되지만, 앱이 승인되기 전까지는 실제 API
-        호출에 사용할 수 없습니다. 승인되면 발급해 둔 키가 함께 활성화됩니다.
-      </p>
+      {reviewing ? (
+        <>
+          <p className="font-semibold">심사 중입니다.</p>
+          <p className="mt-1 text-amber-700">
+            운영자 검토를 기다리는 중입니다. 승인되면 발급해 둔 키·클라이언트가
+            함께 활성화됩니다.
+          </p>
+        </>
+      ) : rejected ? (
+        <>
+          <p className="font-semibold">심사가 거절되었습니다.</p>
+          {app.rejectionReason && (
+            <p className="mt-1 rounded bg-amber-100 px-2 py-1 text-amber-900">
+              {app.rejectionReason}
+            </p>
+          )}
+          <p className="mt-1 text-amber-700">
+            사유를 반영한 뒤 다시 요청해 주세요.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="font-semibold">아직 승인되지 않은 앱입니다.</p>
+          <p className="mt-1 text-amber-700">
+            키·클라이언트는 지금도 발급되지만, 승인 전까지는 실제 API 호출에
+            사용할 수 없습니다. 준비가 되면 심사를 요청하세요.
+          </p>
+        </>
+      )}
+
+      {!reviewing && (
+        <div className="mt-3">
+          <Button
+            variant="outline"
+            onClick={() => submit.mutate()}
+            disabled={submit.isPending}
+          >
+            {submit.isPending
+              ? '요청 중…'
+              : rejected
+                ? '다시 심사 요청'
+                : '심사 요청'}
+          </Button>
+          {error && <p className="mt-2 text-red-600">{error}</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -410,7 +478,7 @@ function BasicInfoSection({
         )}
         <div className="flex items-center justify-between gap-4 py-1 text-sm">
           <span className="text-gray-500">상태</span>
-          <StatusBadge status={app.status} />
+          <StatusBadge status={app.status} reviewState={app.reviewState} />
         </div>
         <Row label="생성일" value={app.createdAt.slice(0, 10)} />
       </div>

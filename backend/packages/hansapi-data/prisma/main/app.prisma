@@ -22,6 +22,15 @@ model App {
   /// 하위 발급물의 상태를 정하는 축이다 — 승인 시 이 값이 ACTIVE 로 가며 하위 PENDING 도 함께 켜진다.
   status AppStatus @default(PENDING)
 
+  /// 심사 요청 시각. **status=PENDING 일 때만 의미가 있다.** null 이면 '작성 중'(아직 요청 안 함),
+  /// 값이 있으면 '심사 중'. 사용자가 콘솔에서 심사 요청을 누르면 채워지고, 승인/거절과 무관하게
+  /// 마지막 요청 시각으로 남는다. 재요청 시 갱신된다.
+  reviewRequestedAt DateTime? @map("review_requested_at")
+
+  /// 거절 사유. **status=PENDING + 이 값이 있으면 '거절됨'.** 운영자가 남기고 사용자에게 노출된다.
+  /// 재요청하면 지워진다(다시 '심사 중'). 승인되면 status 가 ACTIVE 라 이 값은 무의미해진다.
+  rejectionReason String? @map("rejection_reason") @db.VarChar(500)
+
   /// 소프트 삭제 시각. non-null 이면 삭제된 앱 — 목록·접근에서 제외하고 배치가 N일 후 완전 삭제한다.
   /// (인증 거부는 status 로 판정하므로 이 값은 목록 숨김·정리 타이밍 용도다.)
   deletedAt DateTime? @map("deleted_at")

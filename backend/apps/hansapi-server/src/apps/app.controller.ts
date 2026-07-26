@@ -20,6 +20,7 @@ import {
   Auth,
   AuthType,
   CurrentUser,
+  reviewStateOf,
 } from '@hansapi/auth-application';
 import type {
   App,
@@ -88,6 +89,8 @@ export class AppsController {
       id: app.id,
       name: app.name,
       status: app.status,
+      reviewState: reviewStateOf(app),
+      rejectionReason: app.rejectionReason ?? null,
       deletedAt: app.deletedAt ? app.deletedAt.toISOString() : null,
       createdBy: app.createdBy,
       createdAt: app.createdAt.toISOString(),
@@ -111,6 +114,22 @@ export class AppsController {
         status: dto.status,
       }),
     );
+  }
+
+  @Post(':id/review-request')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: '심사 요청',
+    description:
+      'PENDING 앱을 심사 대기로 올린다. 거절된 앱의 재요청도 이 경로다(사유가 지워지고 다시 심사 중). ' +
+      '이미 승인·삭제된 앱이면 400.',
+  })
+  @ApiOkResponse({ type: AppSummaryDto })
+  async requestReview(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<AppSummaryDto> {
+    return toAppSummary(await this.apps.requestReviewApp(user.userId, id));
   }
 
   @Delete(':id')
@@ -293,6 +312,8 @@ function toAppSummary(a: App): AppSummaryDto {
     id: a.id,
     name: a.name,
     status: a.status,
+    reviewState: reviewStateOf(a),
+    rejectionReason: a.rejectionReason ?? null,
     deletedAt: a.deletedAt ? a.deletedAt.toISOString() : null,
     createdBy: a.createdBy,
     createdAt: a.createdAt.toISOString(),

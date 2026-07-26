@@ -58,7 +58,8 @@ export class AppRepository {
       .$transaction(async (tx) => {
         await tx.app.update({
           where: { id: appId },
-          data: { status: AppStatus.ACTIVE },
+          // 승인되면 거절 사유는 무의미하므로 함께 정리한다.
+          data: { status: AppStatus.ACTIVE, rejectionReason: null },
         });
         await tx.appApiKey.updateMany({
           where: { appId, status: AppStatus.PENDING },
@@ -105,6 +106,41 @@ export class AppRepository {
     data: { name?: string; status?: AppStatus },
   ): Promise<App> {
     return this.prisma.app.update({ where: { id: appId }, data });
+  }
+
+  /**
+   * 심사 요청. reviewRequestedAt 을 찍고 거절 사유를 지운다(재요청이면 '거절됨' → '심사 중').
+   * status 는 건드리지 않는다 — 심사 세부 단계는 이 두 필드로만 표현한다.
+   */
+  requestReview(appId: number): Promise<App> {
+    return this.prisma.app.update({
+      where: { id: appId },
+      data: { reviewRequestedAt: new Date(), rejectionReason: null },
+    });
+  }
+
+  /** 심사 거절. 사유를 남긴다. status 는 PENDING 그대로(사용자가 고쳐 재요청). */
+  reject(appId: number, reason: string): Promise<App> {
+    return this.prisma.app.update({
+      where: { id: appId },
+      data: { rejectionReason: reason },
+    });
+  }
+
+  /**
+   * 운영자 심사 대기함: **소유자 무관** 전체에서 심사 요청된(요청됨·거절 전) PENDING 앱.
+   * 삭제된 앱은 제외. 오래 기다린 순으로.
+   */
+  listReviewRequested(): Promise<App[]> {
+    return this.prisma.app.findMany({
+      where: {
+        status: AppStatus.PENDING,
+        deletedAt: null,
+        reviewRequestedAt: { not: null },
+        rejectionReason: null,
+      },
+      orderBy: { reviewRequestedAt: 'asc' },
+    });
   }
 
   /**
