@@ -1,4 +1,9 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@hansapi/data';
 
@@ -59,6 +64,8 @@ export interface ConsumedAuthCode {
  */
 @Injectable()
 export class TokenService {
+  private readonly logger = new Logger(TokenService.name);
+
   /**
    * 토큰 HMAC 사전검증용 키. jwtSecret 에서 **토큰 종류별로 도메인 분리해** 파생한다
    * (별도 env 불필요, JWT 서명키와 용도 분리). 태그는 보안 경계가 아니라 DB 조회 전 값싼 관문이다.
@@ -122,6 +129,11 @@ export class TokenService {
       ip: meta.ip ?? null,
       expiresAt,
     });
+    // 발급 확인용 로그. ip 는 resolveClientIp 로 통일된 값이라, CDN/프록시 뒤에서 진짜 클라 IP 가
+    // 제대로 잡히는지 이 로그로 검증할 수 있다.
+    this.logger.log(
+      `refresh issued: userId=${userId} sid=${sessionId} ip=${meta.ip ?? '-'}`,
+    );
     return {
       sessionId,
       refreshToken:
@@ -165,6 +177,10 @@ export class TokenService {
       session.sessionId,
       sha256hex(newSecret),
       expiresAt,
+    );
+    // 갱신(rotate)도 refresh 를 재발급한다. rotate 경로엔 요청 meta 가 없어 IP 는 남기지 않는다.
+    this.logger.log(
+      `refresh rotated: userId=${session.userId} sid=${session.sessionId}`,
     );
     return {
       userId: session.userId,

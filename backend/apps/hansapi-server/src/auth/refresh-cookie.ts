@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import type { AuthTokens, RequestMeta } from '@hansapi/auth-application';
 
+import { resolveClientIp } from '../common/client-ip';
+
 import type { TokenResponseDto } from './dto/auth.dto';
 
 /**
@@ -57,10 +59,14 @@ export function respondTokens(
   };
 }
 
-/** 로그·세션 기록용 요청 부가정보(IP·UA)를 뽑는다. */
+/**
+ * 로그·세션 기록용 요청 부가정보(IP·UA)를 뽑는다.
+ * IP 는 rate limit 과 동일한 resolveClientIp 로 뽑아 통일한다 — CLIENT_IP_HEADER(예: cf-connecting-ip)
+ * 를 우선하고, 없으면 req.ip(trust proxy 결과)로 폴백한다. CF 처럼 XFF 가 비는 환경에서도 진짜 클라 IP 를 남긴다.
+ */
 export function requestMeta(req: Request): RequestMeta {
   return {
-    ip: req.ip ?? null,
+    ip: resolveClientIp(req, process.env.CLIENT_IP_HEADER),
     userAgent: req.headers['user-agent'] ?? null,
   };
 }
