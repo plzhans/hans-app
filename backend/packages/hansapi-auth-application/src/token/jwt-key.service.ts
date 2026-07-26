@@ -20,6 +20,12 @@ import {
 
 const KNOWN_ALGS = new Set<AccessAlg>(['ES256', 'ES384', 'ES512']);
 
+/**
+ * AUTH_JWT_KEY_DIR 미지정 시 볼 기본 디렉터리(cwd 기준). 배포 서버는 cwd 가 배포경로라
+ * 여기(config/jwt)에 키가 안착한다(배포가 config/<env>/jwt → config/jwt 로 평면화). 없으면 HS256 폴백.
+ */
+const DEFAULT_KEY_DIR = 'config/jwt';
+
 interface LoadedKey {
   readonly kid: string;
   readonly alg: AccessAlg;
@@ -52,14 +58,20 @@ export class JwtKeyService {
   private activeKid: string | null = null;
 
   constructor(@Inject(AUTH_CONFIG) private readonly config: AuthConfig) {
-    this.asymmetric = Boolean(config.jwtKeyDir);
-    if (config.jwtKeyDir) {
-      this.loadKeys(config.jwtKeyDir);
-    } else {
-      this.logger.warn(
-        'AUTH_JWT_KEY_DIR unset — access tokens signed with HS256 (symmetric fallback).',
+    const explicit = config.jwtKeyDir;
+    const dir = explicit ?? DEFAULT_KEY_DIR;
+    this.asymmetric = this.loadKeys(dir) > 0;
+    if (this.asymmetric) return;
+    // 키가 없다 → HS256 폴백. 단, 경로를 **명시**했는데 키가 없으면 설정 실수이므로
+    // 조용한 강등(보안 저하) 대신 부팅을 거부한다. 미지정(기본 경로)일 때만 폴백한다.
+    if (explicit) {
+      throw new Error(
+        `AUTH_JWT_KEY_DIR=${explicit} 에 활성 서명 키(*.key)가 없다.`,
       );
     }
+    this.logger.warn(
+      `No JWT signing keys in ${dir} — access tokens use HS256 (symmetric fallback).`,
+    );
   }
 
   // ---- 발급 / 검증 ----
@@ -155,14 +167,18 @@ export class JwtKeyService {
 
   // ---- 로딩 ----
 
-  private loadKeys(dir: string): void {
+  /** 키 디렉터리를 읽어 맵을 채우고 **활성 키 개수**를 반환한다. 디렉터리·키가 없어도 던지지 않는다(0 반환). */
+  private loadKeys(dir: string): number {
+    if (!existsSync(dir)) {
+      return 0;
+    }
     const actives = this.loadDir(dir, '.key', true);
     const retiredDir = join(dir, 'retired');
     if (existsSync(retiredDir)) {
       this.loadDir(retiredDir, '.pub', false);
     }
     if (actives.length === 0) {
-      throw new Error(`No active signing key (*.key) found in ${dir}`);
+      return 0;
     }
     // 단일 활성 전제. 멀티 활성(멀티리전 등)은 추후 선택 정책으로 확장한다.
     this.activeKid = actives[0].kid;
@@ -174,6 +190,7 @@ export class JwtKeyService {
     this.logger.log(
       `Loaded ${this.keys.size} access-token key(s); active=${this.activeKid}.`,
     );
+    return actives.length;
   }
 
   private loadDir(dir: string, ext: string, isPrivate: boolean): LoadedKey[] {
