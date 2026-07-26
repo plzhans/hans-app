@@ -13,6 +13,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
   Auth,
@@ -57,6 +58,8 @@ export class AuthController {
   @Post('signup/request-code')
   @Public()
   @FirstPartyOnly()
+  // 메일 발송 남용 방지(IP 기준). 이메일별 상한은 서비스단에 따로 있다.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @HttpCode(202)
   @ApiOperation({
     summary: '가입 인증 코드 발송',
@@ -73,6 +76,8 @@ export class AuthController {
   @Post('signup')
   @Public()
   @FirstPartyOnly()
+  // 계정 대량 생성 방지(IP 기준).
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @ApiOperation({
     summary: '이메일 회원가입',
     description:
@@ -91,6 +96,8 @@ export class AuthController {
   @Post('login')
   @Public()
   @FirstPartyOnly()
+  // 비밀번호 무차별 대입 방지(IP 기준). 전역(300)보다 타이트하게.
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @HttpCode(200)
   @ApiOperation({
     summary: '이메일 로그인',
@@ -161,6 +168,8 @@ export class AuthController {
   @Post('password/reset-request')
   @Public()
   @FirstPartyOnly()
+  // 메일 남용·계정 존재 탐색 방지(IP 기준). 이메일별 상한은 서비스단에 따로 있다.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @HttpCode(202)
   @ApiOperation({
     summary: '비밀번호 재설정 요청',
@@ -177,6 +186,8 @@ export class AuthController {
   @Post('password/reset')
   @Public()
   @FirstPartyOnly()
+  // 재설정 코드 무차별 대입 방지(IP 기준). 전역(300)보다 타이트하게.
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @HttpCode(204)
   @ApiOperation({
     summary: '비밀번호 재설정 확정',
