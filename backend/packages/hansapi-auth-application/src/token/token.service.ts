@@ -4,7 +4,6 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@hansapi/data';
 
 import { AUTH_CONFIG } from '../auth.config';
@@ -12,6 +11,7 @@ import type { AuthConfig } from '../auth.config';
 import { AccessTokenPayload } from '../guard/auth-user';
 import { AuthCodeRepository } from '../repository/auth-code.repository';
 import { TokenSessionRepository } from '../repository/token-session.repository';
+import { JwtKeyService } from './jwt-key.service';
 import {
   composeSignedToken,
   hmacSha256hex,
@@ -75,7 +75,7 @@ export class TokenService {
 
   constructor(
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
-    private readonly jwt: JwtService,
+    private readonly accessKeys: JwtKeyService,
     private readonly sessions: TokenSessionRepository,
     private readonly authCodes: AuthCodeRepository,
   ) {
@@ -94,12 +94,12 @@ export class TokenService {
       role,
       sid: sessionId,
     };
-    return this.jwt.sign(payload);
+    return this.accessKeys.sign(payload);
   }
 
   verifyAccessToken(token: string): AccessTokenPayload {
     try {
-      return this.jwt.verify<AccessTokenPayload>(token);
+      return this.accessKeys.verify<AccessTokenPayload>(token);
     } catch {
       throw new UnauthorizedException('Invalid or expired token.');
     }

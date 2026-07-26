@@ -21,6 +21,7 @@ export type { App, AppApiKey, AppClient } from '@hansapi/data';
 // UserTier 는 CLI 가 --tier 값을 검증할 때 값으로 쓴다.
 export { AppClientType, AppStatus, UserTier } from '@hansapi/data';
 export { TokenService } from './token/token.service';
+export { JwtKeyService } from './token/jwt-key.service';
 export type { AuthTokens } from './token/token.service';
 export { ActionLogService } from './log/action-log.service';
 

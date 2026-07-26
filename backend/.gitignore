@@ -28,6 +28,11 @@ pnpm-debug.log*
 !*.example
 !*.enc
 
+# JWT 서명 개인키(PEM). 평문은 절대 커밋 금지 — sops 로 암호화한 .key.enc 만 추적한다.
+# 공개키(.pub)는 공개돼도 안전해 막지 않는다(JWKS 로도 어차피 노출).
+*.key
+!*.key.enc
+
 # Editor / OS
 .DS_Store
 .idea/

@@ -57,8 +57,21 @@ export interface AccessCacheConfig {
  * 소셜 provider 설정은 별도(OAuthProviderConfig)로 분리한다 — 키가 없어도 이메일 인증은 떠야 하므로.
  */
 export interface AuthConfig {
-  /** access token(JWT, HS256) 서명 비밀키 */
+  /**
+   * 대칭 서명 비밀키. 소셜 티켓(HS256)·메일 OTP pepper·토큰 HMAC 태그에 쓴다.
+   * access token 은 jwtKeyDir 이 있으면 비대칭(ES256)으로, 없으면 이 키로 HS256 폴백한다.
+   */
   readonly jwtSecret: string;
+
+  /**
+   * access token 비대칭 서명 키 디렉터리(AUTH_JWT_KEY_DIR). MSA 대비 — 소비자는 공개키(JWKS)로 검증.
+   *   `<kid>_<alg>.key`(활성 개인키) · `retired/<kid>_<alg>.pub`(검증 전용 공개키)
+   * 없으면 access token 을 HS256(jwtSecret) 로 발급한다(레거시/미이관 환경).
+   */
+  readonly jwtKeyDir?: string;
+
+  /** access token 발급자(iss, AUTH_ISSUER). JWKS discovery 의 기준 URL 이기도 하다. 미설정이면 iss 를 넣지 않는다. */
+  readonly issuer?: string;
 
   /** access token 만료(초). 기본 1시간 */
   readonly accessTokenTtlSec: number;
@@ -142,6 +155,8 @@ function readKakaoCredentials(
 export function buildAuthConfig(source: EnvSource): AuthConfig {
   return Object.freeze({
     jwtSecret: requireString(source, 'AUTH_JWT_SECRET'),
+    jwtKeyDir: optionalString(source, 'AUTH_JWT_KEY_DIR'),
+    issuer: optionalString(source, 'AUTH_ISSUER'),
     accessTokenTtlSec: optionalNumber(
       source,
       'AUTH_ACCESS_TOKEN_TTL_SEC',

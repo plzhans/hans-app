@@ -22,6 +22,7 @@ import { MailService } from './mail/mail.service';
 import { AuthService } from './auth.service';
 import { OAuthTokenService } from './oauth-token.service';
 import { TokenService } from './token/token.service';
+import { JwtKeyService } from './token/jwt-key.service';
 import { ActionLogService } from './log/action-log.service';
 import { AuthGuard } from './guard/auth.guard';
 import { FirstPartyGuard } from './guard/first-party.guard';
@@ -97,6 +98,7 @@ export class AuthModule {
         WithdrawalRepository,
         // 서비스/가드
         ActionLogService,
+        JwtKeyService,
         TokenService,
         AuthService,
         OAuthTokenService,
@@ -118,6 +120,7 @@ export class AuthModule {
         AUTH_CONFIG,
         MAIL_CONFIG,
         EmailVerificationService,
+        JwtKeyService,
         TokenService,
         AuthService,
         OAuthTokenService,

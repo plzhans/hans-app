@@ -18,6 +18,7 @@ import { AppService } from './app.service';
 import { AuthController } from './auth/auth.controller';
 import { SocialController } from './auth/social.controller';
 import { OAuthController } from './oauth/oauth.controller';
+import { JwksController } from './oauth/jwks.controller';
 import { AppsController } from './apps/app.controller';
 import { AddressController } from './address/address.controller';
 import { AddressService } from './address/address.service';
@@ -69,6 +70,7 @@ export class AppModule {
         AuthController,
         SocialController,
         OAuthController,
+        JwksController,
         AppsController,
         HiraHospitalController,
         NmcHospitalController,
