@@ -87,23 +87,36 @@ export class JwtKeyService {
 
   /** access token 을 검증한다. 비대칭이면 헤더 kid 로 공개키를 골라 검증한다(모르는 kid 는 거부). */
   verify<T extends object = Record<string, unknown>>(token: string): T {
+    let payload: T;
     if (!this.asymmetric) {
-      return this.jwt.verify<T>(token, {
+      payload = this.jwt.verify<T>(token, {
         secret: this.config.jwtSecret,
         algorithms: ['HS256'],
-        ...(this.config.issuer ? { issuer: this.config.issuer } : {}),
+      });
+    } else {
+      const kid = this.readKid(token);
+      const key = kid ? this.keys.get(kid) : undefined;
+      if (!key) {
+        throw new UnauthorizedException('Unknown or missing key id.');
+      }
+      payload = this.jwt.verify<T>(token, {
+        publicKey: key.publicPem,
+        algorithms: [key.alg],
       });
     }
-    const kid = this.readKid(token);
-    const key = kid ? this.keys.get(kid) : undefined;
-    if (!key) {
-      throw new UnauthorizedException('Unknown or missing key id.');
+    // iss(발급처) 허용목록 검사. @nestjs/jwt 의 issuer 옵션은 단일 문자열만 받아, 다중 허용을 직접 대조한다.
+    this.assertIssuer(payload);
+    return payload;
+  }
+
+  /** payload.iss 가 허용 발급처 목록에 있는지 검사한다. 목록이 비면 검사하지 않는다. */
+  private assertIssuer(payload: object): void {
+    const allowed = this.config.allowedIssuers;
+    if (allowed.length === 0) return;
+    const iss = (payload as { iss?: unknown }).iss;
+    if (typeof iss !== 'string' || !allowed.includes(iss)) {
+      throw new UnauthorizedException('Untrusted token issuer.');
     }
-    return this.jwt.verify<T>(token, {
-      publicKey: key.publicPem,
-      algorithms: [key.alg],
-      ...(this.config.issuer ? { issuer: this.config.issuer } : {}),
-    });
   }
 
   /** JWT 헤더에서 kid 를 읽는다(서명 검증 전). base64url 헤더를 직접 파싱한다. */

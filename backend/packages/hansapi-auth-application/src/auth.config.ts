@@ -70,8 +70,15 @@ export interface AuthConfig {
    */
   readonly jwtKeyDir?: string;
 
-  /** access token 발급자(iss, AUTH_ISSUER). JWKS discovery 의 기준 URL 이기도 하다. 미설정이면 iss 를 넣지 않는다. */
+  /** access token 발급자(iss, AUTH_ISSUER). **서명 때 박는 자기 발급처 하나.** JWKS discovery 기준 URL 이기도 하다. 미설정이면 iss 를 넣지 않는다. */
   readonly issuer?: string;
+
+  /**
+   * access token 검증 때 **허용할 iss 목록**(AUTH_ALLOWED_ISSUERS, 콤마구분). 자기 issuer 는 자동 포함된다.
+   * 로컬이 dev DB 에 붙어 로컬(127.0.0.1)·dev 양쪽 발급 토큰을 다 받아야 하는 경우처럼 발급처가 여럿일 때 쓴다.
+   * 비면 iss 검증을 하지 않는다(issuer 도 없을 때).
+   */
+  readonly allowedIssuers: readonly string[];
 
   /** access token 만료(초). 기본 1시간 */
   readonly accessTokenTtlSec: number;
@@ -153,10 +160,20 @@ function readKakaoCredentials(
  * JWT_SECRET 이 없으면 부팅 시점에 즉시 실패한다.
  */
 export function buildAuthConfig(source: EnvSource): AuthConfig {
+  const issuer = optionalString(source, 'AUTH_ISSUER');
+  // 허용 발급처 = AUTH_ALLOWED_ISSUERS(콤마구분) + 자기 issuer(자동 포함).
+  const allowedIssuers = (optionalString(source, 'AUTH_ALLOWED_ISSUERS') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (issuer && !allowedIssuers.includes(issuer)) {
+    allowedIssuers.push(issuer);
+  }
   return Object.freeze({
     jwtSecret: requireString(source, 'AUTH_JWT_SECRET'),
     jwtKeyDir: optionalString(source, 'AUTH_JWT_KEY_DIR'),
-    issuer: optionalString(source, 'AUTH_ISSUER'),
+    issuer,
+    allowedIssuers: Object.freeze(allowedIssuers),
     accessTokenTtlSec: optionalNumber(
       source,
       'AUTH_ACCESS_TOKEN_TTL_SEC',
