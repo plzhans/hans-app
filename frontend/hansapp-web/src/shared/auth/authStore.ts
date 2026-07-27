@@ -6,10 +6,14 @@ import {
   type TokenResponse,
 } from '@/shared/api/auth';
 import {
+  clearMe,
   clearSession,
   getSession,
   hasSessionHint,
   hydrateSession,
+  isAccessTokenValid,
+  loadMe,
+  saveMe,
   setSession,
 } from '@/shared/api/session';
 import { refreshSession } from '@/shared/api/client';
@@ -42,16 +46,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ status: 'anonymous', me: null });
       return;
     }
-    // 낙관적으로 즉시 로그인 상태로 표시(새로고침 깜빡임 방지). me 는 백그라운드로 채운다.
-    set({ status: 'authenticated', me: null });
+    // access token 이 아직 유효(로컬 exp 검증)하고 프로필 캐시가 있으면 → **서버 0, DB 0** 로 즉시 로그인.
+    // 새로고침을 아무리 해도 access 수명 안에서는 서버로 안 간다.
+    const cached = loadMe();
+    if (isAccessTokenValid(session.accessToken) && cached) {
+      set({ status: 'authenticated', me: cached });
+      return;
+    }
+    // access 만료됐거나 프로필 캐시가 없을 때만 서버로 확인.
+    // 캐시가 있으면 그걸로 먼저 그려 깜빡임을 없애고, getMe 로 최신값을 덮는다.
+    set({ status: 'authenticated', me: cached });
     try {
       const me = await getMe();
+      saveMe(me);
       set({ status: 'authenticated', me });
     } catch {
       // access 만료 등 → 쿠키로 한 번 더 시도.
       if (await refreshSession()) {
         try {
           const me = await getMe();
+          saveMe(me);
           set({ status: 'authenticated', me });
           return;
         } catch {
@@ -59,6 +73,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
       }
       await clearSession();
+      clearMe();
       set({ status: 'anonymous', me: null });
     }
   },
@@ -70,6 +85,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       refreshExpiresAt: tokens.refreshExpiresAt,
     });
     const me = await getMe();
+    saveMe(me);
     set({ status: 'authenticated', me });
   },
 
@@ -80,6 +96,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // 서버 폐기 실패해도 로컬 세션은 비운다.
     }
     await clearSession();
+    clearMe();
     set({ status: 'anonymous', me: null });
   },
 }));

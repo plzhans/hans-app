@@ -16,12 +16,13 @@ export default defineConfig(({ mode }) => {
       alias: { '@': path.resolve(__dirname, './src') },
     },
     server: {
-      host: true,
+      // 127.0.0.1 로 고정(콘솔·API 와 동일 호스트 → 쿠키 공유). localhost 로 새면 오리진 불일치로 SSO 가 깨진다.
+      host: '127.0.0.1',
       // 로그인 포털 전용 포트(콘솔 5274, medifinder 5173 과 겹치지 않게 5273).
       port: 5273,
       strictPort: true,
       // 콘솔 프록시(/auth) 뒤에서 HTML/자산은 프록시로 오지만, HMR 웹소켓은 5273 로 직접 연결한다.
-      hmr: { host: 'localhost', port: 5273 },
+      hmr: { host: '127.0.0.1', port: 5273 },
     },
     build: { outDir: 'dist' },
   };
