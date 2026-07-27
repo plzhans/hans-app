@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { emailLogin, relayCodeIfNeeded } from '@/shared/api/auth';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { storeReturn, takeReturn } from '@/shared/auth/returnTo';
+import { isAllowedReturn } from '@/shared/auth/returnTo';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { AuthCard } from '../components/AuthCard';
@@ -50,10 +50,8 @@ export default function Login() {
     formState: { errors, isSubmitting },
   } = useForm<Form>();
 
-  // 1st-party 앱(콘솔 등)이 ?return=<앱URL> 로 보냈으면 보관한다(소셜 왕복 대비). 로그인 후 그리로 복귀.
-  useEffect(() => {
-    storeReturn(params.get('return'));
-  }, [params]);
+  // 1st-party 앱(콘솔 등)의 복귀 URL. 소셜은 콜백 URL(ret=)로, 이메일은 이 값으로 바로 복귀한다.
+  const appReturn = params.get('return') ?? undefined;
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
     setServerError(null);
@@ -65,9 +63,9 @@ export default function Login() {
         return;
       }
       // ② 1st-party return(자사 앱, 쿠키 SSO) → code 없이 그 앱으로 복귀. 앱이 공유 쿠키로 세션 인지.
-      const back = takeReturn();
-      if (back) {
-        window.location.href = back;
+      //    이메일 로그인은 왕복이 없어 URL 의 return 을 바로 쓴다(허용 오리진만, open-redirect 방지).
+      if (appReturn && isAllowedReturn(appReturn)) {
+        window.location.href = appReturn;
         return;
       }
       // ③ 포털 자체 로그인 → 내 정보.
@@ -128,6 +126,7 @@ export default function Login() {
         clientId={clientId}
         codeChallenge={codeChallenge}
         clientState={clientState}
+        appReturn={appReturn}
       />
 
       <p className="mt-6 text-center text-sm text-gray-500">

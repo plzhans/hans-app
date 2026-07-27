@@ -6,7 +6,7 @@ import {
   socialRegisterRequestCode,
 } from '@/shared/api/auth';
 import { takeVerifier } from '@/shared/auth/pkce';
-import { takeReturn } from '@/shared/auth/returnTo';
+import { isAllowedReturn } from '@/shared/auth/returnTo';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
@@ -46,9 +46,10 @@ export default function Callback() {
   const ran = useRef(false);
 
   // 로그인 완료 후 이동: 1st-party return(자사 앱) 있으면 그리로, 아니면 포털 내 정보로.
+  // return 은 콜백 URL 의 ret= 로 온다(백엔드 서명 state 의 returnTo 로 왕복). 허용 오리진만 따른다.
   const goAfterAuth = () => {
-    const back = takeReturn();
-    if (back) window.location.href = back;
+    const back = new URLSearchParams(window.location.search).get('ret');
+    if (back && isAllowedReturn(back)) window.location.href = back;
     else navigate('/me', { replace: true });
   };
 

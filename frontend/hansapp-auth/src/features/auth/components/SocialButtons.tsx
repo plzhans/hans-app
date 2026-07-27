@@ -47,6 +47,7 @@ export function SocialButtons({
   clientId,
   codeChallenge,
   clientState,
+  appReturn,
 }: {
   returnTo?: string;
   clientId?: string;
@@ -54,6 +55,8 @@ export function SocialButtons({
   codeChallenge?: string;
   /** 외부 앱의 state. 해석하지 않고 왕복시켜 최종 복귀 URL 에 돌려준다. */
   clientState?: string;
+  /** 1st-party 복귀 URL(자사 앱). 콜백 URL 에 ret= 로 실려 서명 state 로 왕복한다. */
+  appReturn?: string;
 }) {
   /**
    * 소셜 시작 URL 로 이동한다. 로그인 끝에 인가코드가 나오므로 PKCE challenge 가 필요하다.
@@ -70,6 +73,7 @@ export function SocialButtons({
       clientId,
       challenge,
       clientState,
+      appReturn,
     );
   };
 

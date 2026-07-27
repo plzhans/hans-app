@@ -177,14 +177,35 @@ export async function relayCodeIfNeeded(
  * clientId 를 함께 넘기면 백엔드가 그 클라이언트의 등록 리디렉션 URI 로 returnTo 를 검증하고
  * state 에 실어 콜백까지 운반한다. 없으면 1st-party 로 보고 AUTH_ALLOWED_ORIGINS 를 본다.
  */
+/**
+ * 이 앱(hansapp-auth)의 콜백 URL. **vite base(import.meta.env.BASE_URL) 포함** — 단일 오리진
+ * 로컬에선 /auth/ 아래로 마운트되므로 origin+'/callback' 은 포탈 경로가 돼버린다(배포는 base=/).
+ *
+ * appReturn(1st-party 복귀 URL)이 있으면 `ret=` 로 얹는다. 이 값은 redirect_uri 통째로 백엔드
+ * **서명 state(returnTo)** 에 실려 왕복하므로 위변조 불가하고, 콜백에서 URL 로 되돌아온다 —
+ * sessionStorage 를 안 써서 이중 로그인 창·저장소 유실에도 안전하다.
+ */
+function selfCallbackUrl(appReturn?: string): string {
+  const url = new URL(
+    `${window.location.origin}${import.meta.env.BASE_URL}callback`,
+  );
+  if (appReturn) url.searchParams.set('ret', appReturn);
+  return url.toString();
+}
+
 export function socialLoginUrl(
   provider: SocialProvider,
-  returnTo: string = `${window.location.origin}/callback`,
+  // 외부 클라이언트 SSO 의 복귀 URL(redirect_uri). 없으면 이 앱의 콜백(1st-party).
+  returnTo?: string,
   clientId?: string,
   codeChallenge?: string,
   clientState?: string,
+  // 1st-party 복귀 URL. returnTo 미지정(자체 로그인)일 때 콜백에 ret= 로 실린다.
+  appReturn?: string,
 ): string {
-  const params = new URLSearchParams({ redirect_uri: returnTo });
+  const params = new URLSearchParams({
+    redirect_uri: returnTo ?? selfCallbackUrl(appReturn),
+  });
   if (clientId) params.set('client_id', clientId);
   if (clientState) params.set('client_state', clientState);
   if (codeChallenge) {
