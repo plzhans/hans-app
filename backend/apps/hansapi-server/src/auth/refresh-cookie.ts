@@ -26,6 +26,11 @@ const secure = process.env.AUTH_COOKIE_SECURE === 'true';
 // 미설정이면 호스트 전용(응답 서버 도메인)으로 깔린다.
 const cookieDomain = process.env.AUTH_COOKIE_DOMAIN || undefined;
 
+// refresh 쿠키를 **갱신 엔드포인트로만** 스코프한다. path=/ 로 두면 민감한 refresh 토큰이 모든 요청
+// (데이터 조회 등)에 자동 첨부돼 낭비·CSRF 표면·노출이 커진다. /oauth/token 에서만 오가게 좁힌다.
+// (access token 은 쿠키가 아니라 Authorization: Bearer 로 authed 호출에만 붙는다 — 매 요청에 안 실린다.)
+const REFRESH_PATH = '/oauth/token';
+
 export function setRefreshCookie(
   res: Response,
   token: string,
@@ -35,15 +40,15 @@ export function setRefreshCookie(
     httpOnly: true,
     secure,
     sameSite: secure ? 'none' : 'lax',
-    path: '/',
+    path: REFRESH_PATH,
     domain: cookieDomain,
     expires: expiresAt,
   });
 }
 
 export function clearRefreshCookie(res: Response): void {
-  // 삭제도 같은 domain 이어야 브라우저가 지운다. 힌트 쿠키도 함께 지운다.
-  res.clearCookie(REFRESH_COOKIE, { path: '/', domain: cookieDomain });
+  // 삭제도 같은 path·domain 이어야 브라우저가 지운다. 힌트 쿠키(path=/)도 함께 지운다.
+  res.clearCookie(REFRESH_COOKIE, { path: REFRESH_PATH, domain: cookieDomain });
   res.clearCookie(SESSION_HINT_COOKIE, { path: '/', domain: cookieDomain });
 }
 
