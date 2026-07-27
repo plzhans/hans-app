@@ -2,8 +2,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { loadEnv, resolveAppEnv } from '@hansapi/common';
+import { resolveAppEnv } from '@hansapi/common';
 import { config as loadDotenv } from 'dotenv';
+import { loadServerConfig } from './config';
 import { buildOpenApiDocument, parseServersSpec } from './swagger';
 
 // 스펙을 내보낼 기본 경로. 레포 루트 기준 docs/openapi/openapi_hansapi.json 이다.
@@ -62,9 +63,9 @@ function resolveServersArg(): ReturnType<typeof parseServersSpec> {
  */
 async function generate(): Promise<void> {
   // 스펙만 뽑을 때도 모듈 그래프를 구성하려면 설정이 필요하다. DB 에 연결하지는 않는다.
-  const envSource = loadEnv(__dirname, resolveAppEnv(), loadDotenv);
+  const appConfig = loadServerConfig(__dirname, resolveAppEnv(), loadDotenv);
 
-  const app = await NestFactory.create(AppModule.forRoot(envSource), {
+  const app = await NestFactory.create(AppModule.forRoot(appConfig), {
     // provider 를 실제 인스턴스화하지 않고 모듈 그래프만 구성한다(DB 연결 회피).
     preview: true,
     logger: false,

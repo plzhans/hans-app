@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import type { AuthTokens, RequestMeta } from '@hansapi/auth-application';
 
+import type { ConfigSource } from '@hansapi/common';
+
 import { resolveClientIp } from '../common/client-ip';
 
 import type { TokenResponseDto } from './dto/auth.dto';
@@ -30,6 +32,16 @@ const cookieDomain = process.env.APP_ROOT_DOMAIN || undefined;
 // (데이터 조회 등)에 자동 첨부돼 낭비·CSRF 표면·노출이 커진다. /oauth/token 에서만 오가게 좁힌다.
 // (access token 은 쿠키가 아니라 Authorization: Bearer 로 authed 호출에만 붙는다 — 매 요청에 안 실린다.)
 const REFRESH_PATH = '/oauth/token';
+
+// rate limit·로그가 쓸 "진짜 클라 IP" 헤더. **부팅 때 initRefreshCookie 로 한 번 굳힌다** —
+// requestMeta 는 요청마다 도는 핫패스라 매번 설정을 다시 읽지 않는다. 미설정(init 전/값 없음)이면
+// undefined → resolveClientIp 이 req.ip 로 폴백한다(안전한 기본값).
+let clientIpHeader: string | undefined;
+
+/** 부팅 시점에 설정에서 값을 한 번 읽어 고정한다(main 부트스트랩에서 호출). */
+export function initRefreshCookie(cfg: ConfigSource): void {
+  clientIpHeader = cfg.getStringOrDefault('clientIpHeader') || undefined;
+}
 
 export function setRefreshCookie(
   res: Response,
@@ -98,7 +110,7 @@ export function respondTokens(
  */
 export function requestMeta(req: Request): RequestMeta {
   return {
-    ip: resolveClientIp(req, process.env.CLIENT_IP_HEADER),
+    ip: resolveClientIp(req, clientIpHeader),
     userAgent: req.headers['user-agent'] ?? null,
   };
 }

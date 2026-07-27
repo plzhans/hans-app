@@ -1,7 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { EnvSource, optionalString } from '@hansapi/common';
+import { optionalString } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 import { ApplicationModule } from '@hansapi/application';
 import {
   AuthModule,
@@ -44,16 +45,18 @@ import { RegionController } from './region/region.controller';
  */
 @Module({})
 export class AppModule {
-  static forRoot(source: EnvSource): DynamicModule {
-    // rate limit 이 IP 버킷 키로 쓸 "진짜 클라 IP" 를 어느 헤더에서 뽑을지 env 로 고른다.
-    // 인프라(Cloudflare/CloudFront/OCI/nginx)가 아직 미정이라 provider 별 헤더를 env 로만 바꾼다.
+  static forRoot(config: ConfigSource): DynamicModule {
+    // rate limit 이 IP 버킷 키로 쓸 "진짜 클라 IP" 를 어느 헤더에서 뽑을지 설정으로 고른다.
+    // 인프라(Cloudflare/CloudFront/OCI/nginx)가 아직 미정이라 provider 별 헤더를 설정으로만 바꾼다.
     //   Cloudflare  → cf-connecting-ip,  범용 프록시 → 비우고 TRUST_PROXY 로 req.ip 사용
-    const clientIpHeader = optionalString(source, 'CLIENT_IP_HEADER');
+    // 비밀 아닌 값이라 config/<환경>.yaml(또는 CLIENT_IP_HEADER 환경변수)로 관리한다.
+    const clientIpHeader =
+      config.getStringOrDefault('clientIpHeader') || undefined;
     return {
       module: AppModule,
       imports: [
-        ApplicationModule.forRoot(source),
-        AuthModule.forRoot(source),
+        ApplicationModule.forRoot(config),
+        AuthModule.forRoot(config),
         // 전역 rate limit. 라이브러리 기본 저장소는 인메모리(인스턴스별) 다 —
         // 단일 인스턴스면 그대로 충분하고, 수평 확장 시 @nest-lab/throttler-storage-redis 로 교체한다.
         // 여기 값은 "안전망(폭주 방지)" 용 느슨한 전역 한도이고, 민감 라우트(/oauth/token 등)는
@@ -109,14 +112,14 @@ export class AppModule {
           provide: NtsClient,
           useFactory: (): NtsClient =>
             new NtsClient({
-              serviceKey: optionalString(source, 'KRDATA_SERVICE_KEY') ?? '',
+              serviceKey: optionalString(config, 'KRDATA_SERVICE_KEY') ?? '',
             }),
         },
         {
           provide: JusoClient,
           useFactory: (): JusoClient =>
             new JusoClient({
-              confmKey: optionalString(source, 'KRGO_JUSO_SERVICE_KEY') ?? '',
+              confmKey: optionalString(config, 'KRGO_JUSO_SERVICE_KEY') ?? '',
             }),
         },
       ],

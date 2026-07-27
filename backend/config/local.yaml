@@ -1,0 +1,11 @@
+# hansapi 앱 설정 (비밀 아님, local 환경). 커밋된다.
+# 자세한 규칙은 config/develop.yaml 주석 참고.
+
+# HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
+port: 3000
+
+# local 은 프록시 없음 → trust proxy 끔.
+# trustProxy: 1
+
+# rate limit·로그가 쓸 "진짜 클라 IP" 헤더. 미설정이면 req.ip 폴백. local 은 미설정.
+# clientIpHeader: cf-connecting-ip

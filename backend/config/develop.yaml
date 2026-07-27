@@ -1,0 +1,19 @@
+# hansapi 앱 설정 (비밀 아님). 커밋된다.
+#
+# 시크릿은 여기 두지 않는다 — config/develop/develop.env 에 두고 환경변수로 주입된다.
+# 환경변수로 오버라이드 가능: 이름의 __ 는 계층 경계, 단일 _ 는 camelCase.
+#   PORT=8080          → port
+#   TRUST_PROXY=1      → trustProxy
+#   DATABASE__URL=...  → database.url
+
+# HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
+port: 3000
+
+# Express 'trust proxy'. 프록시(nginx/LB/CDN) 뒤일 때만 켠다.
+# 값: 홉 수(1) / 신뢰 IP·CIDR(콤마) / true|false. 미설정이면 끔(소켓 IP).
+# 개발은 프록시가 없어 끈다. 필요하면 아래 주석을 푼다.
+# trustProxy: 1
+
+# rate limit·로그가 쓸 "진짜 클라 IP" 를 뽑을 헤더. 미설정이면 req.ip 폴백.
+# Cloudflare 뒤라면 cf-connecting-ip. 개발은 프록시가 없어 미설정.
+# clientIpHeader: cf-connecting-ip

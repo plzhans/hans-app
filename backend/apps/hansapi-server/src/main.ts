@@ -6,10 +6,12 @@ import { SwaggerModule } from '@nestjs/swagger';
 import { config } from 'dotenv';
 import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
-import { exitIfVersionFlag, loadEnv, resolveAppEnv } from '@hansapi/common';
+import { exitIfVersionFlag, resolveAppEnv } from '@hansapi/common';
 import { isFirstPartyOrigin } from '@hansapi/auth-application';
 
 import { AppModule } from './app.module';
+import { loadServerConfig } from './config';
+import { initRefreshCookie } from './auth/refresh-cookie';
 import { HttpErrorFilter } from './common/http-error.filter';
 import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
 import {
@@ -22,10 +24,14 @@ import {
 // 반드시 loadEnv 앞이다. 버전을 물어보는 데 DB 접속정보까지 갖춰져 있어야 할 이유가 없다.
 exitIfVersionFlag(__dirname);
 
-// 환경 설정을 로드한다. backend/config/<환경>/<환경>.env 를 APP_ENV 로 고른다.
-// env 파일은 특정 앱이 소유하지 않는다. server·cli 가 같은 DB 를 보므로 접속정보를 중복시키지 않는다.
-// 설정을 계층으로 쌓아 EnvSource 로 만든다. 어떤 키가 필수인지는 각 계층이 판단한다.
-const envSource = loadEnv(__dirname, resolveAppEnv(), config);
+// 설정 접근자 하나를 만든다. 계층형 .env(EnvSource) 위에 config/<환경>.yaml + 환경변수(__ 계층)를
+// 얹은 ConfigSource 다. EnvSource 를 확장하므로 하위 계층(requireString(cfg,...))에도 그대로 넘긴다.
+// env 파일은 특정 앱이 소유하지 않는다 — server·cli 가 같은 DB 를 보므로 접속정보를 중복시키지 않는다.
+const appEnv = resolveAppEnv();
+const appConfig = loadServerConfig(__dirname, appEnv, config);
+
+// 요청마다 도는 유틸(refresh-cookie)이 쓸 값을 부팅 시점에 한 번 읽어 고정한다.
+initRefreshCookie(appConfig);
 
 /**
  * Express 'trust proxy' 설정을 env 에서 파싱한다.
@@ -47,11 +53,14 @@ function parseTrustProxy(raw?: string): boolean | number | string | undefined {
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(
-    AppModule.forRoot(envSource),
+    AppModule.forRoot(appConfig),
   );
 
-  // 프록시 뒤라면 실제 클라 IP 를 인식하도록 trust proxy 를 켠다(rate limit 정확도). env 로만 켠다.
-  const trustProxy = parseTrustProxy(envSource.get('TRUST_PROXY'));
+  // 프록시 뒤라면 실제 클라 IP 를 인식하도록 trust proxy 를 켠다(rate limit 정확도).
+  // yaml(config/<환경>.yaml) 기본값 또는 TRUST_PROXY 환경변수로 켠다(env 가 이긴다).
+  const trustProxy = parseTrustProxy(
+    appConfig.getStringOrDefault('trustProxy') || undefined,
+  );
   if (trustProxy !== undefined) {
     app.set('trust proxy', trustProxy);
   }
@@ -63,7 +72,7 @@ async function bootstrap() {
   // 허용한다. 별도 오리진 목록을 두지 않는다 — rootDomain 범위(자신·서브도메인)면 자사, 미설정(로컬)이면
   // 루프백만 자사. isFirstPartyOrigin 이 소셜 가드·FirstPartyGuard·토큰 서비스와 동일 규칙을 공유한다.
   const rootDomain =
-    envSource.get('APP_ROOT_DOMAIN')?.replace(/^\./, '').trim() || undefined;
+    appConfig.get('APP_ROOT_DOMAIN')?.replace(/^\./, '').trim() || undefined;
 
   // CORS. **인가가 아니라 최소 관문**이다 — 실제 검증(키/클라 status·오리진)은 AuthGuard 가 한다.
   //  - Origin 없음(서버·curl·네이티브): CORS 대상 아님 → 통과
@@ -118,7 +127,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpErrorFilter());
 
   // APP_ENV 가 'production' 이 아닐 때만 Swagger 문서를 노출한다.
-  const swaggerEnabled = envSource.env !== 'production';
+  const swaggerEnabled = appConfig.env !== 'production';
   if (swaggerEnabled) {
     const document = buildOpenApiDocument(app);
     SwaggerModule.setup(SWAGGER_PATH, app, document, {
@@ -132,7 +141,7 @@ async function bootstrap() {
     });
   }
 
-  const port = process.env.PORT ?? 3000;
+  const port = appConfig.getNumberOrDefault('port', 3000);
   await app.listen(port);
 
   // 부팅 완료 후 접속 링크를 출력한다.

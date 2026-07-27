@@ -5,6 +5,8 @@ export * from './localization/accept-language';
 export * from './location';
 export * from './time-range';
 export * from './env';
+export * from './app-config';
+export * from './config-source';
 export * from './build-info';
 
 /**
