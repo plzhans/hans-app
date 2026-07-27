@@ -46,9 +46,35 @@
         ]
       }
     },
+    "/auth/signup/request-code": {
+      "post": {
+        "description": "가입할 이메일로 인증 코드를 보낸다(계정 생성 전). 이미 가입된 이메일이면 409. 같은 이메일로 1시간 5통·재발송 쿨다운을 초과하면 429.",
+        "operationId": "AuthController_requestSignupCode",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupCodeRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "summary": "가입 인증 코드 발송",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/auth/signup": {
       "post": {
-        "description": "이메일/비밀번호로 가입한다. 이미 가입된 이메일이거나 탈퇴 후 재가입 제한기간이면 409. 성공 시 곧바로 로그인 토큰을 발급한다.",
+        "description": "사전에 발송된 인증 코드를 검증하고 계정을 만든다(검증된 이메일만 계정을 소유). 코드가 틀리거나 만료면 400, 이미 가입된 이메일이거나 탈퇴 후 재가입 제한기간이면 409. 성공 시 곧바로 로그인 토큰을 발급한다.",
         "operationId": "AuthController_signup",
         "parameters": [],
         "requestBody": {
@@ -194,7 +220,7 @@
     },
     "/auth/password/reset-request": {
       "post": {
-        "description": "가입 이메일로 재설정 링크를 보낸다(메일러 연동 전까지는 응답에 임시로 토큰을 담는다). 존재 여부와 무관하게 202.",
+        "description": "가입 이메일로 인증 코드를 보낸다. 계정 유무·대상 여부와 무관하게 202(존재 노출 방지). 발송 상한 초과 시 429.",
         "operationId": "AuthController_requestPasswordReset",
         "parameters": [],
         "requestBody": {
@@ -220,7 +246,7 @@
     },
     "/auth/password/reset": {
       "post": {
-        "description": "재설정 토큰으로 새 비밀번호를 설정한다. 성공 시 전체 세션이 폐기된다.",
+        "description": "메일로 받은 인증 코드로 새 비밀번호를 설정한다. 코드가 틀리거나 만료면 400. 성공 시 전체 세션이 폐기된다.",
         "operationId": "AuthController_resetPassword",
         "parameters": [],
         "requestBody": {
@@ -244,50 +270,29 @@
         ]
       }
     },
-    "/auth/email/verify-request": {
+    "/auth/social/register/request-code": {
       "post": {
-        "description": "현재 계정의 이메일 인증 링크를 발송한다(메일러 연동 전까지는 응답에 임시로 토큰을 담는다).",
-        "operationId": "AuthController_requestEmailVerify",
-        "parameters": [],
-        "responses": {
-          "202": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "이메일 인증 요청",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/email/verify": {
-      "post": {
-        "description": "이메일 인증 토큰을 확인한다.",
-        "operationId": "AuthController_verifyEmail",
+        "description": "provider 가 이메일을 검증하지 않은 경우(콜백 code_required) 가입 이메일로 코드를 보낸다. provider 가 이메일을 안 준 경우 email 을 함께 보낸다.",
+        "operationId": "SocialController_requestRegisterCode",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EmailVerifyConfirmDto"
+                "$ref": "#/components/schemas/SocialRegisterCodeRequestDto"
               }
             }
           }
         },
         "responses": {
-          "204": {
+          "202": {
             "description": ""
           }
         },
-        "summary": "이메일 인증 확정",
+        "summary": "소셜 가입 인증 코드 발송",
         "tags": [
-          "auth"
+          "auth-social"
         ]
       }
     },
@@ -400,7 +405,7 @@
     },
     "/oauth/token": {
       "post": {
-        "description": "grant_type=authorization_code 는 소셜 릴레이 인가코드(code)를 토큰으로 교환한다. grant_type=refresh_token 은 refresh token(바디 또는 httpOnly 쿠키)을 rotate 하고 새 토큰을 발급한다.",
+        "description": "grant_type=authorization_code 는 인가코드(code)를 토큰으로 교환한다. 코드에 기록된 클라이언트의 등록 오리진과 요청 Origin 이 일치해야 한다. grant_type=refresh_token 은 refresh token(바디 또는 httpOnly 쿠키)을 rotate 하고 새 토큰을 발급한다.",
         "operationId": "OAuthController_token",
         "parameters": [],
         "requestBody": {
@@ -433,7 +438,7 @@
     },
     "/oauth/authorize": {
       "post": {
-        "description": "로그인된 사용자에 대해 다른 클라이언트(앱)의 복귀 URL(return_to, 허용목록)로 넘길 1회용 인가코드를 발급한다. 클라이언트는 이 code 를 /oauth/token 으로 교환한다.",
+        "description": "로그인된 사용자에 대해 다른 클라이언트(앱)의 redirect_uri(허용목록)로 넘길 1회용 인가코드를 발급한다. 클라이언트는 이 code 를 /oauth/token 으로 교환한다.",
         "operationId": "OAuthController_authorize",
         "parameters": [],
         "requestBody": {
@@ -658,6 +663,43 @@
           }
         ],
         "summary": "앱 삭제(즉시, 하위 키·클라이언트 함께 삭제)",
+        "tags": [
+          "apps"
+        ]
+      }
+    },
+    "/apps/{id}/review-request": {
+      "post": {
+        "description": "PENDING 앱을 심사 대기로 올린다. 거절된 앱의 재요청도 이 경로다(사유가 지워지고 다시 심사 중). 이미 승인·삭제된 앱이면 400.",
+        "operationId": "AppsController_requestReview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "심사 요청",
         "tags": [
           "apps"
         ]
@@ -2920,12 +2962,12 @@
   "tags": [],
   "servers": [
     {
-      "url": "https://develop-api.plzhans.com",
-      "description": "Development"
-    },
-    {
       "url": "http://127.0.0.1:3000",
       "description": "Local"
+    },
+    {
+      "url": "https://develop-api.plzhans.com",
+      "description": "Development"
     }
   ],
   "components": {
@@ -2991,6 +3033,19 @@
           "node"
         ]
       },
+      "SignupCodeRequestDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "가입할 이메일",
+            "example": "user@example.com"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
       "SignupRequestDto": {
         "type": "object",
         "properties": {
@@ -3008,12 +3063,18 @@
             "type": "string",
             "description": "표시 이름",
             "example": "홍길동"
+          },
+          "code": {
+            "type": "string",
+            "description": "메일로 받은 인증 코드",
+            "example": "846210"
           }
         },
         "required": [
           "email",
           "password",
-          "name"
+          "name",
+          "code"
         ]
       },
       "TokenResponseDto": {
@@ -3140,9 +3201,14 @@
       "PasswordResetConfirmDto": {
         "type": "object",
         "properties": {
-          "token": {
+          "email": {
             "type": "string",
-            "description": "재설정 토큰(메일로 받은 값)"
+            "description": "가입 이메일"
+          },
+          "code": {
+            "type": "string",
+            "description": "메일로 받은 인증 코드",
+            "example": "846210"
           },
           "newPassword": {
             "type": "string",
@@ -3150,20 +3216,25 @@
           }
         },
         "required": [
-          "token",
+          "email",
+          "code",
           "newPassword"
         ]
       },
-      "EmailVerifyConfirmDto": {
+      "SocialRegisterCodeRequestDto": {
         "type": "object",
         "properties": {
-          "token": {
+          "ticket": {
             "type": "string",
-            "description": "이메일 인증 토큰"
+            "description": "콜백에서 받은 소셜 가입 티켓"
+          },
+          "email": {
+            "type": "string",
+            "description": "provider 가 이메일을 주지 않은 경우 사용자가 입력한 이메일"
           }
         },
         "required": [
-          "token"
+          "ticket"
         ]
       },
       "SocialRegisterRequestDto": {
@@ -3176,6 +3247,10 @@
           "email": {
             "type": "string",
             "description": "provider 가 이메일을 주지 않은 경우 사용자가 입력한 이메일"
+          },
+          "code": {
+            "type": "string",
+            "description": "provider 가 이메일을 검증하지 않은 경우(code_required) 메일로 받은 인증 코드"
           }
         },
         "required": [
@@ -3213,6 +3288,11 @@
           "refresh_token": {
             "type": "string",
             "description": "refresh_token grant 의 refresh token(rt_...). 생략 시 httpOnly 쿠키에서 읽는다."
+          },
+          "code_verifier": {
+            "type": "string",
+            "description": "PKCE code_verifier(RFC 7636). authorization_code grant 에 **필수**다. 인가 요청 때 보낸 code_challenge 의 원본으로, BASE64URL(SHA256(이 값)) 이 일치해야 한다.",
+            "example": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
           }
         },
         "required": [
@@ -3222,14 +3302,25 @@
       "AuthorizeRequestDto": {
         "type": "object",
         "properties": {
-          "returnTo": {
+          "redirectUri": {
             "type": "string",
-            "description": "코드를 실어 돌려보낼 클라이언트 URL(허용목록 오리진만)",
+            "description": "OAuth2 redirect_uri — 코드를 실어 돌려보낼 클라이언트 URL. clientId 를 주면 그 클라이언트에 등록된 리디렉션 URI 와 정확히 일치해야 하고, 없으면 1st-party 허용목록 오리진이어야 한다.",
             "example": "https://medifinder.kr/auth/callback"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "외부 앱의 공개 클라이언트 ID. 생략하면 1st-party(인증 포털 자신)로 간주한다. 이 값은 발급되는 코드에 기록되어, 토큰 교환 때 요청 Origin 대조의 기준이 된다.",
+            "example": "cl_fixed_medifinder"
+          },
+          "codeChallenge": {
+            "type": "string",
+            "description": "PKCE code_challenge = BASE64URL(SHA256(code_verifier)), 43자. S256 만 받는다. 발급되는 코드에 기록되어 교환 때 code_verifier 와 대조된다.",
+            "example": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
           }
         },
         "required": [
-          "returnTo"
+          "redirectUri",
+          "codeChallenge"
         ]
       },
       "AuthorizeResponseDto": {
@@ -3256,10 +3347,26 @@
           "status": {
             "type": "string",
             "enum": [
+              "PENDING",
               "ACTIVE",
               "DISABLED"
             ],
             "description": "앱 상태"
+          },
+          "reviewState": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "REVIEWING",
+              "REJECTED",
+              "APPROVED",
+              "DISABLED"
+            ],
+            "description": "심사 세부 상태(표시용). DRAFT=작성 중, REVIEWING=심사 중, REJECTED=거절됨, APPROVED=승인, DISABLED=삭제"
+          },
+          "rejectionReason": {
+            "type": "object",
+            "description": "거절 사유(REJECTED 일 때만). 사용자가 보고 고쳐 재요청한다."
           },
           "deletedAt": {
             "type": "object",
@@ -3277,6 +3384,7 @@
           "id",
           "name",
           "status",
+          "reviewState",
           "createdBy",
           "createdAt"
         ]
@@ -3303,6 +3411,15 @@
           "name": {
             "type": "string"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACTIVE",
+              "DISABLED"
+            ],
+            "description": "PENDING 이면 승인 전이라 인증에 쓸 수 없다"
+          },
           "keyPrefix": {
             "type": "string",
             "description": "표시용 접두사(원문은 생성 시 1회만 확인 가능)"
@@ -3317,6 +3434,7 @@
         "required": [
           "id",
           "name",
+          "status",
           "keyPrefix",
           "createdAt"
         ]
@@ -3333,6 +3451,15 @@
           },
           "name": {
             "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACTIVE",
+              "DISABLED"
+            ],
+            "description": "PENDING 이면 승인 전이라 인증에 쓸 수 없다"
           },
           "type": {
             "type": "string",
@@ -3381,6 +3508,7 @@
           "id",
           "clientId",
           "name",
+          "status",
           "type",
           "createdAt"
         ]
@@ -3397,10 +3525,26 @@
           "status": {
             "type": "string",
             "enum": [
+              "PENDING",
               "ACTIVE",
               "DISABLED"
             ],
             "description": "앱 상태"
+          },
+          "reviewState": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "REVIEWING",
+              "REJECTED",
+              "APPROVED",
+              "DISABLED"
+            ],
+            "description": "심사 세부 상태(표시용). DRAFT=작성 중, REVIEWING=심사 중, REJECTED=거절됨, APPROVED=승인, DISABLED=삭제"
+          },
+          "rejectionReason": {
+            "type": "object",
+            "description": "거절 사유(REJECTED 일 때만). 사용자가 보고 고쳐 재요청한다."
           },
           "deletedAt": {
             "type": "object",
@@ -3434,6 +3578,7 @@
           "id",
           "name",
           "status",
+          "reviewState",
           "createdBy",
           "createdAt",
           "apiKeyLimit",
@@ -3452,6 +3597,7 @@
           "status": {
             "type": "string",
             "enum": [
+              "PENDING",
               "ACTIVE",
               "DISABLED"
             ],
@@ -3583,6 +3729,15 @@
           "name": {
             "type": "string"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACTIVE",
+              "DISABLED"
+            ],
+            "description": "PENDING 이면 승인 전이라 인증에 쓸 수 없다"
+          },
           "type": {
             "type": "string",
             "enum": [
@@ -3634,6 +3789,7 @@
           "id",
           "clientId",
           "name",
+          "status",
           "type",
           "createdAt"
         ]

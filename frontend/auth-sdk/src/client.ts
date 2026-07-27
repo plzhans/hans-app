@@ -2,9 +2,9 @@ import { createPkceRequest, takeVerifier } from './pkce';
 import { TokenStorage, type StoredTokens } from './storage';
 
 export interface AuthClientConfig {
-  /** HansApp 웹(로그인 UI) base. 예: https://plzhans.com 또는 http://localhost:5273 */
+  /** HansApp 웹(로그인 UI) base. 예: https://plzhans.com 또는 http://127.0.0.1:5273 */
   authWebUrl: string;
-  /** 인증 API base. 예: https://api.plzhans.com 또는 http://localhost:3000 */
+  /** 인증 API base. 예: https://api.plzhans.com 또는 http://127.0.0.1:3000 */
   apiBaseUrl: string;
   /**
    * 이 앱의 공개 클라이언트 ID(hansapi 앱 콘솔/CLI 에서 발급, 예: cl_fixed_medifinder).
