@@ -1,0 +1,28 @@
+# 릴리스를 자동으로 낸다 (release-please).
+#
+# main 에 커밋이 쌓이면 release-please 가 "다음 버전은 이것" 이라는 Release PR 을 열어
+# 둔다. 그 PR 을 머지하는 순간이 릴리스다 - 봇이 package.json 버전을 올리고, CHANGELOG 를
+# 쓰고, release/vX.Y.Z 태그와 GitHub 릴리스를 만든다. 버전은 커밋 메시지에서 정해진다
+# (feat → minor, fix → patch, ! → major. DEVELOP.md 의 "커밋 규약" 참고).
+#
+# 저장소 전체가 하나의 버전이다(단일 패키지 `.`). 앱별 빌드·배포는 be-build-test.yml·
+# fe-*.yml 이 따로 맡는다 - 이 파일은 버전·CHANGELOG·태그·릴리스만 만든다.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# 봇이 Release PR 을 열고, 머지 커밋에서 태그·릴리스를 만들 수 있어야 한다.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release_please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

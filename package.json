@@ -1,13 +1,17 @@
 {
   "name": "hans-api-monorepo",
   "private": true,
+  "version": "0.1.0",
   "description": "레포 루트 - git 훅(husky) 세팅 전용. 각 프로젝트 설정은 backend/, frontend/ 안에 둘 것.",
+  "type": "module",
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
     "husky": "^9.1.7"
   }
 }
