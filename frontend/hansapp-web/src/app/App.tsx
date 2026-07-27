@@ -5,7 +5,6 @@ import { startLogin } from '@/shared/auth/login';
 import Dashboard from '@/features/home/pages/Dashboard';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
-import Callback from '@/features/auth/pages/Callback';
 
 /**
  * 로그인 필요 구간. 미인증이면 **로그인 포털(hansapp-auth)로 리다이렉트**한다.
@@ -42,8 +41,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 포털에서 code 를 실어 돌아오는 착지점(콘솔 = OAuth 클라이언트) */}
-        <Route path="/auth/callback" element={<Callback />} />
         {/* 공개 대시보드 */}
         <Route path="/" element={<Dashboard />} />
         {/* 앱 관리(로그인 필요) */}

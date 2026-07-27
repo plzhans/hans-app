@@ -6,6 +6,7 @@ import {
   socialRegisterRequestCode,
 } from '@/shared/api/auth';
 import { takeVerifier } from '@/shared/auth/pkce';
+import { takeReturn } from '@/shared/auth/returnTo';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
@@ -44,6 +45,13 @@ export default function Callback() {
   const [busy, setBusy] = useState(false);
   const ran = useRef(false);
 
+  // 로그인 완료 후 이동: 1st-party return(자사 앱) 있으면 그리로, 아니면 포털 내 정보로.
+  const goAfterAuth = () => {
+    const back = takeReturn();
+    if (back) window.location.href = back;
+    else navigate('/me', { replace: true });
+  };
+
   useEffect(() => {
     // StrictMode 이중 실행 방지(인가코드는 1회용이라 두 번 교환하면 실패한다).
     if (ran.current) return;
@@ -62,7 +70,7 @@ export default function Callback() {
     ) => {
       try {
         await authenticate(await promise);
-        navigate('/', { replace: true });
+        goAfterAuth();
       } catch (e) {
         setPhase('error');
         setMessage(errorMessage(e, '로그인 처리에 실패했습니다.'));
@@ -134,7 +142,7 @@ export default function Callback() {
         code.trim(),
       );
       await authenticate(tokens);
-      navigate('/', { replace: true });
+      goAfterAuth();
     } catch (e) {
       setMessage(errorMessage(e, '가입에 실패했습니다.'));
     } finally {

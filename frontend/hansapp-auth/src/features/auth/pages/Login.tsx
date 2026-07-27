@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { emailLogin, relayCodeIfNeeded } from '@/shared/api/auth';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { storeReturn, takeReturn } from '@/shared/auth/returnTo';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { AuthCard } from '../components/AuthCard';
@@ -49,15 +50,28 @@ export default function Login() {
     formState: { errors, isSubmitting },
   } = useForm<Form>();
 
+  // 1st-party 앱(콘솔 등)이 ?return=<앱URL> 로 보냈으면 보관한다(소셜 왕복 대비). 로그인 후 그리로 복귀.
+  useEffect(() => {
+    storeReturn(params.get('return'));
+  }, [params]);
+
   const onSubmit = handleSubmit(async ({ email, password }) => {
     setServerError(null);
     try {
       const tokens = await emailLogin(email, password);
       await authenticate(tokens);
-      // SSO 면 외부 앱으로 복귀, 아니면 자체 홈으로.
-      if (!(await relayCodeIfNeeded(returnTo, clientId, codeChallenge, clientState))) {
-        navigate('/', { replace: true });
+      // ① 외부 SSO(client_id) → 인가코드를 실어 그 앱으로 복귀.
+      if (await relayCodeIfNeeded(returnTo, clientId, codeChallenge, clientState)) {
+        return;
       }
+      // ② 1st-party return(자사 앱, 쿠키 SSO) → code 없이 그 앱으로 복귀. 앱이 공유 쿠키로 세션 인지.
+      const back = takeReturn();
+      if (back) {
+        window.location.href = back;
+        return;
+      }
+      // ③ 포털 자체 로그인 → 내 정보.
+      navigate('/me', { replace: true });
     } catch (e) {
       setServerError(errorMessage(e, '로그인에 실패했습니다.'));
     }
