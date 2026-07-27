@@ -7,10 +7,8 @@ import { Preferences } from '@capacitor/preferences';
 const KEY = 'plzhans.auth.tokens';
 
 export interface StoredTokens {
+  /** access token(단명). refresh 는 저장하지 않는다 — httpOnly 쿠키로만 오간다(XSS 시 탈취 방지). */
   accessToken: string;
-  refreshToken: string;
-  /** refresh 만료 시각(ISO8601) */
-  refreshExpiresAt: string;
 }
 
 export async function saveTokens(tokens: StoredTokens): Promise<void> {

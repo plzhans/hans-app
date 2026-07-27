@@ -79,11 +79,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   authenticate: async (tokens) => {
-    await setSession({
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      refreshExpiresAt: tokens.refreshExpiresAt,
-    });
+    // access token 만 보관한다. refresh 는 httpOnly 쿠키(백엔드가 세팅)로만 오간다.
+    await setSession({ accessToken: tokens.accessToken });
     const me = await getMe();
     saveMe(me);
     set({ status: 'authenticated', me });

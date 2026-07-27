@@ -14,32 +14,26 @@ export class ApiError extends Error {
 
 interface TokenPayload {
   accessToken: string;
-  refreshToken: string;
-  refreshExpiresAt: string;
 }
 
-/** refresh token 으로 세션을 갱신한다. 실패하면 세션을 비운다. */
+/**
+ * 세션을 갱신한다. 실패하면 세션을 비운다.
+ * refresh 는 **httpOnly 쿠키로만** 오간다 — `credentials: 'include'` 로 쿠키를 보낸다(저장소엔 refresh 없음).
+ * 응답에서 access token 만 받아 보관한다.
+ */
 async function tryRefresh(): Promise<boolean> {
-  const s = getSession();
-  if (!s?.refreshToken) return false;
   const res = await fetch(`${API_BASE_URL}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'refresh_token',
-      refresh_token: s.refreshToken,
-    }),
+    credentials: 'include',
+    body: JSON.stringify({ grant_type: 'refresh_token' }),
   });
   if (!res.ok) {
     await clearSession();
     return false;
   }
   const data = (await res.json()) as TokenPayload;
-  await setSession({
-    accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
-    refreshExpiresAt: data.refreshExpiresAt,
-  });
+  await setSession({ accessToken: data.accessToken });
   return true;
 }
 

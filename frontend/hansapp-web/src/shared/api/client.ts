@@ -14,39 +14,29 @@ export class ApiError extends Error {
 
 interface TokenPayload {
   accessToken: string;
-  refreshToken: string;
-  refreshExpiresAt: string;
 }
 
 /**
  * 세션을 갱신한다. 실패하면 세션을 비운다.
  *
- * **1st-party 서브도메인 SSO**: `credentials: 'include'` 로 `.plzhans.com` 공유 refresh 쿠키를 보낸다.
- * body 에 refresh token 이 있으면(과거 흐름) 그걸 쓰고, 없으면 **쿠키만으로** 갱신한다 —
- * hans-auth 에서 로그인했으면 콘솔은 리다이렉트 없이 이 호출로 세션을 인지한다(부트스트랩에서 사용).
+ * refresh token 은 **httpOnly 쿠키로만** 오간다 — `credentials: 'include'` 로 `.plzhans.com`(또는
+ * 로컬 host-only) 공유 refresh 쿠키를 보낸다. 저장소엔 refresh 를 두지 않으므로 body 에도 안 싣는다
+ * (XSS 로도 refresh 를 못 읽게). hans-auth 에서 로그인했으면 콘솔은 리다이렉트 없이 이 호출로 세션을 인지한다.
+ * 응답에서 access token 만 받아 보관한다.
  */
 export async function refreshSession(): Promise<boolean> {
-  const s = getSession();
   const res = await fetch(`${API_BASE_URL}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify(
-      s?.refreshToken
-        ? { grant_type: 'refresh_token', refresh_token: s.refreshToken }
-        : { grant_type: 'refresh_token' },
-    ),
+    body: JSON.stringify({ grant_type: 'refresh_token' }),
   });
   if (!res.ok) {
     await clearSession();
     return false;
   }
   const data = (await res.json()) as TokenPayload;
-  await setSession({
-    accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
-    refreshExpiresAt: data.refreshExpiresAt,
-  });
+  await setSession({ accessToken: data.accessToken });
   return true;
 }
 
