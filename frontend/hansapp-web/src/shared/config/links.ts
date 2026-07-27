@@ -5,6 +5,9 @@ export const LINKS = {
   medifinder:
     (import.meta.env.VITE_LINK_MEDIFINDER as string | undefined) ??
     'https://medifinder.kr',
+  telegramExporter:
+    (import.meta.env.VITE_LINK_TELEGRAM_EXPORTER as string | undefined) ??
+    'https://telegram-exporter.plzhans.com',
   blog:
     (import.meta.env.VITE_LINK_BLOG as string | undefined) ??
     'https://blog.plzhans.com',

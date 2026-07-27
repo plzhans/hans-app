@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+# 로그인이 필요한 콘솔 구간은 크롤링 제외.
+Disallow: /apps
+
+Sitemap: https://plzhans.com/sitemap.xml

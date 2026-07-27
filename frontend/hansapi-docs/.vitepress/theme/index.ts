@@ -1,4 +1,5 @@
 import type { Theme } from 'vitepress';
+import { inBrowser } from 'vitepress';
 import DefaultTheme from 'vitepress/theme';
 import { theme, useOpenapi } from 'vitepress-openapi/client';
 import 'vitepress-openapi/dist/style.css';
@@ -7,6 +8,7 @@ import ApiOperation from './ApiOperation.vue';
 import ParamsTable from './ParamsTable.vue';
 import ResponsesTable from './ResponsesTable.vue';
 import { setupSidebarScrollSpy } from './scrollspy';
+import { initGa, trackPageView } from './gtag';
 
 // 스펙은 .vitepress/config.ts 의 vite.define 로 빌드시 주입된다(정적 import 아님).
 declare const __OPENAPI_SPEC__: Record<string, unknown>;
@@ -26,5 +28,17 @@ export default {
     app.component('ApiOperation', ApiOperation);
     // 스크롤 위치에 따라 사이드바 활성 항목을 갱신(scroll-spy).
     setupSidebarScrollSpy(ctx);
+
+    // Google Analytics(gtag.js). VITE_GOOGLE_ANALYTICS_ID 가 있을 때만 로드된다.
+    // SPA 라 첫 진입은 여기서 직접 보내고, 이후 라우트 이동은 onAfterRouteChanged 로 보낸다.
+    if (inBrowser) {
+      initGa();
+      trackPageView(location.pathname + location.search);
+      const prev = ctx.router.onAfterRouteChanged;
+      ctx.router.onAfterRouteChanged = (to) => {
+        prev?.(to);
+        trackPageView(to);
+      };
+    }
   },
 } satisfies Theme;

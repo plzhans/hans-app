@@ -1,3 +1,9 @@
 node_modules/
 *.log
 .DS_Store
+
+# 운영 GA 측정 ID 등 배포 비밀값은 커밋하지 않는다(개발자·CI 가 로컬 보관).
+# .env.develop 은 추적한다(dev 기본값 문서화).
+.env.production
+.env.local
+.env.*.local

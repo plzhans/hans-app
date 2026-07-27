@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress';
+import { withMermaid } from 'vitepress-plugin-mermaid';
 import { loadSpec, specPath } from './openapi-spec';
 
 // 스펙을 빌드 시 파일에서 읽는다. 경로는 OPENAPI_SPEC 환경변수로 오버라이드 가능하다.
@@ -102,7 +103,8 @@ function tagGroup(tag: string, label?: string) {
   };
 }
 
-export default defineConfig({
+// withMermaid 로 감싸 ```mermaid 코드펜스를 다이어그램으로 렌더한다(시퀀스·플로우 등).
+export default withMermaid(defineConfig({
   title: 'Hans API',
   description: 'Hans API 명세 문서',
   lang: 'ko-KR',
@@ -149,6 +151,9 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: '인증', link: '/common#인증' },
+          { text: '로그인 연동(OAuth·PKCE)', link: '/common#login-integration' },
+          { text: '토큰 만료', link: '/common#token-ttl' },
+          { text: 'JWT 검증(JWKS)', link: '/common#jwt-verify' },
           { text: '다국어', link: '/common#다국어' },
         ],
       },
@@ -231,8 +236,11 @@ export default defineConfig({
       // 스펙을 정적 import 대신 빌드시 클라이언트/SSR 번들에 주입한다.
       __OPENAPI_SPEC__: JSON.stringify(spec),
     },
+    // mermaid 최적화(dayjs·cytoscape 등 하위 의존 pre-bundle)는 withMermaid 플러그인이
+    // optimizeDeps.include 로 이미 넣는다. pnpm 에서 그 베어 이름들이 resolve 되도록
+    // 하위 의존을 root 로 hoist 하는 설정은 .npmrc(public-hoist-pattern)에 있다.
     // 포트를 지정(--port)하지 않으면 8801 을 기본으로 쓴다.
     server: { port: 8801 },
     preview: { port: 8801 },
   },
-});
+}));

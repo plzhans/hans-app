@@ -4,7 +4,7 @@ import { startLogin } from '@/shared/auth/login';
 import { LINKS } from '@/shared/config/links';
 
 const MENU = [
-  { label: 'MediFinder', href: LINKS.medifinder },
+  // MediFinder 는 상단 헤더에서 일단 뺀다(링크 설정은 links.ts 에 남겨 둠).
   { label: 'Blog', href: LINKS.blog },
   { label: 'Docs', href: LINKS.docs },
 ];

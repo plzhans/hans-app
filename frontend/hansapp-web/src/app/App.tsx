@@ -1,7 +1,14 @@
 import { useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { startLogin } from '@/shared/auth/login';
+import { trackPageView } from '@/shared/analytics/gtag';
 import Dashboard from '@/features/home/pages/Dashboard';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
@@ -29,6 +36,18 @@ function FullScreenSpinner() {
 }
 
 /**
+ * SPA 라우트 이동을 GA page_view 로 보낸다. 첫 진입도 포함(마운트 시 1회 발화).
+ * Router 안에서만 useLocation 을 쓸 수 있어 별도 컴포넌트로 둔다.
+ */
+function RouteTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageView(location.pathname + location.search);
+  }, [location.pathname, location.search]);
+  return null;
+}
+
+/**
  * HansApp **개발자 콘솔**(hansapp-web). 앱/OAuth 클라이언트 등록·관리.
  * 로그인 UI 는 담지 않는다 — 로그인은 포털(hansapp-auth)의 OAuth 클라이언트로 위임한다.
  */
@@ -40,6 +59,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <RouteTracker />
       <Routes>
         {/* 공개 대시보드 */}
         <Route path="/" element={<Dashboard />} />
