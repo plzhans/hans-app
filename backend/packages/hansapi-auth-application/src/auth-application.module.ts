@@ -130,6 +130,9 @@ export class AuthModule {
         SocialService,
         SocialAuthGuard,
         SocialTicketService,
+        // SocialAuthGuard(passport)는 @UseGuards 로 AppModule 컨트롤러에서 생성되므로
+        // 그 의존(AUTH_CONFIG·SocialTicketService·AccessCache)이 모두 export 돼 있어야 한다.
+        AccessCache,
         AppService,
         ApiAccessService,
       ],
