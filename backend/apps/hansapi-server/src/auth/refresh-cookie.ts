@@ -20,11 +20,11 @@ export const SESSION_HINT_COOKIE = 'hansapp.session';
 // AUTH_COOKIE_SECURE=true 면 secure/none 로 올린다(기본은 개발 편의를 위해 lax/비secure).
 const secure = process.env.AUTH_COOKIE_SECURE === 'true';
 
-// 쿠키 도메인(AUTH_COOKIE_DOMAIN). **1st-party 서브도메인 세션 공유용.**
-// 예: `.plzhans.com` → plzhans.com(콘솔)·auth.plzhans.com(로그인)·api.plzhans.com 이 refresh 쿠키를 공유한다
-// (구글 `.google.com` 방식). 그래서 hans-auth 에서 로그인하면 콘솔이 리다이렉트 없이 refresh 로 세션을 인지한다.
-// 미설정이면 호스트 전용(응답 서버 도메인)으로 깔린다.
-const cookieDomain = process.env.AUTH_COOKIE_DOMAIN || undefined;
+// 쿠키 도메인 = 서비스 루트 도메인(APP_ROOT_DOMAIN). **1st-party 서브도메인 세션 공유용.**
+// 예: `plzhans.com` → plzhans.com(콘솔)·auth.plzhans.com(로그인)·api.plzhans.com 이 refresh 쿠키를 공유한다
+// (구글 `.google.com` 방식, 앞 점 없어도 서브도메인 포함 — RFC 6265). 그래서 hans-auth 에서 로그인하면
+// 콘솔이 리다이렉트 없이 refresh 로 세션을 인지한다. 미설정이면 호스트 전용(응답 서버 도메인)으로 깔린다.
+const cookieDomain = process.env.APP_ROOT_DOMAIN || undefined;
 
 // refresh 쿠키를 **갱신 엔드포인트로만** 스코프한다. path=/ 로 두면 민감한 refresh 토큰이 모든 요청
 // (데이터 조회 등)에 자동 첨부돼 낭비·CSRF 표면·노출이 커진다. /oauth/token 에서만 오가게 좁힌다.

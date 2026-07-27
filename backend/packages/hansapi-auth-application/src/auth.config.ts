@@ -102,10 +102,18 @@ export interface AuthConfig {
   readonly accessCache: AccessCacheConfig;
 
   /**
-   * 허용 오리진 목록(AUTH_ALLOWED_ORIGINS). CORS 뿐 아니라 소셜 return_to(로그인 후 복귀 URL)
-   * 검증에도 쓴다 — 여기 없는 오리진으로는 코드를 실어 리다이렉트하지 않는다(오픈 리다이렉트 방지).
+   * 허용 오리진 목록(AUTH_ALLOWED_ORIGINS). CORS 에 쓴다.
    */
   readonly allowedOrigins: readonly string[];
+
+  /**
+   * 서비스 루트 도메인(APP_ROOT_DOMAIN, 예: `plzhans.com`, 앞 점 없이). **설정 하나로 파생되는 값들:**
+   *  - SSO refresh/hint 쿠키의 Domain (서브도메인 공유; refresh-cookie.ts)
+   *  - 1st-party 판단 = redirect_uri host 가 이 도메인 범위(자기 자신 또는 `*.rootDomain`)인지
+   *    → 쿠키 공유 범위와 1st-party 정의를 정확히 일치시킨다(오픈 리다이렉트 방지).
+   * 미설정(로컬)이면 쿠키는 host-only, 1st-party 는 인증서버 host 와 동일할 때로 폴백한다.
+   */
+  readonly rootDomain?: string;
 
   /** bcrypt 코스트(라운드). 기본 10 */
   readonly bcryptRounds: number;
@@ -221,6 +229,8 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
+    // 앞 점(.)은 있어도 무시되지만, 루트 도메인 개념엔 점 없는 형태가 자연스러워 제거해 정규화한다.
+    rootDomain: optionalString(source, 'APP_ROOT_DOMAIN')?.replace(/^\./, ''),
     bcryptRounds: optionalNumber(source, 'AUTH_BCRYPT_ROUNDS', 10),
     oauth: Object.freeze({
       google: readProviderCredentials(

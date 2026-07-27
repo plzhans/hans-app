@@ -141,9 +141,9 @@ export class SocialAuthGuard implements CanActivate {
         : undefined;
     if (!raw) return {};
 
-    let origin: string;
+    let host: string;
     try {
-      origin = new URL(raw).origin;
+      host = new URL(raw).hostname;
     } catch {
       throw new BadRequestException('Malformed redirect_uri.');
     }
@@ -165,9 +165,22 @@ export class SocialAuthGuard implements CanActivate {
       return { returnTo: raw, clientId: client.clientId };
     }
 
-    if (!this.config.allowedOrigins.includes(origin)) {
+    // 1st-party(client_id 없음): redirect_uri host 가 서비스 루트 도메인 범위여야 한다
+    // = SSO 쿠키 공유 범위와 일치. 그 밖으로는 코드/세션을 실어 리다이렉트하지 않는다(오픈 리다이렉트 방지).
+    if (!this.isFirstPartyHost(host, req)) {
       throw new BadRequestException('redirect_uri not allowed.');
     }
     return { returnTo: raw };
+  }
+
+  /**
+   * redirect_uri host 가 자사(1st-party)인지. 서비스 루트 도메인(APP_ROOT_DOMAIN) 범위면 자사다
+   * (자기 자신 또는 그 서브도메인) — SSO 쿠키(rootDomain) 공유 범위와 정확히 일치한다.
+   * 미설정(로컬)이면 쿠키가 host-only 라, 인증서버와 같은 host 일 때만 자사로 본다.
+   */
+  private isFirstPartyHost(host: string, req: Request): boolean {
+    const root = this.config.rootDomain;
+    if (root) return host === root || host.endsWith(`.${root}`);
+    return host === req.hostname;
   }
 }
