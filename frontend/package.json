@@ -1,0 +1,10 @@
+{
+  "name": "hansapi-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n auth,console -c magenta,blue \"pnpm -C hansapp-auth local\" \"pnpm -C hansapp-web local\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
