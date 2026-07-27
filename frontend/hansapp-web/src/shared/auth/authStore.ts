@@ -8,6 +8,7 @@ import {
 import {
   clearSession,
   getSession,
+  hasSessionHint,
   hydrateSession,
   setSession,
 } from '@/shared/api/session';
@@ -31,10 +32,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   me: null,
 
   bootstrap: async () => {
-    // ① 로컬 저장 세션. 없으면 ② **1st-party 공유 refresh 쿠키(.plzhans.com)** 로 silent 시도 —
-    //    hans-auth 에서 로그인했으면 여기서 세션을 인지한다(**페이지 이동 없이** 로그인 표시). 구글식 SSO.
+    // ① 로컬 저장 세션. 없으면 ② **로그인 힌트 쿠키가 있을 때만** 공유 refresh 쿠키(.plzhans.com)로 시도.
+    //    hans-auth 에서 로그인했으면 여기서 세션을 인지한다(**페이지 이동 없이**). 힌트 없으면 호출 안 함(400 회피).
     let session = await hydrateSession();
-    if (!session && (await refreshSession())) {
+    if (!session && hasSessionHint() && (await refreshSession())) {
       session = getSession();
     }
     if (!session) {

@@ -11,6 +11,11 @@ import type { TokenResponseDto } from './dto/auth.dto';
  */
 export const REFRESH_COOKIE = 'refresh_token';
 
+// 로그인 힌트 쿠키. **non-httpOnly(JS 가 읽음)**, 민감정보 없음(값 '1').
+// 프론트는 이게 있을 때만 refresh 를 호출한다 — 로그아웃 상태에서 불필요한 호출/400 을 없앤다.
+// httpOnly refresh 쿠키와 항상 같이 세팅/삭제한다. 인증 판단이 아니라 "호출 여부" 판단용이다.
+export const SESSION_HINT_COOKIE = 'hansapp.session';
+
 // 크로스 오리진 SPA 를 고려한 쿠키 옵션. 운영(HTTPS)에서는 secure+sameSite=none 이 필요하다.
 // AUTH_COOKIE_SECURE=true 면 secure/none 로 올린다(기본은 개발 편의를 위해 lax/비secure).
 const secure = process.env.AUTH_COOKIE_SECURE === 'true';
@@ -37,8 +42,21 @@ export function setRefreshCookie(
 }
 
 export function clearRefreshCookie(res: Response): void {
-  // 삭제도 같은 domain 이어야 브라우저가 지운다.
+  // 삭제도 같은 domain 이어야 브라우저가 지운다. 힌트 쿠키도 함께 지운다.
   res.clearCookie(REFRESH_COOKIE, { path: '/', domain: cookieDomain });
+  res.clearCookie(SESSION_HINT_COOKIE, { path: '/', domain: cookieDomain });
+}
+
+/** 로그인 힌트 쿠키(읽을 수 있는 flag)를 refresh 쿠키와 같은 수명·도메인으로 세팅한다. */
+function setSessionHint(res: Response, expiresAt: Date): void {
+  res.cookie(SESSION_HINT_COOKIE, '1', {
+    httpOnly: false, // 프론트 JS 가 읽어 refresh 호출 여부를 판단한다
+    secure,
+    sameSite: secure ? 'none' : 'lax',
+    path: '/',
+    domain: cookieDomain,
+    expires: expiresAt,
+  });
 }
 
 export function readRefreshCookie(req: Request): string | undefined {
@@ -58,6 +76,7 @@ export function respondTokens(
   tokens: AuthTokens,
 ): TokenResponseDto {
   setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt);
+  setSessionHint(res, tokens.refreshExpiresAt);
   return {
     accessToken: tokens.accessToken,
     tokenType: tokens.tokenType,

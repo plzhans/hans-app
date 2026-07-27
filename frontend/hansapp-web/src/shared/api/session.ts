@@ -29,3 +29,14 @@ export async function clearSession(): Promise<void> {
   current = null;
   await clearTokens();
 }
+
+/**
+ * 로그인 힌트 쿠키(백엔드가 로그인 때 세팅한 non-httpOnly `hansapp.session` flag) 존재 여부.
+ * **이게 있을 때만** refresh 를 호출한다 — 로그아웃 상태에서 불필요한 /oauth/token 400 을 없앤다.
+ * 인증 판단이 아니라 "호출 여부" 판단용(값은 신뢰하지 않는다).
+ */
+export function hasSessionHint(): boolean {
+  return document.cookie
+    .split(';')
+    .some((c) => c.trim().startsWith('hansapp.session='));
+}
