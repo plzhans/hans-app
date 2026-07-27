@@ -85,7 +85,7 @@ export default function Login() {
         <div className="text-right">
           <Link
             to={relayLink(
-              '/auth/forgot-password',
+              '/forgot-password',
               returnTo,
               clientId,
               codeChallenge,
@@ -120,7 +120,7 @@ export default function Login() {
         계정이 없으신가요?{' '}
         <Link
           to={
-            relayLink('/auth/signup', returnTo, clientId, codeChallenge, clientState)
+            relayLink('/signup', returnTo, clientId, codeChallenge, clientState)
           }
           className="font-semibold text-primary hover:underline"
         >

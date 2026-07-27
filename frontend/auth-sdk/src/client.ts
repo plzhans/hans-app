@@ -71,7 +71,7 @@ export class HansAppAuthClient {
       code_challenge_method: 'S256',
       state,
     });
-    window.location.href = `${this.config.authWebUrl}/auth/login?${params.toString()}`;
+    window.location.href = `${this.config.authWebUrl}/login?${params.toString()}`;
   }
 
   /**

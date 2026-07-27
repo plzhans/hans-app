@@ -179,7 +179,7 @@ export async function relayCodeIfNeeded(
  */
 export function socialLoginUrl(
   provider: SocialProvider,
-  returnTo: string = `${window.location.origin}/auth/callback`,
+  returnTo: string = `${window.location.origin}/callback`,
   clientId?: string,
   codeChallenge?: string,
   clientState?: string,

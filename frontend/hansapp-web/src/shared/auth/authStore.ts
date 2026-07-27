@@ -7,9 +7,11 @@ import {
 } from '@/shared/api/auth';
 import {
   clearSession,
+  getSession,
   hydrateSession,
   setSession,
 } from '@/shared/api/session';
+import { refreshSession } from '@/shared/api/client';
 
 type Status = 'loading' | 'authenticated' | 'anonymous';
 
@@ -29,19 +31,32 @@ export const useAuthStore = create<AuthState>((set) => ({
   me: null,
 
   bootstrap: async () => {
-    const session = await hydrateSession();
+    // ① 로컬 저장 세션. 없으면 ② **1st-party 공유 refresh 쿠키(.plzhans.com)** 로 silent 시도 —
+    //    hans-auth 에서 로그인했으면 여기서 세션을 인지한다(**페이지 이동 없이** 로그인 표시). 구글식 SSO.
+    let session = await hydrateSession();
+    if (!session && (await refreshSession())) {
+      session = getSession();
+    }
     if (!session) {
       set({ status: 'anonymous', me: null });
       return;
     }
-    // 저장 세션이 있으면 낙관적으로 즉시 로그인 상태로 표시(새로고침 깜빡임 방지).
-    // 내 정보(me)는 백그라운드로 채우고, 토큰이 무효면 그때 익명으로 되돌린다.
+    // 낙관적으로 즉시 로그인 상태로 표시(새로고침 깜빡임 방지). me 는 백그라운드로 채운다.
     set({ status: 'authenticated', me: null });
     try {
       const me = await getMe();
       set({ status: 'authenticated', me });
     } catch {
-      // 토큰이 만료·무효이고 refresh 도 실패 → 익명 처리(client 가 세션을 이미 비웠다).
+      // access 만료 등 → 쿠키로 한 번 더 시도.
+      if (await refreshSession()) {
+        try {
+          const me = await getMe();
+          set({ status: 'authenticated', me });
+          return;
+        } catch {
+          // fallthrough
+        }
+      }
       await clearSession();
       set({ status: 'anonymous', me: null });
     }

@@ -15,6 +15,12 @@ export const REFRESH_COOKIE = 'refresh_token';
 // AUTH_COOKIE_SECURE=true 면 secure/none 로 올린다(기본은 개발 편의를 위해 lax/비secure).
 const secure = process.env.AUTH_COOKIE_SECURE === 'true';
 
+// 쿠키 도메인(AUTH_COOKIE_DOMAIN). **1st-party 서브도메인 세션 공유용.**
+// 예: `.plzhans.com` → plzhans.com(콘솔)·auth.plzhans.com(로그인)·api.plzhans.com 이 refresh 쿠키를 공유한다
+// (구글 `.google.com` 방식). 그래서 hans-auth 에서 로그인하면 콘솔이 리다이렉트 없이 refresh 로 세션을 인지한다.
+// 미설정이면 호스트 전용(응답 서버 도메인)으로 깔린다.
+const cookieDomain = process.env.AUTH_COOKIE_DOMAIN || undefined;
+
 export function setRefreshCookie(
   res: Response,
   token: string,
@@ -25,12 +31,14 @@ export function setRefreshCookie(
     secure,
     sameSite: secure ? 'none' : 'lax',
     path: '/',
+    domain: cookieDomain,
     expires: expiresAt,
   });
 }
 
 export function clearRefreshCookie(res: Response): void {
-  res.clearCookie(REFRESH_COOKIE, { path: '/' });
+  // 삭제도 같은 domain 이어야 브라우저가 지운다.
+  res.clearCookie(REFRESH_COOKIE, { path: '/', domain: cookieDomain });
 }
 
 export function readRefreshCookie(req: Request): string | undefined {

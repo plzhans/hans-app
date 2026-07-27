@@ -7,11 +7,14 @@ import ForgotPassword from '@/features/auth/pages/ForgotPassword';
 import Callback from '@/features/auth/pages/Callback';
 import Home from '@/features/auth/pages/Home';
 
+/** 로컬 단일 오리진에선 /auth 프리픽스 아래로 마운트한다(VITE_ROUTER_BASE). 배포(서브도메인)는 루트. */
+const ROUTER_BASE = (import.meta.env.VITE_ROUTER_BASE as string | undefined) ?? '/';
+
 /** 인증된 사용자만 접근. 미인증이면 로그인으로 보낸다. */
 function RequireAuth({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
   if (status === 'loading') return <FullScreenSpinner />;
-  if (status !== 'authenticated') return <Navigate to="/auth/login" replace />;
+  if (status !== 'authenticated') return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
@@ -19,7 +22,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 function GuestOnly({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
   if (status === 'loading') return <FullScreenSpinner />;
-  if (status === 'authenticated') return <Navigate to="/auth/me" replace />;
+  if (status === 'authenticated') return <Navigate to="/me" replace />;
   return <>{children}</>;
 }
 
@@ -32,9 +35,9 @@ function FullScreenSpinner() {
 }
 
 /**
- * HansApp **인증 포털**(hansapp-auth). plzhans 계정의 로그인 front door.
- * 모든 연동 서비스(콘솔·medifinder 등)가 로그인을 위해 여기로 리다이렉트해 온다(authorization_endpoint).
- * 앱/콘솔 기능은 담지 않는다 — 순수 로그인·가입·소셜 콜백만 둔다.
+ * HansApp **인증 포털**(hansapp-auth). plzhans 계정 로그인 front door(authorization_endpoint).
+ * 포털 자체가 auth 이므로 라우트에 /auth 프리픽스를 두지 않는다 — /login, /signup, /callback.
+ * (배포: auth.plzhans.com/login. 로컬 단일오리진: 127.0.0.1/auth/login 은 VITE_ROUTER_BASE=/auth 로 마운트.)
  */
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
@@ -43,10 +46,10 @@ export default function App() {
   }, [bootstrap]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={ROUTER_BASE}>
       <Routes>
         <Route
-          path="/auth/login"
+          path="/login"
           element={
             <GuestOnly>
               <Login />
@@ -54,7 +57,7 @@ export default function App() {
           }
         />
         <Route
-          path="/auth/signup"
+          path="/signup"
           element={
             <GuestOnly>
               <Signup />
@@ -62,7 +65,7 @@ export default function App() {
           }
         />
         <Route
-          path="/auth/forgot-password"
+          path="/forgot-password"
           element={
             <GuestOnly>
               <ForgotPassword />
@@ -70,18 +73,17 @@ export default function App() {
           }
         />
         {/* 소셜 콜백 착지점(1st-party). 백엔드가 이 경로로 code/pending 을 실어 돌려보낸다. */}
-        <Route path="/auth/callback" element={<Callback />} />
+        <Route path="/callback" element={<Callback />} />
         {/* 내 정보(로그인 필요). 포털에 직접 로그인한 사용자용. */}
         <Route
-          path="/auth/me"
+          path="/me"
           element={
             <RequireAuth>
               <Home />
             </RequireAuth>
           }
         />
-        {/* 포털 루트·미매칭은 로그인으로. */}
-        <Route path="*" element={<Navigate to="/auth/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -24,7 +24,7 @@ export async function startLogin(): Promise<void> {
     code_challenge_method: 'S256',
     state,
   });
-  window.location.href = `${AUTH_WEB_URL}/auth/login?${params.toString()}`;
+  window.location.href = `${AUTH_WEB_URL}/login?${params.toString()}`;
 }
 
 /** 콜백에서 돌아온 state 를 보관값과 대조하고 지운다(1회용). */

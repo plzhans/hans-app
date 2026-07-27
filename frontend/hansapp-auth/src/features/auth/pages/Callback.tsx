@@ -212,7 +212,7 @@ export default function Callback() {
     <AuthCard title="로그인 실패">
       <p className="text-center text-sm text-gray-600">{message}</p>
       <Link
-        to="/auth/login"
+        to="/login"
         className="mt-6 block text-center text-sm font-semibold text-primary hover:underline"
       >
         로그인으로 돌아가기

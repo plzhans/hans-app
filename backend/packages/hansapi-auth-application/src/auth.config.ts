@@ -74,9 +74,8 @@ export interface AuthConfig {
   readonly issuer?: string;
 
   /**
-   * OAuth2 authorization_endpoint. **프론트 로그인 URL**(API issuer 와 호스트가 다르다). discovery 에 실린다.
-   * 기본값은 `${APP_PUBLIC_URL}/auth/login` (프론트 base + 고정 경로 /auth/login). AUTH_AUTHORIZE_URL 로 덮어쓴다.
-   * 둘 다 없으면 authorization_endpoint 를 뺀다.
+   * OAuth2 authorization_endpoint(AUTH_AUTHORIZE_URL). **인증 포털(hans-auth) 로그인 URL**.
+   * 예: https://auth.plzhans.com/login. discovery 에 실린다. 미설정이면 authorization_endpoint 를 뺀다.
    */
   readonly authorizeUrl?: string;
 
@@ -176,13 +175,9 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
   if (issuer && !allowedIssuers.includes(issuer)) {
     allowedIssuers.push(issuer);
   }
-  // authorization_endpoint 기본값 = 프론트 base(APP_PUBLIC_URL) + 고정 로그인 경로. AUTH_AUTHORIZE_URL 로 덮어쓴다.
-  const appPublicUrl = optionalString(source, 'APP_PUBLIC_URL');
-  const authorizeUrl =
-    optionalString(source, 'AUTH_AUTHORIZE_URL') ??
-    (appPublicUrl
-      ? `${appPublicUrl.replace(/\/+$/, '')}/auth/login`
-      : undefined);
+  // authorization_endpoint = 인증 포털(hans-auth) 로그인 URL(예: https://auth.plzhans.com/login).
+  // 로그인 UI 가 별도 서브도메인(hans-auth)으로 분리돼 있어 명시 설정한다(자동 파생 없음).
+  const authorizeUrl = optionalString(source, 'AUTH_AUTHORIZE_URL');
   return Object.freeze({
     jwtSecret: requireString(source, 'AUTH_JWT_SECRET'),
     jwtKeyDir: optionalString(source, 'AUTH_JWT_KEY_DIR'),

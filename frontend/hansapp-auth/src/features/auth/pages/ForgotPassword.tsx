@@ -45,7 +45,7 @@ export default function ForgotPassword() {
   const codeChallenge = params.get('code_challenge') ?? undefined;
   const clientState = params.get('state') ?? undefined;
   const loginLink = relayLink(
-    '/auth/login',
+    '/login',
     returnTo,
     clientId,
     codeChallenge,
