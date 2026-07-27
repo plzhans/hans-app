@@ -13,8 +13,8 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: true,
-      // plzhans 인증 프론트 전용 포트(medifinder 5173 과 겹치지 않게 5273).
-      port: 5273,
+      // 콘솔 전용 포트(포털 hansapp-auth 5273, medifinder 5173 과 겹치지 않게 5274).
+      port: 5274,
       strictPort: true,
     },
     build: { outDir: 'dist' },

@@ -10,7 +10,7 @@
     "build": "tsc -b && vite build",
     "build:develop": "dotenv -e .env.develop -- vite build",
     "build:production": "dotenv -e .env.production -- vite build",
-    "preview": "vite preview --port 5273 --strictPort"
+    "preview": "vite preview --port 5274 --strictPort"
   },
   "dependencies": {
     "@capacitor/core": "^6.2.0",

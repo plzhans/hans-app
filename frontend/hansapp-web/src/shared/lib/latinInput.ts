@@ -24,5 +24,6 @@ export function latinRegister(reg: UseFormRegisterReturn): UseFormRegisterReturn
         e as unknown as ChangeEvent<HTMLInputElement>,
       );
     },
-  } as UseFormRegisterReturn;
+    // onChange 시그니처가 rhf 타입과 정확히 겹치지 않아 unknown 경유로 단언한다(런타임 동작은 동일).
+  } as unknown as UseFormRegisterReturn;
 }

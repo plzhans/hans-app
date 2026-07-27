@@ -1,29 +1,24 @@
 import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { startLogin } from '@/shared/auth/login';
 import Dashboard from '@/features/home/pages/Dashboard';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
-import Login from '@/features/auth/pages/Login';
-import Signup from '@/features/auth/pages/Signup';
-import ForgotPassword from '@/features/auth/pages/ForgotPassword';
 import Callback from '@/features/auth/pages/Callback';
-import Home from '@/features/auth/pages/Home';
 
-/** 인증된 사용자만 접근. 미인증이면 로그인으로 보낸다. */
+/**
+ * 로그인 필요 구간. 미인증이면 **로그인 포털(hansapp-auth)로 리다이렉트**한다.
+ * 콘솔은 자기 로그인 페이지가 없다 — 포털로 나갔다가 code 를 받아 /auth/callback 으로 돌아온다.
+ */
 function RequireAuth({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
-  if (status === 'loading') return <FullScreenSpinner />;
-  if (status !== 'authenticated') return <Navigate to="/auth/login" replace />;
-  return <>{children}</>;
-}
-
-/** 이미 로그인했으면 로그인/가입 페이지 대신 홈으로. */
-function GuestOnly({ children }: { children: ReactNode }) {
-  const status = useAuthStore((s) => s.status);
-  if (status === 'loading') return <FullScreenSpinner />;
-  if (status === 'authenticated') return <Navigate to="/" replace />;
-  return <>{children}</>;
+  useEffect(() => {
+    if (status === 'anonymous') void startLogin();
+  }, [status]);
+  if (status === 'authenticated') return <>{children}</>;
+  // loading 이거나 포털로 나가는 중 — 스피너.
+  return <FullScreenSpinner />;
 }
 
 function FullScreenSpinner() {
@@ -35,11 +30,8 @@ function FullScreenSpinner() {
 }
 
 /**
- * HansApp 포털 웹. plzhans 계정의 front door(모든 연동 서비스의 인증 기반).
- *  - /          공개 랜딩(GNB + 로그인 + 서비스 바로가기)
- *  - /auth/*    로그인 관련(로그인·가입·소셜 콜백)
- *  - /auth/me   내 정보(로그인 필요)
- *  - /console/* 앱 콘솔(추후)
+ * HansApp **개발자 콘솔**(hansapp-web). 앱/OAuth 클라이언트 등록·관리.
+ * 로그인 UI 는 담지 않는다 — 로그인은 포털(hansapp-auth)의 OAuth 클라이언트로 위임한다.
  */
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
@@ -50,45 +42,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 로그인 관련 (/auth) */}
-        <Route
-          path="/auth/login"
-          element={
-            <GuestOnly>
-              <Login />
-            </GuestOnly>
-          }
-        />
-        <Route
-          path="/auth/signup"
-          element={
-            <GuestOnly>
-              <Signup />
-            </GuestOnly>
-          }
-        />
-        <Route
-          path="/auth/forgot-password"
-          element={
-            <GuestOnly>
-              <ForgotPassword />
-            </GuestOnly>
-          }
-        />
-        {/* 소셜 콜백 착지점. 백엔드가 이 경로로 code/pending 을 실어 돌려보낸다. */}
+        {/* 포털에서 code 를 실어 돌아오는 착지점(콘솔 = OAuth 클라이언트) */}
         <Route path="/auth/callback" element={<Callback />} />
-
-        {/* 내 정보(로그인 필요) */}
-        <Route
-          path="/auth/me"
-          element={
-            <RequireAuth>
-              <Home />
-            </RequireAuth>
-          }
-        />
-
-        {/* 앱 관리(로그인 필요) — HansAPI 클라이언트 등록·시크릿 발급 */}
+        {/* 공개 대시보드 */}
+        <Route path="/" element={<Dashboard />} />
+        {/* 앱 관리(로그인 필요) */}
         <Route
           path="/apps"
           element={
@@ -105,9 +63,6 @@ export default function App() {
             </RequireAuth>
           }
         />
-
-        {/* 공개 대시보드(포털 첫 페이지) */}
-        <Route path="/" element={<Dashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { startLogin } from '@/shared/auth/login';
 import { LINKS } from '@/shared/config/links';
 
 const MENU = [
@@ -61,12 +62,13 @@ export function Gnb() {
               </button>
             </>
           ) : (
-            <Link
-              to="/auth/login"
+            <button
+              type="button"
+              onClick={() => void startLogin()}
               className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
             >
               로그인
-            </Link>
+            </button>
           )}
         </div>
       </div>
