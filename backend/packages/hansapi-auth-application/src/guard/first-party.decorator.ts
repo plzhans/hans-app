@@ -8,7 +8,7 @@ export const FIRST_PARTY_ONLY_KEY = 'firstPartyOnly';
  *
  * 대상은 client_id 로 인증하지 않는 흐름 — 로그인·가입·토큰 교환처럼 **refresh 쿠키**를
  * 세팅/사용하는 것들이다. 여긴 대조할 client_id 가 없으므로 client 별 origins 대신
- * AUTH_ALLOWED_ORIGINS 화이트리스트로 검사한다.
+ * 서비스 루트 도메인(APP_ROOT_DOMAIN) 범위로 검사한다.
  *
  * @Public() 라우트에도 적용된다(인증은 건너뛰되 오리진은 본다).
  * Origin 헤더가 없는 요청(서버·curl·네이티브)은 CORS 대상이 아니므로 통과시킨다.

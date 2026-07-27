@@ -8,7 +8,9 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
-import { ALLOWED_ORIGINS } from '../auth.config';
+import { AUTH_CONFIG } from '../auth.config';
+import type { AuthConfig } from '../auth.config';
+import { isFirstPartyOrigin } from '../first-party-origin';
 import { FIRST_PARTY_ONLY_KEY } from './first-party.decorator';
 
 /**
@@ -19,7 +21,7 @@ import { FIRST_PARTY_ONLY_KEY } from './first-party.decorator';
  *
  * - 표시 없는 라우트: 통과(관여하지 않음)
  * - Origin 없음(서버·curl·네이티브): 통과 — 브라우저 교차출처 위협이 아니다
- * - Origin 있음: AUTH_ALLOWED_ORIGINS 에 있어야 통과, 아니면 403
+ * - Origin 있음: 서비스 루트 도메인(APP_ROOT_DOMAIN) 범위여야 통과, 아니면 403
  *
  * client_id 가 실리는 API 라우트의 오리진 검사는 여기가 아니라 ApiAccessService 가 한다
  * (그 클라이언트에 등록된 origins 와 정확히 대조).
@@ -28,7 +30,7 @@ import { FIRST_PARTY_ONLY_KEY } from './first-party.decorator';
 export class FirstPartyGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    @Inject(ALLOWED_ORIGINS) private readonly allowedOrigins: readonly string[],
+    @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -41,7 +43,7 @@ export class FirstPartyGuard implements CanActivate {
     }
 
     const origin = context.switchToHttp().getRequest<Request>().headers.origin;
-    if (origin && !this.allowedOrigins.includes(origin)) {
+    if (origin && !isFirstPartyOrigin(origin, this.config.rootDomain)) {
       throw new ForbiddenException('Origin not allowed.');
     }
     return true;

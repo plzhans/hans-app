@@ -15,6 +15,7 @@ import {
 } from './token/crypto.util';
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
+import { isFirstPartyOrigin } from './first-party-origin';
 import { RequestMeta } from './auth.service';
 import { ActionLogService } from './log/action-log.service';
 import { UserRepository } from './repository/user.repository';
@@ -72,8 +73,8 @@ export class OAuthTokenService {
       return this.tokens.issueAuthCode(userId, client.clientId, challenge);
     }
 
-    // 1st-party(hansapp-web): 자기 자신은 클라이언트로 등록하지 않으므로 전역 허용목록을 본다.
-    if (!this.config.allowedOrigins.includes(origin)) {
+    // 1st-party(hansapp-web): 자기 자신은 클라이언트로 등록하지 않으므로 서비스 루트 도메인으로 판별한다.
+    if (!isFirstPartyOrigin(origin, this.config.rootDomain)) {
       throw new BadRequestException('redirect_uri not allowed.');
     }
     return this.tokens.issueAuthCode(userId, null, challenge);
@@ -87,7 +88,7 @@ export class OAuthTokenService {
    * 그 값을 아는 것 자체가 자격이라 브라우저가 대신 붙여주지 않는다.
    */
   assertFirstPartyOrigin(origin?: string): void {
-    if (origin && !this.config.allowedOrigins.includes(origin)) {
+    if (origin && !isFirstPartyOrigin(origin, this.config.rootDomain)) {
       throw new ForbiddenException('Origin not allowed.');
     }
   }
@@ -106,7 +107,7 @@ export class OAuthTokenService {
       return;
     }
     if (!clientId) {
-      if (!this.config.allowedOrigins.includes(origin)) {
+      if (!isFirstPartyOrigin(origin, this.config.rootDomain)) {
         throw new ForbiddenException('Origin not allowed.');
       }
       return;

@@ -7,6 +7,7 @@ import { config } from 'dotenv';
 import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
 import { exitIfVersionFlag, loadEnv, resolveAppEnv } from '@hansapi/common';
+import { isFirstPartyOrigin } from '@hansapi/auth-application';
 
 import { AppModule } from './app.module';
 import { HttpErrorFilter } from './common/http-error.filter';
@@ -58,17 +59,15 @@ async function bootstrap() {
   // refresh token 은 httpOnly 쿠키로 오간다. 쿠키 파싱을 켠다(/oauth/token refresh grant 가 읽음).
   app.use(cookieParser());
 
-  // 인증 프론트(plzhans.com 등) 오리진 허용 목록. 로그인/가입은 토큰 없이 호출되므로
-  // 'test' 토큰 규칙으로는 통과할 수 없다 — 명시적 allowlist(env, 콤마구분)로 허용한다.
-  //   AUTH_ALLOWED_ORIGINS=http://localhost:5173,https://plzhans.com
-  const authAllowedOrigins = (envSource.get('AUTH_ALLOWED_ORIGINS') ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // 1st-party(자사) 판별 기준 = 서비스 루트 도메인(APP_ROOT_DOMAIN). 자사 오리진은 credentials(쿠키)를
+  // 허용한다. 별도 오리진 목록을 두지 않는다 — rootDomain 범위(자신·서브도메인)면 자사, 미설정(로컬)이면
+  // 루프백만 자사. isFirstPartyOrigin 이 소셜 가드·FirstPartyGuard·토큰 서비스와 동일 규칙을 공유한다.
+  const rootDomain =
+    envSource.get('APP_ROOT_DOMAIN')?.replace(/^\./, '').trim() || undefined;
 
   // CORS. **인가가 아니라 최소 관문**이다 — 실제 검증(키/클라 status·오리진)은 AuthGuard 가 한다.
   //  - Origin 없음(서버·curl·네이티브): CORS 대상 아님 → 통과
-  //  - 1st-party(AUTH_ALLOWED_ORIGINS): 통과 + credentials(refresh 쿠키가 오가야 함)
+  //  - 1st-party(APP_ROOT_DOMAIN 범위): 통과 + credentials(refresh 쿠키가 오가야 함)
   //  - 그 외: 인증 헤더를 실을 요청만 통과. 쿠키는 안 준다(credentials 없음 → 타 사이트가
   //          쿠키를 실어 /oauth/token 을 호출해 응답을 읽는 것을 브라우저가 막는다).
   //  프리플라이트는 헤더 "이름"만 예고하므로 access-control-request-headers 를 같이 본다.
@@ -89,7 +88,7 @@ async function bootstrap() {
         return;
       }
 
-      if (authAllowedOrigins.includes(origin)) {
+      if (isFirstPartyOrigin(origin, rootDomain)) {
         callback(null, {
           origin,
           credentials: true,

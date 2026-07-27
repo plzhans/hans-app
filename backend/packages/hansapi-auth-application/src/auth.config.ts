@@ -15,12 +15,6 @@ export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
 export const ACCESS_CACHE_CONFIG = Symbol('ACCESS_CACHE_CONFIG');
 
 /**
- * 1st-party 허용 오리진 목록 주입 토큰(= AuthConfig.allowedOrigins).
- * FirstPartyGuard 는 설정 전체가 아니라 이 목록만 받는다.
- */
-export const ALLOWED_ORIGINS = Symbol('ALLOWED_ORIGINS');
-
-/**
  * API 접근 캐시(서비스 키·클라이언트) TTL. 인증마다 DB 를 때리지 않으려는 2단 캐시의 설정이다.
  *   프로세스 메모리(memoryTtlSec) → 공유 캐시 Redis(sharedTtlSec) → DB
  *
@@ -100,11 +94,6 @@ export interface AuthConfig {
 
   /** API 접근 캐시(서비스 키·클라이언트) TTL 설정. */
   readonly accessCache: AccessCacheConfig;
-
-  /**
-   * 허용 오리진 목록(AUTH_ALLOWED_ORIGINS). CORS 에 쓴다.
-   */
-  readonly allowedOrigins: readonly string[];
 
   /**
    * 서비스 루트 도메인(APP_ROOT_DOMAIN, 예: `plzhans.com`, 앞 점 없이). **설정 하나로 파생되는 값들:**
@@ -225,10 +214,6 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
       'AUTH_WITHDRAWAL_RETENTION_DAYS',
       30,
     ),
-    allowedOrigins: (optionalString(source, 'AUTH_ALLOWED_ORIGINS') ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
     // 앞 점(.)은 있어도 무시되지만, 루트 도메인 개념엔 점 없는 형태가 자연스러워 제거해 정규화한다.
     rootDomain: optionalString(source, 'APP_ROOT_DOMAIN')?.replace(/^\./, ''),
     bcryptRounds: optionalNumber(source, 'AUTH_BCRYPT_ROUNDS', 10),

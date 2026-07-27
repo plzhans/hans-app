@@ -6,7 +6,6 @@ import { DataModule } from '@hansapi/data';
 
 import {
   ACCESS_CACHE_CONFIG,
-  ALLOWED_ORIGINS,
   AUTH_CONFIG,
   buildAuthConfig,
 } from './auth.config';
@@ -88,8 +87,6 @@ export class AuthModule {
         MailService,
         // AccessCache 는 설정 전체가 아니라 캐시 TTL 조각만 받는다.
         { provide: ACCESS_CACHE_CONFIG, useValue: config.accessCache },
-        // FirstPartyGuard 는 오리진 목록만 받는다.
-        { provide: ALLOWED_ORIGINS, useValue: config.allowedOrigins },
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         UserRepository,
         UserOAuthRepository,
