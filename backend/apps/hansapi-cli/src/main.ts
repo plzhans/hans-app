@@ -8,8 +8,8 @@ import {
   APP_ENVS,
   DEFAULT_APP_ENV,
   EnvSource,
+  createConfigSource,
   exitIfVersionFlag,
-  loadEnv,
   resolveAppEnv,
 } from '@hansapi/common';
 
@@ -42,7 +42,9 @@ function bootstrapEnv(): EnvSource {
   const appEnv = resolveAppEnv(explicit);
   // 자식 프로세스(prisma)도 같은 환경을 보도록 물려준다.
   process.env.APP_ENV = appEnv;
-  return loadEnv(__dirname, appEnv, config);
+  // ConfigSource 로 만든다(EnvSource 를 확장). 커맨드는 EnvSource 로 받아 그대로 쓰고,
+  // getX 가 필요한 계층만 경계에서 asConfigSource 로 좁힌다.
+  return createConfigSource(__dirname, appEnv, config);
 }
 
 // --version 이면 버전만 찍고 끝낸다.

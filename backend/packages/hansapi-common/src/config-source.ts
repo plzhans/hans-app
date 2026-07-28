@@ -34,6 +34,23 @@ export interface ConfigSource extends EnvSource {
   getBoolOrDefault(path: string, fallback: boolean): boolean;
 }
 
+/**
+ * EnvSource 를 ConfigSource 로 좁힌다. **루트가 createConfigSource 로 만든 설정**을
+ * EnvSource 타입으로 전달받은 계층이, getX 를 쓰려고 되돌릴 때 쓴다(주입 타입은 아직
+ * EnvSource 라 곳곳을 안 바꿔도 되게 하는 이전용 다리다).
+ *
+ * 런타임 객체가 실제 ConfigSource 인지 확인해, 아니면(루트가 옛 loadEnv 로 만든 경우) 즉시
+ * 실패한다 — 조용히 잘못된 값을 읽느니 부팅을 못 하게 한다.
+ */
+export function asConfigSource(source: EnvSource): ConfigSource {
+  if (typeof (source as Partial<ConfigSource>).getString !== 'function') {
+    throw new Error(
+      'ConfigSource 가 아니다 — 루트에서 createConfigSource 로 설정을 만들어야 한다',
+    );
+  }
+  return source as ConfigSource;
+}
+
 /** 'a.b.c' / 'a:b:c' 경로를 따라 tree 를 내려간다. */
 function getByPath(tree: unknown, path: string): unknown {
   return path

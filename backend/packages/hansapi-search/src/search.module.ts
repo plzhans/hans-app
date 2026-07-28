@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { EnvSource } from '@hansapi/common';
+import { EnvSource, asConfigSource } from '@hansapi/common';
 
 import { buildSearchConfig, SEARCH_CONFIG } from './search.config';
 import { ElasticsearchService } from './elasticsearch.service';
@@ -14,7 +14,8 @@ import { HealthcareHospitalIndexer } from './healthcare-hospital/healthcare-hosp
  * (그쪽이 이 모듈의 HealthcareHospitalIndexer 를 주입받아 문서를 밀어 넣는다), 조회는 application
  * 계층이 ElasticsearchService 로 직접 한다.
  *
- * 설정은 forRoot 로 받은 EnvSource 에서 이 계층이 직접 뽑아 검증한다(ES 노드 없으면 부팅 실패).
+ * 설정은 forRoot 로 받은 설정에서 이 계층이 직접 뽑아 검증한다(ES 노드 없으면 부팅 실패).
+ * 주입 타입은 아직 EnvSource 지만 런타임 객체는 ConfigSource 라, getX 를 쓰려고 여기서 좁힌다.
  */
 @Module({})
 export class SearchModule {
@@ -22,7 +23,10 @@ export class SearchModule {
     return {
       module: SearchModule,
       providers: [
-        { provide: SEARCH_CONFIG, useValue: buildSearchConfig(source) },
+        {
+          provide: SEARCH_CONFIG,
+          useValue: buildSearchConfig(asConfigSource(source)),
+        },
         ElasticsearchService,
         SearchSchemaService,
         HealthcareHospitalIndexer,

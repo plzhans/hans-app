@@ -4,7 +4,11 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { config } from 'dotenv';
-import { exitIfVersionFlag, loadEnv, resolveAppEnv } from '@hansapi/common';
+import {
+  createConfigSource,
+  exitIfVersionFlag,
+  resolveAppEnv,
+} from '@hansapi/common';
 import { describeError } from '@hansapi/admin-application';
 
 import { AppModule } from './app.module';
@@ -28,7 +32,9 @@ async function bootstrap(): Promise<void> {
 
   const appEnv = resolveAppEnv();
   process.env.APP_ENV = appEnv;
-  const source = loadEnv(__dirname, appEnv, config);
+  // ConfigSource 로 만든다(EnvSource 를 확장). 하위 계층은 EnvSource 로 받아 그대로 쓰고,
+  // getX 가 필요한 계층만 경계에서 asConfigSource 로 좁힌다.
+  const source = createConfigSource(__dirname, appEnv, config);
 
   const once = process.argv.includes('--once');
   const force = process.argv.includes('--force');

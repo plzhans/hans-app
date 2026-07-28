@@ -1,9 +1,4 @@
-import {
-  EnvSource,
-  optionalNumber,
-  optionalString,
-  requireString,
-} from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 
 /** 검색(Elasticsearch) 설정 주입 토큰 */
 export const SEARCH_CONFIG = Symbol('SEARCH_CONFIG');
@@ -42,15 +37,19 @@ export interface SearchConfig {
 }
 
 /**
- * EnvSource 에서 검색 설정을 뽑아 검증한다.
+ * 설정에서 검색 설정을 뽑아 검증한다.
  * ES 노드가 없으면 부팅 시점에 즉시 실패한다 — 색인을 시도하는 순간이 아니라.
+ *
+ * 접속 URL(node)은 시크릿이라 .env(ELASTICSEARCH_URL)로 주입되고, schemaDir 은 비밀 아닌
+ * 값이라 config/<환경>.yaml(elasticsearchSchemaDir) 또는 환경변수로 준다. getX 가 둘을 한
+ * 트리에서 경로로 읽는다(ELASTICSEARCH_URL → elasticsearchUrl 등 __/camelCase 규칙).
  */
-export function buildSearchConfig(source: EnvSource): SearchConfig {
+export function buildSearchConfig(cfg: ConfigSource): SearchConfig {
   return Object.freeze({
-    node: requireString(source, 'ELASTICSEARCH_URL'),
-    // 인덱스 접두사로 쓸 환경 이름. Redis 키 namespace 와 같은 값(source.env)이라 격리가 한 스위치로 묶인다.
-    env: source.env,
-    batchSize: optionalNumber(source, 'ELASTICSEARCH_BATCH_SIZE', 1000),
-    schemaDir: optionalString(source, 'ELASTICSEARCH_SCHEMA_DIR'),
+    node: cfg.getString('elasticsearchUrl'),
+    // 인덱스 접두사로 쓸 환경 이름. Redis 키 namespace 와 같은 값(cfg.env)이라 격리가 한 스위치로 묶인다.
+    env: cfg.env,
+    batchSize: cfg.getNumberOrDefault('elasticsearchBatchSize', 1000),
+    schemaDir: cfg.getStringOrDefault('elasticsearchSchemaDir') || undefined,
   });
 }
