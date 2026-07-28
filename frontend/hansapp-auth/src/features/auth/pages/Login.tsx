@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { emailLogin, relayCodeIfNeeded } from '@/shared/api/auth';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { isAllowedReturn } from '@/shared/auth/returnTo';
+import { isFirstPartyReturn } from '@/shared/auth/returnTo';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { AuthCard } from '../components/AuthCard';
@@ -64,7 +64,7 @@ export default function Login() {
       }
       // ② 1st-party return(자사 앱, 쿠키 SSO) → code 없이 그 앱으로 복귀. 앱이 공유 쿠키로 세션 인지.
       //    이메일 로그인은 왕복이 없어 URL 의 return 을 바로 쓴다(허용 오리진만, open-redirect 방지).
-      if (appReturn && isAllowedReturn(appReturn)) {
+      if (appReturn && isFirstPartyReturn(appReturn)) {
         window.location.href = appReturn;
         return;
       }
