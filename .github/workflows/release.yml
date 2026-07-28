@@ -1,28 +1,111 @@
-# 릴리스를 자동으로 낸다 (release-please).
+# 버전·CHANGELOG·태그·GitHub 릴리스를 만들고, **릴리스된 판만** 운영에 배포한다.
 #
-# main 에 커밋이 쌓이면 release-please 가 "다음 버전은 이것" 이라는 Release PR 을 열어
-# 둔다. 그 PR 을 머지하는 순간이 릴리스다 - 봇이 package.json 버전을 올리고, CHANGELOG 를
-# 쓰고, release/vX.Y.Z 태그와 GitHub 릴리스를 만든다. 버전은 커밋 메시지에서 정해진다
-# (feat → minor, fix → patch, ! → major. DEVELOP.md 의 "커밋 규약" 참고).
+# 사람이 하는 일은 Release PR 을 머지하는 것 하나다. 나머지는 전부 여기서 이어진다.
+# 배경과 절차는 docs/release.md.
 #
-# 저장소 전체가 하나의 버전이다(단일 패키지 `.`). 앱별 빌드·배포는 be-build-test.yml·
-# fe-*.yml 이 따로 맡는다 - 이 파일은 버전·CHANGELOG·태그·릴리스만 만든다.
-name: Release
+#   main push        → 버전 계산 → Release PR 을 열거나 갱신 (릴리스는 아직 안 낸다)
+#   Release PR 머지  → 버전 커밋·태그·GitHub 릴리스 → 그 판만 production 배포
+#
+# 판은 backend·frontend 둘이고, 봇은 **커밋이 바꾼 파일 경로**로 판을 가른다.
+# frontend 만 고친 커밋은 frontend 만 올리고 frontend 만 배포된다.
+name: release · version, tag, production deploy
 
 on:
   push:
     branches: [main]
+  # 봇이 놓쳤거나 손으로 다시 돌리고 싶을 때. 입력은 없다 — 무엇을 낼지는 커밋이 정한다.
+  workflow_dispatch:
 
-# 봇이 Release PR 을 열고, 머지 커밋에서 태그·릴리스를 만들 수 있어야 한다.
+# 릴리스는 저장소에 커밋과 태그를 쓴다. 두 실행이 겹치면 어느 쪽이 이겼는지 알 수 없다.
+# 앞의 것을 죽이지도 않는다 — 태그를 반쯤 만든 채로 끊기는 게 더 나쁘다.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+# 저장소 기본 권한으로는 PR 도 태그도 못 만든다. 여기서 실행 단위로만 올린다.
+# 저장소 쪽에도 한 번 켜 줄 설정이 있다 — docs/github.md 의 "Actions Workflow 권한 설정".
 permissions:
-  contents: write
-  pull-requests: write
+  contents: write # 버전 커밋 · 태그 · GitHub 릴리스
+  pull-requests: write # Release PR
 
 jobs:
-  release_please:
+  release:
     runs-on: ubuntu-latest
+    outputs:
+      # 이번 실행에서 릴리스가 **실제로** 만들어졌는지. PR 만 갱신하고 끝난 실행은 false 다.
+      created: ${{ steps.rp.outputs.releases_created }}
+      # 릴리스된 판의 경로 목록. 예: ["frontend"] · ["backend","frontend"]
+      #
+      # 이 이름을 배포 대상 경로와 같게 맞춰 뒀다(release-please-config.json 의 packages).
+      # 그래서 태그 이름(release-frontend/v0.2.0)을 파싱해 경로로 되돌리는 변환표가 없다.
+      paths: ${{ steps.rp.outputs.paths_released }}
     steps:
       - uses: googleapis/release-please-action@v4
+        id: rp
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          # 기본 GITHUB_TOKEN 을 쓴다. 만료 없는 PAT 을 저장소에 상주시키지 않는다 —
+          # 그 판단의 배경은 docs/github.md 에 적혀 있다.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 릴리스가 만들어졌으면 그 판을 운영에 올린다.
+  #
+  # **태그 push 로 트리거하지 않는다.** 봇이 기본 GITHUB_TOKEN 으로 태그를 만들기 때문에
+  # 그 push 는 다른 워크플로를 깨우지 않는다(무한 루프 방지). on: push tags 나 on: release
+  # 로 짜면 문법은 맞는데 아무 일도 일어나지 않는다. 그래서 같은 실행 안에서 이어 붙인다.
+  #
+  # 배포 방법은 여기 없다. fe-deploy.yml 이 알고, 그것도 결국 frontend/ci-deploy.sh 를 부른다.
+  # ───────────────────────────────────────────────────────────────────────────
+  # ── 1·2단계: 먼저 **전부 빌드한다.** 하나라도 깨지면 아무것도 배포되지 않는다.
+  #
+  # 이 단계가 없으면 backend 를 올린 뒤 frontend 빌드가 깨져 운영이 반쪽만 갱신된 채
+  # 남는다. 배포를 되돌리는 것보다 안 나가게 막는 쪽이 싸다.
+  #
+  # 산출물을 아티팩트로 넘기지 않고 배포 단계가 다시 빌드한다. 빌드가 결정적이고
+  # (커밋 + frozen lockfile) 릴리스는 드물어서, 배관을 늘리는 것보다 한 번 더 빌드하는
+  # 쪽이 싸다는 판단이다. 빌드가 느려지거나 비결정적이 되면 그때 아티팩트로 옮긴다.
+  verify-frontend:
+    needs: release
+    if: >-
+      needs.release.outputs.created == 'true' &&
+      contains(fromJSON(needs.release.outputs.paths || '[]'), 'frontend')
+    uses: ./.github/workflows/fe-deploy.yml
+    permissions:
+      contents: read
+      packages: read # node-builder 툴체인 이미지를 GHCR 에서 받는다
+    secrets: inherit
+    with:
+      environment: production
+      target: all
+      build_only: true
+  # TODO: verify-backend. 같은 자리에 `contains(..., 'backend')` 로 붙인다.
+
+  # ── 3·4단계: 배포. backend 가 먼저 나가고 frontend 가 따라간다.
+  #
+  # 그 순서인 이유는 새 UI 가 아직 없는 API 를 부르는 일이 없게 하기 위해서다.
+  # 대신 backend 는 한 릴리스 동안 옛 프론트와 호환되어야 한다.
+  #
+  # TODO: deploy-backend. needs 에 verify-* 를 전부 넣고, deploy-frontend 가 이것을
+  #       needs 로 받는다. 운영 재시작이 따르므로 GitHub Environment 'production' 에
+  #       Required reviewers 를 걸어 승인 뒤 나가게 한다.
+  #
+  #       그때 아래 if 도 손봐야 한다 — needs 에 든 잡이 하나라도 skipped 면 이 잡도
+  #       통째로 건너뛴다. backend 만 릴리스된 실행에서 verify-frontend 는 skipped 이므로,
+  #       fe-deploy.yml 의 deploy 잡이 쓰는 `always() && result != 'failure'` 형태가 필요하다.
+  deploy-frontend:
+    needs: [release, verify-frontend]
+    if: >-
+      needs.release.outputs.created == 'true' &&
+      contains(fromJSON(needs.release.outputs.paths || '[]'), 'frontend')
+    uses: ./.github/workflows/fe-deploy.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      environment: production
+      # 프론트 넷은 버전이 하나다. 하나만 골라 올리면 나머지가 이전 버전으로 남아
+      # "운영에 뜬 게 몇 버전인가" 에 답할 수 없게 된다. 릴리스 때는 전부 나간다.
+      target: all

@@ -1,5 +1,6 @@
 {
   "name": "hans-api",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.10.0",
   "scripts": {

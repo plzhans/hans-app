@@ -1,25 +1,39 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": true,
+  "tag-separator": "/",
+  "include-v-in-tag": true,
+  "separate-pull-requests": false,
+  "pull-request-title-pattern": "chore: release ${branch}",
+  "changelog-sections": [
+    { "type": "feat", "section": "기능" },
+    { "type": "fix", "section": "버그 수정" },
+    { "type": "perf", "section": "성능" },
+    { "type": "refactor", "section": "구조 변경" },
+    { "type": "docs", "section": "문서" },
+    { "type": "ci", "section": "빌드·배포", "hidden": true },
+    { "type": "build", "section": "빌드·배포", "hidden": true },
+    { "type": "chore", "section": "그 밖", "hidden": true },
+    { "type": "test", "section": "테스트", "hidden": true }
+  ],
   "packages": {
-    ".": {
-      "release-type": "node",
-      "component": "release",
-      "include-component-in-tag": true,
-      "tag-separator": "/",
-      "include-v-in-tag": true,
-      "changelog-path": "CHANGELOG.md",
-      "changelog-sections": [
-        { "type": "feat", "section": "기능" },
-        { "type": "fix", "section": "버그 수정" },
-        { "type": "perf", "section": "성능" },
-        { "type": "refactor", "section": "구조 변경" },
-        { "type": "docs", "section": "문서" },
-        { "type": "ci", "section": "빌드·배포", "hidden": true },
-        { "type": "build", "section": "빌드·배포", "hidden": true },
-        { "type": "chore", "section": "그 밖", "hidden": true },
-        { "type": "test", "section": "테스트", "hidden": true }
+    "backend": {
+      "component": "release-backend",
+      "extra-files": [
+        { "type": "json", "path": "apps/hansapi-server/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/hansapi-cli/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/hansapi-batch/package.json", "jsonpath": "$.version" }
+      ]
+    },
+    "frontend": {
+      "component": "release-frontend",
+      "extra-files": [
+        { "type": "json", "path": "hansapp-web/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "hansapp-auth/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "hansapp-docs/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "medifinder-web/package.json", "jsonpath": "$.version" }
       ]
     }
-  },
-  "pull-request-title-pattern": "chore${scope}: ${component} ${version}"
+  }
 }
