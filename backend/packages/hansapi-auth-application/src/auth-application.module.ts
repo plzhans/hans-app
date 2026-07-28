@@ -1,7 +1,7 @@
 import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { EnvSource } from '@hansapi/common';
+import { EnvSource, asConfigSource } from '@hansapi/common';
 import { DataModule } from '@hansapi/data';
 
 import {
@@ -56,9 +56,11 @@ import { LineStrategy } from './social/strategies/line.strategy';
 @Module({})
 export class AuthModule {
   static forRoot(source: EnvSource): DynamicModule {
-    const config = buildAuthConfig(source);
-    const mailConfig = buildMailConfig(source);
-    const otpConfig = buildOtpConfig(source);
+    // 런타임 객체는 ConfigSource(루트가 createConfigSource 로 만듦). getX 를 쓰는 빌더용으로 좁힌다.
+    const cfg = asConfigSource(source);
+    const config = buildAuthConfig(cfg);
+    const mailConfig = buildMailConfig(cfg);
+    const otpConfig = buildOtpConfig(cfg);
 
     // 설정된 소셜 provider 의 전략만 등록한다(키가 없으면 전략을 만들지 않는다 → 서버는 그대로 뜬다).
     const strategyProviders: Provider[] = [];

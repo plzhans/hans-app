@@ -4,6 +4,7 @@ import {
   optionalString,
   requireString,
 } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 
 /** 메일 설정 주입 토큰. */
 export const MAIL_CONFIG = Symbol('MAIL_CONFIG');
@@ -34,17 +35,18 @@ export interface OtpConfig {
 }
 
 /** EnvSource 에서 OTP 정책을 뽑는다. 전부 기본값이 있어 미설정이어도 동작한다. */
-export function buildOtpConfig(source: EnvSource): OtpConfig {
+export function buildOtpConfig(source: ConfigSource): OtpConfig {
+  // 정책 값(비밀 아님)은 getX 로 — config/<환경>.yaml 또는 환경변수.
+  // hashSecret 만 시크릿이라 .env 로 두고 기존 방식 유지(없으면 AUTH_JWT_SECRET 재사용).
   return Object.freeze({
-    codeLength: optionalNumber(source, 'MAIL_OTP_CODE_LENGTH', 6),
-    ttlSec: optionalNumber(source, 'MAIL_OTP_TTL_SEC', 600),
-    maxAttempts: optionalNumber(source, 'MAIL_OTP_MAX_ATTEMPTS', 5),
-    resendCooldownSec: optionalNumber(
-      source,
-      'MAIL_OTP_RESEND_COOLDOWN_SEC',
+    codeLength: source.getNumberOrDefault('mailOtpCodeLength', 6),
+    ttlSec: source.getNumberOrDefault('mailOtpTtlSec', 600),
+    maxAttempts: source.getNumberOrDefault('mailOtpMaxAttempts', 5),
+    resendCooldownSec: source.getNumberOrDefault(
+      'mailOtpResendCooldownSec',
       60,
     ),
-    maxSendsPerHour: optionalNumber(source, 'MAIL_OTP_MAX_SENDS_PER_HOUR', 5),
+    maxSendsPerHour: source.getNumberOrDefault('mailOtpMaxSendsPerHour', 5),
     hashSecret:
       optionalString(source, 'MAIL_OTP_HASH_SECRET') ??
       requireString(source, 'AUTH_JWT_SECRET'),
@@ -109,7 +111,9 @@ function optionalBool(
  * EnvSource 에서 메일 설정을 뽑는다. SMTP host 가 없으면 smtp=null(발송 비활성)로 둔다.
  * 나머지 브랜딩 값(from/appName/appUrl)은 기본값을 갖는다.
  */
-export function buildMailConfig(source: EnvSource): MailConfig {
+export function buildMailConfig(source: ConfigSource): MailConfig {
+  // SMTP 접속(host·user·password 등)은 시크릿·인프라라 .env 로 두고 기존 방식 유지.
+  // 브랜딩 값(from·appName·appUrl)은 비밀 아님 → getX 로 config/<환경>.yaml 관리 가능.
   const host = optionalString(source, 'MAIL_SMTP_HOST');
 
   const smtp: SmtpConfig | null = host
@@ -124,10 +128,12 @@ export function buildMailConfig(source: EnvSource): MailConfig {
 
   return Object.freeze({
     smtp,
-    from:
-      optionalString(source, 'MAIL_FROM') ?? 'HansApp <no-reply@plzhans.com>',
-    // 아래 둘은 메일 전용이 아니라 서비스 공통 값(APP_*)이다 — 메일은 참조만 한다.
-    appName: optionalString(source, 'APP_NAME') ?? 'HansApp',
-    appUrl: optionalString(source, 'APP_PUBLIC_URL') ?? 'https://plzhans.com',
+    from: source.getStringOrDefault(
+      'mailFrom',
+      'HansApp <no-reply@plzhans.com>',
+    ),
+    // 아래 둘은 메일 전용이 아니라 서비스 공통 값(appName·appPublicUrl)이다 — 메일은 참조만 한다.
+    appName: source.getStringOrDefault('appName', 'HansApp'),
+    appUrl: source.getStringOrDefault('appPublicUrl', 'https://plzhans.com'),
   });
 }

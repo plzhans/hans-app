@@ -1,9 +1,5 @@
-import {
-  EnvSource,
-  optionalNumber,
-  optionalString,
-  requireString,
-} from '@hansapi/common';
+import { EnvSource, optionalString, requireString } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 
 /** 인증 설정 주입 토큰 */
 export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
@@ -162,10 +158,13 @@ function readKakaoCredentials(
  * EnvSource 에서 인증 설정을 뽑아 검증한다.
  * JWT_SECRET 이 없으면 부팅 시점에 즉시 실패한다.
  */
-export function buildAuthConfig(source: EnvSource): AuthConfig {
-  const issuer = optionalString(source, 'AUTH_ISSUER');
-  // 허용 발급처 = AUTH_ALLOWED_ISSUERS(콤마구분) + 자기 issuer(자동 포함).
-  const allowedIssuers = (optionalString(source, 'AUTH_ALLOWED_ISSUERS') ?? '')
+export function buildAuthConfig(source: ConfigSource): AuthConfig {
+  // 비밀 아닌 값은 경로 게터(getX)로 읽는다 — config/<환경>.yaml 또는 환경변수(AUTH_ISSUER 등).
+  // 시크릿(jwtSecret·oauth 자격증명)은 .env 로 두고 기존 방식(requireString/optionalString) 그대로.
+  const issuer = source.getStringOrDefault('authIssuer') || undefined;
+  // 허용 발급처 = authAllowedIssuers(콤마구분) + 자기 issuer(자동 포함).
+  const allowedIssuers = source
+    .getStringOrDefault('authAllowedIssuers')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
@@ -174,49 +173,43 @@ export function buildAuthConfig(source: EnvSource): AuthConfig {
   }
   // authorization_endpoint = 인증 포털(hans-auth) 로그인 URL(예: https://auth.plzhans.com/login).
   // 로그인 UI 가 별도 서브도메인(hans-auth)으로 분리돼 있어 명시 설정한다(자동 파생 없음).
-  const authorizeUrl = optionalString(source, 'AUTH_AUTHORIZE_URL');
+  const authorizeUrl =
+    source.getStringOrDefault('authAuthorizeUrl') || undefined;
   return Object.freeze({
     jwtSecret: requireString(source, 'AUTH_JWT_SECRET'),
-    jwtKeyDir: optionalString(source, 'AUTH_JWT_KEY_DIR'),
+    jwtKeyDir: source.getStringOrDefault('authJwtKeyDir') || undefined,
     issuer,
     authorizeUrl,
     allowedIssuers: Object.freeze(allowedIssuers),
-    accessTokenTtlSec: optionalNumber(
-      source,
-      'AUTH_ACCESS_TOKEN_TTL_SEC',
-      3600,
-    ),
-    refreshTokenTtlSec: optionalNumber(
-      source,
-      'AUTH_REFRESH_TOKEN_TTL_SEC',
+    accessTokenTtlSec: source.getNumberOrDefault('authAccessTokenTtlSec', 3600),
+    refreshTokenTtlSec: source.getNumberOrDefault(
+      'authRefreshTokenTtlSec',
       60 * 24 * 60 * 60,
     ),
-    authCodeTtlSec: optionalNumber(source, 'AUTH_CODE_TTL_SEC', 30),
+    authCodeTtlSec: source.getNumberOrDefault('authCodeTtlSec', 30),
     accessCache: Object.freeze({
-      memoryTtlSec: optionalNumber(
-        source,
-        'AUTH_ACCESS_CACHE_MEMORY_TTL_SEC',
+      memoryTtlSec: source.getNumberOrDefault(
+        'authAccessCacheMemoryTtlSec',
         5 * 60,
       ),
-      memoryMaxEntries: optionalNumber(
-        source,
-        'AUTH_ACCESS_CACHE_MEMORY_MAX',
+      memoryMaxEntries: source.getNumberOrDefault(
+        'authAccessCacheMemoryMax',
         10_000,
       ),
-      sharedTtlSec: optionalNumber(
-        source,
-        'AUTH_ACCESS_CACHE_SHARED_TTL_SEC',
+      sharedTtlSec: source.getNumberOrDefault(
+        'authAccessCacheSharedTtlSec',
         10 * 60,
       ),
     }),
-    withdrawalRetentionDays: optionalNumber(
-      source,
-      'AUTH_WITHDRAWAL_RETENTION_DAYS',
+    withdrawalRetentionDays: source.getNumberOrDefault(
+      'authWithdrawalRetentionDays',
       30,
     ),
     // 앞 점(.)은 있어도 무시되지만, 루트 도메인 개념엔 점 없는 형태가 자연스러워 제거해 정규화한다.
-    rootDomain: optionalString(source, 'APP_ROOT_DOMAIN')?.replace(/^\./, ''),
-    bcryptRounds: optionalNumber(source, 'AUTH_BCRYPT_ROUNDS', 10),
+    rootDomain:
+      source.getStringOrDefault('appRootDomain').replace(/^\./, '') ||
+      undefined,
+    bcryptRounds: source.getNumberOrDefault('authBcryptRounds', 10),
     oauth: Object.freeze({
       google: readProviderCredentials(
         source,
