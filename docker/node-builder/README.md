@@ -5,12 +5,17 @@ CI 빌드/배포용 툴체인 이미지. 매 잡마다 apt/npm 설치를 반복�
 ## 태그
 
 ```
-ghcr.io/plzhans/hans-api/node-builder:node24         ← 이걸 쓴다. 최신 빌드로 계속 옮겨간다
+ghcr.io/plzhans/hans-api/node-builder:latest         ← 이걸 쓴다. 최신 빌드로 계속 옮겨간다
+ghcr.io/plzhans/hans-api/node-builder:node24         ← node 메이저를 고정하고 싶을 때. 최신 빌드로 옮겨간다
 ghcr.io/plzhans/hans-api/node-builder:node24.18.0    ← 실제로 깔린 패치까지. 안 움직인다
 ghcr.io/plzhans/hans-api/node-builder:node24-<sha>   ← 특정 커밋으로 고정하고 싶을 때. 안 움직인다
 ```
 
-**`latest` 태그는 일부러 만들지 않는다.** node 버전이 둘 이상이면 `latest` 가 무엇을 가리키는지 모호해지고, 소비하는 잡이 조용히 엉뚱한 버전을 물게 된다. 항상 `:node<버전>` 으로 고정해서 쓸 것.
+**`latest` 는 `.nvmrc` 가 가리키는 node 버전에만 붙는다.** 그냥 "가장 최근에 구운 것" 에 붙이면 버전이 둘 이상이 되는 순간 `latest` 가 무엇인지 모호해지고, 소비하는 잡이 조용히 엉뚱한 node 를 물게 된다. `.nvmrc` = "이 레포의 표준 node" 를 기준으로 삼으면 나중에 22 를 추가해도 뜻이 안 흔들린다.
+
+**움직이는 태그(`latest`, `node24`)는 `main` 에서만 찍는다.** 브랜치에서 `workflow_dispatch` 로 시험 삼아 돌린 이미지가 `latest` 를 덮으면 그 순간부터 모든 fe/be 빌드가 검증 안 된 툴체인을 문다. 브랜치 실행은 `:node24-<sha>` 만 남기므로, 시험할 땐 그 태그를 명시해서 쓴다.
+
+`latest` 를 쓰면 잡 로그만 봐서는 어느 이미지였는지 알 수 없다. 그래서 라벨에 `revision`(커밋 sha)까지 박아둔다 — 아래 [포함된 것](#포함된-것) 참고.
 
 ## 아키텍처
 
@@ -24,21 +29,21 @@ arm64 는 amd64 러너에서 QEMU 로 에뮬레이션해 빌드하므로 그쪽 
 베이스(`node:24-bookworm-slim`)는 패치 버전이 떠 있다. Dockerfile 을 안 고쳐도 재빌드하면 24.18.0 이 24.19.x 가 된다. 그래서 워크플로우가 빌드 직전에 실제로 깔릴 버전을 확인해 `:node24.18.0` 태그와 라벨에 박는다. 보안 패치는 자동으로 따라가되, "이 이미지에 뭐가 들었나" 는 이미지 자신이 답하게 하기 위해서다.
 
 ```bash
-docker inspect --format '{{json .Config.Labels}}' ghcr.io/plzhans/hans-api/node-builder:node24 | jq
+docker inspect --format '{{json .Config.Labels}}' ghcr.io/plzhans/hans-api/node-builder:latest | jq
 # io.hansapi.node-builder.node = 24.18.0
 # io.hansapi.node-builder.pnpm = 11.10.0
+# org.opencontainers.image.revision = <이 이미지를 구운 커밋>
 ```
 
-현재 굽는 버전은 `24`, `22` 두 가지다.
+현재 굽는 버전은 `24` 하나다 (루트 `.nvmrc`). backend/frontend 공용이다.
 
-- `24` — backend/frontend 공용 (루트 `.nvmrc`)
-- `22` — **아직 아무도 안 쓴다.** 나중에 프론트/백엔드 node 버전이 갈릴 때를 대비해 미리 구워둔다. 쓰는 곳이 생기기 전까지는 아무도 검증하지 않는 이미지다. 영영 안 쓰게 되면 지우면 된다.
+프론트/백엔드의 node 버전이 갈릴 때 워크플로우의 `NODE_VERSIONS` 에 추가하면 matrix 가 따라온다. 그때도 `latest` 는 `.nvmrc` 쪽에만 붙으므로, 나머지 버전을 쓰는 잡은 `:node<버전>` 으로 명시해야 한다.
 
 ## 포함된 것
 
 | | 버전 | 비고 |
 |---|---|---|
-| node | 24, 22 | 태그별. 워크플로우의 `NODE_VERSIONS` 기준 |
+| node | 24 | 태그별. 워크플로우의 `NODE_VERSIONS` 기준 |
 | pnpm | 11.10.0 | `package.json` 의 `packageManager` 기준 (node 버전 무관) |
 | git, curl, jq | - | 체크아웃 / CI 스크립트 |
 | openssh-client, rsync | - | 원격 배포 |
@@ -66,6 +71,8 @@ node 버전 목록의 유일한 진실은 워크플로우 상단의 `NODE_VERSIO
 
 pnpm 은 `packageManager` 필드에서 읽어온다. Dockerfile 의 `ARG` 기본값은 로컬 빌드용 폴백일 뿐이다.
 
+`.nvmrc` 와 루트 `package.json` 도 워크플로우의 `paths` 에 들어 있다. node/pnpm 을 올렸는데 이미지가 그대로면 로컬과 CI 의 툴체인이 조용히 어긋나기 때문이다.
+
 ## 사용 예
 
 ```yaml
@@ -73,8 +80,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     container:
-      # latest 가 아니라 버전을 고정한다.
-      image: ghcr.io/<owner>/hans-api/node-builder:node24
+      # 평소엔 latest. 매 빌드가 최신 툴체인을 문다.
+      image: ghcr.io/<owner>/hans-api/node-builder:latest
       # wg-quick 은 커널 모듈이 있든(NET_ADMIN) 없든(TUN) 둘 다 필요하다.
       options: --cap-add NET_ADMIN --device /dev/net/tun
     steps:

@@ -1,0 +1,180 @@
+# CI 툴체인 이미지(node-builder)를 구워 GHCR 에 올린다.
+#
+# Dockerfile 이 바뀌면 여기서 다시 굽고, 소비하는 쪽(fe/be 빌드 잡)은 :latest 를 물어
+# 항상 최신 툴체인으로 빌드한다. 매 잡마다 apt/npm 설치를 반복하지 않으려고 미리 굽는 것이다.
+#
+# 자세한 배경은 docker/node-builder/README.md.
+name: infra · node-builder 이미지
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/node-builder/**'
+      # 이미지에 굽히는 값의 출처들이다. 여기가 빠져 있으면 node/pnpm 을 올려도
+      # 이미지가 그대로라, 로컬과 CI 의 툴체인이 조용히 어긋난다.
+      - '.nvmrc'
+      - 'package.json'
+      - '.github/workflows/infra-node-builder.yml'
+  # 소비하는 쪽이 **자기보다 먼저** 이미지를 굽게 하려고 연다.
+  #
+  # 같은 push 로 Dockerfile 과 frontend 를 같이 올리면 위 push 트리거와 이 호출이 둘 다
+  # 돈다. 그래도 괜찮다 — concurrency 가 둘을 줄 세우고, 뒤엣것은 buildx GHA 캐시를 그대로
+  # 맞아서 사실상 태그만 다시 민다. 그 낭비보다 **낡은 툴체인으로 배포되는 쪽**이 훨씬 나쁘다.
+  workflow_call:
+  workflow_dispatch:
+
+# 움직이는 태그(:latest, :node24)를 두 실행이 동시에 밀면 어느 쪽이 남는지 알 수 없다.
+concurrency:
+  group: node-builder
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}/node-builder
+
+  # ▼▼▼ node 버전 목록은 여기서만 관리한다. ▼▼▼
+  NODE_VERSIONS: '["24"]'
+
+jobs:
+  # matrix 도, job outputs 도 env 컨텍스트를 직접 못 읽는다.
+  # (jobs.<id>.outputs 에서 쓸 수 있는 건 github/needs/strategy/matrix/secrets/steps/inputs/vars 뿐)
+  # 그래서 step output 을 한 번 경유시킨다. 버전 목록은 여전히 NODE_VERSIONS 한 곳에만 있다.
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.versions.outputs.list }}
+      pnpm: ${{ steps.pnpm.outputs.version }}
+      latest_node: ${{ steps.nvmrc.outputs.major }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: NODE_VERSIONS 를 output 으로 전달
+        id: versions
+        run: echo "list=$NODE_VERSIONS" >> "$GITHUB_OUTPUT"
+
+      # pnpm 은 node 버전과 무관하게 packageManager 필드가 유일한 진실이다.
+      - name: pnpm 버전 추출
+        id: pnpm
+        run: echo "version=$(jq -r '.packageManager | split("@")[1]' package.json)" >> "$GITHUB_OUTPUT"
+
+      # :latest 가 가리킬 버전을 .nvmrc 에서 정한다.
+      #
+      # latest 를 무조건 찍지 않는 이유. 버전이 둘 이상이 되는 순간 latest 가 무엇인지
+      # 모호해지고, 소비하는 잡이 조용히 엉뚱한 node 를 물게 된다. 그래서 "이 레포의 표준
+      # node" 를 가리키는 .nvmrc 를 기준으로 삼는다. 나중에 22 를 추가해도 뜻이 안 흔들린다.
+      - name: .nvmrc 의 node 메이저 확인
+        id: nvmrc
+        run: |
+          nvmrc="$(tr -d 'v \t\r\n' < .nvmrc)"   # 24.18.0
+          major="${nvmrc%%.*}"                    # 24
+          if ! jq -e --arg m "$major" 'index($m)' <<<"$NODE_VERSIONS" > /dev/null; then
+            echo "::error file=.nvmrc::.nvmrc 는 node $major 를 가리키는데 NODE_VERSIONS($NODE_VERSIONS) 에 없다. 먼저 목록에 추가할 것."
+            exit 1
+          fi
+          echo "major=$major" >> "$GITHUB_OUTPUT"
+          echo ".nvmrc=$nvmrc → :latest 는 node$major 에 붙는다"
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ${{ fromJSON(needs.setup.outputs.versions) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # arm64 를 amd64 러너에서 굽기 위한 에뮬레이터.
+      # CI(ubuntu-latest)는 amd64 라 arm64 는 순전히 로컬(Apple Silicon)에서 당겨 쓰기 위한 것이다.
+      # 에뮬레이션이라 arm64 쪽 apt 설치가 느리지만, paths 필터 덕에 1 년에 몇 번만 돈다.
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 베이스(node:24-bookworm-slim)는 패치 버전이 떠 있다. 같은 Dockerfile 로 다시 빌드해도
+      # 24.18.0 이 24.19.x 가 된다. 그런데 태그·라벨이 'node24' 뿐이면 그 둘을 구분할 수 없고,
+      # "이 이미지로 빌드했더니 깨졌다" 는 상황에서 어느 node 였는지 역추적이 안 된다.
+      # 그래서 빌드 전에 실제로 깔릴 버전을 확인해 태그와 라벨에 박는다.
+      #
+      # 베이스 이미지 이름은 Dockerfile 의 FROM 에서 꺼낸다. 여기에 다시 적으면
+      # Dockerfile 이 바뀔 때 조용히 어긋난다.
+      - name: 베이스 이미지의 실제 node 버전 확인
+        id: node
+        run: |
+          base=$(grep -m1 '^FROM ' docker/node-builder/Dockerfile | sed 's/^FROM //')
+          base=${base//\$\{NODE_VERSION\}/${{ matrix.node }}}
+          full=$(docker run --rm "$base" node --version)   # v24.18.0
+          full=${full#v}                                   # 24.18.0
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "$base → node $full"
+
+      # 태그는 두 갈래다.
+      #
+      #   움직이는 태그  :latest, :node24        — 최신 빌드로 계속 옮겨간다. 평소에 쓰는 것.
+      #   고정 태그      :node24.18.0, :node24-<sha> — 안 움직인다. 문제 생겼을 때 되짚는 용.
+      #
+      # **움직이는 태그는 main 에서만 찍는다.** 브랜치에서 workflow_dispatch 로 시험 삼아
+      # 돌린 이미지가 :latest 를 덮으면, 그 순간부터 모든 fe/be 빌드가 검증 안 된 툴체인을 문다.
+      # 브랜치 실행은 :node24-<sha> 만 남기므로 그걸 명시적으로 지정해 시험하면 된다.
+      - name: 태그 목록 구성
+        id: tags
+        env:
+          NODE_MAJOR: ${{ matrix.node }}
+          NODE_FULL: ${{ steps.node.outputs.full }}
+          LATEST_NODE: ${{ needs.setup.outputs.latest_node }}
+          IS_MAIN: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          {
+            echo "list<<TAGS"
+            echo "$IMAGE:node$NODE_MAJOR-$GITHUB_SHA"
+            if [ "$IS_MAIN" = 'true' ]; then
+              echo "$IMAGE:node$NODE_MAJOR"
+              echo "$IMAGE:node$NODE_FULL"
+              if [ "$NODE_MAJOR" = "$LATEST_NODE" ]; then
+                echo "$IMAGE:latest"
+              fi
+            fi
+            echo "TAGS"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: docker/node-builder
+          push: true
+          # amd64 = CI 러너. arm64 = 로컬 맥. 매니페스트 하나로 묶여서
+          # docker pull 하는 쪽이 자기 아키텍처를 알아서 고른다.
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            NODE_VERSION=${{ matrix.node }}
+            PNPM_VERSION=${{ needs.setup.outputs.pnpm }}
+          tags: ${{ steps.tags.outputs.list }}
+          # source 라벨이 있어야 GHCR 패키지가 이 레포에 연결된다.
+          # 연결돼야 패키지 설정(visibility 변경) 화면으로 들어갈 수 있다.
+          #
+          # 나머지 라벨은 "이 이미지에 뭐가 들었나" 를 이미지 자신이 답하게 하기 위한 것이다.
+          # :latest 를 쓰면 소비하는 쪽에서 버전이 안 보이므로, 라벨이 유일한 단서가 된다.
+          #   docker inspect --format '{{json .Config.Labels}}' <이미지> | jq
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=hans-api CI 빌드/배포용 툴체인 이미지 (node ${{ steps.node.outputs.full }}, pnpm ${{ needs.setup.outputs.pnpm }})
+            org.opencontainers.image.version=${{ steps.node.outputs.full }}
+            io.hansapi.node-builder.node=${{ steps.node.outputs.full }}
+            io.hansapi.node-builder.pnpm=${{ needs.setup.outputs.pnpm }}
+          # scope 를 나눠야 두 버전이 서로의 캐시를 밀어내지 않는다.
+          cache-from: type=gha,scope=node${{ matrix.node }}
+          cache-to: type=gha,mode=max,scope=node${{ matrix.node }}
+
+      - name: 푸시된 태그
+        run: echo "${{ steps.tags.outputs.list }}"
