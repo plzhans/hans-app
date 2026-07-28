@@ -4,7 +4,7 @@
 # 항상 최신 툴체인으로 빌드한다. 매 잡마다 apt/npm 설치를 반복하지 않으려고 미리 굽는 것이다.
 #
 # 자세한 배경은 docker/node-builder/README.md.
-name: infra · node-builder 이미지
+name: infra · node-builder image
 
 on:
   push:
