@@ -46,7 +46,9 @@ permissions:
   # 재사용 워크플로(verify-frontend)에 packages: read 를 넘기면 "호출자보다 큰 권한"
   # 이라 거부되고, 잡이 도는 게 아니라 **워크플로가 시작조차 못 한다**(startup_failure).
   # 로그도 안 남아서 원인을 짚기 어렵다.
-  packages: read # fe-deploy 가 node-builder 이미지를 GHCR 에서 받는다
+  # write 인 이유. verify-frontend → fe-deploy → toolchain → infra-node-builder 로
+  # 중첩되는데, 마지막이 이미지를 **push** 한다. read 로는 그 중첩 호출이 거부된다.
+  packages: write # 중첩 호출이 node-builder 이미지를 GHCR 에 올린다
 
 jobs:
   release:
@@ -94,7 +96,7 @@ jobs:
     uses: ./.github/workflows/fe-deploy.yml
     permissions:
       contents: read
-      packages: read # node-builder 툴체인 이미지를 GHCR 에서 받는다
+      packages: write # 중첩된 toolchain 잡이 node-builder 를 GHCR 에 올린다
     secrets: inherit
     with:
       environment: production

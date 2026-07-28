@@ -13,6 +13,14 @@
 name: be · 도커 이미지
 
 on:
+  # backend 를 건드린 커밋이 main 에 들어오면 develop 이미지를 굽는다.
+  # 다만 **커밋 메시지에 #deploy 가 있을 때만** 이다 — develop 은 같이 쓰는 서버라,
+  # 협업하려고 미완성 코드를 먼저 합치는 것만으로 바뀌면 안 된다(fe-deploy 와 같은 규칙).
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/be-image.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -35,7 +43,7 @@ on:
         default: all
 
 concurrency:
-  group: be-image-${{ inputs.environment }}
+  group: be-image-${{ inputs.environment || 'develop' }}
   cancel-in-progress: false
 
 env:
@@ -46,22 +54,51 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       targets: ${{ steps.pick.outputs.list }}
+      app_env: ${{ steps.pick.outputs.app_env }}
+      # push 인데 #deploy 가 없으면 굽지 않는다. build 잡이 통째로 건너뛴다.
+      run: ${{ steps.pick.outputs.run }}
     steps:
-      - name: 대상 고르기
+      - name: 대상·환경 고르기
         id: pick
         env:
           INPUT_TARGET: ${{ inputs.target }}
+          INPUT_ENV: ${{ inputs.environment }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
-          if [ "$INPUT_TARGET" = 'all' ]; then
-            list='["hansapp-api","hansapp-batch"]'
+          # **입력이 있으면 그게 답이다.** 사람이 골랐든 다른 워크플로가 넘겼든 같다.
+          # github.event_name 으로 가르면 workflow_call 일 때 부르는 쪽의 이벤트가 잡힌다.
+          if [ -n "$INPUT_ENV" ]; then
+            app_env="$INPUT_ENV"
+            run=true
+            if [ "$INPUT_TARGET" = 'all' ]; then
+              list='["hansapp-api","hansapp-batch"]'
+            else
+              list="[\"$INPUT_TARGET\"]"
+            fi
           else
-            list="[\"$INPUT_TARGET\"]"
+            # push 경로. develop 만 자동으로 굽는다.
+            app_env='develop'
+            list='["hansapp-api","hansapp-batch"]'
+
+            # **develop 은 같이 쓰는 서버다.** 협업하려고 미완성 코드를 main 에 먼저
+            # 합치는 일이 있으므로, 합쳤다는 이유만으로 이미지가 갱신되면 안 된다.
+            # fe-deploy 와 같은 규칙으로 #deploy 를 요구한다.
+            if printf '%s' "$HEAD_MSG" | grep -q '#deploy'; then
+              run=true
+            else
+              run=false
+              echo "커밋 메시지에 #deploy 가 없다 → 이미지를 굽지 않는다."
+            fi
           fi
-          echo "list=$list" >> "$GITHUB_OUTPUT"
-          echo "대상=$list"
+
+          echo "list=$list"       >> "$GITHUB_OUTPUT"
+          echo "app_env=$app_env" >> "$GITHUB_OUTPUT"
+          echo "run=$run"         >> "$GITHUB_OUTPUT"
+          echo "환경=$app_env  대상=$list  실행=$run"
 
   build:
     needs: setup
+    if: needs.setup.outputs.run == 'true'
     # **arm64 러너에서 네이티브로 굽는다.** 배포 서버가 arm64 이기 때문이다
     # (prisma 스키마 주석 참고 — 아키텍처가 다르면 엔진이 없어 부팅이 실패한다).
     #
@@ -107,7 +144,7 @@ jobs:
         id: tags
         env:
           APP: ${{ matrix.app }}
-          APP_ENV: ${{ inputs.environment }}
+          APP_ENV: ${{ needs.setup.outputs.app_env }}
         run: |
           image="$REGISTRY/$APP"
           {
@@ -131,7 +168,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.description=${{ matrix.app }} (${{ inputs.environment }})
+            org.opencontainers.image.description=${{ matrix.app }} (${{ needs.setup.outputs.app_env }})
           cache-from: type=gha,scope=be-${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=be-${{ matrix.app }}
 

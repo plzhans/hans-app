@@ -69,6 +69,8 @@ jobs:
       app_env: ${{ steps.pick.outputs.app_env }}
       # 이번 push 가 툴체인 이미지의 입력을 건드렸는지. 그러면 굽기부터 하고 배포한다.
       toolchain: ${{ steps.pick.outputs.toolchain }}
+      # 빌드까지만 하고 배포는 건너뛸지. 입력으로 오거나, push 면 커밋 메시지가 정한다.
+      build_only: ${{ steps.pick.outputs.build_only }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,7 +82,9 @@ jobs:
         env:
           INPUT_TARGET: ${{ inputs.target }}
           INPUT_ENV: ${{ inputs.environment }}
+          INPUT_BUILD_ONLY: ${{ inputs.build_only }}
           BEFORE: ${{ github.event.before }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
           all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
 
@@ -98,10 +102,26 @@ jobs:
           # 이벤트(push)라서, 운영 릴리스 배포가 조용히 develop 으로 새어 나간다.
           if [ -n "$INPUT_ENV" ]; then
             app_env="$INPUT_ENV"
+            build_only="${INPUT_BUILD_ONLY:-false}"
             if [ "$INPUT_TARGET" = 'all' ]; then targets="$all"; else targets="$INPUT_TARGET"; fi
           else
             # push 는 develop 만 자동으로 나간다. production 은 사람이 돌린다.
             app_env='develop'
+
+            # **develop 은 같이 쓰는 서버다.** 협업하려고 아직 완성되지 않은 코드를 main 에
+            # 먼저 합치는 일이 있으므로, 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다.
+            # 그래서 기본은 "빌드·테스트만" 이고, 배포는 커밋 메시지에 #deploy 를 달아
+            # **명시적으로 요청**할 때만 나간다.
+            #
+            # opt-out(예: [skip deploy])이 아니라 opt-in 인 이유는, 깜빡한 쪽의 대가가
+            # 다르기 때문이다. opt-in 을 잊으면 배포가 안 될 뿐이지만, opt-out 을 잊으면
+            # 남들이 쓰는 서버가 깨진다.
+            if printf '%s' "$HEAD_MSG" | grep -q '#deploy'; then
+              build_only=false
+            else
+              build_only=true
+              echo "커밋 메시지에 #deploy 가 없다 → 빌드·테스트만 한다."
+            fi
 
             # 첫 푸시나 force push 면 before 가 0 으로 온다. 비교할 게 없으니 전부 돌린다.
             if [ -z "$BEFORE" ] || [ "$BEFORE" = '0000000000000000000000000000000000000000' ]; then
@@ -154,7 +174,8 @@ jobs:
           echo "list=$list" >> "$GITHUB_OUTPUT"
           echo "app_env=$app_env" >> "$GITHUB_OUTPUT"
           echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
-          echo "환경=$app_env  대상=$list  툴체인 재빌드=$toolchain"
+          echo "build_only=$build_only" >> "$GITHUB_OUTPUT"
+          echo "환경=$app_env  대상=$list  툴체인=$toolchain  빌드만=$build_only"
 
   # 툴체인 이미지가 이번 push 에 같이 바뀌었으면 **배포보다 먼저** 굽는다.
   # 안 바뀌었으면 이 잡은 통째로 건너뛴다(skipped).
@@ -177,9 +198,16 @@ jobs:
       needs.toolchain.result != 'failure' &&
       needs.toolchain.result != 'cancelled'
     runs-on: ubuntu-latest
+    # **빌드만 하는 실행은 환경을 걸지 않는다.**
+    #
+    # environment 를 선언하면 그 잡은 시작 전에 보호 규칙(허용 브랜치·승인)을 통과해야
+    # 한다. 배포하지 않는 실행까지 그 문을 지나게 하면, 릴리스의 빌드 검증이 "production
+    # 환경에 main 브랜치는 배포할 수 없다" 로 막힌다 — 배포할 생각이 없었는데도.
+    # 빈 문자열이면 환경이 없는 것으로 취급된다.
+    #
     # production 에 승인을 걸고 싶으면 이 이름으로 GitHub Environment 를 만들고
     # protection rule 을 붙이면 된다. 워크플로우는 안 고쳐도 된다.
-    environment: ${{ needs.setup.outputs.app_env }}
+    environment: ${{ needs.setup.outputs.build_only == 'true' && '' || needs.setup.outputs.app_env }}
 
     # 매 잡마다 node/pnpm 을 까는 대신 미리 구워둔 툴체인 이미지를 쓴다.
     # :latest 는 .nvmrc 가 가리키는 node 다 (.github/workflows/infra-node-builder.yml).
@@ -231,7 +259,7 @@ jobs:
       # 다시 빌드해도 같은 것이 나오고, 아티팩트 배관은 자주 도는 develop 배포에까지
       # 비용을 지운다. 릴리스 때만 한 번 더 빌드하는 쪽이 싸다 — docs/release.md 참고.
       - name: 배포
-        if: ${{ !inputs.build_only }}
+        if: needs.setup.outputs.build_only != 'true'
         run: ./frontend/ci-deploy.sh "${TARGET#frontend/}"
         env:
           TARGET: ${{ matrix.target }}
