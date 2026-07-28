@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 #
 # config/ 아래 평문 env 를 sops 로 암호화한다. (env-decrypt.sh 의 짝)
-# 대상: .env, *.env (예: develop.env, local.env). 이미 암호화된 *.enc 는 건너뛴다.
-# 결과: 같은 이름 + .enc (develop.env → develop.env.enc). 키는 .sops.yaml 이 경로로 고른다.
+# 대상: .env, .env.<환경>(.env.develop …), local-deploy-<환경>.env.
+#   제외: *.enc(이미 암호화), *.example(커밋되는 예시), .env.<환경>.local(개인 오버라이드 — 커밋 안 함).
+# 결과: 같은 이름 + .enc (.env.develop → .env.develop.enc). 키는 .sops.yaml 이 경로로 고른다.
 set -euo pipefail
 
-find . -type f \( -name '.env' -o -name '*.env' \) ! -name '*.enc' |
+find . -type f -not -path '*/node_modules/*' \
+  \( -name '.env' -o -name '.env.*' -o -name '*.env' \) \
+  ! -name '*.enc' ! -name '*.example' ! -name '.env.*.local' |
 while IFS= read -r file; do
   echo "Encrypting: $file -> $file.enc"
   sops --encrypt "$file" > "$file.enc"

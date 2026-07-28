@@ -18,29 +18,29 @@ export const REFRESH_COOKIE = 'refresh_token';
 // httpOnly refresh 쿠키와 항상 같이 세팅/삭제한다. 인증 판단이 아니라 "호출 여부" 판단용이다.
 export const SESSION_HINT_COOKIE = 'hansapp.session';
 
-// 크로스 오리진 SPA 를 고려한 쿠키 옵션. 운영(HTTPS)에서는 secure+sameSite=none 이 필요하다.
-// AUTH_COOKIE_SECURE=true 면 secure/none 로 올린다(기본은 개발 편의를 위해 lax/비secure).
-const secure = process.env.AUTH_COOKIE_SECURE === 'true';
-
-// 쿠키 도메인 = 서비스 루트 도메인(APP_ROOT_DOMAIN). **1st-party 서브도메인 세션 공유용.**
-// 예: `plzhans.com` → plzhans.com(콘솔)·auth.plzhans.com(로그인)·api.plzhans.com 이 refresh 쿠키를 공유한다
-// (구글 `.google.com` 방식, 앞 점 없어도 서브도메인 포함 — RFC 6265). 그래서 hans-auth 에서 로그인하면
-// 콘솔이 리다이렉트 없이 refresh 로 세션을 인지한다. 미설정이면 호스트 전용(응답 서버 도메인)으로 깔린다.
-const cookieDomain = process.env.APP_ROOT_DOMAIN || undefined;
-
 // refresh 쿠키를 **갱신 엔드포인트로만** 스코프한다. path=/ 로 두면 민감한 refresh 토큰이 모든 요청
 // (데이터 조회 등)에 자동 첨부돼 낭비·CSRF 표면·노출이 커진다. /oauth/token 에서만 오가게 좁힌다.
 // (access token 은 쿠키가 아니라 Authorization: Bearer 로 authed 호출에만 붙는다 — 매 요청에 안 실린다.)
 const REFRESH_PATH = '/oauth/token';
 
-// rate limit·로그가 쓸 "진짜 클라 IP" 헤더. **부팅 때 initRefreshCookie 로 한 번 굳힌다** —
-// requestMeta 는 요청마다 도는 핫패스라 매번 설정을 다시 읽지 않는다. 미설정(init 전/값 없음)이면
-// undefined → resolveClientIp 이 req.ip 로 폴백한다(안전한 기본값).
+// **부팅 때 initRefreshCookie 로 한 번 굳히는 설정.** requestMeta·setRefreshCookie 는 요청마다
+// 도는 핫패스라 매번 설정을 다시 읽지 않는다. init 전이면 안전한 기본값(secure=false, 도메인 없음).
+//
+//  - secure: 운영(HTTPS)에서 secure+sameSite=none 필요. auth.cookieSecure 로 켠다.
+//  - cookieDomain: 서비스 루트 도메인(auth.rootDomain). SSO 서브도메인 세션 공유용.
+//      예 `plzhans.com` → plzhans.com·auth.plzhans.com·api.plzhans.com 이 refresh 쿠키 공유
+//      (구글 `.google.com` 방식, RFC 6265). 미설정이면 호스트 전용.
+//  - clientIpHeader: rate limit·로그가 쓸 "진짜 클라 IP" 헤더. 미설정이면 req.ip 폴백.
+let secure = false;
+let cookieDomain: string | undefined;
 let clientIpHeader: string | undefined;
 
 /** 부팅 시점에 설정에서 값을 한 번 읽어 고정한다(main 부트스트랩에서 호출). */
 export function initRefreshCookie(cfg: ConfigSource): void {
-  clientIpHeader = cfg.getStringOrDefault('clientIpHeader') || undefined;
+  secure = cfg.getBoolOrDefault('auth.cookieSecure', false);
+  cookieDomain = cfg.getStringOrDefault('auth.rootDomain') || undefined;
+  clientIpHeader =
+    cfg.getStringOrDefault('api-server.proxy.clientIpHeader') || undefined;
 }
 
 export function setRefreshCookie(

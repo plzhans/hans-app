@@ -68,9 +68,9 @@ export class PrismaMigrationService {
         env: {
           ...process.env,
           DATABASE_URL: this.config.url,
-          LOG_DATABASE_URL: this.config.logUrl,
+          DATABASE_LOG_URL: this.config.logUrl,
           ...(this.config.shadowUrl
-            ? { SHADOW_DATABASE_URL: this.config.shadowUrl }
+            ? { DATABASE_SHADOW_URL: this.config.shadowUrl }
             : {}),
         },
       },

@@ -1,7 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { optionalString } from '@hansapi/common';
 import type { ConfigSource } from '@hansapi/common';
 import { ApplicationModule } from '@hansapi/application';
 import {
@@ -49,9 +48,9 @@ export class AppModule {
     // rate limit 이 IP 버킷 키로 쓸 "진짜 클라 IP" 를 어느 헤더에서 뽑을지 설정으로 고른다.
     // 인프라(Cloudflare/CloudFront/OCI/nginx)가 아직 미정이라 provider 별 헤더를 설정으로만 바꾼다.
     //   Cloudflare  → cf-connecting-ip,  범용 프록시 → 비우고 TRUST_PROXY 로 req.ip 사용
-    // 비밀 아닌 값이라 config/<환경>.yaml(또는 CLIENT_IP_HEADER 환경변수)로 관리한다.
+    // 비밀 아닌 값이라 config/config.<환경>.yaml(또는 CLIENT_IP_HEADER 환경변수)로 관리한다.
     const clientIpHeader =
-      config.getStringOrDefault('clientIpHeader') || undefined;
+      config.getStringOrDefault('api-server.proxy.clientIpHeader') || undefined;
     return {
       module: AppModule,
       imports: [
@@ -112,14 +111,14 @@ export class AppModule {
           provide: NtsClient,
           useFactory: (): NtsClient =>
             new NtsClient({
-              serviceKey: optionalString(config, 'KRDATA_SERVICE_KEY') ?? '',
+              serviceKey: config.getStringOrDefault('krdata.serviceKey'),
             }),
         },
         {
           provide: JusoClient,
           useFactory: (): JusoClient =>
             new JusoClient({
-              confmKey: optionalString(config, 'KRGO_JUSO_SERVICE_KEY') ?? '',
+              confmKey: config.getStringOrDefault('juso.serviceKey'),
             }),
         },
       ],

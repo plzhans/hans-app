@@ -1,5 +1,6 @@
-import { EnvSource, optionalString, requireString } from '@hansapi/common';
 import type { ConfigSource } from '@hansapi/common';
+
+import { normalizeRootDomain } from './first-party-origin';
 
 /** 인증 설정 주입 토큰 */
 export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
@@ -122,14 +123,14 @@ export interface OAuthConfig {
   readonly line?: OAuthProviderCredentials;
 }
 
-/** provider 자격증명을 EnvSource 에서 뽑는다. 둘 다 있어야 credentials 를 반환한다. */
+/** provider 자격증명을 설정에서 뽑는다(둘 다 시크릿). 둘 다 있어야 credentials 를 반환한다. */
 function readProviderCredentials(
-  source: EnvSource,
-  idKey: string,
-  secretKey: string,
+  source: ConfigSource,
+  idPath: string,
+  secretPath: string,
 ): OAuthProviderCredentials | undefined {
-  const clientId = optionalString(source, idKey);
-  const clientSecret = optionalString(source, secretKey);
+  const clientId = source.getStringOrDefault(idPath);
+  const clientSecret = source.getStringOrDefault(secretPath);
   if (!clientId || !clientSecret) {
     return undefined;
   }
@@ -142,15 +143,15 @@ function readProviderCredentials(
  * JS 키는 브라우저 SDK 용이라 서버 리다이렉트 로그인엔 쓰지 않는다. client_id 만 있으면 활성화한다.
  */
 function readKakaoCredentials(
-  source: EnvSource,
+  source: ConfigSource,
 ): OAuthProviderCredentials | undefined {
-  const clientId = optionalString(source, 'KAKAO_CLIENT_ID');
+  const clientId = source.getStringOrDefault('kakao.clientId');
   if (!clientId) {
     return undefined;
   }
   return Object.freeze({
     clientId,
-    clientSecret: optionalString(source, 'KAKAO_CLIENT_SECRET') ?? '',
+    clientSecret: source.getStringOrDefault('kakao.clientSecret'),
   });
 }
 
@@ -159,73 +160,61 @@ function readKakaoCredentials(
  * JWT_SECRET 이 없으면 부팅 시점에 즉시 실패한다.
  */
 export function buildAuthConfig(source: ConfigSource): AuthConfig {
-  // 비밀 아닌 값은 경로 게터(getX)로 읽는다 — config/<환경>.yaml 또는 환경변수(AUTH_ISSUER 등).
-  // 시크릿(jwtSecret·oauth 자격증명)은 .env 로 두고 기존 방식(requireString/optionalString) 그대로.
-  const issuer = source.getStringOrDefault('authIssuer') || undefined;
-  // 허용 발급처 = authAllowedIssuers(콤마구분) + 자기 issuer(자동 포함).
-  const allowedIssuers = source
-    .getStringOrDefault('authAllowedIssuers')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // 비밀·비밀아님 모두 계산된 트리에서 경로로 읽는다. 비밀 아닌 값은 config/config.<환경>.yaml 또는
+  // 환경변수(AUTH_ISSUER→authIssuer), 시크릿은 .env(AUTH_JWT_SECRET→authJwtSecret)에서 공급된다.
+  const issuer = source.getStringOrDefault('auth.jwt.issuer') || undefined;
+  // 허용 발급처 = auth.jwt.allowedIssuers(yaml 리스트) + 자기 issuer(자동 포함).
+  const allowedIssuers = [...source.getStringArray('auth.jwt.allowedIssuers')];
   if (issuer && !allowedIssuers.includes(issuer)) {
     allowedIssuers.push(issuer);
   }
   // authorization_endpoint = 인증 포털(hans-auth) 로그인 URL(예: https://auth.plzhans.com/login).
   // 로그인 UI 가 별도 서브도메인(hans-auth)으로 분리돼 있어 명시 설정한다(자동 파생 없음).
   const authorizeUrl =
-    source.getStringOrDefault('authAuthorizeUrl') || undefined;
+    source.getStringOrDefault('auth.authorizeUrl') || undefined;
   return Object.freeze({
-    jwtSecret: requireString(source, 'AUTH_JWT_SECRET'),
-    jwtKeyDir: source.getStringOrDefault('authJwtKeyDir') || undefined,
+    jwtSecret: source.getString('auth.jwt.secret'),
+    jwtKeyDir: source.getStringOrDefault('auth.jwt.keyDir') || undefined,
     issuer,
     authorizeUrl,
     allowedIssuers: Object.freeze(allowedIssuers),
-    accessTokenTtlSec: source.getNumberOrDefault('authAccessTokenTtlSec', 3600),
-    refreshTokenTtlSec: source.getNumberOrDefault(
-      'authRefreshTokenTtlSec',
-      60 * 24 * 60 * 60,
-    ),
-    authCodeTtlSec: source.getNumberOrDefault('authCodeTtlSec', 30),
+    // 만료는 기간 문자열(1h·7d·5m)로 선언되고 초로 변환된다.
+    accessTokenTtlSec: source.getDurationSec('auth.jwt.accessTokenExpiresIn'),
+    refreshTokenTtlSec: source.getDurationSec('auth.jwt.refreshTokenExpiresIn'),
+    authCodeTtlSec: source.getDurationSec('auth.jwt.authCodeExpiresIn'),
     accessCache: Object.freeze({
-      memoryTtlSec: source.getNumberOrDefault(
-        'authAccessCacheMemoryTtlSec',
-        5 * 60,
-      ),
+      memoryTtlSec: source.getNumberOrDefault('cache.memoryTtlSec', 5 * 60),
       memoryMaxEntries: source.getNumberOrDefault(
-        'authAccessCacheMemoryMax',
+        'cache.memoryMaxEntries',
         10_000,
       ),
-      sharedTtlSec: source.getNumberOrDefault(
-        'authAccessCacheSharedTtlSec',
-        10 * 60,
-      ),
+      sharedTtlSec: source.getNumberOrDefault('cache.sharedTtlSec', 10 * 60),
     }),
     withdrawalRetentionDays: source.getNumberOrDefault(
-      'authWithdrawalRetentionDays',
+      'auth.withdrawalRetentionDays',
       30,
     ),
-    // 앞 점(.)은 있어도 무시되지만, 루트 도메인 개념엔 점 없는 형태가 자연스러워 제거해 정규화한다.
-    rootDomain:
-      source.getStringOrDefault('appRootDomain').replace(/^\./, '') ||
-      undefined,
-    bcryptRounds: source.getNumberOrDefault('authBcryptRounds', 10),
+    // 앞 점 제거·트림 후, IP·점없는 라벨(localhost 등)이면 경고 후 무시(빈값). 도메인만 통과.
+    rootDomain: normalizeRootDomain(
+      source.getStringOrDefault('auth.rootDomain'),
+    ),
+    bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds', 10),
     oauth: Object.freeze({
       google: readProviderCredentials(
         source,
-        'GOOGLE_CLIENT_ID',
-        'GOOGLE_CLIENT_SECRET',
+        'google.clientId',
+        'google.clientSecret',
       ),
       naver: readProviderCredentials(
         source,
-        'NAVER_CLIENT_ID',
-        'NAVER_CLIENT_SECRET',
+        'naver.clientId',
+        'naver.clientSecret',
       ),
       kakao: readKakaoCredentials(source),
       line: readProviderCredentials(
         source,
-        'LINE_CLIENT_ID',
-        'LINE_CLIENT_SECRET',
+        'line.clientId',
+        'line.clientSecret',
       ),
     }),
   });

@@ -1,4 +1,3 @@
-import { optionalString } from '@hansapi/common';
 import type { ConfigSource } from '@hansapi/common';
 
 /** 도로명주소(juso.go.kr) 설정 주입 토큰 */
@@ -34,8 +33,8 @@ export interface JusoAppConfig {
 export function buildJusoConfig(source: ConfigSource): JusoAppConfig {
   // confmKey 만 시크릿(.env). 재시도·타임아웃은 비밀 아님 → getX.
   return Object.freeze({
-    confmKey: optionalString(source, 'KRGO_JUSO_SERVICE_KEY') ?? '',
-    maxRetry: source.getNumberOrDefault('krgoJusoMaxRetry', 3),
-    readTimeoutMs: source.getNumberOrDefault('krgoJusoReadTimeoutMs', 30_000),
+    confmKey: source.getStringOrDefault('juso.serviceKey'),
+    maxRetry: source.getNumberOrDefault('juso.maxRetry', 3),
+    readTimeoutMs: source.getNumberOrDefault('juso.readTimeoutMs', 30_000),
   });
 }

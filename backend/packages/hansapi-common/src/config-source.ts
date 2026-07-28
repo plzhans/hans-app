@@ -1,23 +1,84 @@
+import merge from 'lodash.merge';
+
+import { loadYamlObject } from './app-config';
 import { loadEnv } from './env';
-import type { AppEnv, DotenvLoader, EnvSource } from './env';
-import { loadRawConfig } from './app-config';
+import type { AppEnv, DotenvLoader } from './env';
 
 /**
- * 병합된 설정 tree(config/<환경>.yaml + 환경변수 __계층) 위의 **경로 타입 게터**.
- * C#/Java 의 IConfiguration/Environment 처럼 값을 꺼낸다.
- *
- * **EnvSource 를 확장한다(superset).** 그래서 시크릿을 flat env 키로 읽는 저수준 헬퍼
- * (`requireString(source,'KEY')` 등)에 ConfigSource 를 그대로 넘길 수 있다 — 시크릿은 헬퍼로,
- * 비밀 아닌 값은 getX 경로로, 한 객체에서 둘 다 읽는다.
- *
- * 경로는 'a.b.c' 또는 'a:b:c'. 개별 값은 여기서 바로 꺼내고(getString 등),
- * 복잡·응집된 설정(mail 등)만 이 게터로 값을 뽑아 자기 도메인 객체를 만든다.
- *
- * **읽기 시점**: 필요한 값은 부팅 때 한 번 읽어 고정해 쓴다(요청마다 getX 를 부르지 않는다 —
- * 경로 탐색 비용). getX 는 값이 없으면 부팅을 거부하고, getXOrDefault 는 기본값을 준다.
+ * 설정 공급자. **빌드 단계에서만** 쓰인다 — 각 공급자가 자기 설정 조각(섹션 트리)을 내놓고,
+ * buildConfigTree 가 우선순위대로 하나의 트리로 합친다. 그 뒤 ${} 치환까지 끝난 계산된
+ * 트리만 ConfigSource 가 읽는다. .NET ConfigurationBuilder 의 Provider 와 같다.
  */
-export interface ConfigSource extends EnvSource {
-  /** 원시값(객체·배열·스칼라). 없으면 undefined. 하위 구조를 통째로 받을 때 쓴다. */
+export interface ConfigProvider {
+  /** 이 공급자가 기여하는 설정 섹션(중첩 객체). */
+  load(): Record<string, unknown>;
+}
+
+/** yaml 공급자. config/<name>.yaml 을 섹션 트리로 읽는다(name='config.<환경>'). */
+export function yamlProvider(appDir: string, name: string): ConfigProvider {
+  return { load: () => loadYamlObject(appDir, name) };
+}
+
+/**
+ * 빌드 1단계: 공급자들을 우선순위대로(앞=낮음, 뒤=높음) 깊게 병합한다. 뒤 공급자가 이긴다.
+ */
+export function buildConfigTree(
+  providers: ConfigProvider[],
+): Record<string, unknown> {
+  const tree: Record<string, unknown> = {};
+  for (const provider of providers) {
+    // lodash.merge 는 깊게 병합한다(중첩 섹션을 통째로 갈아치우지 않는다).
+    merge(tree, provider.load());
+  }
+  return tree;
+}
+
+/**
+ * `${VAR}` / `${VAR:-기본값}` 자리표시자. VAR 는 대문자·숫자·밑줄. Spring `${...}` 과 같다.
+ * yaml 이 구조의 단일 원천이고, env 값은 이 자리표시자로만 주입된다 — 그래서 시크릿 env 이름을
+ * 바꾸거나 sops 를 다시 만들 필요가 없다(yaml 경로는 중첩, env 이름은 그대로).
+ */
+const PLACEHOLDER = /\$\{([A-Z0-9_]+)(?::-([^}]*))?\}/g;
+
+function interpolateString(raw: string, env: NodeJS.ProcessEnv): string {
+  return raw.replace(PLACEHOLDER, (_, name: string, fallback?: string) => {
+    const value = env[name];
+    return value !== undefined && value !== '' ? value : (fallback ?? '');
+  });
+}
+
+/** 빌드 2단계: 트리의 모든 문자열 값에서 ${VAR} 를 process.env 로 치환한다(재귀). */
+function interpolate(node: unknown, env: NodeJS.ProcessEnv): unknown {
+  if (typeof node === 'string') {
+    return interpolateString(node, env);
+  }
+  if (Array.isArray(node)) {
+    return node.map((item) => interpolate(item, env));
+  }
+  if (node && typeof node === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node)) {
+      out[key] = interpolate(value, env);
+    }
+    return out;
+  }
+  return node;
+}
+
+/**
+ * 계산된 섹션 트리의 **읽기 전용 표면**. .NET IConfiguration/IConfigurationSection 과 같다.
+ *
+ * 트리를 '.' / ':' 로 잘라 순회한다. 끝값은 타입 게터로(getString 등), 섹션(하위 트리)은
+ * getSection(이어서 탐색) 또는 getValue(원시 객체)로 — **값이든 객체든 필요한 형태로** 꺼낸다.
+ *
+ * 필요한 값은 부팅 때 한 번 읽어 고정해 쓴다(요청마다 getX 를 부르지 않는다 — 순회 비용).
+ */
+export interface ConfigSource {
+  readonly env: AppEnv;
+
+  /** 하위 섹션을 다시 ConfigSource 로. 없으면 빈 섹션(널 아님, C# GetSection 과 같다). */
+  getSection(path: string): ConfigSource;
+  /** 그 자리 원시값. 섹션(객체)이든 끝값이든 그대로. 없으면 undefined. */
   getValue(path: string): unknown;
 
   /** 필수 문자열. 없거나 비면 부팅 거부. */
@@ -32,9 +93,16 @@ export interface ConfigSource extends EnvSource {
   /** true/false 또는 'true'/'false' 문자열. */
   getBool(path: string): boolean;
   getBoolOrDefault(path: string, fallback: boolean): boolean;
+
+  /** 문자열 배열. yaml 리스트 그대로, 또는 콤마 문자열을 쪼갠다. 없으면 빈 배열. */
+  getStringArray(path: string): readonly string[];
+
+  /** 기간을 초로. '30s'·'5m'·'1h'·'7d'(단위 없으면 초). 없거나 형식이 틀리면 던진다. */
+  getDurationSec(path: string): number;
+  getDurationSecOrDefault(path: string, fallbackSec: number): number;
 }
 
-/** 'a.b.c' / 'a:b:c' 경로를 따라 tree 를 내려간다. */
+/** 'a.b.c' / 'a:b:c' 경로를 따라 섹션 트리를 내려간다. */
 function getByPath(tree: unknown, path: string): unknown {
   return path
     .split(/[.:]/)
@@ -47,7 +115,6 @@ function getByPath(tree: unknown, path: string): unknown {
     );
 }
 
-/** 값이 실제로 있는가(undefined/null/빈문자 아님). */
 function present(raw: unknown): boolean {
   return (
     raw !== undefined &&
@@ -76,12 +143,105 @@ function toBool(raw: unknown, path: string): boolean {
   );
 }
 
+function toStringArray(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+const DURATION_UNIT: Record<string, number> = {
+  s: 1,
+  m: 60,
+  h: 3600,
+  d: 86400,
+};
+
+function toDurationSec(raw: unknown, path: string): number {
+  const matched = /^(\d+)\s*([smhd])?$/.exec(String(raw).trim());
+  if (!matched) {
+    throw new Error(
+      `설정 ${path} 는 기간(예: 30s, 5m, 1h, 7d)이어야 한다. 받은 값: ${String(raw)}`,
+    );
+  }
+  return Number(matched[1]) * DURATION_UNIT[matched[2] ?? 's'];
+}
+
+/** 계산된 트리를 감싸 읽기 표면을 만든다(getSection 은 하위 트리로 재귀). */
+function sectionOf(tree: unknown, env: AppEnv): ConfigSource {
+  const at = (path: string): unknown => getByPath(tree, path);
+  return {
+    env,
+    getSection: (path) => {
+      const node = at(path);
+      return sectionOf(node && typeof node === 'object' ? node : {}, env);
+    },
+    getValue: (path) => at(path),
+    getString: (path) => {
+      const raw = at(path);
+      if (!present(raw)) {
+        throw new Error(`필수 설정이 없다: ${path}`);
+      }
+      return String(raw).trim();
+    },
+    getStringOrDefault: (path, fallback = '') => {
+      const raw = at(path);
+      return present(raw) ? String(raw).trim() : fallback;
+    },
+    getNumber: (path) => {
+      const raw = at(path);
+      if (!present(raw)) {
+        throw new Error(`필수 설정이 없다: ${path}`);
+      }
+      return toNumber(raw, path);
+    },
+    getNumberOrDefault: (path, fallback) => {
+      const raw = at(path);
+      return present(raw) ? toNumber(raw, path) : fallback;
+    },
+    getBool: (path) => {
+      const raw = at(path);
+      if (!present(raw)) {
+        throw new Error(`필수 설정이 없다: ${path}`);
+      }
+      return toBool(raw, path);
+    },
+    getBoolOrDefault: (path, fallback) => {
+      const raw = at(path);
+      return present(raw) ? toBool(raw, path) : fallback;
+    },
+    getStringArray: (path) => Object.freeze(toStringArray(at(path))),
+    getDurationSec: (path) => {
+      const raw = at(path);
+      if (!present(raw)) {
+        throw new Error(`필수 설정이 없다: ${path}`);
+      }
+      return toDurationSec(raw, path);
+    },
+    getDurationSecOrDefault: (path, fallbackSec) => {
+      const raw = at(path);
+      return present(raw) ? toDurationSec(raw, path) : fallbackSec;
+    },
+  };
+}
+
 /**
- * 설정 접근자를 만든다. EnvSource(계층형 .env 로드) 위에 yaml + 경로 게터를 얹는다.
+ * 설정을 빌드해 읽기 표면을 만든다. **빌드(공급자 병합 → ${} 치환 → 계산된 트리)와
+ * 읽기(ConfigSource)가 분리**된다. 빌드가 끝나면 트리 하나만 남는다.
  *
- * 순서: loadEnv 가 .env 를 process.env 에 올린 **뒤에** yaml+env tree 를 만든다
- * (환경변수 오버라이드를 읽어야 하므로). EnvSource 부분(get/env/files)은 loadEnv 결과에
- * 그대로 위임해 기존 동작을 100% 보존한다.
+ * 순서:
+ *   1. loadEnv: .env 계층을 process.env 로 (${} 치환의 값 원천)
+ *   2. 로드: config/config.<환경>.yaml (환경별 — 자기완결적, 공통 base 없음)
+ *   3. 치환: 트리의 ${VAR} 를 process.env 로 → 계산된 트리
+ *
+ * yaml 이 **구조의 단일 원천**이다 — 시크릿은 `${DATABASE_URL}` 처럼 자리표시자로 선언되고
+ * 빌드 때 채워진다. 그래서 시크릿 env 이름을 안 바꾸고도(sops 그대로) 중첩 섹션을 쓸 수 있다.
  *
  * @param appDir 바이너리(main.js)가 있는 디렉터리. 보통 __dirname.
  * @param loader dotenv 의 config. common 이 dotenv 에 직접 의존하지 않기 위해 주입받는다.
@@ -91,52 +251,11 @@ export function createConfigSource(
   env: AppEnv,
   loader: DotenvLoader,
 ): ConfigSource {
-  const envSource = loadEnv(appDir, env, loader);
-  const tree = loadRawConfig(appDir, env);
-
-  return {
-    // EnvSource 부분 — process.env 기반 기존 동작 그대로 위임.
-    env: envSource.env,
-    files: envSource.files,
-    get: (key) => envSource.get(key),
-
-    // 경로 게터 — yaml+env tree 위에서.
-    getValue: (path) => getByPath(tree, path),
-
-    getString: (path) => {
-      const raw = getByPath(tree, path);
-      if (!present(raw)) {
-        throw new Error(`필수 설정이 없다: ${path}`);
-      }
-      return String(raw).trim();
-    },
-    getStringOrDefault: (path, fallback = '') => {
-      const raw = getByPath(tree, path);
-      return present(raw) ? String(raw).trim() : fallback;
-    },
-
-    getNumber: (path) => {
-      const raw = getByPath(tree, path);
-      if (!present(raw)) {
-        throw new Error(`필수 설정이 없다: ${path}`);
-      }
-      return toNumber(raw, path);
-    },
-    getNumberOrDefault: (path, fallback) => {
-      const raw = getByPath(tree, path);
-      return present(raw) ? toNumber(raw, path) : fallback;
-    },
-
-    getBool: (path) => {
-      const raw = getByPath(tree, path);
-      if (!present(raw)) {
-        throw new Error(`필수 설정이 없다: ${path}`);
-      }
-      return toBool(raw, path);
-    },
-    getBoolOrDefault: (path, fallback) => {
-      const raw = getByPath(tree, path);
-      return present(raw) ? toBool(raw, path) : fallback;
-    },
-  };
+  // .env → process.env (${} 치환의 값 원천)
+  loadEnv(appDir, env, loader);
+  // 환경별 config.<환경>.yaml 하나만 읽는다 — **자기완결적**(공통 base 를 두지 않는다,
+  // 한 파일만 보면 그 환경 전부). → ${} 치환.
+  const merged = buildConfigTree([yamlProvider(appDir, `config.${env}`)]);
+  const tree = interpolate(merged, process.env) as Record<string, unknown>;
+  return sectionOf(tree, env);
 }

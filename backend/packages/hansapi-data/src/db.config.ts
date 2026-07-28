@@ -1,4 +1,4 @@
-import { EnvSource, optionalString, requireString } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 
 /** DB 설정 주입 토큰 */
 export const DB_CONFIG = Symbol('DB_CONFIG');
@@ -25,13 +25,14 @@ export interface DbConfig {
 }
 
 /**
- * EnvSource 에서 DB 설정을 뽑아 검증한다.
+ * 설정에서 DB 설정을 뽑아 검증한다. 전부 시크릿이라 .env(DATABASE_URL 등)로 주입되고,
+ * 계산된 트리에서 경로(databaseUrl 등)로 읽는다.
  * 필수값이 없으면 여기서 즉시 실패한다. 쿼리를 날리는 순간이 아니라 부팅 시점에 죽어야 한다.
  */
-export function buildDbConfig(source: EnvSource): DbConfig {
+export function buildDbConfig(source: ConfigSource): DbConfig {
   return Object.freeze({
-    url: requireString(source, 'DATABASE_URL'),
-    logUrl: requireString(source, 'LOG_DATABASE_URL'),
-    shadowUrl: optionalString(source, 'SHADOW_DATABASE_URL'),
+    url: source.getString('database.url'),
+    logUrl: source.getString('database.logUrl'),
+    shadowUrl: source.getStringOrDefault('database.shadowUrl') || undefined,
   });
 }

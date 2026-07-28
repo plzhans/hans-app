@@ -24,7 +24,7 @@ datasource db {
   // 주의: migrate dev 를 돌릴 때마다 Prisma 가 이 DB 를 통째로 비운다. 실제 데이터를 넣지 말 것.
   // log 스키마와 같은 shadow DB 를 공유한다. Prisma 가 쓰기 전에 매번 비우므로 문제없다.
   // 다만 main 과 log 의 migrate 를 동시에 돌리면 충돌한다.
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  shadowDatabaseUrl = env("DATABASE_SHADOW_URL")
 }
 
 // 공공데이터포털 원본 미러 테이블.

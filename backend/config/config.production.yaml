@@ -1,0 +1,111 @@
+# hansapp production 환경 설정. (yaml=구조·기본값, ${}=env 주입. 자세한 규칙·주석은 config.develop.yaml)
+# **자기완결적** — 공통 base 없이 이 파일 하나가 production 설정 전부다.
+
+# ── DB (Prisma) ───────────────────────────────────────────────────────────────
+# Prisma migrate 는 스키마의 env("...") 로 env 를 직접 읽는다(yaml 아님) — 이름 바꾸면 스키마도 같이.
+database:
+  url: ${DATABASE_URL}
+  logUrl: ${DATABASE_LOG_URL}
+  shadowUrl: ${DATABASE_SHADOW_URL}
+
+redis:
+  url: ${REDIS_URL}
+
+elasticsearch:
+  url: ${ELASTICSEARCH_URL}
+
+# API 접근(서비스키·클라이언트) 2단 캐시 TTL.
+cache:
+  memoryMaxEntries: 10000
+  memoryTtlSec: 300
+  sharedTtlSec: 600
+
+auth:
+  # 운영 서비스 루트 도메인(앞 점 없이). SSO 쿠키 Domain + 1st-party 판단이 여기서 파생.
+  rootDomain: plzhans.com
+  # bcrypt 비용 계수. 저사양이면 10.
+  bcryptRounds: ${AUTH_BCRYPT_ROUNDS:-10}
+  # OAuth2 authorization_endpoint = 프론트(hans-auth) 로그인 URL. discovery 에 실린다.
+  authorizeUrl: https://auth.plzhans.com/login
+  # 탈퇴 후 재가입 제한 보존일.
+  withdrawalRetentionDays: 30
+  jwt:
+    # access token 발급자(iss).
+    issuer: https://api.plzhans.com
+    # 받아들일 iss 허용목록. 자기 issuer 는 코드가 자동 포함한다.
+    allowedIssuers:
+      - https://api.plzhans.com
+    # 대칭 서명 비밀키(시크릿).
+    secret: ${AUTH_JWT_SECRET}
+    # access token 비대칭(ES256) 키 디렉터리. 없으면 HS256(secret) 폴백.
+    keyDir: ${AUTH_JWT_KEY_DIR}
+    accessTokenExpiresIn: 1h
+    refreshTokenExpiresIn: 7d
+    authCodeExpiresIn: 5m
+  otp:
+    codeLength: ${AUTH_OTP_CODE_LENGTH:-6}
+    ttlSec: ${AUTH_OTP_TTL_SEC:-600}
+    maxAttempts: ${AUTH_OTP_MAX_ATTEMPTS:-5}
+    resendCooldownSec: ${AUTH_OTP_RESEND_COOLDOWN_SEC:-60}
+    maxSendsPerHour: ${AUTH_OTP_MAX_SENDS_PER_HOUR:-5}
+    # 코드 해시 pepper(시크릿).
+    hashSecret: ${AUTH_JWT_SECRET}
+
+api-server:
+  name: hansapi
+  web:
+    # HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
+    port: 3000
+    # 대외 공개 URL(메일 템플릿 {{appUrl}} 등).
+    publicUrl: https://plzhans.com
+  proxy:
+    # 운영은 프록시(Cloudflare/nginx/LB) 뒤. **토폴로지 확정 전까진 env 로 주입**(TRUST_PROXY·CLIENT_IP_HEADER).
+    # 위조 XFF 우회를 막으려 값이 있을 때만 켠다(빈값=끔). 확정되면 여기 리터럴로 관리한다.
+    trust: ${TRUST_PROXY}
+    clientIpHeader: ${CLIENT_IP_HEADER}
+
+search:
+  # ES 정본 스키마 JSON 디렉터리. 비우면 패키지 동봉본.
+  schemaDir: config/schema
+  batchSize: 1000
+
+mail:
+  from: HansApp <no-reply@plzhans.com>
+  provider: smtp
+  smtp:
+    host: ${MAIL_SMTP_HOST}
+    port: ${MAIL_SMTP_PORT:-587}
+    secure: ${MAIL_SMTP_SECURE:-false}
+    user: ${MAIL_SMTP_USER}
+    password: ${MAIL_SMTP_PASSWORD}
+
+# ── 외부 플랫폼 provider (OAuth) — clientId/secret 둘 다 있어야 활성 ──
+google:
+  clientId: ${GOOGLE_CLIENT_ID}
+  clientSecret: ${GOOGLE_CLIENT_SECRET}
+naver:
+  clientId: ${NAVER_CLIENT_ID}
+  clientSecret: ${NAVER_CLIENT_SECRET}
+kakao:
+  clientId: ${KAKAO_CLIENT_ID}
+  clientSecret: ${KAKAO_CLIENT_SECRET}
+line:
+  clientId: ${LINE_CLIENT_ID}
+  clientSecret: ${LINE_CLIENT_SECRET}
+
+# 공공데이터 포털(data.go.kr). NTS 사업자등록도 이 키 공유.
+krdata:
+  serviceKey: ${KRDATA_SERVICE_KEY}
+  maxRetry: 3
+  readTimeoutMs: 60000
+  hiraDetailVersion: ${KRDATA_HIRA_DETAIL_VERSION}
+
+# 도로명주소(juso.go.kr).
+juso:
+  serviceKey: ${KRGO_JUSO_SERVICE_KEY}
+  maxRetry: 3
+  readTimeoutMs: 30000
+
+batch:
+  cron: ${BATCH_CRON:-0 4 * * *}
+  maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}

@@ -19,11 +19,11 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("LOG_DATABASE_URL")
+  url      = env("DATABASE_LOG_URL")
 
   // main 스키마와 같은 shadow DB 를 공유한다. Prisma 가 쓰기 전에 매번 비우므로 문제없다.
   // 다만 main 과 log 의 migrate 를 동시에 돌리면 충돌한다.
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  shadowDatabaseUrl = env("DATABASE_SHADOW_URL")
 }
 
 // 아직 테이블이 없다. 로그 모델은 필요해질 때 여기에 추가한다.

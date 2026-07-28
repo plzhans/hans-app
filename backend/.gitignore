@@ -20,10 +20,11 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Environment
-# env 파일은 이름이 .env 로 끝난다: 항상 불러오는 .env, 환경별 <환경>.env(develop.env …),
-# 개인 오버라이드 <환경>.local.env, 로컬 배포 설정 local-deploy-<환경>.env.
-# 전부 시크릿이 들어갈 수 있으니 .env 로 끝나면 다 막는다.
+# env 파일은 config/ 바로 밑에 평면으로 둔다: 항상 불러오는 .env, 환경별 .env.<환경>(.env.develop …),
+# 개인 오버라이드 .env.<환경>.local. (로컬 배포 설정 local-deploy-<환경>.env 는 이름이 .env 로 끝난다.)
+# 시크릿이 들어갈 수 있으니 .env 로 시작하거나(.env*) 끝나면(*.env) 다 막는다.
 *.env
+.env*
 # 커밋 대상은 예시(.example)와 sops 로 암호화한 것(.enc)뿐.
 !*.example
 !*.enc

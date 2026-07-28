@@ -57,7 +57,7 @@ export type { AuthUser } from './guard/auth-user';
 // 설정
 export { AUTH_CONFIG, buildAuthConfig } from './auth.config';
 export type { AuthConfig } from './auth.config';
-export { isFirstPartyOrigin } from './first-party-origin';
+export { isFirstPartyOrigin, normalizeRootDomain } from './first-party-origin';
 export {
   MAIL_CONFIG,
   OTP_CONFIG,

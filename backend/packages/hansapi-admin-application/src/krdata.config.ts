@@ -1,4 +1,3 @@
-import { optionalString } from '@hansapi/common';
 import type { ConfigSource } from '@hansapi/common';
 
 /** 공공데이터포털 설정 주입 토큰 */
@@ -44,11 +43,11 @@ export interface KrDataAppConfig {
 export function buildKrDataConfig(source: ConfigSource): KrDataAppConfig {
   // serviceKey 만 시크릿(.env). 나머지(재시도·타임아웃·버전)는 비밀 아님 → getX.
   return Object.freeze({
-    serviceKey: optionalString(source, 'KRDATA_SERVICE_KEY') ?? '',
-    maxRetry: source.getNumberOrDefault('krdataMaxRetry', 3),
-    readTimeoutMs: source.getNumberOrDefault('krdataReadTimeoutMs', 60_000),
+    serviceKey: source.getStringOrDefault('krdata.serviceKey'),
+    maxRetry: source.getNumberOrDefault('krdata.maxRetry', 3),
+    readTimeoutMs: source.getNumberOrDefault('krdata.readTimeoutMs', 60_000),
     hiraDetailVersion:
-      source.getStringOrDefault('krdataHiraDetailVersion') ||
+      source.getStringOrDefault('krdata.hiraDetailVersion') ||
       DEFAULT_HIRA_DETAIL_VERSION,
   });
 }

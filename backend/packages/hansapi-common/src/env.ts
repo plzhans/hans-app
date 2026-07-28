@@ -103,21 +103,19 @@ export const CONFIG_DIR = 'config';
  *
  * ```
  *   <바이너리>/.env                    ← 번들에 같이 담긴 기본값
- *   <바이너리>/<환경>.env
+ *   <바이너리>/.env.<환경>
  *   <cwd>/config/.env                  ← 환경 무시하고 항상 불러들이는 설정(비밀 포함 가능)
- *   <cwd>/config/<환경>.env            ← 서버: 배포가 config/<환경>/ 를 config/ 밑으로 올린 자리
- *   <cwd>/config/<환경>/<환경>.env     ← 개발: 환경별 디렉터리
+ *   <cwd>/config/.env.<환경>           ← 환경별 (예: .env.develop)
  *   <cwd>/.env
- *   <cwd>/<환경>.env                   ← 로컬 오버라이드용. 가장 높다
+ *   <cwd>/.env.<환경>                  ← 로컬 오버라이드용. 가장 높다
  * ```
  *
- * **파일명 규칙: 이름이 .env 로 끝난다.** 항상 불러오는 .env, 환경별 <환경>.env(develop.env …),
- * 개인 오버라이드 <환경>.local.env. 앞에 점을 붙이지 않아 파일명만 봐도 무슨 환경인지 안다.
+ * **파일명 규칙: `.env` 로 시작한다.** 항상 불러오는 .env, 환경별 .env.<환경>(.env.develop …),
+ * 개인 오버라이드 .env.<환경>.local. **env 파일은 config/ 바로 밑에 평면**으로 둔다.
  *
- * **환경별 디렉터리(config/<환경>/) 를 쓴다.** env 뿐 아니라 인증서 같은 다른 매체도 한
- * 환경의 것을 한 자리에 모으기 위해서다. 개발에서는 config/<환경>/<환경>.env 를 읽고,
- * 서버에서는 배포(deploy-backend.sh)가 config/<환경>/ 를 <배포경로>/config/ 로 평면화해 올려
- * <배포경로>/config/<환경>.env 가 된다. 두 자리 모두 후보에 있어 어느 쪽이든 잡힌다.
+ * **config/<환경>/ 는 env 파일이 아니라 환경별 에셋(jwt 키·인증서 등)을 모으는 폴더다** —
+ * 설정(env·yaml)과 에셋(바이너리)을 구분한다. 배포(deploy-backend.sh)는 config/ 를
+ * <배포경로>/config/ 로 그대로 올리므로 개발·서버 어느 쪽이든 같은 자리에서 잡힌다.
  *
  * **깊이를 세서 `../../..` 로 올라가지 않는다.** 예전엔 그렇게 했는데, 그 깊이는 "앱이
  * apps/<앱>/dist 에 있다" 는 **배치 가정**에 묶여 있었다. 배치가 바뀌면 조용히 엉뚱한 곳을
@@ -129,8 +127,8 @@ export const CONFIG_DIR = 'config';
  * 정확히 집는다. **배포 번들엔 그 마커가 없어** findRootDir 이 undefined → 배포에서는 자연히
  * cwd 만 남는다(배포는 cwd 를 배포 경로로 맞춰 준다). 개발은 위치에 안 흔들리고, 배포는 그대로.
  *
- *   개발   어디서 띄우든    → <워크스페이스루트>/config/develop/develop.env  (마커로 루트를 찾음)
- *   서버   cwd = <배포경로>  → <배포경로>/config/develop.env                  (마커 없음 → cwd)
+ *   개발   어디서 띄우든    → <워크스페이스루트>/config/.env.develop  (마커로 루트를 찾음)
+ *   서버   cwd = <배포경로>  → <배포경로>/config/.env.develop         (마커 없음 → cwd)
  *
  * ENV_FILE 에 절대경로를 주면 그건 파일 탐색보다 우선한다.
  *
@@ -146,31 +144,30 @@ export function envFiles(appDir: string, env: AppEnv): string[] {
     ...new Set([root, cwd].filter((d): d is string => Boolean(d))),
   ];
 
-  // 한 base 밑 config/ 후보 (낮은→높은). 위 주석 표와 순서를 맞춘다.
+  // 한 base 밑 config/ 후보 (낮은→높은). **env 파일은 config/ 바로 밑에 평면으로** 둔다.
+  // (config/<환경>/ 은 jwt 키 등 환경별 에셋 폴더라 env 파일과 구분한다.)
   //   config/.env            공통(항상)
-  //   config/<환경>.env       평면 (배포가 올린 자리 / config 직하)
-  //   config/<환경>/<환경>.env  환경 디렉터리 (개발 소스 구조)
+  //   config/.env.<환경>      환경별 (예: .env.develop)
   const configAt = (base: string): string[] => [
     join(base, CONFIG_DIR, '.env'),
-    join(base, CONFIG_DIR, `${env}.env`),
-    join(base, CONFIG_DIR, env, `${env}.env`),
+    join(base, CONFIG_DIR, `.env.${env}`),
   ];
   // 개인 오버라이드(gitignore). 남의 머신에는 없다. 파일 중에서는 가장 세다.
+  //   config/.env.<환경>.local  (예: .env.develop.local)
   const localAt = (base: string): string[] => [
-    join(base, CONFIG_DIR, `${env}.local.env`),
-    join(base, CONFIG_DIR, env, `${env}.local.env`),
+    join(base, CONFIG_DIR, `.env.${env}.local`),
   ];
 
   // 낮은 우선순위부터 쌓고 마지막에 뒤집는다. 위 주석의 표와 순서를 같게 두면
   // "표와 코드 중 어느 쪽이 맞나" 를 고민할 일이 없다.
   const lowToHigh = [
     join(appDir, '.env'),
-    join(appDir, `${env}.env`),
+    join(appDir, `.env.${env}`),
     ...bases.flatMap(configAt),
     join(cwd, '.env'),
-    join(cwd, `${env}.env`),
+    join(cwd, `.env.${env}`),
     ...bases.flatMap(localAt),
-    join(cwd, `${env}.local.env`),
+    join(cwd, `.env.${env}.local`),
   ];
 
   return lowToHigh.reverse();
@@ -233,47 +230,4 @@ export function loadEnv(
     files,
     get: (key) => process.env[key],
   };
-}
-
-/**
- * 필수 설정을 꺼낸다. 없으면 부팅을 거부한다.
- * 커맨드를 실행하는 순간이 아니라 앱이 뜨기 전에 죽어야 한다.
- */
-export function requireString(source: EnvSource, key: string): string {
-  const value = source.get(key)?.trim();
-  if (!value) {
-    const origin =
-      source.files.length > 0
-        ? `읽은 파일: ${source.files.join(', ')}`
-        : '읽은 env 파일이 없다. 환경변수로 주입했다면 값이 비어 있는지 확인하라.';
-    throw new Error(
-      `환경(${source.env})에 필수 설정이 없다: ${key}\n${origin}\nconfig/.env.example 을 참고하라.`,
-    );
-  }
-  return value;
-}
-
-/** 선택 설정. 없으면 undefined. */
-export function optionalString(
-  source: EnvSource,
-  key: string,
-): string | undefined {
-  return source.get(key)?.trim() || undefined;
-}
-
-/** 숫자 설정. 없으면 기본값. 숫자가 아니면 부팅을 거부한다. */
-export function optionalNumber(
-  source: EnvSource,
-  key: string,
-  fallback: number,
-): number {
-  const raw = optionalString(source, key);
-  if (raw === undefined) {
-    return fallback;
-  }
-  const value = Number(raw);
-  if (!Number.isFinite(value)) {
-    throw new Error(`설정 ${key} 는 숫자여야 한다. 받은 값: ${raw}`);
-  }
-  return value;
 }

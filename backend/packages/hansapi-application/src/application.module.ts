@@ -1,7 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
-import { optionalString } from '@hansapi/common';
 import type { ConfigSource } from '@hansapi/common';
 import { DataModule } from '@hansapi/data';
 import {
@@ -54,7 +53,7 @@ export class ApplicationModule {
   static forRoot(source: ConfigSource): DynamicModule {
     // 병원 상세 등 무거운 조회 결과를 캐싱한다(HealthcareHospitalService 가 CACHE_MANAGER 로 주입받음).
     // REDIS_URL 이 있으면 Redis, 없으면 인메모리로 폴백해 redis 미구성 환경·테스트에서도 부팅을 막지 않는다.
-    const redisUrl = optionalString(source, 'REDIS_URL');
+    const redisUrl = source.getStringOrDefault('redis.url') || undefined;
     const cacheModule = redisUrl
       ? CacheModule.register({
           isGlobal: true,
