@@ -1,0 +1,241 @@
+# 프론트를 빌드해서 Cloudflare Workers 에 올린다.
+#
+# **이 파일에는 배포 로직이 없다.** 환경변수를 선언하고 frontend/ci-deploy.sh 를 부르는 게 전부다.
+# 로직을 워크플로우 YAML 에 두면 로컬에서 재현할 방법이 없어 "CI 에서만 깨지는" 실패가 생긴다.
+# 로컬에서 같은 배포를 돌리려면 frontend/deploy.sh 를 쓴다 — 같은 스크립트를 지나간다.
+#
+#   main push          → develop 자동 배포 (바뀐 프로젝트만)
+#   workflow_dispatch  → 환경·대상을 골라서
+#   workflow_call      → release.yml 이 릴리스 직후 production 으로 부른다
+name: fe · Cloudflare Workers 배포
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'docs/openapi/**'
+      - 'frontend/ci-deploy.sh'
+      - '.github/workflows/fe-deploy.yml'
+  # dispatch 와 **입력이 같다.** 부르는 쪽이 사람이냐 워크플로우냐만 다르고,
+  # 아래 잡들은 그 차이를 몰라도 된다.
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      target:
+        description: '배포 대상 (all = 전부)'
+        type: string
+        default: all
+      # 빌드까지만 하고 배포는 건너뛴다. release.yml 이 **전부 빌드된 뒤에 배포를 시작**
+      # 하려고 쓴다 — backend 를 올린 뒤 frontend 빌드가 깨지면 운영이 반쪽만 갱신된다.
+      build_only:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '배포 환경'
+        type: choice
+        options: [develop, production]
+        default: develop
+      target:
+        description: '배포 대상 (all = 전부)'
+        type: choice
+        options:
+          - all
+          - frontend/medifinder-web
+          - frontend/hansapp-docs
+          - frontend/hansapp-web
+          - frontend/hansapp-auth
+        default: all
+      build_only:
+        description: '빌드만 하고 배포하지 않는다'
+        type: boolean
+        default: false
+
+# 같은 환경에 두 배포가 겹치면 나중 것이 먼저 끝날 수 있다. 그러면 어느 쪽이 떠 있는지 모른다.
+concurrency:
+  group: fe-deploy-${{ inputs.environment || 'develop' }}-${{ inputs.build_only && 'verify' || 'deploy' }}
+  cancel-in-progress: false
+
+jobs:
+  # 무엇을 배포할지만 정한다. 어떻게 배포할지는 ci-deploy.sh 가 안다.
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.pick.outputs.list }}
+      app_env: ${{ steps.pick.outputs.app_env }}
+      # 이번 push 가 툴체인 이미지의 입력을 건드렸는지. 그러면 굽기부터 하고 배포한다.
+      toolchain: ${{ steps.pick.outputs.toolchain }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 바뀐 파일을 보려면 이전 커밋이 있어야 한다.
+          fetch-depth: 0
+
+      - name: 배포할 대상 고르기
+        id: pick
+        env:
+          INPUT_TARGET: ${{ inputs.target }}
+          INPUT_ENV: ${{ inputs.environment }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+
+          # 빌드는 미리 구워둔 툴체인 이미지(:latest) 안에서 돈다. 그 이미지의 입력이 이번
+          # push 에 같이 들어 있으면, 이미지 워크플로와 이 워크플로가 **동시에** 시작해서
+          # 배포가 아직 갱신되지 않은 :latest 를 문다. 그래서 먼저 굽게 만든다(toolchain 잡).
+          #
+          # 목록은 infra-node-builder.yml 의 paths 필터와 짝이다. 한쪽만 고치면 어긋난다.
+          toolchain_inputs='^(docker/node-builder/|\.nvmrc$|package\.json$|\.github/workflows/infra-node-builder\.yml$)'
+          toolchain=false
+
+          # **입력이 있으면 그게 답이다.** 사람이 골랐든 release.yml 이 넘겼든 같다.
+          #
+          # github.event_name 으로 가르면 안 된다 — workflow_call 일 때 그 값은 부르는 쪽의
+          # 이벤트(push)라서, 운영 릴리스 배포가 조용히 develop 으로 새어 나간다.
+          if [ -n "$INPUT_ENV" ]; then
+            app_env="$INPUT_ENV"
+            if [ "$INPUT_TARGET" = 'all' ]; then targets="$all"; else targets="$INPUT_TARGET"; fi
+          else
+            # push 는 develop 만 자동으로 나간다. production 은 사람이 돌린다.
+            app_env='develop'
+
+            # 첫 푸시나 force push 면 before 가 0 으로 온다. 비교할 게 없으니 전부 돌린다.
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = '0000000000000000000000000000000000000000' ]; then
+              echo "이전 커밋을 알 수 없다. 전부 배포한다."
+              targets="$all"
+              # 뭐가 바뀌었는지 모르면 이미지도 다시 굽는다. 안 바뀌었으면 캐시라 금방 끝나고,
+              # 반대로 낡은 툴체인으로 배포되는 건 조용히 지나가서 나중에야 드러난다.
+              toolchain=true
+            else
+              changed="$(git diff --name-only "$BEFORE" "$GITHUB_SHA")"
+
+              # `cmd && var=true` 로 쓰면 안 된다. 이 스텝은 bash -e 로 도는데, grep 이
+              # 못 찾은 경우(정상 상황)에 스텝이 통째로 실패한다.
+              if printf '%s\n' "$changed" | grep -qE "$toolchain_inputs"; then
+                toolchain=true
+              fi
+              targets=''
+              for t in $all; do
+                # 자기 디렉터리가 바뀌었으면 당연히 대상이다.
+                if printf '%s\n' "$changed" | grep -q "^$t/"; then
+                  targets="$targets $t"
+                  continue
+                fi
+                # 배포 스크립트가 바뀌면 전부 다시 나가야 한다. 빌드 방법이 달라졌을 수 있다.
+                if printf '%s\n' "$changed" | grep -qE '^(frontend/ci-deploy\.sh|\.github/workflows/fe-deploy\.yml)$'; then
+                  targets="$targets $t"
+                  continue
+                fi
+                # medifinder-web 은 auth-sdk 를 link: 로 문다. 소스가 그대로 번들에 들어간다.
+                if [ "$t" = 'frontend/medifinder-web' ] && printf '%s\n' "$changed" | grep -q '^frontend/auth-sdk/'; then
+                  targets="$targets $t"
+                  continue
+                fi
+                # docs 는 레포 루트의 OpenAPI 스펙을 읽어 빌드에 박는다.
+                if [ "$t" = 'frontend/hansapp-docs' ] && printf '%s\n' "$changed" | grep -q '^docs/openapi/'; then
+                  targets="$targets $t"
+                fi
+              done
+            fi
+          fi
+
+          # 없으면 빈 배열을 내보내 deploy 잡이 통째로 건너뛰게 한다.
+          # printf 에 인자가 없으면 빈 줄 하나가 나가서 [""] 이 된다 — 그건 '없음'이 아니다.
+          targets="$(echo $targets | xargs)"
+          if [ -z "$targets" ]; then
+            list='[]'
+          else
+            list="$(printf '%s\n' $targets | jq -R . | jq -sc .)"
+          fi
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "app_env=$app_env" >> "$GITHUB_OUTPUT"
+          echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
+          echo "환경=$app_env  대상=$list  툴체인 재빌드=$toolchain"
+
+  # 툴체인 이미지가 이번 push 에 같이 바뀌었으면 **배포보다 먼저** 굽는다.
+  # 안 바뀌었으면 이 잡은 통째로 건너뛴다(skipped).
+  toolchain:
+    needs: setup
+    if: needs.setup.outputs.toolchain == 'true' && needs.setup.outputs.targets != '[]'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/infra-node-builder.yml
+
+  deploy:
+    # toolchain 은 건너뛸 수 있다. `needs` 에 든 잡이 하나라도 skipped 면 이 잡도 통째로
+    # 건너뛰므로, always() 로 막고 결과를 직접 본다 — **실패했을 때만** 배포를 멈춘다.
+    needs: [setup, toolchain]
+    if: >-
+      always() &&
+      needs.setup.result == 'success' &&
+      needs.setup.outputs.targets != '[]' &&
+      needs.toolchain.result != 'failure' &&
+      needs.toolchain.result != 'cancelled'
+    runs-on: ubuntu-latest
+    # production 에 승인을 걸고 싶으면 이 이름으로 GitHub Environment 를 만들고
+    # protection rule 을 붙이면 된다. 워크플로우는 안 고쳐도 된다.
+    environment: ${{ needs.setup.outputs.app_env }}
+
+    # 매 잡마다 node/pnpm 을 까는 대신 미리 구워둔 툴체인 이미지를 쓴다.
+    # :latest 는 .nvmrc 가 가리키는 node 다 (.github/workflows/infra-node-builder.yml).
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    strategy:
+      # 하나가 깨져도 나머지는 나간다. 프론트끼리는 서로 의존하지 않는다.
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: ${{ fromJSON(needs.setup.outputs.targets) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 툴체인 확인
+        run: |
+          echo "node   $(node --version)"
+          echo "pnpm   $(pnpm --version)"
+
+      # frontend 의 프로젝트들은 pnpm 워크스페이스가 아니다. 각자 자기 lockfile 로 따로 설치한다.
+      # 그래서 캐시 키도 대상별로 나눈다.
+      - name: pnpm store 경로
+        id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ matrix.target }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.target)) }}
+          restore-keys: pnpm-${{ matrix.target }}-
+
+      # ▼ 여기가 이 워크플로우가 하는 일의 전부다 — 변수를 선언하고 스크립트를 부른다.
+      #   GITHUB_SHA / GITHUB_REF_NAME 은 Actions 가 이미 넣어준다. 다시 안 적는다.
+      #
+      # matrix.target 은 'frontend/<프로젝트>' 다(경로 필터·캐시 키가 그 형태를 쓴다).
+      # ci-deploy.sh 는 이미 frontend 안에 있어서 프로젝트 이름만 받으므로 접두사를 뗀다.
+      - name: 빌드
+        run: ./frontend/ci-build.sh "${TARGET#frontend/}"
+        env:
+          TARGET: ${{ matrix.target }}
+          APP_ENV: ${{ needs.setup.outputs.app_env }}
+
+      # 산출물을 아티팩트로 넘기지 않는다. 빌드가 결정적이라(커밋 + frozen lockfile)
+      # 다시 빌드해도 같은 것이 나오고, 아티팩트 배관은 자주 도는 develop 배포에까지
+      # 비용을 지운다. 릴리스 때만 한 번 더 빌드하는 쪽이 싸다 — docs/release.md 참고.
+      - name: 배포
+        if: ${{ !inputs.build_only }}
+        run: ./frontend/ci-deploy.sh "${TARGET#frontend/}"
+        env:
+          TARGET: ${{ matrix.target }}
+          APP_ENV: ${{ needs.setup.outputs.app_env }}
+          # 토큰만 Secret 이다. account id 는 비밀이 아니라 Variable 로 둔다(docs/cloudflare.md).
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
