@@ -1,4 +1,4 @@
-# hansapi-docs
+# hansapp-docs
 
 Hans API 명세 문서. VitePress + [vitepress-openapi](https://github.com/enzonotario/vitepress-openapi) 로
 OpenAPI 스펙에서 API 페이지를 자동 생성한다. 산출물은 **완전 정적 사이트**다.

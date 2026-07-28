@@ -21,7 +21,7 @@
 # 프론트는 각자 독립 프로젝트라(각자 lockfile) 어느 것인지 말하지 않으면 고를 수가 없다.
 # APP 은 frontend/ 아래 디렉터리 이름 그대로다.
 #   make ci-build-front APP=medifinder-web ENV=production
-#   make ci-build-front APP=hansapi-docs
+#   make ci-build-front APP=hansapp-docs
 APP ?=
 ENV ?= develop
 

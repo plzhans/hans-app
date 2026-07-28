@@ -4,10 +4,10 @@
     {
       // VitePress 개발 서버(docs:dev)를 디버깅한다. pnpm 으로 구동하고
       // 자식 node 프로세스(config.ts/paths.js/SSR 등)에 자동으로 디버거를 붙인다.
-      "name": "docs: hansapi-docs",
+      "name": "docs: hansapp-docs",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceFolder}/hansapi-docs",
+      "cwd": "${workspaceFolder}/hansapp-docs",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "docs:dev"],
       "console": "integratedTerminal",

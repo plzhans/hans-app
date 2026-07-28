@@ -3,7 +3,7 @@ name: frontend build test
 # 프론트가 빌드·타입체크를 통과하는지 보는 **CI 검사**다. PR/push 마다 돈다.
 #
 # 배포는 이 워크플로우의 산출물을 **가져다 쓰지 않는다.** 실제 배포(fe-deploy-medifinder.yml,
-# fe-deploy-hansapi-docs.yml)는 같은 scripts/ci/build-frontend.sh 를 자기가 호출해 **다시 빌드**한다.
+# fe-deploy-hansapp-docs.yml)는 같은 scripts/ci/build-frontend.sh 를 자기가 호출해 **다시 빌드**한다.
 # 즉 빌드 로직의 단일 출처는 그 스크립트고, 이 .yml 은 "빌드가 깨졌나" 검사일 뿐이다.
 # (여기 artifact 는 확인용 업로드이지 배포 입력이 아니다)
 #
@@ -85,18 +85,18 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: pnpm-docs-${{ hashFiles('frontend/hansapi-docs/pnpm-lock.yaml') }}
+          key: pnpm-docs-${{ hashFiles('frontend/hansapp-docs/pnpm-lock.yaml') }}
           restore-keys: pnpm-docs-
 
-      # 여기는 **빌드가 되는지만** 본다. 실제 배포는 fe-deploy-hansapi-docs.yml 이 한다.
+      # 여기는 **빌드가 되는지만** 본다. 실제 배포는 fe-deploy-hansapp-docs.yml 이 한다.
       # 그래서 환경은 develop 으로 고정한다(servers·base 는 배포 워크플로우가 환경별로 넘긴다).
       #
       # 레포에 커밋된 docs/openapi/openapi_hansapi.json 을 그대로 쓴다. DB 가 필요 없다.
       # (스펙 재생성은 앱을 부팅해 DB 에 붙어야 하므로 CI 에서 하지 않는다)
-      - run: ./scripts/ci/build-frontend.sh hansapi-docs develop
+      - run: ./scripts/ci/build-frontend.sh hansapp-docs develop
 
       - uses: actions/upload-artifact@v4
         with:
-          name: hansapi-docs
-          path: frontend/hansapi-docs/.vitepress/dist
+          name: hansapp-docs
+          path: frontend/hansapp-docs/.vitepress/dist
           retention-days: 7

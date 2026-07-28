@@ -42,7 +42,7 @@ const sentryDsn =
 // 스펙을 빌드 시 파일에서 읽는다. 경로는 OPENAPI_SPEC 환경변수로 오버라이드 가능하다.
 const spec = loadSpec();
 // 빌드 로그에 실제 사용한 스펙 경로를 남긴다(CI 디버깅용).
-console.log(`[hansapi-docs] OpenAPI spec: ${specPath}`);
+console.log(`[hansapp-docs] OpenAPI spec: ${specPath}`);
 
 const HTTP_VERBS = [
   'get',

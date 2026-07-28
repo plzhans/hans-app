@@ -5,7 +5,7 @@
 #   ./scripts/ci/build-frontend.sh <frontend 디렉터리명> [환경]
 #
 #   ./scripts/ci/build-frontend.sh medifinder-web develop
-#   ./scripts/ci/build-frontend.sh hansapi-docs
+#   ./scripts/ci/build-frontend.sh hansapp-docs
 #
 #   로컬:  make ci-build-front APP=medifinder-web ENV=develop
 #   CI:    .github/workflows/fe-build-test.yml (검사) · fe-deploy-medifinder.yml (배포)
@@ -105,7 +105,7 @@ case "$project" in
     echo "✅ $project ($env_name) OK → frontend/$project/dist"
     ;;
 
-  hansapi-docs)
+  hansapp-docs)
     env_name="${2:-}"
     [ -n "$env_name" ] || {
       echo "❌ $project 은 환경이 필요하다 (예: develop, production)" >&2
