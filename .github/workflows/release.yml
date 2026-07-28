@@ -97,7 +97,9 @@ jobs:
             --jq '.content' | base64 -d \
             | jq -r 'to_entries | map("\(.key) \(.value)") | join(", ")')
 
-          gh pr edit "$num" --title "chore: release ($versions)"
+          # --repo 를 명시한다. 이 잡은 체크아웃을 하지 않으므로(release-please 는 필요 없다)
+          # gh 가 로컬 git 에서 저장소를 알아낼 수 없어 "not a git repository" 로 죽는다.
+          gh pr edit "$num" --repo "$GITHUB_REPOSITORY" --title "chore: release ($versions)"
           echo "제목 → chore: release ($versions)"
 
   # ───────────────────────────────────────────────────────────────────────────
