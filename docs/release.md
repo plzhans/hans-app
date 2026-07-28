@@ -49,9 +49,9 @@ release.yml 실행 → release-please 봇
 
 봇이 여는 **Release PR** 한 개에는 이 릴리스에 들어갈 결과물이 미리 담겨 있다.
 
-- 제목: `chore: release 0.2.0`
-- `package.json` 의 `version` 을 새 값으로 올린 diff
-- `CHANGELOG.md` 에 이번 버전의 변경 목록 초안 (기능·버그 수정·성능·구조 변경·문서 순)
+- 제목: `chore: release main`
+- 올라갈 판의 `package.json` 버전을 새 값으로 올린 diff (backend·frontend 중 올릴 것만)
+- 그 판의 `CHANGELOG.md` 에 이번 버전의 변경 목록 초안 (기능·버그 수정·성능·구조 변경·문서 순)
 
 이 PR 은 **한 번 열리면 계속 살아 있다.** `main` 에 커밋이 더 쌓이면 봇이 같은 PR 을
 다시 갱신한다 — 버전 숫자와 CHANGELOG 가 그때그때 다시 계산된다. 그래서 "다음 릴리스에
@@ -66,9 +66,10 @@ release.yml 실행 → release-please 봇
 2. **Release PR 을 확인한다.** 다음 버전 숫자와 CHANGELOG 초안이 맞는지 본다. 아직 낼
    때가 아니면 그냥 둔다 — 커밋을 더 쌓으면 PR 이 알아서 갱신된다.
 3. **낼 준비가 되면 Release PR 을 머지한다.** 이 머지가 곧 릴리스다.
-4. 머지되는 순간 봇이 이어서 만든다 — 여기서 사람이 할 일은 없다.
-   - `package.json` 버전과 `CHANGELOG.md` 를 `main` 에 커밋 (`chore: release 0.2.0`)
-   - `release/v0.2.0` 태그
+4. 머지되는 순간 봇이 이어서 만든다 — 여기서 사람이 할 일은 없다. **올릴 게 있는 판만**
+   해당된다.
+   - 그 판의 `package.json` 버전과 `CHANGELOG.md` 를 `main` 에 커밋
+   - `release-backend/v0.2.0` · `release-frontend/v0.3.0` 태그
    - 그 태그로 GitHub 릴리스
 
 **태그를 손으로 붙이지 않는다.** 4단계를 사람이 하면 버전·CHANGELOG·태그가 어긋난다 —
@@ -76,17 +77,61 @@ release.yml 실행 → release-please 봇
 
 ---
 
-## 저장소 전체가 하나의 버전이다
+## 버전은 backend·frontend 둘로 나뉜다
 
-backend·frontend 앱이 여러 개지만 판을 나누지 않고 루트 `package.json` 버전 하나로 묶는다
-(`release-please-config.json` 의 단일 패키지 `.`). 태그는 `release/vX.Y.Z`, CHANGELOG 는
-루트 한 벌이다.
+판은 두 개다. 서로 영향을 주지 않는다.
+
+| 판 | 태그 | CHANGELOG | 버전이 오르는 조건 |
+| --- | --- | --- | --- |
+| `backend` | `release-backend/v0.2.0` | `backend/CHANGELOG.md` | `backend/` 아래를 건드린 커밋 |
+| `frontend` | `release-frontend/v0.3.0` | `frontend/CHANGELOG.md` | `frontend/` 아래를 건드린 커밋 |
+
+봇은 **커밋 메시지의 scope 가 아니라 그 커밋이 실제로 바꾼 파일 경로**로 판을 가른다.
+`feat(auth):` 라고 적어도 `frontend/` 만 고쳤으면 frontend 만 오른다. 그래서 scope 를
+정확히 달 의무는 없고, 대신 **커밋을 판 경계에 맞춰 쪼개는 것**이 규율이 된다 — 한 커밋이
+양쪽을 건드리면 양쪽 다 오르고 양쪽 CHANGELOG 에 다 실린다. (그게 맞는 커밋이면 그대로 두면
+된다. 실제로 그런 변경이 있다.)
+
+프론트 넷(`hansapp-web`·`hansapp-auth`·`hansapp-docs`·`medifinder-web`)은 **더 쪼개지
+않는다.** 쿠키 SSO 와 공유 스펙으로 실제로 엮여 있어서, 나눠봐야 늘 같이 오르는 번호가
+넷이 될 뿐이다. 앱마다의 `package.json` 은 `extra-files` 로 frontend 버전에 맞춰 같이
+갱신된다 — 각 앱이 자기 `package.json` 의 version 을 빌드 신원(`__APP_RELEASE__`,
+build-info)에 박기 때문이다. backend 앱 셋도 같은 이유로 같이 갱신된다.
+
+> 나눌 때가 오면: `frontend/auth-sdk` 를 npm 에 퍼블리시하게 되는 날이다. 외부가 보는
+> 버전은 자기 것이어야 한다. 그전까지는 둘로 충분하다.
+
+### Release PR 은 하나다
+
+판이 둘이어도 PR 은 하나로 묶어서 연다(`separate-pull-requests: false`). 그 PR 을 머지하면
+그 시점에 올릴 게 있는 판만 릴리스된다 — backend 만 바뀌었으면 `release-backend/v0.2.0`
+하나만 생긴다. **머지 한 번 = 릴리스 한 묶음**이라 배포를 걸기도 쉽다.
 
 ## 릴리스와 배포는 분리돼 있다
 
-이 워크플로는 **버전·CHANGELOG·태그·릴리스까지만** 만든다. 실제 앱 빌드·배포는
-`be-build-test.yml` · `fe-*.yml` 이 따로 맡는다. "버전을 찍는 일" 과 "그 버전을 배포하는
-일" 을 나눠 둔 것이다.
+이 워크플로는 **버전·CHANGELOG·태그·릴리스까지만** 만든다. 실제 앱 빌드·배포는 따로 맡는다.
+"버전을 찍는 일" 과 "그 버전을 배포하는 일" 을 나눠 둔 것이다.
+
+| 대상 | 배포처 |
+| --- | --- |
+| backend | 서버 (배포 스크립트) |
+| frontend (정적 사이트) | **Cloudflare Workers** (정적 자산만 담은 Worker) |
+
+프론트는 Cloudflare Workers 에 올린다. 그러려면 **Cloudflare API 토큰과 Account ID 를
+GitHub Secrets/Variables 에 넣어 두는 준비가 한 번 필요하다** — 토큰 발급부터 커스텀 도메인
+연결까지 [cloudflare.md](cloudflare.md) 에 단계별로 정리해 뒀다.
+
+사이트 하나가 **환경마다 Worker 하나다**(`dev-hansapp-docs` · `prod-hansapp-docs`).
+develop 도 자기 커스텀 도메인이 있어야 쿠키 SSO 와 OAuth 콜백이 살아 있기 때문인데,
+그 근거도 [cloudflare.md](cloudflare.md) 에 적어 뒀다.
+
+판을 `backend`·`frontend` 로 나눈 이름은 **배포 대상 경로와 같다.** 봇이 "이번에 릴리스된
+판" 을 경로 목록으로 알려주므로(`paths_released`), 운영 배포는 그 목록을 그대로 받아
+돌리면 된다 — 태그 이름을 파싱해 경로로 되돌리는 변환표를 어디에도 두지 않는다.
+
+> 태그 push 로 배포를 트리거하지 않는다. 봇이 기본 `GITHUB_TOKEN` 으로 태그를 만들기
+> 때문에 그 push 는 다른 워크플로를 깨우지 않는다(무한 루프 방지). 배포는 릴리스를 만든
+> 그 실행 안에서 이어서 돈다.
 
 ---
 
