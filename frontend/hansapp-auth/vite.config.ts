@@ -17,7 +17,7 @@ const gitSha = (process.env.VITE_GIT_SHA ?? process.env.GITHUB_SHA ?? 'dev')
 
 export default defineConfig(({ mode }) => {
   console.log(
-    `[vite] mode=${mode}  VITE_HANSAPI_BASE_URL=${process.env.VITE_HANSAPI_BASE_URL ?? '(not set)'}`,
+    `[vite] mode=${mode}  VITE_HANSAPP_BASE_URL=${process.env.VITE_HANSAPP_BASE_URL ?? '(not set)'}`,
   );
   // 단일 오리진 로컬(콘솔 5274 가 /auth 로 프록시)일 땐 VITE_BASE=/auth/ 로 자산 경로를 네임스페이스한다.
   // 배포(자기 서브도메인)는 루트. VITE_ROUTER_BASE 는 react-router basename 과 짝(App.tsx).

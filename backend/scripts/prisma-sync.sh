@@ -5,4 +5,4 @@
 git diff --name-only "$1" "$2" 2>/dev/null | grep -q 'schema\.prisma$' || exit 0
 
 echo "[prisma] schema 변경 감지 → 클라이언트 재생성"
-pnpm --filter @hansapi/data prisma:generate
+pnpm --filter @hansapp/data prisma:generate

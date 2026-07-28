@@ -66,7 +66,7 @@ def sources(src, field):
 def todo(lang, field):
     src, dst = paths(lang, field)
     if not src.exists():
-        sys.exit(f'{src} 가 없다. 먼저 `pnpm hansapi-cli i18n export` 를 돌려라')
+        sys.exit(f'{src} 가 없다. 먼저 `pnpm hansapp-cli i18n export` 를 돌려라')
     done = load_dict(dst)
     return [ko for ko in sources(src, field) if ko not in done], done, dst
 

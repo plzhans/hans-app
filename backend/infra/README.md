@@ -1,6 +1,6 @@
 # 서버 인프라 구축 가이드
 
-빈 **OCI Ubuntu 24.04** 인스턴스를 hansapi 백엔드가 돌아가는 상태까지 세팅하는 절차서.
+빈 **OCI Ubuntu 24.04** 인스턴스를 hansapp 백엔드가 돌아가는 상태까지 세팅하는 절차서.
 위에서 아래로 순서대로 따라간다.
 
 > 이 문서는 **절차서**다. 실제 설정 파일은 옆의 [`develop/`](./develop/) · [`local/`](./local/) 에 있다.
@@ -16,7 +16,7 @@
 | 패키지 매니저   | `pnpm@11.10.0`                 |
 | 프로세스 매니저 | pm2                            |
 | 리버스 프록시   | nginx                          |
-| 배포 루트       | `~/app/hansapi-develop` (예시) |
+| 배포 루트       | `~/app/hansapp-develop` (예시) |
 
 ## 목차
 
@@ -136,14 +136,14 @@ pm2 startup systemd
 # 예: sudo env PATH=$PATH:... pm2 startup systemd -u ubuntu --hp /home/ubuntu
 
 # (배포 후) 앱 기동 — deploy-backend.sh 가 아래를 만든다
-cd ~/app/hansapi-develop
-pm2 startOrReload ecosystem.config.js --only develop-hansapi-server
+cd ~/app/hansapp-develop
+pm2 startOrReload ecosystem.config.js --only develop-hansapp-api-server
 
 # 현재 프로세스 목록을 저장해 두면 재부팅 후 자동 복구
 pm2 save
 
 pm2 status
-pm2 logs develop-hansapi-server
+pm2 logs develop-hansapp-api-server
 ```
 
 > 앱은 `127.0.0.1:3000` 에서 뜬다 (nginx 가 이리로 프록시). 외부에 3000 을 직접 열지 않는다.
@@ -219,7 +219,7 @@ sudo sysctl --system
 
 ```bash
 # Elasticsearch
-cd ~/app/hansapi-develop/backend/infra/develop/elasticsearch
+cd ~/app/hansapp-develop/backend/infra/develop/elasticsearch
 echo 'ELASTIC_PASSWORD=<비밀번호>' > .env
 docker compose up -d --build
 

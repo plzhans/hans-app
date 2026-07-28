@@ -10,7 +10,7 @@ import i18n from '@/shared/i18n';
  * 반환값은 응답 본문(payload)이다. orval 의 fetch 래핑(status/headers)은
  * orval.config.ts 의 includeHttpResponseReturnType:false 로 꺼 두었다.
  */
-const BASE_URL = import.meta.env.VITE_HANSAPI_BASE_URL ?? '';
+const BASE_URL = import.meta.env.VITE_HANSAPP_BASE_URL ?? '';
 
 /**
  * 공개 클라이언트 ID. 브라우저 요청의 인증 수단이다.
@@ -21,7 +21,7 @@ const BASE_URL = import.meta.env.VITE_HANSAPI_BASE_URL ?? '';
  * **서비스 키(sk_...)는 여기 두지 않는다.** 그건 오리진을 보지 않는 비밀값이라
  * 번들에 들어가는 순간 그대로 유출된다 — 서버-서버 호출에서만 쓴다.
  */
-const CLIENT_ID = import.meta.env.VITE_HANSAPI_CLIENT_ID as string | undefined;
+const CLIENT_ID = import.meta.env.VITE_HANSAPP_CLIENT_ID as string | undefined;
 
 export const reactFetch = async <T>(url: string, options?: RequestInit): Promise<T> => {
   const headers = new Headers(options?.headers);

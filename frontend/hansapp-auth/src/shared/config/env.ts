@@ -1,6 +1,6 @@
-/** 인증 백엔드(api.plzhans.com) base URL. .env.* 의 VITE_HANSAPI_BASE_URL 로 주입. */
+/** 인증 백엔드(api.plzhans.com) base URL. .env.* 의 VITE_HANSAPP_BASE_URL 로 주입. */
 export const API_BASE_URL =
-  (import.meta.env.VITE_HANSAPI_BASE_URL as string | undefined) ?? '';
+  (import.meta.env.VITE_HANSAPP_BASE_URL as string | undefined) ?? '';
 
 /**
  * 실행 환경 이름(local|develop|production). VITE_APP_ENV 로 주입, 백엔드 APP_ENV 와 같은 이름을 쓴다.

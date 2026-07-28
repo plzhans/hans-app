@@ -12,12 +12,12 @@
 #   3) docker compose up -d
 # ─────────────────────────────────────────────────────────────
 
-name: hansapi-redis
+name: hansapp-redis
 
 services:
   redis:
     image: redis:7.4-alpine
-    container_name: hansapi-redis
+    container_name: hansapp-redis
     restart: unless-stopped
     # conf 파일 + 비밀번호(플래그) 병합. 비밀값은 conf 에 안 남기고 여기서 .env 주입.
     command:

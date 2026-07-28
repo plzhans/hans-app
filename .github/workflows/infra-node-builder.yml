@@ -168,10 +168,10 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.description=hans-api CI 빌드/배포용 툴체인 이미지 (node ${{ steps.node.outputs.full }}, pnpm ${{ needs.setup.outputs.pnpm }})
+            org.opencontainers.image.description=hans-app CI 빌드/배포용 툴체인 이미지 (node ${{ steps.node.outputs.full }}, pnpm ${{ needs.setup.outputs.pnpm }})
             org.opencontainers.image.version=${{ steps.node.outputs.full }}
-            io.hansapi.node-builder.node=${{ steps.node.outputs.full }}
-            io.hansapi.node-builder.pnpm=${{ needs.setup.outputs.pnpm }}
+            io.hansapp.node-builder.node=${{ steps.node.outputs.full }}
+            io.hansapp.node-builder.pnpm=${{ needs.setup.outputs.pnpm }}
           # scope 를 나눠야 두 버전이 서로의 캐시를 밀어내지 않는다.
           cache-from: type=gha,scope=node${{ matrix.node }}
           cache-to: type=gha,mode=max,scope=node${{ matrix.node }}

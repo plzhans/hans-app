@@ -1,14 +1,14 @@
 import { defineConfig } from 'orval';
 
 /**
- * hansapi-server OpenAPI → React 클라이언트 SDK 자동 생성 설정.
+ * hansapp-api-server OpenAPI → React 클라이언트 SDK 자동 생성 설정.
  *
- * 스펙(../../docs/openapi/openapi_hansapi.json)에서 react-query 훅을 생성한다.
+ * 스펙(../../docs/openapi/hansapp-openapi.json)에서 react-query 훅을 생성한다.
  * 인증/언어 헤더는 생성 코드가 아니라 mutator(src/shared/api/mutator.ts)에서 주입한다.
  *
  * 스펙 갱신 → 재생성: `pnpm api:sync` (spec 재생성 + orval 재실행).
  */
-const INPUT = '../../docs/openapi/openapi_hansapi.json';
+const INPUT = '../../docs/openapi/hansapp-openapi.json';
 
 export default defineConfig({
   react: {

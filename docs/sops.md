@@ -54,7 +54,7 @@ SOPS 는 복호화할 때 age 개인키를 **정해진 파일에서** 찾는다.
 1. `SOPS_AGE_KEY` — 개인키 문자열을 값으로 직접 넘긴다. CI 에서 시크릿으로 주입할 때 쓴다.
 2. `SOPS_AGE_KEY_FILE` — **임의 경로**의 keys.txt 를 가리킨다. 프로젝트별로 키를 나눠 둘 때.
    ```bash
-   export SOPS_AGE_KEY_FILE="$HOME/.keys/hans-api/keys.txt"
+   export SOPS_AGE_KEY_FILE="$HOME/.keys/hansapp/keys.txt"
    ```
 3. 위 둘 다 없을 때만 **OS 기본 위치**의 `sops/age/keys.txt` 를 읽는다. 이 기본은 sops 가
    Go 의 `os.UserConfigDir()` 을 따르므로 OS 마다 다르다 — macOS 는

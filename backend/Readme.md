@@ -1,4 +1,4 @@
-# hans-api backend
+# hans-app backend
 
 NestJS 기반 백엔드 모노레포. HTTP 계층 · 애플리케이션(비즈니스) 계층 · 공통 모듈을 pnpm workspace로 분리해 관리합니다.
 
@@ -7,17 +7,17 @@ NestJS 기반 백엔드 모노레포. HTTP 계층 · 애플리케이션(비즈�
 ```
 backend/
 ├── apps/
-│   └── hansapi-server/          # HTTP 계층 (NestJS 실행 앱)
+│   └── hansapp-api-server/          # HTTP 계층 (NestJS 실행 앱)
 │       └── src/
 │           ├── main.ts          # 부트스트랩 진입점
 │           ├── app.module.ts    # 루트 모듈 (ApplicationModule import)
 │           └── hello/           # 컨트롤러 + 요청/응답 DTO
 ├── packages/
-│   ├── hansapi-application/     # 애플리케이션(비즈니스) 계층
+│   ├── hansapp-application/     # 애플리케이션(비즈니스) 계층
 │   │   └── src/
 │   │       ├── application.module.ts
 │   │       └── hello/           # 서비스 + command/result DTO
-│   └── hansapi-common/          # 공통 상수·유틸 (전 계층 공유)
+│   └── hansapp-common/          # 공통 상수·유틸 (전 계층 공유)
 ├── pnpm-workspace.yaml          # 워크스페이스 정의 (apps/*, packages/*)
 ├── package.json                 # 루트 스크립트 · 공통 devDependencies
 └── pnpm-lock.yaml
@@ -27,9 +27,9 @@ backend/
 
 | 패키지                 | 역할                                             | 의존 방향             |
 | ---------------------- | ------------------------------------------------ | --------------------- |
-| `hansapi-server`       | HTTP 라우팅, 컨트롤러, 요청/응답 DTO             | → application, common |
-| `@hansapi/application` | 유스케이스·비즈니스 로직, 서비스, command/result | → common              |
-| `@hansapi/common`      | 공통 상수·유틸리티                               | (의존 없음)           |
+| `hansapp-api-server`   | HTTP 라우팅, 컨트롤러, 요청/응답 DTO             | → application, common |
+| `@hansapp/application` | 유스케이스·비즈니스 로직, 서비스, command/result | → common              |
+| `@hansapp/common`      | 공통 상수·유틸리티                               | (의존 없음)           |
 
 컨트롤러(server)는 애플리케이션 서비스를 호출하며, HTTP 관심사와 비즈니스 로직을 분리합니다. 워크스페이스 내부 참조는 `workspace:*`로 연결됩니다.
 
@@ -55,10 +55,10 @@ pnpm dev:server
 
 ### 루트 스크립트
 
-| 스크립트          | 설명                                     |
-| ----------------- | ---------------------------------------- |
-| `pnpm build`      | 전체 워크스페이스 빌드 (`pnpm -r build`) |
-| `pnpm dev:server` | `hansapi-server` 를 watch 모드로 실행    |
+| 스크립트          | 설명                                      |
+| ----------------- | ----------------------------------------- |
+| `pnpm build`      | 전체 워크스페이스 빌드 (`pnpm -r build`)  |
+| `pnpm dev:server` | `hansapp-api-server` 를 watch 모드로 실행 |
 
 각 패키지는 자체 `build` 스크립트(`tsc` / `nest build`)를 가지며, `pnpm --filter <패키지명> <스크립트>` 로 개별 실행할 수 있습니다.
 

@@ -1,0 +1,52 @@
+{
+  "name": "@hansapp/data",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./seed": {
+      "src": "./src/seed/index.ts",
+      "types": "./dist/seed/index.d.ts",
+      "default": "./dist/seed/index.js"
+    },
+    "./reference": {
+      "src": "./src/reference/index.ts",
+      "types": "./dist/reference/index.d.ts",
+      "default": "./dist/reference/index.js"
+    }
+  },
+  "dependencies": {
+    "@hansapp/common": "workspace:*",
+    "@nestjs/common": "^11.0.1",
+    "@prisma/client": "^6.19.3",
+    "reflect-metadata": "^0.2.2"
+  },
+  "scripts": {
+    "build": "pnpm prisma:generate && tsc -p tsconfig.json",
+    "postinstall": "pnpm prisma:generate",
+    "codegen:subway": "node -r @swc-node/register scripts/build-subway-station.ts",
+    "prisma:generate": "prisma generate --schema prisma/main && prisma generate --schema prisma/log",
+    "schema:format": "prisma-case-format --file prisma/main/default.prisma --table-case pascal --field-case camel",
+    "schema:format:check": "prisma-case-format --file prisma/main/default.prisma --table-case pascal --field-case camel --dry-run",
+    "prisma:migrate:dev": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate dev --schema prisma/main",
+    "prisma:migrate:deploy": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate deploy --schema prisma/main",
+    "prisma:migrate:status": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate status --schema prisma/main",
+    "prisma:migrate:log:deploy": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate deploy --schema prisma/log",
+    "prisma:migrate:log:dev": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate dev --schema prisma/log"
+  },
+  "devDependencies": {
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.43",
+    "@types/node": "^24.13.2",
+    "dotenv-cli": "^10.0.0",
+    "exceljs": "^4.4.0",
+    "prisma": "^6.19.3",
+    "prisma-case-format": "2.2.1"
+  }
+}

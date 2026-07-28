@@ -1,0 +1,81 @@
+{
+  "template": {
+    "settings": {
+      "index": {
+        "analysis": {
+          "char_filter": {
+            "url_head_strip": {
+              "type": "pattern_replace",
+              "pattern": "(?i)^\\s*(https?://)?(www\\.)?",
+              "replacement": ""
+            },
+            "url_tail_strip": {
+              "type": "pattern_replace",
+              "pattern": "/+\\s*$",
+              "replacement": ""
+            }
+          },
+          "tokenizer": {
+            "ko_nori": {
+              "type": "nori_tokenizer",
+              "decompound_mode": "mixed",
+              "discard_punctuation": "true"
+            },
+            "ja_kuromoji": {
+              "type": "kuromoji_tokenizer",
+              "mode": "search"
+            }
+          },
+          "filter": {
+            "icu_fold": { "type": "icu_folding" },
+            "ko_pos": { "type": "nori_part_of_speech" }
+          },
+          "normalizer": {
+            "keyword_fold": {
+              "type": "custom",
+              "filter": ["lowercase", "icu_fold"]
+            }
+          },
+          "analyzer": {
+            "ko_text": {
+              "type": "custom",
+              "tokenizer": "ko_nori",
+              "filter": ["ko_pos", "lowercase", "icu_fold"]
+            },
+            "ja_text": {
+              "type": "custom",
+              "tokenizer": "ja_kuromoji",
+              "filter": [
+                "kuromoji_baseform",
+                "kuromoji_part_of_speech",
+                "ja_stop",
+                "kuromoji_stemmer",
+                "lowercase",
+                "icu_fold"
+              ]
+            },
+            "zh_text": {
+              "type": "custom",
+              "tokenizer": "smartcn_tokenizer",
+              "filter": ["lowercase", "icu_fold"]
+            },
+            "generic_text": {
+              "type": "custom",
+              "tokenizer": "icu_tokenizer",
+              "filter": ["lowercase", "icu_fold"]
+            },
+            "domain": {
+              "type": "custom",
+              "char_filter": ["url_head_strip", "url_tail_strip"],
+              "tokenizer": "keyword",
+              "filter": ["lowercase", "trim"]
+            }
+          }
+        }
+      }
+    }
+  },
+  "_meta": {
+    "description": "hansapp 공용 다국어 분석기 (ko=nori, ja=kuromoji, zh=smartcn, 공통=icu)"
+  }
+}

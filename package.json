@@ -1,5 +1,5 @@
 {
-  "name": "hans-api-monorepo",
+  "name": "hansapp-monorepo",
   "private": true,
   "version": "0.1.0",
   "description": "레포 루트 - git 훅(husky) 세팅 전용. 각 프로젝트 설정은 backend/, frontend/ 안에 둘 것.",

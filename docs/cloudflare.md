@@ -1,8 +1,7 @@
 # Cloudflare — 프론트 배포
 
 정적 사이트(문서·웹)는 **Cloudflare Workers** 로 나간다(정적 자산만 담은 Worker). 예전처럼
-빌드 결과를 public 레포로 밀어 GitHub Pages 에 태우지 않는다 — 그 우회는 hans-api 가
-private 이라 필요했던 것이고, Cloudflare 는 소스 공개 여부와 무관하다.
+빌드 결과를 public 레포로 밀어 GitHub Pages 에 태우지 않는다 — 그 우회는 hans-app 이 private 이라 필요했던 것이고, Cloudflare 는 소스 공개 여부와 무관하다.
 
 > **Pages 가 아니라 Workers 인 이유.** Cloudflare 가 신규 정적 호스팅을 Workers 로 몰고
 > 있다. 대시보드의 생성 경로에 Pages 가 아예 안 뜨는 계정이 있고, wrangler 도

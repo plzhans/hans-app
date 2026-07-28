@@ -1,0 +1,29 @@
+// 로그 DB 스키마.
+//
+// 메인 DB 와 보존기간·관리 주기가 달라 DB 자체를 분리했다.
+// 파티셔닝·보관·파기 같은 물리 설계는 DBA 가 별도로 관리한다.
+// 여기서는 개발 중 자주 바뀌는 테이블 구조만 Prisma 로 추적한다.
+//
+// Prisma 는 스키마 하나당 DB 하나만 다루므로 메인 스키마(prisma/main/schema.prisma)와 분리돼 있다.
+// 두 DB 에 걸친 relation 은 만들 수 없다. 필요하면 raw SQL 로 조인한다(같은 MySQL 서버라 가능).
+
+generator client {
+  provider = "prisma-client-js"
+
+  // 빌드(CI, amd64)와 배포 서버(arm64)의 아키텍처가 다르다.
+  // 기본값은 "native" 뿐이라, amd64 에서 만든 번들을 arm64 서버에 풀면
+  // Prisma 엔진이 없어서 부팅이 실패한다. 두 엔진을 다 담는다.
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
+  output   = "../../generated/log"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_LOG_URL")
+
+  // main 스키마와 같은 shadow DB 를 공유한다. Prisma 가 쓰기 전에 매번 비우므로 문제없다.
+  // 다만 main 과 log 의 migrate 를 동시에 돌리면 충돌한다.
+  shadowDatabaseUrl = env("DATABASE_SHADOW_URL")
+}
+
+// 아직 테이블이 없다. 로그 모델은 필요해질 때 여기에 추가한다.

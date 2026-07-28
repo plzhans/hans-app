@@ -5,10 +5,10 @@ CI 빌드/배포용 툴체인 이미지. 매 잡마다 apt/npm 설치를 반복�
 ## 태그
 
 ```
-ghcr.io/plzhans/hans-api/node-builder:latest         ← 이걸 쓴다. 최신 빌드로 계속 옮겨간다
-ghcr.io/plzhans/hans-api/node-builder:node24         ← node 메이저를 고정하고 싶을 때. 최신 빌드로 옮겨간다
-ghcr.io/plzhans/hans-api/node-builder:node24.18.0    ← 실제로 깔린 패치까지. 안 움직인다
-ghcr.io/plzhans/hans-api/node-builder:node24-<sha>   ← 특정 커밋으로 고정하고 싶을 때. 안 움직인다
+ghcr.io/plzhans/hans-app/node-builder:latest         ← 이걸 쓴다. 최신 빌드로 계속 옮겨간다
+ghcr.io/plzhans/hans-app/node-builder:node24         ← node 메이저를 고정하고 싶을 때. 최신 빌드로 옮겨간다
+ghcr.io/plzhans/hans-app/node-builder:node24.18.0    ← 실제로 깔린 패치까지. 안 움직인다
+ghcr.io/plzhans/hans-app/node-builder:node24-<sha>   ← 특정 커밋으로 고정하고 싶을 때. 안 움직인다
 ```
 
 **`latest` 는 `.nvmrc` 가 가리키는 node 버전에만 붙는다.** 그냥 "가장 최근에 구운 것" 에 붙이면 버전이 둘 이상이 되는 순간 `latest` 가 무엇인지 모호해지고, 소비하는 잡이 조용히 엉뚱한 node 를 물게 된다. `.nvmrc` = "이 레포의 표준 node" 를 기준으로 삼으면 나중에 22 를 추가해도 뜻이 안 흔들린다.
@@ -29,9 +29,9 @@ arm64 는 amd64 러너에서 QEMU 로 에뮬레이션해 빌드하므로 그쪽 
 베이스(`node:24-bookworm-slim`)는 패치 버전이 떠 있다. Dockerfile 을 안 고쳐도 재빌드하면 24.18.0 이 24.19.x 가 된다. 그래서 워크플로우가 빌드 직전에 실제로 깔릴 버전을 확인해 `:node24.18.0` 태그와 라벨에 박는다. 보안 패치는 자동으로 따라가되, "이 이미지에 뭐가 들었나" 는 이미지 자신이 답하게 하기 위해서다.
 
 ```bash
-docker inspect --format '{{json .Config.Labels}}' ghcr.io/plzhans/hans-api/node-builder:latest | jq
-# io.hansapi.node-builder.node = 24.18.0
-# io.hansapi.node-builder.pnpm = 11.10.0
+docker inspect --format '{{json .Config.Labels}}' ghcr.io/plzhans/hans-app/node-builder:latest | jq
+# io.hansapp.node-builder.node = 24.18.0
+# io.hansapp.node-builder.pnpm = 11.10.0
 # org.opencontainers.image.revision = <이 이미지를 구운 커밋>
 ```
 
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       # 평소엔 latest. 매 빌드가 최신 툴체인을 문다.
-      image: ghcr.io/<owner>/hans-api/node-builder:latest
+      image: ghcr.io/<owner>/hans-app/node-builder:latest
       # wg-quick 은 커널 모듈이 있든(NET_ADMIN) 없든(TUN) 둘 다 필요하다.
       options: --cap-add NET_ADMIN --device /dev/net/tun
     steps:
@@ -113,7 +113,7 @@ umask 077
 mkdir -p ~/.ssh
 printf '%s\n' "$SSH_PRIVATE_KEY"  > ~/.ssh/id_deploy
 printf '%s\n' "$SSH_KNOWN_HOSTS"  > ~/.ssh/known_hosts
-ssh -i ~/.ssh/id_deploy deploy@10.0.0.5 'systemctl restart hans-api'
+ssh -i ~/.ssh/id_deploy deploy@10.0.0.5 'systemctl restart hans-app'
 ```
 
 `known_hosts` 없이 `StrictHostKeyChecking=no` 로 넘기면 MITM 에 노출된다. VPN 안이라도 host key 는 고정해두는 게 맞다.

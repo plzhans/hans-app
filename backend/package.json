@@ -1,11 +1,11 @@
 {
-  "name": "hans-api",
+  "name": "hansapp-backend",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev:server": "SWC_NODE_PROJECT=apps/hansapi-server/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapi-server/src/main.ts",
+    "dev:server": "SWC_NODE_PROJECT=apps/hansapp-api-server/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapp-api-server/src/main.ts",
     "build": "pnpm -r build && ./scripts/build-report.sh",
     "ci:build": "./scripts/build.sh",
     "ci:bundle": "../scripts/ci/run-in-builder.sh ./backend/scripts/build.sh",
@@ -13,15 +13,15 @@
     "lint": "eslint \"{apps,packages,clients}/*/src/**/*.ts\" --fix",
     "format": "prettier --write \"{apps,packages,clients}/*/**/*.{ts,js,json}\"",
     "check": "pnpm exec eslint \"{apps,packages,clients}/*/src/**/*.ts\" && pnpm exec prettier --check \"{apps,packages,clients}/*/**/*.{ts,js,json}\"",
-    "db:migrate": "APP_ENV=local pnpm --filter @hansapi/data prisma:migrate:deploy",
+    "db:migrate": "APP_ENV=local pnpm --filter @hansapp/data prisma:migrate:deploy",
     "clean": "rm -rf node_modules {apps,packages,clients}/*/dist",
     "reinstall": "rm -rf node_modules && pnpm install",
-    "hansapi-cli": "SWC_NODE_PROJECT=apps/hansapi-cli/tsconfig.json node --conditions src -r @swc-node/register apps/hansapi-cli/src/main.ts",
+    "hansapp-cli": "SWC_NODE_PROJECT=apps/hansapp-cli/tsconfig.json node --conditions src -r @swc-node/register apps/hansapp-cli/src/main.ts",
     "krdata:codegen": "pnpm --filter \"@krdata/*\" codegen",
     "seouldata:codegen": "pnpm --filter \"@seouldata/*\" codegen",
     "kr-go:codegen": "pnpm --filter \"@kr-go/*\" codegen",
-    "openapi:gen": "pnpm --filter hansapi-server openapi:gen",
-    "hansapi-batch": "SWC_NODE_PROJECT=apps/hansapi-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapi-batch/src/main.ts"
+    "openapi:gen": "pnpm --filter hansapp-api-server openapi:gen",
+    "hansapp-batch": "SWC_NODE_PROJECT=apps/hansapp-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapp-batch/src/main.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",

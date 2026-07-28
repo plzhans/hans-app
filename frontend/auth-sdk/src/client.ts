@@ -7,7 +7,7 @@ export interface AuthClientConfig {
   /** 인증 API base. 예: https://api.plzhans.com 또는 http://127.0.0.1:3000 */
   apiBaseUrl: string;
   /**
-   * 이 앱의 공개 클라이언트 ID(hansapi 앱 콘솔/CLI 에서 발급, 예: cl_fixed_medifinder).
+   * 이 앱의 공개 클라이언트 ID(hansapp 앱 콘솔/CLI 에서 발급, 예: cl_fixed_medifinder).
    *
    * 로그인 URL 에 실려 나가고, 서버가 이 값으로 return_to 가 등록된 리디렉션 URI 인지 검증한 뒤
    * 발급하는 인가코드에 박는다. 토큰 교환 때 그 값으로 요청 Origin 을 대조하므로 **필수**다.

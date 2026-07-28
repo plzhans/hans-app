@@ -1,7 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
-  # 외부 API SDK. hansapi 도메인에 의존하지 않으며 단독 배포 가능해야 한다.
+  # 외부 API SDK. hansapp 도메인에 의존하지 않으며 단독 배포 가능해야 한다.
   - 'clients/*'
 
 # 스크립트 실행 전 의존성 검증을 끈다.
@@ -25,7 +25,7 @@ allowBuilds:
   # 디렉터리째 복사하기 때문이다(gitignore 무시). 그래서 번들 안에서 prisma generate 를 다시
   # 돌릴 이유가 없고, 돌리면 오히려 실패한다 — 그 안에서는 @prisma/client 를 찾지 못해
   # `npm i @prisma/client` 를 시도하다 죽는다.
-  '@hansapi/data@file:packages/hansapi-data': false
+  '@hansapp/data@file:packages/hansapp-data': false
   '@prisma/client': true
   '@prisma/engines': true
   '@scarf/scarf': false

@@ -4,7 +4,7 @@
 
 - **스택**: React 19 · Vite 6 · TypeScript · Tailwind 3 · TanStack Query · react-router v7 · i18next(ko/en/ja)
 - **구조**: Feature-sliced (`src/{app,features,shared}`)
-- **API**: hansapi-server OpenAPI 기반 타입드 클라이언트(openapi-fetch)
+- **API**: hansapp-api-server OpenAPI 기반 타입드 클라이언트(openapi-fetch)
 
 ## 실행
 
@@ -23,15 +23,15 @@ pnpm build        # tsc -b && vite build
 pnpm api:sync     # 백엔드 openapi:gen(local) 실행 후 타입 재생성
 # 또는 개별로
 pnpm spec:local   # ../../backend 에서 openapi.json 재생성
-pnpm api:gen      # docs/openapi/openapi_hansapi.json → src/shared/api/schema.d.ts
+pnpm api:gen      # docs/openapi/hansapp-openapi.json → src/shared/api/schema.d.ts
 ```
 
 ## 환경변수
 
 | 변수 | 설명 |
 |---|---|
-| `VITE_HANSAPI_BASE_URL` | hansapi-server base URL (공유 백엔드) |
-| `VITE_HANSAPI_CLIENT_ID` | hansapi WEB 클라이언트 ID. `X-Client-Id` 헤더로 전송된다. 공개값이며, 서버가 이 ID 에 등록된 오리진과 요청 `Origin` 을 대조한다 |
+| `VITE_HANSAPP_BASE_URL` | hansapp-api-server base URL (공유 백엔드) |
+| `VITE_HANSAPP_CLIENT_ID` | hansapp WEB 클라이언트 ID. `X-Client-Id` 헤더로 전송된다. 공개값이며, 서버가 이 ID 에 등록된 오리진과 요청 `Origin` 을 대조한다 |
 
 > 서비스 키(`sk_...`)는 **프론트에 두지 않는다.** 오리진 검사를 받지 않는 비밀값이라
 > 번들에 포함되는 순간 그대로 유출된다 — 서버-서버 호출에서만 쓴다.

@@ -21,9 +21,9 @@
     "backend": {
       "component": "release-backend",
       "extra-files": [
-        { "type": "json", "path": "apps/hansapi-server/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "apps/hansapi-cli/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "apps/hansapi-batch/package.json", "jsonpath": "$.version" }
+        { "type": "json", "path": "apps/hansapp-api-server/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/hansapp-cli/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/hansapp-batch/package.json", "jsonpath": "$.version" }
       ]
     },
     "frontend": {

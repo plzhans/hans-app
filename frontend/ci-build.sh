@@ -99,7 +99,7 @@ case "$project" in
     # 재생성이 NestFactory.create(AppModule) 로 앱을 부팅해서 **살아있는 DB** 를 요구한다.
     # 빌드가 DB 에 의존하게 만들 이유가 없다.
     #
-    # docs:build 는 커밋된 스펙(docs/openapi/openapi_hansapi.json)을 그대로 읽는다.
+    # docs:build 는 커밋된 스펙(docs/openapi/hansapp-openapi.json)을 그대로 읽는다.
     # 스펙 갱신은 개발자가 로컬에서 하고 커밋한다(pnpm -C backend openapi:gen).
     group "build ($project, $APP_ENV)"
     pnpm docs:build

@@ -46,7 +46,7 @@ auth:
     hashSecret: ${AUTH_JWT_SECRET}
 
 api-server:
-  name: hansapi
+  name: hansapp
   web:
     port: 3000
     publicUrl: http://127.0.0.1:5273

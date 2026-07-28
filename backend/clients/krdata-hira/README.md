@@ -225,5 +225,5 @@ pnpm --filter @krdata/hira build     # 타입 검사 + dist
   갱신하려면 정제본 내부 버전 문자열과 `SPEC_DETAIL_VERSION`만 교체 후 codegen.
 
 > 서버 문서(Swagger)에도 이 스펙의 `components.schemas`가 `Hira` 접두사로 병합된다.
-> 스펙 파일 경로를 바꾸면 [`apps/hansapi-server/src/krdata-schemas.ts`](../../apps/hansapi-server/src/krdata-schemas.ts)의
+> 스펙 파일 경로를 바꾸면 [`apps/hansapp-api-server/src/krdata-schemas.ts`](../../apps/hansapp-api-server/src/krdata-schemas.ts)의
 > `SPECS` 목록도 함께 갱신할 것.

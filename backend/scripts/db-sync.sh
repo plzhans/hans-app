@@ -43,7 +43,7 @@ cmd_export() {
   local env="$1"
   load_db "$env"
   mkdir -p "$BACKUP_DIR"
-  local out="$BACKUP_DIR/${env}_hansapi_${DB}.sql"
+  local out="$BACKUP_DIR/${env}_hansapp_${DB}.sql"
   echo "[export] $env ($HOST:$PORT/$DB) → $out"
   MYSQL_PWD="$PASS" mysqldump --single-transaction --no-tablespaces --set-gtid-purged=OFF \
     -h "$HOST" -P "$PORT" -u "$USER" "$DB" > "$out"
@@ -61,7 +61,7 @@ cmd_import() {
   done
   [ -n "$src" ] || { echo "--from <env> 필요" >&2; usage; }
   load_db "$src"                                   # src DB 이름으로 백업 파일명 구성
-  local in="$BACKUP_DIR/${src}_hansapi_${DB}.sql"
+  local in="$BACKUP_DIR/${src}_hansapp_${DB}.sql"
   [ -f "$in" ] || { echo "백업 없음: $in  (먼저: db-sync.sh export $src)" >&2; exit 1; }
   load_db "$env"                                   # 대상 접속정보로 덮어씀
   echo "[import] $src 백업 → $env ($HOST:$PORT/$DB) 전체 교체"

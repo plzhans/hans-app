@@ -5,25 +5,25 @@
 필터 축과 `HospitalSummary`/`HospitalDetail` 응답 모양이다.
 
 > **정본(source of truth)은 코드로 옮겼다.** 실제로 ES 에 적용되는 두 템플릿 JSON 은
-> **`packages/hansapi-search/elasticsearch/`** 에 있고, CLI `hansapi-cli es schema import` 가 그걸 올린다.
+> **`packages/hansapp-search/elasticsearch/`** 에 있고, CLI `hansapp-cli es schema import` 가 그걸 올린다.
 > 이 폴더는 이제 **설계 문서 + 샘플**이다(아래 설명·구조 근거는 유효하나, 파일 수정은 패키지 쪽에서).
 
-- (정본) `packages/hansapi-search/elasticsearch/component-template.hansapi-analysis.json` — **공유 settings(분석기)**
-- (정본) `packages/hansapi-search/elasticsearch/index-template.healthcare_hospital.json` — **병원 인덱스 매핑 + 샤드/레플리카**
+- (정본) `packages/hansapp-search/elasticsearch/component-template.hansapp-analysis.json` — **공유 settings(분석기)**
+- (정본) `packages/hansapp-search/elasticsearch/index-template.healthcare_hospital.json` — **병원 인덱스 매핑 + 샤드/레플리카**
 - `hospital.sample-document.json` — 실제 데이터 한 건 예시(강북삼성병원)
 - `hospital.search-example.json` — 다국어 이름 + 필터 + 거리순 정렬 쿼리 예시
 
 색인/매핑은 Docker 이미지(`../Dockerfile`)에 넣지 않는다(이미지는 ES 버전 + 형태소 플러그인만).
-정본 템플릿은 `@hansapi/search` 가 소유하고 CLI 가 ES 에 올린다.
+정본 템플릿은 `@hansapp/search` 가 소유하고 CLI 가 ES 에 올린다.
 
 ## CLI 로 적용·관리
 
 ```sh
-hansapi-cli es schema import        # 정본 템플릿 + healthcare_hospital-v1 + alias 적용(멱등)
-hansapi-cli es schema status        # alias→인덱스·템플릿·문서 수
-hansapi-cli es hospital sync        # 활성 병원 전량 색인(alias 인덱스에 in-place)
-hansapi-cli es hospital sync-one 22306
-hansapi-cli es schema export /tmp/es-dump   # 살아있는 ES 상태 덤프
+hansapp-cli es schema import        # 정본 템플릿 + healthcare_hospital-v1 + alias 적용(멱등)
+hansapp-cli es schema status        # alias→인덱스·템플릿·문서 수
+hansapp-cli es hospital sync        # 활성 병원 전량 색인(alias 인덱스에 in-place)
+hansapp-cli es hospital sync-one 22306
+hansapp-cli es schema export /tmp/es-dump   # 살아있는 ES 상태 덤프
 ```
 
 ## settings 는 공유, mapping 은 인덱스별 — 왜 파일을 둘로 나눴나
@@ -31,9 +31,9 @@ hansapi-cli es schema export /tmp/es-dump   # 살아있는 ES 상태 덤프
 ES 는 `settings`·`mappings` 를 **둘 다 인덱스마다** 저장한다(전역 공유 객체는 없다). 대신 재사용은
 **템플릿**으로 한다:
 
-- **컴포넌트 템플릿** `hansapi-analysis` — 여러 인덱스가 공유하는 `settings.analysis`(nori/kuromoji/
+- **컴포넌트 템플릿** `hansapp-analysis` — 여러 인덱스가 공유하는 `settings.analysis`(nori/kuromoji/
   smartcn/icu 분석기)만 담는다. 병원 말고 약국·의사 인덱스가 생겨도 이 한 벌을 물려 쓴다.
-- **인덱스 템플릿** `healthcare_hospital` — `composed_of: ["hansapi-analysis"]` 로 분석기를 끌어오고, **이 인덱스에만
+- **인덱스 템플릿** `healthcare_hospital` — `composed_of: ["hansapp-analysis"]` 로 분석기를 끌어오고, **이 인덱스에만
   해당하는 매핑과 샤드/레플리카**만 얹는다. `healthcare_hospital-v*` 패턴이라 버전 인덱스(`healthcare_hospital-v1`,
   `healthcare_hospital-v2` …)에 자동 적용된다.
 
@@ -45,8 +45,8 @@ alias 만 원자적으로 옮긴다. 문제가 생기면 alias 를 v1 로 되돌
 
 ```sh
 # 1) 공유 분석기(컴포넌트 템플릿)
-curl -XPUT localhost:9200/_component_template/hansapi-analysis \
-  -H 'Content-Type: application/json' --data-binary @component-template.hansapi-analysis.json
+curl -XPUT localhost:9200/_component_template/hansapp-analysis \
+  -H 'Content-Type: application/json' --data-binary @component-template.hansapp-analysis.json
 
 # 2) 병원 인덱스 템플릿(위 컴포넌트를 조합)
 curl -XPUT localhost:9200/_index_template/healthcare_hospital \

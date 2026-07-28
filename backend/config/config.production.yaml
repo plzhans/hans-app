@@ -52,7 +52,7 @@ auth:
     hashSecret: ${AUTH_JWT_SECRET}
 
 api-server:
-  name: hansapi
+  name: hansapp
   web:
     # HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
     port: 3000

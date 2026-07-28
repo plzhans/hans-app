@@ -48,106 +48,17 @@ importers:
         specifier: ^8.62.1
         version: 8.62.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
 
-  apps/hansapi-batch:
+  apps/hansapp-api-server:
     dependencies:
-      '@hansapi/admin-application':
+      '@hansapp/application':
         specifier: workspace:*
-        version: link:../../packages/hansapi-admin-application
-      '@hansapi/common':
+        version: link:../../packages/hansapp-application
+      '@hansapp/auth-application':
         specifier: workspace:*
-        version: link:../../packages/hansapi-common
-      '@hansapi/data':
+        version: link:../../packages/hansapp-auth-application
+      '@hansapp/common':
         specifier: workspace:*
-        version: link:../../packages/hansapi-data
-      '@nestjs/common':
-        specifier: ^11.1.27
-        version: 11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core':
-        specifier: ^11.1.27
-        version: 11.1.27(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.27)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/schedule':
-        specifier: ^6.0.1
-        version: 6.1.3(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.27)
-      '@sentry/nestjs':
-        specifier: ^10.68.0
-        version: 10.68.0(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.27)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))
-      cron:
-        specifier: ^4.4.0
-        version: 4.4.0
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      reflect-metadata:
-        specifier: ^0.2.2
-        version: 0.2.2
-    devDependencies:
-      '@swc-node/register':
-        specifier: ^1.11.1
-        version: 1.11.1(@swc/core@1.15.43)(@swc/types@0.1.27)(typescript@5.9.3)
-      '@swc/core':
-        specifier: ^1.15.43
-        version: 1.15.43
-      '@types/node':
-        specifier: ^26.1.0
-        version: 26.1.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  apps/hansapi-cli:
-    dependencies:
-      '@hansapi/admin-application':
-        specifier: workspace:*
-        version: link:../../packages/hansapi-admin-application
-      '@hansapi/auth-application':
-        specifier: workspace:*
-        version: link:../../packages/hansapi-auth-application
-      '@hansapi/common':
-        specifier: workspace:*
-        version: link:../../packages/hansapi-common
-      '@hansapi/data':
-        specifier: workspace:*
-        version: link:../../packages/hansapi-data
-      '@hansapi/search':
-        specifier: workspace:*
-        version: link:../../packages/hansapi-search
-      '@nestjs/common':
-        specifier: ^11.1.27
-        version: 11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core':
-        specifier: ^11.1.27
-        version: 11.1.27(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.27)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.3
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      reflect-metadata:
-        specifier: ^0.2.2
-        version: 0.2.2
-    devDependencies:
-      '@swc-node/register':
-        specifier: ^1.11.1
-        version: 1.11.1(@swc/core@1.15.43)(@swc/types@0.1.27)(typescript@5.9.3)
-      '@swc/core':
-        specifier: ^1.15.43
-        version: 1.15.43
-      '@types/node':
-        specifier: ^26.1.0
-        version: 26.1.0
-
-  apps/hansapi-server:
-    dependencies:
-      '@hansapi/application':
-        specifier: workspace:*
-        version: link:../../packages/hansapi-application
-      '@hansapi/auth-application':
-        specifier: workspace:*
-        version: link:../../packages/hansapi-auth-application
-      '@hansapi/common':
-        specifier: workspace:*
-        version: link:../../packages/hansapi-common
+        version: link:../../packages/hansapp-common
       '@kr-go/juso':
         specifier: workspace:*
         version: link:../../clients/kr-go-juso
@@ -255,6 +166,95 @@ importers:
         specifier: ^8.62.1
         version: 8.62.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
 
+  apps/hansapp-batch:
+    dependencies:
+      '@hansapp/admin-application':
+        specifier: workspace:*
+        version: link:../../packages/hansapp-admin-application
+      '@hansapp/common':
+        specifier: workspace:*
+        version: link:../../packages/hansapp-common
+      '@hansapp/data':
+        specifier: workspace:*
+        version: link:../../packages/hansapp-data
+      '@nestjs/common':
+        specifier: ^11.1.27
+        version: 11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.1.27
+        version: 11.1.27(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.27)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/schedule':
+        specifier: ^6.0.1
+        version: 6.1.3(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.27)
+      '@sentry/nestjs':
+        specifier: ^10.68.0
+        version: 10.68.0(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.27)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))
+      cron:
+        specifier: ^4.4.0
+        version: 4.4.0
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+    devDependencies:
+      '@swc-node/register':
+        specifier: ^1.11.1
+        version: 1.11.1(@swc/core@1.15.43)(@swc/types@0.1.27)(typescript@5.9.3)
+      '@swc/core':
+        specifier: ^1.15.43
+        version: 1.15.43
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  apps/hansapp-cli:
+    dependencies:
+      '@hansapp/admin-application':
+        specifier: workspace:*
+        version: link:../../packages/hansapp-admin-application
+      '@hansapp/auth-application':
+        specifier: workspace:*
+        version: link:../../packages/hansapp-auth-application
+      '@hansapp/common':
+        specifier: workspace:*
+        version: link:../../packages/hansapp-common
+      '@hansapp/data':
+        specifier: workspace:*
+        version: link:../../packages/hansapp-data
+      '@hansapp/search':
+        specifier: workspace:*
+        version: link:../../packages/hansapp-search
+      '@nestjs/common':
+        specifier: ^11.1.27
+        version: 11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.1.27
+        version: 11.1.27(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.27)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      commander:
+        specifier: ^14.0.2
+        version: 14.0.3
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+    devDependencies:
+      '@swc-node/register':
+        specifier: ^1.11.1
+        version: 1.11.1(@swc/core@1.15.43)(@swc/types@0.1.27)(typescript@5.9.3)
+      '@swc/core':
+        specifier: ^1.15.43
+        version: 1.15.43
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.1.0
+
   clients/kr-go-juso:
     devDependencies:
       orval:
@@ -297,20 +297,20 @@ importers:
         specifier: ^7.13.2
         version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
 
-  packages/hansapi-admin-application:
+  packages/hansapp-admin-application:
     dependencies:
-      '@hansapi/application':
+      '@hansapp/application':
         specifier: workspace:*
-        version: link:../hansapi-application
-      '@hansapi/common':
+        version: link:../hansapp-application
+      '@hansapp/common':
         specifier: workspace:*
-        version: link:../hansapi-common
-      '@hansapi/data':
+        version: link:../hansapp-common
+      '@hansapp/data':
         specifier: workspace:*
-        version: link:../hansapi-data
-      '@hansapi/search':
+        version: link:../hansapp-data
+      '@hansapp/search':
         specifier: workspace:*
-        version: link:../hansapi-search
+        version: link:../hansapp-search
       '@kr-go/juso':
         specifier: workspace:*
         version: link:../../clients/kr-go-juso
@@ -343,20 +343,20 @@ importers:
         specifier: ^24.13.2
         version: 24.13.2
 
-  packages/hansapi-application:
+  packages/hansapp-application:
     dependencies:
       '@elastic/elasticsearch':
         specifier: ^9.0.0
         version: 9.4.2
-      '@hansapi/common':
+      '@hansapp/common':
         specifier: workspace:*
-        version: link:../hansapi-common
-      '@hansapi/data':
+        version: link:../hansapp-common
+      '@hansapp/data':
         specifier: workspace:*
-        version: link:../hansapi-data
-      '@hansapi/search':
+        version: link:../hansapp-data
+      '@hansapp/search':
         specifier: workspace:*
-        version: link:../hansapi-search
+        version: link:../hansapp-search
       '@keyv/redis':
         specifier: ^5.1.6
         version: 5.1.6(@opentelemetry/api@1.9.1)(keyv@5.6.0)
@@ -385,14 +385,14 @@ importers:
         specifier: ^0.2.2
         version: 0.2.2
 
-  packages/hansapi-auth-application:
+  packages/hansapp-auth-application:
     dependencies:
-      '@hansapi/common':
+      '@hansapp/common':
         specifier: workspace:*
-        version: link:../hansapi-common
-      '@hansapi/data':
+        version: link:../hansapp-common
+      '@hansapp/data':
         specifier: workspace:*
-        version: link:../hansapi-data
+        version: link:../hansapp-data
       '@nestjs/cache-manager':
         specifier: ^3.1.3
         version: 3.1.3(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.27)(cache-manager@7.2.9)(keyv@5.6.0)(rxjs@7.8.2)
@@ -461,7 +461,7 @@ importers:
         specifier: ^1.4.17
         version: 1.8.0
 
-  packages/hansapi-common:
+  packages/hansapp-common:
     dependencies:
       js-yaml:
         specifier: ^5.2.2
@@ -477,11 +477,11 @@ importers:
         specifier: ^4.6.9
         version: 4.6.9
 
-  packages/hansapi-data:
+  packages/hansapp-data:
     dependencies:
-      '@hansapi/common':
+      '@hansapp/common':
         specifier: workspace:*
-        version: link:../hansapi-common
+        version: link:../hansapp-common
       '@nestjs/common':
         specifier: ^11.0.1
         version: 11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -514,14 +514,14 @@ importers:
         specifier: 2.2.1
         version: 2.2.1
 
-  packages/hansapi-search:
+  packages/hansapp-search:
     dependencies:
       '@elastic/elasticsearch':
         specifier: ^9.0.0
         version: 9.4.2
-      '@hansapi/common':
+      '@hansapp/common':
         specifier: workspace:*
-        version: link:../hansapi-common
+        version: link:../hansapp-common
       '@nestjs/common':
         specifier: ^11.0.1
         version: 11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -1513,12 +1513,6 @@ packages:
 
   '@opentelemetry/core@2.10.0':
     resolution: {integrity: sha512-/wNZ8twnEQQA4HoHu22+vcsdru6pWPWxW+7w+FlxT6Id7PE/WIbZmVKkte+PF72e0F2dnImFeHD2syyE1Mw6MQ==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.0.0 <1.10.0'
-
-  '@opentelemetry/core@2.9.0':
-    resolution: {integrity: sha512-m2nckMT80NnmjTYSPjJQObBJ+8dgkoajEOUbznL8AHZ3T3yHRk2P7gI1PhEBc1+lOnrYE9UWrWHqJDsmqjmNbw==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
@@ -6341,7 +6335,7 @@ snapshots:
   '@elastic/transport@9.3.7':
     dependencies:
       '@opentelemetry/api': 1.9.1
-      '@opentelemetry/core': 2.9.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.1)
       debug: 4.4.3
       hpagent: 1.2.0
       ms: 2.1.3
@@ -7155,11 +7149,6 @@ snapshots:
   '@opentelemetry/api@1.9.1': {}
 
   '@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1)':
-    dependencies:
-      '@opentelemetry/api': 1.9.1
-      '@opentelemetry/semantic-conventions': 1.43.0
-
-  '@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/semantic-conventions': 1.43.0

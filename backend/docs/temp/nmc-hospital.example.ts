@@ -2,7 +2,7 @@
  * nmc-hospital 마스터 모델 + LangText 사용 예시 (설계 참고용).
  * 실제 패키지 코드가 아니라 구조/사용 흐름을 보여주기 위한 스케치다.
  */
-import { LangText, langText, withLang, mergeLangs } from '@hansapi/common';
+import { LangText, langText, withLang, mergeLangs } from '@hansapp/common';
 
 // ── 주소 블록 (언어별로 통째 담는 구조) ──
 interface AddressParts {

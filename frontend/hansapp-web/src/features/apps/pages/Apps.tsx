@@ -85,7 +85,7 @@ export default function Apps() {
           <div>
             <h1 className="text-xl font-bold text-gray-900">앱 관리</h1>
             <p className="mt-1 text-sm text-gray-500">
-              HansAPI 를 사용할 앱을 등록하고 서비스 키·클라이언트를 관리합니다.
+              API 를 사용할 앱을 등록하고 서비스 키·클라이언트를 관리합니다.
             </p>
           </div>
           <Button className="w-auto" onClick={() => setOpen((v) => !v)}>

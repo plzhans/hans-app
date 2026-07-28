@@ -1,0 +1,175 @@
+// ⚠️ **이 import 가 항상 첫 줄이어야 한다.** Sentry 는 http·express 를 monkey-patch 해서 요청을
+// 추적하는데, 그 모듈이 Sentry.init 보다 먼저 require 되면 조용히 아무것도 계측되지 않는다.
+// instrument 가 부팅 설정(boot-config)을 읽고 Sentry.init 까지 끝낸다.
+import { sentryStatusLine } from './instrument';
+
+import { Logger, ValidationPipe } from '@nestjs/common';
+import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
+import type { Request } from 'express';
+import { logConfigSummary } from '@hansapp/common';
+import {
+  isFirstPartyOrigin,
+  normalizeRootDomain,
+} from '@hansapp/auth-application';
+
+import { AppModule } from './app.module';
+import { appConfig } from './boot-config';
+import { initRefreshCookie } from './auth/refresh-cookie';
+import { HttpErrorFilter } from './common/http-error.filter';
+import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
+import {
+  OPENAPI_JSON_PATH,
+  SWAGGER_PATH,
+  buildOpenApiDocument,
+} from './swagger';
+
+// --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
+// Sentry.init 이 DSN·환경·버전을 먼저 알아야 해서 모든 import 보다 앞서 돌아야 하기 때문이다.
+
+// 요청마다 도는 유틸(refresh-cookie)이 쓸 값을 부팅 시점에 한 번 읽어 고정한다.
+initRefreshCookie(appConfig);
+
+/**
+ * Express 'trust proxy' 설정을 env 에서 파싱한다.
+ * 프록시(nginx/LB/CDN) 뒤에 있을 때만 켠다 — req.ip 와 rate limit 이 X-Forwarded-For 의
+ * 실제 클라이언트 IP 를 쓰게 한다. 무조건 켜면 XFF 위조로 IP 기반 한도를 우회당하므로
+ * 반드시 env 로 명시한다(미설정 시 끔 = 소켓 IP 사용).
+ *   TRUST_PROXY=1            신뢰 프록시 홉 수(권장: 앞단 프록시 개수)
+ *   TRUST_PROXY=10.0.0.0/8   신뢰할 프록시 IP/서브넷(콤마 구분) 또는 'loopback' 등 프리셋
+ *   TRUST_PROXY=true|false
+ */
+function parseTrustProxy(raw?: string): boolean | number | string | undefined {
+  const v = raw?.trim();
+  if (!v) return undefined;
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  if (/^\d+$/.test(v)) return Number(v);
+  return v;
+}
+
+async function bootstrap() {
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule.forRoot(appConfig),
+  );
+
+  // 프록시 뒤라면 실제 클라 IP 를 인식하도록 trust proxy 를 켠다(rate limit 정확도).
+  // yaml(config/config.<환경>.yaml) 기본값 또는 TRUST_PROXY 환경변수로 켠다(env 가 이긴다).
+  const trustProxy = parseTrustProxy(
+    appConfig.getStringOrDefault('api-server.proxy.trust') || undefined,
+  );
+  if (trustProxy !== undefined) {
+    app.set('trust proxy', trustProxy);
+  }
+
+  // refresh token 은 httpOnly 쿠키로 오간다. 쿠키 파싱을 켠다(/oauth/token refresh grant 가 읽음).
+  app.use(cookieParser());
+
+  // 1st-party(자사) 판별 기준 = 서비스 루트 도메인(APP_ROOT_DOMAIN). 자사 오리진은 credentials(쿠키)를
+  // 허용한다. 별도 오리진 목록을 두지 않는다 — rootDomain 범위(자신·서브도메인)면 자사, 미설정(로컬)이면
+  // 루프백만 자사. isFirstPartyOrigin 이 소셜 가드·FirstPartyGuard·토큰 서비스와 동일 규칙을 공유한다.
+  const rootDomain = normalizeRootDomain(
+    appConfig.getStringOrDefault('auth.rootDomain'),
+  );
+
+  // CORS. **인가가 아니라 최소 관문**이다 — 실제 검증(키/클라 status·오리진)은 AuthGuard 가 한다.
+  //  - Origin 없음(서버·curl·네이티브): CORS 대상 아님 → 통과
+  //  - 1st-party(APP_ROOT_DOMAIN 범위): 통과 + credentials(refresh 쿠키가 오가야 함)
+  //  - 그 외: 인증 헤더를 실을 요청만 통과. 쿠키는 안 준다(credentials 없음 → 타 사이트가
+  //          쿠키를 실어 /oauth/token 을 호출해 응답을 읽는 것을 브라우저가 막는다).
+  //  프리플라이트는 헤더 "이름"만 예고하므로 access-control-request-headers 를 같이 본다.
+  //
+  // maxAge: 프리플라이트 응답을 브라우저가 캐시하는 시간(초). X-Client-Id 는 커스텀 헤더라
+  // GET 이어도 매번 프리플라이트가 붙는데, 기본 캐시가 아주 짧아(크롬 5초) 호출마다 왕복이 2배가 된다.
+  // 10분으로 두면 그 구간 동안 프리플라이트를 건너뛴다(정책을 바꿔도 최대 10분 뒤 반영된다는 뜻).
+  const CORS_MAX_AGE_SEC = 600;
+
+  app.enableCors(
+    (
+      req: Request,
+      callback: (err: Error | null, options: CorsOptions) => void,
+    ) => {
+      const origin = req.headers.origin;
+      if (!origin) {
+        callback(null, { origin: true, maxAge: CORS_MAX_AGE_SEC });
+        return;
+      }
+
+      if (isFirstPartyOrigin(origin, rootDomain)) {
+        callback(null, {
+          origin,
+          credentials: true,
+          maxAge: CORS_MAX_AGE_SEC,
+        });
+        return;
+      }
+
+      const asked = String(req.headers['access-control-request-headers'] ?? '');
+      const hasAuthKey =
+        /x-client-id|authorization/i.test(asked) ||
+        !!req.headers['x-client-id'] ||
+        !!req.headers.authorization;
+
+      callback(null, {
+        origin: hasAuthKey ? origin : false,
+        maxAge: CORS_MAX_AGE_SEC,
+      });
+    },
+  );
+
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  // 응답에서 값이 없는(null) 프로퍼티를 제거한다(스프링 non_null 정책과 통일).
+  app.useGlobalInterceptors(new StripNullInterceptor());
+  // 전역 예외 필터. 브라우저 페이지 이동(Accept: text/html)엔 HTML 에러 페이지를,
+  // SPA fetch 엔 기존 JSON 을 응답한다(소셜 로그인 콜백이 주소창에 JSON 을 노출하지 않게).
+  app.useGlobalFilters(new HttpErrorFilter());
+
+  // APP_ENV 가 'production' 이 아닐 때만 Swagger 문서를 노출한다.
+  const swaggerEnabled = appConfig.env !== 'production';
+  if (swaggerEnabled) {
+    const document = buildOpenApiDocument(app);
+    SwaggerModule.setup(SWAGGER_PATH, app, document, {
+      // OpenAPI JSON 스펙을 /openapi.json 으로 서빙 (스프링 springdoc 구조와 통일)
+      jsonDocumentUrl: OPENAPI_JSON_PATH,
+      // Swagger UI 상단 탐색바를 켜서 openapi.json 스펙 경로를 UI 에 노출한다.
+      explorer: true,
+      swaggerOptions: {
+        url: `/${OPENAPI_JSON_PATH}`,
+      },
+    });
+  }
+
+  const logger = new Logger('Bootstrap');
+  // 접속 대상·활성 provider 요약(시크릿 마스킹, 한 줄씩). listen 앞에 둬 포트 충돌 등으로 못 떠도 설정은 보이게 한다.
+  logConfigSummary(appConfig, (l) => logger.log(l), { oauth: true });
+  // Sentry 가 켜졌는지도 같이 남긴다. 조용히 꺼져 있는 게 최악이다.
+  logger.log(sentryStatusLine);
+
+  const port = appConfig.getNumberOrDefault('api-server.web.port', 3000);
+  await app.listen(port);
+
+  // 부팅 완료 후 접속 링크를 출력한다. getUrl 은 IPv6(::1)일 수 있어 localhost 기준으로 구성한다.
+  const baseUrl = `http://127.0.0.1:${port}`;
+  logger.log(`🚀 Server is running on ${baseUrl}`);
+  if (swaggerEnabled) {
+    // OpenAPI(JSON) 스펙 경로(/docs-json)는 Swagger UI 가 내부적으로 로드·노출하므로
+    // 부팅 로그에는 사람이 접속하는 Swagger UI 링크만 남긴다.
+    logger.log(`📚 Swagger UI: ${baseUrl}/${SWAGGER_PATH}`);
+  } else {
+    // production 에서는 Swagger 를 노출하지 않는다.
+    logger.log('📚 Swagger is disabled in production');
+  }
+
+  // 부팅 시퀀스의 **마지막 라인** — 여기까지 찍혔으면 요청을 받을 준비가 끝났다는 신호다.
+  // 위 로그들이 중간에 끊기면 준비 전에 죽은 것이므로, 이 한 줄을 준비 완료의 기준으로 삼는다.
+  logger.log(
+    `✅ ${appConfig.env} 서버 부팅 완료 — ${baseUrl} (pid ${process.pid})`,
+  );
+}
+bootstrap().catch((error) => {
+  new Logger('Bootstrap').error('❌ Failed to start application', error);
+  process.exit(1);
+});

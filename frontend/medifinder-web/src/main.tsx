@@ -10,7 +10,7 @@ import i18n from '@/shared/i18n';
 import App from '@/app/App';
 import './globals.css';
 
-console.log('[app] VITE_HANSAPI_BASE_URL =', import.meta.env.VITE_HANSAPI_BASE_URL ?? '(not set)');
+console.log('[app] VITE_HANSAPP_BASE_URL =', import.meta.env.VITE_HANSAPP_BASE_URL ?? '(not set)');
 
 const queryClient = new QueryClient({
   defaultOptions: {

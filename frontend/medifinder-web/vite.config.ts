@@ -16,7 +16,7 @@ const gitSha = (process.env.VITE_GIT_SHA ?? process.env.GITHUB_SHA ?? 'dev')
   .slice(0, 7);
 
 export default defineConfig(({ mode }) => {
-  console.log(`[vite] mode=${mode}  VITE_HANSAPI_BASE_URL=${process.env.VITE_HANSAPI_BASE_URL ?? '(not set)'}`);
+  console.log(`[vite] mode=${mode}  VITE_HANSAPP_BASE_URL=${process.env.VITE_HANSAPP_BASE_URL ?? '(not set)'}`);
   return {
     plugins: [react()],
     // 빌드 시점에 상수로 치환된다. Sentry release 문자열을 여기서 굳힌다.
