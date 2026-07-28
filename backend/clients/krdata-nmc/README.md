@@ -114,5 +114,5 @@ pnpm --filter @krdata/nmc build     # 타입 검사 + dist
 - 실제 응답에만 있고 가이드에 없는 필드를 발견하면 스펙에 추가하고 근거를 `description`에 남긴다.
 
 > 서버 문서(Swagger)에도 이 스펙의 `components.schemas`가 `Nmc` 접두사로 병합된다.
-> 스펙 파일 경로를 바꾸면 [`apps/hansapp-api-server/src/krdata-schemas.ts`](../../apps/hansapp-api-server/src/krdata-schemas.ts)의
+> 스펙 파일 경로를 바꾸면 [`apps/hansapp-api/src/krdata-schemas.ts`](../../apps/hansapp-api/src/krdata-schemas.ts)의
 > `SPECS` 목록도 함께 갱신할 것.

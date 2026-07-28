@@ -5,7 +5,7 @@
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev:server": "SWC_NODE_PROJECT=apps/hansapp-api-server/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapp-api-server/src/main.ts",
+    "dev:server": "SWC_NODE_PROJECT=apps/hansapp-api/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapp-api/src/main.ts",
     "build": "pnpm -r build && ./scripts/build-report.sh",
     "ci:build": "./scripts/build.sh",
     "ci:bundle": "../scripts/ci/run-in-builder.sh ./backend/scripts/build.sh",
@@ -20,7 +20,7 @@
     "krdata:codegen": "pnpm --filter \"@krdata/*\" codegen",
     "seouldata:codegen": "pnpm --filter \"@seouldata/*\" codegen",
     "kr-go:codegen": "pnpm --filter \"@kr-go/*\" codegen",
-    "openapi:gen": "pnpm --filter hansapp-api-server openapi:gen",
+    "openapi:gen": "pnpm --filter hansapp-api openapi:gen",
     "hansapp-batch": "SWC_NODE_PROJECT=apps/hansapp-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapp-batch/src/main.ts"
   },
   "devDependencies": {

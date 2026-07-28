@@ -9,7 +9,7 @@ const DEFAULT_HIRA_DETAIL_VERSION = '2.8';
 /**
  * 공공데이터포털(data.go.kr) API 설정. 이 계층이 스스로 정의하고 스스로 검증한다.
  *
- * hansapp-api-server 는 이 설정을 모른다. 서버는 로컬 DB 만 읽고 외부 API 를 호출하지 않으므로
+ * hansapp-api 는 이 설정을 모른다. 서버는 로컬 DB 만 읽고 외부 API 를 호출하지 않으므로
  * 서비스키가 없어도 떠야 한다. 그래서 통합 설정 객체를 만들지 않고 계층별로 나눈다.
  */
 export interface KrDataAppConfig {

@@ -65,7 +65,7 @@ import { NmcQueryService } from './nmc/nmc-query.service';
 /**
  * 관리자·배치 전용 응용 계층의 DI 진입점.
  *
- * hansapp-api-server(게이트웨이)는 이 모듈을 참조하지 않는다. 서버는 로컬 DB 만 읽고,
+ * hansapp-api(게이트웨이)는 이 모듈을 참조하지 않는다. 서버는 로컬 DB 만 읽고,
  * 외부 공공데이터 API 를 직접 호출하는 것은 이 계층뿐이다. 콜수 제한이 걸린 API 를
  * 서버가 실수로 때리는 사고를 의존성 그래프로 막는다.
  *

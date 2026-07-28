@@ -15,7 +15,7 @@ OpenAPI 스펙에서 API 페이지를 자동 생성한다. 산출물은 **완전
 pnpm openapi:gen
 
 # 출력 경로/파일명 지정(옵셔널): --out / -o / --out= / 위치 인자, 또는 OPENAPI_OUT 환경변수
-pnpm --filter hansapp-api-server openapi:gen -- --out /path/to/spec.json
+pnpm --filter hansapp-api openapi:gen -- --out /path/to/spec.json
 ```
 
 서버·DB 없이 preview 모드로 스펙만 뽑으므로 DB 연결이 필요 없다.

@@ -137,13 +137,13 @@ pm2 startup systemd
 
 # (배포 후) 앱 기동 — deploy-backend.sh 가 아래를 만든다
 cd ~/app/hansapp-develop
-pm2 startOrReload ecosystem.config.js --only develop-hansapp-api-server
+pm2 startOrReload ecosystem.config.js --only develop-hansapp-api
 
 # 현재 프로세스 목록을 저장해 두면 재부팅 후 자동 복구
 pm2 save
 
 pm2 status
-pm2 logs develop-hansapp-api-server
+pm2 logs develop-hansapp-api
 ```
 
 > 앱은 `127.0.0.1:3000` 에서 뜬다 (nginx 가 이리로 프록시). 외부에 3000 을 직접 열지 않는다.

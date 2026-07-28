@@ -9,7 +9,7 @@ export const JUSO_CONFIG = Symbol('JUSO_CONFIG');
  * data.go.kr(@krdata) 과 다른 소스라 KrDataAppConfig 와 섞지 않는다. 인증키 이름도
  * ServiceKey 가 아니라 confmKey(승인키)이고, 검색 API 승인키가 아니면 E0001 로 거부된다.
  *
- * hansapp-api-server(게이트웨이)는 이 설정을 모른다 — 외부 API 호출은 이 계층만 한다.
+ * hansapp-api(게이트웨이)는 이 설정을 모른다 — 외부 API 호출은 이 계층만 한다.
  *
  * **승인키는 선택이다(없으면 빈 문자열).** admin 계층에도 외부 API 를 안 쓰는 커맨드(ES 색인 등)가
  * 있어 키 없이도 떠야 한다 — 서버와 같은 방침이다. 키가 정말 필요한 sync 는 호출 시점에 E0001 로

@@ -2,7 +2,7 @@
   "name": "@hansapp/admin-application",
   "version": "0.0.1",
   "private": true,
-  "description": "관리자/배치 전용 응용 계층. hansapp-api-server 는 이 패키지를 참조하지 않는다.",
+  "description": "관리자/배치 전용 응용 계층. hansapp-api 는 이 패키지를 참조하지 않는다.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

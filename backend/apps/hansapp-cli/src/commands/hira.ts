@@ -201,7 +201,7 @@ function parseCodeType(value: string): HiraCodeType {
 /**
  * 심평원 홈페이지 비급여 크롤. **배치 서버의 대역이다.**
  *
- * 흐름은 이렇다 — medifinder 에서 '갱신 요청' 을 누르면 hansapp-api-server 가 job_queue 에 한 줄
+ * 흐름은 이렇다 — medifinder 에서 '갱신 요청' 을 누르면 hansapp-api 가 job_queue 에 한 줄
  * 넣고 끝난다(서버는 외부를 호출하지 않는다). 그걸 꺼내 처리하는 게 배치 서버인데 아직 없어서,
  * 지금은 이 커맨드가 1건씩 대신 돌린다.
  *
