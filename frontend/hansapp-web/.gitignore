@@ -1,5 +1,11 @@
 node_modules
 dist
-*.local
-.env.production
+# 개인 오버라이드(.env.<mode>.local)만 무시한다.
+# `.env.local` 은 `local` 환경의 env 라 커밋한다 — frontend/.gitignore 참고.
+.env.*.local
+
+# .env.production 은 **추적한다.** 값이 전부 VITE_* 라 vite 가 브라우저 번들에 그대로
+# 구워 넣는다 — 페이지 소스만 열면 보이는 값이라 숨겨서 얻는 게 없다. 오히려 CI 가
+# 파일을 못 봐서 운영 빌드가 죽거나, 더 나쁘게는 빈 값으로 구워져 배포된다.
+# (frontend/.gitignore 의 정책과 같다. 진짜 비밀값은 VITE_ 접두사를 붙이면 안 된다.)
 node_modules/.tmp

@@ -1,4 +1,20 @@
 # 프론트 env 는 커밋한다. 값이 전부 VITE_*(API base·ncloud client id·site url 같은
 # 공개 상수)라 클라이언트 번들에 구워져 브라우저에 그대로 노출된다 — GitHub Secrets 로
-# 숨길 이유가 없다. 개인 개발용 오버라이드(.env.local, .env.<mode>.local)만 무시한다.
-.env*.local
+# 숨길 이유가 없다.
+# 개인 오버라이드만 무시한다 — `.env.<mode>.local` 이다.
+# **`.env.local` 은 무시하지 않는다.** 이 레포에서 그건 개인 파일이 아니라 `local` **환경**의
+# env 다(package.json 의 `"local": "dotenv -e .env.local -- vite"`). .env.develop·.env.production
+# 과 같은 급이라 같이 커밋한다. vite 의 관례(*.local = 개인용)와 이름이 겹칠 뿐이다.
+.env.*.local
+
+# **예외: 이 디렉터리 바로 아래의 .env 는 커밋하지 않는다.**
+# 위 규칙은 각 프로젝트의 VITE_* 파일(frontend/<프로젝트>/.env.develop 등) 이야기다.
+# frontend/.env 는 성격이 정반대다 — 루트 deploy.sh 가 읽는 **배포 자격증명**
+# (Cloudflare API 토큰)이 들어간다. vite 는 이 파일을 아예 보지 않는다
+# (각 프로젝트가 자기 루트라서 frontend/<프로젝트>/.env.* 만 읽는다).
+#
+# 앞의 / 가 이 디렉터리로만 한정한다. 그게 없으면 하위 프로젝트의 .env.develop 까지
+# 걸려서 커밋해야 할 것들이 통째로 사라진다.
+/.env
+/.env.*
+!/.env.example
