@@ -1,4 +1,5 @@
-import { EnvSource, optionalNumber, optionalString } from '@hansapi/common';
+import { optionalString } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 
 /** 도로명주소(juso.go.kr) 설정 주입 토큰 */
 export const JUSO_CONFIG = Symbol('JUSO_CONFIG');
@@ -30,10 +31,11 @@ export interface JusoAppConfig {
  * EnvSource 에서 도로명주소 설정을 뽑아 검증한다.
  * 승인키는 develop.env 등에 KRGO_JUSO_SERVICE_KEY 로 넣는다.
  */
-export function buildJusoConfig(source: EnvSource): JusoAppConfig {
+export function buildJusoConfig(source: ConfigSource): JusoAppConfig {
+  // confmKey 만 시크릿(.env). 재시도·타임아웃은 비밀 아님 → getX.
   return Object.freeze({
     confmKey: optionalString(source, 'KRGO_JUSO_SERVICE_KEY') ?? '',
-    maxRetry: optionalNumber(source, 'KRGO_JUSO_MAX_RETRY', 3),
-    readTimeoutMs: optionalNumber(source, 'KRGO_JUSO_READ_TIMEOUT_MS', 30_000),
+    maxRetry: source.getNumberOrDefault('krgoJusoMaxRetry', 3),
+    readTimeoutMs: source.getNumberOrDefault('krgoJusoReadTimeoutMs', 30_000),
   });
 }

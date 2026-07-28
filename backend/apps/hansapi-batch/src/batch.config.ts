@@ -1,4 +1,4 @@
-import { EnvSource, optionalNumber, optionalString } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 
 /** 배치 설정 토큰 */
 export const BATCH_CONFIG = Symbol('BATCH_CONFIG');
@@ -26,10 +26,11 @@ export interface BatchConfig {
 /**
  * 각 계층이 자기 설정을 스스로 뽑고 검증한다. process.env 를 직접 읽는 곳은 @hansapi/common 뿐이다.
  */
-export function buildBatchConfig(source: EnvSource): BatchConfig {
+export function buildBatchConfig(source: ConfigSource): BatchConfig {
+  // 전부 비밀 아닌 값 → getX(config/<환경>.yaml 또는 환경변수 BATCH_CRON 등).
   return {
-    cron: optionalString(source, 'BATCH_CRON') ?? '0 4 * * *',
+    cron: source.getStringOrDefault('batchCron', '0 4 * * *'),
     maxCallsPerRun:
-      optionalNumber(source, 'BATCH_MAX_CALLS_PER_RUN', 0) || undefined,
+      source.getNumberOrDefault('batchMaxCallsPerRun', 0) || undefined,
   };
 }

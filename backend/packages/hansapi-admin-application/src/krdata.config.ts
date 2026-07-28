@@ -1,4 +1,5 @@
-import { EnvSource, optionalNumber, optionalString } from '@hansapi/common';
+import { optionalString } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 
 /** 공공데이터포털 설정 주입 토큰 */
 export const KRDATA_CONFIG = Symbol('KRDATA_CONFIG');
@@ -40,13 +41,14 @@ export interface KrDataAppConfig {
  * 키를 요구하면 못 돌린다. 그래서 서버(app.module)와 같은 방침을 쓴다 — 키 없이 떠도 되고, 키가
  * **정말 필요한 sync 는 호출 시점에** 401/403 으로 드러난다(부팅 때가 아니라).
  */
-export function buildKrDataConfig(source: EnvSource): KrDataAppConfig {
+export function buildKrDataConfig(source: ConfigSource): KrDataAppConfig {
+  // serviceKey 만 시크릿(.env). 나머지(재시도·타임아웃·버전)는 비밀 아님 → getX.
   return Object.freeze({
     serviceKey: optionalString(source, 'KRDATA_SERVICE_KEY') ?? '',
-    maxRetry: optionalNumber(source, 'KRDATA_MAX_RETRY', 3),
-    readTimeoutMs: optionalNumber(source, 'KRDATA_READ_TIMEOUT_MS', 60_000),
+    maxRetry: source.getNumberOrDefault('krdataMaxRetry', 3),
+    readTimeoutMs: source.getNumberOrDefault('krdataReadTimeoutMs', 60_000),
     hiraDetailVersion:
-      optionalString(source, 'KRDATA_HIRA_DETAIL_VERSION') ??
+      source.getStringOrDefault('krdataHiraDetailVersion') ||
       DEFAULT_HIRA_DETAIL_VERSION,
   });
 }
