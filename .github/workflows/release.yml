@@ -4,7 +4,13 @@
 # 배경과 절차는 docs/release.md.
 #
 #   main push        → 버전 계산 → Release PR 을 열거나 갱신 (릴리스는 아직 안 낸다)
-#   Release PR 머지  → 버전 커밋·태그·GitHub 릴리스 → 그 판만 production 배포
+#   Release PR 머지  → 버전 커밋·태그 → 그 판이 **빌드되는지만** 확인
+#
+# **배포는 여기서 하지 않는다.** 릴리스는 "이 상태를 v1.3.0 이라 부른다" 는 선언이고,
+# 배포는 "그것을 언제 서버에 올리느냐" 는 별개 판단이다. 버전을 찍어두고 배포는 배포일에
+# 하는 흐름을 막지 않으려고 끊어 뒀다 — docs/release.md 의 "릴리스와 배포는 분리돼 있다".
+#
+#   배포할 때  →  fe-deploy.yml 을 workflow_dispatch. ref 에 릴리스 태그를 지정한다
 #
 # 판은 backend·frontend 둘이고, 봇은 **커밋이 바꾼 파일 경로**로 판을 가른다.
 # frontend 만 고친 커밋은 frontend 만 올리고 frontend 만 배포된다.
@@ -12,7 +18,15 @@ name: release · version, tag, production deploy
 
 on:
   push:
-    branches: [main]
+    # hotfix/** 도 받는다. 운영 v1.2.0 을 고쳐야 하는데 main 은 이미 1.3.0 을 향해
+    # 가 있을 때, 릴리스 태그에서 브랜치를 따 그 위에서 1.2.1 을 낸다.
+    #
+    #   git checkout -b hotfix/1.2.x release-backend/v1.2.0
+    #
+    # **워크플로는 그 브랜치에 있는 파일이 돈다.** 옛 태그에서 딴 브랜치는 옛 워크플로를
+    # 갖고 있으므로, 그때는 CI 만 최신으로 가져와야 한다:
+    #   git checkout main -- .github/workflows/ release-please-config.json
+    branches: [main, 'hotfix/**']
   # 봇이 놓쳤거나 손으로 다시 돌리고 싶을 때. 입력은 없다 — 무엇을 낼지는 커밋이 정한다.
   workflow_dispatch:
 
@@ -48,24 +62,24 @@ jobs:
           # 기본 GITHUB_TOKEN 을 쓴다. 만료 없는 PAT 을 저장소에 상주시키지 않는다 —
           # 그 판단의 배경은 docs/github.md 에 적혀 있다.
           token: ${{ secrets.GITHUB_TOKEN }}
+          # main 이든 hotfix/1.2.x 든 **자기가 푸시된 브랜치**를 대상으로 돈다.
+          # 고정하면 핫픽스 브랜치에서 돌려도 main 을 릴리스하려 든다.
+          target-branch: ${{ github.ref_name }}
 
   # ───────────────────────────────────────────────────────────────────────────
-  # 릴리스가 만들어졌으면 그 판을 운영에 올린다.
+  # 릴리스된 판이 **빌드되는지만** 확인한다. 배포하지 않는다.
   #
-  # **태그 push 로 트리거하지 않는다.** 봇이 기본 GITHUB_TOKEN 으로 태그를 만들기 때문에
-  # 그 push 는 다른 워크플로를 깨우지 않는다(무한 루프 방지). on: push tags 나 on: release
-  # 로 짜면 문법은 맞는데 아무 일도 일어나지 않는다. 그래서 같은 실행 안에서 이어 붙인다.
+  # 릴리스를 찍었는데 그 버전이 빌드가 안 되면 태그가 쓸모없어진다. 배포일에 가서야
+  # "이 버전 빌드 안 되네" 를 아는 건 늦다. 배포는 안 해도 "이 태그는 배포 가능하다" 는
+  # 보장은 릴리스 시점에 받아 둔다.
   #
-  # 배포 방법은 여기 없다. fe-deploy.yml 이 알고, 그것도 결국 frontend/ci-deploy.sh 를 부른다.
+  # **왜 태그 push 로 트리거하지 않는가.** 봇이 기본 GITHUB_TOKEN 으로 태그를 만들기
+  # 때문에 그 push 는 다른 워크플로를 깨우지 않는다(무한 루프 방지). on: push tags 로
+  # 짜면 문법은 맞는데 아무 일도 일어나지 않는다. 그래서 같은 실행 안에서 이어 붙인다.
+  # 실행을 연 것은 사람의 PR 머지이므로 이 연결에는 제약이 없다.
+  #
+  # 빌드 방법은 여기 없다. fe-deploy.yml 이 알고, 그것도 결국 frontend/ci-build.sh 를 부른다.
   # ───────────────────────────────────────────────────────────────────────────
-  # ── 1·2단계: 먼저 **전부 빌드한다.** 하나라도 깨지면 아무것도 배포되지 않는다.
-  #
-  # 이 단계가 없으면 backend 를 올린 뒤 frontend 빌드가 깨져 운영이 반쪽만 갱신된 채
-  # 남는다. 배포를 되돌리는 것보다 안 나가게 막는 쪽이 싸다.
-  #
-  # 산출물을 아티팩트로 넘기지 않고 배포 단계가 다시 빌드한다. 빌드가 결정적이고
-  # (커밋 + frozen lockfile) 릴리스는 드물어서, 배관을 늘리는 것보다 한 번 더 빌드하는
-  # 쪽이 싸다는 판단이다. 빌드가 느려지거나 비결정적이 되면 그때 아티팩트로 옮긴다.
   verify-frontend:
     needs: release
     if: >-
@@ -82,30 +96,3 @@ jobs:
       build_only: true
   # TODO: verify-backend. 같은 자리에 `contains(..., 'backend')` 로 붙인다.
 
-  # ── 3·4단계: 배포. backend 가 먼저 나가고 frontend 가 따라간다.
-  #
-  # 그 순서인 이유는 새 UI 가 아직 없는 API 를 부르는 일이 없게 하기 위해서다.
-  # 대신 backend 는 한 릴리스 동안 옛 프론트와 호환되어야 한다.
-  #
-  # TODO: deploy-backend. needs 에 verify-* 를 전부 넣고, deploy-frontend 가 이것을
-  #       needs 로 받는다. 운영 재시작이 따르므로 GitHub Environment 'production' 에
-  #       Required reviewers 를 걸어 승인 뒤 나가게 한다.
-  #
-  #       그때 아래 if 도 손봐야 한다 — needs 에 든 잡이 하나라도 skipped 면 이 잡도
-  #       통째로 건너뛴다. backend 만 릴리스된 실행에서 verify-frontend 는 skipped 이므로,
-  #       fe-deploy.yml 의 deploy 잡이 쓰는 `always() && result != 'failure'` 형태가 필요하다.
-  deploy-frontend:
-    needs: [release, verify-frontend]
-    if: >-
-      needs.release.outputs.created == 'true' &&
-      contains(fromJSON(needs.release.outputs.paths || '[]'), 'frontend')
-    uses: ./.github/workflows/fe-deploy.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      environment: production
-      # 프론트 넷은 버전이 하나다. 하나만 골라 올리면 나머지가 이전 버전으로 남아
-      # "운영에 뜬 게 몇 버전인가" 에 답할 수 없게 된다. 릴리스 때는 전부 나간다.
-      target: all

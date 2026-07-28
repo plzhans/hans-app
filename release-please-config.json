@@ -7,33 +7,95 @@
   "separate-pull-requests": false,
   "pull-request-title-pattern": "chore: release ${branch}",
   "changelog-sections": [
-    { "type": "feat", "section": "기능" },
-    { "type": "fix", "section": "버그 수정" },
-    { "type": "perf", "section": "성능" },
-    { "type": "refactor", "section": "구조 변경" },
-    { "type": "docs", "section": "문서" },
-    { "type": "ci", "section": "빌드·배포", "hidden": true },
-    { "type": "build", "section": "빌드·배포", "hidden": true },
-    { "type": "chore", "section": "그 밖", "hidden": true },
-    { "type": "test", "section": "테스트", "hidden": true }
+    {
+      "type": "feat",
+      "section": "기능"
+    },
+    {
+      "type": "fix",
+      "section": "버그 수정"
+    },
+    {
+      "type": "perf",
+      "section": "성능"
+    },
+    {
+      "type": "refactor",
+      "section": "구조 변경"
+    },
+    {
+      "type": "docs",
+      "section": "문서"
+    },
+    {
+      "type": "ci",
+      "section": "빌드·배포",
+      "hidden": true
+    },
+    {
+      "type": "build",
+      "section": "빌드·배포",
+      "hidden": true
+    },
+    {
+      "type": "chore",
+      "section": "그 밖",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "테스트",
+      "hidden": true
+    }
   ],
   "packages": {
     "backend": {
       "component": "release-backend",
       "extra-files": [
-        { "type": "json", "path": "apps/hansapp-api/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "apps/hansapp-cli/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "apps/hansapp-batch/package.json", "jsonpath": "$.version" }
-      ]
+        {
+          "type": "json",
+          "path": "apps/hansapp-api/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "apps/hansapp-cli/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "apps/hansapp-batch/package.json",
+          "jsonpath": "$.version"
+        }
+      ],
+      "bootstrap-sha": "c447ee754ff00962b156c32426c1f7c790e40c3c"
     },
     "frontend": {
       "component": "release-frontend",
       "extra-files": [
-        { "type": "json", "path": "hansapp-web/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "hansapp-auth/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "hansapp-docs/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "medifinder-web/package.json", "jsonpath": "$.version" }
-      ]
+        {
+          "type": "json",
+          "path": "hansapp-web/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "hansapp-auth/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "hansapp-docs/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "medifinder-web/package.json",
+          "jsonpath": "$.version"
+        }
+      ],
+      "bootstrap-sha": "c447ee754ff00962b156c32426c1f7c790e40c3c"
     }
-  }
+  },
+  "skip-github-release": true
 }
