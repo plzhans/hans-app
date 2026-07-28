@@ -41,6 +41,12 @@ concurrency:
 permissions:
   contents: write # 버전 커밋 · 태그 · GitHub 릴리스
   pull-requests: write # Release PR
+  # **호출하는 워크플로가 쓸 권한도 여기 있어야 한다.**
+  # permissions 블록을 쓰면 나열하지 않은 스코프는 전부 none 이 된다. 그 상태에서
+  # 재사용 워크플로(verify-frontend)에 packages: read 를 넘기면 "호출자보다 큰 권한"
+  # 이라 거부되고, 잡이 도는 게 아니라 **워크플로가 시작조차 못 한다**(startup_failure).
+  # 로그도 안 남아서 원인을 짚기 어렵다.
+  packages: read # fe-deploy 가 node-builder 이미지를 GHCR 에서 받는다
 
 jobs:
   release:
