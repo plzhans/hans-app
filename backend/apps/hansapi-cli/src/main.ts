@@ -10,6 +10,7 @@ import {
   ConfigSource,
   createConfigSource,
   exitIfVersionFlag,
+  logConfigSummary,
   resolveAppEnv,
 } from '@hansapi/common';
 
@@ -60,6 +61,9 @@ try {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 }
+
+// 접속 대상·서비스키(마스킹)를 **stderr** 로 남긴다(stdout=커맨드 출력 오염 방지) — 어느 DB/env 로 도는지 확인.
+logConfigSummary(envSource, (l) => process.stderr.write(`${l}\n`));
 
 const program = new Command()
   .name('hansapi-cli')
