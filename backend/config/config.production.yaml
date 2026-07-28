@@ -51,7 +51,7 @@ auth:
     # 코드 해시 pepper(시크릿).
     hashSecret: ${AUTH_JWT_SECRET}
 
-api-server:
+apps-api:
   name: hansapp
   web:
     # HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
@@ -113,12 +113,12 @@ juso:
   readTimeoutMs: 30000
 
 # 배치 잡. **`batch:` 를 두 번 쓰면 안 된다** — YAML 중복 키는 뒤엣것이 앞엣것을 통째로 덮는다.
-batch:
+apps-batch:
   # 앱 이름. 로그·에러 보고 등에 쓰인다.
   name: hansapp-batch
   cron: ${BATCH_CRON:-0 4 * * *}
   maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
-  # 에러 추적(Sentry). **api-server 와 별도 프로젝트**(DSN 이 다르다) — 알림 규칙을 나눈다. 비면 끈다.
+  # 에러 추적(Sentry). **apps-api 와 별도 프로젝트**(DSN 이 다르다) — 알림 규칙을 나눈다. 비면 끈다.
   sentry:
     dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
     # 배치는 요청 트레이스가 없다. 크론 실행 트레이스가 필요해지면 올린다.

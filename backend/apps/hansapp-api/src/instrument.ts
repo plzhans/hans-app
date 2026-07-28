@@ -12,13 +12,13 @@ import { appConfig, buildInfo } from './boot-config';
  * Sentry.init 보다 먼저 require 되면 패치할 대상이 이미 다른 곳에 붙잡혀 있어 **조용히 아무것도
  * 계측되지 않는다**(에러가 나지 않아 더 위험하다). 그래서 이 파일만 따로 두고 맨 위에서 부른다.
  *
- * DSN 은 config/config.<환경>.yaml 의 `api-server.sentry.dsn` 이다(비밀 아님 — 전송 전용 공개값).
+ * DSN 은 config/config.<환경>.yaml 의 `apps-api.sentry.dsn` 이다(비밀 아님 — 전송 전용 공개값).
  * **비어 있으면 init 자체를 하지 않는다** — 이후 captureException 등은 전부 no-op 이 된다.
  */
 
-const dsn = appConfig.getStringOrDefault('api-server.sentry.dsn');
+const dsn = appConfig.getStringOrDefault('apps-api.sentry.dsn');
 const tracesSampleRate = appConfig.getNumberOrDefault(
-  'api-server.sentry.tracesSampleRate',
+  'apps-api.sentry.tracesSampleRate',
   0,
 );
 
@@ -45,4 +45,4 @@ if (dsn) {
  */
 export const sentryStatusLine = dsn
   ? `🛰  Sentry : ${appConfig.env} / ${buildInfo.tagVersion} (traces ${tracesSampleRate})`
-  : '🛰  Sentry : 비활성 — api-server.sentry.dsn 없음';
+  : '🛰  Sentry : 비활성 — apps-api.sentry.dsn 없음';

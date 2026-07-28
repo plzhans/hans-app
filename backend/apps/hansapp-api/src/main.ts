@@ -59,7 +59,7 @@ async function bootstrap() {
   // 프록시 뒤라면 실제 클라 IP 를 인식하도록 trust proxy 를 켠다(rate limit 정확도).
   // yaml(config/config.<환경>.yaml) 기본값 또는 TRUST_PROXY 환경변수로 켠다(env 가 이긴다).
   const trustProxy = parseTrustProxy(
-    appConfig.getStringOrDefault('api-server.proxy.trust') || undefined,
+    appConfig.getStringOrDefault('apps-api.proxy.trust') || undefined,
   );
   if (trustProxy !== undefined) {
     app.set('trust proxy', trustProxy);
@@ -148,7 +148,7 @@ async function bootstrap() {
   // Sentry 가 켜졌는지도 같이 남긴다. 조용히 꺼져 있는 게 최악이다.
   logger.log(sentryStatusLine);
 
-  const port = appConfig.getNumberOrDefault('api-server.web.port', 3000);
+  const port = appConfig.getNumberOrDefault('apps-api.web.port', 3000);
   await app.listen(port);
 
   // 부팅 완료 후 접속 링크를 출력한다. getUrl 은 IPv6(::1)일 수 있어 localhost 기준으로 구성한다.

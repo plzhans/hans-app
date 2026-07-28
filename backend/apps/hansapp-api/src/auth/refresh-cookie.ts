@@ -40,7 +40,7 @@ export function initRefreshCookie(cfg: ConfigSource): void {
   secure = cfg.getBoolOrDefault('auth.cookieSecure', false);
   cookieDomain = cfg.getStringOrDefault('auth.rootDomain') || undefined;
   clientIpHeader =
-    cfg.getStringOrDefault('api-server.proxy.clientIpHeader') || undefined;
+    cfg.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
 }
 
 export function setRefreshCookie(

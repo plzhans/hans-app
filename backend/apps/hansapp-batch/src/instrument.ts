@@ -11,14 +11,14 @@ import { appConfig, buildInfo } from './boot-config';
  * Sentry 는 http·prisma 같은 모듈을 monkey-patch 한다. 그 모듈이 Sentry.init 보다 먼저 require 되면
  * **조용히 아무것도 계측되지 않는다**(에러가 안 나서 더 위험하다). 그래서 이 파일만 따로 둔다.
  *
- * DSN 은 config/config.<환경>.yaml 의 `batch.sentry.dsn` — **api-server 와 다른 Sentry 프로젝트다.**
+ * DSN 은 config/config.<환경>.yaml 의 `apps-batch.sentry.dsn` — **apps-api 와 다른 Sentry 프로젝트다.**
  * 배치는 "한 번 실패해도 즉시 알림", API 는 "임계치 초과 시 알림" 으로 알림 성격이 달라서 나눴다.
  * 비어 있으면 init 을 하지 않는다(이후 captureException 등은 전부 no-op).
  */
 
-const dsn = appConfig.getStringOrDefault('batch.sentry.dsn');
+const dsn = appConfig.getStringOrDefault('apps-batch.sentry.dsn');
 const tracesSampleRate = appConfig.getNumberOrDefault(
-  'batch.sentry.tracesSampleRate',
+  'apps-batch.sentry.tracesSampleRate',
   0,
 );
 
@@ -43,7 +43,7 @@ export const sentryEnabled = Boolean(dsn);
 /** 부팅 로그 한 줄. 조용히 꺼져 있는 게 최악이라 로그에 남긴다. */
 export const sentryStatusLine = dsn
   ? `🛰  Sentry : ${appConfig.env} / ${buildInfo.tagVersion} (traces ${tracesSampleRate})`
-  : '🛰  Sentry : 비활성 — batch.sentry.dsn 없음';
+  : '🛰  Sentry : 비활성 — apps-batch.sentry.dsn 없음';
 
 /**
  * 남은 이벤트를 전송하고 기다린다. **배치는 끝나면 프로세스가 죽는다** —

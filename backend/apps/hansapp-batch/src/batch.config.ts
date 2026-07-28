@@ -29,8 +29,8 @@ export interface BatchConfig {
 export function buildBatchConfig(source: ConfigSource): BatchConfig {
   // 전부 비밀 아닌 값 → getX(config/config.<환경>.yaml 또는 환경변수 BATCH_CRON 등).
   return {
-    cron: source.getStringOrDefault('batch.cron', '0 4 * * *'),
+    cron: source.getStringOrDefault('apps-batch.cron', '0 4 * * *'),
     maxCallsPerRun:
-      source.getNumberOrDefault('batch.maxCallsPerRun', 0) || undefined,
+      source.getNumberOrDefault('apps-batch.maxCallsPerRun', 0) || undefined,
   };
 }

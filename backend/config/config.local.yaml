@@ -45,7 +45,7 @@ auth:
     maxSendsPerHour: ${AUTH_OTP_MAX_SENDS_PER_HOUR:-5}
     hashSecret: ${AUTH_JWT_SECRET}
 
-api-server:
+apps-api:
   name: hansapp
   web:
     port: 3000
@@ -102,11 +102,11 @@ juso:
   readTimeoutMs: 30000
 
 # 배치 잡. **`batch:` 를 두 번 쓰면 안 된다** — YAML 중복 키는 뒤엣것이 앞엣것을 통째로 덮는다.
-batch:
+apps-batch:
   name: hansapp-batch
   cron: ${BATCH_CRON:-0 4 * * *}
   maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
-  # 로컬은 Sentry 끔. (배치는 api-server 와 별도 Sentry 프로젝트를 쓴다 — 켜려면 그 DSN 을 여기.)
+  # 로컬은 Sentry 끔. (배치는 apps-api 와 별도 Sentry 프로젝트를 쓴다 — 켜려면 그 DSN 을 여기.)
   sentry:
     dsn:
     tracesSampleRate: 0

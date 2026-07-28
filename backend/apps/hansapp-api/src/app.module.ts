@@ -51,7 +51,7 @@ export class AppModule {
     //   Cloudflare  → cf-connecting-ip,  범용 프록시 → 비우고 TRUST_PROXY 로 req.ip 사용
     // 비밀 아닌 값이라 config/config.<환경>.yaml(또는 CLIENT_IP_HEADER 환경변수)로 관리한다.
     const clientIpHeader =
-      config.getStringOrDefault('api-server.proxy.clientIpHeader') || undefined;
+      config.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
     return {
       module: AppModule,
       imports: [
