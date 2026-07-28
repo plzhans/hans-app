@@ -1,7 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
-import { EnvSource, asConfigSource, optionalString } from '@hansapi/common';
+import { optionalString } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 import { DataModule } from '@hansapi/data';
 import {
   buildSearchConfig,
@@ -50,7 +51,7 @@ import { RegionCache } from './region/region.cache';
  */
 @Module({})
 export class ApplicationModule {
-  static forRoot(source: EnvSource): DynamicModule {
+  static forRoot(source: ConfigSource): DynamicModule {
     // 병원 상세 등 무거운 조회 결과를 캐싱한다(HealthcareHospitalService 가 CACHE_MANAGER 로 주입받음).
     // REDIS_URL 이 있으면 Redis, 없으면 인메모리로 폴백해 redis 미구성 환경·테스트에서도 부팅을 막지 않는다.
     const redisUrl = optionalString(source, 'REDIS_URL');
@@ -77,10 +78,7 @@ export class ApplicationModule {
         // ES 검색(무한 스크롤의 기본 원천). SearchModule 전체가 아니라 조회에 필요한 것만 단다
         // — 색인 서비스·두 번째 Prisma 풀을 서버에 끌어오지 않으려는 것이다. ElasticsearchService 는
         // 지연 연결이라 ELASTICSEARCH_URL 만 있으면 부팅하고, ES 가 죽어 있어도 뜬다(db=true 로 우회).
-        {
-          provide: SEARCH_CONFIG,
-          useValue: buildSearchConfig(asConfigSource(source)),
-        },
+        { provide: SEARCH_CONFIG, useValue: buildSearchConfig(source) },
         ElasticsearchService,
         HealthcareHospitalSearchRepository,
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.

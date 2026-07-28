@@ -1,6 +1,6 @@
 import { INestApplicationContext } from '@nestjs/common';
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import {
   DEFAULT_SYNC_ROWS,
   SyncOptions,
@@ -25,7 +25,7 @@ interface SyncCommandOptions {
  */
 export function syncCommand(
   label: string,
-  source: EnvSource,
+  source: ConfigSource,
   runSync: (
     context: INestApplicationContext,
     options: SyncOptions,

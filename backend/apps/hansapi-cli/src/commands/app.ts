@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import { AppService, AppStatus } from '@hansapi/auth-application';
 import type { AppClient, CreateClientInput } from '@hansapi/auth-application';
 
@@ -42,7 +42,7 @@ function collect(value: string, previous: string[]): string[] {
  * 원인을 짚기 어렵다.
  */
 async function run<T>(
-  source: EnvSource,
+  source: ConfigSource,
   owner: string | undefined,
   action: (apps: AppService, userId: number) => Promise<T>,
 ): Promise<T> {
@@ -85,7 +85,7 @@ function printSecret(label: string, value: string): void {
 
 /** 클라이언트의 origins/redirectUris 에 값을 **더한다**(기존 유지, 중복 제거). */
 async function appendToClient(
-  source: EnvSource,
+  source: ConfigSource,
   owner: string | undefined,
   appId: number,
   clientPk: number,
@@ -123,7 +123,7 @@ function briefClient(c: AppClient) {
   };
 }
 
-export function appCommand(source: EnvSource): Command {
+export function appCommand(source: ConfigSource): Command {
   const app = new Command('app').description(
     '앱·서비스 키·클라이언트 관리 (포털 콘솔과 동일한 규칙)',
   );

@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { EnvSource, asConfigSource } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 import { ApplicationModule } from '@hansapi/application';
 import { DataModule } from '@hansapi/data';
 import { SearchModule } from '@hansapi/search';
@@ -73,11 +73,9 @@ import { NmcQueryService } from './nmc/nmc-query.service';
  */
 @Module({})
 export class AdminApplicationModule {
-  static forRoot(source: EnvSource): DynamicModule {
-    // 런타임 객체는 ConfigSource(루트가 createConfigSource 로 만듦). getX 빌더용으로 좁힌다.
-    const cfg = asConfigSource(source);
-    const config = buildKrDataConfig(cfg);
-    const jusoConfig = buildJusoConfig(cfg);
+  static forRoot(source: ConfigSource): DynamicModule {
+    const config = buildKrDataConfig(source);
+    const jusoConfig = buildJusoConfig(source);
 
     return {
       module: AdminApplicationModule,

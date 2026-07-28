@@ -9,7 +9,7 @@ import {
 import { join } from 'node:path';
 
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import {
   generateAccessKeyPair,
   jwkThumbprint,
@@ -31,7 +31,7 @@ import { addExamples } from '../help';
 
 const ALGS: AccessAlg[] = ['ES256', 'ES384', 'ES512'];
 
-function keyDir(source: EnvSource): string {
+function keyDir(source: ConfigSource): string {
   return join('config', source.env, 'jwt');
 }
 
@@ -90,7 +90,7 @@ function printNextSteps(dir: string): void {
   console.log(`  2) env: AUTH_JWT_KEY_DIR=${dir}  (+ AUTH_ISSUER)`);
 }
 
-export function jwtCommand(source: EnvSource): Command {
+export function jwtCommand(source: ConfigSource): Command {
   const jwt = new Command('jwt').description(
     'access token 서명 키 관리 (ES256, 파일 기반)',
   );

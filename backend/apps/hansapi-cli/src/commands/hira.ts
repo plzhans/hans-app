@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import {
   DEFAULT_CODE_SYNC_ROWS,
   HIRA_CODE_TYPE_DEFS,
@@ -29,7 +29,7 @@ const HOSPITAL_COLUMNS = ['ykiho', 'yadmNm', 'clCdNm', 'addr'];
  * DB 미러 / 원본 API 중 소스를 골라 조회한다. 소스 선택은 응용 계층이 한다.
  */
 async function withRead<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (service: HiraHospitalReadService) => Promise<T>,
 ): Promise<T> {
   return withAdminContext(source, (context) =>
@@ -42,7 +42,7 @@ async function withRead<T>(
  * CLI 는 커맨드를 파싱해 서비스를 호출하고 결과를 출력할 뿐, SDK 를 직접 잡지 않는다.
  */
 async function withQuery<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (service: HiraQueryService) => Promise<T>,
 ): Promise<T> {
   return withAdminContext(source, (context) =>
@@ -207,7 +207,7 @@ function parseCodeType(value: string): HiraCodeType {
  *
  * **공개 API 가 아니라 웹 스크래핑이고 법무 확인 전이다** — clients/kr-or-hira/README.md 참고.
  */
-function addNpayWebCommands(hira: Command, source: EnvSource): void {
+function addNpayWebCommands(hira: Command, source: ConfigSource): void {
   addExamples(
     hira
       .command('npay-code')
@@ -283,7 +283,7 @@ function addNpayWebCommands(hira: Command, source: EnvSource): void {
   );
 }
 
-export function hiraCommand(source: EnvSource): Command {
+export function hiraCommand(source: ConfigSource): Command {
   const hira = new Command('hira').description(
     '건강보험심사평가원(HIRA) 공공데이터 API',
   );

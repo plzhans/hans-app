@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import {
   HIRA_ALL_OPS,
   HIRA_DETAIL_OPS,
@@ -89,7 +89,7 @@ function parseStage<T extends number>(value: string, stages: readonly T[]): T {
  */
 export function stageSyncCommand(
   provider: 'nmc' | 'hira',
-  source: EnvSource,
+  source: ConfigSource,
 ): Command {
   const isNmc = provider === 'nmc';
   const help = isNmc ? NMC_STAGE_HELP : HIRA_STAGE_HELP;
@@ -186,7 +186,7 @@ function printStageResult(
 }
 
 /** 단계별 실행 상태를 표로 보여준다. 어디까지 갔는지 여기서 본다. */
-export function syncStatusCommand(source: EnvSource): Command {
+export function syncStatusCommand(source: ConfigSource): Command {
   return addExamples(
     new Command('sync-status')
       .description('단계별 동기화 상태를 조회한다')

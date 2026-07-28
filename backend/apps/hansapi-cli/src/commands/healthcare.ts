@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import {
   HealthcareBuildService,
   HealthcareDetailBuildService,
@@ -14,7 +14,7 @@ import { addExamples } from '../help';
  * API 콜이 0이다. HIRA + NMC + 매칭 + 코드 매핑을 DB 안에서 계산해 만든다.
  * sync 와 match 가 끝난 뒤에 돌린다.
  */
-export function healthcareCommand(source: EnvSource): Command {
+export function healthcareCommand(source: ConfigSource): Command {
   const healthcare = new Command('healthcare').description(
     '통합 병원 데이터 (HIRA + NMC → 우리 코드)',
   );

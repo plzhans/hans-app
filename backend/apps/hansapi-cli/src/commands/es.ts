@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import { ElasticsearchService, SearchSchemaService } from '@hansapi/search';
 import { HealthcareIndexService } from '@hansapi/admin-application';
 
@@ -18,7 +18,7 @@ import { addExamples } from '../help';
  * 운영 정책: 앱은 alias 로만 접근하고, 실제 인덱스는 name-v1. 스키마가 바뀌면 v 를 올려
  * 재색인 후 alias 만 교체한다(schema import 가 alias 를 관리한다).
  */
-export function esCommand(source: EnvSource): Command {
+export function esCommand(source: ConfigSource): Command {
   const es = new Command('es').description(
     'Elasticsearch 색인 관리 · 병원 데이터 동기화',
   );
@@ -29,7 +29,7 @@ export function esCommand(source: EnvSource): Command {
   return es;
 }
 
-function registerSchema(es: Command, source: EnvSource): void {
+function registerSchema(es: Command, source: ConfigSource): void {
   const schema = es
     .command('schema')
     .description('ES 스키마/설정(템플릿·인덱스·alias) 관리');
@@ -143,7 +143,7 @@ function registerSchema(es: Command, source: EnvSource): void {
     });
 }
 
-function registerHospital(es: Command, source: EnvSource): void {
+function registerHospital(es: Command, source: ConfigSource): void {
   const hospital = es
     .command('hospital')
     .description(

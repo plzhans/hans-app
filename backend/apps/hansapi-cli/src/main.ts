@@ -7,7 +7,7 @@ import { config } from 'dotenv';
 import {
   APP_ENVS,
   DEFAULT_APP_ENV,
-  EnvSource,
+  ConfigSource,
   createConfigSource,
   exitIfVersionFlag,
   resolveAppEnv,
@@ -35,15 +35,15 @@ import { addExamples, localizeHelp } from './help';
  * sync 커맨드가 Nest 컨텍스트를 만들 때 이미 process.env 가 채워져 있어야 하기 때문이다.
  * 그래서 argv 에서 --env 만 먼저 직접 읽는다.
  */
-function bootstrapEnv(): EnvSource {
+function bootstrapEnv(): ConfigSource {
   const index = process.argv.indexOf('--env');
   const explicit = index >= 0 ? process.argv[index + 1] : undefined;
 
   const appEnv = resolveAppEnv(explicit);
   // 자식 프로세스(prisma)도 같은 환경을 보도록 물려준다.
   process.env.APP_ENV = appEnv;
-  // ConfigSource 로 만든다(EnvSource 를 확장). 커맨드는 EnvSource 로 받아 그대로 쓰고,
-  // getX 가 필요한 계층만 경계에서 asConfigSource 로 좁힌다.
+  // 설정 접근자(ConfigSource). config/<환경>.yaml + 환경변수(__ 계층)를 병합해 경로 게터로 읽고,
+  // EnvSource 를 확장하므로 시크릿을 flat env 로 읽는 기존 계층에도 그대로 넘어간다.
   return createConfigSource(__dirname, appEnv, config);
 }
 
@@ -52,7 +52,7 @@ function bootstrapEnv(): EnvSource {
 // env 파일이 없는 머신에서도 "이게 무슨 빌드냐" 는 답할 수 있어야 한다.
 exitIfVersionFlag(__dirname);
 
-let envSource: EnvSource;
+let envSource: ConfigSource;
 try {
   envSource = bootstrapEnv();
 } catch (error) {

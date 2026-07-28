@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import {
   DEFAULT_CODE_SYNC_ROWS,
   NmcCodeReadService,
@@ -25,7 +25,7 @@ const CODE_COLUMNS = ['cmMid', 'cmMnm', 'cmSid', 'cmSnm'];
  * DB 미러 / 원본 API 중 소스를 골라 조회한다. 소스 선택은 응용 계층이 한다.
  */
 async function withRead<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (service: NmcHospitalReadService) => Promise<T>,
 ): Promise<T> {
   return withAdminContext(source, (context) =>
@@ -38,7 +38,7 @@ async function withRead<T>(
  * CLI 는 커맨드를 파싱해 서비스를 호출하고 결과를 출력할 뿐, SDK 를 직접 잡지 않는다.
  */
 async function withQuery<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (service: NmcQueryService) => Promise<T>,
 ): Promise<T> {
   return withAdminContext(source, (context) =>
@@ -84,7 +84,7 @@ function withCommonOptions(command: Command, defaultRows: string): Command {
     .option('--simple', '주요 컬럼만 표로 출력한다');
 }
 
-export function nmcCommand(source: EnvSource): Command {
+export function nmcCommand(source: ConfigSource): Command {
   const nmc = new Command('nmc').description(
     '국립중앙의료원(NMC) 전국 병·의원 찾기 서비스',
   );

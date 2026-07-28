@@ -6,9 +6,9 @@ import { loadRawConfig } from './app-config';
  * 병합된 설정 tree(config/<환경>.yaml + 환경변수 __계층) 위의 **경로 타입 게터**.
  * C#/Java 의 IConfiguration/Environment 처럼 값을 꺼낸다.
  *
- * **EnvSource 를 확장한다(superset).** 그래서 기존 `requireString(source,'KEY')` 나
- * `forRoot(source: EnvSource)` 는 ConfigSource 를 그대로 받아 동작하고, 준비된 계층부터
- * `cfg.getString('path')` 스타일로 옮기면 된다 — 카스케이드 없는 점진 이전.
+ * **EnvSource 를 확장한다(superset).** 그래서 시크릿을 flat env 키로 읽는 저수준 헬퍼
+ * (`requireString(source,'KEY')` 등)에 ConfigSource 를 그대로 넘길 수 있다 — 시크릿은 헬퍼로,
+ * 비밀 아닌 값은 getX 경로로, 한 객체에서 둘 다 읽는다.
  *
  * 경로는 'a.b.c' 또는 'a:b:c'. 개별 값은 여기서 바로 꺼내고(getString 등),
  * 복잡·응집된 설정(mail 등)만 이 게터로 값을 뽑아 자기 도메인 객체를 만든다.
@@ -32,23 +32,6 @@ export interface ConfigSource extends EnvSource {
   /** true/false 또는 'true'/'false' 문자열. */
   getBool(path: string): boolean;
   getBoolOrDefault(path: string, fallback: boolean): boolean;
-}
-
-/**
- * EnvSource 를 ConfigSource 로 좁힌다. **루트가 createConfigSource 로 만든 설정**을
- * EnvSource 타입으로 전달받은 계층이, getX 를 쓰려고 되돌릴 때 쓴다(주입 타입은 아직
- * EnvSource 라 곳곳을 안 바꿔도 되게 하는 이전용 다리다).
- *
- * 런타임 객체가 실제 ConfigSource 인지 확인해, 아니면(루트가 옛 loadEnv 로 만든 경우) 즉시
- * 실패한다 — 조용히 잘못된 값을 읽느니 부팅을 못 하게 한다.
- */
-export function asConfigSource(source: EnvSource): ConfigSource {
-  if (typeof (source as Partial<ConfigSource>).getString !== 'function') {
-    throw new Error(
-      'ConfigSource 가 아니다 — 루트에서 createConfigSource 로 설정을 만들어야 한다',
-    );
-  }
-  return source as ConfigSource;
 }
 
 /** 'a.b.c' / 'a:b:c' 경로를 따라 tree 를 내려간다. */

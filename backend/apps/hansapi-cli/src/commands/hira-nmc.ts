@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import { HiraNmcMatchService } from '@hansapi/admin-application';
 
 import { withAdminContext } from '../context';
@@ -11,7 +11,7 @@ import { addExamples } from '../help';
  * API 콜이 0이다. 매칭 키(이름·전화·좌표)가 전부 목록 API 에 있어서, 양쪽 1단계만 끝나면
  * DB 안에서 계산으로 끝난다. 상세 적재(2단계 이후)를 기다릴 필요가 없다.
  */
-export function hiraNmcCommand(source: EnvSource): Command {
+export function hiraNmcCommand(source: ConfigSource): Command {
   const command = new Command('hira-nmc').description(
     'HIRA ↔ NMC 병원 매칭 (API 콜 없음)',
   );

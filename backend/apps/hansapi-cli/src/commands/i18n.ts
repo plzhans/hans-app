@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
 import { Command, InvalidArgumentError } from 'commander';
-import { EnvSource, findRootDir } from '@hansapi/common';
+import { ConfigSource, findRootDir } from '@hansapi/common';
 import {
   HospitalI18nExportService,
   I18N_FIELDS,
@@ -33,7 +33,7 @@ function defaultOut(): string {
   return join(findRootDir(__dirname) ?? process.cwd(), 'temp');
 }
 
-export function i18nCommand(source: EnvSource): Command {
+export function i18nCommand(source: ConfigSource): Command {
   const i18n = new Command('i18n').description('병원 자유 텍스트 번역');
 
   addExamples(

@@ -1,7 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AdminApplicationModule } from '@hansapi/admin-application';
-import { EnvSource, asConfigSource } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 
 import { BATCH_CONFIG, buildBatchConfig } from './batch.config';
 import { BatchScheduler } from './batch.scheduler';
@@ -15,7 +15,7 @@ import { BatchService } from './batch.service';
  */
 @Module({})
 export class AppModule {
-  static forRoot(source: EnvSource): DynamicModule {
+  static forRoot(source: ConfigSource): DynamicModule {
     return {
       module: AppModule,
       imports: [
@@ -23,10 +23,7 @@ export class AppModule {
         AdminApplicationModule.forRoot(source),
       ],
       providers: [
-        {
-          provide: BATCH_CONFIG,
-          useValue: buildBatchConfig(asConfigSource(source)),
-        },
+        { provide: BATCH_CONFIG, useValue: buildBatchConfig(source) },
         BatchService,
         BatchScheduler,
       ],

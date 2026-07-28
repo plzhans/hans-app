@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import { DB_TARGETS, DbTarget, PrismaMigrationService } from '@hansapi/data';
 
 import { withAdminContext, withDataContext } from '../context';
@@ -18,7 +18,7 @@ interface DbOptions {
  * 스키마 경로도 prisma 실행 방법도 CLI 는 알지 못한다. 커맨드를 파싱해 호출만 한다.
  */
 async function run(
-  source: EnvSource,
+  source: ConfigSource,
   db: DbTarget,
   action: (service: PrismaMigrationService, target: DbTarget) => void,
 ): Promise<void> {
@@ -43,7 +43,7 @@ function withDbOption(command: Command): Command {
   );
 }
 
-export function dbCommand(source: EnvSource): Command {
+export function dbCommand(source: ConfigSource): Command {
   const db = new Command('db').description(
     'DB 스키마 관리 (Prisma). 메인·로그 DB 를 --db 로 고른다',
   );

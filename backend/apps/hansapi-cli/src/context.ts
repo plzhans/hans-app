@@ -4,7 +4,7 @@ import {
   LogLevel,
 } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import { AdminApplicationModule, I18nModule } from '@hansapi/admin-application';
 import { AuthModule } from '@hansapi/auth-application';
 import { DataModule } from '@hansapi/data';
@@ -15,7 +15,7 @@ import { SearchModule } from '@hansapi/search';
  * NestJS DI 로 조립된다. 여기서 애플리케이션 컨텍스트만 띄워 서비스를 꺼내 쓴다.
  * HTTP 서버는 뜨지 않는다.
  *
- * 설정은 EnvSource 로 넘긴다. 각 계층이 자기 설정을 뽑고 검증하므로,
+ * 설정은 ConfigSource 로 넘긴다. 각 계층이 자기 설정을 뽑고 검증하므로,
  * 필요한 설정이 없으면 컨텍스트를 만드는 시점에 즉시 실패한다.
  */
 async function withContext<T>(
@@ -50,7 +50,7 @@ async function withContext<T>(
  * 뜬다(서버와 같은 방침). 키가 정말 필요한 sync 는 호출 시점에 401/403·E0001 로 드러난다.
  */
 export async function withAdminContext<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (context: INestApplicationContext) => Promise<T>,
   options: { verbose?: boolean; debug?: boolean } = {},
 ): Promise<T> {
@@ -69,7 +69,7 @@ export async function withAdminContext<T>(
  * 서비스키가 없어도 돌아야 한다. 그래서 admin 컨텍스트를 쓰지 않는다.
  */
 export async function withDataContext<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (context: INestApplicationContext) => Promise<T>,
 ): Promise<T> {
   return withContext(DataModule.forRoot(source), run, false, false);
@@ -90,7 +90,7 @@ export async function withDataContext<T>(
  * (SearchModule 이 내부에서 DataModule 을 물려 PrismaService 를 얻는다.)
  */
 export async function withSearchContext<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (context: INestApplicationContext) => Promise<T>,
   options: { verbose?: boolean } = {},
 ): Promise<T> {
@@ -103,7 +103,7 @@ export async function withSearchContext<T>(
 }
 
 export async function withI18nContext<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (context: INestApplicationContext) => Promise<T>,
   options: { verbose?: boolean } = {},
 ): Promise<T> {
@@ -123,7 +123,7 @@ export async function withI18nContext<T>(
  * 전역 캐시(CacheModule)가 없으므로 AccessCache 는 메모리로만 동작한다(@Optional).
  */
 export async function withAuthContext<T>(
-  source: EnvSource,
+  source: ConfigSource,
   run: (context: INestApplicationContext) => Promise<T>,
 ): Promise<T> {
   return withContext(AuthModule.forRoot(source), run, false, false);

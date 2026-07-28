@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import { AppService, UserTier } from '@hansapi/auth-application';
 import type { UserTierInfo } from '@hansapi/auth-application';
 
@@ -18,7 +18,7 @@ const TIERS = Object.values(UserTier);
 
 /** 컨텍스트를 띄우고 이메일을 userId 로 바꿔 넘긴다. */
 async function run<T>(
-  source: EnvSource,
+  source: ConfigSource,
   email: string | undefined,
   action: (apps: AppService, userId: number) => Promise<T>,
 ): Promise<T> {
@@ -52,7 +52,7 @@ function present(info: UserTierInfo) {
   };
 }
 
-export function userCommand(source: EnvSource): Command {
+export function userCommand(source: ConfigSource): Command {
   const user = new Command('user').description('사용자 관리 (운영자용)');
 
   addExamples(

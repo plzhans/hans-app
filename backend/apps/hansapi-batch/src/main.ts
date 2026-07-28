@@ -32,8 +32,8 @@ async function bootstrap(): Promise<void> {
 
   const appEnv = resolveAppEnv();
   process.env.APP_ENV = appEnv;
-  // ConfigSource 로 만든다(EnvSource 를 확장). 하위 계층은 EnvSource 로 받아 그대로 쓰고,
-  // getX 가 필요한 계층만 경계에서 asConfigSource 로 좁힌다.
+  // 설정 접근자(ConfigSource). config/<환경>.yaml + 환경변수(__ 계층)를 병합해 경로 게터로 읽고,
+  // EnvSource 를 확장하므로 시크릿을 flat env 로 읽는 기존 계층에도 그대로 넘어간다.
   const source = createConfigSource(__dirname, appEnv, config);
 
   const once = process.argv.includes('--once');

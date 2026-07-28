@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { EnvSource } from '@hansapi/common';
+import { ConfigSource } from '@hansapi/common';
 import { DataModule } from '@hansapi/data';
 
 import { HospitalI18nExportService } from './hospital-i18n-export.service';
@@ -16,7 +16,7 @@ import { HospitalI18nExportService } from './hospital-i18n-export.service';
  */
 @Module({})
 export class I18nModule {
-  static forRoot(source: EnvSource): DynamicModule {
+  static forRoot(source: ConfigSource): DynamicModule {
     return {
       module: I18nModule,
       imports: [DataModule.forRoot(source)],

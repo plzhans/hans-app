@@ -1,7 +1,7 @@
 import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { EnvSource, asConfigSource } from '@hansapi/common';
+import type { ConfigSource } from '@hansapi/common';
 import { DataModule } from '@hansapi/data';
 
 import {
@@ -48,19 +48,17 @@ import { LineStrategy } from './social/strategies/line.strategy';
  *
  * DB 접근은 기존 DataModule(@hansapi/data)에 위임한다 — auth 모델은 멀티파일 스키마의
  * auth.prisma 로 분리돼 있지만 커넥션/클라이언트는 공유한다(풀을 늘리지 않는다).
- * 설정은 forRoot 로 EnvSource 를 받아 이 계층이 직접 뽑고 검증한다.
+ * 설정은 forRoot 로 ConfigSource 를 받아 이 계층이 직접 뽑고 검증한다.
  * AUTH_JWT_SECRET 이 없으면 부팅 시점에 즉시 실패한다.
  *
  * 소셜 provider 전략(google/naver/kakao/line)은 후속 단계에서 이 모듈에 추가된다.
  */
 @Module({})
 export class AuthModule {
-  static forRoot(source: EnvSource): DynamicModule {
-    // 런타임 객체는 ConfigSource(루트가 createConfigSource 로 만듦). getX 를 쓰는 빌더용으로 좁힌다.
-    const cfg = asConfigSource(source);
-    const config = buildAuthConfig(cfg);
-    const mailConfig = buildMailConfig(cfg);
-    const otpConfig = buildOtpConfig(cfg);
+  static forRoot(source: ConfigSource): DynamicModule {
+    const config = buildAuthConfig(source);
+    const mailConfig = buildMailConfig(source);
+    const otpConfig = buildOtpConfig(source);
 
     // 설정된 소셜 provider 의 전략만 등록한다(키가 없으면 전략을 만들지 않는다 → 서버는 그대로 뜬다).
     const strategyProviders: Provider[] = [];
