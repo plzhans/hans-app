@@ -1,6 +1,43 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitepress';
 import { withMermaid } from 'vitepress-plugin-mermaid';
 import { loadSpec, specPath } from './openapi-spec';
+
+/**
+ * 실행 환경 이름(local|develop|production). Sentry 의 environment 태그가 이 값이다.
+ *
+ * **.env.<환경> 으로는 못 가른다.** docs 는 dotenv-cli 없이 `vitepress build` 를 그냥 돌려서
+ * vite 의 mode 가 develop/production 둘 다 'production' 이다(→ .env.develop 은 로드되지 않는다).
+ * 그래서 배포 스크립트(scripts/ci/build-frontend.sh)가 DOCS_BASE 와 같이 DOCS_ENV 를 넘겨준다.
+ */
+const docsEnv = process.env.DOCS_ENV ?? 'local';
+
+/**
+ * Sentry release 로 쓸 산출물 신원. 숫자 버전만으로는 어느 커밋인지 모른다.
+ * sha 는 CI 가 넣어 준다(GitHub Actions 는 GITHUB_SHA). 로컬 빌드면 'dev' 가 박힌다.
+ */
+const pkg = JSON.parse(
+  readFileSync(resolve(__dirname, '../package.json'), 'utf-8'),
+) as { version: string };
+const gitSha = (process.env.VITE_GIT_SHA ?? process.env.GITHUB_SHA ?? 'dev')
+  .trim()
+  .slice(0, 7);
+
+/**
+ * Sentry DSN. **비밀이 아니라 여기 리터럴로 박는다** — 이벤트 전송 전용 공개 엔드포인트라
+ * 어차피 클라이언트 번들에 구워지고, 이걸로는 아무것도 읽지 못한다.
+ *
+ * **.env.production 에 두면 안 된다.** 그 파일은 gitignore 대상이라(운영 GA ID 등을 로컬 보관하는
+ * 정책) CI 체크아웃에 존재하지 않는다 → 배포 빌드에서 DSN 이 비어 Sentry 가 조용히 꺼진다.
+ * 커밋되는 이 파일이 유일하게 안전한 자리다. SENTRY_DSN 환경변수로 덮을 수 있다.
+ *
+ * 로컬(`pnpm docs:dev`)에서는 DOCS_ENV 가 없어 __APP_ENV__ 가 'local' 이 되고, theme/sentry.ts 가
+ * 그때는 init 을 건너뛴다 — 내 머신 에러가 팀 이슈 스트림에 섞이지 않게.
+ */
+const sentryDsn =
+  process.env.SENTRY_DSN ??
+  'https://8bf492fdc72550de57042146713faab5@o4507886343159808.ingest.de.sentry.io/4511811442507856';
 
 // 스펙을 빌드 시 파일에서 읽는다. 경로는 OPENAPI_SPEC 환경변수로 오버라이드 가능하다.
 const spec = loadSpec();
@@ -235,6 +272,11 @@ export default withMermaid(defineConfig({
     define: {
       // 스펙을 정적 import 대신 빌드시 클라이언트/SSR 번들에 주입한다.
       __OPENAPI_SPEC__: JSON.stringify(spec),
+      // Sentry 가 쓰는 값. 환경 이름은 DOCS_ENV(배포 스크립트), release 는 버전+커밋,
+      // DSN 은 비밀이 아니라 리터럴(위 주석 — .env.production 은 커밋되지 않아 CI 에서 빈다).
+      __APP_ENV__: JSON.stringify(docsEnv),
+      __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),
+      __SENTRY_DSN__: JSON.stringify(sentryDsn),
     },
     // mermaid 최적화(dayjs·cytoscape 등 하위 의존 pre-bundle)는 withMermaid 플러그인이
     // optimizeDeps.include 로 이미 넣는다. pnpm 에서 그 베어 이름들이 resolve 되도록

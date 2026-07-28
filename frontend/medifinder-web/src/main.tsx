@@ -1,3 +1,7 @@
+// ⚠️ **이 import 가 항상 첫 줄이어야 한다.** App 모듈이 최상위에서 라우터를 만들기 때문에,
+// 그 전에 Sentry.init 이 끝나야 pageload 트랜잭션과 라우팅 계측이 붙는다(VITE_SENTRY_DSN 있을 때만).
+import '@/shared/monitoring/instrument';
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

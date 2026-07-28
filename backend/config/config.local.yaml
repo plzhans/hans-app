@@ -54,6 +54,12 @@ api-server:
     # 로컬은 프록시 없음 → 끔(빈값).
     trust:
     clientIpHeader:
+  # 에러 추적(Sentry). **로컬은 끈다** — 내 머신 에러가 팀 이슈 스트림에 섞이면 안 된다.
+  # 로컬에서 연동을 확인하고 싶을 때만 아래 dsn 주석을 푼다(DSN 은 비밀 아님 — 전송 전용 공개값).
+  sentry:
+    dsn:
+    #dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
+    tracesSampleRate: 1.0
 
 search:
   schemaDir: config/schema
@@ -95,6 +101,12 @@ juso:
   maxRetry: 3
   readTimeoutMs: 30000
 
+# 배치 잡. **`batch:` 를 두 번 쓰면 안 된다** — YAML 중복 키는 뒤엣것이 앞엣것을 통째로 덮는다.
 batch:
+  name: hansapp-batch
   cron: ${BATCH_CRON:-0 4 * * *}
   maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
+  # 로컬은 Sentry 끔. (배치는 api-server 와 별도 Sentry 프로젝트를 쓴다 — 켜려면 그 DSN 을 여기.)
+  sentry:
+    dsn:
+    tracesSampleRate: 0

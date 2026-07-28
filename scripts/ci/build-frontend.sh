@@ -112,6 +112,11 @@ case "$project" in
       exit 2
     }
 
+    # 환경 이름을 빌드에 알린다(Sentry 의 environment 태그가 이 값이다 → .vitepress/config.ts).
+    # **.env.<환경> 으로는 못 넘긴다** — docs 는 dotenv-cli 없이 `vitepress build` 를 돌려서
+    # vite mode 가 develop/production 둘 다 'production' 이고, .env.develop 은 로드되지 않는다.
+    export DOCS_ENV="$env_name"
+
     # 하나의 Pages 사이트가 여러 환경을 담는다. 배포 경로가 다르므로 base 도 달라야 한다.
     # base 가 틀리면 페이지는 뜨는데 CSS·JS 경로가 어긋나 화면이 깨진다.
     #

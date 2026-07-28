@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { AdminApplicationModule } from '@hansapi/admin-application';
 import type { ConfigSource } from '@hansapi/common';
 
@@ -19,6 +20,9 @@ export class AppModule {
     return {
       module: AppModule,
       imports: [
+        // Sentry 를 Nest 계층에 연결한다. Sentry.init 은 instrument.ts 가 이미 끝냈고,
+        // 이 모듈은 Nest 쪽 배선만 한다(DSN 이 없어 init 을 건너뛰었어도 안전 — 전부 no-op).
+        SentryModule.forRoot(),
         ScheduleModule.forRoot(),
         AdminApplicationModule.forRoot(source),
       ],

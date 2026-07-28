@@ -9,6 +9,7 @@ import ParamsTable from './ParamsTable.vue';
 import ResponsesTable from './ResponsesTable.vue';
 import { setupSidebarScrollSpy } from './scrollspy';
 import { initGa, trackPageView } from './gtag';
+import { initSentry } from './sentry';
 
 // 스펙은 .vitepress/config.ts 의 vite.define 로 빌드시 주입된다(정적 import 아님).
 declare const __OPENAPI_SPEC__: Record<string, unknown>;
@@ -32,6 +33,10 @@ export default {
     // Google Analytics(gtag.js). VITE_GOOGLE_ANALYTICS_ID 가 있을 때만 로드된다.
     // SPA 라 첫 진입은 여기서 직접 보내고, 이후 라우트 이동은 onAfterRouteChanged 로 보낸다.
     if (inBrowser) {
+      // 에러 추적(VITE_SENTRY_DSN 이 있을 때만). GA 보다 먼저 붙인다 — 뒤이은 초기화에서
+      // 나는 에러도 잡히게. SSG 렌더(Node)에서는 부르지 않는다.
+      initSentry(app);
+
       initGa();
       trackPageView(location.pathname + location.search);
       const prev = ctx.router.onAfterRouteChanged;

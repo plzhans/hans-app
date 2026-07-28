@@ -81,7 +81,7 @@ auth:
 
 api-server:
   # 앱 이름. 로그·에러 보고 등에 쓰인다.
-  name: hansapi
+  name: hansapp-api
   web:
     # HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
     port: 3000
@@ -94,6 +94,15 @@ api-server:
     # rate limit·로그가 쓸 "진짜 클라 IP" 를 뽑을 헤더. 미설정이면 req.ip 폴백.
     # Cloudflare 뒤라면 cf-connecting-ip. (개발은 프록시가 없어 사실상 미사용.)
     clientIpHeader: cf-connecting-ip
+  # 에러 추적(Sentry). **DSN 은 비밀이 아니다** — 이벤트 "전송 전용" 공개 엔드포인트라
+  # 프론트 번들에도 그대로 박히는 값이고, 이걸로는 아무것도 읽지 못한다. 그래서 env 로 빼지 않고
+  # 여기 리터럴로 고정한다(환경별 파일이라 환경마다 다른 프로젝트를 붙일 수도 있다).
+  # environment(local|develop|production)·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts.
+  # **dsn 이 비면 Sentry 를 아예 켜지 않는다**(서버는 그대로 뜬다).
+  sentry:
+    dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
+    # 성능 트레이스 표본 비율(0=끔, 1=전부). 개발은 트래픽이 적어 전부 본다.
+    tracesSampleRate: 1.0
 
 search:
   # Elasticsearch 정본 스키마 JSON 디렉터리(비밀 아님). 비우면 패키지 동봉본을 쓴다.
@@ -155,9 +164,19 @@ juso:
   maxRetry: 3
   readTimeoutMs: 30000
 
-# 배치 잡.
+# 배치 잡. **`batch:` 를 두 번 쓰면 안 된다** — YAML 중복 키는 에러가 아니라 뒤엣것이 앞엣것을
+# 통째로 덮는다(cron 이 조용히 사라진다). 배치 설정은 이 블록 하나에 모은다.
 batch:
+  # 앱 이름. 로그·에러 보고 등에 쓰인다.
+  name: hansapp-batch
   # 실행 스케줄(cron). 기본 매일 04:00.
   cron: ${BATCH_CRON:-0 4 * * *}
   # 실행당 최대 외부 API 호출 수(0=무제한). 비용·레이트 보호용.
   maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
+  # 에러 추적(Sentry). **api-server 와 별도 프로젝트다**(DSN 이 다르다) — 이슈 스트림과 알림 규칙을
+  # 나누려는 것이다. 배치는 "한 번 실패해도 즉시 알림", API 는 "임계치 초과 시 알림" 으로 성격이 다르다.
+  # DSN 은 비밀이 아니다(전송 전용 공개값 — api-server.sentry 주석 참고). 비우면 Sentry 를 켜지 않는다.
+  sentry:
+    dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
+    # 성능 트레이스 표본 비율(0=끔, 1=전부). 개발은 트래픽이 적어 전부 본다.
+    tracesSampleRate: 1.0

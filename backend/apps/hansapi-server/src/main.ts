@@ -1,19 +1,23 @@
+// ⚠️ **이 import 가 항상 첫 줄이어야 한다.** Sentry 는 http·express 를 monkey-patch 해서 요청을
+// 추적하는데, 그 모듈이 Sentry.init 보다 먼저 require 되면 조용히 아무것도 계측되지 않는다.
+// instrument 가 부팅 설정(boot-config)을 읽고 Sentry.init 까지 끝낸다.
+import { sentryStatusLine } from './instrument';
+
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
-import { config } from 'dotenv';
 import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
-import { exitIfVersionFlag, resolveAppEnv } from '@hansapi/common';
+import { logConfigSummary } from '@hansapi/common';
 import {
   isFirstPartyOrigin,
   normalizeRootDomain,
 } from '@hansapi/auth-application';
 
 import { AppModule } from './app.module';
-import { loadServerConfig } from './config';
+import { appConfig } from './boot-config';
 import { initRefreshCookie } from './auth/refresh-cookie';
 import { HttpErrorFilter } from './common/http-error.filter';
 import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
@@ -23,15 +27,8 @@ import {
   buildOpenApiDocument,
 } from './swagger';
 
-// --version 이면 버전만 찍고 끝낸다. 서버를 띄우지 않는다.
-// 반드시 loadEnv 앞이다. 버전을 물어보는 데 DB 접속정보까지 갖춰져 있어야 할 이유가 없다.
-exitIfVersionFlag(__dirname);
-
-// 설정 접근자 하나를 만든다. 계층형 .env(EnvSource) 위에 config/config.<환경>.yaml + 환경변수(__ 계층)를
-// 얹은 ConfigSource 다. EnvSource 를 확장하므로 하위 계층(requireString(cfg,...))에도 그대로 넘긴다.
-// env 파일은 특정 앱이 소유하지 않는다 — server·cli 가 같은 DB 를 보므로 접속정보를 중복시키지 않는다.
-const appEnv = resolveAppEnv();
-const appConfig = loadServerConfig(__dirname, appEnv, config);
+// --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
+// Sentry.init 이 DSN·환경·버전을 먼저 알아야 해서 모든 import 보다 앞서 돌아야 하기 때문이다.
 
 // 요청마다 도는 유틸(refresh-cookie)이 쓸 값을 부팅 시점에 한 번 읽어 고정한다.
 initRefreshCookie(appConfig);
@@ -145,12 +142,16 @@ async function bootstrap() {
     });
   }
 
+  const logger = new Logger('Bootstrap');
+  // 접속 대상·활성 provider 요약(시크릿 마스킹, 한 줄씩). listen 앞에 둬 포트 충돌 등으로 못 떠도 설정은 보이게 한다.
+  logConfigSummary(appConfig, (l) => logger.log(l), { oauth: true });
+  // Sentry 가 켜졌는지도 같이 남긴다. 조용히 꺼져 있는 게 최악이다.
+  logger.log(sentryStatusLine);
+
   const port = appConfig.getNumberOrDefault('api-server.web.port', 3000);
   await app.listen(port);
 
-  // 부팅 완료 후 접속 링크를 출력한다.
-  const logger = new Logger('Bootstrap');
-  // getUrl 은 IPv6(::1) 형태를 반환할 수 있어 localhost 기준 링크로 구성한다.
+  // 부팅 완료 후 접속 링크를 출력한다. getUrl 은 IPv6(::1)일 수 있어 localhost 기준으로 구성한다.
   const baseUrl = `http://127.0.0.1:${port}`;
   logger.log(`🚀 Server is running on ${baseUrl}`);
   if (swaggerEnabled) {
@@ -161,6 +162,12 @@ async function bootstrap() {
     // production 에서는 Swagger 를 노출하지 않는다.
     logger.log('📚 Swagger is disabled in production');
   }
+
+  // 부팅 시퀀스의 **마지막 라인** — 여기까지 찍혔으면 요청을 받을 준비가 끝났다는 신호다.
+  // 위 로그들이 중간에 끊기면 준비 전에 죽은 것이므로, 이 한 줄을 준비 완료의 기준으로 삼는다.
+  logger.log(
+    `✅ ${appConfig.env} 서버 부팅 완료 — ${baseUrl} (pid ${process.pid})`,
+  );
 }
 bootstrap().catch((error) => {
   new Logger('Bootstrap').error('❌ Failed to start application', error);

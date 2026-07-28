@@ -1,12 +1,16 @@
 import {
-  ArgumentsHost,
   Catch,
   ExceptionFilter,
   HttpException,
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+// catch() 가 데코레이터를 달면서 emitDecoratorMetadata 대상이 됐다. 시그니처에 쓰는 타입은
+// `import type` 이어야 한다(isolatedModules + emitDecoratorMetadata 조합의 요구, TS1272).
+import type { ArgumentsHost } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import * as Sentry from '@sentry/nestjs';
+import { SentryExceptionCaptured } from '@sentry/nestjs';
 
 /**
  * 전역 예외 필터. 요청이 **HTML 페이지를 원하는지**(브라우저 주소창 이동)로 응답 형식을 정한다.
@@ -17,11 +21,18 @@ import type { Request, Response } from 'express';
  *
  * JSON 분기는 Nest 기본 필터의 응답 형태(HttpException 은 getResponse() 원형, 그 외 500)를
  * 그대로 재현해 API 계약을 깨지 않는다.
+ *
+ * **Sentry 보고도 여기서 한다.** 전역 필터가 예외를 잡아 응답으로 바꿔 버리면 Sentry 의 기본
+ * 미처리 예외 훅까지 올라가지 않아 아무것도 보고되지 않는다.
  */
 @Catch()
 export class HttpErrorFilter implements ExceptionFilter {
   private readonly logger = new Logger('HttpError');
 
+  // 여기 올라온 예외를 Sentry 로 보낸다. 단, HttpException 은 "의도해서 던진 것" 으로 보고
+  // 데코레이터가 건너뛴다(400·401·404 로 이슈가 도배되지 않게). 5xx HttpException 만
+  // 아래에서 직접 보고한다 — 데코레이터가 거른 것만 채우므로 중복 전송되지 않는다.
+  @SentryExceptionCaptured()
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
@@ -37,6 +48,11 @@ export class HttpErrorFilter implements ExceptionFilter {
         `${req.method} ${req.originalUrl} → ${status}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+      // 5xx 로 떨어진 HttpException(InternalServerErrorException 등)은 데코레이터가 "예상된 예외" 로
+      // 걸러 버린다. 하지만 5xx 는 실제로 서버가 깨진 것이라 봐야 한다 — 그 구멍만 메운다.
+      if (exception instanceof HttpException) {
+        Sentry.captureException(exception);
+      }
     }
 
     if (wantsHtml(req)) {

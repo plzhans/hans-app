@@ -1,23 +1,21 @@
-// NestJS DI 가 데코레이터 메타데이터를 읽으려면 가장 먼저 로드돼야 한다.
-import 'reflect-metadata';
+// ⚠️ **이 import 가 항상 첫 줄이어야 한다.** Sentry 는 계측 대상 모듈(http·prisma)이 require 되기
+// 전에 init 돼야 하고, 그러지 않으면 조용히 아무것도 계측되지 않는다.
+// reflect-metadata(NestJS DI 가 데코레이터 메타데이터를 읽는 데 필요) 도 여기서 먼저 로드한다.
+import * as Sentry from '@sentry/nestjs';
+import { flushSentry, sentryEnabled, sentryStatusLine } from './instrument';
 
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { config } from 'dotenv';
-import {
-  createConfigSource,
-  exitIfVersionFlag,
-  resolveAppEnv,
-} from '@hansapi/common';
+import { logConfigSummary } from '@hansapi/common';
 import { describeError } from '@hansapi/admin-application';
 
 import { AppModule } from './app.module';
+import { appConfig } from './boot-config';
 import { BatchScheduler } from './batch.scheduler';
 import { BatchService } from './batch.service';
 
-// --version 이면 버전만 찍고 끝낸다. 배치를 실행하지 않는다.
-// loadEnv 앞이어야 한다. 버전을 물어보는 데 DB 접속정보가 필요할 이유가 없다.
-exitIfVersionFlag(__dirname);
+// --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
+// Sentry.init 이 DSN·환경·버전을 먼저 알아야 해서 모든 import 보다 앞서 돌아야 하기 때문이다.
 
 /**
  * 배치 프로세스.
@@ -30,11 +28,12 @@ exitIfVersionFlag(__dirname);
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Batch');
 
-  const appEnv = resolveAppEnv();
-  process.env.APP_ENV = appEnv;
-  // 설정 접근자(ConfigSource). config/config.<환경>.yaml + 환경변수(__ 계층)를 병합해 경로 게터로 읽고,
-  // EnvSource 를 확장하므로 시크릿을 flat env 로 읽는 기존 계층에도 그대로 넘어간다.
-  const source = createConfigSource(__dirname, appEnv, config);
+  const source = appConfig;
+
+  // 접속 대상·서비스키(마스킹)를 한 줄씩 남긴다 — 배치가 어느 DB/키로 도는지 확인.
+  logConfigSummary(source, (l) => logger.log(l));
+  // Sentry 가 켜졌는지도 같이 남긴다. 조용히 꺼져 있는 게 최악이다.
+  logger.log(sentryStatusLine);
 
   const once = process.argv.includes('--once');
   const force = process.argv.includes('--force');
@@ -55,6 +54,9 @@ async function bootstrap(): Promise<void> {
       await app.get(BatchService).runDaily(force);
     } finally {
       await app.close();
+      // --once 는 여기서 프로세스가 끝난다. Sentry 는 이벤트를 비동기로 보내므로
+      // flush 없이 나가면 방금 잡은 에러가 통째로 날아간다.
+      await flushSentry();
     }
     return;
   }
@@ -66,5 +68,10 @@ async function bootstrap(): Promise<void> {
 
 bootstrap().catch((error: unknown) => {
   console.error(describeError(error));
-  process.exit(1);
+  // 부팅/실행이 통째로 실패한 경우다. 이건 무조건 알아야 하므로 Sentry 에 남기고,
+  // 전송이 끝난 뒤에 종료한다(exit 이 먼저면 이벤트가 유실된다).
+  if (sentryEnabled) {
+    Sentry.captureException(error);
+  }
+  void flushSentry().finally(() => process.exit(1));
 });
