@@ -96,6 +96,5 @@
       ],
       "bootstrap-sha": "c447ee754ff00962b156c32426c1f7c790e40c3c"
     }
-  },
-  "skip-github-release": true
+  }
 }
