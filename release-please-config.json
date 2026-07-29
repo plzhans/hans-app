@@ -4,8 +4,8 @@
   "include-component-in-tag": true,
   "tag-separator": "/",
   "include-v-in-tag": true,
-  "separate-pull-requests": false,
-  "pull-request-title-pattern": "chore: release ${branch}",
+  "separate-pull-requests": true,
+  "pull-request-title-pattern": "chore: ${component} v${version}",
   "changelog-sections": [
     {
       "type": "feat",
