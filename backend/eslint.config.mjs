@@ -18,6 +18,7 @@ export default tseslint.config(
       // 같은 이유. 일회성 빌드 스크립트라 tsconfig include("src") 밖이고,
       // 패키지에 담겨 배포되지도 않는다.
       'packages/*/scripts/**',
+      'scripts/**', // 워크스페이스 공용 빌드 스크립트(build-info.mjs 등). 같은 이유.
       // 같은 이유. pm2 구성(ecosystem.config.cjs)은 우리 코드가 아니라 **서버에 올리는 설정**이다.
       // tsconfig 밖이라 타입 기반 린트가 파싱하지 못한다.
       'infra/**',

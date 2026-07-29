@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node --conditions src -r @swc-node/register src/main.ts",
     "start:once": "node --conditions src -r @swc-node/register src/main.ts --once",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node ../../scripts/build-info.mjs",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
