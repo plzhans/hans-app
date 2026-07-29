@@ -1,6 +1,6 @@
 {
   "name": "hansapp-frontend",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "scripts": {
     "dev": "concurrently -k -n auth,console -c magenta,blue \"pnpm -C hansapp-auth local\" \"pnpm -C hansapp-web local\""
