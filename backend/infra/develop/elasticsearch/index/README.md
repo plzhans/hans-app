@@ -4,7 +4,7 @@
 색인 설계다. 한 병원 = 한 문서. 원천은 `HealthcareHospitalRepository.buildWhere()` 의
 필터 축과 `HospitalSummary`/`HospitalDetail` 응답 모양이다.
 
-> **정본(source of truth)은 코드로 옮겼다.** 실제로 ES 에 적용되는 두 템플릿 JSON 은
+> **정본(source of truth)은 코드로 옮겼다.** 실제로 엘라스틱서치에 적용되는 두 템플릿 JSON 은
 > **`packages/hansapp-search/elasticsearch/`** 에 있고, CLI `hansapp-cli es schema import` 가 그걸 올린다.
 > 이 폴더는 이제 **설계 문서 + 샘플**이다(아래 설명·구조 근거는 유효하나, 파일 수정은 패키지 쪽에서).
 
@@ -13,8 +13,8 @@
 - `hospital.sample-document.json` — 실제 데이터 한 건 예시(강북삼성병원)
 - `hospital.search-example.json` — 다국어 이름 + 필터 + 거리순 정렬 쿼리 예시
 
-색인/매핑은 Docker 이미지(`../Dockerfile`)에 넣지 않는다(이미지는 ES 버전 + 형태소 플러그인만).
-정본 템플릿은 `@hansapp/search` 가 소유하고 CLI 가 ES 에 올린다.
+색인/매핑은 Docker 이미지(`../Dockerfile`)에 넣지 않는다(이미지는 엘라스틱서치 버전 + 형태소 플러그인만).
+정본 템플릿은 `@hansapp/search` 가 소유하고 CLI 가 엘라스틱서치에 올린다.
 
 ## CLI 로 적용·관리
 
@@ -23,12 +23,12 @@ hansapp-cli es schema import        # 정본 템플릿 + healthcare_hospital-v1 
 hansapp-cli es schema status        # alias→인덱스·템플릿·문서 수
 hansapp-cli es hospital sync        # 활성 병원 전량 색인(alias 인덱스에 in-place)
 hansapp-cli es hospital sync-one 22306
-hansapp-cli es schema export /tmp/es-dump   # 살아있는 ES 상태 덤프
+hansapp-cli es schema export /tmp/es-dump   # 살아있는 엘라스틱서치 상태 덤프
 ```
 
 ## settings 는 공유, mapping 은 인덱스별 — 왜 파일을 둘로 나눴나
 
-ES 는 `settings`·`mappings` 를 **둘 다 인덱스마다** 저장한다(전역 공유 객체는 없다). 대신 재사용은
+엘라스틱서치는 `settings`·`mappings` 를 **둘 다 인덱스마다** 저장한다(전역 공유 객체는 없다). 대신 재사용은
 **템플릿**으로 한다:
 
 - **컴포넌트 템플릿** `hansapp-analysis` — 여러 인덱스가 공유하는 `settings.analysis`(nori/kuromoji/
@@ -87,17 +87,17 @@ curl -XPOST localhost:9200/_aliases -H 'Content-Type: application/json' -d '{
 ## 큰 그림 — 세 가지 결정
 
 1. **상세까지 전부 담는다.** 요약(목록)뿐 아니라 진료시간·인력·병상·평가·소개글까지 한 문서에
-   넣는다. 상세 조회도 ES 한 번으로 끝낼 수 있어 DB+Redis 경로를 대체할 수 있다.
+   넣는다. 상세 조회도 엘라스틱서치 한 번으로 끝낼 수 있어 DB+Redis 경로를 대체할 수 있다.
    대신 검색 축이 아닌 상세 필드는 `enabled:false` / `index:false` 로 **역인덱스에서 빼고 `_source` 로만**
    내보내 색인을 가볍게 유지한다.
 
 2. **코드값은 코드만 저장하고, 이름은 붙이지 않는다.** 종별·진료과목·지역 등의 표시 이름은
    지금처럼 인메모리 캐시(`HealthcareCodeCache`·`RegionCache`)가 붙인다. 코드 번역은 잠정값이라
    자주 고쳐지는데, 이름을 문서에 박으면 번역 한 줄 고칠 때마다 8만 건 재색인이 필요하다.
-   ES 엔 안정적인 코드(keyword)만 넣는다.
+   엘라스틱서치엔 안정적인 코드(keyword)만 넣는다.
 
 3. **지오(위경도) 검색을 넣는다.** `lat`/`lon` 을 `geo_point` 로 색인해 "내 근처 병원"·거리순 정렬을
-   지원한다. 지금 DB 검색엔 없는 기능이고, ES 도입의 핵심 이점이다.
+   지원한다. 지금 DB 검색엔 없는 기능이고, 엘라스틱서치 도입의 핵심 이점이다.
 
 ---
 
@@ -185,7 +185,7 @@ match homepage:
 ### 위치 정보는 `location` 오브젝트로 묶는다
 
 시도(`sido_cd`)·시군구(`region_cd`)·읍면동·우편번호·주소·좌표(`point`)를 `location` 오브젝트
-하나에 모은다. **object 는 ES 내부에서 점 표기(`location.sido_cd`)로 평탄화**되므로 term/sort/agg
+하나에 모은다. **object 는 엘라스틱서치 내부에서 점 표기(`location.sido_cd`)로 평탄화**되므로 term/sort/agg
 비용이 최상위 필드와 완전히 동일하다 — 묶는 데 성능 손해가 없다(비용이 붙는 건 배열 상관관계를
 보존하는 `nested` 뿐인데, 이 필드들은 단일값이라 해당 없음). 응답 DTO(`HospitalLocation`)의 모양과도
 정렬된다. `class_cd`·`tier` 는 위치가 아니라 병원 분류라 최상위에 둔다.
@@ -197,7 +197,7 @@ match homepage:
 지금 자식 테이블을 `EXISTS` 서브쿼리로 거는 조건들을, 문서에 **평탄화한 keyword 배열**로 미리
 펼쳐 넣는다. 조회는 `term`/`terms` 필터 한 방이 된다.
 
-| 현재 SQL 조건                                 | ES 필드                                   | 비고                                                                                                                                         |
+| 현재 SQL 조건                                 | 엘라스틱서치 필드                         | 비고                                                                                                                                         |
 | --------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `region_cd IN (시도→시군구 확장)`             | `location.region_cd` + `location.sido_cd` | **시도를 색인 시점에 미리 계산해 넣는다.** 조회 때 시도면 `location.sido_cd` term, 시군구면 `location.region_cd` term — 확장 로직이 사라진다 |
 | `class_cd IN …`                               | `class_cd`                                |                                                                                                                                              |
@@ -253,8 +253,8 @@ match homepage:
 1. **역명·주소 다국어 소스.** 지하철역명 번역과 영문 주소를 어디서 채우나. 역명은
    `healthcare_hospital_i18n.transport` JSON(사전 기반)에 있고, 지역/주소 다국어는 시드에 거의 없다
    (region_code 는 한국어만, zh 컬럼 없음). 색인 파이프라인이 무엇을 소스로 삼을지 확정 필요.
-2. **`get(id)` 도 ES 로 옮길지.** 상세를 전부 담았으니 가능하다. 옮기면 Redis 상세 캐시가 불필요해진다.
+2. **`get(id)` 도 엘라스틱서치로 옮길지.** 상세를 전부 담았으니 가능하다. 옮기면 Redis 상세 캐시가 불필요해진다.
    그대로 DB 를 상세의 정본으로 둘 수도 있다.
 3. **중간 부분일치 강도.** 접두어(`index_prefixes`)로 충분한지, ngram 서브필드까지 필요한지.
-4. **색인 파이프라인.** admin 배치가 재빌드할 때 ES 로 bulk 색인하는 잡(전체/증분)과 별칭(alias)
+4. **색인 파이프라인.** admin 배치가 재빌드할 때 엘라스틱서치로 bulk 색인하는 잡(전체/증분)과 별칭(alias)
    기반 무중단 재색인 전략.
