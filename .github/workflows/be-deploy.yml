@@ -1,0 +1,79 @@
+# backend 를 서버에 반영한다. **이미지를 굽지 않는다.**
+#
+# 굽는 것은 be-image.yml 이다. 여기는 이미 레지스트리에 있는 태그를 서버가 당기게 할 뿐이라,
+# 롤백이 재빌드 없이 태그 지정만으로 끝난다.
+#
+# **이 파일에는 배포 로직이 없다.** 환경변수를 선언하고 backend/ci-deploy.sh 를 부르는 게
+# 전부다. 로컬에서 같은 배포를 돌리려면 backend/deploy.sh 를 쓴다 — 같은 스크립트를 지나간다.
+name: be · deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '배포 환경'
+        type: choice
+        options: [develop, production]
+        default: develop
+      image_tag:
+        description: '띄울 이미지 태그 (v0.2.0 · develop-<sha>)'
+        type: string
+        required: true
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      image_tag:
+        type: string
+        required: true
+
+# **동시 실행을 반드시 막는다.**
+#
+# WireGuard 피어는 같은 키로 두 곳에서 붙을 수 없다. 두 배포가 겹치면 먼저 붙은 쪽의
+# 연결이 끊겨 **배포가 반쯤 진행된 채로 죽는다** — compose 는 갱신됐는데 up 은 안 된
+# 상태가 남을 수 있다.
+#
+# 환경으로 그룹을 나누지 않는다. develop 과 production 이 같은 피어를 쓰기 때문이다.
+# cancel-in-progress 도 쓰지 않는다 — 진행 중인 배포를 중간에 끊는 것이 더 나쁘다.
+concurrency:
+  group: be-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    # wg-quick 은 커널 모듈이 있든(NET_ADMIN) 없든(TUN) 둘 다 필요하다.
+    # node-builder 이미지에 wireguard-tools·wireguard-go·openssh-client 가 들어 있고,
+    # WG_QUICK_USERSPACE_IMPLEMENTATION=wireguard-go 가 기본값이라 커널 모듈이 없어도 붙는다.
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      options: --cap-add NET_ADMIN --device /dev/net/tun
+
+    permissions:
+      contents: read
+      packages: read # node-builder 이미지를 GHCR 에서 받는다
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ▼ 여기가 이 워크플로가 하는 일의 전부다 — 변수를 선언하고 스크립트를 부른다.
+      - name: 배포
+        run: ./backend/ci-deploy.sh
+        env:
+          APP_ENV: ${{ inputs.environment }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          # 서버 접속 정보. 주소·경로는 비밀이 아니라 Variable 이다.
+          BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
+          BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
+          BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
+          BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS: ${{ vars.BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS }}
+          # **로컬에는 없고 CI 에만 있는 값이다.** 로컬은 VPN 이 이미 붙어 있어서
+          # backend/deploy.sh 가 이 변수를 비운다. ci-deploy.sh 는 비어 있으면 연결을
+          # 건드리지 않으므로, 스크립트가 자기가 어디서 도는지 몰라도 된다.
+          BE_WIREGUARD_PEER_CONF_FILE: ${{ secrets.BE_WIREGUARD_PEER_CONF_FILE }}

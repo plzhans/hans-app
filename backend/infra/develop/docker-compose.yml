@@ -1,0 +1,60 @@
+# develop 서버에서 backend 를 띄운다.
+#
+# 이 파일은 **배포가 서버로 복사한다**(backend/ci-deploy.sh). 서버에서 직접 고치지 말 것 —
+# 다음 배포가 덮어쓴다. 고칠 것이 있으면 레포에서 고치고 배포한다.
+#
+# [이미지 버전은 여기 없다]
+# 같은 디렉터리의 .env 에 IMAGE_TAG 한 줄로 들어간다. compose 가 자동으로 읽어 치환한다.
+#
+#   ~/app/hansapp-develop/.env      IMAGE_TAG=develop-a1b2c3d
+#
+# 그래서 **이 파일은 인프라, .env 는 배포 상태**로 역할이 갈린다. "지금 뭐가 떠 있나" 는
+# 그 한 줄을 읽으면 되고, 롤백은 그 값을 바꿔 다시 up 하면 된다. latest 같은 움직이는
+# 태그를 쓰지 않는 이유도 같다 — 그러면 서버 상태를 아무도 답할 수 없게 된다.
+#
+# [시크릿은 여기 없다]
+# config/.env.develop 과 config/develop/ 아래 에셋(jwt 키 등)은 **서버가 이미 갖고 있다.**
+# 레포에는 SOPS 로 암호화되어 있고 서버 age 키로 푼다(.sops.yaml 참고). 배포가 그것을
+# 나르지 않으므로, 레지스트리를 읽을 수 있는 사람이 비밀을 읽게 되는 일이 없다.
+
+name: hansapp-develop
+
+services:
+  api:
+    image: ghcr.io/plzhans/hans-app/hansapp-api:${IMAGE_TAG}
+    container_name: hansapp-develop-api
+    restart: unless-stopped
+    environment:
+      APP_ENV: develop
+      NODE_ENV: production
+    # 이미지에는 config/*.yaml 만 구워져 있다. 비밀은 서버의 것을 얹는다.
+    #
+    # :ro 로 붙인다. 앱이 설정을 쓸 일이 없고, 쓰기가 가능하면 컨테이너가 뚫렸을 때
+    # 서버의 비밀 파일이 조작될 수 있다.
+    volumes:
+      - ./config/.env.develop:/app/config/.env.develop:ro
+      - ./config/develop:/app/config/develop:ro
+    # nginx 가 앞에 있다. 컨테이너 포트를 호스트 루프백에만 노출해 외부에서 직접 못 닿게 한다.
+    ports:
+      - '127.0.0.1:3000:3000'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  batch:
+    image: ghcr.io/plzhans/hans-app/hansapp-batch:${IMAGE_TAG}
+    container_name: hansapp-develop-batch
+    restart: unless-stopped
+    environment:
+      APP_ENV: develop
+      NODE_ENV: production
+    volumes:
+      - ./config/.env.develop:/app/config/.env.develop:ro
+      - ./config/develop:/app/config/develop:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
