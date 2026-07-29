@@ -34,6 +34,11 @@ pnpm-debug.log*
 *.key
 !*.key.enc
 
+# TLS 개인키·인증서(PEM). Origin CA 발급물이 여기 들어온다(ssl-issue.sh).
+# 인증서 자체는 공개돼도 무방하지만, 개인키와 같은 규칙으로 두는 편이 실수가 없다.
+*.pem
+!*.pem.enc
+
 # Editor / OS
 .DS_Store
 .idea/

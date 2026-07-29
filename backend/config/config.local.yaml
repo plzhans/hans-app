@@ -50,6 +50,10 @@ apps-api:
   web:
     port: 3000
     publicUrl: http://127.0.0.1:5273
+    # nginx 의 ssl_certificate / ssl_certificate_key. 로컬은 평문 HTTP 라 비운다.
+    # (둘 다 있으면 HTTPS, 한쪽만 있으면 부팅 거부 — config.develop.yaml 설명 참고)
+    sslCertificate:
+    sslCertificateKey:
   proxy:
     # 로컬은 프록시 없음 → 끔(빈값).
     trust:

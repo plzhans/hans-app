@@ -64,8 +64,20 @@ export BE_HANSAPP_DEPLOY_SSH_HOST="${BE_HANSAPP_DEPLOY_SSH_HOST:-}"
 export BE_HANSAPP_DEPLOY_SSH_KEY_FILE="${BE_HANSAPP_DEPLOY_SSH_KEY_FILE:-}"
 export BE_HANSAPP_DEPLOY_PATH="${BE_HANSAPP_DEPLOY_PATH:-}"
 export BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE="${BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE:-}"
-# 로컬은 VPN 이 이미 붙어 있으므로 비운다. 채우면 ci-deploy.sh 가 새로 연결하려 든다.
-export BE_WIREGUARD_PEER_CONF_FILE=''
+# 평소 로컬은 VPN 이 이미 붙어 있어 비어 있다. 값을 채우면 ci-deploy.sh 가 그 설정으로
+# 연결한다 — **CI 설정을 로컬에서 시험할 때** 쓰라고 열어 둔다. CI 왕복 없이 확인된다.
+export BE_WIREGUARD_PEER_CONF_FILE="${BE_WIREGUARD_PEER_CONF_FILE:-}"
+
+# 서버가 private 이미지를 받을 때 쓸 GHCR 토큰. CI 는 GITHUB_TOKEN 이 자동으로 들어오지만
+# 로컬엔 그런 게 없어서, .env 에 없으면 gh CLI 로그인에서 빌려 온다.
+# **read:packages 스코프가 있어야 한다.** 없으면 pull 이 unauthorized 로 떨어진다:
+#   gh auth refresh -h github.com -s read:packages
+if [ -z "${GHCR_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
+  GHCR_TOKEN="$(gh auth token 2>/dev/null || true)"
+  [ -n "$GHCR_TOKEN" ] && echo "· GHCR 토큰: gh auth token"
+fi
+export GHCR_TOKEN="${GHCR_TOKEN:-}"
+export GHCR_USER="${GHCR_USER:-$(gh api user --jq .login 2>/dev/null || echo x)}"
 
 missing=''
 for n in BE_HANSAPP_DEPLOY_SSH_HOST BE_HANSAPP_DEPLOY_SSH_KEY_FILE BE_HANSAPP_DEPLOY_PATH; do

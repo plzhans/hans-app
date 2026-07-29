@@ -87,6 +87,20 @@ apps-api:
     port: 3000
     # 대외적으로 표현하는 서비스 공개 URL. 메일 템플릿({{appName}}/{{appUrl}}) 등이 참조한다.
     publicUrl: http://127.0.0.1:5273
+    # nginx 의 ssl_certificate / ssl_certificate_key 와 같은 이름·같은 역할이다.
+    # **둘 다 있으면 HTTPS 로, 둘 다 비면 HTTP 로 뜬다.** 한쪽만 있으면 부팅을 거부한다
+    # — 조용히 HTTP 로 떨어지면 평문으로 서비스가 열린다.
+    #
+    # 앞단이 TLS 를 끝내는 구성(nginx·cloudflared tunnel·LB)으로 갈아탈 때는 두 줄을
+    # 비우면 되고 코드는 안 바뀐다. 인프라 교체가 설정 두 줄인 셈이다.
+    #
+    # 발급: backend/ssl-issue.sh <환경> <호스트명>  (Cloudflare Origin CA, 15년)
+    # 배포: .enc 로 커밋되고 ci-deploy.sh 가 풀어 서버에 놓는다 — jwt 키와 같은 경로.
+    # Cloudflare Origin CA 로 발급한 develop-api.plzhans.com 인증서(2041-07 만료).
+    # 경로가 상대경로인 이유: 컨테이너 WORKDIR 이 /app 이고 compose 가 config/develop 을
+    # 그 아래로 마운트한다. 로컬에서 돌릴 때도 backend/ 기준이라 같은 경로가 맞는다.
+    sslCertificate: ${SSL_CERTIFICATE:-config/develop/ssl/fullchain.pem}
+    sslCertificateKey: ${SSL_CERTIFICATE_KEY:-config/develop/ssl/privkey.pem}
   proxy:
     # Express 'trust proxy'. 프록시(nginx/LB/CDN) 뒤에서 진짜 클라 IP 를 인식하게 한다(rate limit 정확도).
     # 값: 홉 수(1) / 신뢰 IP·CIDR(콤마) / true|false. 위조 XFF 로 IP 한도 우회를 막으려 명시로만 켠다.

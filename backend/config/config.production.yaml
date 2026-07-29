@@ -58,11 +58,27 @@ apps-api:
     port: 3000
     # 대외 공개 URL(메일 템플릿 {{appUrl}} 등).
     publicUrl: https://plzhans.com
+    # nginx 의 ssl_certificate / ssl_certificate_key 와 같은 이름·같은 역할이다.
+    # **둘 다 있으면 HTTPS 로, 둘 다 비면 HTTP 로 뜬다.** 한쪽만 있으면 부팅을 거부한다
+    # — 조용히 HTTP 로 떨어지면 평문으로 서비스가 열린다.
+    #
+    # 앞단이 TLS 를 끝내는 구성(nginx·cloudflared tunnel·LB)으로 갈아탈 때는 두 줄을
+    # 비우면 되고 코드는 안 바뀐다. 인프라 교체가 설정 두 줄인 셈이다.
+    #
+    # 발급: backend/ssl-issue.sh <환경> <호스트명>  (Cloudflare Origin CA, 15년)
+    # 배포: .enc 로 커밋되고 ci-deploy.sh 가 풀어 서버에 놓는다 — jwt 키와 같은 경로.
+    # Cloudflare Origin CA 로 발급한 api.plzhans.com 인증서(2041-07 만료).
+    # 경로가 상대경로인 이유: 컨테이너 WORKDIR 이 /app 이고 compose 가 config/production 을
+    # 그 아래로 마운트한다. 로컬에서 돌릴 때도 backend/ 기준이라 같은 경로가 맞는다.
+    sslCertificate: ${SSL_CERTIFICATE:-config/production/ssl/fullchain.pem}
+    sslCertificateKey: ${SSL_CERTIFICATE_KEY:-config/production/ssl/privkey.pem}
   proxy:
-    # 운영은 프록시(Cloudflare/nginx/LB) 뒤. **토폴로지 확정 전까진 env 로 주입**(TRUST_PROXY·CLIENT_IP_HEADER).
-    # 위조 XFF 우회를 막으려 값이 있을 때만 켠다(빈값=끔). 확정되면 여기 리터럴로 관리한다.
-    trust: ${TRUST_PROXY}
-    clientIpHeader: ${CLIENT_IP_HEADER}
+    # **토폴로지 확정**: Cloudflare 가 바로 앞이고 그 사이에 다른 프록시가 없다. 홉이 하나라 1.
+    # 위조 XFF 로 IP 한도를 우회하는 것을 막으려면 이 값이 실제 홉 수보다 크면 안 된다.
+    trust: ${TRUST_PROXY:-1}
+    # Cloudflare 가 붙이는 진짜 클라이언트 IP. 이걸 안 쓰면 접속 IP 가 전부 CF 로 찍혀
+    # rate limit 과 접근 로그가 무의미해진다.
+    clientIpHeader: ${CLIENT_IP_HEADER:-cf-connecting-ip}
   # 에러 추적(Sentry). DSN 은 비밀이 아니라 리터럴로 고정한다(전송 전용 공개 엔드포인트).
   # environment·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts. 비우면 Sentry 를 끈다.
   sentry:

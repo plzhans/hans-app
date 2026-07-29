@@ -3,6 +3,8 @@
 // instrument 가 부팅 설정(boot-config)을 읽고 Sentry.init 까지 끝낸다.
 import { sentryStatusLine } from './instrument';
 
+import { readFileSync } from 'node:fs';
+
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
@@ -51,9 +53,37 @@ function parseTrustProxy(raw?: string): boolean | number | string | undefined {
   return v;
 }
 
+/**
+ * TLS 설정을 읽는다. 이름은 nginx 의 ssl_certificate / ssl_certificate_key 와 맞췄다.
+ *
+ * **둘 다 있으면 HTTPS, 둘 다 없으면 HTTP.** 켜고 끄는 별도 플래그를 두지 않는다 —
+ * 플래그와 경로가 어긋나는 상태(켜져 있는데 경로가 없다)를 아예 만들지 않기 위해서다.
+ *
+ * 앞단이 TLS 를 끝내는 구성(nginx·cloudflared tunnel·LB)에서는 설정을 비우면 되고,
+ * 이 코드는 그대로다. 인프라 교체가 설정 두 줄로 끝나는 이유가 여기 있다.
+ */
+function readHttpsOptions() {
+  const cert = appConfig.getStringOrDefault('apps-api.web.sslCertificate');
+  const key = appConfig.getStringOrDefault('apps-api.web.sslCertificateKey');
+
+  // 한쪽만 설정된 건 설정 실수다. 조용히 HTTP 로 떨어뜨리면 운영이 평문으로 뜬다.
+  if (!!cert !== !!key) {
+    throw new Error(
+      'apps-api.web.sslCertificate 와 sslCertificateKey 는 둘 다 설정하거나 둘 다 비워야 한다',
+    );
+  }
+  if (!cert) return undefined;
+
+  // 경로가 있는데 파일이 없으면 readFileSync 가 던진다 — 평문으로 뜨는 것보다 낫다.
+  return { cert: readFileSync(cert), key: readFileSync(key) };
+}
+
 async function bootstrap() {
+  const httpsOptions = readHttpsOptions();
+
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule.forRoot(appConfig),
+    httpsOptions ? { httpsOptions } : {},
   );
 
   // 프록시 뒤라면 실제 클라 IP 를 인식하도록 trust proxy 를 켠다(rate limit 정확도).
@@ -152,7 +182,7 @@ async function bootstrap() {
   await app.listen(port);
 
   // 부팅 완료 후 접속 링크를 출력한다. getUrl 은 IPv6(::1)일 수 있어 localhost 기준으로 구성한다.
-  const baseUrl = `http://127.0.0.1:${port}`;
+  const baseUrl = `${httpsOptions ? 'https' : 'http'}://127.0.0.1:${port}`;
   logger.log(`🚀 Server is running on ${baseUrl}`);
   if (swaggerEnabled) {
     // OpenAPI(JSON) 스펙 경로(/docs-json)는 Swagger UI 가 내부적으로 로드·노출하므로

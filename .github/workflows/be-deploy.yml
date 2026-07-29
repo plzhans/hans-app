@@ -77,3 +77,11 @@ jobs:
           # backend/deploy.sh 가 이 변수를 비운다. ci-deploy.sh 는 비어 있으면 연결을
           # 건드리지 않으므로, 스크립트가 자기가 어디서 도는지 몰라도 된다.
           BE_WIREGUARD_PEER_CONF_FILE: ${{ secrets.BE_WIREGUARD_PEER_CONF_FILE }}
+          # 시크릿 복호화용. 로컬은 개발자 키가 기본 경로에 있어 비우지만, CI 는 매번
+          # 새 러너라 여기서 받아야 한다. node-builder 이미지에 sops 가 들어 있다.
+          AGE_SECRET_KEY_FILE: ${{ secrets.AGE_SECRET_KEY_FILE }}
+          # 서버가 private 이미지를 받으려면 GHCR 인증이 필요하다. **잡이 끝나면 만료되는
+          # 임시 토큰**이라 서버에 영구 자격증명을 심지 않아도 된다 — ci-deploy.sh 가
+          # 배포 직전에 로그인하고 끝나면 지운다.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}

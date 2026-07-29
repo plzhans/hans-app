@@ -19,6 +19,11 @@
 #   BE_HANSAPP_DEPLOY_PATH        ~/app/hansapp-prod
 #   BE_WIREGUARD_PEER_CONF_FILE   (선택) WireGuard 설정. **경로 또는 내용**
 #   BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE (선택) 서버 host key
+#   GHCR_TOKEN                    (선택) 서버가 이미지를 받을 때 쓸 토큰.
+#                                 CI 는 GITHUB_TOKEN, 로컬은 read:packages PAT
+#   GHCR_USER                     (선택) 위 토큰의 사용자. 기본 x
+#   AGE_SECRET_KEY_FILE           (선택) sops 복호화용 age 키. **경로 또는 내용**
+#                                 로컬은 기본 경로에 이미 있어 보통 비운다
 #
 # [WireGuard 를 조건부로 올리는 이유]
 # 로컬은 작업 환경이라 VPN 이 이미 붙어 있다. CI 는 매번 새 러너라 직접 올려야 한다.
@@ -88,6 +93,8 @@ compose_src="$AREA_DIR/infra/$APP_ENV/docker-compose.yml"
 work="$(mktemp -d)"
 cleanup() {
   local code=$?
+  # 중간에 죽어도 서버에 로그인 상태를 남기지 않는다.
+  [ -n "${ghcr_logged_in:-}" ] && remote 'docker logout ghcr.io' >/dev/null 2>&1 || true
   [ -n "${wg_iface:-}" ] && wg-quick down "$work/wg.conf" 2>/dev/null || true
   rm -rf "$work"
   exit $code
@@ -103,6 +110,27 @@ if [ -n "${BE_WIREGUARD_PEER_CONF_FILE:-}" ]; then
   # wg-quick 은 설정 파일 이름에서 인터페이스 이름을 딴다 → wg.conf 면 'wg'.
   wg-quick up "$work/wg.conf"
   wg_iface=wg
+
+  # **핸드셰이크를 확인한다.** WireGuard 는 UDP 라 wg-quick up 이 성공해도 상대가
+  # 응답했는지는 알 수 없다. 확인하지 않으면 터널이 안 뚫린 채로 SSH 를 시도하다
+  # 60초 timeout 을 기다리게 되고, 에러 메시지도 "connect timed out" 뿐이라
+  # 원인이 VPN 인지 서버인지 방화벽인지 구분이 안 된다.
+  handshake=0
+  for _ in $(seq 1 15); do
+    handshake=$(wg show "$wg_iface" latest-handshakes 2>/dev/null | awk '{print $2}' | sort -rn | head -1)
+    [ "${handshake:-0}" -gt 0 ] && break
+    sleep 1
+  done
+  if [ "${handshake:-0}" -eq 0 ]; then
+    echo '--- wg show ---' >&2
+    wg show "$wg_iface" >&2 || true
+    die "WireGuard 핸드셰이크가 없다(15초).
+   확인할 것:
+     - 피어 공개키가 서버에 등록되어 있는지
+     - Endpoint 주소·포트가 맞고 UDP 가 막히지 않았는지
+     - **같은 키를 다른 곳에서 쓰고 있지 않은지** — 피어는 동시 접속이 안 된다"
+  fi
+  echo "· 핸드셰이크 확인됨"
   endgroup
 else
   echo "· WireGuard 설정이 없다. 이미 연결되어 있다고 보고 진행한다."
@@ -152,46 +180,80 @@ remote "printf 'IMAGE_TAG=%s\n' '$IMAGE_TAG' > $BE_HANSAPP_DEPLOY_PATH/.env"
 endgroup
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 시크릿 — **암호문만 보내고 서버가 푼다**
+# 시크릿 — **여기서 풀어서 평문을 보낸다**
 #
-# .sops.yaml 이 config/<환경>/ 과 config/.env.<환경> 에 **서버 age 키**를 넣어 둔 이유가
-# 이것이다. 평문이 CI 러너 디스크에 존재하지 않고, 레지스트리나 로그를 볼 수 있는 사람이
-# JWT 서명 키에 닿을 경로도 생기지 않는다.
+# 복호화하는 쪽에는 이미 sops 와 age 키가 있다 — 로컬은 개발자가 암복호화에 쓰는 것,
+# CI 는 node-builder 이미지에 sops 가 들어 있고 AGE_SECRET_KEY_FILE 로 키를 받는다.
+# 서버에 sops 를 새로 깔지 않아도 되고, 서버는 받은 파일을 놓기만 한다.
 #
-# **.enc 만 골라 보낸다.** 로컬에는 복호화된 평문(*.key, .env.<환경>)이 같이 있는데,
-# 디렉터리째 보내면 그것까지 올라간다. find 로 .enc 만 추린다.
+# 평문이 SSH 로 가는 것은 문제가 아니다 — 채널이 암호화돼 있고, 어차피 서버에는
+# 평문으로 놓여야 앱이 읽는다. 레지스트리나 로그에는 어느 단계에서도 남지 않는다.
 # ─────────────────────────────────────────────────────────────────────────────
-group '시크릿 전송 · 복호화'
+group '시크릿 복호화 · 전송'
+
+# age 키. 로컬은 기본 경로(~/.config/sops/age/keys.txt)에 이미 있어 보통 비어 있다.
+if [ -n "${AGE_SECRET_KEY_FILE:-}" ]; then
+  materialize "$AGE_SECRET_KEY_FILE" "$work/age.key"
+  export SOPS_AGE_KEY_FILE="$work/age.key"
+fi
+
+command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 쪽에서 한다."
+
+# .enc 를 풀어 $work/config 아래에 같은 구조로 놓는다.
+#
+# PEM(*.key)은 dotenv/json 이 아니라 binary 모드여야 한다 — env-decrypt.sh 와 같은 규칙.
+# 원본 트리를 건드리지 않으므로 로컬의 평문·암호문이 섞이지 않는다.
 (
   cd "$AREA_DIR"
   { find "config/$APP_ENV" -type f -name '*.enc'; echo "config/.env.$APP_ENV.enc"; } \
-    | tar -czf "$work/config.tgz" -T -
+  | while IFS= read -r f; do
+      out="$work/${f%.enc}"
+      mkdir -p "$(dirname "$out")"
+      case "$f" in
+        *.key.enc | *.pem.enc) sops --decrypt --input-type binary --output-type binary "$f" > "$out" ;;
+        *)         sops --decrypt "$f" > "$out" ;;
+      esac
+      chmod 600 "$out"
+      echo "  $f → ${f%.enc}"
+    done
 )
+
+# 전송. 서버에서 권한을 다시 잠근다 — scp 는 원본 모드를 항상 보존하지 않는다.
+tar -czf "$work/config.tgz" -C "$work" config
 remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
 scp "${ssh_opts[@]}" -q "$work/config.tgz" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config.tgz"
-
-# 서버에서 푼다. PEM(*.key)은 dotenv/json 이 아니라 binary 모드여야 한다 — env-decrypt.sh 와 같은 규칙.
-# 복호화 결과는 0600 으로 잠근다. 서명 키가 다른 사용자에게 읽히면 안 된다.
 remote "set -e
   cd $BE_HANSAPP_DEPLOY_PATH
   tar -xzf config.tgz && rm -f config.tgz
-  find config -type f -name '*.enc' | while IFS= read -r f; do
-    out=\"\${f%.enc}\"
-    case \"\$f\" in
-      *.key.enc) sops --decrypt --input-type binary --output-type binary \"\$f\" > \"\$out\" ;;
-      *)         sops --decrypt \"\$f\" > \"\$out\" ;;
-    esac
-    chmod 600 \"\$out\"
-  done
-  echo '  복호화 완료:'
-  find config -type f ! -name '*.enc' | sed 's/^/    /'
+  find config -type f -exec chmod 600 {} +
 "
 endgroup
+
+# 이미지가 private 이면 서버도 GHCR 에 인증해야 한다.
+#
+# **서버에 자격증명을 남기지 않는다.** 배포할 때만 로그인하고 끝나면 지운다. CI 는
+# GITHUB_TOKEN 을 넘기는데 그건 잡이 끝나면 만료되는 임시 토큰이라, 남아도 무해하고
+# 만료 관리도 필요 없다. 영구 PAT 을 서버에 심어두면 만료일마다 배포가 죽고, 서버가
+# 뚫릴 때 토큰까지 같이 나간다.
+#
+# 값이 없으면 로그인을 건너뛴다 — 이미지를 public 으로 돌렸거나 서버가 이미 로그인된 경우다.
+if [ -n "${GHCR_TOKEN:-}" ]; then
+  group 'GHCR 로그인'
+  printf '%s' "$GHCR_TOKEN" | remote "docker login ghcr.io -u ${GHCR_USER:-x} --password-stdin"
+  endgroup
+  # 성공하든 실패하든 반드시 지운다.
+  ghcr_logged_in=1
+fi
 
 group 'pull · up'
 # --remove-orphans: compose 에서 서비스를 지웠을 때 서버에 남은 컨테이너를 정리한다.
 remote "cd $BE_HANSAPP_DEPLOY_PATH && docker compose pull && docker compose up -d --remove-orphans"
 endgroup
+
+if [ -n "${ghcr_logged_in:-}" ]; then
+  remote 'docker logout ghcr.io' >/dev/null 2>&1 || true
+  ghcr_logged_in=''   # cleanup 이 한 번 더 부르지 않게
+fi
 
 group '상태'
 remote "cd $BE_HANSAPP_DEPLOY_PATH && docker compose ps"
