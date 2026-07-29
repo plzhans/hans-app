@@ -12,12 +12,14 @@
 #   3) docker compose up -d
 # ─────────────────────────────────────────────────────────────
 
-name: hansapp-redis
+# **환경마다 이름이 달라야 한다.** develop 과 production 이 같은 호스트에 뜨는데
+# compose 프로젝트명과 컨테이너명이 겹치면 나중에 뜬 쪽이 앞의 것을 덮어쓴다.
+name: hansapp-redis-production
 
 services:
   redis:
     image: redis:7.4-alpine
-    container_name: hansapp-redis
+    container_name: hansapp-redis-production
     restart: unless-stopped
     # conf 파일 + 비밀번호(플래그) 병합. 비밀값은 conf 에 안 남기고 여기서 .env 주입.
     # **설정 파일 경로를 반드시 첫 인자로 넘긴다.** redis-server 는 경로 인자가 없으면
