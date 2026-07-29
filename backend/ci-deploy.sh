@@ -18,7 +18,7 @@
 #   BE_HANSAPP_DEPLOY_SSH_KEY_FILE  SSH 개인키. **경로 또는 내용**
 #   BE_HANSAPP_DEPLOY_PATH        ~/app/hansapp-prod
 #   BE_WIREGUARD_PEER_CONF_FILE   (선택) WireGuard 설정. **경로 또는 내용**
-#   BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS (선택) 서버 host key
+#   BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE (선택) 서버 host key
 #
 # [WireGuard 를 조건부로 올리는 이유]
 # 로컬은 작업 환경이라 VPN 이 이미 붙어 있다. CI 는 매번 새 러너라 직접 올려야 한다.
@@ -114,8 +114,8 @@ fi
 materialize "$BE_HANSAPP_DEPLOY_SSH_KEY_FILE" "$work/id_deploy"
 
 ssh_opts=(-i "$work/id_deploy" -o IdentitiesOnly=yes -o BatchMode=yes)
-if [ -n "${BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS:-}" ]; then
-  materialize "$BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS" "$work/known_hosts"
+if [ -n "${BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE:-}" ]; then
+  materialize "$BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE" "$work/known_hosts"
   ssh_opts+=(-o "UserKnownHostsFile=$work/known_hosts" -o StrictHostKeyChecking=yes)
 else
   # host key 를 모르면 첫 접속을 받아들일 수밖에 없다. VPN 안이라 노출 면적이 작지만

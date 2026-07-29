@@ -72,7 +72,7 @@ jobs:
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
           BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
-          BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS: ${{ vars.BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS }}
+          BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE: ${{ vars.BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE }}
           # **로컬에는 없고 CI 에만 있는 값이다.** 로컬은 VPN 이 이미 붙어 있어서
           # backend/deploy.sh 가 이 변수를 비운다. ci-deploy.sh 는 비어 있으면 연결을
           # 건드리지 않으므로, 스크립트가 자기가 어디서 도는지 몰라도 된다.
