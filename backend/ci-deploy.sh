@@ -189,7 +189,7 @@ endgroup
 # 평문이 SSH 로 가는 것은 문제가 아니다 — 채널이 암호화돼 있고, 어차피 서버에는
 # 평문으로 놓여야 앱이 읽는다. 레지스트리나 로그에는 어느 단계에서도 남지 않는다.
 # ─────────────────────────────────────────────────────────────────────────────
-group '시크릿 복호화 · 전송'
+group '설정 · 시크릿 전송'
 
 # age 키. 로컬은 기본 경로(~/.config/sops/age/keys.txt)에 이미 있어 보통 비어 있다.
 if [ -n "${AGE_SECRET_KEY_FILE:-}" ]; then
@@ -216,16 +216,62 @@ command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 �
       chmod 600 "$out"
       echo "  $f → ${f%.enc}"
     done
+
+  # 환경별 yaml. **비밀이 아니라 복호화 대상이 아니지만 같이 나른다** — 이미지에 굽지
+  # 않기 때문이다(이미지는 환경을 모른다). 컨테이너에서는 config/config.yaml 로 마운트된다.
+  #
+  # 이미지에 굽지 않는 대신 배포가 나르므로, **이미지와 설정이 어긋날 수 있다.** 서버의
+  # yaml 은 배포할 때마다 덮어써지니 레포가 정본이고, 서버에서 직접 고치면 다음 배포가 지운다.
+  yaml="config/config.$APP_ENV.yaml"
+  [ -f "$yaml" ] || die "$yaml 이 없다."
+  mkdir -p "$work/config"
+  cp "$yaml" "$work/$yaml"
+  chmod 644 "$work/$yaml"
+  echo "  $yaml (비밀 아님)"
 )
 
 # 전송. 서버에서 권한을 다시 잠근다 — scp 는 원본 모드를 항상 보존하지 않는다.
+#
+# **소유자를 컨테이너 유저로 넘긴다.** 0600 은 SSH 접속 계정만 읽을 수 있다는 뜻인데,
+# 정작 파일을 읽어야 하는 건 컨테이너 안의 프로세스다. 접속 계정(uid 1001)과 이미지
+# 유저(node, uid 1000)가 다르면 컨테이너가 Permission denied 로 설정을 못 읽고,
+# 앱은 "설정이 없다" 며 부팅에 실패한다 — 파일은 멀쩡히 마운트돼 있는데도.
+#
+# 권한을 넓히지(0644) 않고 소유자만 바꾸는 이유는, 같은 호스트의 다른 계정이 비밀을
+# 읽게 되는 것을 피하기 위해서다. 읽을 수 있는 주체를 하나로 유지하되 그 하나를
+# 컨테이너로 옮기는 것이다.
+#
+# uid 를 상수로 박지 않고 **이미지에서 읽어온다.** 이미지가 유저를 바꾸면 자동으로 따라간다.
 tar -czf "$work/config.tgz" -C "$work" config
 remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
 scp "${ssh_opts[@]}" -q "$work/config.tgz" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config.tgz"
 remote "set -e
   cd $BE_HANSAPP_DEPLOY_PATH
-  tar -xzf config.tgz && rm -f config.tgz
+
+  # **매번 통째로 갈아끼운다.** 이전 설정은 컨테이너 uid 소유라 SSH 계정이 덮어쓸 수 없다
+  # (0600 이고 소유자가 다르다). 제자리에서 풀려고 하면 tar 가 권한 오류로 죽는다.
+  # 그래서 새 디렉터리에 풀고 통째로 교체한다 — 반쯤 갱신된 상태도 안 생긴다.
+  rm -rf config.new && mkdir config.new
+  tar -xzf config.tgz -C config.new --strip-components=1
+  rm -f config.tgz
+
+  sudo rm -rf config
+  mv config.new config
   find config -type f -exec chmod 600 {} +
+
+  # 이미지 이름은 compose 가 안다 — 여기서 레지스트리 경로를 다시 적지 않는다.
+  # USER 가 이름(node)일 수 있어 이미지 안에서 id 로 풀어 실제 uid:gid 를 얻는다.
+  img=\"\$(docker compose config --images 2>/dev/null | head -1)\"
+  owner=\"\$(docker run --rm --entrypoint sh \"\$img\" -c 'echo \$(id -u):\$(id -g)' 2>/dev/null || true)\"
+  if [ -n \"\$owner\" ]; then
+    # **비밀 에셋(jwt·TLS)만 넘긴다.** 컨테이너에서 config/secrets 로 마운트되는 그 디렉터리다.
+    # config.yaml 은 비밀이 아니고, .env 는 도커가 호스트에서 읽어 주입하므로(env_file)
+    # 배포 계정 소유로 남아야 한다 — 넘기면 compose 가 못 읽어 컨테이너가 안 뜬다.
+    sudo chown -R \"\$owner\" "config/$APP_ENV"
+    echo \"  secrets 소유자 → \$owner (컨테이너 유저)\"
+  else
+    echo '  ⚠ 이미지에서 uid 를 못 읽었다 — 컨테이너가 설정을 못 읽을 수 있다.' >&2
+  fi
 "
 endgroup
 

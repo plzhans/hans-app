@@ -24,16 +24,27 @@ services:
     image: ghcr.io/plzhans/hans-app/hansapp-api:${IMAGE_TAG}
     container_name: hansapp-prod-api
     restart: unless-stopped
-    environment:
-      APP_ENV: production
-      NODE_ENV: production
-    # 이미지에는 config/*.yaml 만 구워져 있다. 비밀은 서버의 것을 얹는다.
+    # **컨테이너 안에는 환경 이름이 없다.** 호스트의 환경별 파일을 일반 이름으로 건다.
+    #
+    # 컨테이너에는 환경이 하나뿐이라 자기가 develop 인지 production 인지 파일 구조로 알
+    # 필요가 없다. 그래서 이미지도 compose 도 환경을 모른 채로 있을 수 있다.
+    #
+    # APP_ENV 는 .env.<환경> 안에 들어 있고, 그 파일이 컨테이너에서 config/.env 가 되므로
+    # 앱이 부팅하며 스스로 읽는다 — compose 가 APP_ENV 를 따로 넘기지 않는 이유다.
     #
     # :ro 로 붙인다. 앱이 설정을 쓸 일이 없고, 쓰기가 가능하면 컨테이너가 뚫렸을 때
     # 서버의 비밀 파일이 조작될 수 있다.
     volumes:
-      - ./config/.env.production:/app/config/.env.production:ro
-      - ./config/production:/app/config/production:ro
+      - ./config/config.production.yaml:/app/config/config.yaml:ro
+      - ./config/production:/app/config/secrets:ro
+    # **env 는 마운트가 아니라 주입한다.** 도커가 호스트에서 읽어 환경변수로 넣으므로
+    # 파일이 컨테이너에 들어가지 않는다 — 컨테이너 uid 가 읽을 필요가 없어 권한에서 빠진다.
+    #
+    # env 파일의 본래 용도가 그것이다. 앱이 파일을 직접 읽는 것은 로컬 개발 편의고,
+    # 배포에서는 플랫폼이 환경변수를 채워 주는 쪽이 맞다(12-factor).
+    #
+    # APP_ENV 도 이 파일에 있어 컨테이너가 부팅 전부터 자기 환경을 안다.
+    env_file: ./config/.env.production
     # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 살아 있다.
     # 컨테이너 포트는 3000 그대로 둔다 — 이미지가 같으므로 환경차는 여기서만 흡수한다.
     #
@@ -55,12 +66,17 @@ services:
     image: ghcr.io/plzhans/hans-app/hansapp-batch:${IMAGE_TAG}
     container_name: hansapp-prod-batch
     restart: unless-stopped
-    environment:
-      APP_ENV: production
-      NODE_ENV: production
     volumes:
-      - ./config/.env.production:/app/config/.env.production:ro
-      - ./config/production:/app/config/production:ro
+      - ./config/config.production.yaml:/app/config/config.yaml:ro
+      - ./config/production:/app/config/secrets:ro
+    # **env 는 마운트가 아니라 주입한다.** 도커가 호스트에서 읽어 환경변수로 넣으므로
+    # 파일이 컨테이너에 들어가지 않는다 — 컨테이너 uid 가 읽을 필요가 없어 권한에서 빠진다.
+    #
+    # env 파일의 본래 용도가 그것이다. 앱이 파일을 직접 읽는 것은 로컬 개발 편의고,
+    # 배포에서는 플랫폼이 환경변수를 채워 주는 쪽이 맞다(12-factor).
+    #
+    # APP_ENV 도 이 파일에 있어 컨테이너가 부팅 전부터 자기 환경을 안다.
+    env_file: ./config/.env.production
     logging:
       driver: json-file
       options:

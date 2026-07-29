@@ -6,7 +6,6 @@ import { Command } from 'commander';
 import { config } from 'dotenv';
 import {
   APP_ENVS,
-  DEFAULT_APP_ENV,
   ConfigSource,
   createConfigSource,
   exitIfVersionFlag,
@@ -40,6 +39,8 @@ function bootstrapEnv(): ConfigSource {
   const index = process.argv.indexOf('--env');
   const explicit = index >= 0 ? process.argv[index + 1] : undefined;
 
+  // --env 가 없으면 APP_ENV 환경변수를 본다. 둘 다 없으면 resolveAppEnv 가 던진다 —
+  // 기본값으로 아무 환경이나 잡으면 엉뚱한 DB 에 마이그레이션을 걸 수 있다.
   const appEnv = resolveAppEnv(explicit);
   // 자식 프로세스(prisma)도 같은 환경을 보도록 물려준다.
   process.env.APP_ENV = appEnv;
@@ -70,8 +71,7 @@ const program = new Command()
   .description('공공데이터 API 조회·적재와 DB 스키마 관리를 위한 커맨드')
   .option(
     '--env <name>',
-    `대상 환경. ${APP_ENVS.join(' | ')} 중 하나. config/<환경>/<환경>.env 를 읽는다`,
-    DEFAULT_APP_ENV,
+    `대상 환경. ${APP_ENVS.join(' | ')} 중 하나. config/.env.<환경> 을 읽는다`,
   )
   .option('--pretty', 'JSON 응답에 색을 입혀 출력한다 (TTY 에서만)')
   .addCommand(nmcCommand(envSource))

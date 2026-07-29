@@ -253,9 +253,29 @@ export function createConfigSource(
 ): ConfigSource {
   // .env → process.env (${} 치환의 값 원천)
   loadEnv(appDir, env, loader);
-  // 환경별 config.<환경>.yaml 하나만 읽는다 — **자기완결적**(공통 base 를 두지 않는다,
-  // 한 파일만 보면 그 환경 전부). → ${} 치환.
-  const merged = buildConfigTree([yamlProvider(appDir, `config.${env}`)]);
+  // yaml 두 자리를 본다. 낮은 쪽부터 쌓아 뒤가 이긴다.
+  //
+  //   config/config.yaml          환경 이름이 없는 자리 — **컨테이너가 여기로 마운트받는다**
+  //   config/config.<환경>.yaml    환경별 — 로컬 개발이 쓴다(환경들이 나란히 있어야 하므로)
+  //
+  // 컨테이너에는 환경이 하나뿐이라 파일 이름이 환경을 말할 이유가 없다. 그래서 이미지에
+  // yaml 을 굽지 않고 배포가 그 환경 것을 config.yaml 로 얹는다 — .env 를 config/.env 로
+  // 마운트하는 것과 같은 규칙이다. 덕분에 이미지도 compose 도 환경을 모른 채로 있는다.
+  //
+  // 한쪽만 있는 것이 정상이라 병합할 일이 거의 없지만, 둘 다 있으면 환경별이 이긴다(더 구체적).
+  const merged = buildConfigTree([
+    yamlProvider(appDir, 'config'),
+    yamlProvider(appDir, `config.${env}`),
+  ]);
+
+  // 설정 파일이 아예 없으면 여기서 멈춘다. 그대로 두면 "필수 설정이 없다: database.url"
+  // 처럼 **결과**만 보이고 원인(yaml 을 못 찾음)이 안 보인다.
+  if (Object.keys(merged).length === 0) {
+    throw new Error(
+      `설정 파일이 없다: config/config.yaml 또는 config/config.${env}.yaml. ` +
+        '컨테이너라면 배포가 yaml 을 config/config.yaml 로 마운트했는지 확인할 것.',
+    );
+  }
   const tree = interpolate(merged, process.env) as Record<string, unknown>;
   return sectionOf(tree, env);
 }

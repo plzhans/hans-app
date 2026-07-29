@@ -30,6 +30,9 @@ exitIfVersionFlag(__dirname);
 /** 실행 환경(local|develop|production). Sentry environment 태그가 이 값이다. */
 export const appEnv = resolveAppEnv();
 
+// 하위 계층이 process.env.APP_ENV 를 직접 보는 곳이 있어 판별 결과를 되돌려 고정한다.
+process.env.APP_ENV = appEnv;
+
 /** 이 산출물의 신원(버전·커밋). Sentry release/태그로 올린다. */
 export const buildInfo: BuildInfo = loadBuildInfo(__dirname);
 

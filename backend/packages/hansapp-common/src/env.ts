@@ -13,21 +13,38 @@ export const APP_ENVS = ['local', 'develop', 'production'] as const;
 export type AppEnv = (typeof APP_ENVS)[number];
 
 /**
- * 기본 환경. 아직 로컬 DB 가 없어 공유 개발 DB(develop)를 본다.
- * 로컬 도커 MySQL 을 붙이면 'local' 로 바꾼다.
+ * **기본 환경을 두지 않는다.** APP_ENV 가 없으면 부팅을 거부한다.
+ *
+ * APP_ENV 는 설정 파일을 고르는 값에 그치지 않는다 — Redis 키 네임스페이스와
+ * Elasticsearch 인덱스 별칭이 여기서 파생된다(둘 다 환경들이 한 대를 공유한다).
+ * 그래서 기본값을 잘못 잡으면 **엉뚱한 환경의 데이터를 건드린다.**
+ *
+ *   기본값을 develop 으로  → APP_ENV 를 빠뜨린 production 이 develop 데이터를 쓴다
+ *   기본값을 production 으로 → 로컬에서 무심코 띄운 앱이 운영 인덱스를 재색인한다
+ *
+ * 어느 쪽으로 떨어져도 손해라면 떨어지지 않는 것이 맞다. 안 뜨는 편이 조용히
+ * 잘못된 곳에 쓰는 것보다 낫다.
  */
-export const DEFAULT_APP_ENV: AppEnv = 'develop';
 
 export function isAppEnv(value: string): value is AppEnv {
   return (APP_ENVS as readonly string[]).includes(value);
 }
 
 /**
- * 환경 이름을 정한다. 우선순위: 인자 > APP_ENV 환경변수 > 기본값.
- * 지원하지 않는 이름이면 즉시 실패시킨다. 엉뚱한 DB 에 붙는 것보다 낫다.
+ * 환경 이름을 정한다. 우선순위: 인자 > APP_ENV 환경변수. **기본값은 없다.**
+ * 없거나 지원하지 않는 이름이면 즉시 실패시킨다 — 엉뚱한 환경의 데이터를 건드리는 것보다 낫다.
+ *
+ * 배포에서는 도커가 env 파일을 읽어 환경변수로 주입한다(compose 의 env_file). 그래서
+ * 이 함수가 도는 시점에 APP_ENV 가 이미 process.env 에 있다 — 파일을 먼저 읽을 필요가 없다.
  */
 export function resolveAppEnv(explicit?: string): AppEnv {
-  const value = explicit ?? process.env.APP_ENV ?? DEFAULT_APP_ENV;
+  const value = explicit ?? process.env.APP_ENV;
+  if (!value) {
+    throw new Error(
+      `APP_ENV 가 없다. 가능한 값: ${APP_ENVS.join(', ')}. ` +
+        'env 파일(config/.env)이나 환경변수로 지정할 것.',
+    );
+  }
   if (!isAppEnv(value)) {
     throw new Error(
       `알 수 없는 환경: ${value}. 가능한 값: ${APP_ENVS.join(', ')}`,
