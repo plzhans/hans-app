@@ -207,7 +207,12 @@ jobs:
     #
     # production 에 승인을 걸고 싶으면 이 이름으로 GitHub Environment 를 만들고
     # protection rule 을 붙이면 된다. 워크플로우는 안 고쳐도 된다.
-    environment: ${{ needs.setup.outputs.build_only == 'true' && '' || needs.setup.outputs.app_env }}
+    # **빈 문자열을 truthy 쪽에 두면 안 된다.** GitHub 표현식의 `A && x || y` 는
+    # `A && x` 가 falsy 면 y 로 떨어지는데, 빈 문자열이 바로 falsy 다. 그래서
+    # `build_only && '' || app_env` 는 build_only 가 참이어도 늘 app_env 를 돌려준다
+    # — 빌드만 하려던 잡이 환경 보호 규칙에 걸려 0단계로 죽는다.
+    # 조건을 뒤집어 **비어 있지 않은 값을 truthy 쪽**에 둔다.
+    environment: ${{ needs.setup.outputs.build_only != 'true' && needs.setup.outputs.app_env || '' }}
 
     # 매 잡마다 node/pnpm 을 까는 대신 미리 구워둔 툴체인 이미지를 쓴다.
     # :latest 는 .nvmrc 가 가리키는 node 다 (.github/workflows/infra-node-builder.yml).
