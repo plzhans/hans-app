@@ -13,6 +13,14 @@ set -euo pipefail
 # 그냥 `> "$file.enc"` 로 쓰면 실패 시 0바이트 .enc 가 남고, .enc 는 커밋 대상이라 그대로 올라간다.
 encrypt() {
   local src="$1" out="$2" tmp
+
+  # **빈 파일은 암호화하지 않는다.** 평문이 비어 있다는 건 정상 상태가 아니라 사고다 —
+  # 복호화가 실패해 리다이렉트가 파일을 0바이트로 만들어 놓은 경우가 대표적이다.
+  # 그대로 암호화하면 멀쩡한 .enc 를 빈 내용으로 덮어써 원본이 사라진다.
+  if [ ! -s "$src" ]; then
+    echo "  ⏭  건너뜀(내용 없음): $src" >&2
+    return 0
+  fi
   tmp="$(mktemp)"
   if sops --encrypt "${@:3}" "$src" > "$tmp"; then
     mv "$tmp" "$out"
