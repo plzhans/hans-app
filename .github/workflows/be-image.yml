@@ -161,6 +161,12 @@ jobs:
             # git 태그(release-backend/v0.3.0)와 1:1 로 맞춘다. 그래야
             # `deploy.sh production v0.3.0` 이 그대로 성립하고, 롤백이 태그 교체로 끝난다.
             [ -n "$VERSION" ] && echo "$image:v${VERSION#v}"
+            # **staging** — 가장 최근 릴리스를 가리키는 별칭.
+            #
+            # 배포할 때 버전을 외우지 않아도 되게 한다. 다만 배포는 이 이름을 그대로
+            # 서버에 적지 않고 실제 버전(v0.6.2)으로 바꿔 넣는다 — 서버 .env 에
+            # 'staging' 이라고 적혀 있으면 무엇이 떠 있는지 답할 수 없기 때문이다.
+            [ -n "$VERSION" ] && echo "$image:staging"
             echo "TAGS"
           } >> "$GITHUB_OUTPUT"
 

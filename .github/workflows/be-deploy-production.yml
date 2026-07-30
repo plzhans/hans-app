@@ -4,9 +4,15 @@
 # 그건 주의로 막을 수 있는 종류가 아니라 설계로 막는다 — 진입점을 환경별로 갈랐다.
 #
 # [단계]
-#   image     올릴 이미지가 있는지 확인 (굽지 않는다 — 굽는 것은 릴리스의 일)
+#   image     버전 확정(staging → v0.6.2) · 이미지 존재 확인. 굽지 않는다
 #   migrate   스키마 반영. 실패하면 배포하지 않는다
 #   deploy    서버에 올린다
+#   promote   성공한 버전에 latest 를 붙인다
+#
+# [태그의 뜻]
+#   staging   가장 최근에 릴리스로 구운 것    — 배포 후보
+#   v0.6.2    그 릴리스의 고정된 이름          — 서버에 기록되는 값
+#   latest    지금 운영에 떠 있는 것           — 배포가 성공해야 움직인다
 #
 # **릴리스와 배포는 다른 실행이다.** 릴리스는 후보를 만들어 두고, 배포일에 이 워크플로를
 # 돌린다. 그 사이가 며칠 벌어지는 것이 정상이고, 그동안 main 에는 커밋이 계속 쌓인다.
@@ -30,7 +36,7 @@ on:
         # 기본값으로 올라가면 서버에 무엇이 떠 있는지 아무도 답할 수 없게 되고, 되돌릴
         # 이전 태그도 남지 않는다. 손이 한 번 더 가는 대신 무엇을 올렸는지가 실행 기록에
         # 남는다. 롤백도 이 자리에서 이전 버전을 적는 것으로 끝난다.
-        description: '릴리스 버전 (예: v0.6.2). 롤백도 여기에 이전 버전을 적는다'
+        description: 'staging(가장 최근 릴리스) 또는 버전(v0.6.2). 롤백도 여기에 이전 버전을'
         type: string
         required: true
       skip_migrate:
@@ -68,10 +74,39 @@ jobs:
     permissions:
       contents: read
       packages: read
+    outputs:
+      # 실제 버전. 아래 잡들은 입력이 아니라 이 값을 쓴다.
+      version: ${{ steps.resolve.outputs.version }}
     steps:
-      - name: 이미지 확인
+      # 태그를 다 가져와야 staging 을 풀 수 있다.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # **staging 을 실제 버전으로 바꾼다.**
+      #
+      # 배포할 때 버전을 외우지 않아도 되게 별칭을 두되, 서버에는 그 이름을 남기지 않는다.
+      # .env 에 IMAGE_TAG=staging 이라고 적혀 있으면 "지금 무엇이 떠 있나" 에 답할 수 없고,
+      # 되돌릴 대상도 사라진다. 별칭은 고르는 순간에만 쓰고 곧바로 버전으로 굳힌다.
+      - id: resolve
         env:
           TAG: ${{ inputs.image_tag }}
+        run: |
+          if [ "$TAG" = 'staging' ]; then
+            # staging = 가장 최근 릴리스. 레지스트리를 뒤지는 대신 git 태그로 푼다 —
+            # 릴리스가 곧 그 태그이므로 같은 답이 나오고, 체크아웃할 ref 도 함께 얻는다.
+            ref="$(git describe --tags --match 'release-backend/v*' --abbrev=0)" \
+              || { echo '❌ release-backend/v* 태그가 없다.' >&2; exit 1; }
+            version="${ref#release-backend/}"
+            echo "  staging → $version"
+          else
+            version="$TAG"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: 이미지 확인
+        env:
+          TAG: ${{ steps.resolve.outputs.version }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
@@ -122,12 +157,23 @@ jobs:
       contents: read
       packages: read
     steps:
+      # **릴리스 태그를 체크아웃한다.** 설정·compose·배포 스크립트까지 그 시점 것을 쓴다.
+      #
+      # 이미지만 버전을 고정하고 나머지를 main 에서 가져오면, v0.6.1 이미지에 그 뒤로
+      # 바뀐 설정이 붙는다 — 묶을 때와 다른 조합이 올라간다. 릴리스는 "이 조합을
+      # 배포한다" 는 선언이므로, 조합 전체가 그 태그에 고정돼야 한다.
+      #
+      # 대가: 배포 스크립트를 고쳐도 옛 태그에는 없다. 그 수정이 필요하면 새 릴리스를
+      # 낸다 — 스크립트도 릴리스에 담기는 것이 된다.
       - uses: actions/checkout@v4
+        with:
+          ref: release-backend/${{ needs.image.outputs.version }}
+
       - name: 마이그레이션
         run: ./backend/ci-migrate.sh
         env:
           APP_ENV: production
-          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_TAG: ${{ needs.image.outputs.version }}
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
           BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
@@ -158,12 +204,23 @@ jobs:
       contents: read
       packages: read # node-builder 이미지를 GHCR 에서 받는다
     steps:
+      # **릴리스 태그를 체크아웃한다.** 설정·compose·배포 스크립트까지 그 시점 것을 쓴다.
+      #
+      # 이미지만 버전을 고정하고 나머지를 main 에서 가져오면, v0.6.1 이미지에 그 뒤로
+      # 바뀐 설정이 붙는다 — 묶을 때와 다른 조합이 올라간다. 릴리스는 "이 조합을
+      # 배포한다" 는 선언이므로, 조합 전체가 그 태그에 고정돼야 한다.
+      #
+      # 대가: 배포 스크립트를 고쳐도 옛 태그에는 없다. 그 수정이 필요하면 새 릴리스를
+      # 낸다 — 스크립트도 릴리스에 담기는 것이 된다.
       - uses: actions/checkout@v4
+        with:
+          ref: release-backend/${{ needs.image.outputs.version }}
+
       - name: 배포
         run: ./backend/ci-deploy.sh
         env:
           APP_ENV: production
-          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_TAG: ${{ needs.image.outputs.version }}
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
           BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
@@ -172,3 +229,36 @@ jobs:
           AGE_SECRET_KEY_FILE: ${{ secrets.AGE_SECRET_KEY_FILE }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 배포에 성공한 버전에 latest 를 붙인다.
+  #
+  # **latest 는 "지금 운영에 떠 있는 것" 이다.** 흔히 쓰는 "가장 최근에 구운 것" 이 아니다.
+  # 구운 것은 staging 이 가리키고, 올라간 것은 latest 가 가리킨다. 그래서 두 태그를
+  # 비교하면 "만들어 뒀지만 아직 안 올린 것" 이 있는지 바로 보인다.
+  #
+  # **배포에 쓰지 않는다.** 움직이는 태그로 배포하면 서버 .env 가 "지금 무엇이 떠 있나" 에
+  # 답하지 못한다. 이것은 사람이 보는 이정표다.
+  #
+  # imagetools create 는 레지스트리 안에서 매니페스트만 복사한다 — 이미지를 받지 않는다.
+  # ───────────────────────────────────────────────────────────────────────────
+  promote:
+    needs: [image, deploy]
+    if: ${{ needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: latest 마킹
+        env:
+          VERSION: ${{ needs.image.outputs.version }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          for app in hansapp-api hansapp-batch hansapp-migrate; do
+            img="ghcr.io/${{ github.repository }}/$app"
+            docker buildx imagetools create -t "$img:latest" "$img:$VERSION"
+            echo "  $app:latest → $VERSION"
+          done
+          docker logout ghcr.io >/dev/null 2>&1 || true
