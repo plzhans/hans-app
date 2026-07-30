@@ -8,6 +8,9 @@
 #   Use workflow from:  staging                   ← 최신 릴리스
 #                       release-backend/v0.6.4     ← 특정 버전(롤백)
 #
+# **태그가 아니면 첫 잡에서 거부한다.** 그 드롭다운은 브랜치도 함께 보여주고 기본이
+# main 인데, 워크플로가 목록을 좁힐 수는 없어서 골라진 뒤에 막는다.
+#
 # **입력칸이 없다.** 어차피 ref 를 고르는데 버전을 또 적게 하면 두 곳이 어긋날 수 있고
 # 오타도 난다. 고른 ref 의 .release-please-manifest.json 에서 읽는다 — 그 커밋이 무슨
 # 버전인지는 그 파일이 이미 알고 있다.
@@ -84,6 +87,27 @@ jobs:
       #
       # ref 가 staging 이든 release-backend/v0.6.4 든, 그 커밋의 manifest 가 답을 갖고
       # 있다. 사람이 적게 하면 ref 와 어긋날 수 있으므로 파일에서 읽는다.
+      # **태그에서만 배포한다.**
+      #
+      # "Use workflow from" 은 GitHub UI 라 브랜치도 같이 뜨고 기본이 main 이다. 워크플로가
+      # 그 목록을 좁힐 수는 없으니, 잘못 고른 것을 여기서 거부한다 — 첫 잡에서 멈추므로
+      # 마이그레이션도 배포도 나가지 않는다.
+      #
+      # 브랜치로 배포하면 "무엇을 배포했나" 가 남지 않는다. main 은 계속 움직이므로
+      # 며칠 뒤에 같은 것을 재현할 수 없다.
+      - name: ref 확인
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/*) echo "  ref $GITHUB_REF_NAME (태그)" ;;
+            *)
+              echo "❌ 태그에서만 배포한다. 받은 ref: $GITHUB_REF_NAME" >&2
+              echo "   Use workflow from 에서 아래 중 하나를 고를 것:" >&2
+              echo "     staging                  최신 릴리스" >&2
+              echo "     release-backend/v0.6.4   특정 버전(롤백)" >&2
+              exit 1
+              ;;
+          esac
+
       - id: resolve
         name: 버전 확정
         run: |
