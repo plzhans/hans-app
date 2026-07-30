@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.4](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.3...release-backend/v0.6.4) (2026-07-30)
+
+
+### 버그 수정
+
+* env 를 서버로 나를 때 $ 를 이스케이프한다 ([3f330bd](https://github.com/plzhans/hans-app/commit/3f330bd48d79fd96cf58c805594c491a5e35892b))
+* env_file 을 format raw 로 읽는다 ([2fb0afd](https://github.com/plzhans/hans-app/commit/2fb0afd2f96a76f7538c11b3d7f83c9f07f5ab1f))
+
 ## [0.6.3](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.2...release-backend/v0.6.3) (2026-07-30)
 
 
