@@ -23,9 +23,12 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/be*.yml'
-  # pull_request 는 걸지 않는다. 지금은 main 직푸시로 일하고, PR 은 release-please 가
-  # 만드는 것뿐인데 그건 버전·changelog 만 바꾼다. 봇 PR 은 승인 대기(action_required)로
-  # 걸려 실행 목록만 지저분해진다. 사람이 PR 로 일하기 시작하면 그때 다시 건다.
+  # PR 에서도 verify 를 돌린다. 합치기 전에 깨진 것을 보는 게 요점이다.
+  # image·deploy 는 plan 이 push 가 아니면 false 로 두므로 PR 에서 배포가 나갈 일은 없다.
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/be*.yml'
   workflow_dispatch:
     inputs:
       stage:
