@@ -126,6 +126,8 @@ for app in $targets; do
     -f "$AREA_DIR/docker/$app.Dockerfile" \
     --build-arg "GIT_SHA=$sha" \
     --build-arg "GIT_BRANCH=$branch" \
+    --build-arg "APP_UID=${APP_UID:-1001}" \
+    --build-arg "APP_GID=${APP_GID:-1001}" \
     --label "org.opencontainers.image.source=https://github.com/$slug" \
     --label "org.opencontainers.image.revision=$sha" \
     --label "org.opencontainers.image.description=$app ($APP_ENV)" \

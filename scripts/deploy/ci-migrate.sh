@@ -187,8 +187,9 @@ echo "  $(basename "$env_enc") → config/.env.$APP_ENV"
 yaml_src="$AREA_DIR/config/config.$APP_ENV.yaml"
 [ -f "$yaml_src" ] || die "$yaml_src 가 없다."
 scp "${ssh_opts[@]}" -q "$yaml_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config/config.$APP_ENV.yaml"
-remote "chmod 644 $BE_HANSAPP_DEPLOY_PATH/config/config.$APP_ENV.yaml"
-echo "  config.$APP_ENV.yaml (비밀 아님)"
+# 600 이면 된다. 컨테이너가 이 계정과 같은 uid 로 돌기 때문이다(compose 의 user:).
+remote "chmod 600 $BE_HANSAPP_DEPLOY_PATH/config/config.$APP_ENV.yaml"
+echo "  config.$APP_ENV.yaml"
 endgroup
 
 if [ -n "${GHCR_TOKEN:-}" ]; then
@@ -202,7 +203,10 @@ group '마이그레이션'
 # --rm: 끝나면 컨테이너를 지운다. 작업이지 서비스가 아니다.
 # IMAGE_TAG 를 명령 앞에 붙여 그 실행에만 적용한다 — 서버 .env 의 값(지금 떠 있는 앱의
 # 버전)을 건드리지 않는다. 배포가 아직 안 됐을 수도 있어 그 파일은 배포의 몫으로 둔다.
-remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' docker compose run --rm migrate"
+#
+# uid 도 같이 넘긴다. 첫 배포에서는 .env 가 아직 없어 compose 기본값(1001)으로 떨어지는데,
+# 접속 계정이 그 번호가 아니면 마운트한 yaml 을 못 읽는다.
+remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' APP_UID=\"\$(id -u)\" APP_GID=\"\$(id -g)\" docker compose run --rm migrate"
 endgroup
 
 if [ -n "${ghcr_logged_in:-}" ]; then

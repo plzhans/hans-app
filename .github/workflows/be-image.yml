@@ -181,9 +181,13 @@ jobs:
           file: backend/docker/${{ matrix.app }}.Dockerfile
           push: true
           platforms: linux/arm64
+          # 컨테이너가 돌 uid. 배포 서버의 로그인 계정과 같아야 마운트된 설정을 읽는다.
+          # 저장소 변수로 덮을 수 있게 두되, 없으면 배포 대상 기본값(1001)을 쓴다.
           build-args: |
             GIT_SHA=${{ github.sha }}
             GIT_BRANCH=${{ github.ref_name }}
+            APP_UID=${{ vars.APP_UID || '1001' }}
+            APP_GID=${{ vars.APP_GID || '1001' }}
           tags: ${{ steps.tags.outputs.list }}
           # source 라벨이 있어야 GHCR 패키지가 이 레포에 연결된다.
           labels: |

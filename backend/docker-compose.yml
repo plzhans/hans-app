@@ -6,12 +6,17 @@
 #
 # **접속 주소는 config/.env.local 이 정한다.** 여기 있는 것을 쓰려면 그 파일이 127.0.0.1
 # 을 가리켜야 한다 — 지금은 공유 서버를 가리키고 있어 이 컨테이너들이 놀고 있다.
+#
+# 앱 컨테이너는 여기 없다. 로컬은 소스에서 직접 띄운다(pnpm dev:server). 배포용 compose 는
+# infra/<환경>/ 아래에 따로 있다.
+#
+# **user: 를 걸지 않는다.** 셋 다 자기 uid 로 데이터 디렉터리를 소유하는 서드파티 이미지라,
+# 호스트 uid 를 강제하면 볼륨을 못 읽는다. 우리 앱 이미지와는 사정이 다르다.
 name: hansapp-backend
 
 services:
-  # 로컬 개발용 MySQL. 버전·설정을 공유 개발 DB(MySQL HeatWave 9.7.1-cloud)에 맞춘다.
-  # 이미지(docker/mysql9/)는 "MySQL 9 + 서버 공통 설정" 까지만 담당하고,
-  # 이 스택에서 쓸 DB·계정은 아래 initdb 마운트가 만든다.
+  # 버전·설정을 공유 개발 DB(MySQL HeatWave 9.7.1-cloud)에 맞춘다. 이미지는 "MySQL 9 +
+  # 서버 공통 설정" 까지만 담당하고, 이 스택이 쓸 DB·계정은 initdb 마운트가 만든다.
   hansapp-db:
     build:
       # backend/ 가 아니라 레포 루트의 docker/ 아래에 둔다. 다른 스택(node-builder)과 같은 자리다.
@@ -22,11 +27,11 @@ services:
     image: hansapp/mysql9:9.7.1
     container_name: hansapp-db
     restart: unless-stopped
+    # **접속 정보의 출처는 여기 한 곳이다.** 스크립트는 이 값을 읽어 쓴다.
+    # 메인 DB 와 앱 계정은 이미지가 만들고, 로그·shadow DB 는 initdb 스크립트가 잇는다
+    # (MYSQL_DATABASE 가 DB 를 하나만 받는다).
     environment:
       MYSQL_ROOT_PASSWORD: root
-      # 메인 DB 와 앱 계정은 mysql 이미지가 만든다. 다만 그 변수는 DB 를 하나만 받으므로
-      # 로그·shadow DB 는 initdb 스크립트가 이어서 만든다.
-      # **접속 정보의 출처는 여기 한 곳이다.** 스크립트는 이 값을 읽어 쓴다.
       MYSQL_DATABASE: local_hansapp
       MYSQL_USER: local_hansapp
       # 로컬 컨테이너 전용이라 감출 게 없다. 계정명과 같게 둔다.
@@ -38,8 +43,8 @@ services:
       - '${MYSQL_PORT:-13306}:3306'
     volumes:
       - hansapp-db-data:/var/lib/mysql
-      # 로그·shadow DB 를 마저 만드는 스크립트. datadir 이 비어 있을 때만 한 번 실행된다.
-      # 고쳤으면 `docker compose down -v && docker compose up -d` 로 볼륨을 지워야 반영된다.
+      # datadir 이 비어 있을 때만 한 번 실행된다. 고쳤으면 볼륨을 지워야 반영된다:
+      #   docker compose down -v && docker compose up -d
       - ./infra/local/mysql-db/docker-initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # root 로 ping 을 쳐야 "접속은 되는데 초기화가 안 끝난" 상태를 걸러낼 수 있다.
@@ -47,38 +52,34 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
-      # 초기화(DB 3개 생성)에 시간이 걸린다. 그동안의 실패는 재시도로 치지 않는다.
+      # DB 3개를 만드는 동안의 실패는 재시도로 치지 않는다.
       start_period: 40s
 
-  # 로컬 개발용 Redis. 운영 튜닝(infra/develop/redis)은 신경 쓰지 않고 최소 설정만 둔다.
-  # 비밀번호는 config/.env.local 의 REDIS_URL 과 맞춘다.
   hansapp-redis:
     image: redis:7.4-alpine
     container_name: hansapp-redis
     restart: unless-stopped
     # 로컬도 auth 를 켜 둔다. 꺼 두면 접속 코드가 로컬만 달라지고, 그 차이는 개발 서버에
-    # 올린 뒤에야 드러난다.
+    # 올린 뒤에야 드러난다. 비밀번호는 config/.env.local 의 REDIS_URL 과 맞춘다.
     command: ['redis-server', '--requirepass', '${REDIS_PASSWORD:-pwd-redis}']
     ports:
-      # 호스트에서 충돌하면 REDIS_PORT 로 덮어쓴다.
       - '${REDIS_PORT:-6379}:6379'
     volumes:
       - hansapp-redis-data:/data
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-pwd-redis}
     healthcheck:
-      # 컨테이너 내부 env 를 쓰기 위해 compose 보간을 피해 $$ 로 이스케이프한다.
+      # 컨테이너 내부 env 를 쓰려고 compose 보간을 피해 $$ 로 이스케이프한다.
       test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
 
-  # 단일 노드 Elasticsearch. 버전은 develop 과 맞춘다.
   hansapp-search:
-    # 순정 이미지가 아니라 형태소 플러그인(nori·kuromoji·smartcn·icu)을 설치한 이미지로 빌드한다.
-    # 순정이면 'Unknown tokenizer type [nori_tokenizer]' 로 스키마 적용이 실패한다.
-    # develop 과 같은 Dockerfile 을 재사용한다(플러그인 설치 = 로컬·develop 공통 관심사).
+    # 순정 이미지면 'Unknown tokenizer type [nori_tokenizer]' 로 스키마 적용이 실패한다.
+    # 형태소 플러그인(nori·kuromoji·smartcn·icu)을 넣은 이미지로 굽는다 — 플러그인 설치는
+    # 로컬·develop 공통 관심사라 같은 Dockerfile 을 재사용한다.
     build:
       context: ./infra/develop/elasticsearch
       args:
@@ -108,7 +109,6 @@ services:
       - hansapp-search-data:/usr/share/elasticsearch/data
     healthcheck:
       # 보안이 켜져 있어 인증 없이 부르면 401 이라 항상 unhealthy 가 된다.
-      # 컨테이너 내부 env(ELASTIC_PASSWORD)를 쓰기 위해 compose 보간을 피해 $$ 로 이스케이프한다.
       test:
         [
           'CMD-SHELL',

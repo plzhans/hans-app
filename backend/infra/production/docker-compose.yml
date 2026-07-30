@@ -1,125 +1,71 @@
 # production 서버에서 backend 를 띄운다.
 #
-# 이 파일은 **배포가 서버로 복사한다**(scripts/deploy/ci-deploy.sh). 서버에서 직접 고치지 말 것 —
-# 다음 배포가 덮어쓴다. 고칠 것이 있으면 레포에서 고치고 배포한다.
+# **배포가 서버로 복사한다**(scripts/deploy/ci-deploy.sh). 서버에서 고치지 말 것 — 다음
+# 배포가 덮어쓴다.
 #
-# [이미지 버전은 여기 없다]
-# 같은 디렉터리의 .env 에 IMAGE_TAG 한 줄로 들어간다. compose 가 자동으로 읽어 치환한다.
+#   이미지 버전   같은 디렉터리의 .env 에 IMAGE_TAG 한 줄. 롤백은 그 값을 바꿔 다시 up
+#   uid           같은 .env 의 APP_UID·APP_GID. 배포 계정 번호가 들어간다
+#   시크릿        서버가 이미 갖고 있다. 레포에는 SOPS 로만 있다(.sops.yaml)
 #
-#   ~/app/hansapp-prod/.env         IMAGE_TAG=v0.2.0
-#
-# 그래서 **이 파일은 인프라, .env 는 배포 상태**로 역할이 갈린다. "지금 뭐가 떠 있나" 는
-# 그 한 줄을 읽으면 되고, 롤백은 그 값을 바꿔 다시 up 하면 된다. latest 같은 움직이는
-# 태그를 쓰지 않는 이유도 같다 — 그러면 서버 상태를 아무도 답할 수 없게 된다.
-#
-# [시크릿은 여기 없다]
-# config/.env.production 과 config/production/ 아래 에셋(jwt 키 등)은 **서버가 이미 갖고 있다.**
-# 레포에는 SOPS 로 암호화되어 있고 서버 age 키로 푼다(.sops.yaml 참고). 배포가 그것을
-# 나르지 않으므로, 레지스트리를 읽을 수 있는 사람이 비밀을 읽게 되는 일이 없다.
+# 그래서 **이 파일은 인프라, .env 는 배포 상태**로 역할이 갈린다.
 
 name: hansapp-production
 
+# 세 서비스가 같은 설정을 쓴다. 다른 것은 이미지와 포트뿐이다.
+x-common: &common
+  restart: unless-stopped
+  # **마운트 이름에 환경이 없다.** 컨테이너에는 환경이 하나뿐이라 자기가 무엇인지 파일
+  # 구조로 알 필요가 없다 — 그래서 이미지도 이 파일도 환경을 모른 채로 있다.
+  # APP_ENV 는 .env.<환경> 안에 있어 앱이 부팅하며 스스로 읽는다.
+  volumes:
+    - ./config/config.production.yaml:/app/config/config.yaml:ro
+    - ./config/production:/app/config/secrets:ro
+  # **env 는 마운트가 아니라 주입한다.** 도커가 호스트에서 읽어 환경변수로 넣는다.
+  #
+  # format: raw 를 쓰지 않는다 — 보간만 끄는 게 아니라 따옴표도 안 벗겨서 DATABASE_URL 이
+  # '"mysql://…"' 가 되고 prisma 가 죽는다. 대신 배포가 나를 때 $ 를 $$ 로 바꾼다.
+  env_file: ./config/.env.production
+  # 마운트된 설정의 소유자(배포 계정)와 같은 번호로 돈다. 이미지도 같은 값으로 굽는다.
+  user: '${APP_UID:-1001}:${APP_GID:-1001}'
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '5'
+
 services:
   api:
+    <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-api:${IMAGE_TAG}
     container_name: hansapp-prod-api
-    restart: unless-stopped
-    # **컨테이너 안에는 환경 이름이 없다.** 호스트의 환경별 파일을 일반 이름으로 건다.
+    # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 산다.
     #
-    # 컨테이너에는 환경이 하나뿐이라 자기가 develop 인지 production 인지 파일 구조로 알
-    # 필요가 없다. 그래서 이미지도 compose 도 환경을 모른 채로 있을 수 있다.
-    #
-    # APP_ENV 는 .env.<환경> 안에 들어 있고, 그 파일이 컨테이너에서 config/.env 가 되므로
-    # 앱이 부팅하며 스스로 읽는다 — compose 가 APP_ENV 를 따로 넘기지 않는 이유다.
-    #
-    # :ro 로 붙인다. 앱이 설정을 쓸 일이 없고, 쓰기가 가능하면 컨테이너가 뚫렸을 때
-    # 서버의 비밀 파일이 조작될 수 있다.
-    volumes:
-      - ./config/config.production.yaml:/app/config/config.yaml:ro
-      - ./config/production:/app/config/secrets:ro
-    # **env 는 마운트가 아니라 주입한다.** 도커가 호스트에서 읽어 환경변수로 넣으므로
-    # 파일이 컨테이너에 들어가지 않는다 — 컨테이너 uid 가 읽을 필요가 없어 권한에서 빠진다.
-    #
-    # env 파일의 본래 용도가 그것이다. 앱이 파일을 직접 읽는 것은 로컬 개발 편의고,
-    # 배포에서는 플랫폼이 환경변수를 채워 주는 쪽이 맞다(12-factor).
-    #
-    # APP_ENV 도 이 파일에 있어 컨테이너가 부팅 전부터 자기 환경을 안다.
-    # **format: raw 를 쓰지 않는다.** 그 옵션은 보간만 끄는 게 아니라 따옴표도 안 벗긴다.
-    # 우리 env 는 값이 따옴표로 감싸여 있어서 DATABASE_URL 이 '"mysql://…"' 가 되고,
-    # prisma 가 "URL 은 mysql:// 로 시작해야 한다" 며 죽는다. 실제로 확인했다.
-    #
-    # 대신 배포가 나를 때 $ 를 $$ 로 바꾼다(ci-deploy.sh · ci-migrate.sh). compose 는
-    # 보간 단계에서 $$ 를 $ 하나로 되돌리므로 값이 온전해진다.
-    env_file: ./config/.env.production
-    # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 살아 있다.
-    # 컨테이너 포트는 3000 그대로 둔다 — 이미지가 같으므로 환경차는 여기서만 흡수한다.
-    #
-    # 앞단에 nginx 가 없다. Cloudflare 가 오리진에 직접 붙는데, CF 가 붙을 수 있는 HTTPS
+    # 앞단에 nginx 가 없다. Cloudflare 가 오리진에 직접 붙는데 CF 가 쓸 수 있는 HTTPS
     # 포트는 443·2053·2083·2087·2096·8443 뿐이다. production=443, develop=8443.
+    # 앱이 TLS 를 직접 끝내고(Origin CA) CF 가 Full (strict) 로 검증한다.
     #
-    # **Cloudflare 가 인터넷으로 붙으므로 공개 인터페이스에 연다.** 앱이 TLS 를 직접
-    # 끝내고(Origin CA 인증서) CF 가 Full (strict) 로 검증한다.
-    #
-    # 여는 것만으로는 안 되고 **클라우드 방화벽(OCI 보안목록)에도 이 포트를 열어야 한다.**
-    # 서버 안에서는 리스닝 중인데 밖에서는 막혀 CF 가 522 를 뱉는 일이 흔하다.
-    # 가능하면 CF 대역만 허용한다 — 오리진 IP 를 알아낸 직접 접속을 막는다.
+    # **클라우드 방화벽(OCI 보안목록)에도 열어야 한다.** 서버 안에서는 리스닝인데 밖에서
+    # 막혀 CF 가 522 를 뱉는 일이 흔하다. 가능하면 CF 대역만 허용한다.
     ports:
       - '443:3000'
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '5'
 
   batch:
+    <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-batch:${IMAGE_TAG}
     container_name: hansapp-prod-batch
-    restart: unless-stopped
-    volumes:
-      - ./config/config.production.yaml:/app/config/config.yaml:ro
-      - ./config/production:/app/config/secrets:ro
-    # **env 는 마운트가 아니라 주입한다.** 도커가 호스트에서 읽어 환경변수로 넣으므로
-    # 파일이 컨테이너에 들어가지 않는다 — 컨테이너 uid 가 읽을 필요가 없어 권한에서 빠진다.
-    #
-    # env 파일의 본래 용도가 그것이다. 앱이 파일을 직접 읽는 것은 로컬 개발 편의고,
-    # 배포에서는 플랫폼이 환경변수를 채워 주는 쪽이 맞다(12-factor).
-    #
-    # APP_ENV 도 이 파일에 있어 컨테이너가 부팅 전부터 자기 환경을 안다.
-    # **format: raw 를 쓰지 않는다.** 그 옵션은 보간만 끄는 게 아니라 따옴표도 안 벗긴다.
-    # 우리 env 는 값이 따옴표로 감싸여 있어서 DATABASE_URL 이 '"mysql://…"' 가 되고,
-    # prisma 가 "URL 은 mysql:// 로 시작해야 한다" 며 죽는다. 실제로 확인했다.
-    #
-    # 대신 배포가 나를 때 $ 를 $$ 로 바꾼다(ci-deploy.sh · ci-migrate.sh). compose 는
-    # 보간 단계에서 $$ 를 $ 하나로 되돌리므로 값이 온전해진다.
-    env_file: ./config/.env.production
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '5'
 
-  # ───────────────────────────────────────────────────────────────────────────
   # 스키마 반영. **서비스가 아니라 작업이다** — 한 번 돌고 죽는다.
   #
   #   docker compose run --rm migrate
   #
   # profiles 에 넣어 `up` 이 이것까지 띄우지 않게 한다. 배포 스크립트가 배포 직전에
-  # 명시적으로 부른다 — 컨테이너 교체와 스키마 반영은 실패했을 때 할 일이 달라서,
-  # 한 덩어리로 묶으면 "어디까지 갔나" 가 흐려진다.
-  #
-  # k3s 로 옮기면 이 자리를 Job 이 맡는다. 이미지는 그대로 쓴다.
-  # ───────────────────────────────────────────────────────────────────────────
+  # 부른다 — 컨테이너 교체와 스키마 반영은 실패했을 때 할 일이 달라서, 한 덩어리로
+  # 묶으면 "어디까지 갔나" 가 흐려진다.
   migrate:
+    <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-cli:${IMAGE_TAG}
     profiles: [migrate]
-    # CLI 가 설정을 읽는다 — database.url 이 yaml 에서 ${DATABASE_URL} 로 풀린다.
-    # 비밀 에셋(jwt·TLS)은 앱의 것이라 여기엔 붙이지 않는다.
+    restart: 'no'
+    # 비밀 에셋(jwt·TLS)은 앱의 것이라 붙이지 않는다. CLI 는 yaml 과 env 만 있으면 된다.
     volumes:
       - ./config/config.production.yaml:/app/config/config.yaml:ro
-    # **format: raw 를 쓰지 않는다.** 그 옵션은 보간만 끄는 게 아니라 따옴표도 안 벗긴다.
-    # 우리 env 는 값이 따옴표로 감싸여 있어서 DATABASE_URL 이 '"mysql://…"' 가 되고,
-    # prisma 가 "URL 은 mysql:// 로 시작해야 한다" 며 죽는다. 실제로 확인했다.
-    #
-    # 대신 배포가 나를 때 $ 를 $$ 로 바꾼다(ci-deploy.sh · ci-migrate.sh). compose 는
-    # 보간 단계에서 $$ 를 $ 하나로 되돌리므로 값이 온전해진다.
-    env_file: ./config/.env.production

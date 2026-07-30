@@ -81,11 +81,18 @@ WORKDIR /app
 
 COPY --from=builder /out ./hansapp-cli/
 
-# root 로 돌리지 않는다. 앱 이미지와 같은 uid 를 쓴다 — 1000 은 리눅스의 첫 일반 계정이라
-# 어느 호스트에 배포하든 사람이 앉아 있고, 마운트한 비밀 파일의 소유권을 넘기면 그 계정도
-# 읽게 된다. 배포판이 일반 계정에 나눠주지 않는 대역을 쓴다.
-RUN groupadd -g 10001 app && useradd -u 10001 -g app -M -s /usr/sbin/nologin app
-USER app
+# root 로 돌리지 않는다. 앱 이미지와 같은 uid 를 쓴다 — 마운트된 설정·비밀이 배포 계정
+# 소유라, 번호가 다르면 Permission denied 로 못 읽는다.
+#
+# 기본 1001 은 배포 대상(Oracle Cloud)의 첫 로그인 계정 번호다. 다른 호스트면
+# --build-arg APP_UID=... 로 덮는다. compose 도 같은 값을 user: 로 넘긴다.
+ARG APP_UID=1001
+ARG APP_GID=1001
+# 그 번호가 베이스 이미지에 이미 있으면(node 는 1000) 생성이 실패한다. 계정이 없어도
+# USER 는 번호로 동작하므로 실패를 삼킨다 — 필요한 것은 이름이 아니라 번호다.
+RUN groupadd -g "${APP_GID}" app 2>/dev/null || true; \
+    useradd -u "${APP_UID}" -g "${APP_GID}" -M -s /usr/sbin/nologin app 2>/dev/null || true
+USER ${APP_UID}:${APP_GID}
 
 # DB 접속정보는 실행할 때 준다(compose 의 env_file). 이미지는 어느 환경인지 모른다.
 #

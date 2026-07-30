@@ -140,15 +140,19 @@ COPY --from=builder /out ./hansapp-api/
 
 # root 로 돌리지 않는다. 컨테이너가 뚫렸을 때 할 수 있는 일을 줄인다.
 #
-# **베이스의 node(uid 1000) 대신 전용 유저를 높은 번호로 만든다.**
-# 배포가 마운트한 비밀 파일을 컨테이너 uid 소유로 넘기기 때문에, 그 번호에 호스트의
-# 로그인 계정이 앉아 있으면 그 계정도 비밀을 읽게 된다.
+# **번호를 배포 호스트에 맞춘다.** 마운트된 설정·비밀은 배포 계정 소유인데, 컨테이너가
+# 다른 uid 로 돌면 Permission denied 로 못 읽는다. 예전에는 배포가 그 파일들의 소유자를
+# 컨테이너 uid 로 넘겨서 맞췄지만, 두 번호를 같게 두면 그 단계 자체가 사라진다.
 #
-# 1000 은 그 충돌이 **우연이 아니라 보장된** 번호다. 리눅스의 첫 일반 계정이 1000 이고
-# 컨테이너 베이스 이미지들의 비루트 유저도 같은 관례를 따라서, 어느 호스트에 배포하든
-# 누군가는 거기 있다. 배포판이 일반 계정에 나눠주지 않는 대역을 쓰면 그 문제가 사라진다.
-RUN groupadd -g 10001 app && useradd -u 10001 -g app -M -s /usr/sbin/nologin app
-USER app
+# 기본 1001 은 배포 대상(Oracle Cloud)의 첫 로그인 계정 번호다. 다른 호스트면
+# --build-arg APP_UID=... 로 덮는다. compose 도 같은 값을 user: 로 넘긴다.
+ARG APP_UID=1001
+ARG APP_GID=1001
+# 그 번호가 베이스 이미지에 이미 있으면(node 는 1000) 생성이 실패한다. 계정이 없어도
+# USER 는 번호로 동작하므로 실패를 삼킨다 — 필요한 것은 이름이 아니라 번호다.
+RUN groupadd -g "${APP_GID}" app 2>/dev/null || true; \
+    useradd -u "${APP_UID}" -g "${APP_GID}" -M -s /usr/sbin/nologin app 2>/dev/null || true
+USER ${APP_UID}:${APP_GID}
 
 # APP_ENV 는 마운트된 config/.env 에서 앱이 스스로 읽는다(compose 가 넘기지 않는다).
 # 기본값을 두지 않아, 없으면 뜨지 않는다 — Redis 네임스페이스와 Elasticsearch 인덱스가

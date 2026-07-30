@@ -181,9 +181,16 @@ group 'compose 전송'
 remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
 scp "${ssh_opts[@]}" -q "$compose_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/docker-compose.yml"
 
-# **이 한 줄이 배포 상태의 전부다.** compose 는 인프라라 거의 안 바뀌고, 무엇이 떠 있는지는
-# 여기에만 적힌다. 롤백은 이 값을 옛 태그로 바꿔 다시 up 하는 것이다.
-remote "printf 'IMAGE_TAG=%s\n' '$IMAGE_TAG' > $BE_HANSAPP_DEPLOY_PATH/.env"
+# **이 파일이 배포 상태의 전부다.** compose 는 인프라라 거의 안 바뀌고, 무엇이 떠 있는지는
+# 여기에만 적힌다. 롤백은 IMAGE_TAG 를 옛 태그로 바꿔 다시 up 하는 것이다.
+#
+# **uid 는 서버가 스스로 답한다.** 마운트된 설정은 이 접속 계정 소유이므로, 컨테이너가
+# 같은 번호로 돌아야 읽을 수 있다. 로컬에서 계산해 보내면 배포하는 사람의 번호가 박힌다.
+remote "cd $BE_HANSAPP_DEPLOY_PATH && {
+  printf 'IMAGE_TAG=%s\n' '$IMAGE_TAG'
+  printf 'APP_UID=%s\n'   \"\$(id -u)\"
+  printf 'APP_GID=%s\n'   \"\$(id -g)\"
+} > .env"
 endgroup
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -276,52 +283,32 @@ command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 �
 
 # 전송. 서버에서 권한을 다시 잠근다 — scp 는 원본 모드를 항상 보존하지 않는다.
 #
-# **소유자를 컨테이너 유저로 넘긴다.** 0600 은 SSH 접속 계정만 읽을 수 있다는 뜻인데,
-# 정작 파일을 읽어야 하는 건 컨테이너 안의 프로세스다. 접속 계정(uid 1001)과 이미지
-# 유저(node, uid 1000)가 다르면 컨테이너가 Permission denied 로 설정을 못 읽고,
-# 앱은 "설정이 없다" 며 부팅에 실패한다 — 파일은 멀쩡히 마운트돼 있는데도.
+# **소유권을 넘기지 않는다.** 컨테이너가 배포 계정과 같은 uid 로 돌기 때문이다
+# (compose 의 user: 와 이미지의 APP_UID). 파일은 0600 배포 계정 소유 그대로 두면 되고,
+# 같은 호스트의 다른 계정은 여전히 못 읽는다.
 #
-# 권한을 넓히지(0644) 않고 소유자만 바꾸는 이유는, 같은 호스트의 다른 계정이 비밀을
-# 읽게 되는 것을 피하기 위해서다. 읽을 수 있는 주체를 하나로 유지하되 그 하나를
-# 컨테이너로 옮기는 것이다.
-#
-# uid 를 상수로 박지 않고 **이미지에서 읽어온다.** 이미지가 유저를 바꾸면 자동으로 따라간다.
+# 예전에는 이미지 유저(10001)가 달라서 sudo chown 으로 맞췄는데, 번호를 같게 두면 그
+# 단계와 sudo 요구가 함께 사라진다.
 tar -czf "$work/config.tgz" -C "$work" config
 remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
 scp "${ssh_opts[@]}" -q "$work/config.tgz" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config.tgz"
 remote "set -e
   cd $BE_HANSAPP_DEPLOY_PATH
 
-  # **매번 통째로 갈아끼운다.** 이전 설정은 컨테이너 uid 소유라 SSH 계정이 덮어쓸 수 없다
-  # (0600 이고 소유자가 다르다). 제자리에서 풀려고 하면 tar 가 권한 오류로 죽는다.
-  # 그래서 새 디렉터리에 풀고 통째로 교체한다 — 반쯤 갱신된 상태도 안 생긴다.
+  # **매번 통째로 갈아끼운다.** 새 디렉터리에 풀고 교체하므로 반쯤 갱신된 상태가 안 생긴다.
   rm -rf config.new && mkdir config.new
   tar -xzf config.tgz -C config.new --strip-components=1
   rm -f config.tgz
 
-  sudo rm -rf config
+  # 예전 배포가 남긴 것은 컨테이너 uid(10001) 소유라 이 계정이 못 지운다. 그때만 sudo 로
+  # 치운다 — 소유권을 안 넘기는 지금 방식으로 한 번 배포되고 나면 이 갈래는 안 쓰인다.
+  rm -rf config 2>/dev/null || sudo rm -rf config
   mv config.new config
-  # 기본은 잠근다. 비밀이 아닌 것만 아래에서 되돌린다.
+
+  # 전부 잠근다. 컨테이너가 이 계정과 같은 uid 로 돌기 때문에 0600 으로도 읽는다 —
+  # config.yaml 을 644 로 열거나 secrets 소유권을 넘길 이유가 없다.
   find config -type f -exec chmod 600 {} +
-
-  # **config.yaml 은 비밀이 아니고 컨테이너가 직접 읽는다.** 600 이면 소유자(배포 계정)만
-  # 읽을 수 있어 컨테이너가 EACCES 로 죽는다. 비밀이 아니므로 소유권을 넘기는 대신 644 로 연다.
-  # (.env 는 도커가 호스트에서 읽어 주입하므로 600 그대로 두면 된다.)
-  chmod 644 "config/config.$APP_ENV.yaml"
-
-  # 이미지 이름은 compose 가 안다 — 여기서 레지스트리 경로를 다시 적지 않는다.
-  # USER 가 이름(node)일 수 있어 이미지 안에서 id 로 풀어 실제 uid:gid 를 얻는다.
-  img=\"\$(docker compose config --images 2>/dev/null | head -1)\"
-  owner=\"\$(docker run --rm --entrypoint sh \"\$img\" -c 'echo \$(id -u):\$(id -g)' 2>/dev/null || true)\"
-  if [ -n \"\$owner\" ]; then
-    # **비밀 에셋(jwt·TLS)만 넘긴다.** 컨테이너에서 config/secrets 로 마운트되는 그 디렉터리다.
-    # config.yaml 은 비밀이 아니고, .env 는 도커가 호스트에서 읽어 주입하므로(env_file)
-    # 배포 계정 소유로 남아야 한다 — 넘기면 compose 가 못 읽어 컨테이너가 안 뜬다.
-    sudo chown -R \"\$owner\" "config/$APP_ENV"
-    echo \"  secrets 소유자 → \$owner (컨테이너 유저)\"
-  else
-    echo '  ⚠ 이미지에서 uid 를 못 읽었다 — 컨테이너가 설정을 못 읽을 수 있다.' >&2
-  fi
+  echo \"  config 소유자 \$(id -u):\$(id -g) · 0600 (컨테이너도 같은 uid 로 돈다)\"
 "
 endgroup
 

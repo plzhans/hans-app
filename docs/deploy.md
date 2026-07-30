@@ -295,15 +295,21 @@ pull · up          .env 에 IMAGE_TAG 를 쓰고 compose 가 당겨 띄운다
 
 ```
 ~/app/hansapp-<환경>/
-  .env                      IMAGE_TAG=v0.5.0     ← 지금 무엇이 떠 있나
+  .env                      IMAGE_TAG · APP_UID · APP_GID   ← 지금 무엇이 어떤 uid 로 떠 있나
   docker-compose.yml
   config/
-    config.<환경>.yaml      644  배포 계정        컨테이너가 직접 읽는다
+    config.<환경>.yaml      600  배포 계정        컨테이너가 직접 읽는다
     .env.<환경>             600  배포 계정        도커가 읽어 주입한다(env_file)
-    <환경>/                 600  컨테이너 uid     jwt · TLS 키
+    <환경>/                 600  배포 계정        jwt · TLS 키
 ```
 
-세 파일이 각자 다른 이유로 다른 권한을 갖는다. 하나로 맞추려 하면 어느 한쪽이 못 읽는다.
+**전부 배포 계정 소유의 0600 이다.** 컨테이너가 그 계정과 같은 uid 로 돌기 때문이다 —
+이미지를 `--build-arg APP_UID=` 로 굽고 compose 가 `user:` 로 같은 값을 넘긴다. 기본은
+1001(Oracle Cloud 의 첫 로그인 계정)이고, 배포가 서버에서 `id -u` 를 읽어 `.env` 에 적는다.
+
+> 예전에는 이미지 유저가 10001 이라 배포가 `sudo chown` 으로 비밀 파일을 컨테이너 uid 에
+> 넘기고 yaml 만 644 로 열어 뒀다. 파일마다 권한이 다른 이유를 매번 설명해야 했고 sudo 도
+> 필요했다. 번호를 맞추면 그 전부가 사라진다.
 
 > **서버의 `.env` 에는 `$` 가 `$$` 로 적혀 있다.** compose 가 env_file 값을 보간해서,
 > 비밀번호에 `$` 가 있으면 그 뒤를 변수 이름으로 읽고 지우기 때문이다 — 운영
