@@ -99,19 +99,87 @@ jobs:
           echo "run=$run"         >> "$GITHUB_OUTPUT"
           echo "환경=$app_env  대상=$list  실행=$run"
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # **도커 밖에서 굽는다.** 산출물만 다음 잡으로 넘긴다.
+  #
+  # develop(be.yml)과 같은 방식이다. 도커 안에서 워크스페이스를 통째로 설치·빌드하면
+  # 릴리스마다 몇 분이 드는데, 러너에서 한 번 만들고 이미지는 COPY 만 하면 몇 초로 끝난다.
+  #
+  # **arm64 에서 만든다.** 배포 서버가 arm64 이고 prisma 쿼리 엔진은 플랫폼별 네이티브
+  # 바이너리라, 빌드 호스트의 아키텍처가 그대로 산출물에 남는다.
+  #
+  # 검사(lint)는 하지 않는다. 릴리스 PR 에서 이미 돌았고, 여기는 "그 버전이 빌드되는지" 만
+  # 확인하는 자리다.
+  # ───────────────────────────────────────────────────────────────────────────
   build:
     needs: setup
     if: needs.setup.outputs.run == 'true'
-    # **arm64 러너에서 네이티브로 굽는다.** 배포 서버가 arm64 이기 때문이다
-    # (prisma 스키마 주석 참고 — 아키텍처가 다르면 엔진이 없어 부팅이 실패한다).
-    #
-    # amd64 러너에서 QEMU 로 구울 수도 있지만, 워크스페이스 전체 install + prisma
-    # generate + nest build 를 에뮬레이션으로 돌리면 몇십 분이 걸린다. node-builder 는
-    # 1 년에 몇 번이라 감수했지만 이건 자주 도는 빌드다.
-    #
-    # **우회 변수를 두지 않는다.** x86 으로 떨어지면 prisma 엔진이 amd64 로 만들어져
-    # 서버에서 뜨지 않는 이미지가 조용히 완성된다. 러너를 못 구하면 큰 소리로 실패하는
-    # 편이 낫다. (private 레포에서도 arm64 호스티드 러너를 쓸 수 있다.)
+    name: build (arm64)
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 아키텍처 확인
+        run: echo "  러너 $(uname -m)"
+
+      # **pnpm 이 먼저다.** setup-node 의 캐시가 스토어 경로를 알아내려고 pnpm 을 실행한다.
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: backend/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      # 산출물의 신원(dist/build-info.json)은 각 앱의 build 스크립트가 만든다.
+      # 안 주면 dev 로 채워져 **빌드된 산출물이 아니라는 사실이 드러난다.**
+      - name: 빌드
+        env:
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+        run: pnpm -r build
+
+      # cli 만 --prod 를 쓰지 않는다. prisma 가 devDependency 인데 그것으로 돌린다.
+      - name: 산출물 추리기
+        run: |
+          rm -rf out
+          pnpm deploy --filter hansapp-api   --prod --legacy out/hansapp-api
+          pnpm deploy --filter hansapp-batch --prod --legacy out/hansapp-batch
+          pnpm deploy --filter hansapp-cli          --legacy out/hansapp-cli
+          du -sh out/* | sed 's/^/  /'
+
+      # **디렉터리째 올리지 않는다.** node_modules 는 작은 파일이 1만 개라 개당 오버헤드가
+      # 지배한다. 하나로 묶으면 파일 1개가 되고 심볼릭 링크도 링크로 보존된다.
+      - name: 산출물 묶기
+        run: |
+          tar --zstd -cf out.tar.zst out
+          ls -lh out.tar.zst | awk '{print "  묶음 " $5}'
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: backend-out-${{ github.sha }}
+          path: backend/out.tar.zst
+          retention-days: 1
+          compression-level: 0
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 산출물을 이미지로 담는다. **여기서는 컴파일하지 않는다** — COPY 만 한다.
+  # ───────────────────────────────────────────────────────────────────────────
+  image:
+    needs: [setup, build]
+    if: needs.setup.outputs.run == 'true'
+    # 이미지도 arm64 에서 만든다. 산출물이 arm64 이므로 그것을 담는 이미지의 플랫폼도
+    # 같아야 한다 — 여기서는 COPY 만 하므로 빌드 시간은 몇 초다.
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
@@ -125,8 +193,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # arm64 러너를 못 쓰는 상황(private 레포 등)에서만 필요하다.
-      # - uses: docker/setup-qemu-action@v3
+      - uses: actions/download-artifact@v8
+        with:
+          name: backend-out-${{ github.sha }}
+          path: backend
+
+      - name: 산출물 풀기
+        run: |
+          cd backend
+          tar --zstd -xf out.tar.zst && rm out.tar.zst
+          ls out | sed 's/^/  /'
 
       - uses: docker/setup-buildx-action@v3
 
@@ -192,14 +268,14 @@ jobs:
           # 컨텍스트가 backend/ 다. 워크스페이스 의존성과 lockfile 이 있어야 설치가 된다.
           context: backend
           file: backend/docker/${{ matrix.app }}.Dockerfile
+          # **빌드는 이미 끝났다.** builder 스테이지를 타지 않는 최종 스테이지를 고른다.
+          target: prebuilt
           push: true
           platforms: linux/arm64
           # 컨테이너가 돌 uid. 배포 서버의 로그인 계정과 같아야 마운트된 설정을 읽는다.
           # 저장소 변수로 덮을 수 있게 두되, 없으면 배포 대상 기본값(1001)을 쓴다.
           build-args: |
             NODE_VERSION=${{ steps.node.outputs.version }}
-            GIT_SHA=${{ github.sha }}
-            GIT_BRANCH=${{ github.ref_name }}
             APP_UID=${{ vars.APP_UID || '1001' }}
             APP_GID=${{ vars.APP_GID || '1001' }}
           tags: ${{ steps.tags.outputs.list }}
@@ -208,8 +284,6 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.description=${{ matrix.app }} (${{ needs.setup.outputs.app_env }})
-          cache-from: type=gha,scope=be-${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=be-${{ matrix.app }}
 
       # **다음에 뭘 해야 하는지 여기 남긴다.**
       # 배포는 이 워크플로가 하지 않는다. 그래서 "구웠다" 로 끝나면 오랜만에 온 사람은
@@ -237,7 +311,11 @@ jobs:
             echo "scripts/deploy/deploy.sh $APP_ENV $tag"
             echo '```'
             echo
-            echo "CI: [be - deploy 실행](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be-deploy-$APP_ENV.yml)"
-            echo "→ environment \`$APP_ENV\` · image_tag \`$tag\`"
+            if [ "$APP_ENV" = 'production' ]; then
+              echo "CI: [be - deploy - PRODUCTION](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be-deploy-production.yml)"
+              echo "→ Use workflow from 에 \`staging\` 또는 \`release-backend/$tag\`"
+            else
+              echo "CI: [be](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be.yml) → stage \`deploy\`"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
