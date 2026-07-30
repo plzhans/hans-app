@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.1...release-backend/v0.6.2) (2026-07-30)
+
+
+### 버그 수정
+
+* 마이그레이션이 필요한 파일을 스스로 올린다 ([a51f333](https://github.com/plzhans/hans-app/commit/a51f33309f24f6047dc401338d74c47f0639e297))
+
 ## [0.6.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.0...release-backend/v0.6.1) (2026-07-30)
 
 
