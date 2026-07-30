@@ -1,6 +1,6 @@
 {
   "name": "hansapp-cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "외부 공공데이터 API 를 커맨드로 호출해보는 개발용 CLI",
   "bin": {
