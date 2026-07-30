@@ -212,7 +212,7 @@ jobs:
             echo
             echo '로컬:'
             echo '```bash'
-            echo "backend/deploy.sh $APP_ENV $tag"
+            echo "scripts/deploy/deploy.sh $APP_ENV $tag"
             echo '```'
             echo
             echo "CI: [be - deploy 실행](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be-deploy-$APP_ENV.yml)"

@@ -2,10 +2,10 @@
 #
 # backend 이미지를 굽고 레지스트리에 올린다.
 #
-#   backend/build.sh <환경> [대상]
+#   scripts/deploy/build.sh <환경> [대상]
 #
-#   backend/build.sh develop                 # hansapp-api · hansapp-batch 둘 다
-#   backend/build.sh develop hansapp-api     # 하나만
+#   scripts/deploy/build.sh develop                 # hansapp-api · hansapp-batch 둘 다
+#   scripts/deploy/build.sh develop hansapp-api     # 하나만
 #
 # 평소에는 CI 가 굽는다(.github/workflows/be-image.yml). 이건 **급할 때 커밋 없이 바로
 # 굽는 우회로**다 — CI 왕복을 기다릴 수 없을 때, 또는 배포 경로를 로컬에서 검증할 때.
@@ -24,7 +24,8 @@
 #   gh auth refresh -h github.com -s write:packages
 set -euo pipefail
 
-AREA_DIR="$(cd "$(dirname "$0")" && pwd)" # <repo>/backend
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
+AREA_DIR="$ROOT_DIR/backend"
 ALL='hansapp-api hansapp-batch hansapp-migrate'
 
 usage() {
@@ -130,4 +131,4 @@ for app in $targets; do
 done
 
 echo
-echo "다음: backend/deploy.sh $APP_ENV $APP_ENV"
+echo "다음: scripts/deploy/deploy.sh $APP_ENV $APP_ENV"

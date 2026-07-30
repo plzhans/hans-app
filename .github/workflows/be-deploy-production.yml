@@ -37,7 +37,7 @@
 # 전부다. develop 파일과 겹치는 부분이 있지만 그건 껍데기고, 실제 절차는 스크립트 한 벌이
 # 갖는다. 공유 워크플로를 한 겹 두는 것보다 **한 파일만 읽으면 되는 편**을 택했다.
 #
-# 로컬에서 같은 배포를 돌리려면 backend/deploy.sh 를 쓴다 — 같은 스크립트를 지나간다.
+# 로컬에서 같은 배포를 돌리려면 scripts/deploy/deploy.sh 를 쓴다 — 같은 스크립트를 지나간다.
 name: be - deploy - PRODUCTION
 
 on:
@@ -173,7 +173,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 마이그레이션
-        run: ./backend/ci-migrate.sh
+        run: ./scripts/deploy/ci-migrate.sh
         env:
           APP_ENV: production
           IMAGE_TAG: ${{ needs.plan.outputs.version }}
@@ -210,7 +210,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 배포
-        run: ./backend/ci-deploy.sh
+        run: ./scripts/deploy/ci-deploy.sh
         env:
           APP_ENV: production
           IMAGE_TAG: ${{ needs.plan.outputs.version }}

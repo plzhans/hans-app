@@ -209,7 +209,7 @@ backend/env-encrypt.sh                 # .enc 만 커밋된다
 
 발급물은 `config/<환경>/ssl/{fullchain,privkey}.pem` 에 놓이고 jwt 키와 같은 경로로
 배포된다 — sops 로 암호화해 `.enc` 만 커밋되고,
-[`backend/ci-deploy.sh`](../backend/ci-deploy.sh) 가 풀어 서버에 올린다.
+[`scripts/deploy/ci-deploy.sh`](../scripts/deploy/ci-deploy.sh) 가 풀어 서버에 올린다.
 
 **호스트명이 늘어도 기존 인증서를 다시 받지 않는다.** 인증서는 리스너 단위라, 새 서비스가
 생기면 그 호스트명으로 하나 더 발급하면 된다. 재발급이 필요한 경우는 **리스너 하나가
@@ -273,7 +273,7 @@ develop 이 8443 을 쓴다. 따라서 **규칙은 develop 것 하나뿐이다.*
 | 3. 인증서 경로 | `config.<환경>.yaml` 에 기입 (③ 참고) |
 | 4. 포트 공개 | `infra/<환경>/docker-compose.yml` 의 `127.0.0.1:` 제거 |
 | 5. **클라우드 방화벽** | OCI 보안목록에 `443`(production)·`8443`(develop) 인그레스 추가 |
-| 6. 배포 | `backend/deploy.sh <환경> <태그>` |
+| 6. 배포 | `scripts/deploy/deploy.sh <환경> <태그>` |
 
 5번을 빠뜨리기 쉽다. 서버 안에서는 리스닝 중인데 밖에서는 닫혀 있어, CF 가 붙지 못하고
 522 만 뜬다. `ss -lntp` 로는 정상으로 보이므로 **반드시 밖에서 확인한다.**

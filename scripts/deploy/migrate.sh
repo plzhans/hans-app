@@ -2,10 +2,10 @@
 #
 # DB 스키마를 로컬에서 반영한다.
 #
-#   backend/migrate.sh <환경> [이미지태그] [-y]
+#   scripts/deploy/migrate.sh <환경> [이미지태그] [-y]
 #
-#   backend/migrate.sh develop
-#   backend/migrate.sh production v0.5.0
+#   scripts/deploy/migrate.sh develop
+#   scripts/deploy/migrate.sh production v0.5.0
 #
 # CI 가 주는 환경변수를 같은 규칙으로 채워서 ci-migrate.sh 를 부른다. 실제 로직은 전부
 # 거기 있고 여기엔 두지 않는다 — 그래야 로컬과 CI 가 같은 코드를 지나간다.
@@ -18,7 +18,8 @@
 # 을 채우지 않는다 — ci-migrate.sh 는 그 변수가 비면 연결을 건드리지 않는다.
 set -euo pipefail
 
-AREA_DIR="$(cd "$(dirname "$0")" && pwd)" # <repo>/backend
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
+AREA_DIR="$ROOT_DIR/backend"
 AREA="$(basename "$AREA_DIR")"
 
 usage() {
@@ -88,4 +89,4 @@ if [ "$APP_ENV" = 'production' ] && [ "$assume_yes" != '-y' ] && [ -t 0 ]; then
   esac
 fi
 
-exec "$AREA_DIR/ci-migrate.sh"
+exec "$(dirname "$0")/ci-migrate.sh"

@@ -2,14 +2,14 @@
 #
 # 이미 레지스트리에 있는 이미지를 서버가 당겨 띄우게 한다. **이미지를 굽지 않는다.**
 #
-#   APP_ENV=develop IMAGE_TAG=develop-a1b2c3d backend/ci-deploy.sh
+#   APP_ENV=develop IMAGE_TAG=develop-a1b2c3d scripts/deploy/ci-deploy.sh
 #
-# 굽는 것은 be-image.yml(CI) 또는 backend/build.sh(로컬)가 한다. 여기는 "어느 태그를
+# 굽는 것은 be-image.yml(CI) 또는 scripts/deploy/build.sh(로컬)가 한다. 여기는 "어느 태그를
 # 띄울지" 만 안다. 그래서 롤백이 재빌드 없이 태그 지정만으로 끝난다.
 #
 # **값은 오로지 환경변수로만 받는다.** 누가 채웠는지 이 스크립트는 모른다.
 #   CI    .github/workflows/be-deploy-<환경>.yml 이 secrets/vars 로 주입
-#   로컬  backend/deploy.sh 가 backend/.env 를 읽어 주입
+#   로컬  scripts/deploy/deploy.sh 가 backend/.env 를 읽어 주입
 #
 # [환경변수]
 #   APP_ENV                       develop | production
@@ -35,7 +35,8 @@
 # concurrency 로 막아 두었다(be-deploy-<환경>.yml). 로컬 키는 별개라 서로 간섭하지 않는다.
 set -euo pipefail
 
-AREA_DIR="$(cd "$(dirname "$0")" && pwd)"   # <repo>/backend
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
+AREA_DIR="$ROOT_DIR/backend"
 
 die() {
   echo "❌ $*" >&2
@@ -58,7 +59,7 @@ require_env() {
   if [ -n "$missing" ]; then
     echo "❌ 환경변수가 비어 있다:" >&2
     printf '%s' "$missing" >&2
-    echo "   CI 면 워크플로우의 env: 를, 로컬이면 backend/deploy.sh 를 볼 것." >&2
+    echo "   CI 면 워크플로우의 env: 를, 로컬이면 scripts/deploy/deploy.sh 를 볼 것." >&2
     exit 1
   fi
 }

@@ -3,7 +3,7 @@
 # DB 스키마를 대상 환경에 반영한다. main·log 두 스키마를 함께 돌린다.
 #
 # **이 파일에는 진입점이 없다.** 필요한 값이 환경변수로 이미 있다고 보고 동작한다.
-# CI 는 워크플로가(be-deploy-<환경>.yml), 로컬은 backend/migrate.sh 가 채워 준다 —
+# CI 는 워크플로가(be-deploy-<환경>.yml), 로컬은 scripts/deploy/migrate.sh 가 채워 준다 —
 # 같은 이름·같은 규칙이라 양쪽이 같은 코드를 지나간다. ci-deploy.sh 와 같은 구조다.
 #
 #   APP_ENV                       develop | production
@@ -37,7 +37,8 @@
 # (코드에서 안 쓰게 배포 → 다음 릴리스에서 실제 삭제).
 set -euo pipefail
 
-AREA_DIR="$(cd "$(dirname "$0")" && pwd)" # <repo>/backend
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
+AREA_DIR="$ROOT_DIR/backend"
 
 die() {
   echo "❌ $*" >&2
@@ -60,7 +61,7 @@ require_env() {
   if [ -n "$missing" ]; then
     echo "❌ 환경변수가 비어 있다:" >&2
     printf '%s' "$missing" >&2
-    echo "   CI 면 워크플로우의 env: 를, 로컬이면 backend/migrate.sh 를 볼 것." >&2
+    echo "   CI 면 워크플로우의 env: 를, 로컬이면 scripts/deploy/migrate.sh 를 볼 것." >&2
     exit 1
   fi
 }

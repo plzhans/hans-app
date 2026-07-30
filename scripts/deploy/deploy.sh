@@ -2,18 +2,18 @@
 #
 # backend 를 로컬에서 배포한다.
 #
-#   backend/deploy.sh <환경> [이미지태그] [-y] [--skip-migrate]
+#   scripts/deploy/deploy.sh <환경> [이미지태그] [-y] [--skip-migrate]
 #
-#   backend/deploy.sh develop                  ← 태그 생략 = 'develop'(그 환경의 최신)
-#   backend/deploy.sh develop    v0.5.0        ← 릴리스 후보를 먼저 검증할 때
-#   backend/deploy.sh production v0.5.0        ← production 은 태그를 반드시 적는다
-#   backend/deploy.sh production v0.4.0        ← 롤백. 재빌드 없이 태그만 바꾼다
+#   scripts/deploy/deploy.sh develop                  ← 태그 생략 = 'develop'(그 환경의 최신)
+#   scripts/deploy/deploy.sh develop    v0.5.0        ← 릴리스 후보를 먼저 검증할 때
+#   scripts/deploy/deploy.sh production v0.5.0        ← production 은 태그를 반드시 적는다
+#   scripts/deploy/deploy.sh production v0.4.0        ← 롤백. 재빌드 없이 태그만 바꾼다
 #
 # CI 가 주는 환경변수를 같은 규칙으로 채워서 ci-deploy.sh 를 부른다. 배포 로직은 전부
 # 거기 있고 여기엔 두지 않는다 — 그래야 로컬과 CI 가 같은 코드를 지나간다.
 #
 # **이미지를 굽지 않는다.** 이미 레지스트리에 있는 것을 서버가 당기게 할 뿐이다.
-# 로컬에서 새로 구워야 하면 backend/build.sh 를 먼저 돌린다.
+# 로컬에서 새로 구워야 하면 scripts/deploy/build.sh 를 먼저 돌린다.
 #
 # [비밀값]
 # backend/.env 에서 읽는다(gitignore). 이미 셸에 export 되어 있으면 그쪽이 이긴다.
@@ -24,7 +24,8 @@
 # CI 는 매번 새 러너라 직접 올리고, 그쪽 키는 이 머신 키와 별개라 서로 간섭하지 않는다.
 set -euo pipefail
 
-AREA_DIR="$(cd "$(dirname "$0")" && pwd)"   # <repo>/backend
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
+AREA_DIR="$ROOT_DIR/backend"
 AREA="$(basename "$AREA_DIR")"
 
 usage() {
@@ -143,8 +144,8 @@ fi
 #
 # --skip-migrate 는 이미 돌렸거나 스키마 변경이 없는 게 확실할 때의 우회로다.
 if [ -z "$skip_migrate" ]; then
-  "$AREA_DIR/migrate.sh" "$APP_ENV" "$assume_yes"
+  "$(dirname "$0")/migrate.sh" "$APP_ENV" "$assume_yes"
   echo
 fi
 
-exec "$AREA_DIR/ci-deploy.sh"
+exec "$(dirname "$0")/ci-deploy.sh"

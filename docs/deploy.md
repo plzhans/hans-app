@@ -46,9 +46,9 @@ be
 실패하면 배포하지 않는다 — 반쯤 간 상태를 만들 이유가 없다.
 
 ```bash
-backend/deploy.sh develop                  # 마이그레이션 먼저 → 배포
-backend/deploy.sh develop --skip-migrate   # 이미 돌렸거나 스키마 변경이 없을 때
-backend/migrate.sh develop                 # 스키마만 먼저 올려볼 때
+scripts/deploy/deploy.sh develop                  # 마이그레이션 먼저 → 배포
+scripts/deploy/deploy.sh develop --skip-migrate   # 이미 돌렸거나 스키마 변경이 없을 때
+scripts/deploy/migrate.sh develop                 # 스키마만 먼저 올려볼 때
 ```
 
 **마이그레이션은 필요한 것을 스스로 갖춘다.** compose 와 env 를 직접 올린 뒤 컨테이너를
@@ -132,8 +132,8 @@ Actions → be - deploy - develop → Run workflow
 성립하지 않는다 — 주의로 막을 수 있는 종류가 아니라 설계로 막았다. 로컬도 같다.
 
 ```bash
-backend/deploy.sh develop            # 태그 생략 = develop
-backend/deploy.sh develop v0.5.0     # 릴리스 후보를 먼저 검증할 때
+scripts/deploy/deploy.sh develop            # 태그 생략 = develop
+scripts/deploy/deploy.sh develop v0.5.0     # 릴리스 후보를 먼저 검증할 때
 ```
 
 ---
@@ -207,7 +207,7 @@ promote   성공한 버전에 latest 를 붙인다
 거짓말이 되기 때문이다.** v0.6.2 는 릴리스 커밋으로 구운 것이어야 한다.
 
 ```bash
-backend/deploy.sh production v0.5.0
+scripts/deploy/deploy.sh production v0.5.0
 ```
 
 **`image_tag` 생략을 막아 두었다.** 기본값으로 올라가면 서버에 무엇이 떠 있는지 아무도
@@ -219,7 +219,7 @@ backend/deploy.sh production v0.5.0
 같은 자리에서 태그만 바꾼다. 재빌드가 없다.
 
 ```bash
-backend/deploy.sh production v0.4.0
+scripts/deploy/deploy.sh production v0.4.0
 ```
 
 ---
@@ -229,8 +229,8 @@ backend/deploy.sh production v0.4.0
 평소에는 CI 가 굽는다. 급할 때만 쓴다 — 커밋 없이 지금 작업 트리를 그대로 굽는다.
 
 ```bash
-backend/build.sh develop                  # 셋 다
-backend/build.sh develop hansapp-api      # 하나만
+scripts/deploy/build.sh develop                  # 셋 다
+scripts/deploy/build.sh develop hansapp-api      # 하나만
 ```
 
 푸시에는 `write:packages` 가 필요하다.
