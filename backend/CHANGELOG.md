@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.5](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.4...release-backend/v0.6.5) (2026-07-30)
+
+
+### 버그 수정
+
+* 마이그레이션 이미지를 CLI 로 만든다 ([8327216](https://github.com/plzhans/hans-app/commit/8327216a75128682c1705d623a2f663a1c2443e5))
+
 ## [0.6.4](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.3...release-backend/v0.6.4) (2026-07-30)
 
 
