@@ -3,6 +3,17 @@
 # **환경이 파일에 박혀 있다.** 드롭다운으로 고르게 두면 잘못 고른 순간 운영이 나간다.
 # 그건 주의로 막을 수 있는 종류가 아니라 설계로 막는다 — 진입점을 환경별로 갈랐다.
 #
+# [단계]
+#   image     올릴 이미지가 있는지 확인 (굽지 않는다 — 굽는 것은 릴리스의 일)
+#   migrate   스키마 반영. 실패하면 배포하지 않는다
+#   deploy    서버에 올린다
+#
+# **릴리스와 배포는 다른 실행이다.** 릴리스는 후보를 만들어 두고, 배포일에 이 워크플로를
+# 돌린다. 그 사이가 며칠 벌어지는 것이 정상이고, 그동안 main 에는 커밋이 계속 쌓인다.
+# 릴리스 실행에 배포를 매달아 두면 그 실행을 며칠씩 대기 상태로 붙잡게 된다.
+#
+# 롤백도 이 자리다 — image_tag 에 이전 버전을 적으면 된다. 재빌드가 없다.
+#
 # **이 파일에는 배포 로직이 없다.** 환경변수를 선언하고 backend/ci-*.sh 를 부르는 게
 # 전부다. develop 파일과 겹치는 부분이 있지만 그건 껍데기고, 실제 절차는 스크립트 한 벌이
 # 갖는다. 공유 워크플로를 한 겹 두는 것보다 **한 파일만 읽으면 되는 편**을 택했다.
@@ -43,6 +54,49 @@ concurrency:
 
 jobs:
   # ───────────────────────────────────────────────────────────────────────────
+  # 올릴 이미지가 실제로 있는지 먼저 본다. **여기서 굽지 않는다.**
+  #
+  # 굽는 것은 릴리스 시점의 일이다(release.yml 의 verify-backend). 그때의 커밋으로 구운
+  # 것이 v0.6.2 이므로, 배포일에 main 으로 다시 구워 같은 태그를 붙이면 **그 이름이
+  # 거짓말이 된다** — 태그는 그 커밋을 가리켜야 한다.
+  #
+  # 그래서 없으면 만들지 않고 멈춘다. 릴리스가 실패했거나 이미지가 지워진 것이므로,
+  # 조용히 다른 것을 올리는 대신 무엇이 없는지 알린다.
+  # ───────────────────────────────────────────────────────────────────────────
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: 이미지 확인
+        env:
+          TAG: ${{ inputs.image_tag }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          missing=''
+          for app in hansapp-api hansapp-batch hansapp-migrate; do
+            img="ghcr.io/${{ github.repository }}/$app:$TAG"
+            if docker manifest inspect "$img" >/dev/null 2>&1; then
+              echo "  ✅ $img"
+            else
+              echo "  ❌ $img"
+              missing=1
+            fi
+          done
+          docker logout ghcr.io >/dev/null 2>&1 || true
+
+          if [ -n "$missing" ]; then
+            echo
+            echo "❌ 올릴 이미지가 없다: $TAG"
+            echo "   릴리스가 만든 태그인지 확인할 것 (git tag | grep release-backend)."
+            echo "   릴리스 실행이 실패했다면 be - docker image 를 수동으로 돌린다:"
+            echo "     environment: production · version: ${TAG#v}"
+            exit 1
+          fi
+
+  # ───────────────────────────────────────────────────────────────────────────
   # 스키마를 먼저 반영한다. **실패하면 배포하지 않는다.**
   #
   # 옛 스키마 위에 새 코드를 올리면 서버가 뜨지도 못한다. 반쯤 간 상태를 만들 이유가
@@ -53,6 +107,7 @@ jobs:
   # 순서가 꼬인다 — 마이그레이션이 먼저 도는데 그 파일을 만드는 것이 배포이기 때문이다.
   # ───────────────────────────────────────────────────────────────────────────
   migrate:
+    needs: image
     if: ${{ !inputs.skip_migrate }}
     runs-on: ubuntu-latest
     environment: production
@@ -83,10 +138,14 @@ jobs:
           GHCR_USER: ${{ github.actor }}
 
   deploy:
-    needs: migrate
+    needs: [image, migrate]
     # migrate 를 건너뛰었으면 needs 가 skipped 라 기본 조건으로는 deploy 도 안 돈다.
-    # always() 로 그 사슬을 끊고, 실패했을 때만 멈춘다.
-    if: ${{ always() && needs.migrate.result != 'failure' && needs.migrate.result != 'cancelled' }}
+    # always() 로 그 사슬을 끊되, image 는 반드시 성공해야 한다(없는 이미지를 올릴 수 없다).
+    if: >-
+      ${{ always()
+          && needs.image.result == 'success'
+          && needs.migrate.result != 'failure'
+          && needs.migrate.result != 'cancelled' }}
     runs-on: ubuntu-latest
     environment: production
     container:
