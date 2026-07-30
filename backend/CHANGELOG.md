@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.2...release-backend/v0.6.3) (2026-07-30)
+
+
+### 구조 변경
+
+* production 배포를 완전히 분리한다 ([96b8e9b](https://github.com/plzhans/hans-app/commit/96b8e9b7e4e279ad1e377bc9ea12f6d8583b7bdb))
+
 ## [0.6.2](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.1...release-backend/v0.6.2) (2026-07-30)
 
 
