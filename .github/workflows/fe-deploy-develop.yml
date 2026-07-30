@@ -1,0 +1,163 @@
+# 프론트를 develop 으로 올린다. **환경이 파일에 박혀 있어 고를 수 없다.**
+#
+# production 과 진입점을 나눈 이유는 실수를 설계로 막기 위해서다. 하나의 폼에서 드롭다운으로
+# 갈리면 잘못 고른 순간 운영이 나가는데, 그것을 주의로 막을 수는 없다.
+#
+# [무엇을 배포할지는 ref 가 정한다]
+#
+#   Use workflow from:  main                          ← 최신 (평소)
+#                       release-frontend/staging      ← 릴리스 후보를 미리 확인
+#                       release-frontend/v0.2.1       ← 특정 버전
+#
+# **버전 입력칸이 없다.** 고른 ref 를 체크아웃해서 그 소스로 빌드한다 — 백엔드처럼 미리
+# 구운 이미지를 당기는 것이 아니라 커밋에서 바로 만들기 때문에, ref 가 곧 배포 대상이다.
+#
+# production 과 다른 점은 **브랜치를 허용한다**는 것뿐이다. develop 은 main 최신을 굴리는
+# 것이 주 용도이므로 태그로만 제한하면 오히려 불편하다.
+#
+# [이 파일에는 빌드·배포 로직이 없다]
+# 환경변수를 선언하고 frontend/ci-*.sh 를 부르는 게 전부다. production 파일과 겹치는
+# 부분이 있지만 그건 껍데기고, 실제 절차는 스크립트 한 벌이 갖는다.
+name: fe - deploy - develop
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '배포 대상 (all = 전부)'
+        type: choice
+        options:
+          - all
+          - frontend/medifinder-web
+          - frontend/hansapp-docs
+          - frontend/hansapp-web
+          - frontend/hansapp-auth
+        default: all
+  # fe.yml 이 #deploy 커밋에서 부른다. 그때는 바뀐 프로젝트만 넘어온다.
+  workflow_call:
+    inputs:
+      target:
+        type: string
+        default: all
+      toolchain:
+        type: boolean
+        default: false
+
+# 같은 환경에 두 배포가 겹치면 나중 것이 먼저 끝날 수 있다. 그러면 어느 쪽이 떠 있는지 모른다.
+concurrency:
+  group: fe-deploy-develop
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    # **명시한다.** 저장소 기본 권한이 read 로 내려가도 이 잡이 무엇을 필요로 하는지
+    # 파일만 보고 알 수 있어야 하고, 기본값에 기대면 그 설정이 바뀔 때 조용히 깨진다.
+    permissions:
+      contents: read
+    outputs:
+      targets: ${{ steps.pick.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: pick
+        name: 배포 대상 확정
+        env:
+          INPUT_TARGET: ${{ inputs.target }}
+        run: |
+          all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          # **빈 값은 all 이 아니다.** 부르는 쪽이 "바뀐 게 없다" 는 뜻으로 비워 보내므로,
+          # 여기서 넓히면 무관한 푸시가 네 프로젝트를 전부 돌린다.
+          if [ "$INPUT_TARGET" = 'all' ]; then
+            targets="$all"
+          else
+            targets="$INPUT_TARGET"
+          fi
+
+          # 없으면 빈 배열을 내보내 deploy 잡이 통째로 건너뛰게 한다.
+          targets="$(echo $targets | xargs)"
+          if [ -z "$targets" ]; then
+            list='[]'
+          else
+            list="$(printf '%s\n' $targets | jq -R . | jq -sc .)"
+          fi
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "  $GITHUB_REF_NAME → $list"
+
+  # 툴체인 이미지의 입력이 같이 바뀌었으면 **배포보다 먼저** 굽는다.
+  toolchain:
+    needs: setup
+    if: inputs.toolchain && needs.setup.outputs.targets != '[]'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/infra-node-builder.yml
+
+  deploy:
+    # toolchain 은 건너뛸 수 있다. `needs` 에 든 잡이 하나라도 skipped 면 이 잡도 통째로
+    # 건너뛰므로, always() 로 막고 결과를 직접 본다 — **실패했을 때만** 배포를 멈춘다.
+    needs: [setup, toolchain]
+    if: >-
+      always() &&
+      needs.setup.result == 'success' &&
+      needs.setup.outputs.targets != '[]' &&
+      needs.toolchain.result != 'failure' &&
+      needs.toolchain.result != 'cancelled'
+    runs-on: ubuntu-latest
+    environment: develop
+    permissions:
+      contents: read
+      packages: read # node-builder 이미지를 GHCR 에서 받는다
+
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    strategy:
+      # 하나가 깨져도 나머지는 나간다. 프론트끼리는 서로 의존하지 않는다.
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: ${{ fromJSON(needs.setup.outputs.targets) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 툴체인 확인
+        run: |
+          echo "node   $(node --version)"
+          echo "pnpm   $(pnpm --version)"
+
+      # frontend 의 프로젝트들은 pnpm 워크스페이스가 아니다. 각자 자기 lockfile 로 따로
+      # 설치한다. 그래서 캐시 키도 대상별로 나눈다.
+      - name: pnpm store 경로
+        id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ matrix.target }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.target)) }}
+          restore-keys: pnpm-${{ matrix.target }}-
+
+      # ▼ 여기가 이 워크플로우가 하는 일의 전부다 — 변수를 선언하고 스크립트를 부른다.
+      #   GITHUB_SHA / GITHUB_REF_NAME 은 Actions 가 이미 넣어준다. 다시 안 적는다.
+      #
+      # matrix.target 은 'frontend/<프로젝트>' 다(캐시 키가 그 형태를 쓴다).
+      # 스크립트는 이미 frontend 안에 있어서 프로젝트 이름만 받으므로 접두사를 뗀다.
+      - name: 빌드
+        run: ./frontend/ci-build.sh "${TARGET#frontend/}"
+        env:
+          TARGET: ${{ matrix.target }}
+          APP_ENV: develop
+
+      - name: 배포
+        run: ./frontend/ci-deploy.sh "${TARGET#frontend/}"
+        env:
+          TARGET: ${{ matrix.target }}
+          APP_ENV: develop
+          # 토큰만 Secret 이다. account id 는 비밀이 아니라 Variable 로 둔다(docs/cloudflare.md).
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}

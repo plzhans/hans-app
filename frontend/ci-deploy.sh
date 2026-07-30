@@ -14,7 +14,7 @@
 #
 # **값은 오로지 환경변수로만 받는다. 누가 채웠는지 이 스크립트는 모른다.**
 #
-#   CI     .github/workflows/fe-deploy.yml 이 secrets/vars 로 주입한다
+#   CI     .github/workflows/fe-deploy-<환경>.yml 이 secrets/vars 로 주입한다
 #   로컬   frontend/deploy.sh 가 **같은 규칙으로** 주입한다
 #
 # 그래서 배포를 CI 에 태우지 않고 로컬에서 그대로 검증할 수 있고, 급할 때는 로컬이

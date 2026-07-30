@@ -1,0 +1,125 @@
+# 프론트를 빌드만 한다. **배포하지 않는다.**
+#
+# 두 곳이 부른다 — fe.yml 의 평소 검증과 release.yml 의 릴리스 검증. 배포와 같은 경로
+# (frontend/ci-build.sh)를 지나므로 "빌드는 됐는데 배포에서 깨지는" 차이가 생기지 않는다.
+#
+# **환경(environment)을 걸지 않는다.** 환경을 선언하면 보호 규칙(허용 브랜치·승인)을
+# 통과해야 잡이 시작된다. 배포하지 않는 실행까지 그 문을 지나면 릴리스의 빌드 검증이
+# "production 에 main 브랜치는 배포할 수 없다" 로 막힌다 — 배포할 생각이 없었는데도.
+name: fe - build
+
+on:
+  workflow_call:
+    inputs:
+      app_env:
+        description: '어느 환경 설정으로 빌드할지'
+        type: string
+        default: develop
+      target:
+        description: "빌드 대상. 'all' 또는 'frontend/...' 를 공백으로 나열"
+        type: string
+        default: all
+      toolchain:
+        description: '툴체인 이미지를 먼저 굽는다'
+        type: boolean
+        default: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      targets: ${{ steps.pick.outputs.list }}
+    steps:
+      - id: pick
+        env:
+          INPUT_TARGET: ${{ inputs.target }}
+        run: |
+          all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          # **빈 값은 all 이 아니다.** 부르는 쪽이 "바뀐 게 없다" 는 뜻으로 비워 보내므로,
+          # 여기서 넓히면 무관한 푸시가 네 프로젝트를 전부 돌린다.
+          if [ "$INPUT_TARGET" = 'all' ]; then
+            targets="$all"
+          else
+            targets="$INPUT_TARGET"
+          fi
+
+          # 없으면 빈 배열을 내보내 build 잡이 통째로 건너뛰게 한다.
+          # printf 에 인자가 없으면 빈 줄 하나가 나가서 [""] 이 된다 — 그건 '없음'이 아니다.
+          targets="$(echo $targets | xargs)"
+          if [ -z "$targets" ]; then
+            list='[]'
+          else
+            list="$(printf '%s\n' $targets | jq -R . | jq -sc .)"
+          fi
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "대상=$list"
+
+  # 툴체인 이미지의 입력이 같이 바뀌었으면 **빌드보다 먼저** 굽는다.
+  # 아니면 통째로 건너뛴다(skipped).
+  toolchain:
+    needs: setup
+    if: inputs.toolchain && needs.setup.outputs.targets != '[]'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/infra-node-builder.yml
+
+  build:
+    # toolchain 은 건너뛸 수 있다. `needs` 에 든 잡이 하나라도 skipped 면 이 잡도 통째로
+    # 건너뛰므로, always() 로 막고 결과를 직접 본다 — **실패했을 때만** 멈춘다.
+    needs: [setup, toolchain]
+    if: >-
+      always() &&
+      needs.setup.result == 'success' &&
+      needs.setup.outputs.targets != '[]' &&
+      needs.toolchain.result != 'failure' &&
+      needs.toolchain.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # node-builder 이미지를 GHCR 에서 받는다
+
+    # 매 잡마다 node/pnpm 을 까는 대신 미리 구워둔 툴체인 이미지를 쓴다.
+    # :latest 는 .nvmrc 가 가리키는 node 다 (.github/workflows/infra-node-builder.yml).
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    strategy:
+      # 하나가 깨져도 나머지는 돈다. 프론트끼리는 서로 의존하지 않는다.
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: ${{ fromJSON(needs.setup.outputs.targets) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 툴체인 확인
+        run: |
+          echo "node   $(node --version)"
+          echo "pnpm   $(pnpm --version)"
+
+      # frontend 의 프로젝트들은 pnpm 워크스페이스가 아니다. 각자 자기 lockfile 로 따로
+      # 설치한다. 그래서 캐시 키도 대상별로 나눈다.
+      - name: pnpm store 경로
+        id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ matrix.target }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.target)) }}
+          restore-keys: pnpm-${{ matrix.target }}-
+
+      # matrix.target 은 'frontend/<프로젝트>' 다(경로 필터·캐시 키가 그 형태를 쓴다).
+      # ci-build.sh 는 이미 frontend 안에 있어서 프로젝트 이름만 받으므로 접두사를 뗀다.
+      - name: 빌드
+        run: ./frontend/ci-build.sh "${TARGET#frontend/}"
+        env:
+          TARGET: ${{ matrix.target }}
+          APP_ENV: ${{ inputs.app_env }}

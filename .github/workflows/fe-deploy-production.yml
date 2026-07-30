@@ -1,0 +1,194 @@
+# 프론트를 production 으로 올린다. **환경이 파일에 박혀 있어 고를 수 없다.**
+#
+# develop 과 진입점을 나눈 이유는 실수를 설계로 막기 위해서다. 하나의 폼에서 드롭다운으로
+# 갈리면 잘못 고른 순간 운영이 나가는데, 그것을 주의로 막을 수는 없다.
+#
+# [무엇을 배포할지는 ref 가 정한다]
+#
+#   Use workflow from:  release-frontend/staging   ← 최신 릴리스
+#                       release-frontend/v0.2.0    ← 특정 버전(롤백)
+#
+# **버전 입력칸이 없다.** 고른 ref 를 체크아웃해서 그 소스로 빌드한다.
+#
+# [태그의 뜻]
+#   release-frontend/v0.2.1   릴리스. 그 커밋을 영원히 가리킨다
+#   release-frontend/staging  최신 릴리스        — 배포 후보. 릴리스가 옮긴다
+#   release-frontend/latest   지금 운영에 뜬 것  — 이 워크플로가 옮긴다
+#
+# 백엔드의 staging·latest 는 이름 없이 쓴다. 프론트가 뒤늦게 합류하면서 겹치지 않게
+# 접두사를 붙였고, 그래서 두 판의 규칙이 비대칭이다 — 헷갈리면 이 표를 본다.
+#
+# [이 파일에는 빌드·배포 로직이 없다]
+# 환경변수를 선언하고 frontend/ci-*.sh 를 부르는 게 전부다.
+name: fe - deploy - PRODUCTION
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '배포 대상 (all = 전부)'
+        type: choice
+        options:
+          - all
+          - frontend/medifinder-web
+          - frontend/hansapp-docs
+          - frontend/hansapp-web
+          - frontend/hansapp-auth
+        default: all
+
+# 같은 환경에 두 배포가 겹치면 나중 것이 먼저 끝날 수 있다. 그러면 어느 쪽이 떠 있는지 모른다.
+concurrency:
+  group: fe-deploy-production
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      targets: ${{ steps.pick.outputs.list }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # **태그에서만 배포한다.**
+      #
+      # "Use workflow from" 은 GitHub UI 라 브랜치도 함께 뜨고 기본이 main 이다. 목록을
+      # 좁힐 수는 없으니 골라진 뒤에 거부한다 — 첫 잡에서 멈추므로 아무것도 나가지 않는다.
+      #
+      # 브랜치로 배포하면 무엇을 배포했는지 남지 않는다. main 은 계속 움직여서 며칠 뒤에
+      # 같은 것을 재현할 수 없다.
+      - name: ref 확인
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/*) echo "  ref $GITHUB_REF_NAME (태그)" ;;
+            *)
+              echo "❌ 태그에서만 배포한다. 받은 ref: $GITHUB_REF_NAME" >&2
+              echo "   Use workflow from 에서 아래 중 하나를 고를 것:" >&2
+              echo "     release-frontend/staging   최신 릴리스" >&2
+              echo "     release-frontend/v0.2.0    특정 버전(롤백)" >&2
+              exit 1
+              ;;
+          esac
+
+      # **고른 ref 가 무슨 버전인지 확정한다.** 그 커밋의 manifest 가 답을 갖고 있다.
+      # 배포물에 버전을 박지는 않는다 — 무엇을 올렸는지 로그로 남기기 위한 것이다.
+      - id: resolve
+        name: 버전 확정
+        run: |
+          semver="$(jq -r '.frontend' .release-please-manifest.json)"
+          [ -n "$semver" ] && [ "$semver" != 'null' ] \
+            || { echo '❌ .release-please-manifest.json 에서 frontend 버전을 못 읽었다.' >&2; exit 1; }
+          echo "version=v$semver" >> "$GITHUB_OUTPUT"
+          echo "  $GITHUB_REF_NAME → v$semver ($(git rev-parse --short HEAD))"
+
+      # **최신 릴리스인지 알려만 준다. 막지 않는다.**
+      #
+      # 옛 버전 배포는 롤백이라 정당하므로 거부할 수 없다. 다만 릴리스를 병합하고 곧바로
+      # 배포를 누르면 staging 이 아직 직전 릴리스를 가리키는 짧은 창이 있어, 의도치 않게
+      # 한 판 뒤가 나갈 수 있다. 둘은 화면상 구분되지 않으므로 여기서 드러낸다.
+      - name: 최신 릴리스와 비교
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          latest="$(git ls-remote --tags --refs origin 'refs/tags/release-frontend/v*' \
+            | sed 's#.*/release-frontend/##' | sort -V | tail -1)"
+          echo "  배포 대상   $VERSION  ($GITHUB_REF_NAME)"
+          echo "  최신 릴리스 ${latest:-(없음)}"
+          if [ -n "$latest" ] && [ "$latest" != "$VERSION" ]; then
+            echo "  ⚠ 최신이 아니다 — 롤백이면 정상, 아니면 릴리스가 아직 도는 중일 수 있다"
+          fi
+
+      - id: pick
+        name: 배포 대상 확정
+        env:
+          INPUT_TARGET: ${{ inputs.target }}
+        run: |
+          all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          if [ "$INPUT_TARGET" = 'all' ] || [ -z "$INPUT_TARGET" ]; then
+            targets="$all"
+          else
+            targets="$INPUT_TARGET"
+          fi
+          list="$(printf '%s\n' $targets | jq -R . | jq -sc .)"
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "  대상 $list"
+
+  deploy:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read # node-builder 이미지를 GHCR 에서 받는다
+
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    strategy:
+      # 하나가 깨져도 나머지는 나간다. 프론트끼리는 서로 의존하지 않는다.
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: ${{ fromJSON(needs.plan.outputs.targets) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 툴체인 확인
+        run: |
+          echo "node   $(node --version)"
+          echo "pnpm   $(pnpm --version)"
+
+      - name: pnpm store 경로
+        id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ matrix.target }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.target)) }}
+          restore-keys: pnpm-${{ matrix.target }}-
+
+      - name: 빌드
+        run: ./frontend/ci-build.sh "${TARGET#frontend/}"
+        env:
+          TARGET: ${{ matrix.target }}
+          APP_ENV: production
+
+      - name: 배포
+        run: ./frontend/ci-deploy.sh "${TARGET#frontend/}"
+        env:
+          TARGET: ${{ matrix.target }}
+          APP_ENV: production
+          # 토큰만 Secret 이다. account id 는 비밀이 아니라 Variable 로 둔다(docs/cloudflare.md).
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 올라간 것에 이름을 붙인다. **배포가 성공했을 때만 옮긴다.**
+  #
+  # release-frontend/staging 과 비교하면 **만들어 뒀지만 아직 안 올린 것**이 있는지 바로
+  # 보인다. Actions 의 ref 드롭다운에 뜨므로 "지금 운영에 뭐가 떠 있나" 를 그 목록에서 본다.
+  #
+  # 일부 대상만 올린 실행에서는 옮기지 않는다 — latest 가 "전부 이 커밋" 을 뜻해야
+  # 하는데, 한 프로젝트만 올리고 옮기면 나머지는 다른 커밋인 채로 그 이름을 갖게 된다.
+  # ───────────────────────────────────────────────────────────────────────────
+  promote:
+    needs: [plan, deploy]
+    if: ${{ needs.deploy.result == 'success' && inputs.target == 'all' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 태그를 옮긴다
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: latest 태그 이동
+        run: |
+          git tag -f release-frontend/latest
+          git push -f origin release-frontend/latest
+          echo "  release-frontend/latest → $(git rev-parse --short HEAD)  (${{ needs.plan.outputs.version }})"

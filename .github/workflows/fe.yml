@@ -1,0 +1,197 @@
+# frontend 의 진입점. **전체 흐름이 여기 있다.**
+#
+#   verify → deploy
+#
+# 평소 푸시는 verify 에서 멈추고 나머지는 회색(skipped)으로 남는다. 커밋 메시지에
+# #deploy 를 달거나 수동 실행하면 끝까지 간다. be.yml 과 같은 규칙이다.
+#
+# **백엔드와 달리 중간 산출물이 없다.** 백엔드는 이미지를 구워 레지스트리에 올리고 배포가
+# 그것을 당기지만, 프론트는 커밋에서 바로 빌드해 Cloudflare Workers 로 올린다. 그래서
+# image 단계가 없고 verify 와 deploy 가 각자 빌드한다 — 빌드가 결정적이라(커밋 + frozen
+# lockfile) 두 번 빌드해도 같은 것이 나오고, 아티팩트 배관보다 그쪽이 싸다.
+#
+# 배포는 develop 까지만 자동이다. production 은 언제 무엇을 올릴지가 사람의 판단이라
+# fe-deploy-production.yml 을 직접 돌린다.
+name: fe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'docs/openapi/**'
+      - '.github/workflows/fe*.yml'
+  # PR 에서도 verify 를 돌린다. 합치기 전에 깨진 것을 보는 게 요점이다.
+  # deploy 는 plan 이 push 가 아니면 false 로 두므로 PR 에서 배포가 나갈 일은 없다.
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'docs/openapi/**'
+      - '.github/workflows/fe*.yml'
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: '어디까지 진행할지'
+        type: choice
+        options: [verify, deploy]
+        default: verify
+
+permissions:
+  contents: read
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 어디까지 갈지, 무엇을 대상으로 할지 한 곳에서 정한다.
+  #
+  # 대상 고르기가 여기 있는 이유는 **바뀐 파일을 봐야 알 수 있기 때문**이다. 그 정보는
+  # push 이벤트에만 있어서 배포 워크플로에 맡기면 수동 실행에서 쓸 수 없다.
+  # ───────────────────────────────────────────────────────────────────────────
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      verify: ${{ steps.pick.outputs.verify }}
+      deploy: ${{ steps.pick.outputs.deploy }}
+      target: ${{ steps.pick.outputs.target }}
+      toolchain: ${{ steps.pick.outputs.toolchain }}
+    steps:
+      # 병합 커밋인지 보려면 부모를, 바뀐 파일을 보려면 이전 커밋을 알아야 한다.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: pick
+        env:
+          STAGE: ${{ inputs.stage }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          verify=true
+          deploy=false
+          toolchain=false
+          target="$all"
+
+          # 병합 커밋(부모가 둘 이상)은 PR 을 거쳐 온 것이다. 그때 이미 검사했다.
+          if [ "$EVENT" = 'push' ] && [ "$(git rev-list --parents -n1 HEAD | wc -w)" -gt 2 ]; then
+            verify=false
+            echo "PR 병합 커밋이다 → verify 는 PR 에서 이미 돌았으므로 건너뛴다."
+          fi
+
+          if [ -n "$STAGE" ]; then
+            # 사람이 골랐으면 그게 답이다. `[ ... ] && var=true` 로 쓰면 안 된다 —
+            # bash -e 라서 stage=verify 일 때 그 줄이 스텝을 통째로 실패시킨다.
+            if [ "$STAGE" = 'deploy' ]; then
+              deploy=true
+            fi
+          elif [ "$EVENT" = 'push' ]; then
+            # **develop 은 같이 쓰는 서버다.** 협업하려고 아직 완성되지 않은 코드를 main 에
+            # 먼저 합치는 일이 있으므로, 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다.
+            #
+            # opt-out(예: [skip deploy])이 아니라 opt-in 인 이유는 빠뜨렸을 때의 대가가
+            # 다르기 때문이다. opt-in 을 잊으면 배포가 안 될 뿐이지만, opt-out 을 잊으면
+            # 남들이 쓰는 서버가 깨진다.
+            if printf '%s' "$HEAD_MSG" | grep -q '#deploy'; then
+              deploy=true
+            else
+              echo "커밋 메시지에 #deploy 가 없다 → verify 까지만 한다."
+            fi
+          fi
+
+          # 빌드는 미리 구워둔 툴체인 이미지(:latest) 안에서 돈다. 그 이미지의 입력이 이번
+          # push 에 같이 들어 있으면, 이미지 워크플로와 이 워크플로가 **동시에** 시작해서
+          # 아직 갱신되지 않은 :latest 를 문다. 그래서 먼저 굽게 만든다.
+          #
+          # 목록은 infra-node-builder.yml 의 paths 필터와 짝이다. 한쪽만 고치면 어긋난다.
+          toolchain_inputs='^(docker/node-builder/|\.nvmrc$|package\.json$|\.github/workflows/infra-node-builder\.yml$)'
+
+          # 바뀐 것만 고르는 것은 push 일 때뿐이다. 수동 실행은 무엇이 바뀌었는지 기준이
+          # 없으므로 전부 돌린다.
+          if [ "$EVENT" = 'push' ] && [ -n "$BEFORE" ] \
+             && [ "$BEFORE" != '0000000000000000000000000000000000000000' ]; then
+            changed="$(git diff --name-only "$BEFORE" "$GITHUB_SHA")"
+
+            # `cmd && var=true` 로 쓰면 안 된다. 이 스텝은 bash -e 로 도는데, grep 이
+            # 못 찾은 경우(정상 상황)에 스텝이 통째로 실패한다.
+            if printf '%s\n' "$changed" | grep -qE "$toolchain_inputs"; then
+              toolchain=true
+            fi
+
+            target=''
+            for t in $all; do
+              # 자기 디렉터리가 바뀌었으면 당연히 대상이다.
+              if printf '%s\n' "$changed" | grep -q "^$t/"; then
+                target="$target $t"
+                continue
+              fi
+              # 빌드·배포 방법이 바뀌면 전부 다시 나가야 한다.
+              if printf '%s\n' "$changed" \
+                 | grep -qE '^(frontend/ci-(build|deploy)\.sh|\.github/workflows/fe.*\.yml)$'; then
+                target="$target $t"
+                continue
+              fi
+              # medifinder-web 은 auth-sdk 를 link: 로 문다. 소스가 그대로 번들에 들어간다.
+              if [ "$t" = 'frontend/medifinder-web' ] \
+                 && printf '%s\n' "$changed" | grep -q '^frontend/auth-sdk/'; then
+                target="$target $t"
+                continue
+              fi
+              # docs 는 레포 루트의 OpenAPI 스펙을 읽어 빌드에 박는다.
+              if [ "$t" = 'frontend/hansapp-docs' ] \
+                 && printf '%s\n' "$changed" | grep -q '^docs/openapi/'; then
+                target="$target $t"
+              fi
+            done
+          elif [ "$EVENT" = 'push' ]; then
+            # 첫 푸시나 force push 면 before 가 0 으로 온다. 비교할 게 없으니 전부 돌린다.
+            # 뭐가 바뀌었는지 모르면 툴체인도 다시 굽는다 — 안 바뀌었으면 캐시라 금방 끝나고,
+            # 반대로 낡은 툴체인으로 나가는 것은 조용히 지나가서 나중에야 드러난다.
+            echo "이전 커밋을 알 수 없다. 전부 대상으로 한다."
+            toolchain=true
+          fi
+
+          # **비어 있으면 비운 채로 내보낸다.** 여기서 all 로 되돌리면 프론트와 무관한
+          # 푸시가 네 프로젝트를 전부 빌드한다. 빈 값은 뒤 잡들이 건너뛰라는 뜻이다.
+          target="$(echo $target | xargs)"
+          echo "verify=$verify"       >> "$GITHUB_OUTPUT"
+          echo "deploy=$deploy"       >> "$GITHUB_OUTPUT"
+          echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
+          echo "target=$target"       >> "$GITHUB_OUTPUT"
+          echo "검증=$verify  배포=$deploy  툴체인=$toolchain  대상=${target:-(없음)}"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 항상 돈다. **여기가 없으면 main 이 조용히 깨진다.**
+  #
+  # 배포하지 않는 푸시에서 아무것도 돌지 않으면 빌드가 깨져도 초록불이 된다.
+  # ───────────────────────────────────────────────────────────────────────────
+  verify:
+    needs: plan
+    if: needs.plan.outputs.verify == 'true' && needs.plan.outputs.target != ''
+    uses: ./.github/workflows/fe-build.yml
+    permissions:
+      contents: read
+      packages: write # 중첩된 toolchain 잡이 node-builder 를 GHCR 에 올린다
+    secrets: inherit
+    with:
+      app_env: develop
+      target: ${{ needs.plan.outputs.target }}
+      toolchain: ${{ needs.plan.outputs.toolchain == 'true' }}
+
+  deploy:
+    needs: [plan, verify]
+    # verify 를 건너뛰면 skipped 라 기본 조건으로는 여기도 안 돈다. always() 로 끊되
+    # 실패했을 때만 멈춘다.
+    if: >-
+      ${{ always()
+          && needs.plan.outputs.deploy == 'true'
+          && needs.plan.outputs.target != ''
+          && needs.verify.result != 'failure'
+          && needs.verify.result != 'cancelled' }}
+    uses: ./.github/workflows/fe-deploy-develop.yml
+    permissions:
+      contents: read
+      packages: write # 중첩된 toolchain 잡이 node-builder 를 GHCR 에 올린다
+    secrets: inherit
+    with:
+      target: ${{ needs.plan.outputs.target }}
+      toolchain: ${{ needs.plan.outputs.toolchain == 'true' }}
