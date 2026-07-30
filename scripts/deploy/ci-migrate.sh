@@ -206,6 +206,10 @@ group '마이그레이션'
 #
 # uid 도 같이 넘긴다. 첫 배포에서는 .env 가 아직 없어 compose 기본값(1001)으로 떨어지는데,
 # 접속 계정이 그 번호가 아니면 마운트한 yaml 을 못 읽는다.
+# **반드시 pull 부터 한다.** develop 은 :develop 처럼 움직이는 태그를 쓰는데, 이름이 그대로면
+# 도커는 "이미 있다" 고 보고 로컬 캐시를 쓴다. 그러면 레지스트리에 새 이미지가 올라와 있어도
+# 서버는 옛것으로 돈다 — 고친 줄 알았던 버그가 그대로 재현되어 원인을 짚기 어렵다.
+remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' docker compose --profile migrate pull migrate"
 remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' APP_UID=\"\$(id -u)\" APP_GID=\"\$(id -g)\" docker compose run --rm migrate"
 endgroup
 
