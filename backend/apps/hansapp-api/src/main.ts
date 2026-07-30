@@ -12,7 +12,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
-import { logConfigSummary } from '@hansapp/common';
+import { logConfigSummary, resolveConfigPath } from '@hansapp/common';
 import {
   isFirstPartyOrigin,
   normalizeRootDomain,
@@ -74,8 +74,14 @@ function readHttpsOptions() {
   }
   if (!cert) return undefined;
 
+  // 상대경로는 설정이 선언된 자리(워크스페이스 루트) 기준으로도 찾는다. cwd 만 보면
+  // 하위 디렉터리에서 띄웠을 때 yaml 은 읽히는데 인증서만 안 잡힌다.
+  //
   // 경로가 있는데 파일이 없으면 readFileSync 가 던진다 — 평문으로 뜨는 것보다 낫다.
-  return { cert: readFileSync(cert), key: readFileSync(key) };
+  return {
+    cert: readFileSync(resolveConfigPath(__dirname, cert)),
+    key: readFileSync(resolveConfigPath(__dirname, key)),
+  };
 }
 
 async function bootstrap() {

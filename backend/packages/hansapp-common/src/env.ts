@@ -112,6 +112,36 @@ export function findRootDir(fromDir: string): string | undefined {
   }
 }
 
+/**
+ * 설정에 적힌 **상대경로**를 푼다(인증서·jwt 키처럼 config/ 아래 에셋을 가리키는 값).
+ *
+ * yaml·env 는 워크스페이스 마커로 base 를 찾는데(findRootDir), 에셋 경로는 그냥 cwd
+ * 기준으로 열려서 **같은 설정인데 찾는 기준이 둘**이었다. 그래서 하위 디렉터리에서
+ * 띄우면 yaml 은 읽히는데 인증서만 조용히 안 잡혔다 — VSCode 디버그가 그렇게 깨졌다.
+ *
+ * 배포에는 영향이 없다. 이미지에 마커가 없어 findRootDir 이 undefined 를 주고, cwd(/app)
+ * 로 떨어져 지금과 같은 경로가 된다.
+ *
+ * @param appDir 바이너리가 있는 디렉터리(보통 __dirname). 마커 탐색의 시작점이다.
+ */
+export function resolveConfigPath(appDir: string, value: string): string {
+  if (isAbsolute(value)) {
+    return value;
+  }
+  const cwd = process.cwd();
+  const root = findRootDir(appDir);
+  // cwd 를 먼저 본다 — 명시적으로 띄운 위치가 이긴다(envFiles 와 같은 규칙).
+  for (const base of [cwd, root]) {
+    if (!base) continue;
+    const path = resolve(base, value);
+    if (existsSync(path)) {
+      return path;
+    }
+  }
+  // 어디에도 없으면 cwd 기준으로 돌려준다. 없는 파일을 여는 쪽이 에러 메시지가 명확하다.
+  return resolve(cwd, value);
+}
+
 /** 설정 파일을 모아 두는 디렉터리 이름. */
 export const CONFIG_DIR = 'config';
 
