@@ -1,0 +1,108 @@
+# 레지스트리에 쌓인 옛 이미지를 정리한다.
+#
+# 릴리스마다 세 이미지가 올라가고, develop 은 푸시마다 올라간다. 용량 제한은 없지만
+# 목록이 길어지면 "지금 쓰이는 게 무엇인가" 가 안 보인다.
+#
+# [무엇을 남기나]
+#   v* 태그          릴리스. **롤백 대상이므로 절대 지우지 않는다**
+#   움직이는 태그     staging · latest · develop · production
+#   최근 <sha> 태그   develop-<sha> · production-<sha> 를 앱마다 KEEP_SHA 개
+#   그 밖            지운다 (태그 없는 것 포함)
+#
+# 태그 없는 버전은 같은 태그를 새 이미지가 가져가면서 밀려난 것들이다. 아무도 참조하지
+# 않으므로 지워도 무해하다.
+#
+# [주의]
+# 지운 이미지는 되돌릴 수 없다. 그래서 기본이 dry-run 이고, 실제로 지우려면 켜야 한다.
+# 스케줄 실행만 자동으로 지운다 — 규칙이 검증된 뒤의 반복 작업이기 때문이다.
+name: infra - registry cleanup
+
+on:
+  schedule:
+    # 매주 월요일 새벽(UTC 19:00 = KST 04:00). 배포가 없는 시간대에 돈다.
+    - cron: '0 19 * * 0'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '무엇을 지울지만 보여준다 (실제로 지우지 않음)'
+        type: boolean
+        default: true
+      keep_sha:
+        description: '앱마다 남길 <환경>-<sha> 태그 개수'
+        type: string
+        default: '10'
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # 버전을 지운다
+    steps:
+      - name: 정리
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 스케줄 실행은 실제로 지운다. 수동은 기본이 dry-run 이다.
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+          KEEP_SHA: ${{ inputs.keep_sha || '10' }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY##*/}"
+          apps='hansapp-api hansapp-batch hansapp-cli node-builder'
+
+          [ "$DRY_RUN" = 'true' ] && echo "▶ dry-run — 지우지 않는다" || echo "▶ 실제로 지운다"
+          echo
+
+          total=0
+          for app in $apps; do
+            pkg="$(printf '%s/%s' "$repo" "$app" | sed 's#/#%2F#')"
+            echo "### $app"
+
+            # 최신순. 남길 것을 고르고 나머지를 지운다.
+            versions="$(gh api --paginate \
+              "/user/packages/container/$pkg/versions?per_page=100" 2>/dev/null || true)"
+            if [ -z "$versions" ]; then
+              echo "  (조회 실패 — 토큰에 packages 권한이 없거나 패키지가 없다)"
+              echo
+              continue
+            fi
+
+            # 남길 id 목록을 만든다.
+            keep="$(printf '%s' "$versions" | jq -r --argjson n "$KEEP_SHA" '
+              [ .[] ] as $all
+              | ( $all | map(select(
+                    .metadata.container.tags
+                    | any(test("^v[0-9]") or . == "staging" or . == "latest"
+                          or . == "develop" or . == "production" or . == "latest")))
+                  | map(.id) ) as $pinned
+              | ( $all | map(select(.metadata.container.tags
+                    | any(test("^(develop|production)-[0-9a-f]{7,}$"))))
+                  | sort_by(.updated_at) | reverse | .[0:$n] | map(.id) ) as $recent
+              | ($pinned + $recent) | unique | .[]
+            ')"
+
+            printf '%s' "$versions" | jq -r '.[] | "\(.id)\t\(.metadata.container.tags | join(","))"' \
+            | while IFS=$'\t' read -r id tags; do
+                if printf '%s\n' "$keep" | grep -qx "$id"; then
+                  continue
+                fi
+                label="${tags:-(태그 없음)}"
+                if [ "$DRY_RUN" = 'true' ]; then
+                  echo "  지울 것: $label"
+                else
+                  gh api -X DELETE "/user/packages/container/$pkg/versions/$id" >/dev/null \
+                    && echo "  지움: $label" \
+                    || echo "  ⚠ 실패: $label"
+                fi
+                total=$((total + 1))
+              done
+            echo
+          done
+
+          if [ "$DRY_RUN" = 'true' ]; then
+            echo "실제로 지우려면 dry_run 을 끄고 다시 돌린다."
+          fi
