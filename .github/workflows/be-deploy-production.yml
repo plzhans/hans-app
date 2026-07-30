@@ -3,17 +3,20 @@
 # **환경이 파일에 박혀 있다.** 드롭다운으로 고르게 두면 잘못 고른 순간 운영이 나간다.
 # 그건 주의로 막을 수 있는 종류가 아니라 설계로 막는다 — 진입점을 환경별로 갈랐다.
 #
-# [무엇을 배포할지는 ref 가 정한다]
+# [무엇을 배포할지]
 #
-#   Use workflow from:  staging                   ← 최신 릴리스
-#                       release-backend/v0.6.4     ← 특정 버전(롤백)
+#   image_tag: staging                  ← 최신 릴리스. 미리 채워져 있다
+#              release-backend/v0.6.4   ← 특정 버전(롤백)
 #
-# **태그가 아니면 첫 잡에서 거부한다.** 그 드롭다운은 브랜치도 함께 보여주고 기본이
-# main 인데, 워크플로가 목록을 좁힐 수는 없어서 골라진 뒤에 막는다.
+# **ref 로 고르지 않는다.** "Use workflow from" 에서 태그를 고르면 GitHub 이 **그 시점의
+# 워크플로 파일**로 실행한다 — 오늘 넣은 검사와 단계가 옛 태그에는 없으므로 전부 무용지물이
+# 된다. 그래서 워크플로는 main 에서 돌리고, 무엇을 배포할지는 입력으로 받는다.
 #
-# **입력칸이 없다.** 어차피 ref 를 고르는데 버전을 또 적게 하면 두 곳이 어긋날 수 있고
-# 오타도 난다. 고른 ref 의 .release-please-manifest.json 에서 읽는다 — 그 커밋이 무슨
-# 버전인지는 그 파일이 이미 알고 있다.
+# 대신 기본값이 채워져 있어 평소에는 아무것도 적지 않는다. plan 이 staging 을 실제 버전으로
+# 바꾸고, 그 릴리스 태그를 체크아웃해 설정을 가져온다.
+#
+#   워크플로 · 배포 스크립트   main       도구는 계속 나아지는 물건이다
+#   설정 · compose · 이미지    그 릴리스   배포되는 것은 묶을 때로 고정한다
 #
 # [단계]
 #   plan      ref 에서 버전을 읽고 이미지가 있는지 확인. 굽지 않는다
@@ -43,6 +46,13 @@ name: be - deploy - PRODUCTION
 on:
   workflow_dispatch:
     inputs:
+      image_tag:
+        # 그대로 두면 가장 최근 릴리스가 나간다. 롤백할 때만 버전으로 바꾼다.
+        # 서버에는 이 값이 아니라 실제 버전이 기록된다 — plan 이 바꿔 넣는다.
+        description: '그대로 두면 최신 릴리스. 롤백이면 버전 (release-backend/v0.6.4)'
+        type: string
+        default: staging
+        required: true
       skip_migrate:
         # 운영 스키마는 되돌리기가 어렵다(migrate deploy 에 down 이 없다). 거르는 것은
         # "이미 돌렸다" 를 아는 사람만 하는 선택이어야 한다.
@@ -80,42 +90,35 @@ jobs:
       packages: read
     outputs:
       version: ${{ steps.resolve.outputs.version }}
+      ref: ${{ steps.resolve.outputs.ref }}
     steps:
+      # 태그를 다 가져와야 staging 을 풀 수 있다.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # **고른 ref 가 무슨 버전인지 확정한다.**
+      # **어느 릴리스를 배포할지 확정한다.**
       #
-      # ref 가 staging 이든 release-backend/v0.6.4 든, 그 커밋의 manifest 가 답을 갖고
-      # 있다. 사람이 적게 하면 ref 와 어긋날 수 있으므로 파일에서 읽는다.
-      # **태그에서만 배포한다.**
-      #
-      # "Use workflow from" 은 GitHub UI 라 브랜치도 같이 뜨고 기본이 main 이다. 워크플로가
-      # 그 목록을 좁힐 수는 없으니, 잘못 고른 것을 여기서 거부한다 — 첫 잡에서 멈추므로
-      # 마이그레이션도 배포도 나가지 않는다.
-      #
-      # 브랜치로 배포하면 "무엇을 배포했나" 가 남지 않는다. main 은 계속 움직이므로
-      # 며칠 뒤에 같은 것을 재현할 수 없다.
-      - name: ref 확인
-        run: |
-          case "$GITHUB_REF" in
-            refs/tags/*) echo "  ref $GITHUB_REF_NAME (태그)" ;;
-            *)
-              echo "❌ 태그에서만 배포한다. 받은 ref: $GITHUB_REF_NAME" >&2
-              echo "   Use workflow from 에서 아래 중 하나를 고를 것:" >&2
-              echo "     staging                  최신 릴리스" >&2
-              echo "     release-backend/v0.6.4   특정 버전(롤백)" >&2
-              exit 1
-              ;;
-          esac
-
+      # staging 은 릴리스가 옮기는 태그다. 그 커밋의 manifest 가 버전을 갖고 있으므로
+      # 사람이 버전을 적을 필요가 없다 — 적게 하면 태그와 어긋날 수 있다.
       - id: resolve
-        name: 버전 확정
+        name: 배포 대상 확정
+        env:
+          TAG: ${{ inputs.image_tag }}
         run: |
-          semver="$(jq -r '.backend' .release-please-manifest.json)"
+          git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1 \
+            || { echo "❌ 그런 태그가 없다: $TAG" >&2
+                 echo "   있는 릴리스:" >&2
+                 git tag --sort=-creatordate | grep '^release-backend/v' | head -5 | sed 's/^/     /' >&2
+                 exit 1; }
+
+          semver="$(git show "$TAG:.release-please-manifest.json" | jq -r '.backend')"
           [ -n "$semver" ] && [ "$semver" != 'null' ] \
-            || { echo '❌ .release-please-manifest.json 에서 backend 버전을 못 읽었다.' >&2; exit 1; }
-          echo "version=v$semver" >> "$GITHUB_OUTPUT"
-          echo "  ref ${GITHUB_REF_NAME} → v$semver ($(git rev-parse --short HEAD))"
+            || { echo "❌ $TAG 의 manifest 에서 backend 버전을 못 읽었다." >&2; exit 1; }
+
+          echo "ref=$TAG"             >> "$GITHUB_OUTPUT"
+          echo "version=v$semver"     >> "$GITHUB_OUTPUT"
+          echo "  $TAG → v$semver  ($(git rev-parse --short "$TAG"))"
 
       - name: 이미지 확인
         env:
@@ -170,13 +173,23 @@ jobs:
       contents: read
       packages: read
     steps:
+      # 배포 도구는 main 것을 쓴다 — 계속 나아지는 물건이라 옛 릴리스에 묶을 이유가 없다.
       - uses: actions/checkout@v4
+        with:
+          path: tools
+
+      # 배포되는 것(설정·compose)은 그 릴리스 시점으로 고정한다.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.ref }}
+          path: release
 
       - name: 마이그레이션
-        run: ./scripts/deploy/ci-migrate.sh
+        run: ./tools/scripts/deploy/ci-migrate.sh
         env:
           APP_ENV: production
           IMAGE_TAG: ${{ needs.plan.outputs.version }}
+          BACKEND_DIR: ${{ github.workspace }}/release/backend
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
           BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
@@ -207,13 +220,23 @@ jobs:
       contents: read
       packages: read # node-builder 이미지를 GHCR 에서 받는다
     steps:
+      # 배포 도구는 main 것을 쓴다 — 계속 나아지는 물건이라 옛 릴리스에 묶을 이유가 없다.
       - uses: actions/checkout@v4
+        with:
+          path: tools
+
+      # 배포되는 것(설정·compose)은 그 릴리스 시점으로 고정한다.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.ref }}
+          path: release
 
       - name: 배포
-        run: ./scripts/deploy/ci-deploy.sh
+        run: ./tools/scripts/deploy/ci-deploy.sh
         env:
           APP_ENV: production
           IMAGE_TAG: ${{ needs.plan.outputs.version }}
+          BACKEND_DIR: ${{ github.workspace }}/release/backend
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
           BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
@@ -244,8 +267,11 @@ jobs:
       packages: write # 이미지에도 같은 이름을 붙인다
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.ref }}
+          fetch-depth: 0
 
-      # **git 태그 latest 를 이 커밋으로 옮긴다.**
+      # **git 태그 latest 를 배포한 커밋으로 옮긴다.**
       # Actions 의 ref 드롭다운에 뜨므로, "지금 운영에 뭐가 떠 있나" 를 그 목록에서 본다.
       - name: latest 태그 이동
         run: |

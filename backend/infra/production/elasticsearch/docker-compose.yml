@@ -18,7 +18,7 @@ services:
     build:
       context: .
       args:
-        ES_VERSION: '9.3.1'
+        ELASTICSEARCH_VERSION: '9.3.1'
     image: hansapp/elasticsearch:9.3.1
     container_name: hansapp-elasticsearch
     restart: unless-stopped

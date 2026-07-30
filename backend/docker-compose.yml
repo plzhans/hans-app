@@ -51,26 +51,28 @@ services:
   #     start_period: 40s
 
   # 로컬 개발용 Redis. 운영 튜닝(infra/develop/redis)은 신경 쓰지 않고 최소 설정만 둔다.
-  # 비밀번호는 config/local/local.env 의 REDIS_URL(:pwd-redis) 과 맞춘다.
-  # hansapp-redis:
-  #   image: redis:7.4-alpine
-  #   container_name: hansapp-redis
-  #   restart: unless-stopped
-  #   # 로컬도 auth 를 켜 둬서 개발/운영 접속 코드가 갈리지 않게 한다.
-  #   command: ['redis-server', '--requirepass', '${REDIS_PASSWORD:-pwd-redis}']
-  #   ports:
-  #     # local.env 의 REDIS_URL 포트(6379)와 맞춘다. 호스트에서 충돌하면 REDIS_PORT 로 덮어쓴다.
-  #     - '${REDIS_PORT:-6379}:6379'
-  #   volumes:
-  #     - hansapp-redis-data:/data
-  #   healthcheck:
-  #     test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG']
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 5s
-  #   environment:
-  #     REDIS_PASSWORD: ${REDIS_PASSWORD:-pwd-redis}
+  # 비밀번호는 config/.env.local 의 REDIS_URL 과 맞춘다.
+  hansapp-redis:
+    image: redis:7.4-alpine
+    container_name: hansapp-redis
+    restart: unless-stopped
+    # 로컬도 auth 를 켜 둔다. 꺼 두면 접속 코드가 로컬만 달라지고, 그 차이는 개발 서버에
+    # 올린 뒤에야 드러난다.
+    command: ['redis-server', '--requirepass', '${REDIS_PASSWORD:-pwd-redis}']
+    ports:
+      # 호스트에서 충돌하면 REDIS_PORT 로 덮어쓴다.
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - hansapp-redis-data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-pwd-redis}
+    healthcheck:
+      # 컨테이너 내부 env 를 쓰기 위해 compose 보간을 피해 $$ 로 이스케이프한다.
+      test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   # # 로컬 개발용 Elasticsearch 단일 노드. 버전은 develop(infra/develop/elasticsearch)과 맞춘다.
   # # 로컬은 보안을 끈다 — 인증 없이 http://127.0.0.1:9200 으로 바로 붙는다.
@@ -81,7 +83,7 @@ services:
     build:
       context: ./infra/develop/elasticsearch
       args:
-        ES_VERSION: '9.3.1'
+        ELASTICSEARCH_VERSION: '9.3.1'
     image: hansapp/elasticsearch:9.3.1
     container_name: hansapp-elasticsearch
     restart: unless-stopped
@@ -102,7 +104,7 @@ services:
         soft: 65536
         hard: 65536
     ports:
-      - '${ES_PORT:-9200}:9200'
+      - '${ELASTICSEARCH_PORT:-9200}:9200'
     volumes:
       - hansapp-search-data:/usr/share/elasticsearch/data
     healthcheck:

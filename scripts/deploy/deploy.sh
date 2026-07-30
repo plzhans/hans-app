@@ -25,7 +25,13 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
-AREA_DIR="$ROOT_DIR/backend"
+
+# 배포 대상의 위치. **도구와 대상이 다른 곳에 있을 수 있다.**
+#
+# CI 는 도구를 main 에서, 배포되는 것(설정·compose)을 릴리스 태그에서 따로 받아 온다 —
+# 도구는 계속 나아지는 물건이라 옛 릴리스에 묶을 이유가 없고, 배포되는 것은 묶을 때로
+# 고정돼야 하기 때문이다. 로컬에서는 둘이 같은 트리에 있어 기본값이 맞는다.
+AREA_DIR="${BACKEND_DIR:-$ROOT_DIR/backend}"
 AREA="$(basename "$AREA_DIR")"
 
 usage() {

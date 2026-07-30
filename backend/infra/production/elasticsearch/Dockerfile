@@ -7,9 +7,9 @@
 # 플러그인은 엘라스틱서치 버전과 정확히 일치해야 로딩된다. 버전이 어긋나면 부팅이 실패한다.
 # 그래서 버전을 ARG 로 못박고, FROM 태그만 바꿔 재빌드하면 플러그인이 그 버전으로
 # 자동 재설치되게 한다. (설치형과 달리 버전 불일치 사고가 구조적으로 안 남는 이유)
-ARG ES_VERSION=9.3.1
+ARG ELASTICSEARCH_VERSION=9.3.1
 
-FROM docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION}
+FROM docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION}
 
 # 다국어 형태소 / 정규화 플러그인.
 #   analysis-nori     : 한국어 형태소

@@ -157,13 +157,25 @@ scripts/deploy/deploy.sh develop v0.5.0     # 릴리스 후보를 먼저 검증�
 
 ```
 Actions → be - deploy - PRODUCTION → Run workflow
-  Use workflow from:  staging                   ← 최신 릴리스
-                      release-backend/v0.6.4     ← 롤백
+  image_tag    staging                  ← 그대로 두면 최신 릴리스
+               release-backend/v0.6.4    ← 롤백
 ```
 
-**입력칸이 없다.** ref 를 고르는 것이 곧 버전을 고르는 것이므로, 버전을 또 적게 하면 두
-곳이 어긋날 수 있고 오타도 난다. 고른 ref 의 `.release-please-manifest.json` 에서 읽는다 —
-그 커밋이 무슨 버전인지는 그 파일이 이미 알고 있다.
+**ref 로 고르지 않는다.** "Use workflow from" 에서 태그를 고르면 GitHub 이 **그 시점의
+워크플로 파일**로 실행한다 — 나중에 넣은 검사와 단계가 옛 태그에는 없어 전부 무용지물이
+된다. 그래서 워크플로는 main 에서 돌리고 무엇을 배포할지는 입력으로 받는다.
+
+기본값이 채워져 있어 평소에는 아무것도 적지 않는다. `plan` 이 `staging` 을 실제 버전으로
+바꾸고 그 릴리스 태그를 체크아웃해 설정을 가져온다.
+
+```
+워크플로 · 배포 스크립트   main       도구는 계속 나아지는 물건이다
+설정 · compose · 이미지    그 릴리스   배포되는 것은 묶을 때로 고정한다
+```
+
+그래서 배포 도구는 `backend/` 밖(`scripts/deploy/`)에 둔다. 안에 두면 릴리스에 묶여
+옛 태그가 옛 스크립트를 갖게 되고, `.github/**` 를 backend 에 넣으면 프론트 CI 를 고쳐도
+백엔드 버전이 오른다.
 
 ```
 image     버전 확정(staging → v0.6.2) · 이미지 존재 확인. 굽지 않는다
