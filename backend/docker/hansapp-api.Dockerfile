@@ -110,7 +110,14 @@ RUN pnpm deploy --filter hansapp-api --prod --legacy /out
 #   --target runtime    도커 안에서 처음부터 빌드            ← 로컬에서 한 번에 만들 때
 #
 # CI 는 러너에서 install·build 를 끝내고 이미지는 COPY 만 한다 — 도커 안에서 워크스페이스를
-# 통째로 빌드하면 매번 몇 분이 든다. 로컬에는 그 산출물이 없으므로 runtime 쪽이 남아 있다.
+# 통째로 빌드하면 매번 몇 분이 든다.
+#
+# **맥에서는 prebuilt 를 쓸 수 없다.** 아키텍처(arm64)는 같아도 OS 가 다르다 — 맥에서
+# pnpm install 을 하면 esbuild·@swc·prisma 엔진이 전부 darwin-arm64 로 깔려서 리눅스
+# 컨테이너에서 돌지 않는다. CI 러너는 애초에 리눅스라 그 문제가 없다.
+#
+#   CI (ubuntu-24.04-arm)   linux/arm64   → 도커 밖 빌드 가능 → prebuilt
+#   맥 (darwin/arm64)        리눅스가 아님  → 도커 안 빌드 필수 → runtime
 #
 # **runtime 이 파일의 마지막 스테이지다.** --target 을 안 주면 도커가 마지막 것을 만드는데,
 # 그때 prebuilt 가 걸리면 있지도 않은 out/ 을 찾다가 죽는다. 기본값이 안전한 쪽이어야 한다. production 은 "릴리스가
