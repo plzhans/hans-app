@@ -32,7 +32,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
 # 도구는 계속 나아지는 물건이라 옛 릴리스에 묶을 이유가 없고, 배포되는 것은 묶을 때로
 # 고정돼야 하기 때문이다. 로컬에서는 둘이 같은 트리에 있어 기본값이 맞는다.
 AREA_DIR="${BACKEND_DIR:-$ROOT_DIR/backend}"
-ALL='hansapp-api hansapp-batch hansapp-migrate'
+ALL='hansapp-api hansapp-batch hansapp-cli'
 
 usage() {
   sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'

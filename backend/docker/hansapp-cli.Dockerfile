@@ -1,4 +1,10 @@
-# 마이그레이션 전용 이미지. **hansapp-cli 를 담는다.**
+# hansapp-cli 이미지. **마이그레이션이 주 용도지만 CLI 전부를 담는다.**
+#
+# 이름을 hansapp-migrate 라 하지 않는 이유는 내용이 CLI 이기 때문이다. db 말고도
+# es·healthcare·user 같은 커맨드가 함께 들어 있어, 운영에서 필요할 때 그대로 쓸 수 있다.
+#
+#   docker compose run --rm migrate            db deploy (기본)
+#   docker compose run --rm migrate db status  적용 상태만 확인
 #
 # **빌드 컨텍스트는 backend/ 다**(다른 이미지와 같다).
 #

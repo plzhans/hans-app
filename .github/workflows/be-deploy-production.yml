@@ -132,7 +132,7 @@ jobs:
         run: |
           printf '%s' "$TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
 
-          apps='hansapp-api hansapp-batch hansapp-migrate'
+          apps='hansapp-api hansapp-batch hansapp-cli'
           deadline=$(( $(date +%s) + 600 ))   # 10분
 
           while :; do
@@ -280,7 +280,7 @@ jobs:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-          for app in hansapp-api hansapp-batch hansapp-migrate; do
+          for app in hansapp-api hansapp-batch hansapp-cli; do
             img="ghcr.io/${{ github.repository }}/$app"
             docker buildx imagetools create -t "$img:latest" "$img:$VERSION"
             echo "  $app:latest → $VERSION"

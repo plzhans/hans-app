@@ -24,7 +24,7 @@
 #   - prisma 는 devDependency 라 런타임 이미지에 없다 — 어디서 돌릴지가 애매해진다
 #   - **DB 가 사설망에 있다.** 서버에서 돌리면 이미 그 안이라 VPN 을 탈 이유가 없다
 #
-# 이미지에는 prisma CLI 와 스키마·마이그레이션 파일만 들어 있다(hansapp-migrate.Dockerfile).
+# 이미지에는 prisma CLI 와 스키마·마이그레이션 파일만 들어 있다(hansapp-cli.Dockerfile).
 # 운영 이미지에는 그것들이 없어야 한다 — 스키마를 바꿀 수 있는 도구를 서비스 컨테이너에
 # 상주시키지 않으려는 것이다.
 #
@@ -180,6 +180,15 @@ remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH/config"
 scp "${ssh_opts[@]}" -q "$work/env" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV"
 remote "chmod 600 $BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV"
 echo "  $(basename "$env_enc") → config/.env.$APP_ENV"
+
+# **yaml 도 올린다.** CLI 가 database.url 을 여기서 읽는다(값은 ${DATABASE_URL} 로 env 에서
+# 온다). 없으면 compose 가 마운트 원본을 못 찾아 빈 디렉터리를 만들고, CLI 가 그것을 읽다
+# EISDIR 로 죽는다 — 원인이 전혀 안 보이는 형태로 실패한다.
+yaml_src="$AREA_DIR/config/config.$APP_ENV.yaml"
+[ -f "$yaml_src" ] || die "$yaml_src 가 없다."
+scp "${ssh_opts[@]}" -q "$yaml_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config/config.$APP_ENV.yaml"
+remote "chmod 644 $BE_HANSAPP_DEPLOY_PATH/config/config.$APP_ENV.yaml"
+echo "  config.$APP_ENV.yaml (비밀 아님)"
 endgroup
 
 if [ -n "${GHCR_TOKEN:-}" ]; then

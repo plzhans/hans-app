@@ -110,7 +110,7 @@ services:
   # k3s 로 옮기면 이 자리를 Job 이 맡는다. 이미지는 그대로 쓴다.
   # ───────────────────────────────────────────────────────────────────────────
   migrate:
-    image: ghcr.io/plzhans/hans-app/hansapp-migrate:${IMAGE_TAG}
+    image: ghcr.io/plzhans/hans-app/hansapp-cli:${IMAGE_TAG}
     profiles: [migrate]
     # CLI 가 설정을 읽는다 — database.url 이 yaml 에서 ${DATABASE_URL} 로 풀린다.
     # 비밀 에셋(jwt·TLS)은 앱의 것이라 여기엔 붙이지 않는다.

@@ -73,7 +73,7 @@ ssh → docker compose run --rm migrate → 끝나면 컨테이너 삭제
 
 ### 왜 전용 이미지인가
 
-`hansapp-migrate` 에만 prisma CLI 와 스키마·마이그레이션 파일이 들어 있다. 운영 이미지에
+`hansapp-cli` 에만 prisma CLI 와 스키마·마이그레이션 파일이 들어 있다. 운영 이미지에
 그것들이 있으면 **스키마를 바꿀 수 있는 도구가 서비스 컨테이너에 상주**하게 되고, 앱 DB
 계정에 DDL 권한을 주게 된다.
 

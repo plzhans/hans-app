@@ -25,7 +25,7 @@ on:
       target:
         description: '대상 (all = 전부)'
         type: choice
-        options: [all, hansapp-api, hansapp-batch, hansapp-migrate]
+        options: [all, hansapp-api, hansapp-batch, hansapp-cli]
         default: all
       version:
         description: '릴리스 버전 (예: 0.3.0). 주면 v0.3.0 태그를 같이 붙인다'
@@ -74,7 +74,7 @@ jobs:
             app_env="$INPUT_ENV"
             run=true
             if [ "$INPUT_TARGET" = 'all' ]; then
-              list='["hansapp-api","hansapp-batch","hansapp-migrate"]'
+              list='["hansapp-api","hansapp-batch","hansapp-cli"]'
             else
               list="[\"$INPUT_TARGET\"]"
             fi
