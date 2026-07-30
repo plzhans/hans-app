@@ -85,3 +85,19 @@ services:
       options:
         max-size: '10m'
         max-file: '5'
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 스키마 반영. **서비스가 아니라 작업이다** — 한 번 돌고 죽는다.
+  #
+  #   docker compose run --rm migrate
+  #
+  # profiles 에 넣어 `up` 이 이것까지 띄우지 않게 한다. 배포 스크립트가 배포 직전에
+  # 명시적으로 부른다 — 컨테이너 교체와 스키마 반영은 실패했을 때 할 일이 달라서,
+  # 한 덩어리로 묶으면 "어디까지 갔나" 가 흐려진다.
+  #
+  # k3s 로 옮기면 이 자리를 Job 이 맡는다. 이미지는 그대로 쓴다.
+  # ───────────────────────────────────────────────────────────────────────────
+  migrate:
+    image: ghcr.io/plzhans/hans-app/hansapp-migrate:${IMAGE_TAG}
+    profiles: [migrate]
+    env_file: ./config/.env.develop

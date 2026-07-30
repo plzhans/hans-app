@@ -2,7 +2,7 @@
 #
 # backend 를 로컬에서 배포한다.
 #
-#   backend/deploy.sh <환경> [이미지태그] [-y]
+#   backend/deploy.sh <환경> [이미지태그] [-y] [--skip-migrate]
 #
 #   backend/deploy.sh develop                  ← 태그 생략 = 'develop'(그 환경의 최신)
 #   backend/deploy.sh develop    v0.5.0        ← 릴리스 후보를 먼저 검증할 때
@@ -32,9 +32,26 @@ usage() {
   exit 2
 }
 
-APP_ENV="${1:-}"
-IMAGE_TAG="${2:-}"
-assume_yes="${3:-}"
+APP_ENV=''
+IMAGE_TAG=''
+assume_yes=''
+skip_migrate=''
+
+# 위치 인자와 플래그를 섞어 쓸 수 있게 훑는다. '-' 로 시작하면 플래그이므로
+# 이미지 태그 자리에 들어가지 않는다 — `deploy.sh develop --skip-migrate` 가 성립한다.
+for arg in "$@"; do
+  case "$arg" in
+    -y) assume_yes='-y' ;;
+    --skip-migrate) skip_migrate=1 ;;
+    -*) echo "❌ 모르는 옵션: $arg" >&2; exit 2 ;;
+    *)
+      if [ -z "$APP_ENV" ]; then APP_ENV="$arg"
+      elif [ -z "$IMAGE_TAG" ]; then IMAGE_TAG="$arg"
+      else echo "❌ 인자가 너무 많다: $arg" >&2; exit 2
+      fi
+      ;;
+  esac
+done
 [ -n "$APP_ENV" ] || usage
 
 # develop 은 태그를 생략하면 'develop'(움직이는 최신)으로 본다. 매번 같은 값을 적게 하면
@@ -119,6 +136,15 @@ if [ "$APP_ENV" = 'production' ] && [ "$assume_yes" != '-y' ] && [ -t 0 ]; then
     y | Y | yes | YES) ;;
     *) echo "취소했다."; exit 1 ;;
   esac
+fi
+
+# **스키마를 먼저 반영한다.** 새 코드가 옛 스키마 위에서는 뜨지 못하므로 순서가 정해져
+# 있다. migrate deploy 는 적용할 게 없으면 그냥 통과하므로(멱등) 매번 돌려도 무해하다.
+#
+# --skip-migrate 는 이미 돌렸거나 스키마 변경이 없는 게 확실할 때의 우회로다.
+if [ -z "$skip_migrate" ]; then
+  "$AREA_DIR/migrate.sh" "$APP_ENV" "$assume_yes"
+  echo
 fi
 
 exec "$AREA_DIR/ci-deploy.sh"

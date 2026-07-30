@@ -25,7 +25,7 @@
 set -euo pipefail
 
 AREA_DIR="$(cd "$(dirname "$0")" && pwd)" # <repo>/backend
-ALL='hansapp-api hansapp-batch'
+ALL='hansapp-api hansapp-batch hansapp-migrate'
 
 usage() {
   sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'
