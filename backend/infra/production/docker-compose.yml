@@ -44,17 +44,13 @@ services:
     # 배포에서는 플랫폼이 환경변수를 채워 주는 쪽이 맞다(12-factor).
     #
     # APP_ENV 도 이 파일에 있어 컨테이너가 부팅 전부터 자기 환경을 안다.
-    # **format: raw — 값을 그대로 넣는다.**
+    # **format: raw 를 쓰지 않는다.** 그 옵션은 보간만 끄는 게 아니라 따옴표도 안 벗긴다.
+    # 우리 env 는 값이 따옴표로 감싸여 있어서 DATABASE_URL 이 '"mysql://…"' 가 되고,
+    # prisma 가 "URL 은 mysql:// 로 시작해야 한다" 며 죽는다. 실제로 확인했다.
     #
-    # compose 는 기본으로 env_file 의 값도 보간한다. 비밀번호에 $ 가 있으면 그 뒤를
-    # 변수 이름으로 읽어 통째로 지운다 — 운영 DATABASE_URL 이 그렇게 잘려
-    # "invalid port number" 로 죽은 적이 있다.
-    #
-    # $$ 로 이스케이프해도 되지만, 그러면 **파일에 적힌 값과 실제 값이 달라진다.**
-    # 비밀번호를 확인하러 파일을 연 사람이 오타로 오해하게 되므로 그쪽은 택하지 않았다.
-    env_file:
-      - path: ./config/.env.production
-        format: raw
+    # 대신 배포가 나를 때 $ 를 $$ 로 바꾼다(ci-deploy.sh · ci-migrate.sh). compose 는
+    # 보간 단계에서 $$ 를 $ 하나로 되돌리므로 값이 온전해진다.
+    env_file: ./config/.env.production
     # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 살아 있다.
     # 컨테이너 포트는 3000 그대로 둔다 — 이미지가 같으므로 환경차는 여기서만 흡수한다.
     #
@@ -89,17 +85,13 @@ services:
     # 배포에서는 플랫폼이 환경변수를 채워 주는 쪽이 맞다(12-factor).
     #
     # APP_ENV 도 이 파일에 있어 컨테이너가 부팅 전부터 자기 환경을 안다.
-    # **format: raw — 값을 그대로 넣는다.**
+    # **format: raw 를 쓰지 않는다.** 그 옵션은 보간만 끄는 게 아니라 따옴표도 안 벗긴다.
+    # 우리 env 는 값이 따옴표로 감싸여 있어서 DATABASE_URL 이 '"mysql://…"' 가 되고,
+    # prisma 가 "URL 은 mysql:// 로 시작해야 한다" 며 죽는다. 실제로 확인했다.
     #
-    # compose 는 기본으로 env_file 의 값도 보간한다. 비밀번호에 $ 가 있으면 그 뒤를
-    # 변수 이름으로 읽어 통째로 지운다 — 운영 DATABASE_URL 이 그렇게 잘려
-    # "invalid port number" 로 죽은 적이 있다.
-    #
-    # $$ 로 이스케이프해도 되지만, 그러면 **파일에 적힌 값과 실제 값이 달라진다.**
-    # 비밀번호를 확인하러 파일을 연 사람이 오타로 오해하게 되므로 그쪽은 택하지 않았다.
-    env_file:
-      - path: ./config/.env.production
-        format: raw
+    # 대신 배포가 나를 때 $ 를 $$ 로 바꾼다(ci-deploy.sh · ci-migrate.sh). compose 는
+    # 보간 단계에서 $$ 를 $ 하나로 되돌리므로 값이 온전해진다.
+    env_file: ./config/.env.production
     logging:
       driver: json-file
       options:
@@ -120,14 +112,14 @@ services:
   migrate:
     image: ghcr.io/plzhans/hans-app/hansapp-migrate:${IMAGE_TAG}
     profiles: [migrate]
-    # **format: raw — 값을 그대로 넣는다.**
+    # CLI 가 설정을 읽는다 — database.url 이 yaml 에서 ${DATABASE_URL} 로 풀린다.
+    # 비밀 에셋(jwt·TLS)은 앱의 것이라 여기엔 붙이지 않는다.
+    volumes:
+      - ./config/config.production.yaml:/app/config/config.yaml:ro
+    # **format: raw 를 쓰지 않는다.** 그 옵션은 보간만 끄는 게 아니라 따옴표도 안 벗긴다.
+    # 우리 env 는 값이 따옴표로 감싸여 있어서 DATABASE_URL 이 '"mysql://…"' 가 되고,
+    # prisma 가 "URL 은 mysql:// 로 시작해야 한다" 며 죽는다. 실제로 확인했다.
     #
-    # compose 는 기본으로 env_file 의 값도 보간한다. 비밀번호에 $ 가 있으면 그 뒤를
-    # 변수 이름으로 읽어 통째로 지운다 — 운영 DATABASE_URL 이 그렇게 잘려
-    # "invalid port number" 로 죽은 적이 있다.
-    #
-    # $$ 로 이스케이프해도 되지만, 그러면 **파일에 적힌 값과 실제 값이 달라진다.**
-    # 비밀번호를 확인하러 파일을 연 사람이 오타로 오해하게 되므로 그쪽은 택하지 않았다.
-    env_file:
-      - path: ./config/.env.production
-        format: raw
+    # 대신 배포가 나를 때 $ 를 $$ 로 바꾼다(ci-deploy.sh · ci-migrate.sh). compose 는
+    # 보간 단계에서 $$ 를 $ 하나로 되돌리므로 값이 온전해진다.
+    env_file: ./config/.env.production

@@ -156,7 +156,18 @@ if [ -n "${AGE_SECRET_KEY_FILE:-}" ]; then
   export SOPS_AGE_KEY_FILE="$work/age.key"
 fi
 
-sops --decrypt "$env_enc" > "$work/env"
+# **compose 가 읽을 것이므로 `$` 를 `$$` 로 이스케이프한다.**
+#
+# docker compose 는 env_file 값을 보간한다. 비밀번호에 $ 가 있으면 그 뒤를 변수 이름으로
+# 읽어 통째로 지운다 — 운영 DATABASE_URL 이 그렇게 잘려 "invalid port number" 로 죽었다.
+# compose 는 보간 단계에서 $$ 를 $ 하나로 되돌리므로 값이 온전히 도착한다.
+#
+# `format: raw` 로 보간을 끌 수도 있지만 그것은 **따옴표도 안 벗긴다.** 우리 env 는 값이
+# 따옴표로 감싸여 있어 DATABASE_URL 이 '"mysql://…"' 가 되고 prisma 가 거부한다.
+#
+# **서버 파일에는 $$ 로 남는다.** 비밀번호를 확인하러 그 파일을 열면 실제 값과 달라 보인다는
+# 뜻이다 — 레포의 평문(sops 로 푼 것)이 정본이므로 확인은 그쪽에서 한다.
+sops --decrypt "$env_enc" | sed 's/\$/$$/g' > "$work/env"
 chmod 600 "$work/env"
 remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH/config"
 scp "${ssh_opts[@]}" -q "$work/env" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV"
