@@ -46,18 +46,28 @@ on:
         options: [verify, image, deploy]
         default: verify
 
-# **마지막 푸시만 살린다.** 연달아 밀어 넣으면 앞의 것은 어차피 볼 필요가 없다.
+# **그룹을 둘로 가른다.** 취소는 같은 그룹 안에서만 일어나므로, 이것이 유일한 방법이다.
 #
-# 다만 **배포까지 가는 실행은 끊지 않는다.** 중간에 죽으면 서버가 반쯤 갱신된 채로 남는다 —
-# compose 는 바뀌었는데 up 은 안 된 상태 같은 것. 그래서 #deploy 커밋과 수동 실행은
-# 취소 대상에서 뺀다.
+#   be-ci-<ref>   검사만 하는 실행. 새 푸시가 오면 앞의 것을 취소한다 (마지막 것만 보면 된다)
+#   be-deploy     배포까지 가는 실행. 아무도 취소하지 않고 서로 줄을 선다
+#
+# **cancel-in-progress 는 "내가 취소당할까" 가 아니라 "내가 남을 취소할까" 다.** 새로 들어온
+# 실행 기준으로 평가되기 때문에, 한 그룹에 섞어 두면 평범한 푸시가 배포 중인 실행을 죽인다.
+# 실제로 그랬다 — 배포가 반쯤 진행된 채로 남으면 compose 는 갱신됐는데 up 은 안 된 상태가 된다.
+#
+# 배포끼리는 취소하지 않고 순서대로 기다린다. 같은 서버에 두 배포가 겹치면 안 되기도 하고,
+# WireGuard 피어도 같은 키로 두 곳에서 붙을 수 없다.
 concurrency:
-  group: be-${{ github.ref }}
+  group: >-
+    ${{ (contains(github.event.head_commit.message, '#deploy')
+         || contains(github.event.head_commit.message, '#be-deploy')
+         || inputs.stage == 'deploy')
+        && 'be-deploy'
+        || format('be-ci-{0}', github.ref) }}
   cancel-in-progress: >-
-    ${{ github.event_name == 'pull_request'
-        || (github.event_name == 'push'
-            && !contains(github.event.head_commit.message, '#deploy')
-            && !contains(github.event.head_commit.message, '#be-deploy')) }}
+    ${{ !(contains(github.event.head_commit.message, '#deploy')
+          || contains(github.event.head_commit.message, '#be-deploy')
+          || inputs.stage == 'deploy') }}
 
 permissions:
   contents: read
