@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.0...release-backend/v0.7.1) (2026-07-30)
+
+
+### 버그 수정
+
+* production 배포에서 버전 입력을 없앤다 ([7de1ca6](https://github.com/plzhans/hans-app/commit/7de1ca6751ed636985be4b7adf68f36cda6f931e))
+
 ## [0.7.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.5...release-backend/v0.7.0) (2026-07-30)
 
 
