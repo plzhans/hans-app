@@ -24,11 +24,14 @@ export function logConfigSummary(
   const mask = (raw: string): string =>
     raw ? `${raw.slice(0, 5)}*****` : '(미설정)';
   const s = (path: string): string => cfg.getStringOrDefault(path);
+  // 요약도 앱이 실제로 쓰는 형태(자격증명 인코딩 후)를 보여줘야 한다. 원문을 그대로 파싱하면
+  // 비밀번호의 `#` 하나에 (missing) 이 찍혀 "설정이 빠졌다" 로 오독하게 된다.
+  const u = (path: string): string => cfg.getUrlOrDefault(path);
 
   log(`Config AppEnv : ${cfg.env}`);
-  log(`Config Database : ${endpoint(s('database.url'))}`);
-  log(`Config Redis: ${endpoint(s('redis.url'))}`);
-  log(`Config Elasticsearch : ${endpoint(s('elasticsearch.url'))}`);
+  log(`Config Database : ${endpoint(u('database.url'))}`);
+  log(`Config Redis: ${endpoint(u('redis.url'))}`);
+  log(`Config Elasticsearch : ${endpoint(u('elasticsearch.url'))}`);
   const mailHost = s('mail.smtp.host');
   log(
     `Config Mail : ${mailHost ? `${s('mail.provider') || 'smtp'} (${mailHost})` : 'inactive — host missing'}`,

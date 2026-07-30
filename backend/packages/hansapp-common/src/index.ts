@@ -7,6 +7,7 @@ export * from './time-range';
 export * from './env';
 export * from './app-config';
 export * from './config-source';
+export * from './connection-url';
 export * from './config-summary';
 export * from './build-info';
 

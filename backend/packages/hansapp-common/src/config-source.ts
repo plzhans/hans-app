@@ -1,6 +1,7 @@
 import merge from 'lodash.merge';
 
 import { loadYamlObject } from './app-config';
+import { normalizeConnectionUrl } from './connection-url';
 import { loadEnv } from './env';
 import type { AppEnv, DotenvLoader } from './env';
 
@@ -85,6 +86,14 @@ export interface ConfigSource {
   getString(path: string): string;
   /** 없으면 기본값(기본 빈 문자). */
   getStringOrDefault(path: string, fallback?: string): string;
+
+  /**
+   * 접속 URL. getString 과 같되 자격증명 구간을 규격에 맞게 인코딩해 돌려준다.
+   * .env 에는 실제 비밀번호가 그대로 적히므로(사람 기준), 파서에 넘기기 전 여기서 바꾼다.
+   * 자세한 규칙은 normalizeConnectionUrl 참고.
+   */
+  getUrl(path: string): string;
+  getUrlOrDefault(path: string, fallback?: string): string;
 
   /** 필수 숫자. 숫자가 아니면 던진다. */
   getNumber(path: string): number;
@@ -193,6 +202,19 @@ function sectionOf(tree: unknown, env: AppEnv): ConfigSource {
     getStringOrDefault: (path, fallback = '') => {
       const raw = at(path);
       return present(raw) ? String(raw).trim() : fallback;
+    },
+    getUrl: (path) => {
+      const raw = at(path);
+      if (!present(raw)) {
+        throw new Error(`필수 설정이 없다: ${path}`);
+      }
+      return normalizeConnectionUrl(String(raw).trim());
+    },
+    getUrlOrDefault: (path, fallback = '') => {
+      const raw = at(path);
+      return present(raw)
+        ? normalizeConnectionUrl(String(raw).trim())
+        : fallback;
     },
     getNumber: (path) => {
       const raw = at(path);

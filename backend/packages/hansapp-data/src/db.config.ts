@@ -31,8 +31,8 @@ export interface DbConfig {
  */
 export function buildDbConfig(source: ConfigSource): DbConfig {
   return Object.freeze({
-    url: source.getString('database.url'),
-    logUrl: source.getString('database.logUrl'),
-    shadowUrl: source.getStringOrDefault('database.shadowUrl') || undefined,
+    url: source.getUrl('database.url'),
+    logUrl: source.getUrl('database.logUrl'),
+    shadowUrl: source.getUrlOrDefault('database.shadowUrl') || undefined,
   });
 }

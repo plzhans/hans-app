@@ -46,7 +46,7 @@ export interface SearchConfig {
  */
 export function buildSearchConfig(cfg: ConfigSource): SearchConfig {
   return Object.freeze({
-    node: cfg.getString('elasticsearch.url'),
+    node: cfg.getUrl('elasticsearch.url'),
     // 인덱스 접두사로 쓸 환경 이름. Redis 키 namespace 와 같은 값(cfg.env)이라 격리가 한 스위치로 묶인다.
     env: cfg.env,
     batchSize: cfg.getNumberOrDefault('search.batchSize', 1000),

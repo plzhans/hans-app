@@ -34,11 +34,11 @@
     "prisma:generate": "prisma generate --schema prisma/main && prisma generate --schema prisma/log",
     "schema:format": "prisma-case-format --file prisma/main/default.prisma --table-case pascal --field-case camel",
     "schema:format:check": "prisma-case-format --file prisma/main/default.prisma --table-case pascal --field-case camel --dry-run",
-    "prisma:migrate:dev": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate dev --schema prisma/main",
-    "prisma:migrate:deploy": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate deploy --schema prisma/main",
-    "prisma:migrate:status": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate status --schema prisma/main",
-    "prisma:migrate:log:deploy": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate deploy --schema prisma/log",
-    "prisma:migrate:log:dev": "dotenv -e ../../config/.env.${APP_ENV:-develop} -- prisma migrate dev --schema prisma/log"
+    "prisma:migrate:dev": "APP_ENV=${APP_ENV:-develop} pnpm -w run hansapp-cli db migrate --db main",
+    "prisma:migrate:deploy": "APP_ENV=${APP_ENV:-develop} pnpm -w run hansapp-cli db deploy --db main",
+    "prisma:migrate:status": "APP_ENV=${APP_ENV:-develop} pnpm -w run hansapp-cli db status --db main",
+    "prisma:migrate:log:deploy": "APP_ENV=${APP_ENV:-develop} pnpm -w run hansapp-cli db deploy --db log",
+    "prisma:migrate:log:dev": "APP_ENV=${APP_ENV:-develop} pnpm -w run hansapp-cli db migrate --db log"
   },
   "devDependencies": {
     "@swc-node/register": "^1.11.1",
