@@ -1,6 +1,6 @@
 {
   "name": "hansapp-backend",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "private": true,
   "packageManager": "pnpm@11.10.0",
   "scripts": {
