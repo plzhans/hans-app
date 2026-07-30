@@ -4,7 +4,7 @@
 # 성립하지 않는다 — Actions 목록에서 이름만 보고 누르면 된다.
 #
 # 로직은 be-deploy.yml 이 갖는다. 여기는 "develop 이다" 만 말한다.
-name: be · deploy → develop
+name: be - deploy - develop
 
 on:
   workflow_dispatch:

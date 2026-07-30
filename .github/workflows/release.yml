@@ -14,7 +14,7 @@
 #
 # 판은 backend·frontend 둘이고, 봇은 **커밋이 바꾼 파일 경로**로 판을 가른다.
 # frontend 만 고친 커밋은 frontend 만 올리고 frontend 만 배포된다.
-name: release · version, tag, changelog
+name: release - version, tag, changelog
 
 on:
   push:

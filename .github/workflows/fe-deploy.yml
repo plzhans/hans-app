@@ -7,7 +7,7 @@
 #   main push          → develop 자동 배포 (바뀐 프로젝트만)
 #   workflow_dispatch  → 환경·대상을 골라서
 #   workflow_call      → release.yml 이 릴리스 직후 production 으로 부른다
-name: fe · deploy (Cloudflare Workers)
+name: fe - deploy (Cloudflare Workers)
 
 on:
   push:

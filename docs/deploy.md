@@ -124,7 +124,7 @@ be
 ### 수동
 
 ```
-Actions → be · deploy → develop → Run workflow
+Actions → be - deploy - develop → Run workflow
   image_tag    develop     (기본값)
 ```
 
@@ -156,7 +156,7 @@ backend/deploy.sh develop v0.5.0     # 릴리스 후보를 먼저 검증할 때
 ### ② 배포는 배포일에 사람이 누른다
 
 ```
-Actions → be · deploy → PRODUCTION → Run workflow
+Actions → be - deploy - PRODUCTION → Run workflow
   image_tag    v0.5.0        ← 반드시 적는다
 ```
 

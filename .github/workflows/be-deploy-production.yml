@@ -4,7 +4,7 @@
 # 갈리면 잘못 고른 순간 운영이 나가는데, 그것을 주의로 막을 수는 없다.
 #
 # 로직은 be-deploy.yml 이 갖는다. 여기는 "production 이다" 와 그에 붙는 안전장치만 말한다.
-name: be · deploy → PRODUCTION
+name: be - deploy - PRODUCTION
 
 on:
   workflow_dispatch:
