@@ -61,6 +61,9 @@ jobs:
       # 이 이름을 배포 대상 경로와 같게 맞춰 뒀다(release-please-config.json 의 packages).
       # 그래서 태그 이름(release-frontend/v0.2.0)을 파싱해 경로로 되돌리는 변환표가 없다.
       paths: ${{ steps.rp.outputs.paths_released }}
+      # 릴리스된 backend 버전(예: 0.3.0). 이미지에 v0.3.0 태그를 붙이는 데 쓴다.
+      # manifest 모드는 경로별로 출력을 낸다 — 키에 '--' 가 있어 대괄호로 읽는다.
+      backend_version: ${{ steps.rp.outputs['backend--version'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: rp
@@ -103,5 +106,26 @@ jobs:
       environment: production
       target: all
       build_only: true
-  # TODO: verify-backend. 같은 자리에 `contains(..., 'backend')` 로 붙인다.
+  # ───────────────────────────────────────────────────────────────────────────
+  # backend 도 같은 이유로 확인한다. 다만 프론트와 달리 **산출물이 남는다** —
+  # 이미지를 굽는 김에 v<버전> 태그를 붙여 레지스트리에 올린다.
+  #
+  # 그 태그가 배포일에 쓰는 이름이다. 여기서 안 올리면 배포일에 이미지를 새로 구워야
+  # 하는데, 그러면 "릴리스에서 확인한 것" 과 "배포한 것" 이 다른 빌드가 된다.
+  # 굽는 것과 서버에 올리는 것을 갈라 둔 이유가 그것이다 — 배포는 당기기만 한다.
+  # ───────────────────────────────────────────────────────────────────────────
+  verify-backend:
+    needs: release
+    if: >-
+      needs.release.outputs.created == 'true' &&
+      contains(fromJSON(needs.release.outputs.paths || '[]'), 'backend')
+    uses: ./.github/workflows/be-image.yml
+    permissions:
+      contents: read
+      packages: write # 이미지를 GHCR 에 올린다
+    secrets: inherit
+    with:
+      environment: production
+      target: all
+      version: ${{ needs.release.outputs.backend_version }}
 

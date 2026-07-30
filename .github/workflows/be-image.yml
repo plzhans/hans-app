@@ -33,6 +33,9 @@ on:
         type: choice
         options: [all, hansapp-api, hansapp-batch]
         default: all
+      version:
+        description: '릴리스 버전 (예: 0.3.0). 주면 v0.3.0 태그를 같이 붙인다'
+        type: string
   workflow_call:
     inputs:
       environment:
@@ -41,6 +44,8 @@ on:
       target:
         type: string
         default: all
+      version:
+        type: string
 
 concurrency:
   group: be-image-${{ inputs.environment || 'develop' }}
@@ -145,12 +150,23 @@ jobs:
         env:
           APP: ${{ matrix.app }}
           APP_ENV: ${{ needs.setup.outputs.app_env }}
+          VERSION: ${{ inputs.version }}
         run: |
           image="$REGISTRY/$APP"
           {
             echo "list<<TAGS"
             echo "$image:$APP_ENV"
             echo "$image:$APP_ENV-$GITHUB_SHA"
+            # **릴리스 버전 태그.** 이것만이 "무엇이 떠 있나" 에 답할 수 있는 이름이다.
+            #
+            # $APP_ENV 는 움직이는 태그라 새로 구울 때마다 다른 이미지를 가리킨다. 서버
+            # .env 에 IMAGE_TAG=production 이라고 적혀 있어 봐야 아무 정보가 없고, 되돌릴
+            # 이전 태그도 남지 않아 롤백이 불가능하다. $APP_ENV-<sha> 는 안정적이지만
+            # 버전과 sha 를 매번 대조해야 한다.
+            #
+            # git 태그(release-backend/v0.3.0)와 1:1 로 맞춘다. 그래야
+            # `deploy.sh production v0.3.0` 이 그대로 성립하고, 롤백이 태그 교체로 끝난다.
+            [ -n "$VERSION" ] && echo "$image:v${VERSION#v}"
             echo "TAGS"
           } >> "$GITHUB_OUTPUT"
 
@@ -163,6 +179,7 @@ jobs:
           platforms: linux/arm64
           build-args: |
             GIT_SHA=${{ github.sha }}
+            GIT_BRANCH=${{ github.ref_name }}
           tags: ${{ steps.tags.outputs.list }}
           # source 라벨이 있어야 GHCR 패키지가 이 레포에 연결된다.
           labels: |
