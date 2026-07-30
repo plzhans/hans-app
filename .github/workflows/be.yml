@@ -23,10 +23,9 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/be*.yml'
-  pull_request:
-    paths:
-      - 'backend/**'
-      - '.github/workflows/be*.yml'
+  # pull_request 는 걸지 않는다. 지금은 main 직푸시로 일하고, PR 은 release-please 가
+  # 만드는 것뿐인데 그건 버전·changelog 만 바꾼다. 봇 PR 은 승인 대기(action_required)로
+  # 걸려 실행 목록만 지저분해진다. 사람이 PR 로 일하기 시작하면 그때 다시 건다.
   workflow_dispatch:
     inputs:
       stage:
@@ -110,11 +109,14 @@ jobs:
       - name: 의존성 설치
         run: pnpm install --frozen-lockfile
 
-      - name: lint · format
-        run: pnpm check
-
+      # **빌드가 lint 앞이다.** 타입 기반 규칙(no-unsafe-*)은 생성된 타입을 봐야
+      # 판단할 수 있는데, Prisma 클라이언트는 빌드(prisma generate)가 만든다.
+      # 순서가 뒤바뀌면 "타입을 못 찾겠다" 가 수백 줄 쏟아진다.
       - name: 타입 빌드
         run: pnpm -r build
+
+      - name: lint · format
+        run: pnpm check
 
   image:
     needs: [plan, verify]
