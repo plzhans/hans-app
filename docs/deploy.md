@@ -24,14 +24,16 @@ develop 에 먼저 올려보는 것**으로 막는다.
 **`be.yml` 은 develop 에 관한 전부다.** production 으로 가는 길이 없다.
 
 ```
-be                       main 푸시 · PR · 수동
+be                            main 푸시 · PR · 수동
 ├─ plan
-├─ verify                lint · format · 타입 빌드
-├─ build (arm64)         **도커 밖에서** install · build · pnpm deploy → 산출물
-├─ image                 산출물을 COPY 만 → :develop · :develop-<sha>
-├─ migrate               #deploy · #be-deploy · 수동
-└─ deploy                       〃
+├─ verify · build (arm64)     **도커 밖에서** install → build → lint → 산출물
+├─ image                      산출물을 COPY 만 → :develop · :develop-<sha>
+├─ migrate                    #deploy · #be-deploy · 수동
+└─ deploy                            〃
 ```
+
+**검사와 빌드가 한 잡이다.** 둘 다 같은 install·같은 컴파일을 필요로 하는데, 나누면
+워크스페이스 install 과 tsc 를 두 번 돌리게 된다 — 이 파이프라인에서 제일 비싼 두 단계다.
 
 `build` 와 `image` 는 **푸시마다 돈다.** 나중에 수동으로 배포를 누를 때 올릴 것이 있어야
 하기 때문이다 — 예전에는 `#deploy` 일 때만 구워서, 배포하려고 보면 이미지가 없었다.
@@ -54,7 +56,11 @@ develop 은 자주 도는데, 도커 안에서 워크스페이스를 통째로 �
 러너에서 한 번 만들고 이미지는 `COPY` 만 하면(`--target prebuilt`) 몇 초로 끝난다.
 
 **arm64 러너에서 만든다.** 배포 서버가 arm64 이고 prisma 쿼리 엔진은 플랫폼별 네이티브
-바이너리라, 빌드 호스트의 아키텍처가 그대로 산출물에 남는다.
+바이너리라, 빌드 호스트의 아키텍처가 그대로 산출물에 남는다. 검사도 같은 자리에서 한다 —
+x86 에서 검사하고 arm 에서 다시 만들면 같은 컴파일을 두 번 하게 된다.
+
+> 나중에 amd64 이미지도 필요해지면 **그때만** 같은 잡을 x86 러너로 한 벌 더 돌리고
+> buildx 로 합친다. 검사는 arm 쪽에서 이미 끝나 있으므로 그쪽은 산출물만 만들면 된다.
 
 한 잡이 세 벌을 만든다. 앱마다 잡을 나누면 제일 비싼 단계인 워크스페이스 install 을
 그만큼 반복하게 된다.
@@ -145,11 +151,10 @@ git push
 
 ```
 be
-├─ verify   ✅
-├─ build    ✅
-├─ image    ✅
-├─ migrate  ✅
-└─ deploy   ✅
+├─ verify · build  ✅
+├─ image           ✅
+├─ migrate         ✅
+└─ deploy          ✅
 ```
 
 마커가 없으면 `image` 까지 초록이고 `migrate`·`deploy` 만 회색으로 남는다.

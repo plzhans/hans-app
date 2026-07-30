@@ -103,7 +103,9 @@ jobs:
             # **이미지는 항상 굽는다.** 그래야 나중에 수동으로 배포를 누를 때 올릴 것이 있다.
             # 예전에는 #deploy 일 때만 구워서, 배포하려고 보면 이미지가 없는 일이 있었다.
             image=true
-            if printf '%s' "$HEAD_MSG" | grep -qE '#(be-)?deploy'; then
+            # **제목 줄만 본다.** 본문에서 마커를 언급하기만 해도 배포가 나가는 일이
+            # 있었다 — 이 규칙을 설명하는 문장이 그대로 매칭됐다.
+            if printf '%s' "$HEAD_MSG" | head -1 | grep -qE '#(be-)?deploy'; then
               deploy=true
             else
               echo "커밋 메시지에 #deploy·#be-deploy 가 없다 → 이미지까지만 만들고 멈춘다."
@@ -116,60 +118,30 @@ jobs:
           echo "검증=$verify  이미지=$image  배포=$deploy"
 
   # ───────────────────────────────────────────────────────────────────────────
-  # 항상 돈다. **여기가 없으면 main 이 조용히 깨진다.**
-  # ───────────────────────────────────────────────────────────────────────────
-  verify:
-    needs: plan
-    if: needs.plan.outputs.verify == 'true'
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/${{ github.repository }}/node-builder:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      contents: read
-      packages: read
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 의존성 설치
-        run: pnpm install --frozen-lockfile
-
-      # **빌드가 lint 앞이다.** 타입 기반 규칙(no-unsafe-*)은 생성된 타입을 봐야
-      # 판단할 수 있는데, Prisma 클라이언트는 빌드(prisma generate)가 만든다.
-      # 순서가 뒤바뀌면 "타입을 못 찾겠다" 가 수백 줄 쏟아진다.
-      - name: 타입 빌드
-        run: pnpm -r build
-
-      - name: lint · format
-        run: pnpm check
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # **도커 밖에서 굽는다.** 산출물만 다음 잡으로 넘긴다.
+  # **검사와 빌드를 한 잡에서 한다.** 둘 다 같은 install·같은 컴파일을 필요로 한다.
   #
-  # 한 잡에서 세 벌을 만든다. 앱마다 잡을 나누면 워크스페이스 install 을 그만큼 반복하는데,
-  # 그게 이 빌드에서 제일 비싼 단계다.
+  # 나눠 두면 워크스페이스 install 과 tsc 를 두 번 돌리게 되는데, 그게 이 파이프라인에서
+  # 제일 비싼 두 단계다. 잡 상자가 하나로 합쳐지는 대신 시간을 절반으로 줄인다.
+  #
+  # **arm64 에서 돈다.** 배포 서버가 arm64 이고 prisma 엔진은 플랫폼별 네이티브
+  # 바이너리라, 여기서 만든 것이 그대로 이미지에 들어간다. 검사만 x86 에서 하고 산출물만
+  # arm 에서 만들면 같은 것을 두 번 만들게 되므로 기준을 arm 으로 맞춘다.
+  #
+  # 나중에 amd64 이미지도 필요해지면 **그때만** 같은 잡을 x86 러너로 한 벌 더 돌리고
+  # buildx 로 합친다 — 검사는 여기서 이미 끝나 있으므로 그쪽은 산출물만 만들면 된다.
   #
   #   out/hansapp-api    --prod
   #   out/hansapp-batch  --prod
   #   out/hansapp-cli    --prod 아님 — prisma(devDependency)가 있어야 마이그레이션이 돈다
   # ───────────────────────────────────────────────────────────────────────────
   build:
-    needs: [plan, verify]
-    if: >-
-      ${{ always()
-          && needs.plan.outputs.image == 'true'
-          && needs.verify.result != 'failure'
-          && needs.verify.result != 'cancelled' }}
-    # **arm64 네이티브.** 배포 서버가 arm64 이고 prisma 엔진은 플랫폼별 바이너리라,
-    # 여기서 만든 것이 그대로 이미지에 들어간다. 러너를 못 쓰는 상황이면 저장소 Variable 로
-    # 덮되 그때는 산출물이 amd64 가 되어 서버에서 뜨지 않는다는 것을 알고 바꿔야 한다.
-    name: build (arm64)
-    runs-on: ${{ vars.BE_BUILD_RUNNER || 'ubuntu-24.04-arm' }}
+    needs: plan
+    if: needs.plan.outputs.verify == 'true' || needs.plan.outputs.image == 'true'
+    name: verify · build (arm64)
+    # **우회 변수를 두지 않는다.** x86 으로 떨어지면 prisma 엔진이 amd64 로 만들어져
+    # 서버에서 뜨지 않는 이미지가 조용히 완성된다. 러너를 못 구하면 큰 소리로 실패하는
+    # 편이 낫다.
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
     defaults:
@@ -179,11 +151,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 아키텍처 확인
-        run: |
-          echo "  러너   $(uname -m)"
-          # arm64 가 아니면 서버에서 뜨지 않는 이미지가 만들어진다. 조용히 지나가면
-          # 배포하고 나서야 드러나므로 여기서 알린다.
-          [ "$(uname -m)" = 'aarch64' ] || echo "  ⚠ arm64 가 아니다 — prisma 엔진이 서버와 어긋난다" >&2
+        run: echo "  러너 $(uname -m)"
 
       # **pnpm 이 먼저다.** setup-node 의 cache: pnpm 은 스토어 경로를 알아내려고
       # pnpm 을 실행하므로, 그 전에 깔려 있어야 한다. 버전은 package.json 의
@@ -195,24 +163,35 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          # 워크스페이스 lockfile 을 키로 pnpm 스토어를 캐시한다.
+          # 스토어를 캐시한다. 없으면 매 푸시마다 워크스페이스 전부를 새로 내려받는다.
           cache: pnpm
           cache-dependency-path: backend/pnpm-lock.yaml
 
       - name: 의존성 설치
         run: pnpm install --frozen-lockfile
 
+      # **한 번만 컴파일한다.** lint 도 산출물도 이 결과를 쓴다.
+      #
+      # 앱별로 좁히지(--filter) 않는 이유는 타입 기반 lint 규칙(no-unsafe-*)이 워크스페이스
+      # 전체의 생성된 타입을 봐야 하기 때문이다. Prisma 클라이언트도 이 단계(prisma
+      # generate)가 만든다 — 순서가 뒤바뀌면 "타입을 못 찾겠다" 가 수백 줄 쏟아진다.
+      #
       # 산출물의 신원(dist/build-info.json)은 각 앱의 build 스크립트가 만든다.
       # 안 주면 dev 로 채워져 **빌드된 산출물이 아니라는 사실이 드러난다.**
       - name: 빌드
         env:
           GIT_SHA: ${{ github.sha }}
           GIT_BRANCH: ${{ github.ref_name }}
-        run: pnpm --filter "hansapp-api..." --filter "hansapp-batch..." --filter "hansapp-cli..." build
+        run: pnpm -r build
+
+      - name: lint · format
+        if: needs.plan.outputs.verify == 'true'
+        run: pnpm check
 
       # pnpm deploy: 그 앱과 의존성만 추려 자립형 디렉터리(node_modules 포함)를 만든다.
       # --legacy 는 inject-workspace-packages 를 켜지 않은 워크스페이스에서 필요하다.
       - name: 산출물 추리기
+        if: needs.plan.outputs.image == 'true'
         run: |
           rm -rf out
           pnpm deploy --filter hansapp-api   --prod --legacy out/hansapp-api
@@ -222,10 +201,15 @@ jobs:
           du -sh out/* | sed 's/^/  /'
 
       - uses: actions/upload-artifact@v4
+        if: needs.plan.outputs.image == 'true'
         with:
           name: backend-out-${{ github.sha }}
           path: backend/out
           retention-days: 1
+          # **없으면 산출물이 조용히 반쪽이 된다.** v4.4 부터 기본값이 false 라 숨김
+          # 항목이 빠지는데, pnpm 은 실제 패키지를 node_modules/.pnpm/ 에 둔다. 그것이
+          # 통째로 사라지면 이미지는 멀쩡히 만들어지고 컨테이너만 MODULE_NOT_FOUND 로 죽는다.
+          include-hidden-files: true
           # node_modules 가 많은 작은 파일이라 압축이 오래 걸린다. 같은 실행 안에서만
           # 쓰고 버리므로 크기를 줄일 이유가 없다.
           compression-level: 0
@@ -239,7 +223,7 @@ jobs:
   image:
     needs: [plan, build]
     if: needs.plan.outputs.image == 'true'
-    runs-on: ${{ vars.BE_BUILD_RUNNER || 'ubuntu-24.04-arm' }}
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write

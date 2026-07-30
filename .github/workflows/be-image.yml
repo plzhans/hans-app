@@ -109,10 +109,10 @@ jobs:
     # generate + nest build 를 에뮬레이션으로 돌리면 몇십 분이 걸린다. node-builder 는
     # 1 년에 몇 번이라 감수했지만 이건 자주 도는 빌드다.
     #
-    # arm64 호스티드 러너는 **public 레포에서 무료**다. private 이면 과금되거나 아예
-    # 잡히지 않으므로, 그때는 저장소 Variable 로 ubuntu-latest 를 지정해 우회한다
-    # (그 경우 아래 QEMU 스텝의 주석을 풀어야 한다).
-    runs-on: ${{ vars.BE_IMAGE_RUNNER || 'ubuntu-24.04-arm' }}
+    # **우회 변수를 두지 않는다.** x86 으로 떨어지면 prisma 엔진이 amd64 로 만들어져
+    # 서버에서 뜨지 않는 이미지가 조용히 완성된다. 러너를 못 구하면 큰 소리로 실패하는
+    # 편이 낫다. (private 레포에서도 arm64 호스티드 러너를 쓸 수 있다.)
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
