@@ -117,6 +117,23 @@ jobs:
           echo "version=v$semver" >> "$GITHUB_OUTPUT"
           echo "  $GITHUB_REF_NAME → v$semver ($(git rev-parse --short HEAD))"
 
+      # **최신 릴리스인지 알려만 준다. 막지 않는다.**
+      #
+      # 옛 버전 배포는 롤백이라 정당하므로 거부할 수 없다. 다만 릴리스를 병합하고 곧바로
+      # 배포를 누르면 staging 이 아직 직전 릴리스를 가리키는 짧은 창이 있어, 의도치 않게
+      # 한 판 뒤가 나갈 수 있다. 둘은 화면상 구분되지 않으므로 여기서 드러낸다.
+      - name: 최신 릴리스와 비교
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          latest="$(git ls-remote --tags --refs origin 'refs/tags/release-backend/v*' \
+            | sed 's#.*/release-backend/##' | sort -V | tail -1)"
+          echo "  배포 대상   $VERSION  ($GITHUB_REF_NAME)"
+          echo "  최신 릴리스 ${latest:-(없음)}"
+          if [ -n "$latest" ] && [ "$latest" != "$VERSION" ]; then
+            echo "  ⚠ 최신이 아니다 — 롤백이면 정상, 아니면 릴리스가 아직 도는 중일 수 있다"
+          fi
+
       # **이미지가 올라올 때까지 기다린다.**
       #
       # 릴리스를 병합하고 바로 배포를 누르는 것이 자연스러운 흐름인데, 그때 이미지 빌드가

@@ -10,7 +10,8 @@
 # 배포는 "그것을 언제 서버에 올리느냐" 는 별개 판단이다. 버전을 찍어두고 배포는 배포일에
 # 하는 흐름을 막지 않으려고 끊어 뒀다 — docs/release.md 의 "릴리스와 배포는 분리돼 있다".
 #
-#   배포할 때  →  fe-deploy.yml 을 workflow_dispatch. ref 에 릴리스 태그를 지정한다
+#   배포할 때  →  be-deploy-production.yml · fe-deploy-production.yml 을 workflow_dispatch.
+#                 ref 에 릴리스 태그(staging · release-frontend/staging)를 지정한다
 #
 # 판은 backend·frontend 둘이고, 봇은 **커밋이 바꾼 파일 경로**로 판을 가른다.
 # frontend 만 고친 커밋은 frontend 만 올리고 frontend 만 배포된다.
@@ -46,7 +47,7 @@ permissions:
   # 재사용 워크플로(verify-frontend)에 packages: read 를 넘기면 "호출자보다 큰 권한"
   # 이라 거부되고, 잡이 도는 게 아니라 **워크플로가 시작조차 못 한다**(startup_failure).
   # 로그도 안 남아서 원인을 짚기 어렵다.
-  # write 인 이유. verify-frontend → fe-deploy → toolchain → infra-node-builder 로
+  # write 인 이유. verify-frontend → fe-build → toolchain → infra-node-builder 로
   # 중첩되는데, 마지막이 이미지를 **push** 한다. read 로는 그 중첩 호출이 거부된다.
   packages: write # 중첩 호출이 node-builder 이미지를 GHCR 에 올린다
 
@@ -77,6 +78,57 @@ jobs:
           # 고정하면 핫픽스 브랜치에서 돌려도 main 을 릴리스하려 든다.
           target-branch: ${{ github.ref_name }}
 
+      # ─────────────────────────────────────────────────────────────────────
+      # staging 태그를 이 릴리스로 옮긴다.
+      #
+      # **배포할 때 고르는 이름이다.** Actions 의 "Use workflow from" 드롭다운에 태그가
+      # 뜨므로, staging 을 고르면 최신 릴리스가 나간다 — 버전을 외우거나 적을 일이 없다.
+      #
+      # **판마다 자기 태그를 갖는다.** 백엔드는 이름 없이 staging, 프론트는
+      # release-frontend/staging 이다. 프론트가 뒤늦게 합류하면서 겹치지 않게 접두사를
+      # 붙였고 그래서 비대칭이다. **릴리스된 판의 것만 옮긴다** — 프론트만 릴리스됐는데
+      # 백엔드 staging 까지 움직이면 그 이름이 거짓말이 된다.
+      #
+      # **왜 별도 잡이 아니라 여기인가.** 병합하고 바로 배포를 누르는 것이 자연스러운
+      # 흐름인데, 그 사이 staging 이 아직 직전 릴리스를 가리키면 한 판 뒤가 나간다.
+      # 잡을 나누면 러너를 새로 띄우는 만큼 그 창이 넓어진다. 태그를 만든 자리에서 곧바로
+      # 옮겨 창을 최소로 줄인다.
+      #
+      # 빌드는 기다리지 않는다. **병합이 끝난 순간 최신 릴리스가 무엇인지는 이미 정해졌다.**
+      # 빌드가 실패하면 배포가 못 나갈 뿐, staging 이 가리키는 대상이 달라지지는 않는다.
+      #
+      # 움직이는 태그지만 배포 기록에는 남지 않는다. 배포가 그 시점의 manifest 에서 실제
+      # 버전(v0.6.5)을 읽어 서버에 적기 때문이다 — .env 에 staging 이 남으면 무엇이 떠
+      # 있는지 답할 수 없다.
+      # ─────────────────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+        if: steps.rp.outputs.releases_created == 'true'
+
+      - name: staging 태그 이동
+        if: steps.rp.outputs.releases_created == 'true'
+        env:
+          PATHS: ${{ steps.rp.outputs.paths_released }}
+        run: |
+          # `cmd && var=...` 로 쓰면 안 된다. 이 스텝은 bash -e 로 도는데, jq 가 찾지
+          # 못한 경우(한쪽 판만 릴리스된 정상 상황)에 스텝이 통째로 실패한다.
+          moved=''
+          if printf '%s' "$PATHS" | jq -e 'index("backend")' >/dev/null 2>&1; then
+            moved="$moved staging"
+          fi
+          if printf '%s' "$PATHS" | jq -e 'index("frontend")' >/dev/null 2>&1; then
+            moved="$moved release-frontend/staging"
+          fi
+
+          if [ -z "$moved" ]; then
+            echo "  옮길 태그 없음 (릴리스된 판: $PATHS)"
+            exit 0
+          fi
+          for tag in $moved; do
+            git tag -f "$tag"
+            git push -f origin "$tag"
+          done
+          echo " $moved → $(git rev-parse --short HEAD)"
+
 
   # ───────────────────────────────────────────────────────────────────────────
   # 릴리스된 판이 **빌드되는지만** 확인한다. 배포하지 않는다.
@@ -90,22 +142,21 @@ jobs:
   # 짜면 문법은 맞는데 아무 일도 일어나지 않는다. 그래서 같은 실행 안에서 이어 붙인다.
   # 실행을 연 것은 사람의 PR 머지이므로 이 연결에는 제약이 없다.
   #
-  # 빌드 방법은 여기 없다. fe-deploy.yml 이 알고, 그것도 결국 frontend/ci-build.sh 를 부른다.
+  # 빌드 방법은 여기 없다. fe-build.yml 이 알고, 그것도 결국 frontend/ci-build.sh 를 부른다.
   # ───────────────────────────────────────────────────────────────────────────
   verify-frontend:
     needs: release
     if: >-
       needs.release.outputs.created == 'true' &&
       contains(fromJSON(needs.release.outputs.paths || '[]'), 'frontend')
-    uses: ./.github/workflows/fe-deploy.yml
+    uses: ./.github/workflows/fe-build.yml
     permissions:
       contents: read
       packages: write # 중첩된 toolchain 잡이 node-builder 를 GHCR 에 올린다
     secrets: inherit
     with:
-      environment: production
+      app_env: production
       target: all
-      build_only: true
   # ───────────────────────────────────────────────────────────────────────────
   # backend 도 같은 이유로 확인한다. 다만 프론트와 달리 **산출물이 남는다** —
   # 이미지를 굽는 김에 v<버전> 태그를 붙여 레지스트리에 올린다.
@@ -129,26 +180,3 @@ jobs:
       target: all
       version: ${{ needs.release.outputs.backend_version }}
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # staging 태그를 이 릴리스로 옮긴다.
-  #
-  # **배포할 때 고르는 이름이다.** Actions 의 "Use workflow from" 드롭다운에 태그가 뜨므로,
-  # staging 을 고르면 최신 릴리스가 나간다 — 버전을 외우거나 적을 일이 없다.
-  #
-  # 움직이는 태그지만 배포 기록에는 남지 않는다. 배포가 그 시점의 manifest 에서 실제
-  # 버전(v0.6.5)을 읽어 서버에 적기 때문이다 — .env 에 staging 이 남으면 무엇이 떠 있는지
-  # 답할 수 없다.
-  # ───────────────────────────────────────────────────────────────────────────
-  staging:
-    needs: release
-    if: needs.release.outputs.created == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # 태그를 옮긴다
-    steps:
-      - uses: actions/checkout@v4
-      - name: staging 태그 이동
-        run: |
-          git tag -f staging
-          git push -f origin staging
-          echo "  staging → $(git rev-parse --short HEAD)"
