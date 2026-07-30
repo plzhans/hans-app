@@ -127,11 +127,23 @@ echo
 # ─────────────────────────────────────────────────────────────────────────────
 # 실행
 # ─────────────────────────────────────────────────────────────────────────────
-# compose 와 config 는 배포가 이미 올려 두었거나, 이 다음에 올린다. 여기서는 그 자리에
-# 있는 것을 쓴다 — 마이그레이션이 배포보다 먼저 도는 순서라, 첫 배포라면 compose 가
-# 아직 없을 수 있다. 그때는 명확한 메시지로 멈춘다.
-remote "test -f $BE_HANSAPP_DEPLOY_PATH/docker-compose.yml" \
-  || die "서버에 docker-compose.yml 이 없다. 배포를 한 번 먼저 돌릴 것 (deploy.sh)."
+# **compose 를 직접 올린다.** 마이그레이션이 배포보다 먼저 도는 순서라, 배포가 나르는
+# compose 를 기다릴 수 없다. 서버에 옛 파일이 있으면 migrate 서비스가 없어서
+# "no such service: migrate" 로 죽는다 — 실제로 그렇게 한 번 걸렸다.
+#
+# 덮어써도 안전하다. 같은 ref 의 같은 파일이고, 배포가 곧 다시 올린다.
+compose_src="$AREA_DIR/infra/$APP_ENV/docker-compose.yml"
+[ -f "$compose_src" ] || die "$compose_src 가 없다."
+
+group 'compose 전송'
+remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
+scp "${ssh_opts[@]}" -q "$compose_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/docker-compose.yml"
+endgroup
+
+# 접속 정보는 배포가 올려 둔 것을 쓴다. 마이그레이션만 단독으로 돌리는 경우에도
+# 그 서버는 이미 한 번은 배포된 상태라는 뜻이므로, 없으면 그것부터 하라고 알린다.
+remote "test -f $BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV" \
+  || die "서버에 config/.env.$APP_ENV 가 없다. 배포를 한 번 먼저 돌릴 것 (deploy.sh)."
 
 if [ -n "${GHCR_TOKEN:-}" ]; then
   group 'GHCR 로그인'
