@@ -24,12 +24,20 @@ develop 에 먼저 올려보는 것**으로 막는다.
 
 ```
 be
-├─ verify          항상. lint · format · 타입 빌드
+├─ plan            무엇을 할지 정한다
+├─ verify          lint · format · 타입 빌드
 ├─ image           #deploy · 수동           → be-image
-└─ deploy          #deploy · 수동           → be-deploy
+└─ deploy          #deploy · 수동           → be-deploy-develop
+                                               ├─ plan     ref → 버전
                                                ├─ migrate
                                                └─ deploy
 ```
+
+**`verify` 는 PR 로 들어온 것을 다시 검사하지 않는다.** PR 에서 이미 돌았고, 그때 본 것이
+"병합했을 때의 상태" 이기 때문이다(GitHub 이 base 와 합쳐 만든 커밋). 병합 커밋(부모가 둘
+이상)이면 건너뛴다.
+
+main 에 **직접 푸시**한 것은 검사한 적이 없으므로 반드시 돈다 — 그쪽이 이 잡의 요점이다.
 
 각 단계는 별도 파일이 갖고 `be.yml` 은 순서만 정한다. GitHub 에는 GitLab 의 `include:`
 처럼 YAML 을 합치는 기능이 없어 조합 수단이 `uses:` 뿐이고, 그래서 파일을 나누는 것이 곧
@@ -125,11 +133,19 @@ be
 
 ```
 Actions → be - deploy - develop → Run workflow
-  image_tag    develop     (기본값)
+  Use workflow from:  main                     ← 최신 develop 이미지 (평소)
+                      staging                   ← 릴리스 후보를 미리 확인
+                      release-backend/v0.7.2    ← 특정 버전
 ```
 
 **환경을 고르는 자리가 없다.** 진입점이 환경별로 갈려 있어, 잘못 골라 운영이 나가는 실수가
-성립하지 않는다 — 주의로 막을 수 있는 종류가 아니라 설계로 막았다. 로컬도 같다.
+성립하지 않는다 — 주의로 막을 수 있는 종류가 아니라 설계로 막았다.
+
+**무엇을 배포할지는 ref 가 정한다.** 브랜치면 `develop`(그 환경의 움직이는 최신), 릴리스
+태그면 그 커밋의 manifest 가 가진 버전이다. production 과 다른 점은 **브랜치를 허용한다**는
+것뿐이다 — develop 은 main 최신을 굴리는 것이 주 용도다.
+
+로컬도 같다.
 
 ```bash
 scripts/deploy/deploy.sh develop            # 태그 생략 = develop

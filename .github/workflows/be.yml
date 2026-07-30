@@ -50,9 +50,15 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     outputs:
+      verify: ${{ steps.pick.outputs.verify }}
       image: ${{ steps.pick.outputs.image }}
       deploy: ${{ steps.pick.outputs.deploy }}
     steps:
+      # 병합 커밋인지 보려면 부모를 알아야 한다.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
       - id: pick
         env:
           STAGE: ${{ inputs.stage }}
@@ -61,6 +67,13 @@ jobs:
         run: |
           image=false
           deploy=false
+          verify=true
+
+          # 병합 커밋(부모가 둘 이상)은 PR 을 거쳐 온 것이다. 그때 이미 검사했다.
+          if [ "$EVENT" = 'push' ] && [ "$(git rev-list --parents -n1 HEAD | wc -w)" -gt 2 ]; then
+            verify=false
+            echo "PR 병합 커밋이다 → verify 는 PR 에서 이미 돌았으므로 건너뛴다."
+          fi
 
           if [ -n "$STAGE" ]; then
             # 사람이 골랐으면 그게 답이다.
@@ -83,9 +96,10 @@ jobs:
             fi
           fi
 
+          echo "verify=$verify" >> "$GITHUB_OUTPUT"
           echo "image=$image"   >> "$GITHUB_OUTPUT"
           echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
-          echo "이미지=$image  배포=$deploy"
+          echo "검증=$verify  이미지=$image  배포=$deploy"
 
   # ───────────────────────────────────────────────────────────────────────────
   # 항상 돈다. **여기가 없으면 main 이 조용히 깨진다.**
@@ -94,6 +108,14 @@ jobs:
   # 도커 빌드가 어차피 컴파일하지만 그건 #deploy 때만 돌아서 평소 푸시가 무방비였다.
   # ───────────────────────────────────────────────────────────────────────────
   verify:
+    # **PR 로 들어온 것은 다시 검사하지 않는다.**
+    #
+    # PR 에서 이미 돌았고, 그때 검사한 것은 "병합했을 때의 상태" 다(GitHub 이 base 와
+    # 합쳐 만든 커밋). 병합 커밋에서 또 돌리면 같은 것을 두 번 보는 셈이다.
+    #
+    # main 에 직접 푸시한 것은 검사한 적이 없으므로 반드시 돈다 — 그쪽이 이 잡의 요점이다.
+    needs: plan
+    if: needs.plan.outputs.verify == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository }}/node-builder:latest
@@ -123,7 +145,13 @@ jobs:
 
   image:
     needs: [plan, verify]
-    if: needs.plan.outputs.image == 'true'
+    # verify 를 건너뛰면 skipped 라 기본 조건으로는 여기도 안 돈다. always() 로 끊되
+    # 실패했을 때만 멈춘다.
+    if: >-
+      ${{ always()
+          && needs.plan.outputs.image == 'true'
+          && needs.verify.result != 'failure'
+          && needs.verify.result != 'cancelled' }}
     uses: ./.github/workflows/be-image.yml
     permissions:
       contents: read
@@ -141,5 +169,3 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    with:
-      image_tag: develop
