@@ -54,8 +54,13 @@ export class PrismaMigrationService {
     this.run(target, ['generate']);
   }
 
+  /**
+   * 스키마는 여러 파일로 쪼개져 있다(default·app·auth). 그래서 파일이 아니라 **디렉터리**를
+   * 넘긴다 — prisma 가 폴더 안의 .prisma 를 모두 읽는다. package.json 의 prisma:generate 도
+   * 같은 형태다.
+   */
   private schemaPath(target: DbTarget): string {
-    return `prisma/${target}/schema.prisma`;
+    return `prisma/${target}`;
   }
 
   private run(target: DbTarget, args: string[]): void {
