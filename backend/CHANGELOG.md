@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.1...release-backend/v0.7.2) (2026-07-30)
+
+
+### 버그 수정
+
+* 마이그레이션이 yaml 도 올린다 ([d814ac0](https://github.com/plzhans/hans-app/commit/d814ac009dbb892053c74feefff5854f14b07e87))
+
 ## [0.7.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.0...release-backend/v0.7.1) (2026-07-30)
 
 
