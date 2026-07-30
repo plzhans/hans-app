@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.5.0...release-backend/v0.6.0) (2026-07-30)
+
+
+### 기능
+
+* 마이그레이션을 전용 이미지로 분리한다 ([417a074](https://github.com/plzhans/hans-app/commit/417a074fddef6028efa1cd7a5a34b8680bc06016))
+* 배포할 때 외울 것을 없앤다 ([d762a8d](https://github.com/plzhans/hans-app/commit/d762a8d9d3b863b9ddd75eec5e3f16d38281042c))
+
+
+### 버그 수정
+
+* age 키가 잘못 들어갔을 때 무엇이 잘못됐는지 알려준다 ([df5c073](https://github.com/plzhans/hans-app/commit/df5c073fc4d8dc343fecd9a5fe920b1af4284135))
+* 인증서 경로를 설정 기준으로도 찾는다 ([e862a98](https://github.com/plzhans/hans-app/commit/e862a985203da64a7924e85f5f979ddc667b1be1))
+
 ## [0.5.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.4.0...release-backend/v0.5.0) (2026-07-30)
 
 
