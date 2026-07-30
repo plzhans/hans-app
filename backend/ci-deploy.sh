@@ -222,6 +222,15 @@ fi
 
 command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 쪽에서 한다."
 
+# **compose 가 읽을 것이므로 `$` 를 `$$` 로 이스케이프한다.**
+#
+# docker compose 는 env_file 의 값도 보간한다. 비밀번호에 $ 가 들어 있으면 그 뒤를
+# 변수 이름으로 읽어 통째로 지워버린다 — 실제로 운영 DATABASE_URL 이 그렇게 잘려
+# "invalid port number" 로 죽었다. compose 는 $$ 를 $ 하나로 되돌린다.
+#
+# 레포의 평문은 건드리지 않는다. 그쪽은 dotenv 가 읽고, dotenv 는 보간을 하지 않는다.
+# 서버 파일에만 필요한 변환이라 나를 때 한다.
+#
 # .enc 를 풀어 $work/config 아래에 같은 구조로 놓는다.
 #
 # PEM(*.key)은 dotenv/json 이 아니라 binary 모드여야 한다 — env-decrypt.sh 와 같은 규칙.
@@ -234,6 +243,8 @@ command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 �
       mkdir -p "$(dirname "$out")"
       case "$f" in
         *.key.enc | *.pem.enc) sops --decrypt --input-type binary --output-type binary "$f" > "$out" ;;
+        # env 는 compose 가 env_file 로 읽는다. 아래 이스케이프 설명 참고.
+        .env*.enc | */.env*.enc) sops --decrypt "$f" | sed 's/\$/$$/g' > "$out" ;;
         *)         sops --decrypt "$f" > "$out" ;;
       esac
       chmod 600 "$out"
