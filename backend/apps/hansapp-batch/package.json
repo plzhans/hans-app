@@ -1,6 +1,6 @@
 {
   "name": "hansapp-batch",
-  "version": "0.6.5",
+  "version": "0.7.0",
   "private": true,
   "description": "공공데이터를 로컬 DB 에 적재하는 배치. 크론으로 단계를 순서대로 돌린다",
   "scripts": {
