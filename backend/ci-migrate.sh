@@ -156,15 +156,7 @@ if [ -n "${AGE_SECRET_KEY_FILE:-}" ]; then
   export SOPS_AGE_KEY_FILE="$work/age.key"
 fi
 
-# **compose 가 읽을 것이므로 `$` 를 `$$` 로 이스케이프한다.**
-#
-# docker compose 는 env_file 의 값도 보간한다. 비밀번호에 $ 가 들어 있으면 그 뒤를
-# 변수 이름으로 읽어 통째로 지워버린다 — 실제로 운영 DATABASE_URL 이 그렇게 잘려
-# "invalid port number" 로 죽었다. compose 는 $$ 를 $ 하나로 되돌린다.
-#
-# 레포의 평문은 건드리지 않는다. 그쪽은 dotenv 가 읽고, dotenv 는 보간을 하지 않는다.
-# 서버 파일에만 필요한 변환이라 나를 때 한다.
-sops --decrypt "$env_enc" | sed 's/\$/$$/g' > "$work/env"
+sops --decrypt "$env_enc" > "$work/env"
 chmod 600 "$work/env"
 remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH/config"
 scp "${ssh_opts[@]}" -q "$work/env" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV"
