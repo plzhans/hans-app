@@ -2,11 +2,12 @@
 #
 # backend 를 로컬에서 배포한다.
 #
-#   backend/deploy.sh <환경> <이미지태그> [-y]
+#   backend/deploy.sh <환경> [이미지태그] [-y]
 #
-#   backend/deploy.sh develop    develop-a1b2c3d
-#   backend/deploy.sh production v0.2.0
-#   backend/deploy.sh production v0.1.0        ← 롤백. 재빌드 없이 태그만 바꾼다
+#   backend/deploy.sh develop                  ← 태그 생략 = 'develop'(그 환경의 최신)
+#   backend/deploy.sh develop    v0.5.0        ← 릴리스 후보를 먼저 검증할 때
+#   backend/deploy.sh production v0.5.0        ← production 은 태그를 반드시 적는다
+#   backend/deploy.sh production v0.4.0        ← 롤백. 재빌드 없이 태그만 바꾼다
 #
 # CI 가 주는 환경변수를 같은 규칙으로 채워서 ci-deploy.sh 를 부른다. 배포 로직은 전부
 # 거기 있고 여기엔 두지 않는다 — 그래야 로컬과 CI 가 같은 코드를 지나간다.
@@ -34,7 +35,19 @@ usage() {
 APP_ENV="${1:-}"
 IMAGE_TAG="${2:-}"
 assume_yes="${3:-}"
-[ -n "$APP_ENV" ] && [ -n "$IMAGE_TAG" ] || usage
+[ -n "$APP_ENV" ] || usage
+
+# develop 은 태그를 생략하면 'develop'(움직이는 최신)으로 본다. 매번 같은 값을 적게 하면
+# 오랜만에 왔을 때 "뭘 적어야 하지" 로 막힌다.
+#
+# **production 은 생략을 허용하지 않는다.** 기본값으로 올라가면 서버에 무엇이 떠 있는지
+# 아무도 답할 수 없게 되고, 되돌릴 이전 태그도 남지 않는다.
+if [ -z "$IMAGE_TAG" ]; then
+  case "$APP_ENV" in
+    develop) IMAGE_TAG='develop' ;;
+    *) echo "❌ production 은 이미지 태그를 명시해야 한다 (예: v0.5.0)" >&2; exit 2 ;;
+  esac
+fi
 
 case "$APP_ENV" in
   develop | production) ;;

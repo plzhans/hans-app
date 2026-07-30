@@ -189,5 +189,32 @@ jobs:
           cache-from: type=gha,scope=be-${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=be-${{ matrix.app }}
 
-      - name: 푸시된 태그
-        run: echo "${{ steps.tags.outputs.list }}"
+      # **다음에 뭘 해야 하는지 여기 남긴다.**
+      # 배포는 이 워크플로가 하지 않는다. 그래서 "구웠다" 로 끝나면 오랜만에 온 사람은
+      # 어떤 태그를 어디에 넣어야 하는지부터 찾아야 한다. 방금 만든 이름을 그대로 적어 둔다.
+      - name: 배포 방법 요약
+        env:
+          APP: ${{ matrix.app }}
+          APP_ENV: ${{ needs.setup.outputs.app_env }}
+          TAGS: ${{ steps.tags.outputs.list }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          tag="${VERSION:+v${VERSION#v}}"
+          tag="${tag:-$APP_ENV}"
+          {
+            echo "### $APP 이미지를 올렸다"
+            echo
+            echo '```'
+            printf '%s\n' "$TAGS"
+            echo '```'
+            echo
+            echo "#### 배포하려면"
+            echo
+            echo '로컬:'
+            echo '```bash'
+            echo "backend/deploy.sh $APP_ENV $tag"
+            echo '```'
+            echo
+            echo "CI: [be · deploy 실행](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be-deploy.yml)"
+            echo "→ environment \`$APP_ENV\` · image_tag \`$tag\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -16,8 +16,14 @@ on:
         options: [develop, production]
         default: develop
       image_tag:
-        description: '띄울 이미지 태그 (v0.2.0 · develop-<sha>)'
+        # **기본값을 채워 둔다.** 폼을 열면 'develop' 이 이미 들어가 있어 그냥 Run 만
+        # 누르면 develop 최신이 나간다. 오랜만에 와서 "뭘 적어야 하지" 로 막히지 않게.
+        #
+        # production 은 이 값을 지우고 버전을 적는다. 그쪽은 무엇을 올리는지 명시하는 편이
+        # 맞다 — 기본값으로 올라가면 무엇이 떠 있는지 아무도 답할 수 없게 된다.
+        description: '띄울 이미지 태그 — develop | v0.5.0 | develop-<sha>'
         type: string
+        default: develop
         required: true
   workflow_call:
     inputs:
