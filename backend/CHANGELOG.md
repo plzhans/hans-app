@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.5](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.4...release-backend/v0.7.5) (2026-07-30)
+
+
+### 버그 수정
+
+* 컨테이너를 배포 계정과 같은 uid 로 돌린다 ([3245adf](https://github.com/plzhans/hans-app/commit/3245adf73966f652e4f0648f81a47467c252d30c))
+
 ## [0.7.4](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.3...release-backend/v0.7.4) (2026-07-30)
 
 
