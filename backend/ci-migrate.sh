@@ -13,6 +13,7 @@
 #   BE_HANSAPP_DEPLOY_PATH        '~/app/hansapp-dev'
 #   BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE  (선택)
 #   BE_WIREGUARD_PEER_CONF_FILE   (선택) 채우면 그 설정으로 VPN 을 올린다
+#   AGE_SECRET_KEY_FILE           (선택) sops 복호화용 age 키. **경로 또는 내용**
 #   GHCR_TOKEN · GHCR_USER        (선택) private 이미지를 받을 때
 #
 # [서버에서 컨테이너로 돌린다]
@@ -133,6 +134,7 @@ echo
 #
 # 덮어써도 안전하다. 같은 ref 의 같은 파일이고, 배포가 곧 다시 올린다.
 compose_src="$AREA_DIR/infra/$APP_ENV/docker-compose.yml"
+env_enc="$AREA_DIR/config/.env.$APP_ENV.enc"
 [ -f "$compose_src" ] || die "$compose_src 가 없다."
 
 group 'compose 전송'
@@ -140,10 +142,27 @@ remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
 scp "${ssh_opts[@]}" -q "$compose_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/docker-compose.yml"
 endgroup
 
-# 접속 정보는 배포가 올려 둔 것을 쓴다. 마이그레이션만 단독으로 돌리는 경우에도
-# 그 서버는 이미 한 번은 배포된 상태라는 뜻이므로, 없으면 그것부터 하라고 알린다.
-remote "test -f $BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV" \
-  || die "서버에 config/.env.$APP_ENV 가 없다. 배포를 한 번 먼저 돌릴 것 (deploy.sh)."
+# **접속 정보도 직접 올린다.** 마이그레이션에 필요한 것을 배포가 날라 주기를 기다리면,
+# 첫 배포에서 순서가 꼬인다 — 마이그레이션이 배포보다 먼저 도는데 그 파일을 만드는 것이
+# 배포이기 때문이다. 필요한 것은 필요한 쪽이 갖춘다.
+#
+# 여기서 쓰는 것은 env 파일 하나뿐이다. jwt·TLS 키는 앱의 것이라 배포가 나른다.
+group '접속 정보 전송'
+[ -f "$env_enc" ] || die "$env_enc 가 없다."
+command -v sops >/dev/null || die 'sops 가 없다. 복호화는 이쪽에서 한다.'
+
+if [ -n "${AGE_SECRET_KEY_FILE:-}" ]; then
+  materialize "$AGE_SECRET_KEY_FILE" "$work/age.key"
+  export SOPS_AGE_KEY_FILE="$work/age.key"
+fi
+
+sops --decrypt "$env_enc" > "$work/env"
+chmod 600 "$work/env"
+remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH/config"
+scp "${ssh_opts[@]}" -q "$work/env" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV"
+remote "chmod 600 $BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV"
+echo "  $(basename "$env_enc") → config/.env.$APP_ENV"
+endgroup
 
 if [ -n "${GHCR_TOKEN:-}" ]; then
   group 'GHCR 로그인'
