@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.0...release-backend/v0.6.1) (2026-07-30)
+
+
+### 버그 수정
+
+* 마이그레이션이 compose 를 직접 올린다 ([20ee4f1](https://github.com/plzhans/hans-app/commit/20ee4f1afe74763d452399c00e2f8ec12bbd804e))
+
 ## [0.6.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.5.0...release-backend/v0.6.0) (2026-07-30)
 
 
