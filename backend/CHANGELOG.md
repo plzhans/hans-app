@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.2...release-backend/v0.7.3) (2026-07-30)
+
+
+### 버그 수정
+
+* 비밀번호 특수문자로 접속 URL 이 깨지는 것을 막는다 ([a405ad2](https://github.com/plzhans/hans-app/commit/a405ad26a7e3ec15a8d75d99282be316984c631a))
+
 ## [0.7.2](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.1...release-backend/v0.7.2) (2026-07-30)
 
 
