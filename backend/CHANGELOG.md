@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.8.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.5...release-backend/v0.8.0) (2026-07-30)
+
+
+### 기능
+
+* 운영 Swagger 를 IP 허용목록으로 연다 ([2d9b2f2](https://github.com/plzhans/hans-app/commit/2d9b2f23a568aacdccad019d796b13c7d89d8e95))
+* 운영 Swagger 를 IP 허용목록으로 연다 #deploy ([33883e0](https://github.com/plzhans/hans-app/commit/33883e0b4b1c624b01d057b117d238f71e03fdea))
+
+
+### 버그 수정
+
+* --target 없이 빌드하면 prebuilt 가 걸리던 것을 막는다 ([878ac51](https://github.com/plzhans/hans-app/commit/878ac51760a5362a56467ad27572400314f13f8b))
+* develop 이미지를 도커 밖에서 빌드한다 ([514eb9d](https://github.com/plzhans/hans-app/commit/514eb9df1597a3962803fa887e56a1f71c711a59))
+
+
+### 구조 변경
+
+* 도커 스테이지 이름을 with-build 로 바꾼다 ([d8eec7e](https://github.com/plzhans/hans-app/commit/d8eec7e22a37926feaff72e9d3503afad2d94ade))
+
+
+### 문서
+
+* 맥에서 prebuilt 를 못 쓰는 이유를 적는다 ([bc13aeb](https://github.com/plzhans/hans-app/commit/bc13aeb30a6f0a4c4ab7e6e1209dd2a72ab75989))
+
 ## [0.7.5](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.4...release-backend/v0.7.5) (2026-07-30)
 
 
