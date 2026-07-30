@@ -123,7 +123,7 @@ jobs:
         app: ${{ fromJSON(needs.setup.outputs.targets) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # arm64 러너를 못 쓰는 상황(private 레포 등)에서만 필요하다.
       # - uses: docker/setup-qemu-action@v3

@@ -50,7 +50,7 @@ jobs:
       targets: ${{ steps.pick.outputs.list }}
       version: ${{ steps.resolve.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # **태그에서만 배포한다.**
       #
@@ -137,7 +137,7 @@ jobs:
         target: ${{ fromJSON(needs.plan.outputs.targets) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: 툴체인 확인
         run: |
@@ -148,7 +148,7 @@ jobs:
         id: store
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ${{ steps.store.outputs.path }}
           key: pnpm-${{ matrix.target }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', matrix.target)) }}
@@ -185,7 +185,7 @@ jobs:
     permissions:
       contents: write # 태그를 옮긴다
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: latest 태그 이동
         run: |

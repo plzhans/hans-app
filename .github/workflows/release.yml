@@ -101,7 +101,7 @@ jobs:
       # 버전(v0.6.5)을 읽어 서버에 적기 때문이다 — .env 에 staging 이 남으면 무엇이 떠
       # 있는지 답할 수 없다.
       # ─────────────────────────────────────────────────────────────────────
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.rp.outputs.releases_created == 'true'
 
       - name: staging 태그 이동

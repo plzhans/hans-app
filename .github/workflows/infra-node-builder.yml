@@ -50,7 +50,7 @@ jobs:
       pnpm: ${{ steps.pnpm.outputs.version }}
       latest_node: ${{ steps.nvmrc.outputs.major }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: NODE_VERSIONS 를 output 으로 전달
         id: versions
@@ -91,7 +91,7 @@ jobs:
         node: ${{ fromJSON(needs.setup.outputs.versions) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # arm64 를 amd64 러너에서 굽기 위한 에뮬레이터.
       # CI(ubuntu-latest)는 amd64 라 arm64 는 순전히 로컬(Apple Silicon)에서 당겨 쓰기 위한 것이다.
