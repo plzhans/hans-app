@@ -91,3 +91,11 @@ export type { NpayWebRecord, NpayWebItem } from './healthcare/npay-web.record';
 /** 작업 큐. MQ 가 없어서 테이블로 둔 대체품 — 서버가 넣고 배치가 꺼낸다. */
 export { JobQueueService, JOB_NPAY_WEB } from './common/job-queue.service';
 export type { Job, JobStatus } from './common/job-queue.service';
+
+/**
+ * Swagger 문서 접근 IP 허용목록 판정. production 에서 /docs·/openapi.json 앞에 세운다.
+ * 미들웨어는 앱(apps-api)에 있고 이 서비스가 판정만 한다.
+ */
+export { SwaggerAccessService } from './env/swagger-access.service';
+export { matchesAllowedIp, parseIp } from './env/ip-match';
+export type { ParsedIp } from './env/ip-match';

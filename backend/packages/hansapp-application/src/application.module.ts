@@ -9,6 +9,8 @@ import {
   SEARCH_CONFIG,
 } from '@hansapp/search';
 
+import { EnvSwaggerAllowedIpRepository } from './env/env-swagger-allowed-ip.repository';
+import { SwaggerAccessService } from './env/swagger-access.service';
 import { HiraCodeService } from './hira/hira-code.service';
 import { HiraCodeRepository } from './hira/hira-code.repository';
 import { HiraRegionService } from './hira/hira-region.service';
@@ -112,6 +114,10 @@ export class ApplicationModule {
         RegionService,
         // 작업 큐. 서버가 넣고 배치(CLI)가 꺼낸다 — MQ 대체품이다.
         JobQueueService,
+        // Swagger 문서 접근 IP 허용목록(env_swagger_allowed_ip). production 에서 /docs 를
+        // 열어두고 등록된 IP 만 통과시키는 데 쓴다 — main.ts 의 미들웨어가 이 서비스를 부른다.
+        EnvSwaggerAllowedIpRepository,
+        SwaggerAccessService,
       ],
       exports: [
         HiraHospitalService,
@@ -132,6 +138,9 @@ export class ApplicationModule {
         RegionService,
         // 작업 큐. 서버가 넣고 배치(CLI)가 꺼낸다 — MQ 대체품이다.
         JobQueueService,
+        // main.ts 가 app.get() 으로 꺼내 Swagger 앞단 미들웨어에 넘긴다.
+        // 리포지토리는 내보내지 않는다(규약: 바깥에는 서비스만 보인다).
+        SwaggerAccessService,
       ],
     };
   }
