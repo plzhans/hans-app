@@ -79,6 +79,18 @@ apps-api:
     # Cloudflare 가 붙이는 진짜 클라이언트 IP. 이걸 안 쓰면 접속 IP 가 전부 CF 로 찍혀
     # rate limit 과 접근 로그가 무의미해진다.
     clientIpHeader: ${CLIENT_IP_HEADER:-cf-connecting-ip}
+  # API 문서(/docs, /openapi.json) 노출.
+  #
+  # **운영도 켠다.** 대신 env_swagger_allowed_ip 에 등록된 IP 에서만 보인다 — 그 외에는 403.
+  # 판정에 쓰는 IP 는 위 clientIpHeader(cf-connecting-ip)에서 뽑는다.
+  #
+  # ⚠️ 이 설정만으로는 안전하지 않다. 오리진(443)이 직접 노출돼 있으면 공격자가 Cloudflare 를
+  # 우회해 그 헤더를 위조할 수 있다. 방화벽에서 Cloudflare 대역만 받도록 잠가야 전제가 성립한다.
+  #
+  # 목록이 비어 있으면 아무도 못 본다(fail-closed). 켠 직후 최소 한 건은 넣어야 한다.
+  swagger:
+    enabled: ${SWAGGER_ENABLED:-true}
+    ipRestricted: ${SWAGGER_IP_RESTRICTED:-true}
   # 에러 추적(Sentry). DSN 은 비밀이 아니라 리터럴로 고정한다(전송 전용 공개 엔드포인트).
   # environment·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts. 비우면 Sentry 를 끈다.
   sentry:

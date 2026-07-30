@@ -45,6 +45,8 @@ export type {
   AppMember,
   AppApiKey,
   AppClient,
+  // 운영 환경(env_*) 테이블. 서비스 데이터가 아니라 서버 운영을 다루는 모델이다.
+  EnvSwaggerAllowedIp,
 } from '../generated/main';
 
 // 인증 도메인 enum(값으로도 쓰므로 type-only 가 아니다).
