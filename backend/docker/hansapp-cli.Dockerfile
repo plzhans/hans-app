@@ -29,7 +29,7 @@
 #
 # 지금은 compose 로 쓰지만 k3s 로 옮겨도 이 이미지는 그대로 쓴다.
 
-ARG NODE_VERSION=24
+ARG NODE_VERSION=24.18.0
 ARG PNPM_VERSION=11.10.0
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -68,9 +68,17 @@ RUN pnpm deploy --filter hansapp-cli --legacy /out
 # `<패키지루트>/prisma/<target>` 이 그대로 성립한다.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# runtime
+# runtime-base — 산출물을 뺀 나머지 전부
+#
+# 산출물이 **어디서 왔는지**만 다른 두 최종 스테이지가 이것을 공유한다.
+#
+#   --target runtime    위 builder 가 도커 안에서 만든 것        (production)
+#   --target prebuilt   CI 가 도커 밖에서 만들어 넣어준 것        (develop)
+#
+# develop 은 자주 도는데 도커 안에서 워크스페이스를 통째로 설치·빌드하면 매번 느리다.
+# 러너에서 한 번 만들고 이미지는 COPY 만 하면 몇 초로 끝난다.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime-base
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
@@ -79,7 +87,7 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-COPY --from=builder /out ./hansapp-cli/
+# (실제 COPY 는 아래 두 최종 스테이지가 각자 한다.)
 
 # root 로 돌리지 않는다. 앱 이미지와 같은 uid 를 쓴다 — 마운트된 설정·비밀이 배포 계정
 # 소유라, 번호가 다르면 Permission denied 로 못 읽는다.
@@ -99,3 +107,19 @@ USER ${APP_UID}:${APP_GID}
 # 인자를 주면 그것을 쓴다 — `db status` 로 적용 상태만 볼 수도 있다.
 ENTRYPOINT ["node", "hansapp-cli/dist/main.js"]
 CMD ["db", "deploy"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# runtime — 도커 안에서 구운 것을 담는다 (production)
+# ─────────────────────────────────────────────────────────────────────────────
+FROM runtime-base AS runtime
+COPY --from=builder /out ./hansapp-cli/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# prebuilt — CI 가 도커 밖에서 만든 것을 담는다 (develop)
+#
+# 컨텍스트의 out/<앱>/ 이 `pnpm deploy --prod` 결과와 같은 모양이어야 한다(dist +
+# node_modules 를 가진 자립형 디렉터리). .dockerignore 가 dist·node_modules 를 자르므로
+# 그 아래만 예외로 되돌려 뒀다 — 안 그러면 **빈 디렉터리가 조용히 복사된다.**
+# ─────────────────────────────────────────────────────────────────────────────
+FROM runtime-base AS prebuilt
+COPY out/hansapp-cli ./hansapp-cli/

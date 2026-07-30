@@ -174,6 +174,19 @@ jobs:
             echo "TAGS"
           } >> "$GITHUB_OUTPUT"
 
+      # **.nvmrc 가 단일 출처다.** Dockerfile 기본값과 어긋나면 여기서 멈춘다.
+      - name: node 버전 확정
+        id: node
+        run: |
+          nvmrc="$(tr -d 'v \t\r\n' < .nvmrc)"
+          arg="$(grep -m1 '^ARG NODE_VERSION=' "backend/docker/${{ matrix.app }}.Dockerfile" | cut -d= -f2)"
+          if [ "$nvmrc" != "$arg" ]; then
+            echo "::error file=.nvmrc::.nvmrc($nvmrc) 와 Dockerfile 기본값($arg)이 다르다. 둘을 맞출 것."
+            exit 1
+          fi
+          echo "version=$nvmrc" >> "$GITHUB_OUTPUT"
+          echo "  node $nvmrc"
+
       - uses: docker/build-push-action@v6
         with:
           # 컨텍스트가 backend/ 다. 워크스페이스 의존성과 lockfile 이 있어야 설치가 된다.
@@ -184,6 +197,7 @@ jobs:
           # 컨테이너가 돌 uid. 배포 서버의 로그인 계정과 같아야 마운트된 설정을 읽는다.
           # 저장소 변수로 덮을 수 있게 두되, 없으면 배포 대상 기본값(1001)을 쓴다.
           build-args: |
+            NODE_VERSION=${{ steps.node.outputs.version }}
             GIT_SHA=${{ github.sha }}
             GIT_BRANCH=${{ github.ref_name }}
             APP_UID=${{ vars.APP_UID || '1001' }}

@@ -1,31 +1,25 @@
-# hansapp-batch 이미지. **hansapp-cli 를 같이 담는다.**
+# hansapp-batch 이미지. **배치 하나만 담는다.**
 #
 #   docker build -f backend/docker/hansapp-batch.Dockerfile -t <태그> backend
 #
-# 배치 컨테이너에서 운영 작업(마이그레이션·시딩·ES 동기화)을 바로 돌릴 수 있게 cli 를
-# 함께 넣는다. 서버에 node 를 깔지 않아도 되고, 배치와 같은 코드·같은 설정으로 돈다.
-#
-#   docker run  --rm <이미지> node cli/dist/main.js db migrate
-#   docker exec <배치컨테이너>  node cli/dist/main.js es hospital sync
-#
 # [최종 구조]
 #   /app                    ← WORKDIR. 앱은 여기를 cwd 로 보고 config 를 찾는다
-#   ├── config/             ← 환경별 yaml. batch·cli 가 공유한다
-#   ├── dist/               ← 주 프로세스(batch). hansapp-api 이미지와 같은 자리
-#   ├── node_modules/
-#   ├── package.json
-#   └── cli/                ← 부가 도구
-#       ├── dist/main.js
-#       └── node_modules/
+#   ├── config/             ← 배포가 마운트한다
+#   └── hansapp-batch/
+#       ├── dist/
+#       ├── node_modules/
+#       └── package.json
 #
-# **node_modules 가 둘이다.** 두 앱의 의존성이 서로 포함 관계가 아니라(cli 는 search·
-# auth-application·commander 가 더 있고, batch 는 schedule·cron·sentry 가 더 있다)
-# 하나로 합칠 수가 없다. pnpm deploy 를 두 번 돌려 각자 자립형으로 담는다. 공유되는
-# 부분이 중복되므로 이미지가 커진다 — 문제가 되면 그때 줄인다.
+# **예전에는 cli 를 같이 담았다.** 배치 컨테이너에서 마이그레이션·시딩을 바로 돌리려는
+# 것이었는데, 컨테이너를 api·batch·cli 로 가르면서 필요가 없어졌다 — cli 는 자기 이미지로
+# 따로 뜬다(compose 의 migrate 서비스).
+#
+# 겸사겸사 앞뒤가 안 맞던 것도 사라진다. 그때 담기던 cli 는 --prod 로 추려져 prisma
+# (devDependency)가 빠져 있었으므로, 정작 광고하던 `db migrate` 를 돌릴 수 없었다.
 #
 # 나머지 배경(빌드 컨텍스트·config 를 굽는 이유·비밀을 굽지 않는 이유)은
 # hansapp-api.Dockerfile 헤더와 같다.
-ARG NODE_VERSION=24
+ARG NODE_VERSION=24.18.0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # builder
@@ -73,16 +67,23 @@ ARG GIT_SHA=
 ARG GIT_BRANCH=
 ENV GIT_SHA=${GIT_SHA} GIT_BRANCH=${GIT_BRANCH}
 
-RUN pnpm --filter "hansapp-batch..." --filter "hansapp-cli..." build
+RUN pnpm --filter "hansapp-batch..." build
 
 
-RUN pnpm deploy --filter hansapp-batch --prod --legacy /out/batch \
- && pnpm deploy --filter hansapp-cli   --prod --legacy /out/cli
+RUN pnpm deploy --filter hansapp-batch --prod --legacy /out
 
 # ─────────────────────────────────────────────────────────────────────────────
-# runtime
+# runtime-base — 산출물을 뺀 나머지 전부
+#
+# 산출물이 **어디서 왔는지**만 다른 두 최종 스테이지가 이것을 공유한다.
+#
+#   --target runtime    위 builder 가 도커 안에서 만든 것        (production)
+#   --target prebuilt   CI 가 도커 밖에서 만들어 넣어준 것        (develop)
+#
+# develop 은 자주 도는데 도커 안에서 워크스페이스를 통째로 설치·빌드하면 매번 느리다.
+# 러너에서 한 번 만들고 이미지는 COPY 만 하면 몇 초로 끝난다.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime-base
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
@@ -106,8 +107,7 @@ WORKDIR /app
 # WORKDIR 은 /app 그대로다. 앱이 cwd 기준으로 config/ 를 찾으므로 여기를 옮기면 설정
 # 탐색과 마운트 경로가 같이 흔들린다. **코드만 한 층 내려가고 config/ 는 공유한다** —
 # batch 이미지에서 batch 와 cli 가 같은 설정을 보는 것도 그래서 자연스럽다.
-COPY --from=builder /out/batch ./hansapp-batch/
-COPY --from=builder /out/cli   ./hansapp-cli/
+# (실제 COPY 는 아래 두 최종 스테이지가 각자 한다.)
 # **yaml 을 굽지 않는다.** 환경별 설정은 배포가 config/config.yaml 로 얹는다.
 #
 # 예전에는 config.local/develop/production.yaml 셋을 다 넣고 APP_ENV 로 골랐다. 그러면
@@ -134,3 +134,19 @@ RUN groupadd -g "${APP_GID}" app 2>/dev/null || true; \
 USER ${APP_UID}:${APP_GID}
 
 CMD ["node", "hansapp-batch/dist/main.js"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# runtime — 도커 안에서 구운 것을 담는다 (production)
+# ─────────────────────────────────────────────────────────────────────────────
+FROM runtime-base AS runtime
+COPY --from=builder /out ./hansapp-batch/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# prebuilt — CI 가 도커 밖에서 만든 것을 담는다 (develop)
+#
+# 컨텍스트의 out/<앱>/ 이 `pnpm deploy --prod` 결과와 같은 모양이어야 한다(dist +
+# node_modules 를 가진 자립형 디렉터리). .dockerignore 가 dist·node_modules 를 자르므로
+# 그 아래만 예외로 되돌려 뒀다 — 안 그러면 **빈 디렉터리가 조용히 복사된다.**
+# ─────────────────────────────────────────────────────────────────────────────
+FROM runtime-base AS prebuilt
+COPY out/hansapp-batch ./hansapp-batch/

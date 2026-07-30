@@ -30,8 +30,13 @@
 # **비밀은 굽지 않는다.** 이미지는 어느 환경에서나 같아야 하고, 비밀이 들어가면
 # 레지스트리를 읽을 수 있는 사람이 곧 비밀을 읽을 수 있게 된다.
 #
-# NODE_VERSION 은 레포 루트 .nvmrc 와 일치해야 한다.
-ARG NODE_VERSION=24
+# **레포 루트 .nvmrc 와 정확히 같아야 한다.** 메이저만 적으면(node:24) 베이스가 패치를
+# 따라 움직여서, 같은 커밋을 다시 구워도 다른 node 가 들어간다. 빌드를 도커 밖으로 뺀
+# 뒤로는 "만든 node" 와 "실행하는 node" 가 갈릴 수 있어 더 크게 문제가 된다.
+#
+# CI 와 build.sh 는 .nvmrc 를 읽어 --build-arg 로 덮어쓴다. 이 기본값은 그것 없이
+# 직접 `docker build` 할 때를 위한 것이고, 어긋나면 be.yml 의 검사가 잡는다.
+ARG NODE_VERSION=24.18.0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # builder — 설치 · 빌드 · 자립형 디렉터리 추출
@@ -97,9 +102,18 @@ RUN pnpm --filter "hansapp-api..." build
 RUN pnpm deploy --filter hansapp-api --prod --legacy /out
 
 # ─────────────────────────────────────────────────────────────────────────────
-# runtime
+# runtime-base — 산출물을 뺀 나머지 전부
+#
+# 산출물이 **어디서 왔는지**만 다른 두 최종 스테이지가 이것을 공유한다.
+#
+#   --target runtime    위 builder 가 도커 안에서 만든 것        (production)
+#   --target prebuilt   CI 가 도커 밖에서 만들어 넣어준 것        (develop)
+#
+# develop 은 자주 도는데 도커 안에서 워크스페이스를 통째로 설치·빌드하면 매번 느리다.
+# 러너에서 한 번 만들고 이미지는 COPY 만 하면 몇 초로 끝난다. production 은 "릴리스가
+# 검증한 그 빌드" 를 그대로 올려야 해서 아직 도커 안에서 굽는다 — 옮길 때 --target 만 바꾼다.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime-base
 
 # prisma 엔진이 OpenSSL 을 찾는다. slim 에는 없다.
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
@@ -128,7 +142,9 @@ WORKDIR /app
 # WORKDIR 은 /app 그대로다. 앱이 cwd 기준으로 config/ 를 찾으므로 여기를 옮기면 설정
 # 탐색과 마운트 경로가 같이 흔들린다. **코드만 한 층 내려가고 config/ 는 공유한다** —
 # batch 이미지에서 batch 와 cli 가 같은 설정을 보는 것도 그래서 자연스럽다.
-COPY --from=builder /out ./hansapp-api/
+#
+# (실제 COPY 는 아래 두 최종 스테이지가 각자 한다.)
+#
 # **yaml 을 굽지 않는다.** 환경별 설정은 배포가 config/config.yaml 로 얹는다.
 #
 # 예전에는 config.local/develop/production.yaml 셋을 다 넣고 APP_ENV 로 골랐다. 그러면
@@ -158,3 +174,19 @@ USER ${APP_UID}:${APP_GID}
 # 기본값을 두지 않아, 없으면 뜨지 않는다 — Redis 네임스페이스와 Elasticsearch 인덱스가
 # 이 값에서 파생되므로 조용히 아무 환경으로 떨어지면 엉뚱한 데이터를 건드린다.
 CMD ["node", "hansapp-api/dist/main.js"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# runtime — 도커 안에서 구운 것을 담는다 (production)
+# ─────────────────────────────────────────────────────────────────────────────
+FROM runtime-base AS runtime
+COPY --from=builder /out ./hansapp-api/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# prebuilt — CI 가 도커 밖에서 만든 것을 담는다 (develop)
+#
+# 컨텍스트의 out/<앱>/ 이 `pnpm deploy --prod` 결과와 같은 모양이어야 한다(dist +
+# node_modules 를 가진 자립형 디렉터리). .dockerignore 가 dist·node_modules 를 자르므로
+# 그 아래만 예외로 되돌려 뒀다 — 안 그러면 **빈 디렉터리가 조용히 복사된다.**
+# ─────────────────────────────────────────────────────────────────────────────
+FROM runtime-base AS prebuilt
+COPY out/hansapp-api ./hansapp-api/

@@ -14,24 +14,30 @@ compose·config  main 최신     서버와 이미지 사이의 계약
 나아지는 물건이라 고정할 이유가 없다. 설정이 이미지와 어긋날 위험은 **같은 이미지를
 develop 에 먼저 올려보는 것**으로 막는다.
 
-> 그래서 CI 에서 실행 ref 를 고를 일이 없다. 항상 main 이고, 바꾸는 것은 `image_tag` 뿐이다.
+> 그래서 develop 은 실행 ref 를 고를 일이 없다 — 항상 main 이다. production 만 릴리스
+> 태그를 골라 그 조합 전체를 되짚는다.
 
 ---
 
 ## 전체 흐름
 
-`be` 워크플로 하나가 순서를 갖는다. 평소 푸시는 `verify` 에서 멈추고 나머지는 회색으로 남는다.
+**`be.yml` 은 develop 에 관한 전부다.** production 으로 가는 길이 없다.
 
 ```
-be
-├─ plan            무엇을 할지 정한다
-├─ verify          lint · format · 타입 빌드
-├─ image           #deploy · 수동           → be-image
-└─ deploy          #deploy · 수동           → be-deploy-develop
-                                               ├─ plan     ref → 버전
-                                               ├─ migrate
-                                               └─ deploy
+be                       main 푸시 · PR · 수동
+├─ plan
+├─ verify                lint · format · 타입 빌드
+├─ build (arm64)         **도커 밖에서** install · build · pnpm deploy → 산출물
+├─ image                 산출물을 COPY 만 → :develop · :develop-<sha>
+├─ migrate               #deploy · #be-deploy · 수동
+└─ deploy                       〃
 ```
+
+`build` 와 `image` 는 **푸시마다 돈다.** 나중에 수동으로 배포를 누를 때 올릴 것이 있어야
+하기 때문이다 — 예전에는 `#deploy` 일 때만 구워서, 배포하려고 보면 이미지가 없었다.
+
+배포만 요청해야 나간다. 커밋 메시지에 `#deploy` 나 `#be-deploy` 가 있으면 이어지고,
+없으면 `image` 까지만 하고 멈춘다. 멈춘 뒤에는 이 워크플로를 수동 실행(`stage=deploy`)한다.
 
 **`verify` 는 PR 로 들어온 것을 다시 검사하지 않는다.** PR 에서 이미 돌았고, 그때 본 것이
 "병합했을 때의 상태" 이기 때문이다(GitHub 이 base 와 합쳐 만든 커밋). 병합 커밋(부모가 둘
@@ -39,12 +45,32 @@ be
 
 main 에 **직접 푸시**한 것은 검사한 적이 없으므로 반드시 돈다 — 그쪽이 이 잡의 요점이다.
 
-각 단계는 별도 파일이 갖고 `be.yml` 은 순서만 정한다. GitHub 에는 GitLab 의 `include:`
-처럼 YAML 을 합치는 기능이 없어 조합 수단이 `uses:` 뿐이고, 그래서 파일을 나누는 것이 곧
-실행을 나누는 것이 된다 — 이 파일이 그것들을 한 실행으로 묶는다.
+**연달아 밀어 넣으면 앞의 실행은 취소된다.** 마지막 푸시만 보면 되기 때문이다. 다만 배포까지
+가는 실행은 끊지 않는다 — 중간에 죽으면 서버가 반쯤 갱신된 채로 남는다.
 
-> **진입점은 `be.yml` 하나다.** `be-image.yml` 에 push 트리거를 두면 같은 커밋에 이미지가
-> 두 번 구워진다.
+### 왜 도커 밖에서 빌드하나
+
+develop 은 자주 도는데, 도커 안에서 워크스페이스를 통째로 설치·빌드하면 매번 몇 분이 든다.
+러너에서 한 번 만들고 이미지는 `COPY` 만 하면(`--target prebuilt`) 몇 초로 끝난다.
+
+**arm64 러너에서 만든다.** 배포 서버가 arm64 이고 prisma 쿼리 엔진은 플랫폼별 네이티브
+바이너리라, 빌드 호스트의 아키텍처가 그대로 산출물에 남는다.
+
+한 잡이 세 벌을 만든다. 앱마다 잡을 나누면 제일 비싼 단계인 워크스페이스 install 을
+그만큼 반복하게 된다.
+
+```
+out/hansapp-api    --prod
+out/hansapp-batch  --prod
+out/hansapp-cli    --prod 아님 — prisma(devDependency)가 있어야 마이그레이션이 돈다
+```
+
+> `.dockerignore` 가 `dist`·`node_modules` 를 자르므로 `out/` 만 예외로 되돌려 뒀다.
+> 그게 없으면 `COPY` 가 성공하면서 **빈 디렉터리를 담는다** — 이미지는 만들어지고
+> 컨테이너만 안 뜬다.
+
+production 은 아직 도커 안에서 굽는다(`--target runtime`). 릴리스가 검증한 그 빌드를
+그대로 올려야 하기 때문이다. 옮길 때는 `--target` 만 바꾸면 된다.
 
 ---
 
@@ -115,14 +141,19 @@ git commit -m "fix: 검색 정렬을 고친다 #deploy"
 git push
 ```
 
+`#be-deploy` 도 같다 — 백엔드만 올리고 싶을 때 쓴다.
+
 ```
 be
 ├─ verify   ✅
+├─ build    ✅
 ├─ image    ✅
-└─ deploy   ✅  (migrate → deploy)
+├─ migrate  ✅
+└─ deploy   ✅
 ```
 
-`#deploy` 가 없으면 `verify` 만 초록이고 나머지는 회색으로 남는다.
+마커가 없으면 `image` 까지 초록이고 `migrate`·`deploy` 만 회색으로 남는다.
+**이미지는 이미 만들어져 있으므로** 나중에 수동 실행으로 그것을 올리면 된다.
 
 **opt-out 이 아니라 opt-in 이다.** develop 은 같이 쓰는 서버라, 협업하려고 아직 완성되지
 않은 코드를 main 에 먼저 합치는 일이 있다. 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다.
@@ -132,24 +163,27 @@ be
 ### 수동
 
 ```
-Actions → be - deploy - develop → Run workflow
-  Use workflow from:  main                     ← 최신 develop 이미지 (평소)
-                      staging                   ← 릴리스 후보를 미리 확인
-                      release-backend/v0.7.2    ← 특정 버전
+Actions → be → Run workflow
+  Use workflow from:  main
+  stage:              deploy      ← 굽고 올린다 (image = 굽기만)
 ```
 
-**환경을 고르는 자리가 없다.** 진입점이 환경별로 갈려 있어, 잘못 골라 운영이 나가는 실수가
-성립하지 않는다 — 주의로 막을 수 있는 종류가 아니라 설계로 막았다.
+**환경을 고르는 자리가 없다.** `be` 에는 production 으로 가는 길이 아예 없어서, 잘못 골라
+운영이 나가는 실수가 성립하지 않는다 — 주의로 막을 수 있는 종류가 아니라 설계로 막았다.
 
-**무엇을 배포할지는 ref 가 정한다.** 브랜치면 `develop`(그 환경의 움직이는 최신), 릴리스
-태그면 그 커밋의 manifest 가 가진 버전이다. production 과 다른 점은 **브랜치를 허용한다**는
-것뿐이다 — develop 은 main 최신을 굴리는 것이 주 용도다.
+**고른 ref 를 그 자리에서 빌드한다.** production 처럼 미리 구운 이미지를 당기는 것이
+아니라 커밋에서 바로 만들기 때문에, ref 가 곧 배포 대상이다.
+
+개발 서버는 항상 `:develop` 만 바라본다. 그 태그가 계속 움직이므로 배포는 반드시 `pull`
+부터 한다 — 안 그러면 서버에 캐시된 옛 이미지가 그대로 다시 뜬다.
+
+> **그럼 지금 뭐가 떠 있나.** 태그로는 알 수 없고 앱이 답한다 —
+> 산출물에 `dist/build-info.json` 이 들어 있어 sha·branch 를 갖고 있다.
 
 로컬도 같다.
 
 ```bash
-scripts/deploy/deploy.sh develop            # 태그 생략 = develop
-scripts/deploy/deploy.sh develop v0.5.0     # 릴리스 후보를 먼저 검증할 때
+scripts/deploy/deploy.sh develop
 ```
 
 ---
@@ -173,16 +207,20 @@ scripts/deploy/deploy.sh develop v0.5.0     # 릴리스 후보를 먼저 검증�
 
 ```
 Actions → be - deploy - PRODUCTION → Run workflow
-  image_tag    staging                  ← 그대로 두면 최신 릴리스
-               release-backend/v0.6.4    ← 롤백
+  Use workflow from:  staging                   ← 최신 릴리스
+                      release-backend/v0.6.4     ← 롤백
 ```
 
-**ref 로 고르지 않는다.** "Use workflow from" 에서 태그를 고르면 GitHub 이 **그 시점의
-워크플로 파일**로 실행한다 — 나중에 넣은 검사와 단계가 옛 태그에는 없어 전부 무용지물이
-된다. 그래서 워크플로는 main 에서 돌리고 무엇을 배포할지는 입력으로 받는다.
+**입력칸이 없다. ref 가 곧 대상이다.** 고른 태그의 커밋에서 manifest 를 읽어 버전을
+확정하고, 그 이미지를 당긴다. 태그가 아니면 첫 잡에서 거부한다 — 브랜치로 배포하면
+무엇을 배포했는지 남지 않기 때문이다(main 은 계속 움직인다).
 
-기본값이 채워져 있어 평소에는 아무것도 적지 않는다. `plan` 이 `staging` 을 실제 버전으로
-바꾸고 그 릴리스 태그를 체크아웃해 설정을 가져온다.
+`plan` 이 고른 버전과 최신 릴리스를 나란히 찍는다. 막지는 않는다 — 옛 버전 배포는
+롤백이라 정당하다.
+
+> **대가가 있다.** 옛 태그를 고르면 GitHub 이 그 시점의 워크플로 파일로 실행한다. 나중에
+> 넣은 검사와 단계가 거기엔 없다. 롤백은 원래 "그때 그 조합" 을 되돌리는 일이라 그게
+> 맞는 동작이지만, 배포 절차를 고쳤다면 새 릴리스를 내는 편이 낫다.
 
 ```
 워크플로 · 배포 스크립트   main       도구는 계속 나아지는 물건이다
@@ -247,9 +285,8 @@ promote   latest 태그를 이 커밋으로 옮긴다
 scripts/deploy/deploy.sh production v0.5.0
 ```
 
-**`image_tag` 생략을 막아 두었다.** 기본값으로 올라가면 서버에 무엇이 떠 있는지 아무도
-답할 수 없게 되고, 되돌릴 이전 태그도 남지 않는다. 손이 한 번 더 가는 대신 무엇을
-올리는지가 화면에도 서버 `.env` 에도 남는다.
+로컬에서는 태그를 인자로 받는다. **생략을 막아 두었다** — 기본값으로 올라가면 서버에
+무엇이 떠 있는지 아무도 답할 수 없게 되고, 되돌릴 이전 태그도 남지 않는다.
 
 ### 롤백
 

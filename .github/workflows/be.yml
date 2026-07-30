@@ -1,20 +1,26 @@
-# backend 의 진입점. **전체 흐름이 여기 있다.**
+# backend 의 진입점. **develop 에 관한 전부가 여기 있다.**
 #
-#   verify → image → deploy
+#   verify → build(arm64) → image → migrate → deploy
 #
-# 평소 푸시는 verify 에서 멈추고 나머지는 회색(skipped)으로 남는다. 커밋 메시지에
-# #deploy 를 달거나 수동 실행하면 끝까지 간다. GitLab 의 파이프라인 화면과 같은 그림이다.
+# production 은 이 파일과 아무 관계가 없다. 릴리스가 이미지를 굽고
+# be-deploy-production.yml 이 그것을 당긴다 — 여기서 production 으로 가는 길은 없다.
 #
-# **각 단계는 별도 파일이 갖고 있고 여기서는 순서만 정한다.** GitHub 에는 GitLab 의
-# `include:` 처럼 YAML 을 합치는 기능이 없어서, 조합 수단이 `uses:`(reusable workflow)
-# 뿐이다. 그래서 파일을 나누는 것이 곧 실행을 나누는 것이 되는데, 이 파일이 그것들을
-# 한 실행으로 묶어 준다 — Actions 그래프에 `image / build` 처럼 중첩되어 보인다.
+# [빌드를 도커 밖에서 한다]
+# 러너에서 pnpm install·build 를 끝내고, 이미지는 그 결과를 COPY 만 한다
+# (Dockerfile 의 --target prebuilt). develop 은 자주 도는데 도커 안에서 워크스페이스를
+# 통째로 설치·빌드하면 매번 몇 분이 든다.
 #
-# **진입점을 하나로 모은다.** be-image.yml 에는 push 트리거가 없다. 있으면 같은 커밋에
-# 이미지가 두 번 구워진다(여기서 한 번, 자기 트리거로 한 번).
+# **arm64 러너에서 굽는다.** 배포 서버가 arm64 이고, prisma 쿼리 엔진은 플랫폼별
+# 네이티브 바이너리라 빌드 호스트가 그대로 산출물에 남는다.
 #
-# 배포는 develop 까지만 자동이다. production 은 언제 무엇을 올릴지가 사람의 판단이라
-# be-deploy-production.yml 을 직접 돌린다 — 절차는 docs/deploy.md 에 있다.
+# [배포는 요청해야 나간다]
+# 커밋 메시지에 #deploy 또는 #be-deploy 가 있으면 이어서 배포하고, 없으면 이미지까지만
+# 만들고 멈춘다. 멈춘 뒤에는 이 워크플로를 수동 실행(stage=deploy)해서 올린다.
+#
+# **develop 은 같이 쓰는 서버다.** 협업하려고 아직 완성되지 않은 코드를 main 에 먼저
+# 합치는 일이 있으므로, 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다. opt-out 이 아니라
+# opt-in 인 이유는 빠뜨렸을 때의 대가가 다르기 때문이다 — opt-in 을 잊으면 배포가 안 될
+# 뿐이지만, opt-out 을 잊으면 남들이 쓰는 서버가 깨진다.
 name: be
 
 on:
@@ -22,12 +28,14 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
+      - 'scripts/deploy/**'
       - '.github/workflows/be*.yml'
   # PR 에서도 verify 를 돌린다. 합치기 전에 깨진 것을 보는 게 요점이다.
-  # image·deploy 는 plan 이 push 가 아니면 false 로 두므로 PR 에서 배포가 나갈 일은 없다.
+  # 아래 단계들은 plan 이 push 가 아니면 false 로 두므로 PR 에서 배포가 나갈 일은 없다.
   pull_request:
     paths:
       - 'backend/**'
+      - 'scripts/deploy/**'
       - '.github/workflows/be*.yml'
   workflow_dispatch:
     inputs:
@@ -37,15 +45,25 @@ on:
         options: [verify, image, deploy]
         default: verify
 
+# **마지막 푸시만 살린다.** 연달아 밀어 넣으면 앞의 것은 어차피 볼 필요가 없다.
+#
+# 다만 **배포까지 가는 실행은 끊지 않는다.** 중간에 죽으면 서버가 반쯤 갱신된 채로 남는다 —
+# compose 는 바뀌었는데 up 은 안 된 상태 같은 것. 그래서 #deploy 커밋과 수동 실행은
+# 취소 대상에서 뺀다.
+concurrency:
+  group: be-${{ github.ref }}
+  cancel-in-progress: >-
+    ${{ github.event_name == 'pull_request'
+        || (github.event_name == 'push'
+            && !contains(github.event.head_commit.message, '#deploy')
+            && !contains(github.event.head_commit.message, '#be-deploy')) }}
+
 permissions:
   contents: read
 
 jobs:
   # ───────────────────────────────────────────────────────────────────────────
-  # 어디까지 갈지 한 곳에서 정한다.
-  #
-  # 예전에는 be-image.yml 이 스스로 #deploy 를 판단했는데, 이제 진입점이 여기라
-  # 판단도 여기서 한다. 두 군데서 같은 것을 보면 언젠가 어긋난다.
+  # 어디까지 갈지 한 곳에서 정한다. 두 군데서 같은 것을 보면 언젠가 어긋난다.
   # ───────────────────────────────────────────────────────────────────────────
   plan:
     runs-on: ubuntu-latest
@@ -65,9 +83,9 @@ jobs:
           HEAD_MSG: ${{ github.event.head_commit.message }}
           EVENT: ${{ github.event_name }}
         run: |
+          verify=true
           image=false
           deploy=false
-          verify=true
 
           # 병합 커밋(부모가 둘 이상)은 PR 을 거쳐 온 것이다. 그때 이미 검사했다.
           if [ "$EVENT" = 'push' ] && [ "$(git rev-list --parents -n1 HEAD | wc -w)" -gt 2 ]; then
@@ -82,17 +100,13 @@ jobs:
               deploy) image=true; deploy=true ;;
             esac
           elif [ "$EVENT" = 'push' ]; then
-            # **develop 은 같이 쓰는 서버다.** 협업하려고 아직 완성되지 않은 코드를 main 에
-            # 먼저 합치는 일이 있으므로, 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다.
-            #
-            # opt-out(예: [skip deploy])이 아니라 opt-in 인 이유는 빠뜨렸을 때의 대가가
-            # 다르기 때문이다. opt-in 을 잊으면 배포가 안 될 뿐이지만, opt-out 을 잊으면
-            # 남들이 쓰는 서버가 깨진다.
-            if printf '%s' "$HEAD_MSG" | grep -q '#deploy'; then
-              image=true
+            # **이미지는 항상 굽는다.** 그래야 나중에 수동으로 배포를 누를 때 올릴 것이 있다.
+            # 예전에는 #deploy 일 때만 구워서, 배포하려고 보면 이미지가 없는 일이 있었다.
+            image=true
+            if printf '%s' "$HEAD_MSG" | grep -qE '#(be-)?deploy'; then
               deploy=true
             else
-              echo "커밋 메시지에 #deploy 가 없다 → verify 까지만 한다."
+              echo "커밋 메시지에 #deploy·#be-deploy 가 없다 → 이미지까지만 만들고 멈춘다."
             fi
           fi
 
@@ -103,17 +117,8 @@ jobs:
 
   # ───────────────────────────────────────────────────────────────────────────
   # 항상 돈다. **여기가 없으면 main 이 조용히 깨진다.**
-  #
-  # 예전에는 #deploy 없는 푸시에서 아무것도 돌지 않아, 타입 에러가 있어도 초록불이었다.
-  # 도커 빌드가 어차피 컴파일하지만 그건 #deploy 때만 돌아서 평소 푸시가 무방비였다.
   # ───────────────────────────────────────────────────────────────────────────
   verify:
-    # **PR 로 들어온 것은 다시 검사하지 않는다.**
-    #
-    # PR 에서 이미 돌았고, 그때 검사한 것은 "병합했을 때의 상태" 다(GitHub 이 base 와
-    # 합쳐 만든 커밋). 병합 커밋에서 또 돌리면 같은 것을 두 번 보는 셈이다.
-    #
-    # main 에 직접 푸시한 것은 검사한 적이 없으므로 반드시 돈다 — 그쪽이 이 잡의 요점이다.
     needs: plan
     if: needs.plan.outputs.verify == 'true'
     runs-on: ubuntu-latest
@@ -143,29 +148,233 @@ jobs:
       - name: lint · format
         run: pnpm check
 
-  image:
+  # ───────────────────────────────────────────────────────────────────────────
+  # **도커 밖에서 굽는다.** 산출물만 다음 잡으로 넘긴다.
+  #
+  # 한 잡에서 세 벌을 만든다. 앱마다 잡을 나누면 워크스페이스 install 을 그만큼 반복하는데,
+  # 그게 이 빌드에서 제일 비싼 단계다.
+  #
+  #   out/hansapp-api    --prod
+  #   out/hansapp-batch  --prod
+  #   out/hansapp-cli    --prod 아님 — prisma(devDependency)가 있어야 마이그레이션이 돈다
+  # ───────────────────────────────────────────────────────────────────────────
+  build:
     needs: [plan, verify]
-    # verify 를 건너뛰면 skipped 라 기본 조건으로는 여기도 안 돈다. always() 로 끊되
-    # 실패했을 때만 멈춘다.
     if: >-
       ${{ always()
           && needs.plan.outputs.image == 'true'
           && needs.verify.result != 'failure'
           && needs.verify.result != 'cancelled' }}
-    uses: ./.github/workflows/be-image.yml
+    # **arm64 네이티브.** 배포 서버가 arm64 이고 prisma 엔진은 플랫폼별 바이너리라,
+    # 여기서 만든 것이 그대로 이미지에 들어간다. 러너를 못 쓰는 상황이면 저장소 Variable 로
+    # 덮되 그때는 산출물이 amd64 가 되어 서버에서 뜨지 않는다는 것을 알고 바꿔야 한다.
+    name: build (arm64)
+    runs-on: ${{ vars.BE_BUILD_RUNNER || 'ubuntu-24.04-arm' }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 아키텍처 확인
+        run: |
+          echo "  러너   $(uname -m)"
+          # arm64 가 아니면 서버에서 뜨지 않는 이미지가 만들어진다. 조용히 지나가면
+          # 배포하고 나서야 드러나므로 여기서 알린다.
+          [ "$(uname -m)" = 'aarch64' ] || echo "  ⚠ arm64 가 아니다 — prisma 엔진이 서버와 어긋난다" >&2
+
+      # **pnpm 이 먼저다.** setup-node 의 cache: pnpm 은 스토어 경로를 알아내려고
+      # pnpm 을 실행하므로, 그 전에 깔려 있어야 한다. 버전은 package.json 의
+      # packageManager 를 읽는다 — node-builder 이미지와 같은 출처다.
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: backend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          # 워크스페이스 lockfile 을 키로 pnpm 스토어를 캐시한다.
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      # 산출물의 신원(dist/build-info.json)은 각 앱의 build 스크립트가 만든다.
+      # 안 주면 dev 로 채워져 **빌드된 산출물이 아니라는 사실이 드러난다.**
+      - name: 빌드
+        env:
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+        run: pnpm --filter "hansapp-api..." --filter "hansapp-batch..." --filter "hansapp-cli..." build
+
+      # pnpm deploy: 그 앱과 의존성만 추려 자립형 디렉터리(node_modules 포함)를 만든다.
+      # --legacy 는 inject-workspace-packages 를 켜지 않은 워크스페이스에서 필요하다.
+      - name: 산출물 추리기
+        run: |
+          rm -rf out
+          pnpm deploy --filter hansapp-api   --prod --legacy out/hansapp-api
+          pnpm deploy --filter hansapp-batch --prod --legacy out/hansapp-batch
+          # cli 만 --prod 를 쓰지 않는다. prisma 가 devDependency 인데 그것으로 돌린다.
+          pnpm deploy --filter hansapp-cli          --legacy out/hansapp-cli
+          du -sh out/* | sed 's/^/  /'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-out-${{ github.sha }}
+          path: backend/out
+          retention-days: 1
+          # node_modules 가 많은 작은 파일이라 압축이 오래 걸린다. 같은 실행 안에서만
+          # 쓰고 버리므로 크기를 줄일 이유가 없다.
+          compression-level: 0
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 산출물을 이미지로 담는다. **여기서는 컴파일하지 않는다** — COPY 만 한다.
+  #
+  #   :develop         움직이는 태그. 개발 서버가 이것만 바라본다
+  #   :develop-<sha>   안 움직인다. 어떤 커밋의 것인지 되짚는 용
+  # ───────────────────────────────────────────────────────────────────────────
+  image:
+    needs: [plan, build]
+    if: needs.plan.outputs.image == 'true'
+    runs-on: ${{ vars.BE_BUILD_RUNNER || 'ubuntu-24.04-arm' }}
     permissions:
       contents: read
       packages: write
-    secrets: inherit
-    with:
-      environment: develop
-      target: all
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [hansapp-api, hansapp-batch, hansapp-cli]
+    steps:
+      - uses: actions/checkout@v4
 
-  deploy:
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-out-${{ github.sha }}
+          path: backend/out
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # **.nvmrc 가 단일 출처다.** 산출물을 만든 node 와 그것을 실행할 node 가 같아야 한다.
+      # Dockerfile 기본값도 같은 값이지만, 어긋나도 조용히 지나가지 않게 여기서 덮어쓰고
+      # 다르면 멈춘다.
+      - name: node 버전 확정
+        id: node
+        run: |
+          nvmrc="$(tr -d 'v \t\r\n' < .nvmrc)"
+          arg="$(grep -m1 '^ARG NODE_VERSION=' "backend/docker/${{ matrix.app }}.Dockerfile" | cut -d= -f2)"
+          if [ "$nvmrc" != "$arg" ]; then
+            echo "::error file=.nvmrc::.nvmrc($nvmrc) 와 Dockerfile 기본값($arg)이 다르다. 둘을 맞출 것."
+            exit 1
+          fi
+          echo "version=$nvmrc" >> "$GITHUB_OUTPUT"
+          echo "  node $nvmrc"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/docker/${{ matrix.app }}.Dockerfile
+          # **빌드는 이미 끝났다.** builder 스테이지를 타지 않는 최종 스테이지를 고른다.
+          target: prebuilt
+          push: true
+          platforms: linux/arm64
+          build-args: |
+            NODE_VERSION=${{ steps.node.outputs.version }}
+            APP_UID=${{ vars.APP_UID || '1001' }}
+            APP_GID=${{ vars.APP_GID || '1001' }}
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.app }}:develop
+            ghcr.io/${{ github.repository }}/${{ matrix.app }}:develop-${{ github.sha }}
+          # source 라벨이 있어야 GHCR 패키지가 이 레포에 연결된다.
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=${{ matrix.app }} (develop)
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 스키마를 먼저 반영한다. **실패하면 배포하지 않는다.**
+  #
+  # 옛 스키마 위에 새 코드를 올리면 서버가 뜨지도 못한다. migrate deploy 는 적용할 게
+  # 없으면 그냥 지나가므로(멱등) 스키마 변경이 없는 배포에서도 무해하다.
+  # ───────────────────────────────────────────────────────────────────────────
+  migrate:
     needs: [plan, image]
     if: needs.plan.outputs.deploy == 'true'
-    uses: ./.github/workflows/be-deploy-develop.yml
+    runs-on: ubuntu-latest
+    environment: develop
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      # wg-quick 은 커널 모듈이 있든(NET_ADMIN) 없든(TUN) 둘 다 필요하다.
+      options: --cap-add NET_ADMIN --device /dev/net/tun
     permissions:
       contents: read
       packages: read
-    secrets: inherit
+    steps:
+      - uses: actions/checkout@v4
+      - name: 마이그레이션
+        run: ./scripts/deploy/ci-migrate.sh
+        env:
+          APP_ENV: develop
+          # 개발 서버는 움직이는 태그만 본다. 방금 이 실행이 그 태그를 옮겼다.
+          IMAGE_TAG: develop
+          BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
+          BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
+          BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
+          BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE: ${{ vars.BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE }}
+          BE_WIREGUARD_PEER_CONF_FILE: ${{ secrets.BE_WIREGUARD_PEER_CONF_FILE }}
+          AGE_SECRET_KEY_FILE: ${{ secrets.AGE_SECRET_KEY_FILE }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 설정을 복호화해 서버로 나르고, compose 를 얹고, 이미지를 당겨 띄운다.
+  #
+  # **개발 서버는 :develop 만 바라본다.** 그 태그가 계속 움직이므로 배포는 반드시 pull
+  # 부터 한다 — 안 그러면 서버에 캐시된 옛 이미지가 그대로 다시 뜬다.
+  # 무엇이 떠 있는지는 태그가 아니라 앱이 답한다(dist/build-info.json 의 sha).
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy:
+    needs: [plan, migrate]
+    # migrate 를 건너뛰었으면 needs 가 skipped 라 기본 조건으로는 여기도 안 돈다.
+    if: >-
+      ${{ always()
+          && needs.plan.outputs.deploy == 'true'
+          && needs.migrate.result != 'failure'
+          && needs.migrate.result != 'cancelled' }}
+    runs-on: ubuntu-latest
+    environment: develop
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      options: --cap-add NET_ADMIN --device /dev/net/tun
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: 배포
+        run: ./scripts/deploy/ci-deploy.sh
+        env:
+          APP_ENV: develop
+          IMAGE_TAG: develop
+          BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
+          BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
+          BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
+          BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE: ${{ vars.BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE }}
+          BE_WIREGUARD_PEER_CONF_FILE: ${{ secrets.BE_WIREGUARD_PEER_CONF_FILE }}
+          AGE_SECRET_KEY_FILE: ${{ secrets.AGE_SECRET_KEY_FILE }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
