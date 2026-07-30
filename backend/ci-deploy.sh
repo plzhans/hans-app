@@ -195,6 +195,29 @@ group '설정 · 시크릿 전송'
 if [ -n "${AGE_SECRET_KEY_FILE:-}" ]; then
   materialize "$AGE_SECRET_KEY_FILE" "$work/age.key"
   export SOPS_AGE_KEY_FILE="$work/age.key"
+
+  # **키 파일의 모양을 먼저 본다.** 값을 볼 수 없는 곳(GitHub Secrets)에서 온 것이라,
+  # 잘못 들어가 있어도 sops 는 "복호화 실패" 라고만 말한다. 그 메시지로는 키가 틀린
+  # 것인지 파일이 깨진 것인지 구분되지 않아, 한참을 엉뚱한 데서 찾게 된다.
+  #
+  # 값 자체는 절대 찍지 않는다 — 형태만 센다.
+  if ! grep -qE '^AGE-SECRET-KEY-1[A-Z0-9]+$' "$work/age.key"; then
+    echo "❌ age 키 파일에 개인키 줄이 없다." >&2
+    echo "   AGE_SECRET_KEY_FILE 에 **키 파일 내용 전체**가 들어가야 한다." >&2
+    echo >&2
+    echo "   받은 것의 모양:" >&2
+    awk '{
+      if ($0 ~ /^#/)                     printf "     %d: 주석\n", NR;
+      else if ($0 ~ /^AGE-SECRET-KEY-1/) printf "     %d: 개인키(형식 어긋남, %d자)\n", NR, length($0);
+      else if ($0 ~ /^age1/)             printf "     %d: **공개키** — 개인키가 아니다\n", NR;
+      else if ($0 == "")                 printf "     %d: 빈 줄\n", NR;
+      else                               printf "     %d: 알 수 없음 (%d자, 앞 4자 \"%s\")\n", NR, length($0), substr($0,1,4);
+    }' "$work/age.key" >&2
+    echo >&2
+    echo "   고치는 법:" >&2
+    echo "     gh secret set AGE_SECRET_KEY_FILE --env $APP_ENV < ~/.config/sops/age/<키파일>.txt" >&2
+    exit 1
+  fi
 fi
 
 command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 쪽에서 한다."
