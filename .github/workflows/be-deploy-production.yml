@@ -117,32 +117,51 @@ jobs:
           echo "version=v$semver" >> "$GITHUB_OUTPUT"
           echo "  $GITHUB_REF_NAME → v$semver ($(git rev-parse --short HEAD))"
 
+      # **이미지가 올라올 때까지 기다린다.**
+      #
+      # 릴리스를 병합하고 바로 배포를 누르는 것이 자연스러운 흐름인데, 그때 이미지 빌드가
+      # 아직 돌고 있다. 없다고 바로 실패시키면 사람이 빌드 끝나는 시점을 재고 있어야 한다 —
+      # 그건 기계가 할 일이다.
+      #
+      # 세 개가 순서대로 끝나므로 마지막 하나가 늦다. 10분이면 충분하고, 그보다 오래
+      # 걸리면 빌드가 실패한 것이라 기다릴 이유가 없다.
       - name: 이미지 확인
         env:
           TAG: ${{ steps.resolve.outputs.version }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-          missing=''
-          for app in hansapp-api hansapp-batch hansapp-migrate; do
-            img="ghcr.io/${{ github.repository }}/$app:$TAG"
-            if docker manifest inspect "$img" >/dev/null 2>&1; then
-              echo "  ✅ $img"
-            else
-              echo "  ❌ $img"
-              missing=1
+
+          apps='hansapp-api hansapp-batch hansapp-migrate'
+          deadline=$(( $(date +%s) + 600 ))   # 10분
+
+          while :; do
+            missing=''
+            for app in $apps; do
+              img="ghcr.io/${{ github.repository }}/$app:$TAG"
+              docker manifest inspect "$img" >/dev/null 2>&1 || missing="$missing $app"
+            done
+
+            [ -z "$missing" ] && break
+
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo
+              echo "❌ 10분을 기다렸는데 아직 없다:$missing  ($TAG)"
+              echo "   릴리스의 이미지 빌드가 실패했을 수 있다 — release 실행을 확인할 것."
+              echo "   수동으로 구우려면 be - docker image:"
+              echo "     environment: production · version: ${TAG#v}"
+              docker logout ghcr.io >/dev/null 2>&1 || true
+              exit 1
             fi
+
+            echo "  기다리는 중:$missing"
+            sleep 20
+          done
+
+          for app in $apps; do
+            echo "  ✅ ghcr.io/${{ github.repository }}/$app:$TAG"
           done
           docker logout ghcr.io >/dev/null 2>&1 || true
-
-          if [ -n "$missing" ]; then
-            echo
-            echo "❌ 올릴 이미지가 없다: $TAG"
-            echo "   릴리스가 만든 태그인지 확인할 것 (git tag | grep release-backend)."
-            echo "   릴리스 실행이 실패했다면 be - docker image 를 수동으로 돌린다:"
-            echo "     environment: production · version: ${TAG#v}"
-            exit 1
-          fi
 
   # ───────────────────────────────────────────────────────────────────────────
   # 스키마를 먼저 반영한다. **실패하면 배포하지 않는다.**
