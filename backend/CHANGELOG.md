@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.3...release-backend/v0.7.4) (2026-07-30)
+
+
+### 버그 수정
+
+* 마이그레이션 스키마를 디렉터리로 넘긴다 ([e43c901](https://github.com/plzhans/hans-app/commit/e43c901281c10d9c8e8d810791503783e7a35e6b))
+
 ## [0.7.3](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.2...release-backend/v0.7.3) (2026-07-30)
 
 
