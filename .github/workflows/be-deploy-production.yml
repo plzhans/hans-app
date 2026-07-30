@@ -1,0 +1,38 @@
+# 운영 서버에 배포한다. **환경이 고정이라 고를 수 없다.**
+#
+# develop 과 진입점을 나눈 이유는 실수를 설계로 막기 위해서다. 하나의 폼에서 드롭다운으로
+# 갈리면 잘못 고른 순간 운영이 나가는데, 그것을 주의로 막을 수는 없다.
+#
+# 로직은 be-deploy.yml 이 갖는다. 여기는 "production 이다" 와 그에 붙는 안전장치만 말한다.
+name: be · deploy → PRODUCTION
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        # **기본값을 두지 않는다.** 무엇을 올리는지 매번 적게 한다.
+        #
+        # 기본값으로 올라가면 서버에 무엇이 떠 있는지 아무도 답할 수 없게 되고, 되돌릴
+        # 이전 태그도 남지 않는다. 손이 한 번 더 가는 대신 무엇을 올렸는지가 실행 기록에
+        # 남는다. 롤백도 이 자리에서 이전 버전을 적는 것으로 끝난다.
+        description: '릴리스 버전 (예: v0.6.2). 롤백도 여기에 이전 버전을 적는다'
+        type: string
+        required: true
+      skip_migrate:
+        # 운영 스키마는 되돌리기가 어렵다(`migrate deploy` 에 down 이 없다). 그래서
+        # 마이그레이션을 거르는 것은 "이미 돌렸다" 를 아는 사람만 하는 선택이어야 한다.
+        description: '마이그레이션 건너뛰기 (이미 돌렸을 때만)'
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/be-deploy.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      environment: production
+      image_tag: ${{ inputs.image_tag }}
+      skip_migrate: ${{ inputs.skip_migrate }}

@@ -124,12 +124,12 @@ be
 ### 수동
 
 ```
-Actions → be · deploy → Run workflow
-  environment  develop     (기본값)
+Actions → be · deploy → develop → Run workflow
   image_tag    develop     (기본값)
 ```
 
-폼에 이미 채워져 있어 Run 만 누르면 된다. 로컬도 같다.
+**환경을 고르는 자리가 없다.** 진입점이 환경별로 갈려 있어, 잘못 골라 운영이 나가는 실수가
+성립하지 않는다 — 주의로 막을 수 있는 종류가 아니라 설계로 막았다. 로컬도 같다.
 
 ```bash
 backend/deploy.sh develop            # 태그 생략 = develop
@@ -156,8 +156,7 @@ backend/deploy.sh develop v0.5.0     # 릴리스 후보를 먼저 검증할 때
 ### ② 배포는 배포일에 사람이 누른다
 
 ```
-Actions → be · deploy → Run workflow
-  environment  production
+Actions → be · deploy → PRODUCTION → Run workflow
   image_tag    v0.5.0        ← 반드시 적는다
 ```
 

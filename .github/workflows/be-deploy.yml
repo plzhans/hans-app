@@ -1,34 +1,21 @@
 # backend 를 서버에 반영한다. **이미지를 굽지 않는다.**
 #
+# **직접 실행하지 않는다.** 이 파일은 로직만 갖고, 환경은 부르는 쪽이 정한다.
+#   be-deploy-develop.yml     develop 고정
+#   be-deploy-production.yml  production 고정
+#   be.yml                    #deploy 커밋일 때 develop
+#
+# 환경을 드롭다운으로 고르게 두면 잘못 골랐을 때 운영이 나간다. 고를 수 없게 만드는 편이
+# 주의를 요구하는 것보다 낫다 — 그래서 진입점을 환경별로 갈랐다.
+#
 # 굽는 것은 be-image.yml 이다. 여기는 이미 레지스트리에 있는 태그를 서버가 당기게 할 뿐이라,
 # 롤백이 재빌드 없이 태그 지정만으로 끝난다.
 #
 # **이 파일에는 배포 로직이 없다.** 환경변수를 선언하고 backend/ci-deploy.sh 를 부르는 게
 # 전부다. 로컬에서 같은 배포를 돌리려면 backend/deploy.sh 를 쓴다 — 같은 스크립트를 지나간다.
-name: be · deploy
+name: be · deploy (core)
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: '배포 환경'
-        type: choice
-        options: [develop, production]
-        default: develop
-      skip_migrate:
-        description: '마이그레이션 건너뛰기 (이미 돌렸거나 스키마 변경이 없을 때)'
-        type: boolean
-        default: false
-      image_tag:
-        # **기본값을 채워 둔다.** 폼을 열면 'develop' 이 이미 들어가 있어 그냥 Run 만
-        # 누르면 develop 최신이 나간다. 오랜만에 와서 "뭘 적어야 하지" 로 막히지 않게.
-        #
-        # production 은 이 값을 지우고 버전을 적는다. 그쪽은 무엇을 올리는지 명시하는 편이
-        # 맞다 — 기본값으로 올라가면 무엇이 떠 있는지 아무도 답할 수 없게 된다.
-        description: '띄울 이미지 태그 — develop | v0.5.0 | develop-<sha>'
-        type: string
-        default: develop
-        required: true
   workflow_call:
     inputs:
       environment:
