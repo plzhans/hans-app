@@ -129,3 +129,26 @@ jobs:
       target: all
       version: ${{ needs.release.outputs.backend_version }}
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # staging 태그를 이 릴리스로 옮긴다.
+  #
+  # **배포할 때 고르는 이름이다.** Actions 의 "Use workflow from" 드롭다운에 태그가 뜨므로,
+  # staging 을 고르면 최신 릴리스가 나간다 — 버전을 외우거나 적을 일이 없다.
+  #
+  # 움직이는 태그지만 배포 기록에는 남지 않는다. 배포가 그 시점의 manifest 에서 실제
+  # 버전(v0.6.5)을 읽어 서버에 적기 때문이다 — .env 에 staging 이 남으면 무엇이 떠 있는지
+  # 답할 수 없다.
+  # ───────────────────────────────────────────────────────────────────────────
+  staging:
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 태그를 옮긴다
+    steps:
+      - uses: actions/checkout@v4
+      - name: staging 태그 이동
+        run: |
+          git tag -f staging
+          git push -f origin staging
+          echo "  staging → $(git rev-parse --short HEAD)"

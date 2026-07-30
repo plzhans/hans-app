@@ -3,22 +3,32 @@
 # **환경이 파일에 박혀 있다.** 드롭다운으로 고르게 두면 잘못 고른 순간 운영이 나간다.
 # 그건 주의로 막을 수 있는 종류가 아니라 설계로 막는다 — 진입점을 환경별로 갈랐다.
 #
+# [무엇을 배포할지는 ref 가 정한다]
+#
+#   Use workflow from:  staging                   ← 최신 릴리스
+#                       release-backend/v0.6.4     ← 특정 버전(롤백)
+#
+# **입력칸이 없다.** 어차피 ref 를 고르는데 버전을 또 적게 하면 두 곳이 어긋날 수 있고
+# 오타도 난다. 고른 ref 의 .release-please-manifest.json 에서 읽는다 — 그 커밋이 무슨
+# 버전인지는 그 파일이 이미 알고 있다.
+#
 # [단계]
-#   image     버전 확정(staging → v0.6.2) · 이미지 존재 확인. 굽지 않는다
+#   plan      ref 에서 버전을 읽고 이미지가 있는지 확인. 굽지 않는다
 #   migrate   스키마 반영. 실패하면 배포하지 않는다
 #   deploy    서버에 올린다
 #   promote   성공한 버전에 latest 를 붙인다
 #
 # [태그의 뜻]
-#   staging   가장 최근에 릴리스로 구운 것    — 배포 후보
-#   v0.6.2    그 릴리스의 고정된 이름          — 서버에 기록되는 값
-#   latest    지금 운영에 떠 있는 것           — 배포가 성공해야 움직인다
+#   staging   최신 릴리스            — 배포 후보. 릴리스가 옮긴다
+#   latest    지금 운영에 떠 있는 것  — 배포가 성공해야 옮겨진다
+#
+# staging 과 latest 를 비교하면 **만들어 뒀지만 아직 안 올린 것**이 있는지 바로 보인다.
 #
 # **릴리스와 배포는 다른 실행이다.** 릴리스는 후보를 만들어 두고, 배포일에 이 워크플로를
 # 돌린다. 그 사이가 며칠 벌어지는 것이 정상이고, 그동안 main 에는 커밋이 계속 쌓인다.
 # 릴리스 실행에 배포를 매달아 두면 그 실행을 며칠씩 대기 상태로 붙잡게 된다.
 #
-# 롤백도 이 자리다 — image_tag 에 이전 버전을 적으면 된다. 재빌드가 없다.
+# 롤백도 이 자리다 — ref 에 이전 릴리스 태그를 고르면 된다. 재빌드가 없다.
 #
 # **이 파일에는 배포 로직이 없다.** 환경변수를 선언하고 backend/ci-*.sh 를 부르는 게
 # 전부다. develop 파일과 겹치는 부분이 있지만 그건 껍데기고, 실제 절차는 스크립트 한 벌이
@@ -30,17 +40,6 @@ name: be - deploy - PRODUCTION
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        # 기본값을 staging 으로 둔다 — 평소 배포는 "가장 최근 릴리스" 이므로 그냥 Run 만
-        # 누르면 된다. 매번 버전을 적게 하면 그것대로 오타와 귀찮음이 생긴다.
-        #
-        # **그래도 서버에는 staging 이 남지 않는다.** image 잡이 실제 버전으로 바꿔 넣는다.
-        # 움직이는 이름이 기록되면 무엇이 떠 있는지 답할 수 없고 되돌릴 대상도 사라진다.
-        # 롤백은 이 자리에 이전 버전(v0.6.2)을 적는 것으로 끝난다.
-        description: '그대로 두면 가장 최근 릴리스가 나간다. 롤백이면 버전으로 바꾼다 (v0.6.2)'
-        type: string
-        default: staging
-        required: true
       skip_migrate:
         # 운영 스키마는 되돌리기가 어렵다(migrate deploy 에 down 이 없다). 거르는 것은
         # "이미 돌렸다" 를 아는 사람만 하는 선택이어야 한다.
@@ -71,40 +70,28 @@ jobs:
   # 그래서 없으면 만들지 않고 멈춘다. 릴리스가 실패했거나 이미지가 지워진 것이므로,
   # 조용히 다른 것을 올리는 대신 무엇이 없는지 알린다.
   # ───────────────────────────────────────────────────────────────────────────
-  image:
+  plan:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
     outputs:
-      # 실제 버전. 아래 잡들은 입력이 아니라 이 값을 쓴다.
       version: ${{ steps.resolve.outputs.version }}
     steps:
-      # 태그를 다 가져와야 staging 을 풀 수 있다.
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # **staging 을 실제 버전으로 바꾼다.**
+      # **고른 ref 가 무슨 버전인지 확정한다.**
       #
-      # 배포할 때 버전을 외우지 않아도 되게 별칭을 두되, 서버에는 그 이름을 남기지 않는다.
-      # .env 에 IMAGE_TAG=staging 이라고 적혀 있으면 "지금 무엇이 떠 있나" 에 답할 수 없고,
-      # 되돌릴 대상도 사라진다. 별칭은 고르는 순간에만 쓰고 곧바로 버전으로 굳힌다.
+      # ref 가 staging 이든 release-backend/v0.6.4 든, 그 커밋의 manifest 가 답을 갖고
+      # 있다. 사람이 적게 하면 ref 와 어긋날 수 있으므로 파일에서 읽는다.
       - id: resolve
-        env:
-          TAG: ${{ inputs.image_tag }}
+        name: 버전 확정
         run: |
-          if [ "$TAG" = 'staging' ]; then
-            # staging = 가장 최근 릴리스. 레지스트리를 뒤지는 대신 git 태그로 푼다 —
-            # 릴리스가 곧 그 태그이므로 같은 답이 나오고, 체크아웃할 ref 도 함께 얻는다.
-            ref="$(git describe --tags --match 'release-backend/v*' --abbrev=0)" \
-              || { echo '❌ release-backend/v* 태그가 없다.' >&2; exit 1; }
-            version="${ref#release-backend/}"
-            echo "  staging → $version"
-          else
-            version="$TAG"
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          semver="$(jq -r '.backend' .release-please-manifest.json)"
+          [ -n "$semver" ] && [ "$semver" != 'null' ] \
+            || { echo '❌ .release-please-manifest.json 에서 backend 버전을 못 읽었다.' >&2; exit 1; }
+          echo "version=v$semver" >> "$GITHUB_OUTPUT"
+          echo "  ref ${GITHUB_REF_NAME} → v$semver ($(git rev-parse --short HEAD))"
 
       - name: 이미지 확인
         env:
@@ -144,7 +131,7 @@ jobs:
   # 순서가 꼬인다 — 마이그레이션이 먼저 도는데 그 파일을 만드는 것이 배포이기 때문이다.
   # ───────────────────────────────────────────────────────────────────────────
   migrate:
-    needs: image
+    needs: plan
     if: ${{ !inputs.skip_migrate }}
     runs-on: ubuntu-latest
     environment: production
@@ -159,23 +146,13 @@ jobs:
       contents: read
       packages: read
     steps:
-      # **릴리스 태그를 체크아웃한다.** 설정·compose·배포 스크립트까지 그 시점 것을 쓴다.
-      #
-      # 이미지만 버전을 고정하고 나머지를 main 에서 가져오면, v0.6.1 이미지에 그 뒤로
-      # 바뀐 설정이 붙는다 — 묶을 때와 다른 조합이 올라간다. 릴리스는 "이 조합을
-      # 배포한다" 는 선언이므로, 조합 전체가 그 태그에 고정돼야 한다.
-      #
-      # 대가: 배포 스크립트를 고쳐도 옛 태그에는 없다. 그 수정이 필요하면 새 릴리스를
-      # 낸다 — 스크립트도 릴리스에 담기는 것이 된다.
       - uses: actions/checkout@v4
-        with:
-          ref: release-backend/${{ needs.image.outputs.version }}
 
       - name: 마이그레이션
         run: ./backend/ci-migrate.sh
         env:
           APP_ENV: production
-          IMAGE_TAG: ${{ needs.image.outputs.version }}
+          IMAGE_TAG: ${{ needs.plan.outputs.version }}
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
           BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
@@ -186,12 +163,12 @@ jobs:
           GHCR_USER: ${{ github.actor }}
 
   deploy:
-    needs: [image, migrate]
+    needs: [plan, migrate]
     # migrate 를 건너뛰었으면 needs 가 skipped 라 기본 조건으로는 deploy 도 안 돈다.
     # always() 로 그 사슬을 끊되, image 는 반드시 성공해야 한다(없는 이미지를 올릴 수 없다).
     if: >-
       ${{ always()
-          && needs.image.result == 'success'
+          && needs.plan.result == 'success'
           && needs.migrate.result != 'failure'
           && needs.migrate.result != 'cancelled' }}
     runs-on: ubuntu-latest
@@ -206,23 +183,13 @@ jobs:
       contents: read
       packages: read # node-builder 이미지를 GHCR 에서 받는다
     steps:
-      # **릴리스 태그를 체크아웃한다.** 설정·compose·배포 스크립트까지 그 시점 것을 쓴다.
-      #
-      # 이미지만 버전을 고정하고 나머지를 main 에서 가져오면, v0.6.1 이미지에 그 뒤로
-      # 바뀐 설정이 붙는다 — 묶을 때와 다른 조합이 올라간다. 릴리스는 "이 조합을
-      # 배포한다" 는 선언이므로, 조합 전체가 그 태그에 고정돼야 한다.
-      #
-      # 대가: 배포 스크립트를 고쳐도 옛 태그에는 없다. 그 수정이 필요하면 새 릴리스를
-      # 낸다 — 스크립트도 릴리스에 담기는 것이 된다.
       - uses: actions/checkout@v4
-        with:
-          ref: release-backend/${{ needs.image.outputs.version }}
 
       - name: 배포
         run: ./backend/ci-deploy.sh
         env:
           APP_ENV: production
-          IMAGE_TAG: ${{ needs.image.outputs.version }}
+          IMAGE_TAG: ${{ needs.plan.outputs.version }}
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
           BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}
@@ -245,16 +212,26 @@ jobs:
   # imagetools create 는 레지스트리 안에서 매니페스트만 복사한다 — 이미지를 받지 않는다.
   # ───────────────────────────────────────────────────────────────────────────
   promote:
-    needs: [image, deploy]
+    needs: [plan, deploy]
     if: ${{ needs.deploy.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: write # 태그를 옮긴다
+      packages: write # 이미지에도 같은 이름을 붙인다
     steps:
-      - name: latest 마킹
+      - uses: actions/checkout@v4
+
+      # **git 태그 latest 를 이 커밋으로 옮긴다.**
+      # Actions 의 ref 드롭다운에 뜨므로, "지금 운영에 뭐가 떠 있나" 를 그 목록에서 본다.
+      - name: latest 태그 이동
+        run: |
+          git tag -f latest
+          git push -f origin latest
+          echo "  latest → $(git rev-parse --short HEAD)  (${{ needs.plan.outputs.version }})"
+
+      - name: 이미지 latest 마킹
         env:
-          VERSION: ${{ needs.image.outputs.version }}
+          VERSION: ${{ needs.plan.outputs.version }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
