@@ -218,3 +218,30 @@ jobs:
             echo "CI: [be · deploy 실행](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be-deploy.yml)"
             echo "→ environment \`$APP_ENV\` · image_tag \`$tag\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 구운 것을 develop 서버에 올린다. **#deploy 로 들어온 push 일 때만.**
+  #
+  # 굽고 나서 배포를 또 눌러야 하면 반쪽이다. 커밋 메시지에 #deploy 를 단 것 자체가
+  # "이걸 develop 에 올리겠다" 는 의사표시이므로, 거기서 끊지 않고 이어 붙인다.
+  #
+  # **자동은 develop 까지다.** production 은 언제 무엇을 올릴지가 사람의 판단이라
+  # 항상 be-deploy 를 직접 돌린다(그때 image_tag 를 반드시 적게 해 두었다).
+  #
+  # setup 이 #deploy 없는 push 에서 run=false 를 주고 build 가 통째로 스킵되므로,
+  # 여기 조건은 "push 이고 develop 인가" 만 본다. dispatch 로 사람이 고른 실행은
+  # 제외한다 — 이미지만 굽고 싶을 때가 있고, 그때 배포까지 나가면 곤란하다.
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy:
+    needs: [setup, build]
+    if: >-
+      github.event_name == 'push' &&
+      needs.setup.outputs.app_env == 'develop'
+    uses: ./.github/workflows/be-deploy.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      environment: develop
+      image_tag: develop
