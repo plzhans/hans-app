@@ -14,7 +14,7 @@
 # 이미지가 두 번 구워진다(여기서 한 번, 자기 트리거로 한 번).
 #
 # 배포는 develop 까지만 자동이다. production 은 언제 무엇을 올릴지가 사람의 판단이라
-# be-deploy.yml 을 직접 돌린다 — 절차는 docs/deploy.md 에 있다.
+# be-deploy-production.yml 을 직접 돌린다 — 절차는 docs/deploy.md 에 있다.
 name: be
 
 on:
@@ -136,11 +136,10 @@ jobs:
   deploy:
     needs: [plan, image]
     if: needs.plan.outputs.deploy == 'true'
-    uses: ./.github/workflows/be-deploy.yml
+    uses: ./.github/workflows/be-deploy-develop.yml
     permissions:
       contents: read
       packages: read
     secrets: inherit
     with:
-      environment: develop
       image_tag: develop

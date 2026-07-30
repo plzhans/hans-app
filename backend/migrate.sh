@@ -59,7 +59,7 @@ if [ -f "$env_file" ]; then
   set +a
 fi
 
-# ci-migrate.sh 에 넘기는 값. **be-deploy.yml 의 env: 블록과 같은 목록이어야 한다.**
+# ci-migrate.sh 에 넘기는 값. **be-deploy-<환경>.yml 의 env: 블록과 같은 목록이어야 한다.**
 export BE_HANSAPP_DEPLOY_SSH_HOST="${BE_HANSAPP_DEPLOY_SSH_HOST:-}"
 export BE_HANSAPP_DEPLOY_SSH_KEY_FILE="${BE_HANSAPP_DEPLOY_SSH_KEY_FILE:-}"
 export BE_HANSAPP_DEPLOY_PATH="${BE_HANSAPP_DEPLOY_PATH:-}"

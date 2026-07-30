@@ -8,7 +8,7 @@
 # 띄울지" 만 안다. 그래서 롤백이 재빌드 없이 태그 지정만으로 끝난다.
 #
 # **값은 오로지 환경변수로만 받는다.** 누가 채웠는지 이 스크립트는 모른다.
-#   CI    .github/workflows/be-deploy.yml 이 secrets/vars 로 주입
+#   CI    .github/workflows/be-deploy-<환경>.yml 이 secrets/vars 로 주입
 #   로컬  backend/deploy.sh 가 backend/.env 를 읽어 주입
 #
 # [환경변수]
@@ -32,7 +32,7 @@
 #
 # **동시 실행이 금지다.** WireGuard 피어는 같은 키로 두 곳에서 붙을 수 없다. 두 배포가
 # 겹치면 먼저 붙은 쪽의 연결이 끊겨 배포가 반쯤 진행된 채로 죽는다. 워크플로의
-# concurrency 로 막아 두었다(be-deploy.yml). 로컬 키는 별개라 서로 간섭하지 않는다.
+# concurrency 로 막아 두었다(be-deploy-<환경>.yml). 로컬 키는 별개라 서로 간섭하지 않는다.
 set -euo pipefail
 
 AREA_DIR="$(cd "$(dirname "$0")" && pwd)"   # <repo>/backend

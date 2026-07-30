@@ -209,7 +209,7 @@ jobs:
             echo "backend/deploy.sh $APP_ENV $tag"
             echo '```'
             echo
-            echo "CI: [be - deploy 실행](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be-deploy.yml)"
+            echo "CI: [be - deploy 실행](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be-deploy-$APP_ENV.yml)"
             echo "→ environment \`$APP_ENV\` · image_tag \`$tag\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
