@@ -223,12 +223,19 @@ export class JwtKeyService {
           parsed.alg,
           isPrivate,
         );
-        // 파일명 신뢰 안 함 — 내용에서 계산한 kid 와 어긋나면 스킵(손 rename 사고 차단).
+        // **kid 는 내용에서 계산한 thumbprint 다. 파일명은 사람이 읽는 이름일 뿐이다.**
+        //
+        // 예전에는 파일명의 kid 가 thumbprint 와 다르면 키를 통째로 건너뛰었다. 손 rename
+        // 사고를 막으려던 것인데, 대가가 컸다 — 키가 하나도 안 남으면 부팅이 거부되고,
+        // 로그의 경고 한 줄이 원인이라는 걸 알아채기 어렵다. 실제로 D001_ES256.key 가
+        // 그렇게 조용히 빠져 서버가 못 떴다.
+        //
+        // 파일명이 틀려도 위험하지 않다. 발급한 토큰의 kid 헤더는 여기서 계산한 값이고,
+        // 검증도 그 값으로 찾는다. 파일명은 아무 데도 안 쓰인다.
         if (key.kid !== parsed.kid) {
-          this.logger.warn(
-            `Skip ${file}: filename kid≠thumbprint (${parsed.kid}≠${key.kid}).`,
+          this.logger.log(
+            `${file}: kid=${key.kid} (파일명 ${parsed.kid} 은 라벨로만 쓴다)`,
           );
-          continue;
         }
         this.keys.set(key.kid, key);
         loaded.push(key);

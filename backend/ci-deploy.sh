@@ -257,7 +257,13 @@ remote "set -e
 
   sudo rm -rf config
   mv config.new config
+  # 기본은 잠근다. 비밀이 아닌 것만 아래에서 되돌린다.
   find config -type f -exec chmod 600 {} +
+
+  # **config.yaml 은 비밀이 아니고 컨테이너가 직접 읽는다.** 600 이면 소유자(배포 계정)만
+  # 읽을 수 있어 컨테이너가 EACCES 로 죽는다. 비밀이 아니므로 소유권을 넘기는 대신 644 로 연다.
+  # (.env 는 도커가 호스트에서 읽어 주입하므로 600 그대로 두면 된다.)
+  chmod 644 "config/config.$APP_ENV.yaml"
 
   # 이미지 이름은 compose 가 안다 — 여기서 레지스트리 경로를 다시 적지 않는다.
   # USER 가 이름(node)일 수 있어 이미지 안에서 id 로 풀어 실제 uid:gid 를 얻는다.
