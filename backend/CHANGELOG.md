@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.5...release-backend/v0.7.0) (2026-07-30)
+
+
+### 기능
+
+* 로컬 redis 를 살리고 production 배포를 main 워크플로로 되돌린다 ([c08853a](https://github.com/plzhans/hans-app/commit/c08853a1b6a9dcbf7cbad22cfb21178d3fe9efeb))
+
+
+### 구조 변경
+
+* 배포 도구를 backend 밖으로 옮긴다 ([ef4eb90](https://github.com/plzhans/hans-app/commit/ef4eb90792277d9cc9150302509c7436a96236dd))
+
 ## [0.6.5](https://github.com/plzhans/hans-app/compare/release-backend/v0.6.4...release-backend/v0.6.5) (2026-07-30)
 
 
