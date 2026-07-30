@@ -18,6 +18,82 @@ develop 에 먼저 올려보는 것**으로 막는다.
 
 ---
 
+## 전체 흐름
+
+`be` 워크플로 하나가 순서를 갖는다. 평소 푸시는 `verify` 에서 멈추고 나머지는 회색으로 남는다.
+
+```
+be
+├─ verify          항상. lint · format · 타입 빌드
+├─ image           #deploy · 수동           → be-image
+└─ deploy          #deploy · 수동           → be-deploy
+                                               ├─ migrate
+                                               └─ deploy
+```
+
+각 단계는 별도 파일이 갖고 `be.yml` 은 순서만 정한다. GitHub 에는 GitLab 의 `include:`
+처럼 YAML 을 합치는 기능이 없어 조합 수단이 `uses:` 뿐이고, 그래서 파일을 나누는 것이 곧
+실행을 나누는 것이 된다 — 이 파일이 그것들을 한 실행으로 묶는다.
+
+> **진입점은 `be.yml` 하나다.** `be-image.yml` 에 push 트리거를 두면 같은 커밋에 이미지가
+> 두 번 구워진다.
+
+---
+
+## 마이그레이션
+
+**배포가 항상 앞세운다.** 옛 스키마 위에서는 새 코드가 뜨지도 못하므로 순서가 정해져 있고,
+실패하면 배포하지 않는다 — 반쯤 간 상태를 만들 이유가 없다.
+
+```bash
+backend/deploy.sh develop                  # 마이그레이션 먼저 → 배포
+backend/deploy.sh develop --skip-migrate   # 이미 돌렸거나 스키마 변경이 없을 때
+backend/migrate.sh develop                 # 스키마만 먼저 올려볼 때
+```
+
+`migrate deploy` 는 적용할 것이 없으면 그냥 통과하므로(멱등) 매번 돌려도 무해하다.
+
+### 어디서 도는가
+
+**배포 대상 서버에서 컨테이너로 한 번 돌고 죽는다.**
+
+```
+ssh → docker compose run --rm migrate → 끝나면 컨테이너 삭제
+```
+
+배포하는 쪽(CI 러너·맥)에서 prisma 를 돌리지 않는 이유가 셋이다.
+
+- CI 러너에는 `node_modules` 가 없어 매번 설치해야 한다
+- `prisma` 는 devDependency 라 런타임 이미지에 없다
+- **DB 가 사설망에 있다.** 서버에서 돌리면 이미 그 안이라 VPN 을 탈 이유가 없다
+
+### 왜 전용 이미지인가
+
+`hansapp-migrate` 에만 prisma CLI 와 스키마·마이그레이션 파일이 들어 있다. 운영 이미지에
+그것들이 있으면 **스키마를 바꿀 수 있는 도구가 서비스 컨테이너에 상주**하게 되고, 앱 DB
+계정에 DDL 권한을 주게 된다.
+
+앱 부팅 때 마이그레이션을 돌리는 방법도 흔하지만 쓰지 않는다. 그러면 스키마가 깨질 때
+앱까지 같이 죽는다 — 마이그레이션이 실패해도 **옛 컨테이너가 계속 서비스하는 편이 낫다.**
+
+> k3s 로 옮기면 이 이미지를 Job 이 그대로 띄운다. 바뀌는 것은 "무엇이 이 컨테이너를
+> 띄우는가" 뿐이다.
+
+### 되돌릴 수 없다
+
+`migrate deploy` 에는 down 이 없다. 이미지는 태그만 바꿔 롤백되지만 **스키마는 그렇지
+않다.** 그래서 컬럼 삭제·이름 변경은 두 번에 나눈다.
+
+```
+1) 코드에서 그 컬럼을 안 쓰게 만들어 배포
+2) 다음 릴리스에서 실제로 삭제
+```
+
+한 번에 지우면 배포 순간(마이그레이션 → 새 코드 사이)에 옛 코드가 없는 컬럼을 본다.
+추가는 안전하다.
+
+---
+
 ## develop
 
 ### 자동 — 커밋 메시지에 `#deploy`
@@ -28,10 +104,13 @@ git push
 ```
 
 ```
-be · docker image   →  굽는다      (#deploy 없으면 여기서 스킵)
-      ↓
-be · deploy         →  올린다      (develop 만 자동으로 이어진다)
+be
+├─ verify   ✅
+├─ image    ✅
+└─ deploy   ✅  (migrate → deploy)
 ```
+
+`#deploy` 가 없으면 `verify` 만 초록이고 나머지는 회색으로 남는다.
 
 **opt-out 이 아니라 opt-in 이다.** develop 은 같이 쓰는 서버라, 협업하려고 아직 완성되지
 않은 코드를 main 에 먼저 합치는 일이 있다. 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다.
@@ -101,8 +180,8 @@ backend/deploy.sh production v0.4.0
 평소에는 CI 가 굽는다. 급할 때만 쓴다 — 커밋 없이 지금 작업 트리를 그대로 굽는다.
 
 ```bash
-backend/build.sh develop                 # 둘 다
-backend/build.sh develop hansapp-api     # 하나만
+backend/build.sh develop                  # 셋 다
+backend/build.sh develop hansapp-api      # 하나만
 ```
 
 푸시에는 `write:packages` 가 필요하다.

@@ -1,0 +1,141 @@
+# backend 의 진입점. **전체 흐름이 여기 있다.**
+#
+#   verify → image → deploy
+#
+# 평소 푸시는 verify 에서 멈추고 나머지는 회색(skipped)으로 남는다. 커밋 메시지에
+# #deploy 를 달거나 수동 실행하면 끝까지 간다. GitLab 의 파이프라인 화면과 같은 그림이다.
+#
+# **각 단계는 별도 파일이 갖고 있고 여기서는 순서만 정한다.** GitHub 에는 GitLab 의
+# `include:` 처럼 YAML 을 합치는 기능이 없어서, 조합 수단이 `uses:`(reusable workflow)
+# 뿐이다. 그래서 파일을 나누는 것이 곧 실행을 나누는 것이 되는데, 이 파일이 그것들을
+# 한 실행으로 묶어 준다 — Actions 그래프에 `image / build` 처럼 중첩되어 보인다.
+#
+# **진입점을 하나로 모은다.** be-image.yml 에는 push 트리거가 없다. 있으면 같은 커밋에
+# 이미지가 두 번 구워진다(여기서 한 번, 자기 트리거로 한 번).
+#
+# 배포는 develop 까지만 자동이다. production 은 언제 무엇을 올릴지가 사람의 판단이라
+# be-deploy.yml 을 직접 돌린다 — 절차는 docs/deploy.md 에 있다.
+name: be
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/be*.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/be*.yml'
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: '어디까지 진행할지'
+        type: choice
+        options: [verify, image, deploy]
+        default: verify
+
+permissions:
+  contents: read
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 어디까지 갈지 한 곳에서 정한다.
+  #
+  # 예전에는 be-image.yml 이 스스로 #deploy 를 판단했는데, 이제 진입점이 여기라
+  # 판단도 여기서 한다. 두 군데서 같은 것을 보면 언젠가 어긋난다.
+  # ───────────────────────────────────────────────────────────────────────────
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.pick.outputs.image }}
+      deploy: ${{ steps.pick.outputs.deploy }}
+    steps:
+      - id: pick
+        env:
+          STAGE: ${{ inputs.stage }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          image=false
+          deploy=false
+
+          if [ -n "$STAGE" ]; then
+            # 사람이 골랐으면 그게 답이다.
+            case "$STAGE" in
+              image)  image=true ;;
+              deploy) image=true; deploy=true ;;
+            esac
+          elif [ "$EVENT" = 'push' ]; then
+            # **develop 은 같이 쓰는 서버다.** 협업하려고 아직 완성되지 않은 코드를 main 에
+            # 먼저 합치는 일이 있으므로, 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다.
+            #
+            # opt-out(예: [skip deploy])이 아니라 opt-in 인 이유는 빠뜨렸을 때의 대가가
+            # 다르기 때문이다. opt-in 을 잊으면 배포가 안 될 뿐이지만, opt-out 을 잊으면
+            # 남들이 쓰는 서버가 깨진다.
+            if printf '%s' "$HEAD_MSG" | grep -q '#deploy'; then
+              image=true
+              deploy=true
+            else
+              echo "커밋 메시지에 #deploy 가 없다 → verify 까지만 한다."
+            fi
+          fi
+
+          echo "image=$image"   >> "$GITHUB_OUTPUT"
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          echo "이미지=$image  배포=$deploy"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 항상 돈다. **여기가 없으면 main 이 조용히 깨진다.**
+  #
+  # 예전에는 #deploy 없는 푸시에서 아무것도 돌지 않아, 타입 에러가 있어도 초록불이었다.
+  # 도커 빌드가 어차피 컴파일하지만 그건 #deploy 때만 돌아서 평소 푸시가 무방비였다.
+  # ───────────────────────────────────────────────────────────────────────────
+  verify:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: lint · format
+        run: pnpm check
+
+      - name: 타입 빌드
+        run: pnpm -r build
+
+  image:
+    needs: [plan, verify]
+    if: needs.plan.outputs.image == 'true'
+    uses: ./.github/workflows/be-image.yml
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
+    with:
+      environment: develop
+      target: all
+
+  deploy:
+    needs: [plan, image]
+    if: needs.plan.outputs.deploy == 'true'
+    uses: ./.github/workflows/be-deploy.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      environment: develop
+      image_tag: develop
