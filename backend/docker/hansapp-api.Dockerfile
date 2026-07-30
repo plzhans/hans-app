@@ -106,11 +106,14 @@ RUN pnpm deploy --filter hansapp-api --prod --legacy /out
 #
 # 산출물이 **어디서 왔는지**만 다른 두 최종 스테이지가 이것을 공유한다.
 #
-#   --target runtime    위 builder 가 도커 안에서 만든 것        (production)
-#   --target prebuilt   CI 가 도커 밖에서 만들어 넣어준 것        (develop)
+#   --target prebuilt   CI 가 도커 밖에서 만들어 넣어준 것   ← develop·production 둘 다
+#   --target runtime    도커 안에서 처음부터 빌드            ← 로컬에서 한 번에 만들 때
 #
-# develop 은 자주 도는데 도커 안에서 워크스페이스를 통째로 설치·빌드하면 매번 느리다.
-# 러너에서 한 번 만들고 이미지는 COPY 만 하면 몇 초로 끝난다. production 은 "릴리스가
+# CI 는 러너에서 install·build 를 끝내고 이미지는 COPY 만 한다 — 도커 안에서 워크스페이스를
+# 통째로 빌드하면 매번 몇 분이 든다. 로컬에는 그 산출물이 없으므로 runtime 쪽이 남아 있다.
+#
+# **runtime 이 파일의 마지막 스테이지다.** --target 을 안 주면 도커가 마지막 것을 만드는데,
+# 그때 prebuilt 가 걸리면 있지도 않은 out/ 을 찾다가 죽는다. 기본값이 안전한 쪽이어야 한다. production 은 "릴리스가
 # 검증한 그 빌드" 를 그대로 올려야 해서 아직 도커 안에서 굽는다 — 옮길 때 --target 만 바꾼다.
 # ─────────────────────────────────────────────────────────────────────────────
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime-base
@@ -176,13 +179,7 @@ USER ${APP_UID}:${APP_GID}
 CMD ["node", "hansapp-api/dist/main.js"]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# runtime — 도커 안에서 구운 것을 담는다 (production)
-# ─────────────────────────────────────────────────────────────────────────────
-FROM runtime-base AS runtime
-COPY --from=builder /out ./hansapp-api/
-
-# ─────────────────────────────────────────────────────────────────────────────
-# prebuilt — CI 가 도커 밖에서 만든 것을 담는다 (develop)
+# prebuilt — CI 가 도커 밖에서 만든 것을 담는다
 #
 # 컨텍스트의 out/<앱>/ 이 `pnpm deploy --prod` 결과와 같은 모양이어야 한다(dist +
 # node_modules 를 가진 자립형 디렉터리). .dockerignore 가 dist·node_modules 를 자르므로
@@ -190,3 +187,9 @@ COPY --from=builder /out ./hansapp-api/
 # ─────────────────────────────────────────────────────────────────────────────
 FROM runtime-base AS prebuilt
 COPY out/hansapp-api ./hansapp-api/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# runtime — 도커 안에서 구운 것을 담는다 (로컬 · 기본 타깃)
+# ─────────────────────────────────────────────────────────────────────────────
+FROM runtime-base AS runtime
+COPY --from=builder /out ./hansapp-api/

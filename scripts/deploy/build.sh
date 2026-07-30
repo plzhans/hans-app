@@ -123,6 +123,9 @@ for app in $targets; do
 
   docker buildx build \
     --platform "${PLATFORM:-linux/arm64}" \
+    `# 도커 안에서 전부 빌드한다. CI 는 러너에서 만든 산출물을 담는 prebuilt 를 쓰지만,` \
+    `# 로컬은 그 산출물이 없으므로 이 길로 간다.` \
+    --target runtime \
     -f "$AREA_DIR/docker/$app.Dockerfile" \
     --build-arg "GIT_SHA=$sha" \
     --build-arg "GIT_BRANCH=$branch" \
