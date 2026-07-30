@@ -107,7 +107,7 @@ RUN pnpm deploy --filter hansapp-api --prod --legacy /out
 # 산출물이 **어디서 왔는지**만 다른 두 최종 스테이지가 이것을 공유한다.
 #
 #   --target prebuilt   CI 가 도커 밖에서 만들어 넣어준 것   ← develop·production 둘 다
-#   --target runtime    도커 안에서 처음부터 빌드            ← 로컬에서 한 번에 만들 때
+#   --target with-build 도커 안에서 빌드부터 한다            ← 로컬에서 한 번에 만들 때
 #
 # CI 는 러너에서 install·build 를 끝내고 이미지는 COPY 만 한다 — 도커 안에서 워크스페이스를
 # 통째로 빌드하면 매번 몇 분이 든다.
@@ -119,9 +119,8 @@ RUN pnpm deploy --filter hansapp-api --prod --legacy /out
 #   CI (ubuntu-24.04-arm)   linux/arm64   → 도커 밖 빌드 가능 → prebuilt
 #   맥 (darwin/arm64)        리눅스가 아님  → 도커 안 빌드 필수 → runtime
 #
-# **runtime 이 파일의 마지막 스테이지다.** --target 을 안 주면 도커가 마지막 것을 만드는데,
-# 그때 prebuilt 가 걸리면 있지도 않은 out/ 을 찾다가 죽는다. 기본값이 안전한 쪽이어야 한다. production 은 "릴리스가
-# 검증한 그 빌드" 를 그대로 올려야 해서 아직 도커 안에서 굽는다 — 옮길 때 --target 만 바꾼다.
+# **with-build 가 파일의 마지막 스테이지다.** --target 을 안 주면 도커가 마지막 것을 만드는데,
+# 그때 prebuilt 가 걸리면 있지도 않은 out/ 을 찾다가 죽는다. 기본값이 안전한 쪽이어야 한다.
 # ─────────────────────────────────────────────────────────────────────────────
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime-base
 
@@ -196,7 +195,7 @@ FROM runtime-base AS prebuilt
 COPY out/hansapp-api ./hansapp-api/
 
 # ─────────────────────────────────────────────────────────────────────────────
-# runtime — 도커 안에서 구운 것을 담는다 (로컬 · 기본 타깃)
+# with-build — 도커 안에서 빌드부터 한다 (로컬 · 기본 타깃)
 # ─────────────────────────────────────────────────────────────────────────────
-FROM runtime-base AS runtime
+FROM runtime-base AS with-build
 COPY --from=builder /out ./hansapp-api/

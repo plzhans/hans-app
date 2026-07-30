@@ -125,7 +125,7 @@ for app in $targets; do
     --platform "${PLATFORM:-linux/arm64}" \
     `# 도커 안에서 전부 빌드한다. CI 는 러너에서 만든 산출물을 담는 prebuilt 를 쓰지만,` \
     `# 맥에서는 그 길을 쓸 수 없다 - pnpm install 이 darwin 바이너리를 깔기 때문이다.` \
-    --target runtime \
+    --target with-build \
     -f "$AREA_DIR/docker/$app.Dockerfile" \
     --build-arg "GIT_SHA=$sha" \
     --build-arg "GIT_BRANCH=$branch" \

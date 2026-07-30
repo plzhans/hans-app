@@ -80,7 +80,7 @@ out/hansapp-cli    --prod 아님 — prisma(devDependency)가 있어야 마이�
 COPY 만 한다. 다른 점은 검사를 하지 않는다는 것뿐이다 — 릴리스 PR 에서 이미 돌았고,
 여기는 "그 버전이 빌드되는지" 만 확인하는 자리다.
 
-Dockerfile 의 `--target runtime`(도커 안에서 빌드)은 남겨 뒀다. 로컬에서 `docker build`
+Dockerfile 의 `--target with-build`(도커 안에서 빌드)는 남겨 뒀다. 로컬에서 `docker build`
 한 번으로 이미지를 만들고 싶을 때 쓰는 길이다.
 
 ---
