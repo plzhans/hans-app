@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.4.0...release-backend/v0.5.0) (2026-07-30)
+
+
+### 기능
+
+* 로컬에서 이미지를 굽고 올리는 build.sh 를 만든다 ([203d4e1](https://github.com/plzhans/hans-app/commit/203d4e18dc996618c4d19d981eefc1732cb81af6))
+
 ## [0.4.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.3.0...release-backend/v0.4.0) (2026-07-30)
 
 
