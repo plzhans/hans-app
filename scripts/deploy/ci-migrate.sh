@@ -47,14 +47,25 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
 AREA_DIR="${BACKEND_DIR:-$ROOT_DIR/backend}"
 
 die() {
+  # 열린 단계를 먼저 닫는다. 안 닫으면 CI 에서 **에러 메시지가 접힌 그룹 안에 숨는다.**
+  end_phase
   echo "❌ $*" >&2
   exit 1
 }
 
-group() {
+# 단계 선언(ci-deploy.sh 와 같은 규칙). **닫는 짝이 없다** — 다음 phase 가 앞의 것을 닫고,
+# 마지막 하나는 EXIT 트랩이 닫는다.
+current_phase=''
+
+phase() {
+  end_phase
+  current_phase="$1"
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::group::$1"; else echo "▶ $1"; fi
 }
-endgroup() {
+
+end_phase() {
+  [ -n "$current_phase" ] || return 0
+  current_phase=''
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::endgroup::"; fi
 }
 
@@ -94,6 +105,8 @@ esac
 work="$(mktemp -d)"
 cleanup() {
   local code=$?
+  # 마지막 단계를 닫는 것은 여기 몫이다 — phase 에는 닫는 짝이 없다.
+  end_phase
   [ -n "${wg_iface:-}" ] && wg-quick down "$work/wg.conf" 2>/dev/null || true
   rm -rf "$work"
   exit $code
@@ -106,12 +119,11 @@ trap cleanup EXIT
 # 설정이 주어졌는가로 판단한다 — 로컬은 VPN 이 이미 붙어 있어 비워 두면 그만이고,
 # 스크립트는 자기가 어디서 도는지 몰라도 된다.
 if [ -n "${BE_WIREGUARD_PEER_CONF_FILE:-}" ]; then
-  group 'wireguard 연결'
+  phase 'wireguard 연결'
   command -v wg-quick >/dev/null || die 'wg-quick 이 없다.'
   materialize "$BE_WIREGUARD_PEER_CONF_FILE" "$work/wg.conf"
   wg-quick up "$work/wg.conf"
   wg_iface=1
-  endgroup
 fi
 
 materialize "$BE_HANSAPP_DEPLOY_SSH_KEY_FILE" "$work/id_deploy"
@@ -144,17 +156,16 @@ compose_src="$AREA_DIR/infra/$APP_ENV/docker-compose.yml"
 env_enc="$AREA_DIR/config/.env.$APP_ENV.enc"
 [ -f "$compose_src" ] || die "$compose_src 가 없다."
 
-group 'compose 전송'
+phase 'compose 전송'
 remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
 scp "${ssh_opts[@]}" -q "$compose_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/docker-compose.yml"
-endgroup
 
 # **접속 정보도 직접 올린다.** 마이그레이션에 필요한 것을 배포가 날라 주기를 기다리면,
 # 첫 배포에서 순서가 꼬인다 — 마이그레이션이 배포보다 먼저 도는데 그 파일을 만드는 것이
 # 배포이기 때문이다. 필요한 것은 필요한 쪽이 갖춘다.
 #
 # 여기서 쓰는 것은 env 파일 하나뿐이다. jwt·TLS 키는 앱의 것이라 배포가 나른다.
-group '접속 정보 전송'
+phase '접속 정보 전송'
 [ -f "$env_enc" ] || die "$env_enc 가 없다."
 command -v sops >/dev/null || die 'sops 가 없다. 복호화는 이쪽에서 한다.'
 
@@ -190,16 +201,14 @@ scp "${ssh_opts[@]}" -q "$yaml_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEP
 # 600 이면 된다. 컨테이너가 이 계정과 같은 uid 로 돌기 때문이다(compose 의 user:).
 remote "chmod 600 $BE_HANSAPP_DEPLOY_PATH/config/config.$APP_ENV.yaml"
 echo "  config.$APP_ENV.yaml"
-endgroup
 
 if [ -n "${GHCR_TOKEN:-}" ]; then
-  group 'GHCR 로그인'
+  phase 'GHCR 로그인'
   printf '%s' "$GHCR_TOKEN" | remote "docker login ghcr.io -u ${GHCR_USER:-x} --password-stdin"
   ghcr_logged_in=1
-  endgroup
 fi
 
-group '마이그레이션'
+phase '마이그레이션'
 # --rm: 끝나면 컨테이너를 지운다. 작업이지 서비스가 아니다.
 # IMAGE_TAG 를 명령 앞에 붙여 그 실행에만 적용한다 — 서버 .env 의 값(지금 떠 있는 앱의
 # 버전)을 건드리지 않는다. 배포가 아직 안 됐을 수도 있어 그 파일은 배포의 몫으로 둔다.
@@ -211,7 +220,6 @@ group '마이그레이션'
 # 서버는 옛것으로 돈다 — 고친 줄 알았던 버그가 그대로 재현되어 원인을 짚기 어렵다.
 remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' docker compose --profile migrate pull migrate"
 remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' APP_UID=\"\$(id -u)\" APP_GID=\"\$(id -g)\" docker compose run --rm migrate"
-endgroup
 
 if [ -n "${ghcr_logged_in:-}" ]; then
   remote 'docker logout ghcr.io' >/dev/null 2>&1 || true

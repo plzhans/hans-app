@@ -24,6 +24,8 @@
 #   GHCR_USER                     (선택) 위 토큰의 사용자. 기본 x
 #   AGE_SECRET_KEY_FILE           (선택) sops 복호화용 age 키. **경로 또는 내용**
 #                                 로컬은 기본 경로에 이미 있어 보통 비운다
+#   SLACK_DEPLOY_THREAD_TIMESTAMP (선택) 배포 스레드의 ts. 서버로 넘겨 앱이 기동 알림을
+#                                 그 스레드에 답글로 달게 한다. 로컬은 보통 비운다
 #
 # [WireGuard 를 조건부로 올리는 이유]
 # 로컬은 작업 환경이라 VPN 이 이미 붙어 있다. CI 는 매번 새 러너라 직접 올려야 한다.
@@ -45,14 +47,32 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
 AREA_DIR="${BACKEND_DIR:-$ROOT_DIR/backend}"
 
 die() {
+  # 열린 단계를 먼저 닫는다. 안 닫으면 CI 에서 **에러 메시지가 접힌 그룹 안에 숨는다.**
+  end_phase
   echo "❌ $*" >&2
   exit 1
 }
 
-group() {
+# 배포가 어느 단계에 들어섰는지 선언한다. **로그 접기는 부수 효과지 본체가 아니다** —
+# CI 에서는 마침 ::group:: 으로 접히고, 로컬에서는 제목 한 줄로 보인다.
+#
+# **닫는 짝이 없다.** 다음 phase 가 앞의 것을 닫고, 마지막 하나는 EXIT 트랩(cleanup)이
+# 닫는다. 짝을 손으로 맞추게 두면 언젠가 하나를 빠뜨리는데, 그 대가가 예전에는 로그
+# 들여쓰기가 어긋나는 정도였다. 여기에 알림이 얹히면 **"이 단계가 끝났다" 는 사실이
+# 조용히 사라지는** 것으로 바뀐다 — 짝을 아예 없애면 틀릴 수가 없다.
+current_phase=''
+
+phase() {
+  end_phase
+  current_phase="$1"
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::group::$1"; else echo "▶ $1"; fi
 }
-endgroup() {
+
+# 열려 있는 단계가 있으면 닫는다. 없으면 아무것도 안 한다 — 두 번 불려도 안전해야 한다
+# (die 가 닫고 나가면 EXIT 트랩이 한 번 더 부른다).
+end_phase() {
+  [ -n "$current_phase" ] || return 0
+  current_phase=''
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::endgroup::"; fi
 }
 
@@ -100,6 +120,8 @@ compose_src="$AREA_DIR/infra/$APP_ENV/docker-compose.yml"
 work="$(mktemp -d)"
 cleanup() {
   local code=$?
+  # 마지막 단계를 닫는 것은 여기 몫이다 — phase 에는 닫는 짝이 없다.
+  end_phase
   # 중간에 죽어도 서버에 로그인 상태를 남기지 않는다.
   [ -n "${ghcr_logged_in:-}" ] && remote 'docker logout ghcr.io' >/dev/null 2>&1 || true
   [ -n "${wg_iface:-}" ] && wg-quick down "$work/wg.conf" 2>/dev/null || true
@@ -112,7 +134,7 @@ trap cleanup EXIT INT TERM
 # WireGuard — 설정이 주어졌을 때만
 # ─────────────────────────────────────────────────────────────────────────────
 if [ -n "${BE_WIREGUARD_PEER_CONF_FILE:-}" ]; then
-  group 'wireguard 연결'
+  phase 'wireguard 연결'
   materialize "$BE_WIREGUARD_PEER_CONF_FILE" "$work/wg.conf"
   # wg-quick 은 설정 파일 이름에서 인터페이스 이름을 딴다 → wg.conf 면 'wg'.
   wg-quick up "$work/wg.conf"
@@ -138,7 +160,6 @@ if [ -n "${BE_WIREGUARD_PEER_CONF_FILE:-}" ]; then
      - **같은 키를 다른 곳에서 쓰고 있지 않은지** — 피어는 동시 접속이 안 된다"
   fi
   echo "· 핸드셰이크 확인됨"
-  endgroup
 else
   echo "· WireGuard 설정이 없다. 이미 연결되어 있다고 보고 진행한다."
 fi
@@ -172,11 +193,10 @@ echo
 # ─────────────────────────────────────────────────────────────────────────────
 # 전송 · 기동
 # ─────────────────────────────────────────────────────────────────────────────
-group '연결 확인'
+phase '연결 확인'
 remote 'docker --version && docker compose version' | sed 's/^/  /'
-endgroup
 
-group 'compose 전송'
+phase 'compose 전송'
 # 경로의 ~ 를 서버 셸이 풀게 한다. 로컬에서 풀면 로컬 홈이 박힌다.
 remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
 scp "${ssh_opts[@]}" -q "$compose_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/docker-compose.yml"
@@ -191,7 +211,6 @@ remote "cd $BE_HANSAPP_DEPLOY_PATH && {
   printf 'APP_UID=%s\n'   \"\$(id -u)\"
   printf 'APP_GID=%s\n'   \"\$(id -g)\"
 } > .env"
-endgroup
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 시크릿 — **여기서 풀어서 평문을 보낸다**
@@ -203,7 +222,7 @@ endgroup
 # 평문이 SSH 로 가는 것은 문제가 아니다 — 채널이 암호화돼 있고, 어차피 서버에는
 # 평문으로 놓여야 앱이 읽는다. 레지스트리나 로그에는 어느 단계에서도 남지 않는다.
 # ─────────────────────────────────────────────────────────────────────────────
-group '설정 · 시크릿 전송'
+phase '설정 · 시크릿 전송'
 
 # age 키. 로컬은 기본 경로(~/.config/sops/age/keys.txt)에 이미 있어 보통 비어 있다.
 if [ -n "${AGE_SECRET_KEY_FILE:-}" ]; then
@@ -310,7 +329,6 @@ remote "set -e
   find config -type f -exec chmod 600 {} +
   echo \"  config 소유자 \$(id -u):\$(id -g) · 0600 (컨테이너도 같은 uid 로 돈다)\"
 "
-endgroup
 
 # 이미지가 private 이면 서버도 GHCR 에 인증해야 한다.
 #
@@ -321,25 +339,26 @@ endgroup
 #
 # 값이 없으면 로그인을 건너뛴다 — 이미지를 public 으로 돌렸거나 서버가 이미 로그인된 경우다.
 if [ -n "${GHCR_TOKEN:-}" ]; then
-  group 'GHCR 로그인'
+  phase 'GHCR 로그인'
   printf '%s' "$GHCR_TOKEN" | remote "docker login ghcr.io -u ${GHCR_USER:-x} --password-stdin"
-  endgroup
   # 성공하든 실패하든 반드시 지운다.
   ghcr_logged_in=1
 fi
 
-group 'pull · up'
+phase 'pull · up'
 # --remove-orphans: compose 에서 서비스를 지웠을 때 서버에 남은 컨테이너를 정리한다.
-remote "cd $BE_HANSAPP_DEPLOY_PATH && docker compose pull && docker compose up -d --remove-orphans"
-endgroup
+#
+# **슬랙 스레드 ts 는 이 명령에만 붙인다.** 서버의 .env 에 쓰면 그 파일이 계속 남아 다음
+# 재시작에도 옛 스레드를 가리킨다. 여기서 주면 그 up 에만 적용되고 파일에는 안 남는다.
+# (컨테이너 환경에는 구워지므로, 낡은 값은 앱이 ts 의 나이를 보고 무시한다.)
+remote "cd $BE_HANSAPP_DEPLOY_PATH && docker compose pull && SLACK_DEPLOY_THREAD_TIMESTAMP='${SLACK_DEPLOY_THREAD_TIMESTAMP:-}' docker compose up -d --remove-orphans"
 
 if [ -n "${ghcr_logged_in:-}" ]; then
   remote 'docker logout ghcr.io' >/dev/null 2>&1 || true
   ghcr_logged_in=''   # cleanup 이 한 번 더 부르지 않게
 fi
 
-group '상태'
+phase '상태'
 remote "cd $BE_HANSAPP_DEPLOY_PATH && docker compose ps"
-endgroup
 
 echo "✅ $APP_ENV → $IMAGE_TAG"
