@@ -154,6 +154,15 @@ model UserAuthCode {
   /// nullable 인 건 기존 행 때문이다. 새로 발급되는 코드에는 항상 채워진다.
   codeChallenge String? @map("code_challenge") @db.VarChar(128)
 
+  /// **이번 로그인에 실제로 쓴 수단.** 가입 방식(User.joinType)이 아니다 —
+  /// 이메일로 가입한 사람이 구글을 연동해 로그인할 수 있고, 그때 남아야 할 값은 GOOGLE 이다.
+  ///
+  /// 코드를 교환하는 시점에는 그 정보가 없어서(콜백과 교환이 다른 요청이다) 여기에 실어
+  /// 나른다. 없으면 로그인 로그가 joinType 으로 근사되어 "오늘 무엇으로 들어왔나" 가 사라진다.
+  ///
+  /// nullable 인 건 기존 행 때문이다. 새로 발급되는 코드에는 항상 채워진다.
+  provider AuthProvider? @map("provider")
+
   /// SHA-256(secret) hex 64자
   secretHash String @map("secret_hash") @db.Char(64)
 

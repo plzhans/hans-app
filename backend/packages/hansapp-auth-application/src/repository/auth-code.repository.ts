@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService, UserAuthCode } from '@hansapp/data';
+import { AuthProvider, PrismaService, UserAuthCode } from '@hansapp/data';
 
 /**
  * 소셜 콜백→프론트 릴레이 1회용 인가코드 저장소.
@@ -15,6 +15,8 @@ export class AuthCodeRepository {
     clientId: string | null;
     /** PKCE code_challenge(S256). 교환 때 verifier 와 대조한다. */
     codeChallenge: string | null;
+    /** 이번 로그인에 쓴 수단. 교환 시점에는 알 수 없어 여기에 실어 나른다. */
+    provider: AuthProvider | null;
     secretHash: string;
     expiresAt: Date;
   }): Promise<UserAuthCode> {

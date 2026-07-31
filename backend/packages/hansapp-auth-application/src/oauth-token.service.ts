@@ -18,6 +18,7 @@ import type { AuthConfig } from './auth.config';
 import { isFirstPartyOrigin } from './first-party-origin';
 import { RequestMeta } from './auth.service';
 import { ActionLogService } from './log/action-log.service';
+import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
 import { AuthTokens, TokenService } from './token/token.service';
 
@@ -33,6 +34,7 @@ export class OAuthTokenService {
     private readonly tokens: TokenService,
     private readonly users: UserRepository,
     private readonly log: ActionLogService,
+    private readonly login: LoginService,
     private readonly access: AccessCache,
   ) {}
 
@@ -138,7 +140,7 @@ export class OAuthTokenService {
     requestOrigin?: string,
     codeVerifier?: string,
   ): Promise<AuthTokens> {
-    const { userId, clientId, codeChallenge } =
+    const { userId, clientId, codeChallenge, provider } =
       await this.tokens.consumeAuthCode(code);
     assertCodeVerifier(codeChallenge, codeVerifier);
     await this.assertExchangeOrigin(clientId, requestOrigin);
@@ -146,15 +148,9 @@ export class OAuthTokenService {
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Account is not available.');
     }
-    const tokens = await this.tokens.issueLogin(user.id, user.role, meta);
-    await this.log.record({
-      userId: user.id,
-      action: UserAction.LOGIN,
-      result: ActionResult.SUCCESS,
-      provider: user.joinType,
-      ...meta,
-    });
-    return tokens;
+    // **가입 방식(joinType)이 아니라 이번에 쓴 수단을 남긴다.** 콜백이 코드에 실어 보낸다.
+    // 이메일 로그인처럼 코드에 provider 가 없는 경로(1st-party 릴레이)는 joinType 으로 떨어진다.
+    return this.login.complete(user, provider ?? user.joinType, meta);
   }
 
   /** grant_type=refresh_token. rotate 후 새 access/refresh 발급(refresh 는 로그 대상 아님 — 폭증 방지). */

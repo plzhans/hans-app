@@ -18,6 +18,7 @@ import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
 import { EmailVerificationService } from './mail/email-verification.service';
 import { ActionLogService } from './log/action-log.service';
+import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
 import { TokenSessionRepository } from './repository/token-session.repository';
@@ -50,6 +51,7 @@ export class AuthService {
     private readonly withdrawals: WithdrawalRepository,
     private readonly tokens: TokenService,
     private readonly log: ActionLogService,
+    private readonly loginService: LoginService,
     private readonly emailVerification: EmailVerificationService,
   ) {}
 
@@ -288,20 +290,13 @@ export class AuthService {
     }
   }
 
-  private async issueLoginTokens(
+  /** 세션 발급 + 로그인 로그. **모든 로그인 경로가 지나는 자리다**(LoginService). */
+  private issueLoginTokens(
     user: User,
     meta: RequestMeta,
     provider: AuthProvider,
   ): Promise<AuthTokens> {
-    const tokens = await this.tokens.issueLogin(user.id, user.role, meta);
-    await this.log.record({
-      userId: user.id,
-      action: UserAction.LOGIN,
-      result: ActionResult.SUCCESS,
-      provider,
-      ...meta,
-    });
-    return tokens;
+    return this.loginService.complete(user, provider, meta);
   }
 
   private hashPassword(plain: string): Promise<string> {

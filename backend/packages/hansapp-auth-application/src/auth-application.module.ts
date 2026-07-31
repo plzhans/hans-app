@@ -19,6 +19,7 @@ import { EmailVerificationRepository } from './mail/email-verification.repositor
 import { EmailVerificationService } from './mail/email-verification.service';
 import { MailService } from './mail/mail.service';
 import { AuthService } from './auth.service';
+import { LoginService } from './login.service';
 import { OAuthTokenService } from './oauth-token.service';
 import { TokenService } from './token/token.service';
 import { JwtKeyService } from './token/jwt-key.service';
@@ -97,6 +98,8 @@ export class AuthModule {
         ActionLogService,
         JwtKeyService,
         TokenService,
+        // 로그인 완결(세션 발급 + 로그). 모든 로그인 경로가 지난다.
+        LoginService,
         AuthService,
         OAuthTokenService,
         AuthGuard,

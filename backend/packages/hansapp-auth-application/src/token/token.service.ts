@@ -4,7 +4,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UserRole } from '@hansapp/data';
+import { AuthProvider, UserRole } from '@hansapp/data';
 
 import { AUTH_CONFIG } from '../auth.config';
 import type { AuthConfig } from '../auth.config';
@@ -54,6 +54,8 @@ export interface ConsumedAuthCode {
   readonly clientId: string | null;
   /** PKCE code_challenge(S256). 호출측이 code_verifier 와 대조한다. */
   readonly codeChallenge: string | null;
+  /** 이번 로그인에 쓴 수단. 로그인 로그에 그대로 쓴다(가입 방식이 아니다). */
+  readonly provider: AuthProvider | null;
 }
 
 /**
@@ -238,6 +240,7 @@ export class TokenService {
     userId: number,
     clientId: string | null = null,
     codeChallenge: string | null = null,
+    provider: AuthProvider | null = null,
   ): Promise<string> {
     const sid = randomToken(12);
     const secret = randomToken(24);
@@ -246,6 +249,7 @@ export class TokenService {
       userId,
       clientId,
       codeChallenge,
+      provider,
       secretHash: sha256hex(secret),
       expiresAt: new Date(Date.now() + this.config.authCodeTtlSec * 1000),
     });
@@ -289,6 +293,7 @@ export class TokenService {
       userId: row.userId,
       clientId: row.clientId,
       codeChallenge: row.codeChallenge,
+      provider: row.provider,
     };
   }
 }

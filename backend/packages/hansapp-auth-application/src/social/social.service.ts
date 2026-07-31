@@ -18,6 +18,7 @@ import { AUTH_CONFIG } from '../auth.config';
 import type { AuthConfig } from '../auth.config';
 import { AuthResult, AuthService, RequestMeta } from '../auth.service';
 import { ActionLogService } from '../log/action-log.service';
+import { LoginService } from '../login.service';
 import { UserRepository } from '../repository/user.repository';
 import { UserOAuthRepository } from '../repository/user-oauth.repository';
 import { WithdrawalRepository } from '../repository/withdrawal.repository';
@@ -74,6 +75,7 @@ export class SocialService {
     private readonly tokens: TokenService,
     private readonly tickets: SocialTicketService,
     private readonly log: ActionLogService,
+    private readonly login: LoginService,
     private readonly emailVerification: EmailVerificationService,
   ) {}
 
@@ -119,6 +121,7 @@ export class SocialService {
         existing.userId,
         state.clientId ?? null,
         state.codeChallenge ?? null,
+        toJoinType(profile.provider),
       );
       return { kind: 'code', code };
     }
@@ -149,6 +152,7 @@ export class SocialService {
             active.id,
             state.clientId ?? null,
             state.codeChallenge ?? null,
+            toJoinType(profile.provider),
           );
           return { kind: 'code', code };
         }
@@ -275,14 +279,11 @@ export class SocialService {
       provider: toJoinType(payload.provider),
       ...meta,
     });
-    const tokens = await this.tokens.issueLogin(user.id, user.role, meta);
-    await this.log.record({
-      userId: user.id,
-      action: UserAction.LOGIN,
-      result: ActionResult.SUCCESS,
-      provider: toJoinType(payload.provider),
-      ...meta,
-    });
+    const tokens = await this.login.complete(
+      user,
+      toJoinType(payload.provider),
+      meta,
+    );
     return { user, tokens };
   }
 
