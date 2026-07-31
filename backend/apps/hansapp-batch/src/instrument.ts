@@ -16,7 +16,11 @@ import { appConfig, buildInfo } from './boot-config';
  * 비어 있으면 init 을 하지 않는다(이후 captureException 등은 전부 no-op).
  */
 
-const dsn = appConfig.getStringOrDefault('apps-batch.sentry.dsn');
+// 끄개는 dsn 과 따로 둔다(이유는 apps-api 의 instrument.ts 참고 — 빈 값은 기본값으로 되돌아간다).
+const enabled = appConfig.getBoolOrDefault('apps-batch.sentry.enabled', true);
+const dsn = enabled
+  ? appConfig.getStringOrDefault('apps-batch.sentry.dsn')
+  : '';
 const tracesSampleRate = appConfig.getNumberOrDefault(
   'apps-batch.sentry.tracesSampleRate',
   0,
@@ -43,7 +47,9 @@ export const sentryEnabled = Boolean(dsn);
 /** 부팅 로그 한 줄. 조용히 꺼져 있는 게 최악이라 로그에 남긴다. */
 export const sentryStatusLine = dsn
   ? `🛰  Sentry : ${appConfig.env} / ${buildInfo.tagVersion} (traces ${tracesSampleRate})`
-  : '🛰  Sentry : 비활성 — apps-batch.sentry.dsn 없음';
+  : enabled
+    ? '🛰  Sentry : 비활성 — apps-batch.sentry.dsn 없음'
+    : '🛰  Sentry : 비활성 — SENTRY_ENABLED=false';
 
 /**
  * 남은 이벤트를 전송하고 기다린다. **배치는 끝나면 프로세스가 죽는다** —

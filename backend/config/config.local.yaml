@@ -77,6 +77,9 @@ apps-api:
   # 에러 추적(Sentry). **로컬은 끈다** — 내 머신 에러가 팀 이슈 스트림에 섞이면 안 된다.
   # 로컬에서 연동을 확인하고 싶을 때만 아래 dsn 주석을 푼다(DSN 은 비밀 아님 — 전송 전용 공개값).
   sentry:
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
+    enabled: ${SENTRY_ENABLED:-true}
     dsn:
     #dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
     tracesSampleRate: 1.0
@@ -128,5 +131,8 @@ apps-batch:
   maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
   # 로컬은 Sentry 끔. (배치는 apps-api 와 별도 Sentry 프로젝트를 쓴다 — 켜려면 그 DSN 을 여기.)
   sentry:
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
+    enabled: ${SENTRY_ENABLED:-true}
     dsn:
     tracesSampleRate: 0

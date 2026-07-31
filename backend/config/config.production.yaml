@@ -110,6 +110,9 @@ apps-api:
   # 에러 추적(Sentry). DSN 은 비밀이 아니라 리터럴로 고정한다(전송 전용 공개 엔드포인트).
   # environment·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts. 비우면 Sentry 를 끈다.
   sentry:
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
+    enabled: ${SENTRY_ENABLED:-true}
     dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
     # 성능 트레이스 표본 비율. 운영은 요청량이 많아 10% 만 샘플링한다(쿼터·오버헤드).
     tracesSampleRate: 0.1
@@ -164,6 +167,9 @@ apps-batch:
   maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
   # 에러 추적(Sentry). **apps-api 와 별도 프로젝트**(DSN 이 다르다) — 알림 규칙을 나눈다. 비면 끈다.
   sentry:
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
+    enabled: ${SENTRY_ENABLED:-true}
     dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
     # 배치는 요청 트레이스가 없다. 크론 실행 트레이스가 필요해지면 올린다.
     tracesSampleRate: 0

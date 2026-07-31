@@ -138,6 +138,9 @@ apps-api:
   # environment(local|develop|production)·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts.
   # **dsn 이 비면 Sentry 를 아예 켜지 않는다**(서버는 그대로 뜬다).
   sentry:
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
+    enabled: ${SENTRY_ENABLED:-true}
     dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
     # 성능 트레이스 표본 비율(0=끔, 1=전부). 개발은 트래픽이 적어 전부 본다.
     tracesSampleRate: 1.0
@@ -215,6 +218,9 @@ apps-batch:
   # 나누려는 것이다. 배치는 "한 번 실패해도 즉시 알림", API 는 "임계치 초과 시 알림" 으로 성격이 다르다.
   # DSN 은 비밀이 아니다(전송 전용 공개값 — apps-api.sentry 주석 참고). 비우면 Sentry 를 켜지 않는다.
   sentry:
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
+    enabled: ${SENTRY_ENABLED:-true}
     dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
     # 성능 트레이스 표본 비율(0=끔, 1=전부). 개발은 트래픽이 적어 전부 본다.
     tracesSampleRate: 1.0

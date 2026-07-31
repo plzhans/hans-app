@@ -16,7 +16,15 @@ import { appConfig, buildInfo } from './boot-config';
  * **비어 있으면 init 자체를 하지 않는다** — 이후 captureException 등은 전부 no-op 이 된다.
  */
 
-const dsn = appConfig.getStringOrDefault('apps-api.sentry.dsn');
+/**
+ * **끄개는 dsn 과 따로 둔다.** dsn 은 yaml 에 리터럴로 박혀 있고(비밀이 아니라서),
+ * `${VAR:-기본값}` 은 빈 값을 주면 기본값으로 되돌아간다 — 그래서 env 로 dsn 을 비워서 끌 수가
+ * 없다. 개인 오버라이드(config/.env.develop.local)로 SENTRY_ENABLED=false 를 주면 여기서 끊긴다.
+ *
+ * 내 머신에서 develop 으로 띄울 때 내 에러가 팀 이슈 스트림에 섞이지 않게 하려는 것이다.
+ */
+const enabled = appConfig.getBoolOrDefault('apps-api.sentry.enabled', true);
+const dsn = enabled ? appConfig.getStringOrDefault('apps-api.sentry.dsn') : '';
 const tracesSampleRate = appConfig.getNumberOrDefault(
   'apps-api.sentry.tracesSampleRate',
   0,
@@ -45,4 +53,6 @@ if (dsn) {
  */
 export const sentryStatusLine = dsn
   ? `🛰  Sentry : ${appConfig.env} / ${buildInfo.tagVersion} (traces ${tracesSampleRate})`
-  : '🛰  Sentry : 비활성 — apps-api.sentry.dsn 없음';
+  : enabled
+    ? '🛰  Sentry : 비활성 — apps-api.sentry.dsn 없음'
+    : '🛰  Sentry : 비활성 — SENTRY_ENABLED=false';
