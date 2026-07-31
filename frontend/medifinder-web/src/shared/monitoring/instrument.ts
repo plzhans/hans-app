@@ -10,7 +10,7 @@ import {
 /**
  * 에러 추적(Sentry). **import 되는 순간 초기화된다.**
  *
- * 다른 앱(콘솔·포털)처럼 `initSentry()` 를 main 에서 부르지 않는 이유가 있다. 이 앱은 라우터를
+ * 다른 앱(포털웹·인증웹)처럼 `initSentry()` 를 main 에서 부르지 않는 이유가 있다. 이 앱은 라우터를
  * **App.tsx 의 모듈 최상위**에서 만든다(createBrowserRouter). import 는 문(statement)보다 먼저
  * 평가되므로, main.tsx 본문에서 init 을 부르면 라우터가 이미 만들어진 뒤다. 그래서 부수효과
  * 모듈로 두고 main.tsx 의 **첫 import** 로 올린다(백엔드 instrument.ts 와 같은 이유·같은 이름).
@@ -19,7 +19,7 @@ import {
  * 어차피 번들에 구워진다. 없으면(로컬 기본) init 을 아예 하지 않는다: 이후 captureException
  * 등이 전부 no-op 이라 호출부를 분기할 필요가 없다.
  *
- * medifinder-web 은 자기 Sentry 프로젝트를 쓴다(콘솔·포털·docs 와 분리).
+ * medifinder-web 은 자기 Sentry 프로젝트를 쓴다(포털웹·인증웹·docs 와 분리).
  * environment 로 local/develop/production 을, release 로 어느 산출물인지 가른다.
  */
 

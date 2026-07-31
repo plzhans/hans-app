@@ -14,8 +14,8 @@ import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
 
 /**
- * 로그인 필요 구간. 미인증이면 **로그인 포털(hansapp-auth)로 리다이렉트**한다.
- * 콘솔은 자기 로그인 페이지가 없다 — 포털로 나갔다가 code 를 받아 /auth/callback 으로 돌아온다.
+ * 로그인 필요 구간. 미인증이면 **인증웹(fe/hans-auth)으로 리다이렉트**한다.
+ * 콘솔은 자기 로그인 페이지가 없다 — 인증웹으로 나갔다가 code 를 받아 /auth/callback 으로 돌아온다.
  */
 function RequireAuth({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
@@ -23,7 +23,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
     if (status === 'anonymous') void startLogin();
   }, [status]);
   if (status === 'authenticated') return <>{children}</>;
-  // loading 이거나 포털로 나가는 중 — 스피너.
+  // loading 이거나 인증웹으로 나가는 중 — 스피너.
   return <FullScreenSpinner />;
 }
 
@@ -49,7 +49,7 @@ function RouteTracker() {
 
 /**
  * HansApp **개발자 콘솔**(hansapp-web). 앱/OAuth 클라이언트 등록·관리.
- * 로그인 UI 는 담지 않는다 — 로그인은 포털(hansapp-auth)의 OAuth 클라이언트로 위임한다.
+ * 로그인 UI 는 담지 않는다 — 로그인은 인증웹(fe/hans-auth)의 OAuth 클라이언트로 위임한다.
  */
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);

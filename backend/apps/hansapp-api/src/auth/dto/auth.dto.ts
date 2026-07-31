@@ -177,7 +177,7 @@ export class AuthorizeRequestDto {
 
   @ApiPropertyOptional({
     description:
-      '외부 앱의 공개 클라이언트 ID. 생략하면 1st-party(인증 포털 자신)로 간주한다. ' +
+      '외부 앱의 공개 클라이언트 ID. 생략하면 1st-party(인증웹 자신)로 간주한다. ' +
       '이 값은 발급되는 코드에 기록되어, 토큰 교환 때 요청 Origin 대조의 기준이 된다.',
     example: 'cl_fixed_medifinder',
   })

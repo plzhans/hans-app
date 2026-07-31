@@ -21,7 +21,7 @@ import {
  * 않는다 — 이후 captureException 등은 전부 no-op 이라 코드를 분기할 필요가 없다.
  * GA(gtag.ts)와 같은 규약이다: 값이 있을 때만 붙인다.
  *
- * hansapp-web 은 자기 Sentry 프로젝트를 쓴다(포털·medifinder·docs 와 각각 분리).
+ * hansapp-web 은 자기 Sentry 프로젝트를 쓴다(인증웹·medifinder·docs 와 각각 분리).
  * environment 로 local/develop/production 을 가르고, release 로 어느 산출물인지 가른다.
  */
 

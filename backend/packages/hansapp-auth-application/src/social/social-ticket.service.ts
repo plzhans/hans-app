@@ -38,7 +38,7 @@ export class SocialTicketService {
     intent: 'login' | 'link';
     userId?: number;
     returnTo?: string;
-    /** 복귀 대상 클라이언트. 없으면 1st-party(인증 포털). 발급될 인가코드에 박힌다. */
+    /** 복귀 대상 클라이언트. 없으면 1st-party(인증웹). 발급될 인가코드에 박힌다. */
     clientId?: string;
     /** PKCE code_challenge(S256). 해시라 노출돼도 안전하므로 state 로 운반한다. */
     codeChallenge?: string;

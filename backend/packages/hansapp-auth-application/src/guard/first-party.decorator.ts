@@ -4,7 +4,7 @@ import { SetMetadata } from '@nestjs/common';
 export const FIRST_PARTY_ONLY_KEY = 'firstPartyOnly';
 
 /**
- * **1st-party(포털) 오리진에서만** 부를 수 있는 라우트에 붙인다.
+ * **1st-party(자사) 오리진에서만** 부를 수 있는 라우트에 붙인다.
  *
  * 대상은 client_id 로 인증하지 않는 흐름 — 로그인·가입·토큰 교환처럼 **refresh 쿠키**를
  * 세팅/사용하는 것들이다. 여긴 대조할 client_id 가 없으므로 client 별 origins 대신

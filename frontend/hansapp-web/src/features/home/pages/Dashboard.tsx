@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import { Gnb } from '@/shared/components/Gnb';
 import { LINKS } from '@/shared/config/links';
 
-/** 직접 만든 서비스들. 포털의 주인공이라 맨 위에 카드로 크게 노출한다. */
+/** 직접 만든 서비스들. 포털웹의 주인공이라 맨 위에 카드로 크게 노출한다. */
 const SERVICES: {
   icon: LucideIcon;
   title: string;
@@ -48,7 +48,7 @@ const API_DOMAINS = [
 ];
 
 /**
- * HansApp 포털 대시보드(첫 페이지). 직접 만든 서비스를 보여주는 홈.
+ * HansApp 포털웹 대시보드(첫 페이지). 직접 만든 서비스를 보여주는 홈.
  * 서비스 → 개발자(Hans API) → 공지사항 순으로 보여준다.
  * 하나의 계정(HansApp)으로 모든 서비스가 연결된다.
  */

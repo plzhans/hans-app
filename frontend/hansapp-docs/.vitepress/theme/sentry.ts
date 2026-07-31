@@ -11,7 +11,7 @@ import * as Sentry from '@sentry/vue';
  * **로컬(`pnpm docs:dev`)에서는 끈다** — DOCS_ENV 가 없어 환경이 'local' 로 잡히면 init 을
  * 건너뛴다. 내 머신 에러가 팀 이슈 스트림에 섞이면 안 된다.
  *
- * hansapp-docs 는 자기 Sentry 프로젝트를 쓴다(콘솔·포털·medifinder 와 분리).
+ * hansapp-docs 는 자기 Sentry 프로젝트를 쓴다(포털웹·인증웹·medifinder 와 분리).
  * VitePress 는 Vue 3 앱이라 @sentry/react 가 아니라 @sentry/vue 다 — 컴포넌트 렌더 에러를
  * 잡으려면 Vue 앱 인스턴스를 넘겨야 해서 enhanceApp 에서 부른다.
  */

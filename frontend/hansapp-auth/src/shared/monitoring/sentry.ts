@@ -20,7 +20,7 @@ import {
  * DSN 은 **VITE_SENTRY_DSN** 으로 주입한다(.env.<환경>). 없으면(로컬 기본) init 을 아예 하지
  * 않는다 — 이후 captureException 등은 전부 no-op 이라 코드를 분기할 필요가 없다.
  *
- * hansapp-auth(로그인 포털)는 자기 Sentry 프로젝트를 쓴다. **여기서 나는 에러는 곧 로그인 불가**라
+ * hansapp-auth(인증웹)는 자기 Sentry 프로젝트를 쓴다. **여기서 나는 에러는 곧 로그인 불가**라
  * 다른 앱 이슈에 섞이면 안 된다. environment 로 local/develop/production 을 가른다.
  */
 

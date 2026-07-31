@@ -1,13 +1,13 @@
 /**
  * PKCE(RFC 7636) 파라미터 생성·보관.
  *
- * 이 포털은 두 가지 역할을 하고, PKCE 에서 서로 다르게 동작한다.
+ * 이 인증웹은 두 가지 역할을 하고, PKCE 에서 서로 다르게 동작한다.
  *
  *   **중계자**  외부 앱(medifinder 등)이 SSO 로 들어온 경우.
  *              URL 의 code_challenge 를 그대로 넘겨주기만 한다. verifier 는 그 앱이 갖고 있고
- *              포털은 볼 일이 없다 — 봐서도 안 된다.
+ *              인증웹은 볼 일이 없다 — 봐서도 안 된다.
  *
- *   **당사자**  포털 자신의 로그인(소셜). 이때는 포털이 verifier 를 만들어 보관하고,
+ *   **당사자**  인증웹 자신의 로그인(소셜). 이때는 인증웹이 verifier 를 만들어 보관하고,
  *              자기 콜백에서 직접 교환한다.
  *
  * verifier 는 전체 페이지 이동(소셜 왕복)을 건너야 하므로 메모리에 둘 수 없다.
@@ -36,7 +36,7 @@ async function sha256base64url(value: string): Promise<string> {
 }
 
 /**
- * 포털 자신의 로그인용 verifier 를 만들어 보관하고 challenge 만 돌려준다.
+ * 인증웹 자신의 로그인용 verifier 를 만들어 보관하고 challenge 만 돌려준다.
  * 32 bytes → base64url 43자로, RFC 7636 이 요구하는 43~128자 범위를 만족한다.
  */
 export async function createPkceRequest(): Promise<PkceRequest> {

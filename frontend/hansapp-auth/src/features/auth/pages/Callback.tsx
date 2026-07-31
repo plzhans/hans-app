@@ -45,7 +45,7 @@ export default function Callback() {
   const [busy, setBusy] = useState(false);
   const ran = useRef(false);
 
-  // 로그인 완료 후 이동: 1st-party return(자사 앱) 있으면 그리로, 아니면 포털 내 정보로.
+  // 로그인 완료 후 이동: 1st-party return(자사 앱) 있으면 그리로, 아니면 인증웹 내 정보로.
   // return 은 콜백 URL 의 ret= 로 온다(백엔드 서명 state 의 returnTo 로 왕복). 1st-party 만 따른다
   // (백엔드가 이미 rootDomain 으로 검증했으므로 여기선 방어적 이중 확인).
   const goAfterAuth = () => {

@@ -38,7 +38,7 @@ export default function Login() {
   const returnTo = params.get('redirect_uri') ?? undefined;
   // 그 클라이언트의 공개 ID. 서버가 return_to 검증과 코드 귀속에 쓴다.
   const clientId = params.get('client_id') ?? undefined;
-  // 외부 앱이 만든 PKCE challenge. 포털은 **전달만** 한다 — verifier 는 그 앱에 있다.
+  // 외부 앱이 만든 PKCE challenge. 인증웹은 **전달만** 한다 — verifier 는 그 앱에 있다.
   const codeChallenge = params.get('code_challenge') ?? undefined;
   // 그 앱의 state. 해석하지 않고 최종 복귀 URL 에 그대로 돌려준다.
   const clientState = params.get('state') ?? undefined;
@@ -68,7 +68,7 @@ export default function Login() {
         window.location.href = appReturn;
         return;
       }
-      // ③ 포털 자체 로그인 → 내 정보.
+      // ③ 인증웹 자체 로그인 → 내 정보.
       navigate('/me', { replace: true });
     } catch (e) {
       setServerError(errorMessage(e, '로그인에 실패했습니다.'));

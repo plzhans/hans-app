@@ -127,7 +127,7 @@ export function logout(): Promise<void> {
  * 이메일 로그인 뒤 그 클라이언트로 코드를 실어 돌려보낼 때 쓴다.
  *
  * clientId 를 넘기면 서버가 그 클라이언트의 등록 리디렉션 URI 와 returnTo 를 대조하고,
- * 발급되는 code 에 clientId 를 박는다. 없으면 1st-party(이 포털) 복귀로 본다.
+ * 발급되는 code 에 clientId 를 박는다. 없으면 1st-party(이 포털웹) 복귀로 본다.
  */
 export function authorize(
   redirectUri: string,
@@ -155,7 +155,7 @@ export async function relayCodeIfNeeded(
   clientState?: string,
 ): Promise<boolean> {
   if (!returnTo) return false;
-  // challenge 는 **그 앱이 만든 것**을 그대로 넘긴다. 포털이 새로 만들면 verifier 를
+  // challenge 는 **그 앱이 만든 것**을 그대로 넘긴다. 인증웹이 새로 만들면 verifier 를
   // 가진 쪽(그 앱)과 짝이 안 맞아 교환이 실패한다.
   if (!codeChallenge) {
     throw new Error('code_challenge is required for SSO relay.');

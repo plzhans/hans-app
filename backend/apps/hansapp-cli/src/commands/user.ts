@@ -11,7 +11,7 @@ import { printJson } from '../output';
  * 사용자 관리 커맨드. **운영자 전용 동작만** 둔다.
  *
  * 등급(tier)은 앱 생성 한도를 정하는 값이라 본인이 올릴 수 있으면 한도가 의미를 잃는다.
- * 그래서 포털·API 에는 통로가 없고 여기서만 바꾼다.
+ * 그래서 포털웹·API 에는 통로가 없고 여기서만 바꾼다.
  */
 
 const TIERS = Object.values(UserTier);

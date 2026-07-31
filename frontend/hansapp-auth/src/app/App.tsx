@@ -38,8 +38,8 @@ function FullScreenSpinner() {
 }
 
 /**
- * HansApp **인증 포털**(hansapp-auth). plzhans 계정 로그인 front door(authorization_endpoint).
- * 포털 자체가 auth 이므로 라우트에 /auth 프리픽스를 두지 않는다 — /login, /signup, /callback.
+ * HansApp **인증웹**(fe/hans-auth). plzhans 계정 로그인 front door(authorization_endpoint).
+ * 인증웹 자체가 auth 이므로 라우트에 /auth 프리픽스를 두지 않는다 — /login, /signup, /callback.
  * (배포: auth.plzhans.com/login. 로컬 단일오리진: 127.0.0.1/auth/login 은 VITE_ROUTER_BASE=/auth 로 마운트.)
  */
 export default function App() {
@@ -77,7 +77,7 @@ export default function App() {
         />
         {/* 소셜 콜백 착지점(1st-party). 백엔드가 이 경로로 code/pending 을 실어 돌려보낸다. */}
         <Route path="/callback" element={<Callback />} />
-        {/* 내 정보(로그인 필요). 포털에 직접 로그인한 사용자용. */}
+        {/* 내 정보(로그인 필요). 인증웹에 직접 로그인한 사용자용. */}
         <Route
           path="/me"
           element={

@@ -8,7 +8,7 @@ import { addExamples } from '../help';
 import { printJson } from '../output';
 
 /**
- * 앱(개발자 플랫폼) 관리 커맨드. 포털 콘솔로 하던 등록·발급을 터미널에서 한다.
+ * 앱(개발자 플랫폼) 관리 커맨드. 포털웹 콘솔로 하던 등록·발급을 터미널에서 한다.
  *
  * 모든 동작은 **AppService 를 그대로 재사용**한다 — 등급별 앱 한도, 키 상한, 캐시 무효화,
  * 키·clientId 형식이 콘솔과 완전히 같다. CLI 는 파싱과 출력만 한다.
@@ -67,7 +67,7 @@ async function run<T>(
           `  값 출처 : ${from}`,
           `  환경    : ${source.env} (--env 로 바꾼다)`,
           '  확인    : 그 환경 DB 에 해당 이메일로 가입된 계정이 있어야 한다.',
-          '            포털에서 가입/소셜 로그인을 먼저 하거나, 올바른 이메일을 지정하라.',
+          '            포털웹에서 가입/소셜 로그인을 먼저 하거나, 올바른 이메일을 지정하라.',
         ].join('\n'),
       );
     });
@@ -125,7 +125,7 @@ function briefClient(c: AppClient) {
 
 export function appCommand(source: ConfigSource): Command {
   const app = new Command('app').description(
-    '앱·서비스 키·클라이언트 관리 (포털 콘솔과 동일한 규칙)',
+    '앱·서비스 키·클라이언트 관리 (포털웹 콘솔과 동일한 규칙)',
   );
 
   // ---- 앱 ----

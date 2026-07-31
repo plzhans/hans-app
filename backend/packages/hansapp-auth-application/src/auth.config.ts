@@ -65,7 +65,7 @@ export interface AuthConfig {
   readonly issuer?: string;
 
   /**
-   * OAuth2 authorization_endpoint(AUTH_AUTHORIZE_URL). **인증 포털(hans-auth) 로그인 URL**.
+   * OAuth2 authorization_endpoint(AUTH_AUTHORIZE_URL). **인증웹(fe/hans-auth) 로그인 URL**.
    * 예: https://auth.plzhans.com/login. discovery 에 실린다. 미설정이면 authorization_endpoint 를 뺀다.
    */
   readonly authorizeUrl?: string;
@@ -184,7 +184,7 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
   if (issuer && !allowedIssuers.includes(issuer)) {
     allowedIssuers.push(issuer);
   }
-  // authorization_endpoint = 인증 포털(hans-auth) 로그인 URL(예: https://auth.plzhans.com/login).
+  // authorization_endpoint = 인증웹(fe/hans-auth) 로그인 URL(예: https://auth.plzhans.com/login).
   // 로그인 UI 가 별도 서브도메인(hans-auth)으로 분리돼 있어 명시 설정한다(자동 파생 없음).
   const authorizeUrl =
     source.getStringOrDefault('auth.authorizeUrl') || undefined;
