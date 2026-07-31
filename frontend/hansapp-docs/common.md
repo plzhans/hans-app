@@ -112,12 +112,12 @@ await fetch('https://api.plzhans.com/healthcare/hospitals?region=11680', {
 sequenceDiagram
     autonumber
     participant App as 내 앱
-    participant Auth as 인증 포털<br/>(authorization_endpoint)
+    participant Auth as 인증웹<br/>(authorization_endpoint)
     participant API as Hans API<br/>(/oauth/token)
 
     App->>App: code_verifier · code_challenge · state 생성
-    App->>Auth: 인증 포털로 이동<br/>redirect_uri + code_challenge + state
-    Note over Auth: 사용자가 인증 포털에서 로그인
+    App->>Auth: 인증웹으로 이동<br/>redirect_uri + code_challenge + state
+    Note over Auth: 사용자가 인증웹에서 로그인
     Auth-->>App: 등록한 redirect_uri 로 복귀<br/>code=ac_... + state
     App->>App: 받은 state 가 보낸 값과 같은지 확인
     App->>API: POST /oauth/token<br/>code + code_verifier
@@ -125,8 +125,8 @@ sequenceDiagram
 ```
 
 1. **1회용 값 생성** — `code_verifier`, `code_challenge`, CSRF 대조용 `state`.
-2. **인증 포털로 이동** — discovery 의 `authorization_endpoint`(예: `https://auth.plzhans.com/login`)로
-   사용자를 보냅니다. 사용자는 인증 포털에서 로그인합니다(로그인 방식은 포털이 알아서 처리합니다).
+2. **인증웹으로 이동** — discovery 의 `authorization_endpoint`(예: `https://auth.plzhans.com/login`)로
+   사용자를 보냅니다. 사용자는 인증웹에서 로그인합니다(로그인 방식은 인증웹이 알아서 처리합니다).
 3. **인가코드 수신** — 로그인이 끝나면 등록해 둔 `redirect_uri` 로 되돌아오며, 쿼리에 1회용
    인가코드(`code=ac_...`)와 `state` 가 실립니다. 보낸 `state` 와 같은지 먼저 확인하세요.
 4. **토큰 교환** — 인가코드와 `code_verifier` 를 `/oauth/token` 으로 교환합니다.
@@ -178,7 +178,7 @@ curl -X POST "https://api.plzhans.com/oauth/token" \
 
 #### 소셜 로그인은 우리가 대신 처리합니다
 
-사용자가 인증 포털에서 **구글·네이버·카카오·라인**으로 로그인해도, 여러분 앱이 할 일은 위 흐름
+사용자가 인증웹에서 **구글·네이버·카카오·라인**으로 로그인해도, 여러분 앱이 할 일은 위 흐름
 그대로입니다. 외부 제공자와의 통신은 전부 우리 서버가 처리하고, 여러분에게는 결과(인가코드)만
 돌아옵니다.
 
