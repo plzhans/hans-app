@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.10.0...release-backend/v0.11.0) (2026-07-31)
+
+
+### 기능
+
+* redis 를 앱 compose 안으로 넣어 배포가 같이 띄우게 한다 ([769f6ae](https://github.com/plzhans/hans-app/commit/769f6aedbb4a2548be4727cb0020d290db33beb5))
+
+
+### 구조 변경
+
+* elasticsearch 를 infra/shared 로 올린다 ([0c57d0b](https://github.com/plzhans/hans-app/commit/0c57d0b1f243ca575044275935180367d47c3dea))
+
 ## [0.10.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.9.0...release-backend/v0.10.0) (2026-07-31)
 
 
