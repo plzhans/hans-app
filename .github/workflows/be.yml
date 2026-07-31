@@ -165,6 +165,10 @@ jobs:
     environment: develop
     outputs:
       ts: ${{ steps.post.outputs.ts }}
+      # **채널 id 를 응답에서 받아 흘린다.** chat.postMessage 는 `#이름` 을 받아 주지만
+      # chat.update 는 **id 만** 받는다 — 이름을 주면 channel_not_found 로 거절한다.
+      # 이름이 바뀌어도 이 경로는 안 깨진다.
+      channel: ${{ steps.post.outputs.channel_id }}
     steps:
       - uses: actions/checkout@v7
 
@@ -177,6 +181,7 @@ jobs:
           # 이 잡이 도는 동안 build 가 나란히 돌고 있다.
           CURRENT_STAGE: 빌드하는 중
           APP_ENV: develop
+          # 첫 게시(chat.postMessage)만 `#이름` 으로 보낸다. 응답에서 받은 id 로 뒤가 고친다.
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
           GIT_SHA: ${{ github.sha }}
           GIT_ACTOR: ${{ github.actor }}
@@ -329,7 +334,7 @@ jobs:
         if: matrix.app == 'hansapp-api'
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
           SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
         run: ./scripts/deploy/ci-slack-deploy-stage.sh '도커 이미지를 굽는 중'
 
@@ -417,7 +422,7 @@ jobs:
       - name: 슬랙 카드
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
           SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
         run: ./scripts/deploy/ci-slack-deploy-stage.sh 'DB 스키마를 반영하는 중'
 
@@ -468,7 +473,7 @@ jobs:
       - name: 슬랙 카드
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
           SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
         run: ./scripts/deploy/ci-slack-deploy-stage.sh '서버에 반영하는 중'
 
@@ -532,24 +537,25 @@ jobs:
           echo "failed=$failed" >> "$GITHUB_OUTPUT"
           echo "  판정 $status ${failed:+· $failed 단계}"
 
-      - id: card
+      # **여기서는 액션을 쓰지 않는다.** 액션은 errors 기본값이 false 라 슬랙이 거절해도
+      # 로그에 아무것도 남기지 않는다 — 카드가 안 바뀌는데 잡은 초록으로 끝나서, 실제로
+      # channel_not_found 를 두 번의 배포 동안 못 보고 지나쳤다. 스크립트는 크게 알린다.
+      # (액션이 필요한 곳은 ts 를 output 으로 받아야 하는 first_notify 뿐이다.)
+      - name: 슬랙 카드
         env:
           DEPLOY_STATUS: ${{ steps.verdict.outputs.status }}
           FAILED_STAGE: ${{ steps.verdict.outputs.failed }}
           # 이 값이 있으면 카드가 chat.update 용(ts 가 박힌) 페이로드가 된다.
           UPDATE_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
           APP_ENV: develop
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
           GIT_SHA: ${{ github.sha }}
           GIT_ACTOR: ${{ github.actor }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
         run: |
           GIT_SUBJECT="$(git log -1 --pretty=%s)" \
-            ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
-
-      - uses: slackapi/slack-github-action@v4
-        with:
-          method: chat.update
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          payload-file-path: ${{ runner.temp }}/card.json
+            ./scripts/deploy/ci-slack-deploy-card.sh \
+            | ./scripts/deploy/ci-slack-send.sh \
+                --update '${{ needs.first_notify.outputs.ts }}' --json -

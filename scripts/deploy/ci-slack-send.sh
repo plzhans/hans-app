@@ -219,7 +219,11 @@ if [ "$(printf '%s' "$response" | jq -r '.ok // false' 2>/dev/null)" != 'true' ]
   # 토큰 문제인지 채널 문제인지 스코프 문제인지 구분되지 않는다.
   case "$error" in
     not_in_channel)    warn "  봇을 채널($channel)에 초대할 것." ;;
-    channel_not_found) warn "  SLACK_CHANNEL($channel) 이 맞는지 볼 것. 채널 id(C…)를 권한다." ;;
+    channel_not_found)
+      warn "  SLACK_CHANNEL($channel) 이 맞는지 볼 것."
+      # 실제로 여기 걸렸다. postMessage 는 `#이름` 을 받아 주는데 update 는 안 받는다.
+      [ "$method" = 'chat.update' ] && warn '  **chat.update 는 채널 id(C…)만 받는다.** `#이름` 은 거절된다.'
+      ;;
     invalid_auth | not_authed)
                        warn '  SLACK_BOT_TOKEN 이 잘못됐다. xoxb- 로 시작하는 봇 토큰이어야 한다.' ;;
     missing_scope)     warn '  봇에 chat:write 스코프를 주고 워크스페이스에 다시 설치할 것.' ;;
