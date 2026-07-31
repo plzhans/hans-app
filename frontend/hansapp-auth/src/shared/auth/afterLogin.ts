@@ -16,6 +16,28 @@ export interface AfterLoginParams {
 }
 
 /**
+ * 인증 화면에 들어온 요청이 **끝까지 갈 수 있는 요청인지** 미리 본다.
+ *
+ * 백엔드는 인가코드 발급에 PKCE challenge 를 무조건 요구한다. 그런데 프론트가 이걸 안 보면
+ * 잘못된 요청에도 로그인 폼을 띄우고, 사용자가 비밀번호까지 다 입력한 **뒤에야** 실패한다.
+ * 이미 로그인돼 있으면 더 나쁘다 — 조용히 /me 로 가버려서 보낸 앱은 영영 코드를 기다린다.
+ * 어차피 실패할 요청이면 처음부터 거절하는 게 사용자에게도 그 앱 개발자에게도 낫다.
+ *
+ * @returns 문제가 있으면 사용자에게 보일 사유, 없으면 null.
+ */
+export function validateAfterLoginParams(p: AfterLoginParams): string | null {
+  // 코드를 받을 곳 없이 client_id 만 오면 발급해도 보낼 데가 없다.
+  if (p.clientId && !p.returnTo) {
+    return 'redirect_uri 가 없습니다.';
+  }
+  // redirect_uri 가 있으면 인가코드 경로다 = PKCE 필수. challenge 는 **그 앱이** 만든다.
+  if (p.returnTo && !p.codeChallenge) {
+    return 'code_challenge 가 없습니다. (PKCE, S256)';
+  }
+  return null;
+}
+
+/**
  * **로그인이 끝난 뒤 갈 곳을 정한다.** 세 갈래이고 순서가 곧 우선순위다.
  *
  *   ① 외부 SSO(client_id)  인가코드를 실어 그 앱으로. 이걸 건너뛰면 그 앱은 코드를 못 받는다

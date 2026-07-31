@@ -6,8 +6,13 @@ import {
   Routes,
   useSearchParams,
 } from 'react-router-dom';
+import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { goAfterLogin, readAfterLoginParams } from '@/shared/auth/afterLogin';
+import {
+  goAfterLogin,
+  readAfterLoginParams,
+  validateAfterLoginParams,
+} from '@/shared/auth/afterLogin';
 import { subscribeAuth } from '@/shared/auth/authChannel';
 import Login from '@/features/auth/pages/Login';
 import Signup from '@/features/auth/pages/Signup';
@@ -38,31 +43,55 @@ function RequireAuth({ children }: { children: ReactNode }) {
  */
 function GuestOnly({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
+  const [params] = useSearchParams();
+  // 로그인 여부보다 **먼저** 본다. 어차피 발급이 거절될 요청이면 폼을 띄울 이유가 없고,
+  // 이미 로그인한 사용자를 조용히 /me 로 보내 앱이 무한정 기다리게 만들어서도 안 된다.
+  const problem = validateAfterLoginParams(readAfterLoginParams(params));
+  if (problem) return <BadAuthRequest reason={problem} />;
   if (status === 'loading') return <FullScreenSpinner />;
   if (status === 'authenticated') return <AlreadyLoggedIn />;
   return <>{children}</>;
 }
 
+/**
+ * 처리할 수 없는 인증 요청. 보낸 앱의 연동 오류라 사용자가 할 수 있는 게 없으므로,
+ * 다시 시도하게 두지 않고 사유만 분명히 보여준다(그 앱 개발자가 원인을 찾을 수 있게).
+ */
+function BadAuthRequest({ reason }: { reason: string }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+      <p className="font-semibold text-gray-700">잘못된 로그인 요청입니다.</p>
+      <p className="text-sm text-gray-500">{reason}</p>
+    </div>
+  );
+}
+
 /** 로그인된 채로 인증 화면에 온 사용자를 복귀시킨다. 보낼 곳이 없으면 /me. */
 function AlreadyLoggedIn() {
   const [params] = useSearchParams();
-  const [stay, setStay] = useState(false);
+  const [outcome, setOutcome] = useState<'pending' | 'home' | string>('pending');
 
   useEffect(() => {
     let alive = true;
-    // 실패(예: SSO 인데 code_challenge 누락)해도 인증 화면에 가두지 않고 /me 로 보낸다.
+    // 형식 오류는 GuestOnly 가 이미 걸렀다. 여기서 실패하는 건 서버가 거절한 경우다
+    // (미등록 redirect_uri, 비활성 클라이언트 등). 그건 /me 로 삼키면 안 된다 —
+    // 보낸 앱은 코드를 기다리는데 사용자는 엉뚱한 화면에서 이유를 모른다.
     goAfterLogin(readAfterLoginParams(params))
-      .catch(() => false)
       .then((moved) => {
-        if (alive && !moved) setStay(true);
+        if (alive && !moved) setOutcome('home');
+      })
+      .catch((e: unknown) => {
+        if (alive) setOutcome(errorMessage(e, '요청을 처리할 수 없습니다.'));
       });
     return () => {
       alive = false;
     };
   }, [params]);
 
-  // 이동이 결정될 때까지는 로그인 폼을 깜빡이지 않는다.
-  return stay ? <Navigate to="/me" replace /> : <FullScreenSpinner />;
+  // 이동이 결정될 때까지는 화면을 깜빡이지 않는다.
+  if (outcome === 'pending') return <FullScreenSpinner />;
+  if (outcome === 'home') return <Navigate to="/me" replace />;
+  return <BadAuthRequest reason={outcome} />;
 }
 
 function FullScreenSpinner() {
