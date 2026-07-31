@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.1](https://github.com/plzhans/hans-app/compare/release-frontend/v0.3.0...release-frontend/v0.3.1) (2026-07-31)
+
+
+### 버그 수정
+
+* 포털 상단 링크가 develop 에서도 운영으로 가던 것을 고친다 ([d5b6279](https://github.com/plzhans/hans-app/commit/d5b6279cb4b927b2002e6962970e68c014b48d11))
+* 환경마다 쿠키 이름을 가른다 ([7da3c1a](https://github.com/plzhans/hans-app/commit/7da3c1a76dc0eb382e5d2eadbed5aaaa1a53dd43))
+
+
+### 구조 변경
+
+* access token 저장을 쿠키 이름 규칙에 맞춘다 ([5377d45](https://github.com/plzhans/hans-app/commit/5377d4558f2f3a347a53e46e58e779f5fd2ab3e4))
+* 소셜 콜백 착지를 client_id 기준으로 가른다 ([1e27bd9](https://github.com/plzhans/hans-app/commit/1e27bd9e330593e6fd9df5c11798094fe8faa402))
+
+
+### 문서
+
+* .env.local 이 모든 환경에 딸려간다고 파일에 적는다 ([dbd901c](https://github.com/plzhans/hans-app/commit/dbd901cef24ac93db7abf5630b24389087887b82))
+* 인증 포털을 인증웹으로 바로잡는다 ([1891c77](https://github.com/plzhans/hans-app/commit/1891c778bdd1cd4b840ff503097e1f7effba4d6f))
+
 ## [0.3.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.2.1...release-frontend/v0.3.0) (2026-07-31)
 
 
