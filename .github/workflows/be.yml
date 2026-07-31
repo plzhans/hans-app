@@ -165,9 +165,8 @@ jobs:
     environment: develop
     outputs:
       ts: ${{ steps.post.outputs.ts }}
-      # **채널 id 를 응답에서 받아 흘린다.** chat.postMessage 는 `#이름` 을 받아 주지만
-      # chat.update 는 **id 만** 받는다 — 이름을 주면 channel_not_found 로 거절한다.
-      # 이름이 바뀌어도 이 경로는 안 깨진다.
+      # **채널 id 를 응답에서 받아 흘린다.** chat.postMessage 는 `#이름` 도 받아 주지만,
+      # 한 번 해석된 id 를 쓰면 뒤 단계들이 이름에 의존하지 않는다.
       channel: ${{ steps.post.outputs.channel_id }}
     steps:
       - uses: actions/checkout@v7
