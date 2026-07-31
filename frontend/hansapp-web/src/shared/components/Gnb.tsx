@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { startLogin } from '@/shared/auth/login';
+import { startLogin, startLogout } from '@/shared/auth/login';
 import { LINKS } from '@/shared/config/links';
 
 const MENU = [
@@ -13,7 +13,6 @@ const MENU = [
 export function Gnb() {
   const status = useAuthStore((s) => s.status);
   const me = useAuthStore((s) => s.me);
-  const signOut = useAuthStore((s) => s.signOut);
 
   return (
     <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur">
@@ -55,7 +54,7 @@ export function Gnb() {
               </span>
               <button
                 type="button"
-                onClick={() => void signOut()}
+                onClick={() => startLogout()}
                 className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
                 로그아웃

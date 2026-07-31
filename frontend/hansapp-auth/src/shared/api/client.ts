@@ -2,6 +2,7 @@ import { API_BASE_URL } from '@/shared/config/env';
 import { publishAuth, withRefreshLock } from '@/shared/auth/authChannel';
 import {
   clearSession,
+  clearSessionHint,
   getSession,
   hasSessionHint,
   hydrateSession,
@@ -63,7 +64,10 @@ async function refreshOnce(): Promise<boolean> {
   // 그 사이 Set-Cookie 가 도착했을 테니 딱 한 번만 다시 시도한다.
   if (hasSessionHint() && (await postRefresh())) return true;
 
+  // 서버가 확정적으로 거절했다. 힌트가 남아 있으면 다음 방문에도 세션이 있다고 오판해
+  // 앱 사이를 왕복하므로 같이 지운다(로그아웃이 아닌 만료·폐기 경로).
   await clearSession();
+  clearSessionHint();
   return false;
 }
 

@@ -13,6 +13,15 @@ export const AUTH_WEB_URL =
  * 실행 환경 이름(local|develop|production). VITE_APP_ENV 로 주입, 백엔드 APP_ENV 와 같은 이름을 쓴다.
  * **vite 의 mode 로는 못 가른다** — develop 빌드도 production 빌드도 mode 는 production 이다.
  */
+/**
+ * 서비스 루트 도메인(예: plzhans.com). 백엔드 APP_ROOT_DOMAIN 과 **같은 값**을 쓴다.
+ * 로그인 힌트 쿠키가 이 도메인으로 심기므로, 지울 때도 같은 값이 있어야 한다.
+ */
+export const APP_ROOT_DOMAIN =
+  (import.meta.env.VITE_APP_ROOT_DOMAIN as string | undefined)
+    ?.replace(/^\./, '')
+    .trim() ?? '';
+
 export const APP_ENV =
   (import.meta.env.VITE_APP_ENV as string | undefined) ?? 'local';
 

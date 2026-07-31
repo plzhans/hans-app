@@ -1,3 +1,4 @@
+import { PORTAL_WEB_URL } from '@/shared/config/env';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
 import { AuthCard } from '../components/AuthCard';
@@ -21,9 +22,17 @@ export default function Home() {
           <Row label="이메일 인증" value={me.emailVerified ? '완료' : '미완료'} />
         </dl>
       )}
-      <Button variant="outline" className="mt-6" onClick={() => void signOut()}>
-        로그아웃
-      </Button>
+      <div className="mt-6 space-y-2">
+        {/* 미설정(로컬에서 포털을 안 띄운 경우)이면 죽은 버튼을 만들지 않고 감춘다. */}
+        {PORTAL_WEB_URL && (
+          <Button onClick={() => (window.location.href = PORTAL_WEB_URL)}>
+            홈으로 가기
+          </Button>
+        )}
+        <Button variant="outline" onClick={() => void signOut()}>
+          로그아웃
+        </Button>
+      </div>
     </AuthCard>
   );
 }

@@ -18,6 +18,7 @@ import Login from '@/features/auth/pages/Login';
 import Signup from '@/features/auth/pages/Signup';
 import ForgotPassword from '@/features/auth/pages/ForgotPassword';
 import Callback from '@/features/auth/pages/Callback';
+import Logout from '@/features/auth/pages/Logout';
 import Home from '@/features/auth/pages/Home';
 
 /** 로컬 단일 오리진에선 /auth 프리픽스 아래로 마운트한다(VITE_ROUTER_BASE). 배포(서브도메인)는 루트. */
@@ -148,6 +149,8 @@ export default function App() {
         />
         {/* 소셜 콜백 착지점(1st-party). 백엔드가 이 경로로 code/pending 을 실어 돌려보낸다. */}
         <Route path="/callback" element={<Callback />} />
+        {/* 로그아웃 착지점. 자사 앱은 자기가 처리하지 않고 여기로 보낸다(공유 세션이라 한 곳에서). */}
+        <Route path="/logout" element={<Logout />} />
         {/* 내 정보(로그인 필요). 인증웹에 직접 로그인한 사용자용. */}
         <Route
           path="/me"

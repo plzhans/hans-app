@@ -39,10 +39,21 @@ export const useAuthStore = create<AuthState>((set) => ({
   me: null,
 
   bootstrap: async () => {
-    // ① 로컬 저장 세션. 없으면 ② **로그인 힌트 쿠키가 있을 때만** 공유 refresh 쿠키(.plzhans.com)로 시도.
-    //    hans-auth 에서 로그인했으면 여기서 세션을 인지한다(**페이지 이동 없이**). 힌트 없으면 호출 안 함(400 회피).
+    // **힌트 쿠키가 이 오리진 토큰의 유효성을 결정한다.**
+    // 로그아웃은 서버가 `.plzhans.com` 쿠키를 지우는 것으로 끝나는데, 각 앱의 localStorage
+    // 는 origin 격리라 아무도 대신 못 지운다. 그래서 "힌트가 없으면 내 access token 도
+    // 무효" 로 봐야 한다 — 안 그러면 다른 앱에서 로그아웃한 뒤에도 여기선 만료 전 JWT 로
+    // 로그인 상태라 우기게 되고, 서로 상대에게 떠넘기며 무한 왕복한다.
+    const hint = hasSessionHint();
     let session = await hydrateSession();
-    if (!session && hasSessionHint() && (await refreshSession())) {
+    if (session && !hint) {
+      await clearSession();
+      clearMe();
+      session = null;
+    }
+    // 저장소가 비었어도 힌트가 있으면 공유 refresh 쿠키로 세션을 세운다 — 인증웹에서
+    // 로그인했으면 여기서 페이지 이동 없이 세션을 인지한다.
+    if (!session && hint && (await refreshSession().catch(() => false))) {
       session = getSession();
     }
     if (!session) {

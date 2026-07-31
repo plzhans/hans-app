@@ -4,7 +4,11 @@ import {
   saveTokens,
   type StoredTokens,
 } from '@/shared/storage/tokenStore';
+import { APP_ROOT_DOMAIN } from '@/shared/config/env';
 import type { Me } from './auth';
+
+/** 백엔드 SESSION_HINT_COOKIE 와 같은 이름이어야 한다. */
+const HINT_COOKIE = 'hansapp.session';
 
 const ME_KEY = 'hansapp.me';
 
@@ -57,7 +61,22 @@ export async function clearSession(): Promise<void> {
 export function hasSessionHint(): boolean {
   return document.cookie
     .split(';')
-    .some((c) => c.trim().startsWith('hansapp.session='));
+    .some((c) => c.trim().startsWith(`${HINT_COOKIE}=`));
+}
+
+/**
+ * 힌트 쿠키를 지운다. **서버가 refresh 를 거절했을 때** 쓴다.
+ *
+ * 로그아웃은 서버가 지워주지만, 세션 만료·관리자 폐기·비밀번호 재설정처럼 서버가 응답에
+ * 쿠키를 실을 수 없는 경로에서는 힌트만 남는다. 그대로 두면 매 방문마다 헛되이 refresh 를
+ * 치고, 더 나쁘게는 "세션이 있다"고 오판해 앱 사이를 왕복하게 된다.
+ *
+ * 심을 때와 **같은 domain·path** 여야 브라우저가 지운다(백엔드 setSessionHint 와 짝).
+ */
+export function clearSessionHint(): void {
+  const base = `${HINT_COOKIE}=; Max-Age=0; path=/`;
+  document.cookie = base;
+  if (APP_ROOT_DOMAIN) document.cookie = `${base}; domain=.${APP_ROOT_DOMAIN}`;
 }
 
 // ── 프로필 캐시 + access 만료 로컬검증 ──

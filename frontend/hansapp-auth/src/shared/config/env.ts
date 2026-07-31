@@ -3,6 +3,16 @@ export const API_BASE_URL =
   (import.meta.env.VITE_HANSAPP_BASE_URL as string | undefined) ?? '';
 
 /**
+ * 포털웹(hansapp-web) 홈 URL. VITE_PORTAL_WEB_URL 로 주입.
+ *
+ * **APP_ROOT_DOMAIN 에서 유도할 수 없다.** develop 은 포털이 develop.plzhans.com 인데
+ * 루트 도메인은 plzhans.com 이라, 환경별 접두사를 규칙으로 뽑을 방법이 없다.
+ * 로컬은 단일 오리진(포털 아래 /auth 로 마운트)이라 '/' 다.
+ */
+export const PORTAL_WEB_URL =
+  (import.meta.env.VITE_PORTAL_WEB_URL as string | undefined) || '';
+
+/**
  * 실행 환경 이름(local|develop|production). VITE_APP_ENV 로 주입, 백엔드 APP_ENV 와 같은 이름을 쓴다.
  * **vite 의 mode 로는 못 가른다** — develop 빌드도 production 빌드도 mode 는 production 이다.
  */
