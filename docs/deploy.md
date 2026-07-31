@@ -27,9 +27,11 @@ develop 에 먼저 올려보는 것**으로 막는다.
 be                            main 푸시 · PR · 수동
 ├─ plan
 ├─ verify · build (arm64)     **도커 밖에서** install → build → lint → 산출물
+├─ first_notify               슬랙 카드 게시 + 관문. 굽는 실행에서만 존재
 ├─ image                      산출물을 COPY 만 → :develop · :develop-<sha>
 ├─ migrate                    #deploy · #be-deploy · 수동
-└─ deploy                            〃
+├─ deploy                            〃
+└─ report                     always() — 스레드에 최종 결과
 ```
 
 **검사와 빌드가 한 잡이다.** 둘 다 같은 install·같은 컴파일을 필요로 하는데, 나누면
@@ -60,6 +62,101 @@ be-deploy     배포까지 가는 실행. 취소하지 않고 서로 줄을 선�
 
 > `cancel-in-progress` 는 **"내가 취소당할까" 가 아니라 "내가 남을 취소할까"** 다. 새로 들어온
 > 실행 기준으로 평가되기 때문에, 한 그룹에 섞어 두면 평범한 푸시가 배포 중인 실행을 죽인다.
+
+---
+
+## 슬랙 알림
+
+**배포 하나가 스레드 하나다.** 채널에는 카드 한 장만 남고 진행 상황은 그 밑에 쌓인다.
+be·fe·develop·production 이 모두 같은 채널에 뜨므로 제목에 무엇의 배포인지가 들어간다.
+
+```
+🚀  백엔드 develop 배포 시작
+    └ `edffafe`  fix: 쿠키로 끝난 소셜 로그인을…
+      요청 plzhans  ·  실행 로그
+    └ 빌드하는 중
+    └ 도커 이미지를 굽는 중
+    └ DB 스키마를 반영하는 중
+    └ 서버에 반영하는 중
+    └ 🛑 hansapp-api 종료 · 가동 2시간          앱이 스스로
+    └ ✅ 백엔드 배포 완료
+    └ 🚀 hansapp-api 시작 · 0.8.0+edffafe      앱이 스스로 · 채널에도 뜬다
+```
+
+### 알림은 배포를 막지 않는다
+
+토큰이 없거나 슬랙이 죽어 있으면 `first_notify` 가 빈 ts 를 내보내고, 그것을 보는 쪽이
+전부 조용히 지나간다. 카드 조립이 실패해도 그 스텝은 `continue-on-error` 라 잡은 성공한다 —
+**슬랙 설정 하나 때문에 배포가 막히면 안 된다.**
+
+로컬 배포(`scripts/deploy/deploy.sh`)에는 토큰이 없으므로 아무것도 안 보낸다. 그때는 경고도
+찍지 않는다 — CI 안에서만 "설정이 빠졌다" 고 알린다.
+
+### first_notify 가 관문이다
+
+`environment` 의 보호 규칙(승인자·대기)이 이 잡에 걸린다. `image` 가 여기에 매달려 있으므로
+**승인 전에는 아무것도 굽지도 배포하지도 않는다.**
+
+```
+plan ─┬─ first_notify ─┐
+      └─ build ────────┴─ image → migrate → deploy → report
+```
+
+- **`build` 는 여기에 매달지 않는다.** 매달면 이 잡이 없는 평범한 CI 에서 빌드가 통째로
+  skip 된다. 나란히 도니 승인을 기다리는 동안 빌드가 미리 끝나 있게 된다.
+- **잡 조건이 `deploy` 가 아니라 `image` 다.** `deploy` 로 걸면 `stage=image` 수동 실행에서
+  이 잡이 skip 되고 `image` 까지 연쇄로 죽는다. 반대로 조건을 아예 안 걸면 평범한 푸시·PR 도
+  관문에서 승인을 기다리게 된다.
+
+### 채널로 내보내는 것
+
+`chat.update` 로 카드를 고치는 대신 **답글을 채널에도 띄운다**(`reply_broadcast`). 스레드를
+열지 않아도 보여야 하는 **결론에만** 쓴다 — 전부 띄우면 스레드로 묶은 의미가 없다.
+
+| | 채널로 |
+| --- | --- |
+| develop 백엔드 | 실패·취소만. 성공은 앱 기동 알림이 이미 뜬다 |
+| develop 프론트 | 성공도. 기동 알림을 보내는 앱이 없다 |
+| production | 성공도. 나갔다는 사실 자체가 걸려야 한다 |
+
+### 앱이 스레드에 답글을 단다
+
+`docker compose up` 때 스레드 ts 를 넘기면 앱이 기동 알림을 그 스레드에 붙인다. 스레드의
+마지막 줄이 CI 의 추측이 아니라 **앱 본인의 말**(버전·sha 포함)이 된다.
+
+```
+be.yml deploy → SLACK_DEPLOY_THREAD_TIMESTAMP
+  → ci-deploy.sh 가 `docker compose up` 앞에 붙임 (서버 .env 에는 안 남긴다)
+    → compose 의 api 서비스 environment (batch·migrate 는 제외)
+      → config.<환경>.yaml 의 slack.deployThreadTimestamp
+```
+
+**값은 컨테이너에 구워진다.** 재부팅이나 크래시 재시작에서도 살아남으므로, 사흘 뒤에 그냥
+재시작한 프로세스가 옛 스레드에 답글을 달 수 있다. 그래서 앱이 **ts 의 나이를 보고 10분이
+넘으면 무시한다** — 슬랙 ts 자체가 epoch 라 배포 시각을 따로 넘길 필요가 없다.
+
+### 설정
+
+| | 어디에 |
+| --- | --- |
+| `SLACK_BOT_TOKEN` | `develop`·`production` **environment secret**. 환경마다 다른 슬랙 앱이다 |
+| `SLACK_CHANNEL` | 같은 environment 의 variable |
+
+봇에 `chat:write` 스코프가 있어야 하고 채널에 초대돼 있어야 한다. 초대가 안 돼 있으면
+`not_in_channel` 로 조용히 실패한다(배포는 정상 진행).
+
+> **채널은 id(`C…`) 를 권한다.** 지금은 이름이라 채널명을 바꾸면 첫 게시가 깨진다.
+> 카드를 고치거나 답글을 다는 쪽은 첫 게시 응답에서 받은 id 를 쓰므로 이미 안전하다.
+
+### 함정
+
+**`chat.update` 는 채널 이름을 받지 않는다. id 만 받는다.** `chat.postMessage` 는 `#이름` 을
+해석해 주기 때문에 첫 게시만 되고 갱신은 `channel_not_found` 로 거절당한다.
+
+그래서 슬랙 전송은 `first_notify` 를 빼고 전부 `ci-slack-send.sh` 를 쓴다.
+`slackapi/slack-github-action` 은 `errors` 기본값이 `false` 라 **거절당해도 로그에 한 줄도
+남기지 않고 잡이 초록으로 끝난다** — 실제로 이것 때문에 두 번의 배포 동안 카드가 안 바뀌는
+것을 못 보고 지나쳤다. 액션이 필요한 곳은 ts 를 output 으로 받아야 하는 첫 게시뿐이다.
 
 ### 왜 도커 밖에서 빌드하나
 
