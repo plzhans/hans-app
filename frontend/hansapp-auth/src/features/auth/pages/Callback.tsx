@@ -5,6 +5,7 @@ import {
   socialRegister,
   socialRegisterRequestCode,
 } from '@/shared/api/auth';
+import { hasSessionHint } from '@/shared/api/session';
 import { takeVerifier } from '@/shared/auth/pkce';
 import { isFirstPartyReturn } from '@/shared/auth/returnTo';
 import { errorMessage } from '@/shared/api/errorMessage';
@@ -33,6 +34,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default function Callback() {
   const navigate = useNavigate();
   const authenticate = useAuthStore((s) => s.authenticate);
+  const bootstrap = useAuthStore((s) => s.bootstrap);
   const [phase, setPhase] = useState<Phase>('processing');
   const [message, setMessage] = useState('');
 
@@ -107,9 +109,21 @@ export default function Callback() {
       setPhase('register');
       return;
     }
-    setPhase('error');
-    setMessage('잘못된 콜백 요청입니다.');
-  }, [authenticate, navigate]);
+    // **code 도 pending 도 없다 = 쿠키로 이미 로그인이 끝났다는 뜻이다.**
+    // 자사 소셜 로그인은 인가코드를 만들지 않고 백엔드가 콜백에서 refresh 쿠키를 심는다.
+    // URL 에 실을 것이 없을 뿐 실패가 아니다 — 세션을 세우고 원래 가려던 곳으로 보낸다.
+    void (async () => {
+      if (hasSessionHint()) {
+        await bootstrap();
+        if (useAuthStore.getState().status === 'authenticated') {
+          goAfterAuth();
+          return;
+        }
+      }
+      setPhase('error');
+      setMessage('잘못된 콜백 요청입니다.');
+    })();
+  }, [authenticate, bootstrap, navigate]);
 
   const onRequestCode = async () => {
     if (!ticketRef.current) return;
