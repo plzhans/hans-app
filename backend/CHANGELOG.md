@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.10.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.9.0...release-backend/v0.10.0) (2026-07-31)
+
+
+### 기능
+
+* 배포 알림을 운영과 프론트로 넓힌다 #deploy ([c9ab041](https://github.com/plzhans/hans-app/commit/c9ab041304c1bad6d94edb5e4e68640adeea9585))
+
+
+### 버그 수정
+
+* 환경마다 쿠키 이름을 가른다 ([7da3c1a](https://github.com/plzhans/hans-app/commit/7da3c1a76dc0eb382e5d2eadbed5aaaa1a53dd43))
+
+
+### 구조 변경
+
+* 소셜 콜백 착지를 client_id 기준으로 가른다 ([1e27bd9](https://github.com/plzhans/hans-app/commit/1e27bd9e330593e6fd9df5c11798094fe8faa402))
+
+
+### 문서
+
+* 배포 슬랙 알림을 문서에 남긴다 ([73ce747](https://github.com/plzhans/hans-app/commit/73ce74797c6db2113011cddba86667dae19c6590))
+
 ## [0.9.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.8.0...release-backend/v0.9.0) (2026-07-31)
 
 
