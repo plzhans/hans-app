@@ -185,12 +185,10 @@ export async function relayCodeIfNeeded(
  * **서명 state(returnTo)** 에 실려 왕복하므로 위변조 불가하고, 콜백에서 URL 로 되돌아온다 —
  * sessionStorage 를 안 써서 이중 로그인 창·저장소 유실에도 안전하다.
  */
-function selfCallbackUrl(appReturn?: string): string {
-  const url = new URL(
+function selfCallbackUrl(): string {
+  return new URL(
     `${window.location.origin}${import.meta.env.BASE_URL}callback`,
-  );
-  if (appReturn) url.searchParams.set('ret', appReturn);
-  return url.toString();
+  ).toString();
 }
 
 export function socialLoginUrl(
@@ -203,8 +201,13 @@ export function socialLoginUrl(
   // 1st-party 복귀 URL. returnTo 미지정(자체 로그인)일 때 콜백에 ret= 로 실린다.
   appReturn?: string,
 ): string {
+  // **자사는 그 앱으로 직행한다.** 백엔드가 콜백에서 쿠키를 심고 여기로 보내므로
+  // 인증웹을 한 번 더 거칠 이유가 없다(코드 교환이 없다).
+  //
+  // 자사인데 돌아갈 곳도 없으면(인증웹에 직접 와서 로그인) 자기 콜백으로 받는다 —
+  // 백엔드가 그때는 authorizeUrl 로 보내지만, 그 경로는 세션만 세우고 끝난다.
   const params = new URLSearchParams({
-    redirect_uri: returnTo ?? selfCallbackUrl(appReturn),
+    redirect_uri: returnTo ?? appReturn ?? selfCallbackUrl(),
   });
   if (clientId) params.set('client_id', clientId);
   if (clientState) params.set('client_state', clientState);
