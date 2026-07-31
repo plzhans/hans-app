@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.9.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.8.0...release-backend/v0.9.0) (2026-07-31)
+
+
+### 기능
+
+* SENTRY_ENABLED 로 Sentry 를 끌 수 있게 한다 ([5e42478](https://github.com/plzhans/hans-app/commit/5e42478102c98f5a8fcdab0f51486a9b142709ee))
+* 기동 알림을 채널에도 내보내고 종료를 거기에 매단다 #deploy ([8f5fe21](https://github.com/plzhans/hans-app/commit/8f5fe218de1b95b964352dbefd4e4249736bbf49))
+* 서버 기동 알림을 배포 스레드에 단다 #deploy ([7bbdc7c](https://github.com/plzhans/hans-app/commit/7bbdc7c8b8a075bf0d672aebb1b09a3c2f139b8e))
+* 슬랙 기동·종료 알림을 Block Kit 으로 그린다 ([19bb13d](https://github.com/plzhans/hans-app/commit/19bb13d8a634f2e28c49a290f3006c6b4205775b))
+* 자사 소셜 로그인을 쿠키로 끝낸다 ([39c3ba2](https://github.com/plzhans/hans-app/commit/39c3ba272784fab3bc8cfd35fdbd314c95207308))
+
+
+### 버그 수정
+
+* SPA 하위 경로가 404 로 떨어지던 것을 막는다 ([37d4d91](https://github.com/plzhans/hans-app/commit/37d4d91e84fb91539d885344b951306a0b0156d0))
+* VITE_BASE 빈 값이 호스트 끝에 점을 붙이던 것을 막는다 ([f885e98](https://github.com/plzhans/hans-app/commit/f885e98466cad9768af6dbe13f08e04d46205f06))
+* 로그아웃에서 인증 요구를 없앤다 ([2578fb2](https://github.com/plzhans/hans-app/commit/2578fb23848bb411b842a8d5b7ee7f812e973daa))
+* 새 refresh 쿠키를 심을 때 옛 path 쿠키를 지운다 ([87a9f67](https://github.com/plzhans/hans-app/commit/87a9f6707e1a91add2e61d7f1a9a408bbd20cdbc))
+* 소셜 로그인 CSRF 를 state nonce 로 막는다 ([8aaf752](https://github.com/plzhans/hans-app/commit/8aaf752a263b2464919b7417bf1ac4782760c2f9))
+
+
+### 구조 변경
+
+* 로그인 완결 처리를 한 곳으로 모은다 ([a98ef6a](https://github.com/plzhans/hans-app/commit/a98ef6ab4a8afb1048a577bd17ae5525da549ba8))
+* 프론트 앱 용어를 인증웹·포털웹으로 통일한다 ([1d0af08](https://github.com/plzhans/hans-app/commit/1d0af08d86713e1d522c2202737c3f1de368cdf5))
+
 ## [0.8.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.7.5...release-backend/v0.8.0) (2026-07-30)
 
 
