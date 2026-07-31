@@ -1,7 +1,13 @@
-# Elasticsearch (develop 서버) — OCI ARM A1 · 2CPU · 12GB RAM 단일 노드.
+# Elasticsearch — OCI ARM A1 · 2CPU · 12GB RAM 단일 노드.
+#
+# **develop 과 production 이 이 한 인스턴스를 같이 쓴다.** 그래서 infra/<환경>/ 이 아니라
+# infra/shared/ 에 있고, 이름에도 환경이 없다(hansapp-search · hansapp-elasticsearch).
+# 환경은 인덱스 이름으로 가른다.
 #
 # 이 폴더(elasticsearch/)는 self-contained 하다. 배포 시 이 폴더만 통째로 가져가면 된다.
 # Dockerfile 도 같은 폴더에 있어 build context 가 "." 이다.
+#
+# **배포가 나르지 않는다.** 서버에서 직접 올린다(infra/README.md).
 #
 # ── 실행 전 준비 ──────────────────────────────────────────────
 #   1) 같은 폴더에 .env 생성:  ELASTIC_PASSWORD=<원하는 비밀번호>

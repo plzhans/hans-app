@@ -79,9 +79,9 @@ services:
   hansapp-search:
     # 순정 이미지면 'Unknown tokenizer type [nori_tokenizer]' 로 스키마 적용이 실패한다.
     # 형태소 플러그인(nori·kuromoji·smartcn·icu)을 넣은 이미지로 굽는다 — 플러그인 설치는
-    # 로컬·develop 공통 관심사라 같은 Dockerfile 을 재사용한다.
+    # 환경을 안 타는 관심사라 배포용과 같은 Dockerfile 을 재사용한다(infra/shared/).
     build:
-      context: ./infra/develop/elasticsearch
+      context: ./infra/shared/elasticsearch
       args:
         ELASTICSEARCH_VERSION: '9.3.1'
     image: hansapp/elasticsearch:9.3.1
