@@ -14,6 +14,7 @@ import {
   validateAfterLoginParams,
 } from '@/shared/auth/afterLogin';
 import { subscribeAuth } from '@/shared/auth/authChannel';
+import { watchSessionHint } from '@/shared/auth/sessionWatch';
 import Login from '@/features/auth/pages/Login';
 import Signup from '@/features/auth/pages/Signup';
 import ForgotPassword from '@/features/auth/pages/ForgotPassword';
@@ -114,10 +115,19 @@ export default function App() {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
-  // 다른 탭의 로그인·로그아웃을 새로고침 없이 따라간다.
+  // 같은 앱의 다른 탭 — BroadcastChannel 로 즉시.
   useEffect(
     () => subscribeAuth((e) => void syncFromOtherTab(e)),
     [syncFromOtherTab],
+  );
+  // 다른 오리진의 앱(인증웹 ↔ 포털) — 채널이 안 닿으므로 공유 힌트 쿠키를 지켜본다.
+  // 사라지면 로그아웃, 생기면 로그인. bootstrap 이 쿠키로 세션을 세운다.
+  useEffect(
+    () =>
+      watchSessionHint((present) => {
+        void (present ? bootstrap() : syncFromOtherTab('logout'));
+      }),
+    [bootstrap, syncFromOtherTab],
   );
 
   return (
