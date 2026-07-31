@@ -1,6 +1,6 @@
 # backend 의 진입점. **develop 에 관한 전부가 여기 있다.**
 #
-#   verify → build(arm64) → image → migrate → deploy
+#   verify → build(arm64) → first_notify → image → migrate → deploy
 #
 # production 은 이 파일과 아무 관계가 없다. 릴리스가 이미지를 굽고
 # be-deploy-production.yml 이 그것을 당긴다 — 여기서 production 으로 가는 길은 없다.
@@ -22,6 +22,13 @@
 # 합치는 일이 있으므로, 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다. opt-out 이 아니라
 # opt-in 인 이유는 빠뜨렸을 때의 대가가 다르기 때문이다 — opt-in 을 잊으면 배포가 안 될
 # 뿐이지만, opt-out 을 잊으면 남들이 쓰는 서버가 깨진다.
+#
+# [슬랙]
+# 배포가 나갈 때만 채널에 카드를 하나 올리고(first_notify), 끝나면 **같은 자리를 고쳐**
+# 성공·실패·취소를 적는다(report). 채널에는 배포 하나당 메시지 하나만 남는다.
+#
+# **알림은 배포를 막지 않는다.** 토큰이 없거나 슬랙이 죽어 있으면 ts 가 빈 문자열이 되고,
+# 그것을 보는 쪽은 전부 조용히 지나간다.
 name: be
 
 on:
@@ -238,13 +245,68 @@ jobs:
           compression-level: 0
 
   # ───────────────────────────────────────────────────────────────────────────
+  # 배포 스레드의 첫 메시지를 올리고, 동시에 **관문 노릇을 한다.**
+  #
+  #   plan  build  first_notify   바깥을 아무것도 안 바꾼다
+  #   ────────────────────────── ← 경계
+  #   image  migrate  deploy      레지스트리·DB·서버를 바꾼다
+  #
+  # environment 를 붙이면 그 환경의 보호 규칙(승인자·대기)이 여기 걸린다. build 는 plan 만
+  # 기다리므로 관문에 걸리지 않는다.
+  #
+  # 슬랙 메시지 id(ts)는 보내야 발급된다. 여기서 받아 job output 으로 흘리고, 뒤 단계들이
+  # 그 값으로 같은 스레드에 붙는다.
+  #
+  # **잡에 if 를 걸지 않는다.** 여기서 skip 되면 needs 로 매달린 image 이하가 연쇄로 skip
+  # 된다. 보낼지 말지는 스텝에서 가르고, 배포가 아니면 ts 가 빈 문자열로 흘러간다.
+  #
+  # 잡 이름에 하이픈을 쓰지 않는다 — 표현식에서 `-` 는 뺄셈이라 needs.first-notify 가
+  # 에러 없이 **조용히 false** 가 될 수 있다.
+  # ───────────────────────────────────────────────────────────────────────────
+  first_notify:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    environment: develop
+    outputs:
+      ts: ${{ steps.post.outputs.ts }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # **카드는 스크립트가 그린다.** 커밋 제목을 YAML 안의 JSON 에 끼우면 따옴표 하나에
+      # 페이로드가 깨지고 표현식으로 해석될 여지도 생긴다. report 도 같은 카드를 쓴다.
+      - id: card
+        if: needs.plan.outputs.deploy == 'true'
+        env:
+          DEPLOY_STATUS: started
+          APP_ENV: develop
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          GIT_SUBJECT="$(git log -1 --pretty=%s)" \
+            ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
+
+      # errors 기본값이 false 라 **슬랙이 에러를 뱉어도 이 스텝은 실패하지 않는다.**
+      # 그때는 ts 가 비어서 아래가 전부 조용해질 뿐, 배포는 그대로 나간다.
+      - id: post
+        if: steps.card.outcome == 'success'
+        uses: slackapi/slack-github-action@v4
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload-file-path: ${{ runner.temp }}/card.json
+
+  # ───────────────────────────────────────────────────────────────────────────
   # 산출물을 이미지로 담는다. **여기서는 컴파일하지 않는다** — COPY 만 한다.
   #
   #   :develop         움직이는 태그. 개발 서버가 이것만 바라본다
   #   :develop-<sha>   안 움직인다. 어떤 커밋의 것인지 되짚는 용
   # ───────────────────────────────────────────────────────────────────────────
   image:
-    needs: [plan, build]
+    # first_notify 를 거쳐야 여기 온다. **그 잡이 관문이다** — 승인 규칙이 걸리면 굽기 전에 멈춘다.
+    needs: [plan, build, first_notify]
     if: needs.plan.outputs.image == 'true'
     runs-on: ubuntu-24.04-arm
     permissions:
@@ -391,3 +453,71 @@ jobs:
           AGE_SECRET_KEY_FILE: ${{ secrets.AGE_SECRET_KEY_FILE }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # first_notify 가 올린 카드를 최종 상태(성공·실패·취소)로 고친다. **새 메시지를 올리지
+  # 않는다** — 채널에는 배포 하나당 하나만 남는다.
+  #
+  # **always() 여야 한다.** 기본 조건이면 앞이 깨졌을 때 같이 skip 되어 카드가 "배포 시작"
+  # 인 채로 굳는다 — 도는 중인지 죽은 건지 채널에서 구분할 수 없다.
+  #
+  # ts 가 비어 있으면 고칠 대상이 없으므로 건너뛴다.
+  # ───────────────────────────────────────────────────────────────────────────
+  report:
+    needs: [plan, first_notify, build, image, migrate, deploy]
+    if: ${{ always() && needs.first_notify.outputs.ts != '' }}
+    runs-on: ubuntu-latest
+    environment: develop
+    steps:
+      - uses: actions/checkout@v7
+
+      # 성공·실패·취소와 **어느 단계에서 멈췄는지**를 판정한다.
+      - id: verdict
+        env:
+          BUILD: ${{ needs.build.result }}
+          IMAGE: ${{ needs.image.result }}
+          MIGRATE: ${{ needs.migrate.result }}
+          DEPLOY: ${{ needs.deploy.result }}
+        run: |
+          status=success
+          failed=''
+          if [ "$DEPLOY" != 'success' ]; then
+            # 앞에서부터 훑어 **처음 어긋난 곳**만 집는다. 그 뒤는 이것 때문에 안 돈 것이다.
+            for pair in "빌드:$BUILD" "이미지:$IMAGE" "마이그레이션:$MIGRATE" "배포:$DEPLOY"; do
+              name="${pair%%:*}"
+              case "${pair##*:}" in
+                cancelled) status=cancelled; failed="$name"; break ;;
+                failure)   status=failure;   failed="$name"; break ;;
+              esac
+            done
+            # 실패로 잡힌 것이 없는데 배포가 성공도 아니면(skipped 등) 실패로 본다.
+            if [ "$status" = 'success' ]; then
+              status=failure
+              failed='배포'
+            fi
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          echo "  판정 $status ${failed:+· $failed 단계}"
+
+      - id: card
+        env:
+          DEPLOY_STATUS: ${{ steps.verdict.outputs.status }}
+          FAILED_STAGE: ${{ steps.verdict.outputs.failed }}
+          # 이 값이 있으면 카드가 chat.update 용(ts 가 박힌) 페이로드가 된다.
+          UPDATE_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
+          APP_ENV: develop
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          GIT_SUBJECT="$(git log -1 --pretty=%s)" \
+            ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
+
+      - uses: slackapi/slack-github-action@v4
+        with:
+          method: chat.update
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload-file-path: ${{ runner.temp }}/card.json
