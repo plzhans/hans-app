@@ -17,6 +17,7 @@ import {
   setSession,
 } from '@/shared/api/session';
 import { refreshSession } from '@/shared/api/client';
+import { publishAuth, type AuthEvent } from '@/shared/auth/authChannel';
 
 type Status = 'loading' | 'authenticated' | 'anonymous';
 
@@ -29,6 +30,8 @@ interface AuthState {
   authenticate: (tokens: TokenResponse) => Promise<void>;
   /** 로그아웃: 세션 폐기 + 익명 전환. */
   signOut: () => Promise<void>;
+  /** 다른 탭에서 온 인증 이벤트를 반영한다(App 이 구독해 연결). */
+  syncFromOtherTab: (event: AuthEvent) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -84,6 +87,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const me = await getMe();
     saveMe(me);
     set({ status: 'authenticated', me });
+    publishAuth('login');
   },
 
   signOut: async () => {
@@ -95,5 +99,39 @@ export const useAuthStore = create<AuthState>((set) => ({
     await clearSession();
     clearMe();
     set({ status: 'anonymous', me: null });
+    // 서버 세션이 폐기됐으니 다른 탭이 로그인 상태를 계속 보여주면 안 된다.
+    publishAuth('logout');
+  },
+
+  syncFromOtherTab: async (event) => {
+    if (event === 'logout') {
+      await clearSession();
+      clearMe();
+      set({ status: 'anonymous', me: null });
+      return;
+    }
+    // login·refreshed: 저장소에 새 access token 이 들어와 있다. 메모리 캐시를 맞춘다.
+    const session = await hydrateSession();
+    if (!session) {
+      set({ status: 'anonymous', me: null });
+      return;
+    }
+    // 'refreshed' 는 토큰만 바뀐 것이라 이미 인증 상태면 프로필을 다시 부를 필요가 없다.
+    const alreadyIn = useAuthStore.getState().status === 'authenticated';
+    if (event === 'refreshed' && alreadyIn) return;
+    const cached = loadMe();
+    if (isAccessTokenValid(session.accessToken) && cached) {
+      set({ status: 'authenticated', me: cached });
+      return;
+    }
+    try {
+      const me = await getMe();
+      saveMe(me);
+      set({ status: 'authenticated', me });
+    } catch {
+      await clearSession();
+      clearMe();
+      set({ status: 'anonymous', me: null });
+    }
   },
 }));

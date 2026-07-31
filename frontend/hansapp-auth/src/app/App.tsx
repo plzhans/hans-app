@@ -1,6 +1,14 @@
-import { useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useSearchParams,
+} from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { goAfterLogin, readAfterLoginParams } from '@/shared/auth/afterLogin';
+import { subscribeAuth } from '@/shared/auth/authChannel';
 import Login from '@/features/auth/pages/Login';
 import Signup from '@/features/auth/pages/Signup';
 import ForgotPassword from '@/features/auth/pages/ForgotPassword';
@@ -21,12 +29,40 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** 이미 로그인했으면 로그인/가입 페이지 대신 내 정보로. */
+/**
+ * 이미 로그인했으면 인증 화면 대신 **원래 가려던 곳**으로.
+ *
+ * 그냥 /me 로 보내면 안 된다. 포털이 `?return=` 을 달아 보냈는데 그 값을 잃으면 사용자가
+ * 제자리로 못 돌아가고, 외부 SSO(`client_id`)면 그 앱은 인가코드를 영영 못 받는다.
+ * 판정은 로그인 직후와 **같은 규칙**(goAfterLogin)을 쓴다.
+ */
 function GuestOnly({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
   if (status === 'loading') return <FullScreenSpinner />;
-  if (status === 'authenticated') return <Navigate to="/me" replace />;
+  if (status === 'authenticated') return <AlreadyLoggedIn />;
   return <>{children}</>;
+}
+
+/** 로그인된 채로 인증 화면에 온 사용자를 복귀시킨다. 보낼 곳이 없으면 /me. */
+function AlreadyLoggedIn() {
+  const [params] = useSearchParams();
+  const [stay, setStay] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    // 실패(예: SSO 인데 code_challenge 누락)해도 인증 화면에 가두지 않고 /me 로 보낸다.
+    goAfterLogin(readAfterLoginParams(params))
+      .catch(() => false)
+      .then((moved) => {
+        if (alive && !moved) setStay(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [params]);
+
+  // 이동이 결정될 때까지는 로그인 폼을 깜빡이지 않는다.
+  return stay ? <Navigate to="/me" replace /> : <FullScreenSpinner />;
 }
 
 function FullScreenSpinner() {
@@ -44,9 +80,15 @@ function FullScreenSpinner() {
  */
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
+  const syncFromOtherTab = useAuthStore((s) => s.syncFromOtherTab);
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+  // 다른 탭의 로그인·로그아웃을 새로고침 없이 따라간다.
+  useEffect(
+    () => subscribeAuth((e) => void syncFromOtherTab(e)),
+    [syncFromOtherTab],
+  );
 
   return (
     <BrowserRouter basename={ROUTER_BASE}>

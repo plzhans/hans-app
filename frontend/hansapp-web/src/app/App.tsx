@@ -7,6 +7,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { subscribeAuth } from '@/shared/auth/authChannel';
 import { startLogin } from '@/shared/auth/login';
 import { trackPageView } from '@/shared/analytics/gtag';
 import Dashboard from '@/features/home/pages/Dashboard';
@@ -53,9 +54,15 @@ function RouteTracker() {
  */
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
+  const syncFromOtherTab = useAuthStore((s) => s.syncFromOtherTab);
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+  // 다른 탭의 로그인·로그아웃을 새로고침 없이 따라간다.
+  useEffect(
+    () => subscribeAuth((e) => void syncFromOtherTab(e)),
+    [syncFromOtherTab],
+  );
 
   return (
     <BrowserRouter>

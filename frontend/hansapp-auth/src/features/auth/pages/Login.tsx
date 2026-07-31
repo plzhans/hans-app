@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { emailLogin, relayCodeIfNeeded } from '@/shared/api/auth';
+import { emailLogin } from '@/shared/api/auth';
 import { errorMessage } from '@/shared/api/errorMessage';
+import { goAfterLogin, readAfterLoginParams } from '@/shared/auth/afterLogin';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { isFirstPartyReturn } from '@/shared/auth/returnTo';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { AuthCard } from '../components/AuthCard';
@@ -34,14 +34,9 @@ function relayLink(
 export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  // 외부 클라이언트(medifinder 등)가 SSO 로 넘긴 복귀 URL. 있으면 로그인 후 그쪽으로 code 를 실어 복귀.
-  const returnTo = params.get('redirect_uri') ?? undefined;
-  // 그 클라이언트의 공개 ID. 서버가 return_to 검증과 코드 귀속에 쓴다.
-  const clientId = params.get('client_id') ?? undefined;
-  // 외부 앱이 만든 PKCE challenge. 인증웹은 **전달만** 한다 — verifier 는 그 앱에 있다.
-  const codeChallenge = params.get('code_challenge') ?? undefined;
-  // 그 앱의 state. 해석하지 않고 최종 복귀 URL 에 그대로 돌려준다.
-  const clientState = params.get('state') ?? undefined;
+  // 복귀 관련 쿼리(redirect_uri·client_id·code_challenge·state·return)를 한 덩어리로 읽는다.
+  const after = readAfterLoginParams(params);
+  const { returnTo, clientId, codeChallenge, clientState, appReturn } = after;
   const authenticate = useAuthStore((s) => s.authenticate);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -50,25 +45,14 @@ export default function Login() {
     formState: { errors, isSubmitting },
   } = useForm<Form>();
 
-  // 1st-party 앱(콘솔 등)의 복귀 URL. 소셜은 콜백 URL(ret=)로, 이메일은 이 값으로 바로 복귀한다.
-  const appReturn = params.get('return') ?? undefined;
-
   const onSubmit = handleSubmit(async ({ email, password }) => {
     setServerError(null);
     try {
       const tokens = await emailLogin(email, password);
       await authenticate(tokens);
-      // ① 외부 SSO(client_id) → 인가코드를 실어 그 앱으로 복귀.
-      if (await relayCodeIfNeeded(returnTo, clientId, codeChallenge, clientState)) {
-        return;
-      }
-      // ② 1st-party return(자사 앱, 쿠키 SSO) → code 없이 그 앱으로 복귀. 앱이 공유 쿠키로 세션 인지.
-      //    이메일 로그인은 왕복이 없어 URL 의 return 을 바로 쓴다(허용 오리진만, open-redirect 방지).
-      if (appReturn && isFirstPartyReturn(appReturn)) {
-        window.location.href = appReturn;
-        return;
-      }
-      // ③ 인증웹 자체 로그인 → 내 정보.
+      // 복귀 규칙은 goAfterLogin 한 곳에 있다 — 이미 로그인한 채로 /login 에 온 경우
+      // (App 의 GuestOnly)와 **같은 판정**이어야 해서 공유한다.
+      if (await goAfterLogin(after)) return;
       navigate('/me', { replace: true });
     } catch (e) {
       setServerError(errorMessage(e, '로그인에 실패했습니다.'));

@@ -1,3 +1,4 @@
+import { withLock } from './lock';
 import { createPkceRequest, takeVerifier } from './pkce';
 import { TokenStorage, type StoredTokens } from './storage';
 
@@ -44,6 +45,8 @@ export interface CallbackResult {
 export class HansAppAuthClient {
   private readonly storage: TokenStorage;
   private cached: StoredTokens | null = null;
+  /** 이 탭에서 진행 중인 회전. 뒤따르는 호출은 결과에 편승한다. */
+  private refreshing: Promise<boolean> | null = null;
 
   constructor(private readonly config: AuthClientConfig) {
     this.storage = new TokenStorage(config.storageKey ?? 'hansapp.auth.tokens');
@@ -165,15 +168,41 @@ export class HansAppAuthClient {
     await this.storage.save(tokens);
   }
 
-  private async refresh(): Promise<boolean> {
-    const s = await this.getSession();
-    if (!s?.refreshToken) return false;
+  /**
+   * 세션을 갱신한다. **회전은 한 번에 하나만** 돈다 — 같은 탭의 동시 호출은 하나로 합치고,
+   * 탭 사이는 Web Locks 로 직렬화한다. refresh 가 1회용이라 중복 호출은 그대로 로그아웃이다.
+   */
+  private refresh(): Promise<boolean> {
+    if (this.refreshing) return this.refreshing;
+    const run = withLock(`${this.config.clientId}.refresh`, () =>
+      this.refreshOnce(),
+    );
+    this.refreshing = run;
+    void run
+      .catch(() => false)
+      .finally(() => {
+        if (this.refreshing === run) this.refreshing = null;
+      });
+    return run;
+  }
+
+  private async refreshOnce(): Promise<boolean> {
+    const before = this.cached?.refreshToken;
+    // 락을 기다리는 동안 다른 탭이 이미 회전시켰을 수 있다. 캐시 말고 저장소를 다시 읽는다.
+    const stored = await this.storage.load();
+    if (before && stored && stored.refreshToken !== before) {
+      // 남이 해준 새 토큰을 그대로 쓴다. 내 값으로 또 치면 1회용이라 401 이다.
+      this.cached = stored;
+      return true;
+    }
+    if (!stored?.refreshToken) return false;
+
     const res = await fetch(`${this.config.apiBaseUrl}/oauth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         grant_type: 'refresh_token',
-        refresh_token: s.refreshToken,
+        refresh_token: stored.refreshToken,
       }),
     });
     if (!res.ok) {

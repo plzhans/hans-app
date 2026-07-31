@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  emailSignup,
-  relayCodeIfNeeded,
-  requestSignupCode,
-} from '@/shared/api/auth';
+import { emailSignup, requestSignupCode } from '@/shared/api/auth';
 import { errorMessage } from '@/shared/api/errorMessage';
+import { goAfterLogin, readAfterLoginParams } from '@/shared/auth/afterLogin';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
@@ -43,10 +40,8 @@ function relayLink(
 export default function Signup() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const returnTo = params.get('redirect_uri') ?? undefined;
-  const clientId = params.get('client_id') ?? undefined;
-  const codeChallenge = params.get('code_challenge') ?? undefined;
-  const clientState = params.get('state') ?? undefined;
+  const after = readAfterLoginParams(params);
+  const { returnTo, clientId, codeChallenge, clientState } = after;
   const authenticate = useAuthStore((s) => s.authenticate);
 
   const [step, setStep] = useState<'form' | 'code'>('form');
@@ -93,11 +88,9 @@ export default function Signup() {
         code.trim(),
       );
       await authenticate(tokens);
-      if (
-        !(await relayCodeIfNeeded(returnTo, clientId, codeChallenge, clientState))
-      ) {
-        navigate('/', { replace: true });
-      }
+      // 로그인과 같은 규칙으로 복귀한다(외부 SSO → 자사 return → /me).
+      // 예전엔 SSO 갈래만 있어서, 포털에서 가입하러 온 사용자가 제자리로 못 돌아갔다.
+      if (!(await goAfterLogin(after))) navigate('/me', { replace: true });
     } catch (e) {
       setServerError(errorMessage(e, '회원가입에 실패했습니다.'));
     } finally {
