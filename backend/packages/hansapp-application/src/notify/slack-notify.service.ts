@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   createSlackNotifier,
+  type SlackBlock,
   type SlackMessageRef,
   type SlackNotifier,
 } from '@hansapp/slack-notify';
@@ -110,16 +111,27 @@ export class SlackNotifyService implements OnApplicationShutdown {
 
     if (!this.notifier) return;
 
-    // 호스트명은 컨테이너에서 컨테이너 id 가 된다 — 여러 대가 떠 있을 때 "어느 놈이
-    // 재기동했는지" 를 이것으로 짚는다.
-    const text = [
-      `✅ *${escape(detail.name)} 시작*`,
-      escape(detail.environment),
-      escape(detail.version),
-      `${escape(hostname())} (pid ${process.pid})`,
-    ].join('  ·  ');
-
-    this.startedRef = await this.notifier.post({ text });
+    this.startedRef = await this.notifier.post({
+      // 채널 밖(모바일 푸시·채널 목록)에는 이 한 줄만 보인다.
+      text: `🚀 ${detail.name} 시작 · ${detail.environment} · ${detail.version}`,
+      attachments: [
+        {
+          color: environmentColor(detail.environment),
+          blocks: [
+            headline('🚀', detail.name, '시작'),
+            // 호스트명은 컨테이너에서 컨테이너 id 가 된다 — 여러 대가 떠 있을 때
+            // "어느 놈이 재기동했는지" 를 이것으로 짚는다.
+            fields([
+              ['환경', detail.environment],
+              ['버전', detail.version],
+              ['호스트', hostname()],
+              ['PID', String(process.pid)],
+            ]),
+            timestampContext('기동', this.startedAt),
+          ],
+        },
+      ],
+    });
   }
 
   /**
@@ -131,16 +143,30 @@ export class SlackNotifyService implements OnApplicationShutdown {
     if (this.startedAt === undefined || this.shutdownNotified) return;
     this.shutdownNotified = true;
 
-    const detail = this.startedDetail;
-    const parts = [
-      `🛑 *${escape(detail?.name ?? 'server')} 종료*`,
-      escape(detail?.environment ?? ''),
-      escape(signal ?? 'unknown'),
-      `가동 ${formatUptime(Date.now() - this.startedAt)}`,
-    ].filter((part) => part.length > 0);
+    const now = Date.now();
+    const name = this.startedDetail?.name ?? 'server';
+    const environment = this.startedDetail?.environment ?? 'unknown';
+    const uptime = formatUptime(now - this.startedAt);
 
     await this.notifier.post({
-      text: parts.join('  ·  '),
+      text: `🛑 ${name} 종료 · ${environment} · 가동 ${uptime}`,
+      attachments: [
+        {
+          // **빨강을 쓰지 않는다.** 배포마다 도는 정상 종료라, 사고 색을 매번 칠하면
+          // 정작 진짜 사고가 났을 때 눈에 걸리지 않는다.
+          color: SHUTDOWN_COLOR,
+          blocks: [
+            headline('🛑', name, '종료'),
+            fields([
+              ['환경', environment],
+              ['신호', signal ?? 'unknown'],
+              ['가동', uptime],
+              ['호스트', hostname()],
+            ]),
+            timestampContext('종료', now),
+          ],
+        },
+      ],
       // ref 가 없으면(웹훅) 스레드 없이 그냥 새 메시지로 나간다.
       replyTo: this.startedRef,
     });
@@ -148,8 +174,62 @@ export class SlackNotifyService implements OnApplicationShutdown {
 }
 
 /**
- * 슬랙 mrkdwn 에서 특별한 뜻을 갖는 세 글자만 막는다. 링크 문법(`<url|text>`)을
- * 우리가 직접 쓰므로, 값에 섞여 들어온 꺾쇠는 반드시 죽여야 한다.
+ * 종료 색. **빨강이 아니다** — 배포마다 도는 정상 종료라, 사고 색을 매번 칠하면
+ * 정작 진짜 사고가 났을 때 눈에 걸리지 않는다.
+ */
+const SHUTDOWN_COLOR = '#9aa0a6';
+
+/**
+ * 기동 색. **production 만 다른 색이다.** develop 은 하루에도 몇 번씩 뜨고 지므로
+ * 초록으로 흘려보내도 되지만, 운영이 재기동한 것은 스크롤하다 걸려야 하는 사건이다.
+ */
+function environmentColor(environment: string): string {
+  return environment === 'production' ? '#e8912d' : '#2eb886';
+}
+
+/** `🚀  *hansapp-api* 시작` 한 줄. */
+function headline(emoji: string, name: string, action: string): SlackBlock {
+  return {
+    type: 'section',
+    text: { type: 'mrkdwn', text: `${emoji}  *${escape(name)}* ${action}` },
+  };
+}
+
+/** 라벨/값 2열 격자. 슬랙이 알아서 두 칸씩 접는다. */
+function fields(pairs: readonly (readonly [string, string])[]): SlackBlock {
+  return {
+    type: 'section',
+    fields: pairs.map(([label, value]) => ({
+      type: 'mrkdwn',
+      text: `*${label}*\n\`${escape(value)}\``,
+    })),
+  };
+}
+
+/**
+ * 작은 회색 글씨로 시각 한 줄.
+ *
+ * `<!date^…>` 는 **보는 사람의 시간대로 렌더된다.** 서버가 UTC 로 돌아도 한국에서 보면
+ * 한국 시간으로 보이므로, 문자열을 직접 만들어 박지 않는다. 파이프 뒤는 이 문법을
+ * 이해하지 못하는 클라이언트(메일 알림 등)를 위한 대체 텍스트다.
+ */
+function timestampContext(label: string, epochMs: number): SlackBlock {
+  const epochSeconds = Math.floor(epochMs / 1000);
+  const fallback = new Date(epochMs).toISOString();
+  return {
+    type: 'context',
+    elements: [
+      {
+        type: 'mrkdwn',
+        text: `${label} <!date^${epochSeconds}^{date_short_pretty} {time}|${fallback}>`,
+      },
+    ],
+  };
+}
+
+/**
+ * 슬랙 mrkdwn 에서 특별한 뜻을 갖는 세 글자만 막는다. 링크·날짜 문법(`<url|text>`,
+ * `<!date^…>`)을 우리가 직접 쓰므로, 값에 섞여 들어온 꺾쇠는 반드시 죽여야 한다.
  */
 function escape(value: string): string {
   return value

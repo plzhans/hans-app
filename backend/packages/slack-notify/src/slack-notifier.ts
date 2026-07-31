@@ -23,9 +23,32 @@ export interface SlackMessageRef {
   readonly ts: string;
 }
 
+/**
+ * Block Kit 블록. **모양은 이 패키지가 정하지 않는다** — 스키마가 넓고 계속 늘어나는데
+ * 여기서 타입으로 좁혀 봐야 슬랙이 새 블록을 내놓을 때마다 이 패키지를 고쳐야 한다.
+ */
+export type SlackBlock = Readonly<Record<string, unknown>>;
+
+/**
+ * 색 막대가 붙는 묶음. 블록만으로는 왼쪽 색 띠를 만들 수 없어서 attachment 를 쓴다.
+ * (슬랙이 attachment 를 legacy 로 부르지만 색 막대는 아직 이것뿐이다.)
+ */
+export interface SlackAttachment {
+  /** `#2eb886` 같은 hex. 왼쪽 세로 띠 색이 된다. */
+  readonly color?: string;
+  readonly blocks?: readonly SlackBlock[];
+}
+
 export interface SlackMessage {
-  /** 슬랙 mrkdwn. 링크는 `<url|텍스트>`, 굵게는 `*텍스트*`. */
+  /**
+   * 슬랙 mrkdwn. 링크는 `<url|텍스트>`, 굵게는 `*텍스트*`.
+   *
+   * blocks·attachments 를 같이 주면 채널에는 그쪽이 그려지고 **이 값은 알림 미리보기로 남는다**
+   * (모바일 푸시·채널 목록에 뜨는 한 줄). 그래서 비워 두면 안 된다.
+   */
   readonly text: string;
+  /** 색 막대가 필요한 본문. 있으면 채널에는 이쪽이 그려진다. */
+  readonly attachments?: readonly SlackAttachment[];
   /**
    * 이 메시지에 답글로 달 대상. 웹훅 전송에서는 무시된다(스레드를 지정할 수 없다).
    */
@@ -127,6 +150,7 @@ async function postViaBotToken(
       body: JSON.stringify({
         channel,
         text: message.text,
+        ...(message.attachments ? { attachments: message.attachments } : {}),
         // 답글은 원본과 같은 채널에만 달 수 있다. 그래서 replyTo.channel 을 그대로 믿지 않고
         // ts 만 쓴다 — 채널은 설정값이 정본이다.
         ...(message.replyTo ? { thread_ts: message.replyTo.ts } : {}),
@@ -158,7 +182,10 @@ async function postViaWebhook(
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ text: message.text }),
+      body: JSON.stringify({
+        text: message.text,
+        ...(message.attachments ? { attachments: message.attachments } : {}),
+      }),
       signal: AbortSignal.timeout(timeoutMs),
     });
 
