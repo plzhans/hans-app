@@ -48,6 +48,14 @@ services:
     # 막혀 CF 가 522 를 뱉는 일이 흔하다. 가능하면 CF 대역만 허용한다.
     ports:
       - '8443:3000'
+    # 이 컨테이너를 띄운 배포의 슬랙 스레드. 있으면 기동 알림이 그 스레드에 붙는다.
+    #
+    # **x-common 이 아니라 여기에만 둔다** — batch·migrate 까지 배포 스레드에 답글을 달
+    # 이유가 없다. 값은 배포가 `docker compose up` 할 때만 넘긴다(ci-deploy.sh). 서버의
+    # .env 에는 안 남지만 **컨테이너에는 구워지므로**, 재부팅으로 되살아난 값이 옛 스레드를
+    # 가리키지 않도록 앱이 ts 의 나이를 보고 스스로 무시한다.
+    environment:
+      SLACK_DEPLOY_THREAD_TIMESTAMP: ${SLACK_DEPLOY_THREAD_TIMESTAMP:-}
 
   batch:
     <<: *common

@@ -63,6 +63,8 @@ export class SlackNotifyService implements OnApplicationShutdown {
 
   /** 시작 알림의 신원. 웹훅 전송이면 성공해도 undefined 다. */
   private startedRef: SlackMessageRef | undefined;
+  /** 이 기동을 붙일 배포 스레드. 없거나 낡았으면 undefined. */
+  private readonly deployThreadRef: SlackMessageRef | undefined;
   /** 시작 알림을 보낸 시각. **종료 알림을 보낼지의 기준이기도 하다.** */
   private startedAt: number | undefined;
   private startedDetail: ServerStartedDetail | undefined;
@@ -80,6 +82,12 @@ export class SlackNotifyService implements OnApplicationShutdown {
           error instanceof Error ? `${message}: ${error.message}` : message,
         ),
     });
+
+    this.deployThreadRef = resolveDeployThread(
+      config.deployThreadTimestamp,
+      config.channel,
+      (reason) => this.logger.warn(reason),
+    );
   }
 
   /** 설정이 있어 실제로 보낼 수 있는가. 부팅 로그에 남기는 용도. */
@@ -94,9 +102,12 @@ export class SlackNotifyService implements OnApplicationShutdown {
     if (!this.notifier) {
       return 'Slack notify is disabled (SLACK_BOT_TOKEN / SLACK_WEBHOOK_URL not set)';
     }
-    return this.notifier.transport === 'bot-token'
-      ? 'Slack notify: chat.postMessage (종료 알림을 스레드로 답니다)'
-      : 'Slack notify: incoming webhook (SLACK_BOT_TOKEN 이 없어 스레드는 못 답니다)';
+    if (this.notifier.transport !== 'bot-token') {
+      return 'Slack notify: incoming webhook (SLACK_BOT_TOKEN 이 없어 스레드는 못 답니다)';
+    }
+    return this.deployThreadRef
+      ? 'Slack notify: chat.postMessage (배포 스레드에 기동을 답니다)'
+      : 'Slack notify: chat.postMessage (종료 알림을 스레드로 답니다)';
   }
 
   /**
@@ -131,7 +142,15 @@ export class SlackNotifyService implements OnApplicationShutdown {
           ],
         },
       ],
+      // 방금 이 프로세스를 띄운 배포가 있으면 그 스레드에 붙는다. 없으면 평소처럼
+      // 채널에 독립 메시지로 올라간다.
+      replyTo: this.deployThreadRef,
     });
+
+    // 배포 스레드에 붙었으면 종료 알림도 그쪽으로 간다 — 한 배포의 일생이 한 덩어리로
+    // 남는다. startedRef 는 스레드 답글의 ts 라 그것으로 답글을 달면 스레드 안의 스레드가
+    // 되는데, 슬랙에는 그런 것이 없다.
+    if (this.deployThreadRef) this.startedRef = this.deployThreadRef;
   }
 
   /**
@@ -178,6 +197,56 @@ export class SlackNotifyService implements OnApplicationShutdown {
  * 정작 진짜 사고가 났을 때 눈에 걸리지 않는다.
  */
 const SHUTDOWN_COLOR = '#9aa0a6';
+
+/**
+ * 배포 스레드를 얼마나 오래 유효하다고 볼지. 배포 직후에 뜬 프로세스만 그 스레드에 답한다.
+ */
+const DEPLOY_THREAD_MAX_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * 배포가 넘긴 스레드 ts 를 이 기동에 쓸 수 있는지 판정한다.
+ *
+ * [왜 유효기간이 필요한가]
+ * 이 값은 compose 의 environment 로 들어와 **컨테이너에 구워진다.** 도커는 재부팅이나
+ * 크래시 재시작에서 같은 컨테이너를 다시 띄우므로, 사흘 뒤에 그냥 재시작한 프로세스도
+ * 같은 값을 들고 일어난다 — 그때 옛 배포 스레드에 답글이 달리면 안 된다.
+ *
+ * **슬랙 ts 자체가 시각이다**(epoch 초.마이크로초). 그래서 배포 시각을 따로 받지 않고
+ * 값 하나로 판정한다. 상태를 지우려 들기보다 **값이 스스로 만료되게** 두는 쪽이 도커의
+ * 재시작 의미론과 싸우지 않는다.
+ */
+function resolveDeployThread(
+  timestamp: string | undefined,
+  channel: string | undefined,
+  warn: (reason: string) => void,
+): SlackMessageRef | undefined {
+  const ts = timestamp?.trim();
+  if (!ts) return undefined;
+
+  if (!channel) {
+    warn(
+      'slack.deployThreadTimestamp is set but slack.channel is missing — the boot notice will not join the deploy thread',
+    );
+    return undefined;
+  }
+
+  const postedAtMs = Number.parseFloat(ts) * 1000;
+  if (!Number.isFinite(postedAtMs) || postedAtMs <= 0) {
+    warn(`slack.deployThreadTimestamp is not a Slack timestamp: ${ts}`);
+    return undefined;
+  }
+
+  const ageMinutes = Math.round((Date.now() - postedAtMs) / 60_000);
+  if (Date.now() - postedAtMs > DEPLOY_THREAD_MAX_AGE_MS) {
+    // 조용히 넘어가면 "왜 스레드에 안 붙지" 를 한참 찾게 된다. 재기동이라는 사실을 남긴다.
+    warn(
+      `Deploy thread is ${ageMinutes}m old — this looks like a restart, not a deploy. Posting to the channel instead.`,
+    );
+    return undefined;
+  }
+
+  return { channel, ts };
+}
 
 /**
  * 기동 색. **production 만 다른 색이다.** develop 은 하루에도 몇 번씩 뜨고 지므로

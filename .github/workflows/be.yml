@@ -494,6 +494,8 @@ jobs:
         env:
           APP_ENV: develop
           IMAGE_TAG: develop
+          # 서버로 넘어가 앱의 기동 알림이 이 배포 스레드에 붙게 한다.
+          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
           BE_HANSAPP_DEPLOY_SSH_KEY_FILE: ${{ secrets.BE_HANSAPP_DEPLOY_SSH_KEY_FILE }}

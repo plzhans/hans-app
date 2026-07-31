@@ -15,6 +15,15 @@ export interface SlackNotifyConfig {
   readonly channel?: string;
   /** Incoming Webhook URL. 봇 토큰이 없을 때의 폴백. */
   readonly webhookUrl?: string;
+  /**
+   * 이 프로세스를 띄운 배포가 만든 슬랙 스레드의 ts. 있으면 기동 알림이 **그 스레드의
+   * 답글**로 붙어, 배포 스레드의 마지막 줄이 CI 의 추측이 아니라 앱 본인의 말이 된다.
+   *
+   * **배포가 `docker compose up` 할 때만 넣는다**(compose 의 environment). 그 값은 컨테이너
+   * 생성 시점에 구워지므로, 재부팅이나 크래시 재시작에서도 그대로 살아 있다 — 그래서
+   * 값의 유효기간은 SlackNotifyService 가 따로 판단한다.
+   */
+  readonly deployThreadTimestamp?: string;
 }
 
 export function buildSlackNotifyConfig(cfg: ConfigSource): SlackNotifyConfig {
@@ -22,5 +31,7 @@ export function buildSlackNotifyConfig(cfg: ConfigSource): SlackNotifyConfig {
     botToken: cfg.getStringOrDefault('slack.botToken') || undefined,
     channel: cfg.getStringOrDefault('slack.channel') || undefined,
     webhookUrl: cfg.getStringOrDefault('slack.webhookUrl') || undefined,
+    deployThreadTimestamp:
+      cfg.getStringOrDefault('slack.deployThreadTimestamp') || undefined,
   });
 }

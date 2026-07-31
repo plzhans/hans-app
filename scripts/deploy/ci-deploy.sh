@@ -24,6 +24,8 @@
 #   GHCR_USER                     (선택) 위 토큰의 사용자. 기본 x
 #   AGE_SECRET_KEY_FILE           (선택) sops 복호화용 age 키. **경로 또는 내용**
 #                                 로컬은 기본 경로에 이미 있어 보통 비운다
+#   SLACK_DEPLOY_THREAD_TIMESTAMP (선택) 배포 스레드의 ts. 서버로 넘겨 앱이 기동 알림을
+#                                 그 스레드에 답글로 달게 한다. 로컬은 보통 비운다
 #
 # [WireGuard 를 조건부로 올리는 이유]
 # 로컬은 작업 환경이라 VPN 이 이미 붙어 있다. CI 는 매번 새 러너라 직접 올려야 한다.
@@ -345,7 +347,11 @@ fi
 
 phase 'pull · up'
 # --remove-orphans: compose 에서 서비스를 지웠을 때 서버에 남은 컨테이너를 정리한다.
-remote "cd $BE_HANSAPP_DEPLOY_PATH && docker compose pull && docker compose up -d --remove-orphans"
+#
+# **슬랙 스레드 ts 는 이 명령에만 붙인다.** 서버의 .env 에 쓰면 그 파일이 계속 남아 다음
+# 재시작에도 옛 스레드를 가리킨다. 여기서 주면 그 up 에만 적용되고 파일에는 안 남는다.
+# (컨테이너 환경에는 구워지므로, 낡은 값은 앱이 ts 의 나이를 보고 무시한다.)
+remote "cd $BE_HANSAPP_DEPLOY_PATH && docker compose pull && SLACK_DEPLOY_THREAD_TIMESTAMP='${SLACK_DEPLOY_THREAD_TIMESTAMP:-}' docker compose up -d --remove-orphans"
 
 if [ -n "${ghcr_logged_in:-}" ]; then
   remote 'docker logout ghcr.io' >/dev/null 2>&1 || true
