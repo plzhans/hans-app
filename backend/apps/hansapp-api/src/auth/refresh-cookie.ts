@@ -95,6 +95,17 @@ export function readRefreshCookie(req: Request): string | undefined {
 }
 
 /**
+ * 로그인 쿠키(refresh + 힌트)만 심는다. **바디를 실을 수 없는 응답용**이다.
+ *
+ * 소셜 콜백은 리다이렉트(302)라 바디가 없다. 그래서 access token 을 돌려줄 자리가 없고,
+ * 도착한 앱이 이 쿠키로 /oauth/token 을 한 번 불러 채운다(hansapp-web 의 authStore.bootstrap).
+ */
+export function setLoginCookies(res: Response, tokens: AuthTokens): void {
+  setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt);
+  setSessionHint(res, tokens.refreshExpiresAt);
+}
+
+/**
  * 발급 토큰을 응답으로 변환한다. refresh 를 httpOnly 쿠키로 세팅(웹 보호)하는 동시에
  * 바디에도 담아(모바일·크로스플랫폼 스토리지) 어느 클라이언트든 쓸 수 있게 한다.
  */
@@ -102,8 +113,7 @@ export function respondTokens(
   res: Response,
   tokens: AuthTokens,
 ): TokenResponseDto {
-  setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt);
-  setSessionHint(res, tokens.refreshExpiresAt);
+  setLoginCookies(res, tokens);
   return {
     accessToken: tokens.accessToken,
     tokenType: tokens.tokenType,

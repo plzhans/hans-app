@@ -1,4 +1,5 @@
 import {
+  Inject,
   BadRequestException,
   Body,
   Controller,
@@ -34,6 +35,8 @@ import type {
   SocialProfile,
 } from '@hansapp/auth-application';
 import type { SupportedLang } from '@hansapp/common';
+import { AUTH_CONFIG } from '@hansapp/auth-application';
+import type { AuthConfig } from '@hansapp/auth-application';
 
 import { Lang } from '../common/lang.decorator';
 
@@ -43,7 +46,7 @@ import {
   SocialRegisterCodeRequestDto,
   SocialRegisterRequestDto,
 } from './dto/social.dto';
-import { requestMeta, respondTokens } from './refresh-cookie';
+import { requestMeta, respondTokens, setLoginCookies } from './refresh-cookie';
 
 /**
  * 소셜 로그인(인증) 엔드포인트. 백엔드가 provider 콜백을 받아 처리한 뒤,
@@ -53,7 +56,15 @@ import { requestMeta, respondTokens } from './refresh-cookie';
 @ApiTags('auth-social')
 @Controller('auth')
 export class SocialController {
-  constructor(private readonly social: SocialService) {}
+  constructor(
+    private readonly social: SocialService,
+    @Inject(AUTH_CONFIG) private readonly authConfig: AuthConfig,
+  ) {}
+
+  /** return_to 없이 끝난 로그인이 도착할 자리(인증웹 로그인 URL). 없으면 거부한다. */
+  private get authorizeUrl(): string | undefined {
+    return this.authConfig.authorizeUrl;
+  }
 
   @Post('social/register/request-code')
   @Public()
@@ -135,6 +146,11 @@ export class SocialController {
       state,
       requestMeta(req),
     );
+    // **자사 로그인은 여기서 끝난다.** 쿠키를 심고 원래 있던 자리로 돌려보낸다 —
+    // 인가코드를 만들어 프론트가 교환하게 하는 왕복이 없다.
+    if (outcome.kind === 'session') {
+      setLoginCookies(res, outcome.tokens);
+    }
     res.redirect(this.buildRedirect(returnTo, outcome, clientState));
   }
 
@@ -164,7 +180,12 @@ export class SocialController {
     outcome: CallbackOutcome,
     clientState?: string,
   ): string {
+    // **returnTo 가 없으면 인증웹으로 보낸다.** 이미 로그인됐으므로 인증웹이 내 정보로
+    // 넘긴다 — 이메일 로그인이 return 없이 끝났을 때 /me 로 가는 것과 같은 규칙이다.
     if (!returnTo) {
+      if (outcome.kind === 'session' && this.authorizeUrl) {
+        return this.authorizeUrl;
+      }
       throw new BadRequestException(
         'Missing return_to. Provide return_to when starting sign-in.',
       );
@@ -176,6 +197,10 @@ export class SocialController {
       url.searchParams.set('state', clientState);
     }
     switch (outcome.kind) {
+      // 세션은 쿠키로 이미 전달됐다. URL 에 실을 것이 없다 —
+      // 도착한 앱이 그 쿠키로 refresh 를 불러 access token 을 채운다.
+      case 'session':
+        break;
       case 'code':
         url.searchParams.set('code', outcome.code);
         break;

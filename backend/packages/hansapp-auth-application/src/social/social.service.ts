@@ -22,14 +22,18 @@ import { LoginService } from '../login.service';
 import { UserRepository } from '../repository/user.repository';
 import { UserOAuthRepository } from '../repository/user-oauth.repository';
 import { WithdrawalRepository } from '../repository/withdrawal.repository';
-import { TokenService } from '../token/token.service';
+import { AuthTokens, TokenService } from '../token/token.service';
 import { EmailVerificationService } from '../mail/email-verification.service';
 import { SocialTicketService } from './social-ticket.service';
 import { SocialProfile } from './social.types';
 
 /** 콜백 처리 결과. 컨트롤러가 프론트 리다이렉트 URL 로 변환한다. */
 export type CallbackOutcome =
-  | { kind: 'code'; code: string } // 기존 계정 로그인/자동연동 → 릴레이 인가코드
+  // **자사(1st-party) 로그인.** 인가코드를 만들지 않는다 — 쿠키를 심을 수 있는 도메인이라
+  // 코드로 우회할 이유가 없다. 코드가 없으면 훔칠 것도 없어 PKCE 도 등장하지 않는다.
+  // (컨트롤러가 이 토큰으로 쿠키를 심고 returnTo 로 바로 보낸다.)
+  | { kind: 'session'; tokens: AuthTokens }
+  | { kind: 'code'; code: string } // 외부 앱 로그인/자동연동 → 릴레이 인가코드
   // 신규 → 가입 티켓. emailRequired: provider 가 이메일을 안 줘 입력이 필요.
   // codeRequired: provider 가 이메일을 검증하지 않아 우리 코드 인증이 필요(구글만 false).
   // email: provider 가 준 이메일(프리필용). 없으면(카카오 등) 사용자가 입력한다.
@@ -115,15 +119,12 @@ export class SocialService {
 
     // 로그인 의도
     if (existing) {
-      // state 의 clientId 를 코드에 박는다. 이 값은 진입 시 가드가 정했고 서명으로 보호된다 —
-      // 그래야 토큰 교환 때 "이 코드는 medifinder 것" 을 서버가 알 수 있다.
-      const code = await this.tokens.issueAuthCode(
+      return this.completeLogin(
         existing.userId,
-        state.clientId ?? null,
-        state.codeChallenge ?? null,
+        state,
         toJoinType(profile.provider),
+        meta,
       );
-      return { kind: 'code', code };
     }
 
     // 미연동 → 이메일 충돌 검사 후 자동연동/신규가입
@@ -148,13 +149,12 @@ export class SocialService {
             provider: toJoinType(profile.provider),
             ...meta,
           });
-          const code = await this.tokens.issueAuthCode(
+          return this.completeLogin(
             active.id,
-            state.clientId ?? null,
-            state.codeChallenge ?? null,
+            state,
             toJoinType(profile.provider),
+            meta,
           );
-          return { kind: 'code', code };
         }
         // 한쪽이라도 미검증이면 자동연동 금지 — 소유가 증명되지 않아 탈취 위험이 있다.
         // (기존 계정에 연동하려면 그 계정으로 로그인해 직접 연동해야 한다.)
@@ -285,6 +285,43 @@ export class SocialService {
       meta,
     );
     return { user, tokens };
+  }
+
+  /**
+   * 로그인이 성립했을 때 **무엇을 돌려줄지** 정한다.
+   *
+   *   자사(client_id 없음)  세션을 그 자리에서 발급한다. 같은 루트 도메인이라 쿠키를 심을 수
+   *                        있으므로 인가코드가 필요 없고, 코드가 없으니 PKCE 도 없다.
+   *   외부 앱(client_id)     쿠키를 심을 수 없으니 인가코드를 발급한다. 그 앱이 PKCE 로 교환한다.
+   *
+   * 예전에는 자사도 코드 경로를 타서 인증웹을 한 번 더 거쳤다. 로그인은 됐지만 왕복이 하나
+   * 늘고, "자사는 쿠키로 끝난다" 는 프론트의 전제(hansapp-web 의 login.ts 주석)와 어긋났다.
+   */
+  private async completeLogin(
+    userId: number,
+    state: { clientId?: string; codeChallenge?: string },
+    provider: AuthProvider,
+    meta: RequestMeta,
+  ): Promise<CallbackOutcome> {
+    if (state.clientId) {
+      // state 의 clientId 를 코드에 박는다. 이 값은 진입 시 가드가 정했고 서명으로 보호된다 —
+      // 그래야 토큰 교환 때 "이 코드는 medifinder 것" 을 서버가 알 수 있다.
+      const code = await this.tokens.issueAuthCode(
+        userId,
+        state.clientId,
+        state.codeChallenge ?? null,
+        provider,
+      );
+      return { kind: 'code', code };
+    }
+    const user = await this.users.findById(userId);
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      return { kind: 'error', error: 'invalid_account' };
+    }
+    return {
+      kind: 'session',
+      tokens: await this.login.complete(user, provider, meta),
+    };
   }
 
   /** 연동 시작 토큰 발급(로그인 상태). 프론트가 GET /auth/:provider?link_token= 로 넘긴다. */

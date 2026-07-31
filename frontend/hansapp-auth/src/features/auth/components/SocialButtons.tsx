@@ -59,14 +59,19 @@ export function SocialButtons({
   appReturn?: string;
 }) {
   /**
-   * 소셜 시작 URL 로 이동한다. 로그인 끝에 인가코드가 나오므로 PKCE challenge 가 필요하다.
+   * 소셜 시작 URL 로 이동한다.
    *
-   * 외부 SSO 면 그 앱이 만든 걸 그대로 넘긴다 — 인증웹이 새로 만들면 verifier 를 가진 쪽과
-   * 짝이 어긋난다. 인증웹 자체 로그인이면 인증웹이 당사자이므로 직접 만들어 보관한다.
+   * **PKCE 는 외부 SSO 일 때만 필요하다.** 그때만 끝에 인가코드가 나오고, 그 앱은
+   * client_secret 을 숨길 수 없어 verifier 로 대신 증명해야 한다. challenge 는 **그 앱이
+   * 만든 것**을 그대로 넘긴다 — 인증웹이 새로 만들면 verifier 를 가진 쪽과 짝이 어긋난다.
+   *
+   * 자사 로그인(clientId 없음)은 백엔드가 콜백에서 쿠키를 심고 끝낸다. 코드가 없으니
+   * challenge 도 만들지 않는다 — 만들면 verifier 만 브라우저에 남아 쓰이지 않는다.
    */
   const start = async (provider: SocialProvider) => {
-    const challenge =
-      codeChallenge ?? (await createPkceRequest()).codeChallenge;
+    const challenge = clientId
+      ? (codeChallenge ?? (await createPkceRequest()).codeChallenge)
+      : undefined;
     window.location.href = socialLoginUrl(
       provider,
       returnTo,

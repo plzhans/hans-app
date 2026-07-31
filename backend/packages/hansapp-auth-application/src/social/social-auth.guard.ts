@@ -133,7 +133,12 @@ export class SocialAuthGuard implements CanActivate {
       typeof req.query.code_challenge === 'string'
         ? req.query.code_challenge
         : undefined;
-    if (returnTo && !codeChallenge) {
+    // **외부 앱만 PKCE 를 요구한다.** 그쪽은 인가코드를 받아 교환하는데 client_secret 을
+    // 숨길 수 없어서 verifier 로 대신 증명해야 한다.
+    //
+    // 자사는 코드를 만들지 않고 콜백에서 쿠키를 심는다 — 훔칠 코드가 없으니 PKCE 가 막을
+    // 대상도 없다. 대신 흐름을 브라우저에 묶는 일(로그인 CSRF 방어)은 state nonce 가 맡는다.
+    if (clientId && !codeChallenge) {
       throw new BadRequestException('code_challenge is required (PKCE, S256).');
     }
     // 클라이언트의 state 는 우리가 해석하지 않는다. 최종 리다이렉트에 그대로 돌려주기 위해
