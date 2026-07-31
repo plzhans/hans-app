@@ -141,6 +141,62 @@ jobs:
           echo "검증=$verify  이미지=$image  배포=$deploy"
 
   # ───────────────────────────────────────────────────────────────────────────
+  # 배포 카드를 채널에 올리고 **그 메시지 id(ts)를 아래로 흘린다.** 뒤 단계들이 그 값으로
+  # 같은 카드를 고쳐 진행 상황을 적는다. ts 는 보내야 발급되므로 미리 알 수 없다.
+  #
+  # 동시에 **관문이다.** environment 의 보호 규칙(승인자·대기)이 여기 걸린다 — 승인 전에는
+  # 아무것도 굽지도 배포하지도 않는다.
+  #
+  # **잡 조건이 deploy 가 아니라 image 다.** deploy 로 걸면 stage=image 수동 실행에서 이
+  # 잡이 skip 되고, 그러면 needs 로 매달린 image 까지 연쇄로 skip 된다. 반대로 조건을 아예
+  # 안 걸면 **평범한 푸시·PR 도 관문에서 승인을 기다리게 된다.** 굽는 실행에서만 존재하는
+  # 것이 맞다 — 메시지를 보낼지 말지는 그 안의 스텝이 따로 가른다.
+  #
+  # **build 는 여기에 매달지 않는다.** 매달면 이 잡이 없는 평범한 CI 에서 빌드가 통째로
+  # skip 된다. 관문과 나란히 도니 승인을 기다리는 동안 빌드가 미리 끝나 있게 된다.
+  #
+  # 잡 이름에 하이픈을 쓰지 않는다 — 표현식에서 `-` 는 뺄셈이라 needs.first-notify 가
+  # 에러 없이 **조용히 false** 가 될 수 있다.
+  # ───────────────────────────────────────────────────────────────────────────
+  first_notify:
+    needs: plan
+    if: needs.plan.outputs.image == 'true'
+    runs-on: ubuntu-latest
+    environment: develop
+    outputs:
+      ts: ${{ steps.post.outputs.ts }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # **카드는 스크립트가 그린다.** 커밋 제목을 YAML 안의 JSON 에 끼우면 따옴표 하나에
+      # 페이로드가 깨지고 표현식으로 해석될 여지도 생긴다. 뒤 단계들도 같은 카드를 쓴다.
+      - id: card
+        if: needs.plan.outputs.deploy == 'true'
+        env:
+          DEPLOY_STATUS: started
+          # 이 잡이 도는 동안 build 가 나란히 돌고 있다.
+          CURRENT_STAGE: 빌드하는 중
+          APP_ENV: develop
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          GIT_SUBJECT="$(git log -1 --pretty=%s)" \
+            ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
+
+      # errors 기본값이 false 라 **슬랙이 에러를 뱉어도 이 스텝은 실패하지 않는다.**
+      # 그때는 ts 가 비어서 아래가 전부 조용해질 뿐, 배포는 그대로 나간다.
+      - id: post
+        if: steps.card.outcome == 'success'
+        uses: slackapi/slack-github-action@v4
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload-file-path: ${{ runner.temp }}/card.json
+
+  # ───────────────────────────────────────────────────────────────────────────
   # **검사와 빌드를 한 잡에서 한다.** 둘 다 같은 install·같은 컴파일을 필요로 한다.
   #
   # 나눠 두면 워크스페이스 install 과 tsc 를 두 번 돌리게 되는데, 그게 이 파이프라인에서
@@ -245,70 +301,18 @@ jobs:
           compression-level: 0
 
   # ───────────────────────────────────────────────────────────────────────────
-  # 배포 스레드의 첫 메시지를 올리고, 동시에 **관문 노릇을 한다.**
-  #
-  #   plan  build  first_notify   바깥을 아무것도 안 바꾼다
-  #   ────────────────────────── ← 경계
-  #   image  migrate  deploy      레지스트리·DB·서버를 바꾼다
-  #
-  # environment 를 붙이면 그 환경의 보호 규칙(승인자·대기)이 여기 걸린다. build 는 plan 만
-  # 기다리므로 관문에 걸리지 않는다.
-  #
-  # 슬랙 메시지 id(ts)는 보내야 발급된다. 여기서 받아 job output 으로 흘리고, 뒤 단계들이
-  # 그 값으로 같은 스레드에 붙는다.
-  #
-  # **잡에 if 를 걸지 않는다.** 여기서 skip 되면 needs 로 매달린 image 이하가 연쇄로 skip
-  # 된다. 보낼지 말지는 스텝에서 가르고, 배포가 아니면 ts 가 빈 문자열로 흘러간다.
-  #
-  # 잡 이름에 하이픈을 쓰지 않는다 — 표현식에서 `-` 는 뺄셈이라 needs.first-notify 가
-  # 에러 없이 **조용히 false** 가 될 수 있다.
-  # ───────────────────────────────────────────────────────────────────────────
-  first_notify:
-    needs: [plan, build]
-    runs-on: ubuntu-latest
-    environment: develop
-    outputs:
-      ts: ${{ steps.post.outputs.ts }}
-    steps:
-      - uses: actions/checkout@v7
-
-      # **카드는 스크립트가 그린다.** 커밋 제목을 YAML 안의 JSON 에 끼우면 따옴표 하나에
-      # 페이로드가 깨지고 표현식으로 해석될 여지도 생긴다. report 도 같은 카드를 쓴다.
-      - id: card
-        if: needs.plan.outputs.deploy == 'true'
-        env:
-          DEPLOY_STATUS: started
-          APP_ENV: develop
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
-          GIT_SHA: ${{ github.sha }}
-          GIT_ACTOR: ${{ github.actor }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
-        run: |
-          GIT_SUBJECT="$(git log -1 --pretty=%s)" \
-            ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
-
-      # errors 기본값이 false 라 **슬랙이 에러를 뱉어도 이 스텝은 실패하지 않는다.**
-      # 그때는 ts 가 비어서 아래가 전부 조용해질 뿐, 배포는 그대로 나간다.
-      - id: post
-        if: steps.card.outcome == 'success'
-        uses: slackapi/slack-github-action@v4
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          payload-file-path: ${{ runner.temp }}/card.json
-
-  # ───────────────────────────────────────────────────────────────────────────
   # 산출물을 이미지로 담는다. **여기서는 컴파일하지 않는다** — COPY 만 한다.
   #
   #   :develop         움직이는 태그. 개발 서버가 이것만 바라본다
   #   :develop-<sha>   안 움직인다. 어떤 커밋의 것인지 되짚는 용
   # ───────────────────────────────────────────────────────────────────────────
   image:
-    # first_notify 를 거쳐야 여기 온다. **그 잡이 관문이다** — 승인 규칙이 걸리면 굽기 전에 멈춘다.
+    # first_notify 를 거쳐야 여기 온다 — 그 잡이 관문이다.
     needs: [plan, build, first_notify]
     if: needs.plan.outputs.image == 'true'
     runs-on: ubuntu-24.04-arm
+    # 슬랙 토큰이 environment secret 이라 붙는다. 배포 자격증명은 여기서 안 쓴다.
+    environment: develop
     permissions:
       contents: read
       packages: write
@@ -318,6 +322,16 @@ jobs:
         app: [hansapp-api, hansapp-batch, hansapp-cli]
     steps:
       - uses: actions/checkout@v7
+
+      # 세 앱이 나란히 도니 **한 갈래만 카드를 고친다.** 셋 다 고쳐도 결과는 같지만
+      # 같은 요청을 세 번 보내게 된다.
+      - name: 슬랙 카드
+        if: matrix.app == 'hansapp-api'
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
+        run: ./scripts/deploy/ci-slack-deploy-stage.sh '도커 이미지를 굽는 중'
 
       - uses: actions/download-artifact@v8
         with:
@@ -381,7 +395,9 @@ jobs:
   # 없으면 그냥 지나가므로(멱등) 스키마 변경이 없는 배포에서도 무해하다.
   # ───────────────────────────────────────────────────────────────────────────
   migrate:
-    needs: [plan, image]
+    # first_notify 는 카드 ts 때문에 있다. outputs 는 needs 에 적어야 보인다 — image 를
+    # 거쳐 왔다고 딸려 오지 않는다.
+    needs: [plan, first_notify, image]
     if: needs.plan.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: develop
@@ -397,6 +413,14 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v7
+
+      - name: 슬랙 카드
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
+        run: ./scripts/deploy/ci-slack-deploy-stage.sh 'DB 스키마를 반영하는 중'
+
       - name: 마이그레이션
         run: ./scripts/deploy/ci-migrate.sh
         env:
@@ -420,7 +444,7 @@ jobs:
   # 무엇이 떠 있는지는 태그가 아니라 앱이 답한다(dist/build-info.json 의 sha).
   # ───────────────────────────────────────────────────────────────────────────
   deploy:
-    needs: [plan, migrate]
+    needs: [plan, first_notify, migrate]
     # migrate 를 건너뛰었으면 needs 가 skipped 라 기본 조건으로는 여기도 안 돈다.
     if: >-
       ${{ always()
@@ -440,6 +464,14 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v7
+
+      - name: 슬랙 카드
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
+        run: ./scripts/deploy/ci-slack-deploy-stage.sh '서버에 반영하는 중'
+
       - name: 배포
         run: ./scripts/deploy/ci-deploy.sh
         env:
