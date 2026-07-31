@@ -58,9 +58,9 @@ async function refreshOnce(): Promise<boolean> {
   // **before 가 있을 때만 이 지름길을 탄다.** 없으면 "남이 갱신했다" 가 아니라 "이 탭이 아직
   // 저장소를 안 읽었다" 는 뜻이다. 둘을 섞으면 만료된 토큰을 새 것으로 착각해 갱신을
   // 건너뛰고, 호출자는 401 을 그대로 맞는다(새 페이지 로드 직후가 정확히 그 상황이다).
-  const before = getSession()?.accessToken;
+  const before = getSession();
   const stored = await hydrateSession();
-  if (before && stored && stored.accessToken !== before) return true;
+  if (before && stored && stored !== before) return true;
 
   if (await postRefresh()) return true;
   // 힌트 쿠키가 아직 있으면 세션이 죽은 게 아니라 **경합에서 진 것**일 수 있다
@@ -84,7 +84,7 @@ async function postRefresh(): Promise<boolean> {
   });
   if (!res.ok) return false;
   const data = (await res.json()) as TokenPayload;
-  await setSession({ accessToken: data.accessToken });
+  await setSession(data.accessToken);
   // 다른 탭이 낡은 access token 을 들고 401 을 맞지 않게 알린다.
   publishAuth('refreshed');
   return true;
@@ -107,7 +107,7 @@ export async function apiFetch<T>(
     }
     if (opts.auth) {
       const s = getSession();
-      if (s) headers.set('Authorization', `Bearer ${s.accessToken}`);
+      if (s) headers.set('Authorization', `Bearer ${s}`);
     }
     return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   };

@@ -63,7 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // access token 이 아직 유효(로컬 exp 검증)하고 프로필 캐시가 있으면 → **서버 0, DB 0** 로 즉시 로그인.
     // 새로고침을 아무리 해도 access 수명 안에서는 서버로 안 간다.
     const cached = loadMe();
-    if (isAccessTokenValid(session.accessToken) && cached) {
+    if (isAccessTokenValid(session) && cached) {
       set({ status: 'authenticated', me: cached });
       return;
     }
@@ -83,7 +83,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   authenticate: async (tokens) => {
     // access token 만 보관한다. refresh 는 httpOnly 쿠키(백엔드가 세팅)로만 오간다.
-    await setSession({ accessToken: tokens.accessToken });
+    await setSession(tokens.accessToken);
     const me = await getMe();
     saveMe(me);
     set({ status: 'authenticated', me });
@@ -121,7 +121,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const alreadyIn = useAuthStore.getState().status === 'authenticated';
     if (event === 'refreshed' && alreadyIn) return;
     const cached = loadMe();
-    if (isAccessTokenValid(session.accessToken) && cached) {
+    if (isAccessTokenValid(session) && cached) {
       set({ status: 'authenticated', me: cached });
       return;
     }
