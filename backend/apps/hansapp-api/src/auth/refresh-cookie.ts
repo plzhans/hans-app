@@ -55,6 +55,10 @@ export function setRefreshCookie(
   token: string,
   expiresAt: Date,
 ): void {
+  // **옛 path 의 쿠키를 먼저 지운다.** 안 지우면 같은 이름으로 둘이 공존하고, 브라우저는
+  // path 가 긴 쪽(/oauth/token)을 앞에 실어 보낸다(RFC 6265). cookie-parser 는 중복 이름에서
+  // 첫 값만 취하므로 서버가 **죽은 옛 토큰**을 읽고 방금 발급한 세션을 거절한다.
+  clearLegacyRefreshCookies(res);
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
     secure,
@@ -73,11 +77,17 @@ export function setRefreshCookie(
   });
 }
 
-export function clearRefreshCookie(res: Response): void {
-  // 삭제도 **심을 때와 같은 path·domain** 이어야 브라우저가 지운다.
-  for (const path of [REFRESH_PATH, ...LEGACY_REFRESH_PATHS]) {
+/** 예전 좁은 path 로 심겼던 refresh 쿠키를 지운다. 새로 심을 때도 지울 때도 함께 부른다. */
+function clearLegacyRefreshCookies(res: Response): void {
+  for (const path of LEGACY_REFRESH_PATHS) {
     res.clearCookie(REFRESH_COOKIE, { path, domain: cookieDomain });
   }
+}
+
+export function clearRefreshCookie(res: Response): void {
+  // 삭제도 **심을 때와 같은 path·domain** 이어야 브라우저가 지운다.
+  res.clearCookie(REFRESH_COOKIE, { path: REFRESH_PATH, domain: cookieDomain });
+  clearLegacyRefreshCookies(res);
   // 힌트 쿠키(path=/)도 함께 지운다. 둘은 항상 같이 살고 같이 죽는다.
   res.clearCookie(SESSION_HINT_COOKIE, { path: '/', domain: cookieDomain });
 }
