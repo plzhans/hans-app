@@ -57,6 +57,23 @@ develop 도 **자기 커스텀 도메인이 있어야 하기 때문**이다. 공
 커스텀 도메인을 미리보기 배포에 붙이는 방법은 없다(CNAME 을 걸어도 Cloudflare 가 그
 hostname 을 등록된 것으로 알지 못해 서빙하지 못한다). 그래서 환경마다 배포 대상을 따로 둔다.
 
+### 도메인 이름 규칙
+
+```
+production   api.plzhans.com           auth.plzhans.com           plzhans.com
+develop      develop-api.plzhans.com   develop-auth.plzhans.com   develop.plzhans.com
+```
+
+**`develop` 을 줄이지 않는다.** `APP_ENV`·워크플로·스크립트 인자가 전부 `develop` 이라
+도메인만 `dev` 로 두면 그것 하나가 예외가 된다.
+
+**서비스가 붙을 때만 하이픈으로 잇는다.** `api.develop.plzhans.com` 처럼 점을 하나 더
+쓰면 계층은 깔끔하지만 **와일드카드 인증서가 안 덮는다** — `*.plzhans.com` 은 점 하나만
+커버한다. 한 단계로 눌러 두면 인증서 하나로 전부 덮인다.
+
+medifinder 는 자기 도메인을 쓰되(`medifinder.kr`) 같은 규칙을 따른다. 다만 로그인 포털은
+따로 두지 않고 `auth.plzhans.com` 을 함께 쓴다 — 쿠키 SSO 가 `plzhans.com` 기준이다.
+
 환경을 나누는 이 방식은 우회가 아니라 정공법이다 — wrangler 의 `--env` 기능도 내부적으로는
 이름이 다른 Worker 를 따로 만든다. 우리는 설정 파일을 늘리지 않으려고 `--name` 을 직접 준다.
 
