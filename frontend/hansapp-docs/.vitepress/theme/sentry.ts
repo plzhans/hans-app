@@ -4,9 +4,8 @@ import * as Sentry from '@sentry/vue';
 /**
  * 에러 추적(Sentry).
  *
- * DSN 은 **.vitepress/config.ts 에 리터럴로** 있다(→ __SENTRY_DSN__). 비밀이 아니다 — 이벤트
- * 전송 전용 공개 엔드포인트라 어차피 번들에 구워진다. .env.production 에 두지 않는 이유는
- * 그 파일이 gitignore 대상이라 CI 체크아웃에 없기 때문이다(배포 빌드에서 조용히 꺼진다).
+ * DSN 은 **.env.<환경> 의 VITE_SENTRY_DSN** 으로 주입한다(다른 프론트 셋과 같은 규약이다).
+ * 비밀이 아니다 — 이벤트 전송 전용 공개 엔드포인트라 어차피 번들에 구워진다.
  *
  * **로컬(`pnpm docs:dev`)에서는 끈다** — DOCS_ENV 가 없어 환경이 'local' 로 잡히면 init 을
  * 건너뛴다. 내 머신 에러가 팀 이슈 스트림에 섞이면 안 된다.
@@ -19,10 +18,12 @@ import * as Sentry from '@sentry/vue';
 /** vite define 이 빌드 때 상수로 치환한다(→ .vitepress/config.ts). */
 declare const __APP_ENV__: string;
 declare const __APP_RELEASE__: string;
-declare const __SENTRY_DSN__: string;
 
 // 로컬 개발(DOCS_ENV 없음 → 'local')에서는 DSN 이 있어도 켜지 않는다.
-const DSN = __APP_ENV__ === 'local' ? '' : __SENTRY_DSN__;
+const DSN =
+  __APP_ENV__ === 'local'
+    ? ''
+    : ((import.meta.env.VITE_SENTRY_DSN as string | undefined) ?? '');
 
 /**
  * 성능 트레이스 표본 비율. **문서 사이트는 0(끔)이 기본이다** —
