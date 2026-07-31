@@ -21,7 +21,12 @@ export default defineConfig(({ mode }) => {
   );
   // 단일 오리진 로컬(콘솔 5274 가 /auth 로 프록시)일 땐 VITE_BASE=/auth/ 로 자산 경로를 네임스페이스한다.
   // 배포(자기 서브도메인)는 루트. VITE_ROUTER_BASE 는 react-router basename 과 짝(App.tsx).
-  const base = process.env.VITE_BASE ?? '/';
+  //
+  // **?? 가 아니라 || 다.** ?? 는 빈 문자열을 통과시키는데, vite 는 base:'' 를 **상대 경로**로
+  // 해석해 BASE_URL 이 './' 가 된다. 그러면 `origin + BASE_URL + 'callback'` 이
+  // 'https://호스트./callback' 이 되어 호스트 끝에 점이 붙는다 — 실제로 그렇게 깨졌다.
+  // .env 에 키만 적고 값을 비워 두는 일이 있어서(누수 방지) 여기서 막는다.
+  const base = process.env.VITE_BASE || '/';
   return {
     base,
     plugins: [react()],

@@ -11,6 +11,11 @@ import {
 
 import { EnvSwaggerAllowedIpRepository } from './env/env-swagger-allowed-ip.repository';
 import { SwaggerAccessService } from './env/swagger-access.service';
+import {
+  buildSlackNotifyConfig,
+  SLACK_NOTIFY_CONFIG,
+} from './notify/slack-notify.config';
+import { SlackNotifyService } from './notify/slack-notify.service';
 import { HiraCodeService } from './hira/hira-code.service';
 import { HiraCodeRepository } from './hira/hira-code.repository';
 import { HiraRegionService } from './hira/hira-region.service';
@@ -118,6 +123,13 @@ export class ApplicationModule {
         // 열어두고 등록된 IP 만 통과시키는 데 쓴다 — main.ts 의 미들웨어가 이 서비스를 부른다.
         EnvSwaggerAllowedIpRepository,
         SwaggerAccessService,
+        // 서버 기동·종료 슬랙 알림. 설정(SLACK_*)이 비면 스스로 조용해진다 — 부팅은 정상이다.
+        // 종료 알림은 Nest 종료 훅으로 스스로 나가므로, 앱은 시작만 알려주면 된다.
+        {
+          provide: SLACK_NOTIFY_CONFIG,
+          useValue: buildSlackNotifyConfig(source),
+        },
+        SlackNotifyService,
       ],
       exports: [
         HiraHospitalService,
@@ -141,6 +153,8 @@ export class ApplicationModule {
         // main.ts 가 app.get() 으로 꺼내 Swagger 앞단 미들웨어에 넘긴다.
         // 리포지토리는 내보내지 않는다(규약: 바깥에는 서비스만 보인다).
         SwaggerAccessService,
+        // main.ts 가 부팅 마지막에 app.get() 으로 꺼내 시작을 알린다.
+        SlackNotifyService,
       ],
     };
   }

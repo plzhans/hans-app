@@ -17,10 +17,11 @@ import {
   isFirstPartyOrigin,
   normalizeRootDomain,
 } from '@hansapp/auth-application';
-import { SwaggerAccessService } from '@hansapp/application';
+import { SlackNotifyService, SwaggerAccessService } from '@hansapp/application';
 
 import { AppModule } from './app.module';
 import { appConfig } from './boot-config';
+import { buildInfo } from './build-info';
 import { initRefreshCookie } from './auth/refresh-cookie';
 import { HttpErrorFilter } from './common/http-error.filter';
 import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
@@ -208,11 +209,22 @@ async function bootstrap() {
     });
   }
 
+  // 종료 신호(SIGTERM·SIGINT)를 Nest 가 받아 onModuleDestroy·onApplicationShutdown 을
+  // **기다린 뒤** 프로세스를 내린다. 이걸 켜지 않으면 신호가 그대로 프로세스를 죽여
+  // 종료 훅이 아예 돌지 않는다 — 슬랙 종료 알림이 그 훅에 얹혀 있다.
+  app.enableShutdownHooks();
+
   const logger = new Logger('Bootstrap');
   // 접속 대상·활성 provider 요약(시크릿 마스킹, 한 줄씩). listen 앞에 둬 포트 충돌 등으로 못 떠도 설정은 보이게 한다.
   logConfigSummary(appConfig, (l) => logger.log(l), { oauth: true });
   // Sentry 가 켜졌는지도 같이 남긴다. 조용히 꺼져 있는 게 최악이다.
   logger.log(sentryStatusLine);
+
+  // 슬랙 알림도 같은 이유로 남긴다. 켜졌는지뿐 아니라 **어떤 수단으로 보내는지** 까지
+  // 적는다 — 웹훅으로 떨어지면 종료 알림이 스레드로 안 달리는데, 그 이유가 로그에 없으면
+  // 슬랙만 보고는 설정이 잘못됐는지 원래 그런지를 알 수 없다.
+  const slackNotify = app.get(SlackNotifyService);
+  logger.log(slackNotify.statusLine);
 
   const port = appConfig.getNumberOrDefault('apps-api.web.port', 3000);
   await app.listen(port);
@@ -242,6 +254,15 @@ async function bootstrap() {
   logger.log(
     `✅ ${appConfig.env} 서버 부팅 완료 — ${baseUrl} (pid ${process.pid})`,
   );
+
+  // 슬랙 알림은 부팅 완료 로그 **뒤에** 보낸다. 준비가 끝났다고 알리는 메시지이므로
+  // 그 판정 기준이 되는 로그보다 앞설 이유가 없고, 슬랙이 느려도 부팅 로그는 제때 찍힌다.
+  // 실패는 서비스가 안에서 삼킨다 — 알림 때문에 뜬 서버를 내리지 않는다.
+  await slackNotify.notifyServerStarted({
+    name: 'hansapp-api',
+    environment: appConfig.env,
+    version: buildInfo().version,
+  });
 }
 bootstrap().catch((error) => {
   new Logger('Bootstrap').error('❌ Failed to start application', error);

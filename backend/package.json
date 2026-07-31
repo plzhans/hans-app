@@ -6,6 +6,8 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev:server": "SWC_NODE_PROJECT=apps/hansapp-api/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapp-api/src/main.ts",
+    "start:local": "APP_ENV=local pnpm dev:server",
+    "start:develop": "APP_ENV=develop pnpm dev:server",
     "build": "pnpm -r build && ./scripts/build-report.sh",
     "ci:build": "./scripts/build.sh",
     "ci:bundle": "../scripts/ci/run-in-builder.sh ./backend/scripts/build.sh",

@@ -97,5 +97,17 @@ export type { Job, JobStatus } from './common/job-queue.service';
  * 미들웨어는 앱(apps-api)에 있고 이 서비스가 판정만 한다.
  */
 export { SwaggerAccessService } from './env/swagger-access.service';
+
+/**
+ * 서버 기동·종료 슬랙 알림. main.ts 가 부팅 끝에 notifyServerStarted 를 부르고,
+ * 종료는 Nest 종료 훅으로 이 서비스가 스스로 알린다(app.enableShutdownHooks() 필요).
+ */
+export { SlackNotifyService } from './notify/slack-notify.service';
+export type { ServerStartedDetail } from './notify/slack-notify.service';
+export {
+  SLACK_NOTIFY_CONFIG,
+  buildSlackNotifyConfig,
+} from './notify/slack-notify.config';
+export type { SlackNotifyConfig } from './notify/slack-notify.config';
 export { matchesAllowedIp, parseIp } from './env/ip-match';
 export type { ParsedIp } from './env/ip-match';

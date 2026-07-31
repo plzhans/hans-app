@@ -8,7 +8,10 @@ import Callback from '@/features/auth/pages/Callback';
 import Home from '@/features/auth/pages/Home';
 
 /** 로컬 단일 오리진에선 /auth 프리픽스 아래로 마운트한다(VITE_ROUTER_BASE). 배포(서브도메인)는 루트. */
-const ROUTER_BASE = (import.meta.env.VITE_ROUTER_BASE as string | undefined) ?? '/';
+// **?? 가 아니라 || 다.** .env 에 키만 적고 값을 비워 두는 일이 있는데(누수 방지),
+// ?? 는 빈 문자열을 통과시켜 basename 이 '' 가 된다. vite base 쪽도 같은 이유로 || 를 쓴다.
+const ROUTER_BASE =
+  (import.meta.env.VITE_ROUTER_BASE as string | undefined) || '/';
 
 /** 인증된 사용자만 접근. 미인증이면 로그인으로 보낸다. */
 function RequireAuth({ children }: { children: ReactNode }) {
