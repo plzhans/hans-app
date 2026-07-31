@@ -172,21 +172,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # **카드는 스크립트가 그린다.** 커밋 제목을 YAML 안의 JSON 에 끼우면 따옴표 하나에
-      # 페이로드가 깨지고 표현식으로 해석될 여지도 생긴다. 뒤 단계들도 같은 카드를 쓴다.
+      # 채널에 남는 한 줄이라 **제목만** 담는다. 커밋·요청자·링크는 아래에서 첫 댓글로 내린다.
       - id: card
         if: needs.plan.outputs.deploy == 'true'
         env:
-          DEPLOY_STATUS: started
           APP_ENV: develop
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
-          GIT_SHA: ${{ github.sha }}
-          GIT_ACTOR: ${{ github.actor }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
-        run: |
-          GIT_SUBJECT="$(git log -1 --pretty=%s)" \
-            ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
+        run: ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
 
       # errors 기본값이 false 라 **슬랙이 에러를 뱉어도 이 스텝은 실패하지 않는다.**
       # 그때는 ts 가 비어서 아래가 전부 조용해질 뿐, 배포는 그대로 나간다.
@@ -198,7 +190,26 @@ jobs:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload-file-path: ${{ runner.temp }}/card.json
 
-      # 이 잡이 도는 동안 build 가 나란히 돌고 있다. 스레드의 첫 줄.
+      # **세부는 여기서 스레드로 내린다.** 커밋 제목이 들어가므로 값은 환경변수로 받고
+      # mrkdwn 특수문자만 막는다 — 꺾쇠를 그냥 두면 `<url|텍스트>` 링크 문법이 깨진다.
+      - name: 슬랙 댓글 · 상세
+        if: steps.post.outputs.ts != ''
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.post.outputs.channel_id }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          escape() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+          text="$(printf '<%s|`%s`>  %s\n요청 %s  ·  <%s|실행 로그>' \
+            "$COMMIT_URL" "${GIT_SHA:0:7}" "$(escape "$(git log -1 --pretty=%s)")" \
+            "$(escape "$GIT_ACTOR")" "$RUN_URL")"
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ steps.post.outputs.ts }}' --text "$text"
+
+      # 이 잡이 도는 동안 build 가 나란히 돌고 있다.
       - name: 슬랙 댓글
         if: steps.post.outputs.ts != ''
         env:
