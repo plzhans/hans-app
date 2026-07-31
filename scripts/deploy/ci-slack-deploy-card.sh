@@ -24,7 +24,6 @@
 #   GIT_ACTOR              배포를 요청한 사람
 #   RUN_URL                이 워크플로 실행 링크
 #   COMMIT_URL             커밋 링크
-#   CURRENT_STAGE          (선택) 진행 중일 때 지금 어느 단계인지. "⏳ 이미지를 굽는 중"
 #   FAILED_STAGE           (선택) 실패했을 때 어느 단계였는지
 #   UPDATE_TIMESTAMP       (선택) 채우면 그 메시지를 고치는 페이로드가 된다(ts 를 넣는다)
 set -euo pipefail
@@ -69,12 +68,9 @@ else
   commit_line="$subject"
 fi
 
-# 한 줄짜리 부연. 진행 중이면 **지금 어느 단계인지**, 실패면 어디서 멈췄는지.
-# 이 줄 때문에 채널만 보고도 진행 상황을 알 수 있다 — 깃허브를 열 이유가 사라진다.
+# 실패했으면 어디서 멈췄는지 한 줄. 진행 상황은 카드가 아니라 스레드 댓글로 쌓인다.
 detail=''
-if [ "$DEPLOY_STATUS" = 'started' ] && [ -n "${CURRENT_STAGE:-}" ]; then
-  detail="⏳  $(escape_mrkdwn "$CURRENT_STAGE")"
-elif [ "$DEPLOY_STATUS" = 'failure' ] && [ -n "${FAILED_STAGE:-}" ]; then
+if [ "$DEPLOY_STATUS" = 'failure' ] && [ -n "${FAILED_STAGE:-}" ]; then
   detail="$(escape_mrkdwn "$FAILED_STAGE") 단계에서 멈췄다."
 fi
 

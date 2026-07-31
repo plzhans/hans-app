@@ -24,8 +24,8 @@
 # 뿐이지만, opt-out 을 잊으면 남들이 쓰는 서버가 깨진다.
 #
 # [슬랙]
-# 배포가 나갈 때만 채널에 카드를 하나 올리고(first_notify), 끝나면 **같은 자리를 고쳐**
-# 성공·실패·취소를 적는다(report). 채널에는 배포 하나당 메시지 하나만 남는다.
+# 배포가 나갈 때 채널에 카드를 하나 올리고(first_notify), 그 뒤의 진행 상황은 **전부 그
+# 카드의 스레드 댓글**로 쌓인다. 채널에는 배포 하나당 메시지 하나만 남는다.
 #
 # **알림은 배포를 막지 않는다.** 토큰이 없거나 슬랙이 죽어 있으면 ts 가 빈 문자열이 되고,
 # 그것을 보는 쪽은 전부 조용히 지나간다.
@@ -142,7 +142,7 @@ jobs:
 
   # ───────────────────────────────────────────────────────────────────────────
   # 배포 카드를 채널에 올리고 **그 메시지 id(ts)를 아래로 흘린다.** 뒤 단계들이 그 값으로
-  # 같은 카드를 고쳐 진행 상황을 적는다. ts 는 보내야 발급되므로 미리 알 수 없다.
+  # 같은 스레드에 댓글을 단다. ts 는 보내야 발급되므로 미리 알 수 없다.
   #
   # 동시에 **관문이다.** environment 의 보호 규칙(승인자·대기)이 여기 걸린다 — 승인 전에는
   # 아무것도 굽지도 배포하지도 않는다.
@@ -178,10 +178,7 @@ jobs:
         if: needs.plan.outputs.deploy == 'true'
         env:
           DEPLOY_STATUS: started
-          # 이 잡이 도는 동안 build 가 나란히 돌고 있다.
-          CURRENT_STAGE: 빌드하는 중
           APP_ENV: develop
-          # 첫 게시(chat.postMessage)만 `#이름` 으로 보낸다. 응답에서 받은 id 로 뒤가 고친다.
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
           GIT_SHA: ${{ github.sha }}
           GIT_ACTOR: ${{ github.actor }}
@@ -200,6 +197,16 @@ jobs:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload-file-path: ${{ runner.temp }}/card.json
+
+      # 이 잡이 도는 동안 build 가 나란히 돌고 있다. 스레드의 첫 줄.
+      - name: 슬랙 댓글
+        if: steps.post.outputs.ts != ''
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.post.outputs.channel_id }}
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ steps.post.outputs.ts }}' --title '빌드하는 중'
 
   # ───────────────────────────────────────────────────────────────────────────
   # **검사와 빌드를 한 잡에서 한다.** 둘 다 같은 install·같은 컴파일을 필요로 한다.
@@ -330,13 +337,14 @@ jobs:
 
       # 세 앱이 나란히 도니 **한 갈래만 카드를 고친다.** 셋 다 고쳐도 결과는 같지만
       # 같은 요청을 세 번 보내게 된다.
-      - name: 슬랙 카드
-        if: matrix.app == 'hansapp-api'
+      - name: 슬랙 댓글
+        if: matrix.app == 'hansapp-api' && needs.first_notify.outputs.ts != ''
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
-          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
-        run: ./scripts/deploy/ci-slack-deploy-stage.sh '도커 이미지를 굽는 중'
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' --title '도커 이미지를 굽는 중'
 
       - uses: actions/download-artifact@v8
         with:
@@ -419,12 +427,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: 슬랙 카드
+      - name: 슬랙 댓글
+        if: needs.first_notify.outputs.ts != ''
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
-          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
-        run: ./scripts/deploy/ci-slack-deploy-stage.sh 'DB 스키마를 반영하는 중'
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' --title 'DB 스키마를 반영하는 중'
 
       - name: 마이그레이션
         run: ./scripts/deploy/ci-migrate.sh
@@ -470,12 +480,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: 슬랙 카드
+      - name: 슬랙 댓글
+        if: needs.first_notify.outputs.ts != ''
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
-          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
-        run: ./scripts/deploy/ci-slack-deploy-stage.sh '서버에 반영하는 중'
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' --title '서버에 반영하는 중'
 
       - name: 배포
         run: ./scripts/deploy/ci-deploy.sh
@@ -492,13 +504,12 @@ jobs:
           GHCR_USER: ${{ github.actor }}
 
   # ───────────────────────────────────────────────────────────────────────────
-  # first_notify 가 올린 카드를 최종 상태(성공·실패·취소)로 고친다. **새 메시지를 올리지
-  # 않는다** — 채널에는 배포 하나당 하나만 남는다.
+  # 스레드의 마지막 줄 — 성공·실패·취소와 어디서 멈췄는지.
   #
-  # **always() 여야 한다.** 기본 조건이면 앞이 깨졌을 때 같이 skip 되어 카드가 "배포 시작"
-  # 인 채로 굳는다 — 도는 중인지 죽은 건지 채널에서 구분할 수 없다.
+  # **always() 여야 한다.** 기본 조건이면 앞이 깨졌을 때 같이 skip 되어 스레드가 중간에서
+  # 끊긴다 — 도는 중인지 죽은 건지 구분할 수 없다.
   #
-  # ts 가 비어 있으면 고칠 대상이 없으므로 건너뛴다.
+  # ts 가 비어 있으면 붙을 스레드가 없으므로 건너뛴다.
   # ───────────────────────────────────────────────────────────────────────────
   report:
     needs: [plan, first_notify, build, image, migrate, deploy]
@@ -533,29 +544,25 @@ jobs:
               failed='배포'
             fi
           fi
+          case "$status" in
+            success)   title='✅ 배포 완료' ;;
+            cancelled) title='⚪ 배포 취소' ;;
+            *)         title="❌ 배포 실패${failed:+ · $failed 단계에서 멈췄다}" ;;
+          esac
+
           echo "status=$status" >> "$GITHUB_OUTPUT"
-          echo "failed=$failed" >> "$GITHUB_OUTPUT"
-          echo "  판정 $status ${failed:+· $failed 단계}"
+          echo "title=$title"   >> "$GITHUB_OUTPUT"
+          echo "  판정 $title"
 
       # **여기서는 액션을 쓰지 않는다.** 액션은 errors 기본값이 false 라 슬랙이 거절해도
       # 로그에 아무것도 남기지 않는다 — 카드가 안 바뀌는데 잡은 초록으로 끝나서, 실제로
       # channel_not_found 를 두 번의 배포 동안 못 보고 지나쳤다. 스크립트는 크게 알린다.
       # (액션이 필요한 곳은 ts 를 output 으로 받아야 하는 first_notify 뿐이다.)
-      - name: 슬랙 카드
+      - name: 슬랙 댓글
         env:
-          DEPLOY_STATUS: ${{ steps.verdict.outputs.status }}
-          FAILED_STAGE: ${{ steps.verdict.outputs.failed }}
-          # 이 값이 있으면 카드가 chat.update 용(ts 가 박힌) 페이로드가 된다.
-          UPDATE_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
-          APP_ENV: develop
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
-          GIT_SHA: ${{ github.sha }}
-          GIT_ACTOR: ${{ github.actor }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
         run: |
-          GIT_SUBJECT="$(git log -1 --pretty=%s)" \
-            ./scripts/deploy/ci-slack-deploy-card.sh \
-            | ./scripts/deploy/ci-slack-send.sh \
-                --update '${{ needs.first_notify.outputs.ts }}' --json -
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' \
+            --title '${{ steps.verdict.outputs.title }}'
