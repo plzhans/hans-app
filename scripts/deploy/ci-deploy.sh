@@ -116,6 +116,16 @@ esac
 compose_src="$AREA_DIR/infra/$APP_ENV/docker-compose.yml"
 [ -f "$compose_src" ] || die "$compose_src 가 없다."
 
+# compose 가 마운트하는 redis 설정. **compose 와 한 몸으로 나른다** — 없으면 컨테이너가
+# 뜨다 죽으므로, 시크릿보다 앞선 이 단계에서 존재를 확인하고 같이 보낸다.
+redis_conf_src="$AREA_DIR/infra/$APP_ENV/config/redis/redis.conf"
+[ -f "$redis_conf_src" ] || die "$redis_conf_src 가 없다."
+
+# redis 서비스의 env(`env_file: .env.redis`). 시크릿이라 암호문으로 확인만 하고,
+# 복호화·전송은 아래 시크릿 단계에서 한다.
+redis_env_src="$AREA_DIR/infra/$APP_ENV/.env.redis.enc"
+[ -f "$redis_env_src" ] || die "$redis_env_src 가 없다."
+
 # 임시 파일은 한 곳에 모아 두고 끝날 때 통째로 지운다. 키가 디스크에 남지 않게.
 work="$(mktemp -d)"
 cleanup() {
@@ -206,11 +216,22 @@ remote 'docker --version && docker compose version' | sed 's/^/  /'
 
 phase 'compose 전송'
 # 경로의 ~ 를 서버 셸이 풀게 한다. 로컬에서 풀면 로컬 홈이 박힌다.
-remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH"
+remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH/redis"
 scp "${ssh_opts[@]}" -q "$compose_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/docker-compose.yml"
+
+# redis 설정. **config/ 아래가 아니라 redis/ 밑에 둔다.**
+#
+# config/ 는 배포가 매번 통째로 갈아끼우고 0600·배포계정 소유로 잠그는 자리다. redis
+# 컨테이너는 uid 가 달라(이미지의 redis) 그 안의 파일을 못 읽는다 — 넣어봐야 기동에서 죽는다.
+# 이 파일에는 시크릿이 없으므로(비밀번호는 .env) 0644 로 따로 놓는다.
+scp "${ssh_opts[@]}" -q "$redis_conf_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/redis/redis.conf"
+remote "chmod 644 $BE_HANSAPP_DEPLOY_PATH/redis/redis.conf"
 
 # **이 파일이 배포 상태의 전부다.** compose 는 인프라라 거의 안 바뀌고, 무엇이 떠 있는지는
 # 여기에만 적힌다. 롤백은 IMAGE_TAG 를 옛 태그로 바꿔 다시 up 하는 것이다.
+#
+# **시크릿은 안 들어간다.** compose 가 `${IMAGE_TAG}` 보간에 쓰는 자리라 성격이 다르다 —
+# 서비스에 주는 값은 서비스별 .env.<서비스> 로 따로 나른다(아래 redis).
 #
 # **uid 는 서버가 스스로 답한다.** 마운트된 설정은 이 접속 계정 소유이므로, 컨테이너가
 # 같은 번호로 돌아야 읽을 수 있다. 로컬에서 계산해 보내면 배포하는 사람의 번호가 박힌다.
@@ -307,6 +328,33 @@ command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 �
   chmod 644 "$work/$yaml"
   echo "  $yaml (비밀 아님)"
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 서비스별 env — **.env.<서비스> 로 나눠 파일째 나른다**
+#
+# compose 옆의 `.env` 는 보간용(IMAGE_TAG·uid)이라 성격이 다르다. 서비스가 집어갈 값은
+# 이름을 갈라 둔다. 앱 시크릿 뭉치(config/.env.<환경>)를 통째로 주지 않는 것은, 거기에
+# DB 접속 문자열·JWT 키·슬랙 토큰이 들어 있어 캐시 컨테이너 환경에 번지기 때문이다.
+#
+# 값을 파싱해 재조립하지 않고 파일째 옮긴다 — 레포의 평문과 서버의 평문이 같은 모양이다.
+#
+# env 는 compose 가 보간하며 읽으므로 `$` 를 `$$` 로 바꾼다 — config/ 쪽 .env 와 같은 규칙.
+sops --decrypt "$redis_env_src" | sed 's/\$/$$/g' > "$work/.env.redis"
+chmod 600 "$work/.env.redis"
+
+# **영숫자만 통과시킨다.** 이 값은 env_file 보간을 거쳐 컨테이너 셸의 인용까지 지난다.
+# 중간에 `$`·따옴표·공백이 있으면 어디서 잘렸는지 모른 채 WRONGPASS 만 보게 된다.
+redis_password="$(sed -n 's/^REDIS_PASSWORD=//p' "$work/.env.redis" | tail -1 | sed 's/^"//; s/"$//')"
+[ -n "$redis_password" ] || die "infra/$APP_ENV/.env.redis 에 REDIS_PASSWORD 가 없다."
+case "$redis_password" in
+  *[!A-Za-z0-9]*) die "REDIS_PASSWORD 는 영숫자만 쓴다 (env_file 보간·셸 인용에 걸린다)." ;;
+esac
+
+# config/ 안의 것들과 같은 0600. redis 컨테이너는 uid 가 다르지만 이 파일을 마운트해 읽는
+# 게 아니라 도커가 호스트에서 읽어 환경변수로 넣어 주므로 권한이 문제되지 않는다.
+scp "${ssh_opts[@]}" -q "$work/.env.redis" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/.env.redis"
+remote "chmod 600 $BE_HANSAPP_DEPLOY_PATH/.env.redis"
+echo "  infra/$APP_ENV/.env.redis.enc → .env.redis"
 
 # 전송. 서버에서 권한을 다시 잠근다 — scp 는 원본 모드를 항상 보존하지 않는다.
 #

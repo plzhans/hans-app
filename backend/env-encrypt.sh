@@ -31,7 +31,10 @@ encrypt() {
   fi
 }
 
-find config -type f \
+# **infra/ 도 같이 훑는다.** compose 옆의 서비스별 env(infra/<환경>/.env.redis)가 거기 있다 —
+# 배포가 compose·redis.conf 와 한 덩어리로 나르는 것들이라 위치를 맞춰 뒀다.
+# .sops.yaml 에 ^infra/<환경>/\.env 규칙이 있어야 키가 잡힌다.
+find config infra -type f \
   \( -name '.env' -o -name '.env.*' \) \
   ! -name '*.enc' ! -name '*.example' ! -name '.env.*.local' |
 while IFS= read -r file; do

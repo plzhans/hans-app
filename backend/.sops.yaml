@@ -32,3 +32,19 @@ creation_rules:
   # config 아래의 나머지(공통 .env, local 환경 .env.local, config/local/ 등): 개인키만.
   - path_regex: ^config/.*$
     age: age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
+
+  # ── infra/<환경>/.env.<서비스> ────────────────────────────────────────────────
+  # compose 옆에 두는 **서비스별 env**(지금은 .env.redis 하나). 시크릿이 config/ 밖에
+  # 나가는 유일한 자리로, 배포가 compose·redis.conf 와 한 덩어리로 나르는 것들이다.
+  #
+  # **`.env` 로 시작하는 파일만 잡는다.** 이 디렉터리에는 커밋되는 평문(docker-compose.yml ·
+  # redis.conf)이 같이 있어, 넓게 걸면 그것들까지 대상으로 오해하기 쉽다.
+  - path_regex: ^infra/develop/\.env
+    age: >-
+      age1zg5n5zp069lamnw2kxk3nw58h4l68tp9wx9tld962sq6gg9en58spmmm54,
+      age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
+
+  - path_regex: ^infra/production/\.env
+    age: >-
+      age1zg5n5zp069lamnw2kxk3nw58h4l68tp9wx9tld962sq6gg9en58spmmm54,
+      age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26

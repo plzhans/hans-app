@@ -19,9 +19,10 @@ decrypt() {
   fi
 }
 
-# **config/ 밖은 훑지 않는다**(env-encrypt.sh 와 같은 범위). backend/.env 는 앱 설정이 아니라
-# deploy.sh 가 읽는 로컬 배포 변수 파일이라 .sops.yaml 에 규칙이 없다.
-find config -type f \
+# **config/ 와 infra/ 만 훑는다**(env-encrypt.sh 와 같은 범위). backend/.env 는 앱 설정이
+# 아니라 deploy.sh 가 읽는 로컬 배포 변수 파일이라 .sops.yaml 에 규칙이 없다.
+# infra/ 쪽은 compose 옆의 서비스별 env(infra/<환경>/.env.redis)다.
+find config infra -type f \
   \( -name '.env*.enc' -o -name '*.env.enc' \) |
 while IFS= read -r file; do
   output="${file%.enc}"

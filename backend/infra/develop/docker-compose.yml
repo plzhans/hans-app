@@ -56,11 +56,69 @@ services:
     # 가리키지 않도록 앱이 ts 의 나이를 보고 스스로 무시한다.
     environment:
       SLACK_DEPLOY_THREAD_TIMESTAMP: ${SLACK_DEPLOY_THREAD_TIMESTAMP:-}
+    depends_on:
+      redis:
+        condition: service_healthy
 
   batch:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-batch:${IMAGE_TAG}
     container_name: hansapp-develop-batch
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # 캐시(hospital:* · auth:*). 세션·토큰은 DB 에 있어 이 데이터는 잃어도 콜드 캐시로 끝난다.
+  #
+  # **x-common 을 안 쓴다.** 서드파티 이미지라 셋 다 사정이 다르다:
+  #   user      이미지가 /data 를 자기 uid(redis)로 소유한다. 배포 계정 번호를 강제하면 못 쓴다
+  #   env_file  앱 시크릿 전부를 캐시 컨테이너 환경에 넣지 않는다. 비밀번호만 따로 받는다
+  #   volumes   붙일 앱 설정이 없다
+  redis:
+    image: redis:7.4-alpine
+    container_name: hansapp-develop-redis
+    restart: unless-stopped
+    # 비밀번호 한 줄짜리 서비스 전용 env(ci-deploy.sh 가 놓는다).
+    # 옆의 `.env` 는 compose 보간용(IMAGE_TAG·uid)이라 성격이 다르다 — 섞지 말 것.
+    env_file: .env.redis
+    # 공식 엔트리포인트는 root 로 받아 gosu 로 redis 에 넘기는데, 아래 셸이 필요해 그 경로를
+    # 못 탄다. 처음부터 redis 로 돈다 — 새 네임드 볼륨은 이미지의 /data 소유권을 물려받는다.
+    user: redis
+    # **설정 파일 경로를 반드시 첫 인자로 넘긴다.** 없으면 redis-server 가 마운트된 파일을
+    # 무시하고 내장 기본값(maxmemory 무제한 · appendonly no)으로 뜬다.
+    #
+    # 비밀번호는 커밋되는 conf 에 안 남긴다. `$$` 는 compose 보간을 피해 **컨테이너 안의 셸**이
+    # 풀게 하는 것 — 평문이 이 파일에도 `docker inspect` 에도 안 남는다.
+    entrypoint: ['sh', '-c']
+    command:
+      - exec redis-server /usr/local/etc/redis/redis.conf --requirepass "$$REDIS_PASSWORD"
+    # 사람이 VPN 으로 붙는 창구. 앱은 안 쓴다 — compose 네트워크의 `redis:6379` 로 붙는다.
+    #
+    # **develop 과 production 이 같은 호스트에 뜬다.** 호스트 포트가 갈려야 둘 다 산다 —
+    # develop=6379, production=6380. 컨테이너 안은 둘 다 6379 다.
+    #
+    # ⚠️ 바인드 주소가 없으므로 **0.0.0.0 에 열린다**(공인 NIC 포함). 막는 것은 **OCI
+    # Security List 뿐**이다 — 호스트 ufw 는 도커가 iptables 를 직접 만져 우회한다.
+    # 6379·6380 을 보안목록에서 절대 열지 말 것.
+    ports:
+      - '6379:6379'
+    # **conf 는 config/ 가 아니라 redis/ 밑에 둔다.** config/ 는 배포가 0600·배포계정 소유로
+    # 잠그는 자리라 uid 가 다른 이 컨테이너가 못 읽는다. 시크릿이 없어 0644 로 따로 놓는다.
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis-data:/data
+    healthcheck:
+      # 컨테이너 내부 env 를 쓰려고 compose 보간을 피해 $$ 로 이스케이프한다.
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
 
   # 스키마 반영. **서비스가 아니라 작업이다** — 한 번 돌고 죽는다.
   #
@@ -77,3 +135,9 @@ services:
     # 비밀 에셋(jwt·TLS)은 앱의 것이라 붙이지 않는다. CLI 는 yaml 과 env 만 있으면 된다.
     volumes:
       - ./config/config.develop.yaml:/app/config/config.yaml:ro
+
+# 바인드가 아니라 네임드 볼륨이다 — 배포 디렉터리는 매 배포마다 갈아끼워지는 자리라
+# 그 아래에 데이터를 두면 배포 절차와 수명이 얽힌다.
+# 볼륨 이름에는 compose 프로젝트명이 붙어 develop 과 production 이 갈린다.
+volumes:
+  redis-data:
