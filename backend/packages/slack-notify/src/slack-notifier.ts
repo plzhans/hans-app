@@ -53,6 +53,14 @@ export interface SlackMessage {
    * 이 메시지에 답글로 달 대상. 웹훅 전송에서는 무시된다(스레드를 지정할 수 없다).
    */
   readonly replyTo?: SlackMessageRef;
+  /**
+   * 답글을 **채널에도 함께 띄운다**(reply_broadcast). 스레드를 열지 않아도 보이게 하려는
+   * 것이라, 스레드에 쌓이는 진행 상황이 아니라 **결론에만** 쓴다 — 전부 띄우면 스레드로
+   * 묶은 의미가 없어진다.
+   *
+   * replyTo 가 없으면 무시된다. 답글이 아닌 메시지는 원래 채널에 뜨기 때문이다.
+   */
+  readonly broadcast?: boolean;
 }
 
 export type SlackTransport = 'bot-token' | 'webhook';
@@ -153,7 +161,13 @@ async function postViaBotToken(
         ...(message.attachments ? { attachments: message.attachments } : {}),
         // 답글은 원본과 같은 채널에만 달 수 있다. 그래서 replyTo.channel 을 그대로 믿지 않고
         // ts 만 쓴다 — 채널은 설정값이 정본이다.
-        ...(message.replyTo ? { thread_ts: message.replyTo.ts } : {}),
+        ...(message.replyTo
+          ? {
+              thread_ts: message.replyTo.ts,
+              // 답글일 때만 뜻이 있다. 아니면 슬랙이 무시하지만 보내지 않는 편이 깔끔하다.
+              ...(message.broadcast ? { reply_broadcast: true } : {}),
+            }
+          : {}),
       }),
       signal: AbortSignal.timeout(timeoutMs),
     });

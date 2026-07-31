@@ -145,12 +145,15 @@ export class SlackNotifyService implements OnApplicationShutdown {
       // 방금 이 프로세스를 띄운 배포가 있으면 그 스레드에 붙는다. 없으면 평소처럼
       // 채널에 독립 메시지로 올라간다.
       replyTo: this.deployThreadRef,
+      // **결론은 채널에도 띄운다.** 스레드에 쌓인 진행 상황과 달리 "떴다" 는 스레드를
+      // 열지 않고도 보여야 한다. 배포 스레드가 없으면(평소 재기동) 무시된다.
+      broadcast: true,
     });
 
-    // 배포 스레드에 붙었으면 종료 알림도 그쪽으로 간다 — 한 배포의 일생이 한 덩어리로
-    // 남는다. startedRef 는 스레드 답글의 ts 라 그것으로 답글을 달면 스레드 안의 스레드가
-    // 되는데, 슬랙에는 그런 것이 없다.
-    if (this.deployThreadRef) this.startedRef = this.deployThreadRef;
+    // **startedRef 는 방금 보낸 그 메시지다.** 종료 알림이 이것을 기준으로 달리므로,
+    // 한 프로세스의 일생이 기동 메시지에 매달린다. 이 값이 스레드 답글의 ts 여도 되는데,
+    // 슬랙은 답글의 ts 로 답글을 달면 그 부모 스레드에 붙여 준다 — 결국 같은 배포
+    // 스레드 안에 남는다.
   }
 
   /**
@@ -186,7 +189,10 @@ export class SlackNotifyService implements OnApplicationShutdown {
           ],
         },
       ],
-      // ref 가 없으면(웹훅) 스레드 없이 그냥 새 메시지로 나간다.
+      // **기동 메시지에 매단다.** 그것이 배포 스레드의 답글이었으면 슬랙이 같은 스레드로
+      // 붙여 주므로, 종료도 그 배포 안에 남는다. ref 가 없으면(웹훅) 그냥 새 메시지가 된다.
+      //
+      // 채널로 내보내지 않는다 — 배포마다 도는 정상 종료라 매번 띄우면 "떴다" 가 묻힌다.
       replyTo: this.startedRef,
     });
   }
