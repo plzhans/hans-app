@@ -118,8 +118,16 @@ export function getMe(): Promise<Me> {
   return apiFetch('/auth/me', {}, { auth: true });
 }
 
+/**
+ * 로그아웃. **Bearer 를 붙이지 않는다** — 서버가 refresh 쿠키로 대상을 정하고, 자격증명이
+ * 없거나 만료됐어도 쿠키를 지운다. auth:true 로 두면 access 만료 시 401→refresh 춤을 추다가
+ * 실패하고, 그 응답엔 쿠키 삭제가 안 실려 세션이 살아남는다.
+ */
 export function logout(): Promise<void> {
-  return apiFetch('/oauth/logout', { method: 'DELETE' }, { auth: true });
+  return apiFetch('/oauth/logout', {
+    method: 'DELETE',
+    credentials: 'include',
+  });
 }
 
 /**

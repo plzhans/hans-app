@@ -18,10 +18,17 @@ export const REFRESH_COOKIE = 'refresh_token';
 // httpOnly refresh 쿠키와 항상 같이 세팅/삭제한다. 인증 판단이 아니라 "호출 여부" 판단용이다.
 export const SESSION_HINT_COOKIE = 'hansapp.session';
 
-// refresh 쿠키를 **갱신 엔드포인트로만** 스코프한다. path=/ 로 두면 민감한 refresh 토큰이 모든 요청
-// (데이터 조회 등)에 자동 첨부돼 낭비·CSRF 표면·노출이 커진다. /oauth/token 에서만 오가게 좁힌다.
+// refresh 쿠키를 **OAuth 엔드포인트로만** 스코프한다. path=/ 로 두면 민감한 refresh 토큰이 모든
+// 요청(데이터 조회 등)에 자동 첨부돼 낭비·CSRF 표면·노출이 커진다.
 // (access token 은 쿠키가 아니라 Authorization: Bearer 로 authed 호출에만 붙는다 — 매 요청에 안 실린다.)
-const REFRESH_PATH = '/oauth/token';
+//
+// **/oauth/token 이 아니라 /oauth 다.** 로그아웃(/oauth/logout)도 이 쿠키로 인증해야 하기 때문이다 —
+// access token 을 요구하면 만료됐을 때 로그아웃이 거절되고, 그 응답엔 쿠키 삭제도 안 실려 세션이 산다.
+const REFRESH_PATH = '/oauth';
+
+// 예전에 좁게 심었던 쿠키. 만료까지 브라우저에 남아 같은 이름으로 공존하므로, 지울 때 함께 지운다.
+// 안 지우면 /oauth/token 요청에 옛 값이 같이 실려 로그아웃 뒤에도 세션이 살아 있는 것처럼 보인다.
+const LEGACY_REFRESH_PATHS = ['/oauth/token'];
 
 // **부팅 때 initRefreshCookie 로 한 번 굳히는 설정.** requestMeta·setRefreshCookie 는 요청마다
 // 도는 핫패스라 매번 설정을 다시 읽지 않는다. init 전이면 안전한 기본값(secure=false, 도메인 없음).
@@ -67,8 +74,11 @@ export function setRefreshCookie(
 }
 
 export function clearRefreshCookie(res: Response): void {
-  // 삭제도 같은 path·domain 이어야 브라우저가 지운다. 힌트 쿠키(path=/)도 함께 지운다.
-  res.clearCookie(REFRESH_COOKIE, { path: REFRESH_PATH, domain: cookieDomain });
+  // 삭제도 **심을 때와 같은 path·domain** 이어야 브라우저가 지운다.
+  for (const path of [REFRESH_PATH, ...LEGACY_REFRESH_PATHS]) {
+    res.clearCookie(REFRESH_COOKIE, { path, domain: cookieDomain });
+  }
+  // 힌트 쿠키(path=/)도 함께 지운다. 둘은 항상 같이 살고 같이 죽는다.
   res.clearCookie(SESSION_HINT_COOKIE, { path: '/', domain: cookieDomain });
 }
 

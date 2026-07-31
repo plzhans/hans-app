@@ -180,6 +180,31 @@ export class OAuthTokenService {
       ...meta,
     });
   }
+
+  /**
+   * refresh 쿠키만으로 로그아웃한다. **아무 자격증명도 요구하지 않는다.**
+   *
+   * 로그아웃은 "잊는" 동작이다. 인증을 걸면 access token 이 만료됐을 때 거절당하고, 그
+   * 응답에는 쿠키 삭제도 실리지 않아 **세션이 살아남는다** — 정확히 그래서 로그아웃이
+   * 안 되는 일이 있었다. 지울 것이 없으면 없는 대로 끝내고, 쿠키는 항상 지운다.
+   *
+   * 폐기할 세션을 찾았을 때만 감사 로그를 남긴다(남길 userId 가 그때 생긴다).
+   */
+  async logoutByRefreshToken(
+    refreshToken: string | undefined,
+    meta: RequestMeta,
+  ): Promise<void> {
+    if (!refreshToken) return;
+    const revoked = await this.tokens.revokeByRefreshToken(refreshToken);
+    if (!revoked) return;
+    await this.log.record({
+      userId: revoked.userId,
+      action: UserAction.LOGOUT,
+      result: ActionResult.SUCCESS,
+      sessionId: revoked.sessionId,
+      ...meta,
+    });
+  }
 }
 
 /** PKCE code_challenge 로 허용하는 길이(RFC 7636 은 verifier 43~128자, S256 결과는 43자). */

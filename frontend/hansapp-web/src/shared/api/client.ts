@@ -57,9 +57,13 @@ let inflight: Promise<boolean> | null = null;
 async function refreshOnce(): Promise<boolean> {
   // 락을 기다리는 동안 다른 탭이 이미 회전시켰을 수 있다. 저장소를 다시 읽어 새 토큰이
   // 들어와 있으면 내 호출은 접는다 — 뒤늦게 보내봐야 401 이다.
-  const stale = getSession()?.accessToken;
+  //
+  // **before 가 있을 때만 이 지름길을 탄다.** 없으면 "남이 갱신했다" 가 아니라 "이 탭이 아직
+  // 저장소를 안 읽었다" 는 뜻이다. 둘을 섞으면 만료된 토큰을 새 것으로 착각해 갱신을
+  // 건너뛰고, 호출자는 401 을 그대로 맞는다(새 페이지 로드 직후가 정확히 그 상황이다).
+  const before = getSession()?.accessToken;
   const stored = await hydrateSession();
-  if (stored && stored.accessToken !== stale) return true;
+  if (before && stored && stored.accessToken !== before) return true;
 
   if (await postRefresh()) return true;
   // 힌트 쿠키가 아직 있으면 세션이 죽은 게 아니라 **경합에서 진 것**일 수 있다

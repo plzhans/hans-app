@@ -28,7 +28,7 @@ interface AuthState {
   bootstrap: () => Promise<void>;
   /** 로그인/가입/소셜 성공 시 토큰을 저장하고 인증 상태로 전환한다. */
   authenticate: (tokens: TokenResponse) => Promise<void>;
-  /** 로그아웃: 세션 폐기 + 익명 전환. */
+  /** 로그아웃: 세션 폐기 + 익명 전환. **어떤 경우에도 로컬은 비운다.** */
   signOut: () => Promise<void>;
   /** 다른 탭에서 온 인증 이벤트를 반영한다(App 이 구독해 연결). */
   syncFromOtherTab: (event: AuthEvent) => Promise<void>;
@@ -94,7 +94,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await apiLogout();
     } catch {
-      // 서버 폐기 실패해도 로컬 세션은 비운다.
+      // 네트워크 실패 등. 서버는 자격증명 없이도 쿠키를 지우므로 여기 오는 건 통신 자체가
+      // 안 된 경우다. 그래도 **로컬 정리와 통지는 무조건 한다** — 사용자 의도는 로그아웃이다.
     }
     await clearSession();
     clearMe();

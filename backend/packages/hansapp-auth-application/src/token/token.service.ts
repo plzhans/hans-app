@@ -219,6 +219,33 @@ export class TokenService {
     };
   }
 
+  /**
+   * refresh token 이 가리키는 세션을 폐기한다. **로그아웃 전용 — 실패해도 던지지 않는다.**
+   *
+   * 로그아웃은 "잊는" 동작이라 검증에 실패했다고 거절하면 안 된다. 토큰이 깨졌거나 이미
+   * 없는 세션이면 지울 것이 없을 뿐이고, 호출자는 어차피 쿠키를 지운다.
+   *
+   * @returns 실제로 폐기한 세션. 없었으면 null(감사 로그를 남길 대상도 없다).
+   */
+  async revokeByRefreshToken(
+    refreshToken: string,
+  ): Promise<{ sessionId: string; userId: number } | null> {
+    const parsed = parseSignedToken(
+      refreshToken,
+      REFRESH_PREFIX,
+      this.refreshTagKey,
+    );
+    if (!parsed) return null;
+    const session = await this.sessions.findById(parsed.id);
+    if (!session) return null;
+    // secret 까지 맞아야 남의 세션을 못 지운다. 만료 여부는 안 본다 — 만료된 세션도 치운다.
+    if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
+      return null;
+    }
+    await this.sessions.delete(session.sessionId);
+    return { sessionId: session.sessionId, userId: session.userId };
+  }
+
   revokeSession(sessionId: string): Promise<void> {
     return this.sessions.delete(sessionId);
   }

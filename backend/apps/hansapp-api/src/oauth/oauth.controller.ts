@@ -15,7 +15,6 @@ import {
   Auth,
   AuthType,
   CurrentUser,
-  FirstPartyOnly,
   OAuthTokenService,
   Public,
 } from '@hansapp/auth-application';
@@ -129,20 +128,31 @@ export class OAuthController {
     return { code };
   }
 
+  /**
+   * **아무 자격증명도 요구하지 않는다.** 로그아웃은 "잊는" 동작이라 인증을 걸면 안 된다 —
+   * access token 이 만료됐을 때 가드가 401 로 끊으면 이 응답에 쿠키 삭제도 안 실려
+   * 세션이 살아남는다. 실제로 그래서 로그아웃이 안 되는 일이 있었다.
+   *
+   * 폐기 대상은 refresh 쿠키가 정한다(secret 까지 대조하므로 남의 세션은 못 지운다).
+   * 쿠키가 없거나 이미 죽은 세션이어도 **쿠키 삭제는 항상 나간다.**
+   */
   @Delete('logout')
-  @FirstPartyOnly()
-  @Auth(AuthType.Jwt)
+  @Public()
   @HttpCode(204)
   @ApiOperation({
     summary: '로그아웃',
-    description: '현재 세션(refresh)을 폐기하고 쿠키를 지운다.',
+    description:
+      '현재 세션(refresh 쿠키)을 폐기하고 인증 쿠키를 지운다. ' +
+      '자격증명이 없거나 만료됐어도 쿠키는 지운다.',
   })
   async logout(
-    @CurrentUser() user: AuthUser,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.grants.logout(user.sessionId, user.userId, requestMeta(req));
+    await this.grants.logoutByRefreshToken(
+      readRefreshCookie(req),
+      requestMeta(req),
+    );
     clearRefreshCookie(res);
   }
 }
