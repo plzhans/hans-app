@@ -120,6 +120,14 @@ compose_src="$AREA_DIR/infra/$APP_ENV/docker-compose.yml"
 work="$(mktemp -d)"
 cleanup() {
   local code=$?
+  # **어디서 멈췄는지 스레드에 남긴다.** 워크플로는 "배포 잡이 실패했다" 까지만 알 수 있고,
+  # 그것이 wireguard 인지 pull 인지는 이 스크립트만 안다. 그 한 줄이 있으면 CI 로그를
+  # 열기 전에 대개 짐작이 끝난다. (토큰이 없으면 send 쪽이 조용히 넘어간다.)
+  if [ "$code" -ne 0 ] && [ -n "$current_phase" ]; then
+    "$ROOT_DIR/scripts/deploy/ci-slack-send.sh" \
+      --thread "${SLACK_DEPLOY_THREAD_TIMESTAMP:-}" \
+      --title "⚠️  '$current_phase' 에서 멈췄다" >/dev/null 2>&1 || true
+  fi
   # 마지막 단계를 닫는 것은 여기 몫이다 — phase 에는 닫는 짝이 없다.
   end_phase
   # 중간에 죽어도 서버에 로그인 상태를 남기지 않는다.

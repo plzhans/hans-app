@@ -115,8 +115,60 @@ jobs:
           echo "list=$list" >> "$GITHUB_OUTPUT"
           echo "  대상 $list"
 
-  deploy:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 배포 카드를 채널에 올리고 ts 를 아래로 흘린다(be-deploy-production.yml 과 같은 규칙).
+  # ───────────────────────────────────────────────────────────────────────────
+  first_notify:
     needs: plan
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      ts: ${{ steps.post.outputs.ts }}
+      channel: ${{ steps.post.outputs.channel_id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: card
+        # **여기서 실패해도 잡은 성공해야 한다.** 이 잡에 매달린 배포가 슬랙 설정
+        # 하나 때문에 통째로 막히면 안 된다. 실패하면 아래 post 가 건너뛰고 ts 가
+        # 비어서 뒤가 전부 조용해질 뿐이다.
+        continue-on-error: true
+        env:
+          APP_ENV: production
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          DEPLOY_LABEL: 프론트
+        run: ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
+
+      - id: post
+        if: steps.card.outcome == 'success'
+        uses: slackapi/slack-github-action@v4
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload-file-path: ${{ runner.temp }}/card.json
+
+      # 태그에서만 배포하므로 커밋이 아니라 **버전이 신원이다.**
+      - name: 슬랙 댓글 · 상세
+        if: steps.post.outputs.ts != ''
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.post.outputs.channel_id }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          TARGETS: ${{ needs.plan.outputs.targets }}
+          REF_NAME: ${{ github.ref_name }}
+          GIT_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          escape() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+          apps="$(printf '%s' "$TARGETS" | tr ' ,' '\n\n' | sed '/^$/d; s#.*/##' | paste -sd' ' -)"
+          text="$(printf '`%s`  ·  %s\n대상 %s  ·  요청 %s  ·  <%s|실행 로그>' \
+            "$(escape "$VERSION")" "$(escape "$REF_NAME")" "$(escape "$apps")" \
+            "$(escape "$GIT_ACTOR")" "$RUN_URL")"
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ steps.post.outputs.ts }}' --text "$text"
+
+  deploy:
+    needs: [plan, first_notify]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -192,3 +244,38 @@ jobs:
           git tag -f release-frontend/latest
           git push -f origin release-frontend/latest
           echo "  release-frontend/latest → $(git rev-parse --short HEAD)  (${{ needs.plan.outputs.version }})"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 스레드의 마지막 줄. always() 라 실패·취소도 남는다.
+  # ───────────────────────────────────────────────────────────────────────────
+  report:
+    needs: [plan, first_notify, deploy, promote]
+    if: ${{ always() && needs.first_notify.outputs.ts != '' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: verdict
+        env:
+          DEPLOY: ${{ needs.deploy.result }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          case "$DEPLOY" in
+            success)   title="✅ 프론트 $VERSION 운영 배포 완료" ;;
+            cancelled) title="⚪ 프론트 $VERSION 운영 배포 취소" ;;
+            *)         title="❌ 프론트 $VERSION 운영 배포 실패" ;;
+          esac
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+          echo "  판정 $title"
+
+      # 운영은 성공도 채널로 내보낸다 — 나갔다는 사실 자체가 걸려야 하는 사건이다.
+      - name: 슬랙 댓글
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+          TITLE: ${{ steps.verdict.outputs.title }}
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' \
+            --title "$TITLE" --broadcast

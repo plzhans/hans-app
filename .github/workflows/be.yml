@@ -175,9 +175,15 @@ jobs:
       # 채널에 남는 한 줄이라 **제목만** 담는다. 커밋·요청자·링크는 아래에서 첫 댓글로 내린다.
       - id: card
         if: needs.plan.outputs.deploy == 'true'
+        # **여기서 실패해도 잡은 성공해야 한다.** 이 잡에 매달린 배포가 슬랙 설정
+        # 하나 때문에 통째로 막히면 안 된다. 실패하면 아래 post 가 건너뛰고 ts 가
+        # 비어서 뒤가 전부 조용해질 뿐이다.
+        continue-on-error: true
         env:
           APP_ENV: develop
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          # be·fe 가 같은 채널에 뜬다. 제목에서 갈려야 한다.
+          DEPLOY_LABEL: 백엔드
         run: ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
 
       # errors 기본값이 false 라 **슬랙이 에러를 뱉어도 이 스텝은 실패하지 않는다.**
@@ -451,6 +457,10 @@ jobs:
         run: ./scripts/deploy/ci-migrate.sh
         env:
           APP_ENV: develop
+          # 실패했을 때 어느 단계에서 멈췄는지 스크립트가 스레드에 남긴다.
+          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
           # 개발 서버는 움직이는 태그만 본다. 방금 이 실행이 그 태그를 옮겼다.
           IMAGE_TAG: develop
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
@@ -504,6 +514,9 @@ jobs:
         run: ./scripts/deploy/ci-deploy.sh
         env:
           APP_ENV: develop
+          # 실패했을 때 어느 단계에서 멈췄는지 스크립트가 스레드에 남긴다.
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
           IMAGE_TAG: develop
           # 서버로 넘어가 앱의 기동 알림이 이 배포 스레드에 붙게 한다.
           SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
@@ -558,9 +571,9 @@ jobs:
             fi
           fi
           case "$status" in
-            success)   title='✅ 배포 완료' ;;
-            cancelled) title='⚪ 배포 취소' ;;
-            *)         title="❌ 배포 실패${failed:+ · $failed 단계에서 멈췄다}" ;;
+            success)   title='✅ 백엔드 배포 완료' ;;
+            cancelled) title='⚪ 백엔드 배포 취소' ;;
+            *)         title="❌ 백엔드 배포 실패${failed:+ · $failed 단계에서 멈췄다}" ;;
           esac
 
           echo "status=$status" >> "$GITHUB_OUTPUT"
@@ -575,7 +588,16 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+          STATUS: ${{ steps.verdict.outputs.status }}
+          TITLE: ${{ steps.verdict.outputs.title }}
         run: |
+          # **실패·취소만 채널로 내보낸다.** 성공하면 앱이 뜨면서 기동 알림을 채널에
+          # 띄우므로 결론이 이미 보인다. 실패는 그것이 없어서 스레드를 열지 않는 한
+          # 아무도 모른다 — 정작 봐야 하는 쪽이 안 보이면 알림을 붙인 뜻이 없다.
+          cast=''
+          [ "$STATUS" = 'success' ] || cast='--broadcast'
+          # 따옴표를 안 씌운다. 빈 문자열이면 인자가 사라져야 한다.
+          # shellcheck disable=SC2086
           ./scripts/deploy/ci-slack-send.sh \
             --thread '${{ needs.first_notify.outputs.ts }}' \
-            --title '${{ steps.verdict.outputs.title }}'
+            --title "$TITLE" $cast

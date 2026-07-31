@@ -20,6 +20,9 @@ slack:
   botToken: ${SLACK_BOT_TOKEN}
   channel: ${SLACK_CHANNEL}
   webhookUrl: ${SLACK_WEBHOOK_URL}
+  # 이 프로세스를 띄운 배포가 만든 슬랙 스레드의 ts. 있으면 기동 알림이 그 스레드에 붙는다.
+  # **배포가 docker compose up 할 때만 넣는다** — .env 에는 없고, 값이 낡으면 앱이 무시한다.
+  deployThreadTimestamp: ${SLACK_DEPLOY_THREAD_TIMESTAMP}
 
 # API 접근(서비스키·클라이언트) 2단 캐시 TTL.
 cache:

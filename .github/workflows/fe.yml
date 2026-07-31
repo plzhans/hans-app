@@ -177,8 +177,67 @@ jobs:
       target: ${{ needs.plan.outputs.target }}
       toolchain: ${{ needs.plan.outputs.toolchain == 'true' }}
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # 배포 카드를 채널에 올리고 ts 를 아래로 흘린다(be.yml 과 같은 규칙).
+  #
+  # **잡에 조건을 건다.** 평범한 푸시·PR 까지 이 잡이 돌면 environment 의 보호 규칙에
+  # 걸려 검사만 하려던 실행이 승인을 기다리게 된다. 배포하는 실행에서만 존재하면 된다 —
+  # report 는 always() 라 이 잡이 없으면 ts 가 비어 알아서 건너뛴다.
+  # ───────────────────────────────────────────────────────────────────────────
+  first_notify:
+    needs: plan
+    if: needs.plan.outputs.deploy == 'true' && needs.plan.outputs.target != ''
+    runs-on: ubuntu-latest
+    environment: develop
+    outputs:
+      ts: ${{ steps.post.outputs.ts }}
+      channel: ${{ steps.post.outputs.channel_id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: card
+        # **여기서 실패해도 잡은 성공해야 한다.** 이 잡에 매달린 배포가 슬랙 설정
+        # 하나 때문에 통째로 막히면 안 된다. 실패하면 아래 post 가 건너뛰고 ts 가
+        # 비어서 뒤가 전부 조용해질 뿐이다.
+        continue-on-error: true
+        env:
+          APP_ENV: develop
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          # be 와 같은 채널에 뜨므로 무엇의 배포인지 제목에서 갈려야 한다.
+          DEPLOY_LABEL: 프론트
+        run: ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
+
+      - id: post
+        if: steps.card.outcome == 'success'
+        uses: slackapi/slack-github-action@v4
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload-file-path: ${{ runner.temp }}/card.json
+
+      # 커밋 제목이 들어가므로 값은 환경변수로 받고 mrkdwn 특수문자만 막는다.
+      - name: 슬랙 댓글 · 상세
+        if: steps.post.outputs.ts != ''
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.post.outputs.channel_id }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_ACTOR: ${{ github.actor }}
+          TARGET: ${{ needs.plan.outputs.target }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          escape() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+          # 대상은 경로 목록이라 파일명만 남겨 읽기 좋게 줄인다.
+          apps="$(printf '%s' "$TARGET" | tr ' ' '\n' | sed 's#.*/##' | paste -sd' ' -)"
+          text="$(printf '<%s|`%s`>  %s\n대상 %s  ·  요청 %s  ·  <%s|실행 로그>' \
+            "$COMMIT_URL" "${GIT_SHA:0:7}" "$(escape "$(git log -1 --pretty=%s)")" \
+            "$(escape "$apps")" "$(escape "$GIT_ACTOR")" "$RUN_URL")"
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ steps.post.outputs.ts }}' --text "$text"
+
   deploy:
-    needs: [plan, verify]
+    needs: [plan, verify, first_notify]
     # verify 를 건너뛰면 skipped 라 기본 조건으로는 여기도 안 돈다. always() 로 끊되
     # 실패했을 때만 멈춘다.
     if: >-
@@ -195,3 +254,59 @@ jobs:
     with:
       target: ${{ needs.plan.outputs.target }}
       toolchain: ${{ needs.plan.outputs.toolchain == 'true' }}
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 스레드의 마지막 줄. **always() 여야** 실패·취소도 남는다.
+  # ts 가 비어 있으면(배포가 아닌 실행) 붙을 스레드가 없으므로 건너뛴다.
+  # ───────────────────────────────────────────────────────────────────────────
+  report:
+    needs: [plan, verify, first_notify, deploy]
+    if: ${{ always() && needs.first_notify.outputs.ts != '' }}
+    runs-on: ubuntu-latest
+    environment: develop
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: verdict
+        env:
+          VERIFY: ${{ needs.verify.result }}
+          DEPLOY: ${{ needs.deploy.result }}
+        run: |
+          status=success
+          failed=''
+          if [ "$DEPLOY" != 'success' ]; then
+            # 앞에서부터 훑어 처음 어긋난 곳만 집는다. verify 는 건너뛸 수 있다(병합 커밋).
+            for pair in "검사:$VERIFY" "배포:$DEPLOY"; do
+              name="${pair%%:*}"
+              case "${pair##*:}" in
+                cancelled) status=cancelled; failed="$name"; break ;;
+                failure)   status=failure;   failed="$name"; break ;;
+              esac
+            done
+            if [ "$status" = 'success' ]; then
+              status=failure
+              failed='배포'
+            fi
+          fi
+
+          case "$status" in
+            success)   title='✅ 프론트 배포 완료' ;;
+            cancelled) title='⚪ 프론트 배포 취소' ;;
+            *)         title="❌ 프론트 배포 실패${failed:+ · $failed 단계에서 멈췄다}" ;;
+          esac
+
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "title=$title"   >> "$GITHUB_OUTPUT"
+          echo "  판정 $title"
+
+      # **프론트는 성공도 채널로 내보낸다.** 백엔드와 달리 기동 알림을 보내는 앱이 없어,
+      # 여기서 안 띄우면 끝났다는 사실이 채널에 전혀 안 남는다.
+      - name: 슬랙 댓글
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+          TITLE: ${{ steps.verdict.outputs.title }}
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' \
+            --title "$TITLE" --broadcast

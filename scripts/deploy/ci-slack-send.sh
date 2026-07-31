@@ -44,6 +44,9 @@
 #   --json <값|경로|->  페이로드 원본. `{` 로 시작하면 그 자체를, `-` 면 stdin 을, 아니면 파일
 #   --thread <ts>       그 메시지의 답글로 단다 (chat.postMessage + thread_ts)
 #   --update <ts>       그 메시지를 이 내용으로 바꾼다 (chat.update)
+#   --broadcast         답글을 **채널에도 함께 띄운다**(reply_broadcast). --thread 와 함께만
+#                       뜻이 있다. 스레드를 열지 않아도 보여야 하는 **결론에만** 쓴다 —
+#                       전부 띄우면 스레드로 묶은 의미가 없어진다
 #
 # [환경변수]
 #   SLACK_BOT_TOKEN   xoxb-… **웹훅이 아니라 봇 토큰이어야 한다.** 웹훅은 응답이 'ok' 뿐이라
@@ -71,6 +74,7 @@ text=''
 json_input=''
 thread_ts=''
 update_ts=''
+broadcast=''
 
 warn() { echo "⚠️  slack: $*" >&2; }
 
@@ -87,6 +91,7 @@ while [ $# -gt 0 ]; do
     --json)   json_input="${2:-}"; shift 2 ;;
     --thread) thread_ts="${2:-}";  shift 2 ;;
     --update) update_ts="${2:-}";  shift 2 ;;
+    --broadcast) broadcast=1;      shift ;;
     *)        warn "모르는 인자다: $1"; give_up ;;
   esac
 done
@@ -96,6 +101,13 @@ done
 if [ -n "$thread_ts" ] && [ -n "$update_ts" ]; then
   warn '--thread 와 --update 는 같이 못 쓴다.'
   give_up
+fi
+
+# 답글이 아닌 메시지는 원래 채널에 뜬다. 조용히 무시하면 "왜 안 뜨지" 가 아니라
+# "이미 뜨고 있었다" 를 못 알아채므로 오해를 그냥 두지 않는다.
+if [ -n "$broadcast" ] && [ -z "$thread_ts" ]; then
+  warn '--broadcast 는 --thread 와 함께만 뜻이 있다. 무시한다.'
+  broadcast=''
 fi
 
 if [ -n "$json_input" ] && { [ -n "$title" ] || [ -n "$text" ]; }; then
@@ -136,11 +148,13 @@ done
 target="$(jq -n \
   --arg channel "$channel" \
   --arg thread  "$thread_ts" \
-  --arg update  "$update_ts" '
+  --arg update  "$update_ts" \
+  --arg cast    "$broadcast" '
     { channel: $channel }
     # chat.update 는 고칠 대상을 ts 로 받는다. thread_ts 와 이름이 다르다.
     + (if $update != "" then { ts: $update }        else {} end)
     + (if $thread != "" then { thread_ts: $thread } else {} end)
+    + (if $cast   != "" then { reply_broadcast: true } else {} end)
   ')"
 
 if [ -n "$json_input" ]; then

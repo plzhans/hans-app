@@ -16,6 +16,8 @@
 # [환경변수]
 #   SLACK_CHANNEL   C… 또는 #이름
 #   APP_ENV         develop | production (기본 develop)
+#   DEPLOY_LABEL    (선택) '백엔드'·'프론트'. **한 채널에 여러 배포가 뜨므로** 제목에서
+#                   무엇의 배포인지 갈려야 한다. 없으면 환경 이름만 나온다
 set -euo pipefail
 
 : "${SLACK_CHANNEL:?SLACK_CHANNEL 이 필요하다}"
@@ -30,7 +32,8 @@ else
   color='#4a90d9'
 fi
 
-title="🚀  $app_env 배포 시작"
+label="${DEPLOY_LABEL:-}"
+title="🚀  ${label:+$label }$app_env 배포 시작"
 
 # text 는 채널 밖(모바일 푸시·채널 목록)에 뜨는 한 줄이다. attachments 를 쓰면 채널에는
 # 그쪽이 그려지고 이 값은 미리보기로만 남으므로 비워 두면 안 된다.

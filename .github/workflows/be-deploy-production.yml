@@ -190,8 +190,62 @@ jobs:
   # 필요한 것(compose·env)은 스스로 올린다. 배포가 날라 주기를 기다리면 첫 배포에서
   # 순서가 꼬인다 — 마이그레이션이 먼저 도는데 그 파일을 만드는 것이 배포이기 때문이다.
   # ───────────────────────────────────────────────────────────────────────────
-  migrate:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 배포 카드를 채널에 올리고 **그 메시지 id(ts)를 아래로 흘린다.** 뒤 단계들이 그 값으로
+  # 같은 스레드에 댓글을 단다. develop(be.yml)과 같은 규칙이고, 색만 주황이다.
+  #
+  # 알림이 실패해도 배포는 나간다 — ts 가 비면 뒤가 전부 조용해질 뿐이다.
+  # ───────────────────────────────────────────────────────────────────────────
+  first_notify:
     needs: plan
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      ts: ${{ steps.post.outputs.ts }}
+      # chat.postMessage 는 `#이름` 을 받아 주지만 update 는 id 만 받는다. 응답에서 받아 흘린다.
+      channel: ${{ steps.post.outputs.channel_id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # 채널에 남는 한 줄이라 제목만 담는다. 세부는 아래에서 첫 댓글로 내린다.
+      - id: card
+        # **여기서 실패해도 잡은 성공해야 한다.** 이 잡에 매달린 배포가 슬랙 설정
+        # 하나 때문에 통째로 막히면 안 된다. 실패하면 아래 post 가 건너뛰고 ts 가
+        # 비어서 뒤가 전부 조용해질 뿐이다.
+        continue-on-error: true
+        env:
+          APP_ENV: production
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          DEPLOY_LABEL: 백엔드
+        run: ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
+
+      - id: post
+        if: steps.card.outcome == 'success'
+        uses: slackapi/slack-github-action@v4
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload-file-path: ${{ runner.temp }}/card.json
+
+      # develop 과 달리 **커밋이 아니라 버전이 신원이다** — 태그에서만 배포하기 때문이다.
+      - name: 슬랙 댓글 · 상세
+        if: steps.post.outputs.ts != ''
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.post.outputs.channel_id }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+          GIT_ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          escape() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+          text="$(printf '`%s`  ·  %s\n요청 %s  ·  <%s|실행 로그>' \
+            "$(escape "$VERSION")" "$(escape "$REF_NAME")" "$(escape "$GIT_ACTOR")" "$RUN_URL")"
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ steps.post.outputs.ts }}' --text "$text"
+
+  migrate:
+    needs: [plan, first_notify]
     if: ${{ !inputs.skip_migrate }}
     runs-on: ubuntu-latest
     environment: production
@@ -208,10 +262,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: 슬랙 댓글
+        if: needs.first_notify.outputs.ts != ''
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' --title 'DB 스키마를 반영하는 중'
+
       - name: 마이그레이션
         run: ./scripts/deploy/ci-migrate.sh
         env:
           APP_ENV: production
+          # 실패했을 때 어느 단계에서 멈췄는지 스크립트가 스레드에 남긴다.
+          # deploy 쪽은 이 값을 서버로도 넘겨 앱 기동 알림이 스레드에 붙게 한다.
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
           IMAGE_TAG: ${{ needs.plan.outputs.version }}
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
@@ -223,7 +291,7 @@ jobs:
           GHCR_USER: ${{ github.actor }}
 
   deploy:
-    needs: [plan, migrate]
+    needs: [plan, first_notify, migrate]
     # migrate 를 건너뛰었으면 needs 가 skipped 라 기본 조건으로는 deploy 도 안 돈다.
     # always() 로 그 사슬을 끊되, image 는 반드시 성공해야 한다(없는 이미지를 올릴 수 없다).
     if: >-
@@ -245,10 +313,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: 슬랙 댓글
+        if: needs.first_notify.outputs.ts != ''
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' --title '서버에 반영하는 중'
+
       - name: 배포
         run: ./scripts/deploy/ci-deploy.sh
         env:
           APP_ENV: production
+          # 실패했을 때 어느 단계에서 멈췄는지 스크립트가 스레드에 남긴다.
+          # deploy 쪽은 이 값을 서버로도 넘겨 앱 기동 알림이 스레드에 붙게 한다.
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+          SLACK_DEPLOY_THREAD_TIMESTAMP: ${{ needs.first_notify.outputs.ts }}
           IMAGE_TAG: ${{ needs.plan.outputs.version }}
           BE_HANSAPP_DEPLOY_SSH_HOST: ${{ vars.BE_HANSAPP_DEPLOY_SSH_HOST }}
           BE_HANSAPP_DEPLOY_PATH: ${{ vars.BE_HANSAPP_DEPLOY_PATH }}
@@ -303,3 +385,65 @@ jobs:
             echo "  $app:latest → $VERSION"
           done
           docker logout ghcr.io >/dev/null 2>&1 || true
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 스레드의 마지막 줄 — 성공·실패·취소와 어디서 멈췄는지.
+  #
+  # **always() 여야 한다.** 기본 조건이면 앞이 깨졌을 때 같이 skip 되어 스레드가 중간에서
+  # 끊긴다. ts 가 비어 있으면 붙을 스레드가 없으므로 건너뛴다.
+  # ───────────────────────────────────────────────────────────────────────────
+  report:
+    needs: [plan, first_notify, migrate, deploy, promote]
+    if: ${{ always() && needs.first_notify.outputs.ts != '' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+
+      # 성공·실패·취소와 **어느 단계에서 멈췄는지**를 판정한다.
+      - id: verdict
+        env:
+          MIGRATE: ${{ needs.migrate.result }}
+          DEPLOY: ${{ needs.deploy.result }}
+          PROMOTE: ${{ needs.promote.result }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          status=success
+          failed=''
+          if [ "$DEPLOY" != 'success' ]; then
+            # 앞에서부터 훑어 **처음 어긋난 곳**만 집는다. 그 뒤는 이것 때문에 안 돈 것이다.
+            # migrate 는 skip 될 수 있다(skip_migrate) — 그건 실패가 아니다.
+            for pair in "마이그레이션:$MIGRATE" "배포:$DEPLOY"; do
+              name="${pair%%:*}"
+              case "${pair##*:}" in
+                cancelled) status=cancelled; failed="$name"; break ;;
+                failure)   status=failure;   failed="$name"; break ;;
+              esac
+            done
+            if [ "$status" = 'success' ]; then
+              status=failure
+              failed='배포'
+            fi
+          fi
+
+          case "$status" in
+            success)   title="✅ 백엔드 $VERSION 운영 배포 완료" ;;
+            cancelled) title="⚪ 백엔드 $VERSION 운영 배포 취소" ;;
+            *)         title="❌ 백엔드 $VERSION 운영 배포 실패${failed:+ · $failed 단계에서 멈췄다}" ;;
+          esac
+
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "title=$title"   >> "$GITHUB_OUTPUT"
+          echo "  판정 $title"
+
+      # **운영은 성공도 채널로 내보낸다.** develop 과 달리 하루에 몇 번씩 도는 일이 아니라,
+      # 나갔다는 사실 자체가 스크롤하다 걸려야 하는 사건이다.
+      - name: 슬랙 댓글
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+          TITLE: ${{ steps.verdict.outputs.title }}
+        run: |
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' \
+            --title "$TITLE" --broadcast

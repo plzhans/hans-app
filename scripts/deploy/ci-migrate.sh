@@ -105,6 +105,12 @@ esac
 work="$(mktemp -d)"
 cleanup() {
   local code=$?
+  # 어디서 멈췄는지 스레드에 남긴다(ci-deploy.sh 와 같은 규칙).
+  if [ "$code" -ne 0 ] && [ -n "$current_phase" ]; then
+    "$ROOT_DIR/scripts/deploy/ci-slack-send.sh" \
+      --thread "${SLACK_DEPLOY_THREAD_TIMESTAMP:-}" \
+      --title "⚠️  '$current_phase' 에서 멈췄다" >/dev/null 2>&1 || true
+  fi
   # 마지막 단계를 닫는 것은 여기 몫이다 — phase 에는 닫는 짝이 없다.
   end_phase
   [ -n "${wg_iface:-}" ] && wg-quick down "$work/wg.conf" 2>/dev/null || true
