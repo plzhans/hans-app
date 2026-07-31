@@ -141,17 +141,14 @@ export class SocialController {
       throw new BadRequestException('Social profile is unavailable.');
     }
     const state = typeof req.query.state === 'string' ? req.query.state : '';
-    const { outcome, returnTo, clientState } = await this.social.handleCallback(
-      profile,
-      state,
-      requestMeta(req),
-    );
+    const { outcome, returnTo, clientState, clientId } =
+      await this.social.handleCallback(profile, state, requestMeta(req));
     // **자사 로그인은 여기서 끝난다.** 쿠키를 심고 원래 있던 자리로 돌려보낸다 —
     // 인가코드를 만들어 프론트가 교환하게 하는 왕복이 없다.
     if (outcome.kind === 'session') {
       setLoginCookies(res, outcome.tokens);
     }
-    res.redirect(this.buildRedirect(returnTo, outcome, clientState));
+    res.redirect(this.buildRedirect(clientId, returnTo, outcome, clientState));
   }
 
   @Delete(':provider/link')
@@ -174,18 +171,42 @@ export class SocialController {
     await this.social.unlink(user.userId, provider, requestMeta(req));
   }
 
-  /** 콜백 결과를 프론트 복귀 URL(returnTo)에 실어 리다이렉트 대상으로 변환한다. */
+  /**
+   * 자사 로그인이 끝났는데 돌아갈 곳이 없을 때 내려놓을 자리.
+   *
+   * **session 은 /me 로 직행한다.** 예전엔 authorizeUrl(로그인 페이지)로 보냈는데, 이미
+   * 로그인한 사용자가 로그인 화면을 찍고 다시 /me 로 튕기는 홉이 하나 더 있었다.
+   * pending 은 가입을 이어갈 화면이 콜백에 있으므로 그쪽으로 보낸다.
+   *
+   * webUrl 이 없으면(설정 누락) null 을 돌려 예전 동작으로 물러난다.
+   */
+  private landingUrl(outcome: CallbackOutcome): string | null {
+    const base = this.authConfig.externalUrl;
+    if (!base) return this.authorizeUrl ?? null;
+    if (outcome.kind === 'session') return `${base}/me`;
+    return this.withOutcome(new URL(`${base}/callback`), outcome).toString();
+  }
+
+  /**
+   * 콜백 결과를 실제 리다이렉트 대상으로 바꾼다.
+   *
+   * **1차 기준은 clientId 다 — 없으면 자사(1st-party).**
+   * 자사는 인증웹이 우리 것이라 돌아갈 곳을 못 받아도 보낼 데가 있다(/me·/callback).
+   * 외부 앱은 등록된 redirect_uri 말고는 보낼 데가 없으므로 returnTo 가 필수다.
+   * 그래서 "returnTo 가 필수인가" 는 clientId 에서 따라 나오지, 별개 조건이 아니다.
+   */
   private buildRedirect(
+    clientId: string | undefined,
     returnTo: string | undefined,
     outcome: CallbackOutcome,
     clientState?: string,
   ): string {
-    // **returnTo 가 없으면 인증웹으로 보낸다.** 이미 로그인됐으므로 인증웹이 내 정보로
-    // 넘긴다 — 이메일 로그인이 return 없이 끝났을 때 /me 로 가는 것과 같은 규칙이다.
+    // 자사인데 돌아갈 곳이 없다 = 인증웹에 직접 와서 로그인한 경우. 우리가 내려놓는다.
+    if (!clientId && !returnTo) {
+      const landing = this.landingUrl(outcome);
+      if (landing) return landing;
+    }
     if (!returnTo) {
-      if (outcome.kind === 'session' && this.authorizeUrl) {
-        return this.authorizeUrl;
-      }
       throw new BadRequestException(
         'Missing return_to. Provide return_to when starting sign-in.',
       );
@@ -196,6 +217,11 @@ export class SocialController {
     if (clientState) {
       url.searchParams.set('state', clientState);
     }
+    return this.withOutcome(url, outcome).toString();
+  }
+
+  /** 결과를 쿼리로 실어 준다. 자사 착지점과 외부 복귀가 같은 규칙을 쓴다. */
+  private withOutcome(url: URL, outcome: CallbackOutcome): URL {
     switch (outcome.kind) {
       // 세션은 쿠키로 이미 전달됐다. URL 에 실을 것이 없다 —
       // 도착한 앱이 그 쿠키로 refresh 를 불러 access token 을 채운다.
@@ -223,6 +249,6 @@ export class SocialController {
         url.searchParams.set('error', outcome.error);
         break;
     }
-    return url.toString();
+    return url;
   }
 }

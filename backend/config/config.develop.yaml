@@ -77,7 +77,9 @@ auth:
   # 백엔드가 "남(프론트)의 주소"라 스스로 못 알아 설정으로 주입. discovery(.well-known)에 실려
   # 외부 클라(medifinder)가 "로그인하러 어디로 보낼지" 참조한다. 미설정이면 discovery 에서 뺀다(optional).
   # 예: https://auth.plzhans.com/login
-  authorizeUrl: ${AUTH_AUTHORIZE_URL}
+  # 인증웹(fe/hans-auth) 외부 주소. 자사 로그인 착지점(/me·/callback)과 discovery 의
+  # authorization_endpoint(/login)가 모두 여기서 파생된다.
+  externalUrl: https://develop-auth.plzhans.com
   # 탈퇴 후 재가입 제한(쿨다운) 보존일. 이 기간엔 같은 이메일 재가입을 막는다.
   withdrawalRetentionDays: 30
   jwt:
@@ -114,11 +116,12 @@ auth:
 apps-api:
   # 앱 이름. 로그·에러 보고 등에 쓰인다.
   name: hansapp-api
+  # 이 서비스의 외부 주소(포털웹). 메일 템플릿의 링크 base 로 쓴다.
+  externalUrl: https://develop.plzhans.com
   web:
     # HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
     port: 3000
     # 대외적으로 표현하는 서비스 공개 URL. 메일 템플릿({{appName}}/{{appUrl}}) 등이 참조한다.
-    publicUrl: http://127.0.0.1:5273
     # nginx 의 ssl_certificate / ssl_certificate_key 와 같은 이름·같은 역할이다.
     # **둘 다 있으면 HTTPS 로, 둘 다 비면 HTTP 로 뜬다.** 한쪽만 있으면 부팅을 거부한다
     # — 조용히 HTTP 로 떨어지면 평문으로 서비스가 열린다.

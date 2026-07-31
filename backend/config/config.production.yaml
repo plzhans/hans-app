@@ -50,7 +50,9 @@ auth:
   # bcrypt 비용 계수. 저사양이면 10.
   bcryptRounds: ${AUTH_BCRYPT_ROUNDS:-10}
   # OAuth2 authorization_endpoint = 프론트(hans-auth) 로그인 URL. discovery 에 실린다.
-  authorizeUrl: https://auth.plzhans.com/login
+  # 인증웹(fe/hans-auth) 외부 주소. 자사 로그인 착지점(/me·/callback)과 discovery 의
+  # authorization_endpoint(/login)가 모두 여기서 파생된다.
+  externalUrl: https://auth.plzhans.com
   # 탈퇴 후 재가입 제한 보존일.
   withdrawalRetentionDays: 30
   jwt:
@@ -77,11 +79,12 @@ auth:
 
 apps-api:
   name: hansapp
+  # 이 서비스의 외부 주소(포털웹). 메일 템플릿의 링크 base 로 쓴다.
+  externalUrl: https://plzhans.com
   web:
     # HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
     port: 3000
     # 대외 공개 URL(메일 템플릿 {{appUrl}} 등).
-    publicUrl: https://plzhans.com
     # nginx 의 ssl_certificate / ssl_certificate_key 와 같은 이름·같은 역할이다.
     # **둘 다 있으면 HTTPS 로, 둘 다 비면 HTTP 로 뜬다.** 한쪽만 있으면 부팅을 거부한다
     # — 조용히 HTTP 로 떨어지면 평문으로 서비스가 열린다.

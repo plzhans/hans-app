@@ -153,7 +153,7 @@ export class JwtKeyService {
 
   /**
    * OAuth2/OIDC discovery 문서. 소비자(medifinder 등)는 이 하나로 로그인·토큰·공개키 주소를 알아낸다.
-   *   authorization_endpoint = 프론트 로그인 URL(AUTH_AUTHORIZE_URL, 호스트가 issuer 와 다름)
+   *   authorization_endpoint = 프론트 로그인 URL(auth.externalUrl + /login, 호스트가 issuer 와 다름)
    *   token_endpoint·jwks_uri = issuer 기준으로 조립
    * 우리 흐름은 authorization_code + PKCE(S256) 만 지원한다(id_token/scope 없음, 공개 클라이언트).
    */

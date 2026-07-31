@@ -51,6 +51,14 @@ export type CallbackOutcome =
 export interface CallbackResult {
   outcome: CallbackOutcome;
   returnTo?: string;
+  /**
+   * 어느 클라이언트의 로그인인가. **없으면 자사(1st-party)다.**
+   *
+   * 착지점을 정하는 1차 기준이다 — 자사는 인증웹이 우리 것이라 returnTo 가 없어도 보낼 데가
+   * 있지만, 외부는 등록된 redirect_uri 말고는 보낼 데가 없다. 진입 시 가드가 확정해 서명
+   * state 에 실어 왕복시킨 값이라 위조되지 않는다.
+   */
+  clientId?: string;
   /** 클라이언트가 보낸 state. 최종 리다이렉트에 그대로 실어 돌려준다(우리는 해석하지 않는다). */
   clientState?: string;
 }
@@ -99,6 +107,7 @@ export class SocialService {
       outcome,
       returnTo: state.returnTo,
       clientState: state.clientState,
+      clientId: state.clientId,
     };
   }
 

@@ -180,25 +180,11 @@ export async function relayCodeIfNeeded(
 /**
  * 소셜 로그인 시작 URL(전체 페이지 리다이렉트). 백엔드가 provider 인가 페이지로 넘긴다.
  * returnTo 로 복귀 URL을 넘기면 로그인 완료 후 백엔드가 그 URL 에 code/pending 을 실어 돌려보낸다.
- * 기본은 이 앱의 /auth/callback(자체 로그인). 외부 클라이언트 SSO 면 그 앱의 콜백을 넘긴다.
+ * **안 넘기면 백엔드가 자사로 보고 인증웹(/me·/callback)으로 직접 내려놓는다.**
  *
  * clientId 를 함께 넘기면 백엔드가 그 클라이언트의 등록 리디렉션 URI 로 returnTo 를 검증하고
  * state 에 실어 콜백까지 운반한다. 없으면 1st-party 로 보고 AUTH_ALLOWED_ORIGINS 를 본다.
  */
-/**
- * 이 앱(hansapp-auth)의 콜백 URL. **vite base(import.meta.env.BASE_URL) 포함** — 단일 오리진
- * 로컬에선 /auth/ 아래로 마운트되므로 origin+'/callback' 은 포탈 경로가 돼버린다(배포는 base=/).
- *
- * appReturn(1st-party 복귀 URL)이 있으면 `ret=` 로 얹는다. 이 값은 redirect_uri 통째로 백엔드
- * **서명 state(returnTo)** 에 실려 왕복하므로 위변조 불가하고, 콜백에서 URL 로 되돌아온다 —
- * sessionStorage 를 안 써서 이중 로그인 창·저장소 유실에도 안전하다.
- */
-function selfCallbackUrl(): string {
-  return new URL(
-    `${window.location.origin}${import.meta.env.BASE_URL}callback`,
-  ).toString();
-}
-
 export function socialLoginUrl(
   provider: SocialProvider,
   // 외부 클라이언트 SSO 의 복귀 URL(redirect_uri). 없으면 이 앱의 콜백(1st-party).
@@ -212,11 +198,12 @@ export function socialLoginUrl(
   // **자사는 그 앱으로 직행한다.** 백엔드가 콜백에서 쿠키를 심고 여기로 보내므로
   // 인증웹을 한 번 더 거칠 이유가 없다(코드 교환이 없다).
   //
-  // 자사인데 돌아갈 곳도 없으면(인증웹에 직접 와서 로그인) 자기 콜백으로 받는다 —
-  // 백엔드가 그때는 authorizeUrl 로 보내지만, 그 경로는 세션만 세우고 끝난다.
-  const params = new URLSearchParams({
-    redirect_uri: returnTo ?? appReturn ?? selfCallbackUrl(),
-  });
+  // **돌아갈 곳이 없으면 아무것도 안 보낸다.** 예전엔 자기 콜백을 억지로 적어 보냈는데,
+  // 그러면 로그인이 쿠키로 이미 끝났는데도 빈 콜백 페이지를 한 번 찍고 /me 로 튕겼다.
+  // 지금은 백엔드가 client_id 가 없으면 자사로 보고 /me·/callback 으로 직접 내려놓는다.
+  const params = new URLSearchParams();
+  const redirectUri = returnTo ?? appReturn;
+  if (redirectUri) params.set('redirect_uri', redirectUri);
   if (clientId) params.set('client_id', clientId);
   if (clientState) params.set('client_state', clientState);
   if (codeChallenge) {

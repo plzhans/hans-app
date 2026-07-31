@@ -65,10 +65,22 @@ export interface AuthConfig {
   readonly issuer?: string;
 
   /**
-   * OAuth2 authorization_endpoint(AUTH_AUTHORIZE_URL). **인증웹(fe/hans-auth) 로그인 URL**.
+   * OAuth2 authorization_endpoint. **인증웹(fe/hans-auth) 로그인 URL**.
    * 예: https://auth.plzhans.com/login. discovery 에 실린다. 미설정이면 authorization_endpoint 를 뺀다.
    */
+  /**
+   * OIDC discovery 의 `authorization_endpoint`. **externalUrl 에서 파생한다**(`+ /login`).
+   * 따로 설정하지 않는다 — 인증웹 주소가 둘로 갈리면 어긋날 수 있고, 실제로 어긋났었다.
+   */
   readonly authorizeUrl?: string;
+  /**
+   * 인증웹(fe/hans-auth) 외부 주소. 예 `https://auth.plzhans.com`
+   * (로컬은 포털 아래 마운트라 `http://127.0.0.1:5274/auth`).
+   *
+   * 자사 로그인이 끝난 사용자를 어디로 내려놓을지(`/me`·`/callback`)와 discovery 의
+   * authorization_endpoint(`/login`)가 모두 이 값에서 나온다.
+   */
+  readonly externalUrl?: string;
 
   /**
    * access token 검증 때 **허용할 iss 목록**(AUTH_ALLOWED_ISSUERS, 콤마구분). 자기 issuer 는 자동 포함된다.
@@ -186,13 +198,17 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
   }
   // authorization_endpoint = 인증웹(fe/hans-auth) 로그인 URL(예: https://auth.plzhans.com/login).
   // 로그인 UI 가 별도 서브도메인(hans-auth)으로 분리돼 있어 명시 설정한다(자동 파생 없음).
-  const authorizeUrl =
-    source.getStringOrDefault('auth.authorizeUrl') || undefined;
+  // 뒤에 경로를 붙여 쓰므로 끝의 / 는 떼어 둔다.
+  const externalUrl =
+    source.getStringOrDefault('auth.externalUrl').replace(/\/+$/, '') ||
+    undefined;
+  const authorizeUrl = externalUrl ? `${externalUrl}/login` : undefined;
   return Object.freeze({
     jwtSecret: source.getString('auth.jwt.secret'),
     jwtKeyDir: source.getStringOrDefault('auth.jwt.keyDir') || undefined,
     issuer,
     authorizeUrl,
+    externalUrl,
     allowedIssuers: Object.freeze(allowedIssuers),
     // 만료는 기간 문자열(1h·7d·5m)로 선언되고 초로 변환된다.
     accessTokenTtlSec: source.getDurationSec('auth.jwt.accessTokenExpiresIn'),
