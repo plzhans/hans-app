@@ -49,6 +49,30 @@ case "$project" in
     env_file=".env.$APP_ENV"
     [ -f "$env_file" ] || die "$AREA/$project/$env_file 이 없다. 커밋되어 있어야 한다."
 
+    # **.env.local 에만 있는 키를 잡는다.**
+    #
+    # vite 는 .env.local 을 **모든 mode 에서** 읽는다. 이 레포는 그 파일을 `local` 환경의
+    # 설정으로 쓰는데(이름이 겹친다), 그래서 develop·production 파일에 같은 키가 없으면
+    # 로컬 값이 그대로 배포 번들에 박힌다.
+    #
+    # 실제로 그랬다 — hansapp-web 이 운영에서 www.plzhans.com/auth/login 으로 보내고 있었다.
+    # .env.production 에 VITE_AUTH_WEB_URL 이 없어서 .env.local 의 /auth 가 이긴 것이다.
+    # 빌드는 성공하고 배포도 초록불이라, 사용자가 로그인을 눌러야 드러난다.
+    #
+    # 값이 같을 필요는 없다. **키가 있기만 하면** mode 파일이 이긴다(빈 값이어도 된다).
+    if [ -f .env.local ] && [ "$APP_ENV" != 'local' ]; then
+      leaked="$(
+        comm -23 \
+          <(grep -oE '^[A-Z0-9_]+' .env.local | sort -u) \
+          <(grep -oE '^[A-Z0-9_]+' "$env_file" | sort -u)
+      )"
+      if [ -n "$leaked" ]; then
+        echo "❌ .env.local 에만 있는 키가 있다. $env_file 에도 적을 것 (빈 값이어도 된다):" >&2
+        printf '     %s\n' $leaked >&2
+        exit 1
+      fi
+    fi
+
     # **link: 로 무는 워크스페이스 밖 의존성을 먼저 설치한다.**
     #
     # medifinder-web 은 @hansapp/auth-sdk 를 `link:../auth-sdk` 로 문다. pnpm 워크스페이스가

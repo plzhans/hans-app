@@ -4,7 +4,14 @@
 # 개인 오버라이드만 무시한다 — `.env.<mode>.local` 이다.
 # **`.env.local` 은 무시하지 않는다.** 이 레포에서 그건 개인 파일이 아니라 `local` **환경**의
 # env 다(package.json 의 `"local": "dotenv -e .env.local -- vite"`). .env.develop·.env.production
-# 과 같은 급이라 같이 커밋한다. vite 의 관례(*.local = 개인용)와 이름이 겹칠 뿐이다.
+# 과 같은 급이라 같이 커밋한다.
+#
+# **다만 이름만 겹치는 게 아니다.** vite 는 `.env.local` 을 **모든 mode 에서** 읽는다
+# (그쪽 관례로 *.local = 개인 오버라이드라서). 그래서 develop·production 파일에 같은 키가
+# 없으면 로컬 값이 그대로 배포 번들에 박힌다 — 실제로 운영 로그인 주소가 그렇게 깨졌다.
+#
+# 그래서 **모든 키를 환경 파일마다 적는다(빈 값이어도 된다).** frontend/ci-build.sh 가
+# 빌드 전에 검사해서, 빠진 키가 있으면 거기서 멈춘다.
 .env.*.local
 
 # **예외: 이 디렉터리 바로 아래의 .env 는 커밋하지 않는다.**
