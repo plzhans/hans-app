@@ -41,6 +41,11 @@ auth:
   # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
   # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
   cookieSecure: ${AUTH_COOKIE_SECURE:-true}
+  # 쿠키 이름 접두사. **환경마다 달라야 한다.**
+  # develop-auth·api 는 develop.plzhans.com 의 서브도메인이 아니라 plzhans.com 의 형제라,
+  # 쿠키 도메인을 양쪽 다 plzhans.com 까지 올려야 한다. 이름까지 같으면 한 환경에서
+  # 로그인할 때마다 다른 환경의 세션 토큰을 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
+  cookiePrefix: ''
   rootDomain: plzhans.com
   # bcrypt 비용 계수. 저사양이면 10.
   bcryptRounds: ${AUTH_BCRYPT_ROUNDS:-10}
@@ -121,8 +126,13 @@ apps-api:
     tracesSampleRate: 0.1
 
 search:
-  # ES 정본 스키마 JSON 디렉터리. 비우면 패키지 동봉본.
-  schemaDir: config/schema
+  # ES 정본 스키마 JSON 디렉터리. **비워서 패키지 동봉본을 쓴다**
+  # (@hansapp/search 의 elasticsearch/ — files 에 있어 배포 번들에도 실린다).
+  #
+  # 여기에 경로를 적으면 cwd 기준이다. 컨테이너의 cwd 는 /app 이고 compose 는 yaml 하나만
+  # 마운트하므로, config/schema 같은 값을 두면 정본을 못 찾아 ENOENT 로 죽는다.
+  # 서버에서 스키마만 고쳐 재적용할 일이 생기면 그때 디렉터리를 마운트하고 경로를 적는다.
+  schemaDir: ''
   batchSize: 1000
 
 mail:

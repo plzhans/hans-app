@@ -36,6 +36,11 @@ auth:
   # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
   # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
   cookieSecure: ${AUTH_COOKIE_SECURE:-false}
+  # 쿠키 이름 접두사. **환경마다 달라야 한다.**
+  # develop-auth·api 는 develop.plzhans.com 의 서브도메인이 아니라 plzhans.com 의 형제라,
+  # 쿠키 도메인을 양쪽 다 plzhans.com 까지 올려야 한다. 이름까지 같으면 한 환경에서
+  # 로그인할 때마다 다른 환경의 세션 토큰을 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
+  cookiePrefix: 'local.'
   # **로컬은 rootDomain 을 비운다** — 127.0.0.1(IP)은 쿠키 Domain 으로 못 써서(브라우저 거부),
   # host-only 쿠키 + 루프백(127.0.0.1·localhost·::1) 폴백으로 1st-party 를 판정한다.
   rootDomain:
@@ -85,7 +90,8 @@ apps-api:
     tracesSampleRate: 1.0
 
 search:
-  schemaDir: config/schema
+  # 비우면 패키지 동봉본(@hansapp/search 의 elasticsearch/). 경로를 적으면 cwd 기준이다.
+  schemaDir: ''
   batchSize: 1000
 
 mail:

@@ -4,11 +4,11 @@ import {
   saveTokens,
   type StoredTokens,
 } from '@/shared/storage/tokenStore';
-import { APP_ROOT_DOMAIN } from '@/shared/config/env';
+import {
+  APP_ROOT_DOMAIN,
+  SESSION_HINT_COOKIE as HINT_COOKIE,
+} from '@/shared/config/env';
 import type { Me } from './auth';
-
-/** 백엔드 SESSION_HINT_COOKIE 와 같은 이름이어야 한다. */
-const HINT_COOKIE = 'hansapp.session';
 
 const ME_KEY = 'hansapp.me';
 

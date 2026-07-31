@@ -16,6 +16,17 @@ export const PORTAL_WEB_URL =
  * 실행 환경 이름(local|develop|production). VITE_APP_ENV 로 주입, 백엔드 APP_ENV 와 같은 이름을 쓴다.
  * **vite 의 mode 로는 못 가른다** — develop 빌드도 production 빌드도 mode 는 production 이다.
  */
+/**
+ * 로그인 힌트 쿠키 이름. 백엔드 `auth.cookiePrefix` + `hansapp.session` 과 같아야 한다.
+ *
+ * **환경마다 다르다.** develop 과 운영이 쿠키 도메인(plzhans.com)을 공유하기 때문이다 —
+ * develop-auth 는 develop.plzhans.com 의 서브도메인이 아니라 형제라 도메인을 좁힐 수 없다.
+ * 이름까지 같으면 한쪽 로그인이 다른 쪽 세션을 덮어쓰고, 상대 DB 에 없는 토큰이라 거절된다.
+ */
+export const SESSION_HINT_COOKIE =
+  (import.meta.env.VITE_SESSION_HINT_COOKIE_NAME as string | undefined) ||
+  'hansapp.session';
+
 export const APP_ENV =
   (import.meta.env.VITE_APP_ENV as string | undefined) ?? 'local';
 

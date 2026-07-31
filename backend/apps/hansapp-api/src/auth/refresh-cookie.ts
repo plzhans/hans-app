@@ -8,15 +8,15 @@ import { resolveClientIp } from '../common/client-ip';
 import type { TokenResponseDto } from './dto/auth.dto';
 
 /**
- * refresh token 은 httpOnly 쿠키로만 오간다(자바스크립트 접근 차단, XSS 시 탈취 방지).
- * access token 은 응답 바디로 내려가 프론트 메모리에 보관한다.
+ * 쿠키 이름. **환경 접두사가 붙는다**(auth.cookiePrefix — 운영은 없음, develop 은 `develop.`).
+ *
+ * 붙이지 않으면 develop 과 운영이 같은 쿠키를 쓴다. 두 환경의 호스트가 develop-api·api 처럼
+ * plzhans.com 의 형제라 쿠키 도메인을 둘 다 plzhans.com 까지 올려야 하기 때문이다
+ * (develop-auth 는 develop.plzhans.com 의 서브도메인이 아니다). 그러면 한쪽에서 로그인할 때마다
+ * 다른 쪽 세션 토큰을 덮어쓰고, 덮어쓴 토큰은 상대 DB 에 없어 거절당한다 — 서로 로그아웃시킨다.
  */
-export const REFRESH_COOKIE = 'refresh_token';
-
-// 로그인 힌트 쿠키. **non-httpOnly(JS 가 읽음)**, 민감정보 없음(값 '1').
-// 프론트는 이게 있을 때만 refresh 를 호출한다 — 로그아웃 상태에서 불필요한 호출/400 을 없앤다.
-// httpOnly refresh 쿠키와 항상 같이 세팅/삭제한다. 인증 판단이 아니라 "호출 여부" 판단용이다.
-export const SESSION_HINT_COOKIE = 'hansapp.session';
+const REFRESH_COOKIE_BASE = 'hansapp.refresh_token';
+const SESSION_HINT_COOKIE_BASE = 'hansapp.session';
 
 // refresh 쿠키를 **OAuth 엔드포인트로만** 스코프한다. path=/ 로 두면 민감한 refresh 토큰이 모든
 // 요청(데이터 조회 등)에 자동 첨부돼 낭비·CSRF 표면·노출이 커진다.
@@ -25,10 +25,6 @@ export const SESSION_HINT_COOKIE = 'hansapp.session';
 // **/oauth/token 이 아니라 /oauth 다.** 로그아웃(/oauth/logout)도 이 쿠키로 인증해야 하기 때문이다 —
 // access token 을 요구하면 만료됐을 때 로그아웃이 거절되고, 그 응답엔 쿠키 삭제도 안 실려 세션이 산다.
 const REFRESH_PATH = '/oauth';
-
-// 예전에 좁게 심었던 쿠키. 만료까지 브라우저에 남아 같은 이름으로 공존하므로, 지울 때 함께 지운다.
-// 안 지우면 /oauth/token 요청에 옛 값이 같이 실려 로그아웃 뒤에도 세션이 살아 있는 것처럼 보인다.
-const LEGACY_REFRESH_PATHS = ['/oauth/token'];
 
 // **부팅 때 initRefreshCookie 로 한 번 굳히는 설정.** requestMeta·setRefreshCookie 는 요청마다
 // 도는 핫패스라 매번 설정을 다시 읽지 않는다. init 전이면 안전한 기본값(secure=false, 도메인 없음).
@@ -42,12 +38,20 @@ let secure = false;
 let cookieDomain: string | undefined;
 let clientIpHeader: string | undefined;
 
+/** 접두사가 붙은 최종 이름. init 에서 확정한다. */
+export let REFRESH_COOKIE = REFRESH_COOKIE_BASE;
+export let SESSION_HINT_COOKIE = SESSION_HINT_COOKIE_BASE;
+
 /** 부팅 시점에 설정에서 값을 한 번 읽어 고정한다(main 부트스트랩에서 호출). */
 export function initRefreshCookie(cfg: ConfigSource): void {
   secure = cfg.getBoolOrDefault('auth.cookieSecure', false);
   cookieDomain = cfg.getStringOrDefault('auth.rootDomain') || undefined;
   clientIpHeader =
     cfg.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
+
+  const prefix = cfg.getStringOrDefault('auth.cookiePrefix') || '';
+  REFRESH_COOKIE = prefix + REFRESH_COOKIE_BASE;
+  SESSION_HINT_COOKIE = prefix + SESSION_HINT_COOKIE_BASE;
 }
 
 export function setRefreshCookie(
@@ -55,10 +59,6 @@ export function setRefreshCookie(
   token: string,
   expiresAt: Date,
 ): void {
-  // **옛 path 의 쿠키를 먼저 지운다.** 안 지우면 같은 이름으로 둘이 공존하고, 브라우저는
-  // path 가 긴 쪽(/oauth/token)을 앞에 실어 보낸다(RFC 6265). cookie-parser 는 중복 이름에서
-  // 첫 값만 취하므로 서버가 **죽은 옛 토큰**을 읽고 방금 발급한 세션을 거절한다.
-  clearLegacyRefreshCookies(res);
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
     secure,
@@ -77,17 +77,9 @@ export function setRefreshCookie(
   });
 }
 
-/** 예전 좁은 path 로 심겼던 refresh 쿠키를 지운다. 새로 심을 때도 지울 때도 함께 부른다. */
-function clearLegacyRefreshCookies(res: Response): void {
-  for (const path of LEGACY_REFRESH_PATHS) {
-    res.clearCookie(REFRESH_COOKIE, { path, domain: cookieDomain });
-  }
-}
-
 export function clearRefreshCookie(res: Response): void {
   // 삭제도 **심을 때와 같은 path·domain** 이어야 브라우저가 지운다.
   res.clearCookie(REFRESH_COOKIE, { path: REFRESH_PATH, domain: cookieDomain });
-  clearLegacyRefreshCookies(res);
   // 힌트 쿠키(path=/)도 함께 지운다. 둘은 항상 같이 살고 같이 죽는다.
   res.clearCookie(SESSION_HINT_COOKIE, { path: '/', domain: cookieDomain });
 }
