@@ -101,6 +101,22 @@ export interface AuthConfig {
    */
   readonly rootDomain?: string;
 
+  /**
+   * 쿠키에 Secure 를 붙일지. HTTPS 로 서비스하면 켠다.
+   * refresh-cookie.ts 가 같은 키를 ConfigSource 에서 직접 읽는다 — 값의 출처는 하나다.
+   */
+  readonly cookieSecure: boolean;
+
+  /**
+   * 소셜 로그인 흐름(state·흐름 쿠키)의 유효시간(초).
+   *
+   * **둘이 같은 값이어야 한다.** state 가 살아 있는데 쿠키가 죽으면 정상 로그인이 거부되고,
+   * 반대면 쿠키가 의미 없이 남는다. 그래서 한 곳에서 읽어 양쪽에 넘긴다.
+   *
+   * provider 화면에서 사용자가 계정을 고르고 동의하는 시간이라 너무 짧으면 실패한다.
+   */
+  readonly socialFlowTtlSec: number;
+
   /** bcrypt 코스트(라운드). 기본 10 */
   readonly bcryptRounds: number;
 
@@ -198,6 +214,8 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     rootDomain: normalizeRootDomain(
       source.getStringOrDefault('auth.rootDomain'),
     ),
+    cookieSecure: source.getBoolOrDefault('auth.cookieSecure', false),
+    socialFlowTtlSec: source.getNumberOrDefault('auth.socialFlowTtlSec', 600),
     bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds', 10),
     oauth: Object.freeze({
       google: readProviderCredentials(

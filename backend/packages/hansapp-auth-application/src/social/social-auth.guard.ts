@@ -1,3 +1,4 @@
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
   CanActivate,
@@ -8,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { AppStatus } from '@hansapp/data';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 import { AccessCache } from '../app/access-cache.service';
 import { AUTH_CONFIG } from '../auth.config';
@@ -27,6 +28,20 @@ import { toOAuthProvider, toStrategyName } from './social.types';
  * 시작·콜백이 같은 도메인으로 오므로 두 번 다 동일한 redirect_uri 가 만들어져 provider 검증과 일치한다.
  * OAuth state 는 세션 없이 서명 토큰으로 운반한다(SocialTicketService). session:false 로 서버세션도 안 쓴다.
  */
+/**
+ * 흐름 소유권 확인용 쿠키의 이름 접두사. 뒤에 flowId 가 붙어 흐름마다 이름이 갈린다
+ * (동시 로그인 지원). path 를 /auth 로 좁혀 다른 요청에 실려 다니지 않게 한다.
+ */
+const FLOW_COOKIE_PREFIX = 'oauth_flow_';
+
+/**
+ * 콜백 요청인지 본다. 같은 가드가 시작(:provider)과 콜백(:provider/callback) 양쪽에 걸려
+ * 있어서, 무엇을 할지 여기서 가른다.
+ */
+function isCallbackRequest(req: Request): boolean {
+  return /\/callback\/?$/.test(req.path);
+}
+
 @Injectable()
 export class SocialAuthGuard implements CanActivate {
   constructor(
@@ -49,7 +64,15 @@ export class SocialAuthGuard implements CanActivate {
       throw new NotFoundException(`Social provider is not configured: ${key}`);
     }
 
-    const state = await this.buildState(req);
+    // **콜백이면 먼저 흐름 소유권을 확인한다.** provider 와 코드를 교환하기 전에 막아야
+    // 남의 흐름으로 계정이 만들어지거나 연동되는 부수효과가 생기지 않는다.
+    if (isCallbackRequest(req)) {
+      this.assertFlowOwnership(context);
+      // 콜백에는 return_to·link_token 쿼리가 없어 여기서 만든 state 는 쓰이지 않는다.
+      // passport 가 쿼리의 state 를 그대로 검증에 쓴다.
+    }
+
+    const state = await this.buildState(req, context);
     // redirect_uri 를 요청 호스트에서 조립한다: {scheme}://{host}/auth/:provider/callback
     const callbackURL = `${externalBaseUrl(req)}/auth/${key}/callback`;
     // provider 별 인가 파라미터. 기본은 세션이 있으면 계정 선택 없이 자동 로그인되므로,
@@ -79,7 +102,10 @@ export class SocialAuthGuard implements CanActivate {
    *  - link_token: 연동 의도(현재 로그인 사용자에 연동)
    *  - return_to: 로그인 성공 후 백엔드가 코드를 실어 돌려보낼 프론트 URL(허용목록 검증)
    */
-  private async buildState(req: Request): Promise<string> {
+  private async buildState(
+    req: Request,
+    context: ExecutionContext,
+  ): Promise<string> {
     const linkToken =
       typeof req.query.link_token === 'string'
         ? req.query.link_token
@@ -89,11 +115,15 @@ export class SocialAuthGuard implements CanActivate {
     if (linkToken) {
       // 연동은 인가코드를 만들지 않으므로 PKCE 대상이 아니다.
       const { userId } = this.tickets.verifyLinkPrepare(linkToken);
+      // 연동도 같은 공격이 성립한다 — 남의 계정에 공격자의 소셜을 붙일 수 있다.
+      const { flowId, nonce } = this.issueFlowNonce(context);
       return this.tickets.signState({
         intent: 'link',
         userId,
         returnTo,
         clientId,
+        flowId,
+        nonce,
       });
     }
 
@@ -115,12 +145,16 @@ export class SocialAuthGuard implements CanActivate {
     if (clientState && clientState.length > 512) {
       throw new BadRequestException('client_state is too long (max 512).');
     }
+    // **흐름을 이 브라우저에 묶는다.** nonce 를 쿠키로도 심어 콜백에서 대조한다.
+    const { flowId, nonce } = this.issueFlowNonce(context);
     return this.tickets.signState({
       intent: 'login',
       returnTo,
       clientId,
       codeChallenge,
       clientState,
+      flowId,
+      nonce,
     });
   }
 
@@ -165,5 +199,67 @@ export class SocialAuthGuard implements CanActivate {
       throw new BadRequestException('redirect_uri not allowed.');
     }
     return { returnTo: raw };
+  }
+
+  /**
+   * 흐름을 시작한 브라우저에 nonce 를 심고, state 에 실을 짝을 돌려준다.
+   *
+   * 쿠키 이름을 flowId 로 가르는 이유는 **동시 로그인** 때문이다. 이름이 하나면 탭 두 개로
+   * 동시에 시작했을 때 나중 것이 앞 것을 덮어써, 앞 탭이 콜백에서 대조에 실패한다.
+   *
+   * SameSite 는 lax 여야 한다 — provider 에서 돌아오는 것은 크로스사이트 top-level GET
+   * 리다이렉트라 strict 면 쿠키가 안 실려 온다. httpOnly 로 JS 접근을 막는다(서버만 읽는다).
+   */
+  private issueFlowNonce(context: ExecutionContext): {
+    flowId: string;
+    nonce: string;
+  } {
+    const res = context.switchToHttp().getResponse<Response>();
+    const flowId = randomBytes(8).toString('hex');
+    const nonce = randomBytes(32).toString('base64url');
+    res.cookie(`${FLOW_COOKIE_PREFIX}${flowId}`, nonce, {
+      httpOnly: true,
+      secure: this.config.cookieSecure,
+      sameSite: 'lax',
+      path: '/auth',
+      maxAge: this.config.socialFlowTtlSec * 1000,
+    });
+    return { flowId, nonce };
+  }
+
+  /**
+   * 콜백이 **이 흐름을 시작한 브라우저**에서 왔는지 확인한다.
+   *
+   * 이것이 없으면 공격자가 자기 계정으로 인가를 마친 콜백 URL 을 피해자에게 보내
+   * 피해자를 공격자 계정으로 로그인시킬 수 있다(로그인 CSRF). state 는 서명만 검증하므로
+   * 공격자가 정상 발급받은 값도 통과한다 — 쿠키만이 브라우저를 가른다.
+   *
+   * 확인이 끝나면 쿠키를 지운다. 일회용이라 남겨 둘 이유가 없고, 재사용도 막는다.
+   */
+  private assertFlowOwnership(context: ExecutionContext): void {
+    const req = context.switchToHttp().getRequest<Request>();
+    const res = context.switchToHttp().getResponse<Response>();
+    const raw = typeof req.query.state === 'string' ? req.query.state : '';
+    if (!raw) {
+      throw new BadRequestException('Missing state.');
+    }
+    // 서명·유효기간이 먼저다. 위조된 state 의 flow_id 로 쿠키를 뒤질 이유가 없다.
+    const { flowId, nonce } = this.tickets.verifyState(raw);
+    if (!flowId || !nonce) {
+      // 이 배포 이전에 시작된 흐름. 새로 로그인하면 정상 값이 담긴다.
+      throw new BadRequestException('Stale sign-in flow. Please try again.');
+    }
+    const name = `${FLOW_COOKIE_PREFIX}${flowId}`;
+    const cookies = (req.cookies ?? {}) as Record<string, string | undefined>;
+    const seen = cookies[name];
+    res.clearCookie(name, { path: '/auth' });
+    // 길이가 같을 때만 timingSafeEqual 을 쓸 수 있다. 다르면 그 자체로 불일치다.
+    const a = Buffer.from(seen ?? '');
+    const b = Buffer.from(nonce);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new BadRequestException(
+        'Sign-in flow does not belong to this browser.',
+      );
+    }
   }
 }

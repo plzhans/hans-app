@@ -64,8 +64,12 @@ export class OAuthController {
     summary: '토큰 발급/갱신',
     description:
       'grant_type=authorization_code 는 인가코드(code)를 토큰으로 교환한다. 코드에 기록된 ' +
-      '클라이언트의 등록 오리진과 요청 Origin 이 일치해야 한다. ' +
-      'grant_type=refresh_token 은 refresh token(바디 또는 httpOnly 쿠키)을 rotate 하고 새 토큰을 발급한다.',
+      '클라이언트의 등록 오리진과 요청 Origin 이 일치해야 한다.\n\n' +
+      'grant_type=refresh_token 은 refresh token(바디 또는 httpOnly 쿠키)을 갱신한다. ' +
+      '**refresh token 은 1회용이다** — 갱신에 성공하면 새 refresh token 이 나오고 ' +
+      '**직전 것은 그 즉시 무효**가 된다(rotate). 응답으로 받은 새 값으로 반드시 교체해 두고, ' +
+      '이전 값을 다시 보내면 거부된다. 같은 토큰으로 두 번 갱신하거나, 갱신 응답을 저장하지 못한 채 ' +
+      '재시도하면 세션이 끊어진다.',
   })
   @ApiOkResponse({ type: TokenResponseDto })
   async token(

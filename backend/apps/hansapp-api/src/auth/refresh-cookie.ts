@@ -26,7 +26,7 @@ const REFRESH_PATH = '/oauth/token';
 // **부팅 때 initRefreshCookie 로 한 번 굳히는 설정.** requestMeta·setRefreshCookie 는 요청마다
 // 도는 핫패스라 매번 설정을 다시 읽지 않는다. init 전이면 안전한 기본값(secure=false, 도메인 없음).
 //
-//  - secure: 운영(HTTPS)에서 secure+sameSite=none 필요. auth.cookieSecure 로 켠다.
+//  - secure: HTTPS 로 서비스하면 켠다. sameSite 와는 **별개**다(그쪽은 lax 고정).
 //  - cookieDomain: 서비스 루트 도메인(auth.rootDomain). SSO 서브도메인 세션 공유용.
 //      예 `plzhans.com` → plzhans.com·auth.plzhans.com·api.plzhans.com 이 refresh 쿠키 공유
 //      (구글 `.google.com` 방식, RFC 6265). 미설정이면 호스트 전용.
@@ -51,7 +51,15 @@ export function setRefreshCookie(
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
     secure,
-    sameSite: secure ? 'none' : 'lax',
+    // **lax 로 고정한다. secure 와 묶지 않는다.**
+    //
+    // none 으로 열면 아무 사이트나 이 쿠키를 태워 /oauth/token 을 부를 수 있다. 응답은
+    // CORS 가 막지만 **요청은 이미 처리된다** — refresh 는 rotate 라서 그것만으로
+    // 피해자의 세션이 무효화된다(공격자는 읽을 필요조차 없다).
+    //
+    // 외부 앱(medifinder)은 이 쿠키를 쓰지 않는다. 응답 바디의 refreshToken 을 자기가
+    // 보관하고 바디로 보낸다(auth-sdk 의 TokenStorage) — 표준 OAuth 방식이라 lax 로도 무해하다.
+    sameSite: 'lax',
     path: REFRESH_PATH,
     domain: cookieDomain,
     expires: expiresAt,
@@ -69,7 +77,9 @@ function setSessionHint(res: Response, expiresAt: Date): void {
   res.cookie(SESSION_HINT_COOKIE, '1', {
     httpOnly: false, // 프론트 JS 가 읽어 refresh 호출 여부를 판단한다
     secure,
-    sameSite: secure ? 'none' : 'lax',
+    // refresh 쿠키와 같은 이유로 lax 고정(위 setRefreshCookie 주석 참고).
+    // 둘은 항상 같이 세팅·삭제되므로 조건도 같아야 한다.
+    sameSite: 'lax',
     path: '/',
     domain: cookieDomain,
     expires: expiresAt,

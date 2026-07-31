@@ -53,6 +53,15 @@ auth:
   # *.plzhans.com 을 자사로 인정하고, hans-auth 로그인을 콘솔이 리다이렉트 없이 쿠키로 인지하게 한다.
   # **로컬 API(127.0.0.1)에선 설정 금지**(IP 는 쿠키 Domain 불가 → 미설정 시 host-only + 루프백 폴백).
   rootDomain: ${AUTH_ROOT_DOMAIN:-plzhans.com}
+  # 소셜 로그인 흐름(state·흐름 쿠키)의 유효시간(초). **둘이 같은 값을 쓴다.**
+  # provider 화면에서 계정을 고르고 동의하는 시간이라 너무 짧으면 정상 로그인이 실패한다.
+  socialFlowTtlSec: ${AUTH_SOCIAL_FLOW_TTL_SEC:-600}
+  # 쿠키에 Secure 를 붙일지. HTTPS 로 서비스하면 켠다.
+  #
+  # **sameSite 와는 별개다** — 그쪽은 lax 로 고정돼 있다(refresh-cookie.ts).
+  # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
+  # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
+  cookieSecure: ${AUTH_COOKIE_SECURE:-true}
   # bcrypt 비용 계수. 비밀번호 해싱을 의도적으로 느리게 해 brute-force 를 막는다.
   # 1 늘 때마다 연산량(=CPU)이 2배. 10=일반 기본, 12=더 안전. 저사양 서버면 10 권장.
   bcryptRounds: ${AUTH_BCRYPT_ROUNDS:-10}

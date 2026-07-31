@@ -147,7 +147,11 @@ export class TokenResponseDto {
   @ApiProperty({ description: 'access token 만료(초)', example: 3600 })
   readonly expiresIn!: number;
 
-  @ApiProperty({ description: 'refresh token(불투명, rt_...)' })
+  @ApiProperty({
+    description:
+      'refresh token(불투명, rt_...). **1회용이다** — 이 값으로 갱신하면 새 refresh token 이 ' +
+      '발급되고 이 값은 그 즉시 무효가 된다. 응답을 받으면 반드시 새 값으로 교체해 보관할 것.',
+  })
   readonly refreshToken!: string;
 
   @ApiProperty({

@@ -29,6 +29,15 @@ cache:
 
 auth:
   # 운영 서비스 루트 도메인(앞 점 없이). SSO 쿠키 Domain + 1st-party 판단이 여기서 파생.
+  # 소셜 로그인 흐름(state·흐름 쿠키)의 유효시간(초). **둘이 같은 값을 쓴다.**
+  # provider 화면에서 계정을 고르고 동의하는 시간이라 너무 짧으면 정상 로그인이 실패한다.
+  socialFlowTtlSec: ${AUTH_SOCIAL_FLOW_TTL_SEC:-600}
+  # 쿠키에 Secure 를 붙일지. HTTPS 로 서비스하면 켠다.
+  #
+  # **sameSite 와는 별개다** — 그쪽은 lax 로 고정돼 있다(refresh-cookie.ts).
+  # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
+  # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
+  cookieSecure: ${AUTH_COOKIE_SECURE:-true}
   rootDomain: plzhans.com
   # bcrypt 비용 계수. 저사양이면 10.
   bcryptRounds: ${AUTH_BCRYPT_ROUNDS:-10}

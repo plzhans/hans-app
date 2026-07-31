@@ -1,6 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { OAuthProvider } from '@hansapp/data';
+
+import { AUTH_CONFIG } from '../auth.config';
+import type { AuthConfig } from '../auth.config';
 
 /**
  * 소셜 흐름에서 브라우저 리다이렉트를 통해 오가는 짧은 서명 토큰들을 발급/검증한다.
@@ -16,7 +19,10 @@ import { OAuthProvider } from '@hansapp/data';
  */
 @Injectable()
 export class SocialTicketService {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
+  ) {}
 
   /**
    * OAuth state(로그인/연동 의도 + 복귀 URL 운반). provider 왕복 후 콜백에서 검증한다.
@@ -41,6 +47,18 @@ export class SocialTicketService {
      * 그 앱이 CSRF 대조와 verifier 조회 키로 쓰므로, 왕복을 견뎌야 한다.
      */
     clientState?: string;
+    /**
+     * 이 흐름을 시작한 브라우저를 가리키는 짝. **CSRF 방어의 핵심이다.**
+     *
+     * 서명만으로는 "우리가 발급했다" 밖에 증명하지 못한다 — 공격자도 정상적으로 시작하면
+     * 유효한 state 를 받아간다. 그래서 시작할 때 nonce 를 쿠키로도 심고, 콜백에서 둘을
+     * 대조한다. 쿠키는 브라우저 밖으로 못 나가므로 링크를 남에게 넘겨도 따라가지 않는다.
+     *
+     * flowId 는 쿠키 이름을 흐름마다 갈라 **동시 로그인**(탭 여러 개)을 가능하게 한다.
+     * 이름이 하나면 나중 탭이 앞 탭의 쿠키를 덮어써 앞쪽이 실패한다.
+     */
+    flowId?: string;
+    nonce?: string;
   }): string {
     return this.jwt.sign(
       {
@@ -51,8 +69,11 @@ export class SocialTicketService {
         client_id: payload.clientId,
         code_challenge: payload.codeChallenge,
         client_state: payload.clientState,
+        flow_id: payload.flowId,
+        nonce: payload.nonce,
       },
-      { expiresIn: 600 },
+      // 흐름 쿠키와 **같은 값**이어야 한다. 한쪽만 살아 있으면 정상 로그인이 거부된다.
+      { expiresIn: this.config.socialFlowTtlSec },
     );
   }
 
@@ -63,6 +84,8 @@ export class SocialTicketService {
     clientId?: string;
     codeChallenge?: string;
     clientState?: string;
+    flowId?: string;
+    nonce?: string;
   } {
     const p = this.verify<{
       token_use: string;
@@ -72,6 +95,8 @@ export class SocialTicketService {
       client_id?: string;
       code_challenge?: string;
       client_state?: string;
+      flow_id?: string;
+      nonce?: string;
     }>(token, 'oauth_state');
     return {
       intent: p.intent,
@@ -80,6 +105,8 @@ export class SocialTicketService {
       clientId: p.client_id,
       codeChallenge: p.code_challenge,
       clientState: p.client_state,
+      flowId: p.flow_id,
+      nonce: p.nonce,
     };
   }
 
