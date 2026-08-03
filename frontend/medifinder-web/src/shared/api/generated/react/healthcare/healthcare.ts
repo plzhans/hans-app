@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.0.1
+ * OpenAPI spec version: 0.11.0
  */
 import {
   useQuery
@@ -21,11 +21,13 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  HealthcareHospitalControllerNearbyParams,
   HealthcareHospitalControllerScroll200,
   HealthcareHospitalControllerScrollParams,
   HealthcareHospitalControllerSearch200,
   HealthcareHospitalControllerSearchParams,
   HospitalDetailDto,
+  HospitalNearbyResponseDto,
   HospitalNonPaymentDto,
   NonPaymentRequestResultDto
 } from '../../model';
@@ -360,6 +362,130 @@ export function useHealthcareHospitalControllerGet<TData = Awaited<ReturnType<ty
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthcareHospitalControllerGetQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getHealthcareHospitalControllerNearbyUrl = (id: number,
+    params?: HealthcareHospitalControllerNearbyParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/healthcare/hospitals/${id}/nearby?${stringifiedParams}` : `/healthcare/hospitals/${id}/nearby`
+}
+
+/**
+ * 이 병원 **대신 갈 만한** 근처 병원을 찾는다. 상세 화면 하단 섹션용이다.
+ *
+ * **단순히 가까운 순이 아니다.** 진료과목이 겹치는지를 가장 크게 보고, 전문병원 지정분야·종별·응급실 운영 여부로 보정한 뒤, 거리를 가중치로 곱해 정렬한다. 바로 옆 치과가 1km 밖 같은 정형외과를 이기지 않는다는 뜻이다.
+ *
+ * **왜 유사한지는 matchedSubjects 로 돌려준다** — 겹친 과목을 그대로 실어 주므로 "정형외과·재활의학과" 같은 배지를 달 수 있다.
+ *
+ * 요양병원·정신병원은 기본적으로 빠지지만, **기준 병원이 그 계열이면 같은 계열만** 찾는다 — 요양병원 보는 사람에게 근처 의원은 대체재가 아니다.
+ *
+ * 결과가 비어도 정상이다(좌표가 없는 병원이거나 반경 안에 후보가 없다). 병원 자체가 없을 때만 404 다.
+ * @summary 근처의 유사한 병원
+ */
+export const healthcareHospitalControllerNearby = async (id: number,
+    params?: HealthcareHospitalControllerNearbyParams, options?: RequestInit): Promise<HospitalNearbyResponseDto> => {
+
+  return reactFetch<HospitalNearbyResponseDto>(getHealthcareHospitalControllerNearbyUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthcareHospitalControllerNearbyQueryKey = (id: number,
+    params?: HealthcareHospitalControllerNearbyParams,) => {
+    return [
+    `/healthcare/hospitals/${id}/nearby`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getHealthcareHospitalControllerNearbyQueryOptions = <TData = Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError = unknown>(id: number,
+    params?: HealthcareHospitalControllerNearbyParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthcareHospitalControllerNearbyQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>> = ({ signal }) => healthcareHospitalControllerNearby(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthcareHospitalControllerNearbyQueryResult = NonNullable<Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>>
+export type HealthcareHospitalControllerNearbyQueryError = unknown
+
+
+export function useHealthcareHospitalControllerNearby<TData = Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError = unknown>(
+ id: number,
+    params: undefined |  HealthcareHospitalControllerNearbyParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareHospitalControllerNearby<TData = Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError = unknown>(
+ id: number,
+    params?: HealthcareHospitalControllerNearbyParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>,
+          TError,
+          Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthcareHospitalControllerNearby<TData = Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError = unknown>(
+ id: number,
+    params?: HealthcareHospitalControllerNearbyParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 근처의 유사한 병원
+ */
+
+export function useHealthcareHospitalControllerNearby<TData = Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError = unknown>(
+ id: number,
+    params?: HealthcareHospitalControllerNearbyParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthcareHospitalControllerNearby>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthcareHospitalControllerNearbyQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
