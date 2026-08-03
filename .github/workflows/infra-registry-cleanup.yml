@@ -60,19 +60,28 @@ jobs:
       contents: read
       packages: write # 버전을 지운다
     steps:
-      # github.event.repository 를 쓰지 않는다. schedule 이벤트는 웹훅 페이로드가 없어서
-      # 비어 있을 수 있고, 그러면 packages 가 '/*' 가 되어 조용히 아무것도 안 맞는다.
-      # GITHUB_REPOSITORY 는 이벤트와 무관하게 항상 채워진다.
-      - name: 레포 이름
-        id: repo
-        run: echo "name=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
+      # **앱 목록을 손으로 적는다.** 와일드카드(`<레포>/*` + expand-packages)로 쓰면
+      # 새 앱이 늘어도 자동으로 잡히지만, 그 옵션은 PAT 을 요구한다 — GITHUB_TOKEN 으로는
+      # 패키지 목록을 못 펼친다("A Personal Access Token (PAT) is required"). 상주 PAT 을
+      # 들이는 것보다 앱이 늘 때 여기 한 줄 더 적는 쪽이 낫다.
+      #
+      # github.event.repository 는 쓰지 않는다. schedule 이벤트는 웹훅 페이로드가 없어서
+      # 비어 있을 수 있다. GITHUB_REPOSITORY 는 이벤트와 무관하게 항상 채워진다.
+      - name: 대상 패키지 목록
+        id: pkg
+        env:
+          # GHCR 패키지 이름은 <레포>/<앱> 이라 접두사가 붙는다.
+          APPS: hansapp-api hansapp-batch hansapp-cli node-builder
+        run: |
+          repo="${GITHUB_REPOSITORY##*/}"
+          list=''
+          for app in $APPS; do list="${list:+$list,}$repo/$app"; done
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "$list"
 
       - uses: dataaxiom/ghcr-cleanup-action@v1
         with:
-          # 이 레포가 올린 이미지 전부. 앱 목록을 여기 적어두면 새 앱이 늘 때 조용히 빠진다.
-          # GHCR 패키지 이름은 <레포>/<앱> 이라 접두사가 붙는다.
-          packages: ${{ steps.repo.outputs.name }}/*
-          expand-packages: true
+          packages: ${{ steps.pkg.outputs.list }}
 
           # 여기 걸리는 태그는 다른 모든 규칙에서 빠진다. 나이도 개수도 안 본다.
           exclude-tags: v*,latest,staging,production,develop,node*
