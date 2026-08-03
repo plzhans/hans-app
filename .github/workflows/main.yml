@@ -1,0 +1,634 @@
+# main 브랜치의 목적은 **develop 서버 배포**다. 그 전부가 이 파일에 있다.
+#
+#                        plan
+#                          │
+#           ┌──────────────┴──────────────┐
+#       fe_build                      be_build          ← 프론트·백엔드가 나란히 돈다
+#           │  dist 아티팩트                │  out.tar.zst
+#           └──────────────┬──────────────┘
+#                          │
+#               ══════ gate ══════                       ← 승인 1번. fe·be 둘 다 풀린다
+#                          │
+#           ┌──────────────┴──────────────┐
+#       fe_deploy                  docker_image_push
+#       (Cloudflare)                      │
+#                                     be_deploy
+#                          │
+#                       report
+#
+# **관문 앞에서는 아무 흔적도 남기지 않는다.** 빌드만 하고 아티팩트는 하루면 사라진다.
+# 이미지를 굽는 것과 서버를 건드리는 것은 전부 관문 뒤다 — 승인하지 않고 버려도 손해가 없다.
+#
+# [배포는 요청해야 나간다]
+# 커밋 **제목 줄**에 #deploy(백엔드만 하려면 #be-deploy)가 있으면 관문까지 가고, 없으면
+# 빌드·검사까지만 하고 초록으로 끝난다.
+#
+# **develop 은 같이 쓰는 서버다.** 협업하려고 아직 완성되지 않은 코드를 main 에 먼저
+# 합치는 일이 있으므로, 합쳤다는 이유만으로 공용 서버가 바뀌면 안 된다. opt-out 이 아니라
+# opt-in 인 이유는 빠뜨렸을 때의 대가가 다르기 때문이다 — opt-in 을 잊으면 배포가 안 될
+# 뿐이지만, opt-out 을 잊으면 남들이 쓰는 서버가 깨진다.
+#
+# 관문이 있는데도 마커를 남겨 둔 것은, 없애면 **매 푸시마다 승인 대기 중인 노란 실행이
+# 쌓이기 때문**이다(30일 매달린다). 마커는 "이건 배포할 커밋이다" 는 표시이고, 관문은
+# "지금 나가도 되나" 의 최종 확인이라 역할이 갈린다.
+#
+# [production 은 여기 없다]
+# 릴리스가 이미지를 굽고(release.yml) be-deploy-production.yml 이 그것을 당긴다.
+# 여기서 production 으로 가는 길은 없다.
+#
+# [슬랙]
+# 배포가 나갈 때 채널에 카드를 하나 올리고(first_notify), 그 뒤의 진행 상황은 **전부 그
+# 카드의 스레드 댓글**로 쌓인다. 토큰이 없거나 슬랙이 죽어 있으면 ts 가 빈 문자열이 되고,
+# 그것을 보는 쪽은 전부 조용히 지나간다 — **알림은 배포를 막지 않는다.**
+name: main - develop 배포
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: '어디까지 진행할지'
+        type: choice
+        options: [verify, deploy]
+        default: verify
+
+# **그룹을 둘로 가른다.** 취소는 같은 그룹 안에서만 일어나므로, 이것이 유일한 방법이다.
+#
+#   main-ci-<ref>   검사만 하는 실행. 새 푸시가 오면 앞의 것을 취소한다
+#   main-deploy     배포까지 가는 실행. 아무도 취소하지 않고 서로 줄을 선다
+#
+# **cancel-in-progress 는 "내가 취소당할까" 가 아니라 "내가 남을 취소할까" 다.** 새로
+# 들어온 실행 기준으로 평가되기 때문에, 한 그룹에 섞어 두면 평범한 푸시가 배포 중인
+# 실행을 죽인다. 실제로 그랬다 — 배포가 반쯤 진행된 채로 남으면 서버 상태를 알 수 없다.
+concurrency:
+  group: >-
+    ${{ (contains(github.event.head_commit.message, '#deploy')
+         || contains(github.event.head_commit.message, '#be-deploy')
+         || inputs.stage == 'deploy')
+        && 'main-deploy'
+        || format('main-ci-{0}', github.ref) }}
+  cancel-in-progress: >-
+    ${{ !(contains(github.event.head_commit.message, '#deploy')
+          || contains(github.event.head_commit.message, '#be-deploy')
+          || inputs.stage == 'deploy') }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 어디까지 갈지, 무엇을 대상으로 할지 **한 곳에서** 정한다.
+  # 두 군데서 같은 것을 보면 언젠가 어긋난다.
+  # ───────────────────────────────────────────────────────────────────────────
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      verify: ${{ steps.pick.outputs.verify }}
+      deploy: ${{ steps.pick.outputs.deploy }}
+      fe_target: ${{ steps.pick.outputs.fe_target }}
+      be_target: ${{ steps.pick.outputs.be_target }}
+      config_only: ${{ steps.pick.outputs.config_only }}
+      toolchain: ${{ steps.pick.outputs.toolchain }}
+    steps:
+      # 병합 커밋인지 보려면 부모를, 바뀐 파일을 보려면 이전 커밋을 알아야 한다.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: pick
+        env:
+          STAGE: ${{ inputs.stage }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          fe_all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          verify=true
+          deploy=false
+          be_only=false
+          toolchain=false
+          config_only=false
+          fe_target="$fe_all"
+          be_target=true
+
+          # 병합 커밋(부모가 둘 이상)은 PR 을 거쳐 온 것이다. 그때 이미 검사했다.
+          if [ "$EVENT" = 'push' ] && [ "$(git rev-list --parents -n1 HEAD | wc -w)" -gt 2 ]; then
+            verify=false
+            echo "PR 병합 커밋이다 → verify 는 PR 에서 이미 돌았으므로 건너뛴다."
+          fi
+
+          if [ -n "$STAGE" ]; then
+            # 사람이 골랐으면 그게 답이다. `[ ... ] && var=true` 로 쓰면 안 된다 —
+            # bash -e 라서 조건이 거짓일 때 그 줄이 스텝을 통째로 실패시킨다.
+            if [ "$STAGE" = 'deploy' ]; then
+              deploy=true
+            fi
+          elif [ "$EVENT" = 'push' ]; then
+            # **제목 줄만 본다.** 본문에서 마커를 언급하기만 해도 배포가 나가는 일이
+            # 있었다 — 이 규칙을 설명하는 문장이 그대로 매칭됐다.
+            if printf '%s' "$HEAD_MSG" | head -1 | grep -qE '#(be-)?deploy'; then
+              deploy=true
+              # #be-deploy 는 백엔드만. 프론트는 손대지 않는다.
+              if printf '%s' "$HEAD_MSG" | head -1 | grep -q '#be-deploy'; then
+                be_only=true
+              fi
+            else
+              echo "커밋 메시지에 #deploy·#be-deploy 가 없다 → 빌드·검사까지만 한다."
+            fi
+          fi
+
+          # 툴체인 이미지의 입력이 이번 push 에 같이 들어 있으면, 이미지 워크플로와 이
+          # 워크플로가 **동시에** 시작해서 아직 갱신되지 않은 :latest 를 문다. 먼저 굽게 한다.
+          #
+          # 목록은 infra-node-builder.yml 의 paths 필터와 짝이다. 한쪽만 고치면 어긋난다.
+          toolchain_inputs='^(docker/node-builder/|\.nvmrc$|package\.json$|\.github/workflows/infra-node-builder\.yml$)'
+
+          # 바뀐 것만 고르는 것은 push 일 때뿐이다. 수동 실행은 기준이 없으므로 전부 돌린다.
+          if [ "$EVENT" = 'push' ] && [ -n "$BEFORE" ] \
+             && [ "$BEFORE" != '0000000000000000000000000000000000000000' ]; then
+            changed="$(git diff --name-only "$BEFORE" "$GITHUB_SHA")"
+
+            # `cmd && var=true` 로 쓰면 안 된다 — grep 이 못 찾은 경우(정상 상황)에
+            # 스텝이 통째로 실패한다.
+            if printf '%s\n' "$changed" | grep -qE "$toolchain_inputs"; then
+              toolchain=true
+            fi
+
+            # ── 백엔드 ──────────────────────────────────────────────────────
+            be_target=false
+            if printf '%s\n' "$changed" | grep -qE '^(backend/|scripts/deploy/|\.github/workflows/(main|be-).*\.yml$)'; then
+              be_target=true
+
+              # **설정만 바뀌었나.** 그러면 이미지를 다시 굽을 이유가 없다 — 설정은
+              # 이미지에 안 들어가고 compose 가 마운트한다. 빌드·이미지·스키마를 전부
+              # 건너뛰고 전송과 재기동만 하면 되므로 1분 안쪽으로 끝난다.
+              if ! printf '%s\n' "$changed" \
+                   | grep -E '^(backend/|scripts/deploy/|\.github/)' \
+                   | grep -qvE '^backend/(config|infra)/'; then
+                config_only=true
+                echo "backend 는 config·infra 만 바뀌었다 → 이미지를 굽지 않는다."
+              fi
+            fi
+
+            # ── 프론트 ──────────────────────────────────────────────────────
+            fe_target=''
+            for t in $fe_all; do
+              # 자기 디렉터리가 바뀌었으면 당연히 대상이다.
+              if printf '%s\n' "$changed" | grep -q "^$t/"; then
+                fe_target="$fe_target $t"
+                continue
+              fi
+              # 빌드·배포 방법이 바뀌면 전부 다시 나가야 한다.
+              if printf '%s\n' "$changed" \
+                 | grep -qE '^(frontend/ci-(build|deploy|lib)\.sh|\.github/workflows/(main|fe-).*\.yml)$'; then
+                fe_target="$fe_target $t"
+                continue
+              fi
+              # medifinder-web 은 auth-sdk 를 link: 로 문다. 소스가 그대로 번들에 들어간다.
+              if [ "$t" = 'frontend/medifinder-web' ] \
+                 && printf '%s\n' "$changed" | grep -q '^frontend/auth-sdk/'; then
+                fe_target="$fe_target $t"
+                continue
+              fi
+              # docs 는 레포 루트의 OpenAPI 스펙을 읽어 빌드에 박는다.
+              if [ "$t" = 'frontend/hansapp-docs' ] \
+                 && printf '%s\n' "$changed" | grep -q '^docs/openapi/'; then
+                fe_target="$fe_target $t"
+              fi
+            done
+          elif [ "$EVENT" = 'push' ]; then
+            # 첫 푸시나 force push 면 before 가 0 으로 온다. 비교할 게 없으니 전부 돌린다.
+            # 뭐가 바뀌었는지 모르면 툴체인도 다시 굽는다 — 안 바뀌었으면 캐시라 금방 끝나고,
+            # 반대로 낡은 툴체인으로 나가는 것은 조용히 지나가서 나중에야 드러난다.
+            echo "이전 커밋을 알 수 없다. 전부 대상으로 한다."
+            toolchain=true
+          fi
+
+          # #be-deploy 는 백엔드만 배포하라는 뜻이다. 검사는 그대로 두고 배포 대상만 좁힌다.
+          if [ "$be_only" = 'true' ]; then
+            fe_target=''
+            echo "#be-deploy → 프론트는 배포하지 않는다."
+          fi
+
+          # **비어 있으면 비운 채로 내보낸다.** 여기서 all 로 되돌리면 무관한 푸시가
+          # 네 프로젝트를 전부 빌드한다. 빈 값은 뒤 잡들이 건너뛰라는 뜻이다.
+          fe_target="$(echo $fe_target | xargs)"
+
+          {
+            echo "verify=$verify"
+            echo "deploy=$deploy"
+            echo "fe_target=$fe_target"
+            echo "be_target=$be_target"
+            echo "config_only=$config_only"
+            echo "toolchain=$toolchain"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "검증=$verify  배포=$deploy  툴체인=$toolchain"
+          echo "프론트=${fe_target:-(없음)}  백엔드=$be_target  설정만=$config_only"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 배포 카드를 채널에 올리고 **그 메시지 id(ts)를 아래로 흘린다.** 뒤 단계들이 그 값으로
+  # 같은 스레드에 댓글을 단다. ts 는 보내야 발급되므로 미리 알 수 없다.
+  #
+  # **잡에 조건을 건다.** 평범한 푸시·PR 까지 이 잡이 돌면 environment 를 지나게 되는데,
+  # 나중에 develop 에 보호 규칙이 붙으면 검사만 하려던 실행이 승인을 기다리게 된다.
+  #
+  # 잡 id 에 하이픈을 쓰지 않는다 — 표현식에서 `-` 는 뺄셈이라 needs.first-notify 가
+  # 에러 없이 **조용히 false** 가 될 수 있다.
+  # ───────────────────────────────────────────────────────────────────────────
+  first_notify:
+    needs: plan
+    if: needs.plan.outputs.deploy == 'true'
+    name: 슬랙 카드
+    runs-on: ubuntu-latest
+    environment: develop
+    outputs:
+      ts: ${{ steps.post.outputs.ts }}
+      # **채널 id 를 응답에서 받아 흘린다.** chat.postMessage 는 `#이름` 도 받아 주지만,
+      # 한 번 해석된 id 를 쓰면 뒤 단계들이 이름에 의존하지 않는다.
+      channel: ${{ steps.post.outputs.channel_id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # 채널에 남는 한 줄이라 **제목만** 담는다. 세부는 아래에서 첫 댓글로 내린다.
+      - id: card
+        # **여기서 실패해도 잡은 성공해야 한다.** 이 잡에 매달린 배포가 슬랙 설정
+        # 하나 때문에 통째로 막히면 안 된다. 실패하면 아래 post 가 건너뛰고 ts 가
+        # 비어서 뒤가 전부 조용해질 뿐이다.
+        continue-on-error: true
+        env:
+          APP_ENV: develop
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL }}
+          DEPLOY_LABEL: ${{ needs.plan.outputs.fe_target == '' && '백엔드' || '배포' }}
+        run: ./scripts/deploy/ci-slack-deploy-card.sh > "$RUNNER_TEMP/card.json"
+
+      # errors 기본값이 false 라 **슬랙이 에러를 뱉어도 이 스텝은 실패하지 않는다.**
+      - id: post
+        if: steps.card.outcome == 'success'
+        uses: slackapi/slack-github-action@v4
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload-file-path: ${{ runner.temp }}/card.json
+
+      # 커밋 제목이 들어가므로 값은 환경변수로 받고 mrkdwn 특수문자만 막는다 —
+      # 꺾쇠를 그냥 두면 `<url|텍스트>` 링크 문법이 깨진다.
+      - name: 슬랙 댓글 · 상세
+        if: steps.post.outputs.ts != ''
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.post.outputs.channel_id }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_ACTOR: ${{ github.actor }}
+          FE_TARGET: ${{ needs.plan.outputs.fe_target }}
+          BE_TARGET: ${{ needs.plan.outputs.be_target }}
+          CONFIG_ONLY: ${{ needs.plan.outputs.config_only }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          escape() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+          # 대상은 경로 목록이라 파일명만 남겨 읽기 좋게 줄인다.
+          fe_apps="$(printf '%s' "$FE_TARGET" | tr ' ' '\n' | sed '/^$/d; s#.*/##' | paste -sd' ' -)"
+          be_app=''
+          if [ "$BE_TARGET" = 'true' ]; then
+            if [ "$CONFIG_ONLY" = 'true' ]; then be_app='backend(설정만)'; else be_app='backend'; fi
+          fi
+          # 따옴표를 안 씌운다. 한쪽이 비면 그 자리가 사라져야 한다.
+          # shellcheck disable=SC2086
+          apps="$(echo $be_app $fe_apps | xargs)"
+          text="$(printf '<%s|`%s`>  %s\n대상 %s  ·  요청 %s  ·  <%s|실행 로그>' \
+            "$COMMIT_URL" "${GIT_SHA:0:7}" "$(escape "$(git log -1 --pretty=%s)")" \
+            "$(escape "${apps:-(없음)}")" "$(escape "$GIT_ACTOR")" "$RUN_URL")"
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ steps.post.outputs.ts }}' --text "$text"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 프론트를 빌드해 **아티팩트로 남긴다.** 배포는 그것을 받아 쓴다.
+  #
+  # 예전에는 verify 와 deploy 가 각자 빌드했다. 빌드가 결정적이라 결과는 같지만,
+  # ci-build.sh 헤더가 말하는 "검사한 산출물이 그대로 배포된다" 는 성질이 없었다.
+  # ───────────────────────────────────────────────────────────────────────────
+  fe_build:
+    needs: plan
+    if: needs.plan.outputs.fe_target != ''
+    name: fe · build
+    uses: ./.github/workflows/fe-build.yml
+    permissions:
+      contents: read
+      packages: write # 중첩된 toolchain 잡이 node-builder 를 GHCR 에 올린다
+    secrets: inherit
+    with:
+      app_env: develop
+      target: ${{ needs.plan.outputs.fe_target }}
+      toolchain: ${{ needs.plan.outputs.toolchain == 'true' }}
+      upload: true
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # **검사와 빌드를 한 잡에서 한다.** 둘 다 같은 install·같은 컴파일을 필요로 한다.
+  # 나눠 두면 워크스페이스 install 과 tsc 를 두 번 돌리게 되는데, 그게 이 파이프라인에서
+  # 제일 비싼 두 단계다.
+  #
+  # **arm64 에서 돈다.** 배포 서버가 arm64 이고 prisma 엔진은 플랫폼별 네이티브
+  # 바이너리라, 여기서 만든 것이 그대로 이미지에 들어간다.
+  #
+  # 설정만 바뀐 배포에서는 통째로 건너뛴다 — 새 이미지가 필요 없다.
+  # ───────────────────────────────────────────────────────────────────────────
+  be_build:
+    needs: plan
+    if: >-
+      needs.plan.outputs.be_target == 'true'
+      && needs.plan.outputs.config_only != 'true'
+    name: be · verify · build (arm64)
+    # **우회 변수를 두지 않는다.** x86 으로 떨어지면 prisma 엔진이 amd64 로 만들어져
+    # 서버에서 뜨지 않는 이미지가 조용히 완성된다. 러너를 못 구하면 큰 소리로 실패하는
+    # 편이 낫다.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 아키텍처 확인
+        run: echo "  러너 $(uname -m)"
+
+      # **pnpm 이 먼저다.** setup-node 의 cache: pnpm 은 스토어 경로를 알아내려고
+      # pnpm 을 실행하므로, 그 전에 깔려 있어야 한다.
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: backend/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      # **한 번만 컴파일한다.** lint 도 산출물도 이 결과를 쓴다.
+      #
+      # 앱별로 좁히지(--filter) 않는 이유는 타입 기반 lint 규칙(no-unsafe-*)이 워크스페이스
+      # 전체의 생성된 타입을 봐야 하기 때문이다. Prisma 클라이언트도 이 단계가 만든다.
+      - name: 빌드
+        env:
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+        run: pnpm -r build
+
+      - name: lint · format
+        if: needs.plan.outputs.verify == 'true'
+        run: pnpm check
+
+      # pnpm deploy: 그 앱과 의존성만 추려 자립형 디렉터리(node_modules 포함)를 만든다.
+      # cli 만 --prod 를 쓰지 않는다 — prisma 가 devDependency 인데 그것으로 마이그레이션이 돈다.
+      - name: 산출물 추리기
+        if: needs.plan.outputs.deploy == 'true'
+        run: |
+          rm -rf out
+          pnpm deploy --filter hansapp-api   --prod --legacy out/hansapp-api
+          pnpm deploy --filter hansapp-batch --prod --legacy out/hansapp-batch
+          pnpm deploy --filter hansapp-cli          --legacy out/hansapp-cli
+          du -sh out/* | sed 's/^/  /'
+
+      # **디렉터리째 올리지 않는다.** node_modules 는 작은 파일이 3만 개라 개당 오버헤드가
+      # 지배한다 — 그대로 올렸더니 4분 17초가 걸렸다. 하나로 묶으면 파일 1개가 된다.
+      # 덤으로 **심볼릭 링크가 링크로 보존된다**(pnpm 은 같은 패키지를 링크로 공유한다).
+      - name: 산출물 묶기
+        if: needs.plan.outputs.deploy == 'true'
+        run: |
+          tar --zstd -cf out.tar.zst out
+          ls -lh out.tar.zst | awk '{print "  묶음 " $5}'
+
+      - uses: actions/upload-artifact@v7
+        if: needs.plan.outputs.deploy == 'true'
+        with:
+          name: backend-out-${{ github.sha }}
+          path: backend/out.tar.zst
+          retention-days: 1
+          # 이미 zstd 로 압축돼 있다. 다시 감싸 봐야 시간만 든다.
+          compression-level: 0
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # **관문.** 하는 일이 없다 — 존재하는 것이 일이다.
+  #
+  # environment `develop-deploy` 의 보호 규칙(승인자)이 여기 걸린다. 시크릿이 없는 빈
+  # 환경이라 여기 걸어도 아래 잡들의 자격증명에 영향이 없다.
+  #
+  # **이미지 굽기 앞에 둔다.** 뒤에 두면 승인하지 않을 것을 굽게 된다. 관문 앞은 아티팩트
+  # 뿐이고 그것은 하루면 사라지므로, 버려도 아무 흔적이 안 남는다.
+  #
+  # be_deploy 가 부르는 be-deploy-develop.yml 도 같은 환경으로 관문을 하나 갖는데,
+  # **같은 실행 안에서는 승인이 환경 단위로 기억되므로 클릭은 한 번이다.**
+  # ───────────────────────────────────────────────────────────────────────────
+  gate:
+    needs: [plan, fe_build, be_build]
+    # 앞의 둘은 건너뛸 수 있다(한쪽만 바뀐 커밋). skipped 를 실패로 보지 않는다.
+    if: >-
+      ${{ always()
+          && needs.plan.outputs.deploy == 'true'
+          && needs.fe_build.result != 'failure' && needs.fe_build.result != 'cancelled'
+          && needs.be_build.result != 'failure' && needs.be_build.result != 'cancelled' }}
+    name: 관문 · 배포 승인
+    runs-on: ubuntu-latest
+    environment: develop-deploy
+    steps:
+      - run: echo "승인됨 — develop 에 반영한다"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 산출물을 이미지로 담는다. **여기서는 컴파일하지 않는다** — COPY 만 한다.
+  #
+  #   :develop         움직이는 태그. 개발 서버가 이것만 바라본다
+  #   :develop-<sha>   안 움직인다. 어떤 커밋의 것인지 되짚는 용
+  #
+  # 잡 id 에 하이픈을 쓰지 않는다(표현식에서 뺄셈이 된다). 화면에 보이는 이름만 하이픈이다.
+  # ───────────────────────────────────────────────────────────────────────────
+  docker_image_push:
+    needs: [plan, gate]
+    if: >-
+      needs.plan.outputs.be_target == 'true'
+      && needs.plan.outputs.config_only != 'true'
+    name: docker-image-push
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [hansapp-api, hansapp-batch, hansapp-cli]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: backend-out-${{ github.sha }}
+          path: backend
+
+      - name: 산출물 풀기
+        run: |
+          cd backend
+          tar --zstd -xf out.tar.zst && rm out.tar.zst
+          ls out | sed 's/^/  /'
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # **.nvmrc 가 단일 출처다.** 산출물을 만든 node 와 그것을 실행할 node 가 같아야 한다.
+      # Dockerfile 기본값도 같은 값이지만, 어긋나도 조용히 지나가지 않게 여기서 확인한다.
+      - name: node 버전 확정
+        id: node
+        run: |
+          nvmrc="$(tr -d 'v \t\r\n' < .nvmrc)"
+          arg="$(grep -m1 '^ARG NODE_VERSION=' "backend/docker/${{ matrix.app }}.Dockerfile" | cut -d= -f2)"
+          if [ "$nvmrc" != "$arg" ]; then
+            echo "::error file=.nvmrc::.nvmrc($nvmrc) 와 Dockerfile 기본값($arg)이 다르다. 둘을 맞출 것."
+            exit 1
+          fi
+          echo "version=$nvmrc" >> "$GITHUB_OUTPUT"
+          echo "  node $nvmrc"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/docker/${{ matrix.app }}.Dockerfile
+          # **빌드는 이미 끝났다.** builder 스테이지를 타지 않는 최종 스테이지를 고른다.
+          target: prebuilt
+          push: true
+          platforms: linux/arm64
+          build-args: |
+            NODE_VERSION=${{ steps.node.outputs.version }}
+            APP_UID=${{ vars.APP_UID || '1001' }}
+            APP_GID=${{ vars.APP_GID || '1001' }}
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.app }}:develop
+            ghcr.io/${{ github.repository }}/${{ matrix.app }}:develop-${{ github.sha }}
+          # source 라벨이 있어야 GHCR 패키지가 이 레포에 연결된다.
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=${{ matrix.app }} (develop)
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 서버에 반영한다. **이 파일에는 배포 로직이 없다** — 부르기만 한다.
+  # 같은 워크플로를 사람이 직접 돌릴 수도 있다(설정만 배포).
+  # ───────────────────────────────────────────────────────────────────────────
+  be_deploy:
+    needs: [plan, gate, first_notify, docker_image_push]
+    # 설정만 바뀐 배포에서는 docker_image_push 가 skipped 다. 그것을 실패로 보지 않는다.
+    if: >-
+      ${{ always()
+          && needs.gate.result == 'success'
+          && needs.plan.outputs.be_target == 'true'
+          && needs.docker_image_push.result != 'failure'
+          && needs.docker_image_push.result != 'cancelled' }}
+    name: be · deploy
+    uses: ./.github/workflows/be-deploy-develop.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      config_only: ${{ needs.plan.outputs.config_only == 'true' }}
+      # 설정만 바뀌었으면 스키마도 안 바뀌었다.
+      skip_migrate: ${{ needs.plan.outputs.config_only == 'true' }}
+      slack_thread: ${{ needs.first_notify.outputs.ts }}
+      slack_channel: ${{ needs.first_notify.outputs.channel }}
+
+  fe_deploy:
+    needs: [plan, gate, fe_build]
+    if: >-
+      ${{ always()
+          && needs.gate.result == 'success'
+          && needs.plan.outputs.fe_target != ''
+          && needs.fe_build.result == 'success' }}
+    name: fe · deploy
+    uses: ./.github/workflows/fe-deploy-develop.yml
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
+    with:
+      target: ${{ needs.plan.outputs.fe_target }}
+      toolchain: ${{ needs.plan.outputs.toolchain == 'true' }}
+      # fe_build 가 남긴 것을 그대로 올린다. 다시 빌드하지 않는다.
+      from_artifact: true
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 스레드의 마지막 줄 — 성공·실패·취소와 어디서 멈췄는지.
+  #
+  # **always() 여야 한다.** 기본 조건이면 앞이 깨졌을 때 같이 skip 되어 스레드가 중간에서
+  # 끊긴다 — 도는 중인지 죽은 건지 구분할 수 없다.
+  # ───────────────────────────────────────────────────────────────────────────
+  report:
+    needs: [plan, first_notify, fe_build, be_build, gate, docker_image_push, be_deploy, fe_deploy]
+    if: ${{ always() && needs.first_notify.outputs.ts != '' }}
+    name: 슬랙 결과
+    runs-on: ubuntu-latest
+    environment: develop
+    steps:
+      - uses: actions/checkout@v7
+
+      # 성공·실패·취소와 **어느 단계에서 멈췄는지**를 판정한다.
+      - id: verdict
+        env:
+          FE_BUILD: ${{ needs.fe_build.result }}
+          BE_BUILD: ${{ needs.be_build.result }}
+          GATE: ${{ needs.gate.result }}
+          IMAGE: ${{ needs.docker_image_push.result }}
+          BE_DEPLOY: ${{ needs.be_deploy.result }}
+          FE_DEPLOY: ${{ needs.fe_deploy.result }}
+        run: |
+          status=success
+          failed=''
+          # 앞에서부터 훑어 **처음 어긋난 곳**만 집는다. 그 뒤는 이것 때문에 안 돈 것이다.
+          # skipped 는 실패가 아니다 — 한쪽만 바뀐 커밋에서 정상이다.
+          for pair in "프론트 빌드:$FE_BUILD" "백엔드 빌드:$BE_BUILD" "승인:$GATE" \
+                      "이미지:$IMAGE" "백엔드 배포:$BE_DEPLOY" "프론트 배포:$FE_DEPLOY"; do
+            name="${pair%%:*}"
+            case "${pair##*:}" in
+              cancelled) status=cancelled; failed="$name"; break ;;
+              failure)   status=failure;   failed="$name"; break ;;
+            esac
+          done
+
+          case "$status" in
+            success)   title='✅ develop 배포 완료' ;;
+            cancelled) title="⚪ develop 배포 취소${failed:+ · $failed}" ;;
+            *)         title="❌ develop 배포 실패${failed:+ · $failed 단계에서 멈췄다}" ;;
+          esac
+
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "title=$title"   >> "$GITHUB_OUTPUT"
+          echo "  판정 $title"
+
+      # **여기서는 액션을 쓰지 않는다.** 액션은 errors 기본값이 false 라 슬랙이 거절해도
+      # 로그에 아무것도 남기지 않는다 — 카드가 안 바뀌는데 잡은 초록으로 끝나서, 실제로
+      # channel_not_found 를 두 번의 배포 동안 못 보고 지나쳤다. 스크립트는 크게 알린다.
+      - name: 슬랙 댓글
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ needs.first_notify.outputs.channel }}
+          STATUS: ${{ steps.verdict.outputs.status }}
+          TITLE: ${{ steps.verdict.outputs.title }}
+        run: |
+          # **실패·취소만 채널로 내보낸다.** 성공하면 앱이 뜨면서 기동 알림을 채널에
+          # 띄우므로 결론이 이미 보인다. 실패는 그것이 없어서 스레드를 열지 않는 한
+          # 아무도 모른다 — 정작 봐야 하는 쪽이 안 보이면 알림을 붙인 뜻이 없다.
+          cast=''
+          [ "$STATUS" = 'success' ] || cast='--broadcast'
+          # 따옴표를 안 씌운다. 빈 문자열이면 인자가 사라져야 한다.
+          # shellcheck disable=SC2086
+          ./scripts/deploy/ci-slack-send.sh \
+            --thread '${{ needs.first_notify.outputs.ts }}' \
+            --title "$TITLE" $cast

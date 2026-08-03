@@ -33,22 +33,13 @@ on:
           - frontend/hansapp-web
           - frontend/hansapp-auth
         default: all
-  # main.yml 이 #deploy 커밋에서 부른다. 그때는 바뀐 프로젝트만 넘어온다.
+  # fe.yml 이 #deploy 커밋에서 부른다. 그때는 바뀐 프로젝트만 넘어온다.
   workflow_call:
     inputs:
       target:
         type: string
         default: all
       toolchain:
-        type: boolean
-        default: false
-      from_artifact:
-        # **부르는 쪽이 이미 빌드했으면 켠다.** main.yml 의 fe_build 가 남긴 아티팩트를
-        # 받아 그대로 올린다 — 다시 빌드하지 않으므로 검사한 산출물과 배포된 산출물이
-        # 같은 것임이 보장된다.
-        #
-        # 단독 실행(workflow_dispatch)에는 아티팩트가 없다. 그때는 여기서 빌드한다.
-        description: '빌드 잡의 아티팩트를 받아 쓴다 (끄면 직접 빌드)'
         type: boolean
         default: false
 
@@ -102,35 +93,14 @@ jobs:
       packages: write
     uses: ./.github/workflows/infra-node-builder.yml
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # **관문.** 하는 일이 없다 — 존재하는 것이 일이다.
-  #
-  # environment `develop-deploy` 의 보호 규칙(승인자)이 여기 걸린다.
-  #
-  # **아래 deploy 잡에 걸지 않는 이유.** 잡은 environment 를 하나만 가질 수 있는데,
-  # deploy 는 Cloudflare 토큰이 있는 `develop` 을 써야 한다. 관문을 거기 걸면 시크릿을
-  # 복제해야 하고, 그러면 두 벌이 어긋날 자리가 생긴다.
-  #
-  # main.yml 도 같은 환경 이름을 쓰므로, 거기서 승인하면 이 잡은 이미 승인된 상태로
-  # 통과한다 — **클릭은 한 번이고, 백엔드와도 공유된다.**
-  # ───────────────────────────────────────────────────────────────────────────
-  gate:
-    needs: setup
-    if: needs.setup.outputs.targets != '[]'
-    runs-on: ubuntu-latest
-    environment: develop-deploy
-    steps:
-      - run: echo "승인됨 — develop 에 반영한다"
-
   deploy:
     # toolchain 은 건너뛸 수 있다. `needs` 에 든 잡이 하나라도 skipped 면 이 잡도 통째로
     # 건너뛰므로, always() 로 막고 결과를 직접 본다 — **실패했을 때만** 배포를 멈춘다.
-    needs: [setup, toolchain, gate]
+    needs: [setup, toolchain]
     if: >-
       always() &&
       needs.setup.result == 'success' &&
       needs.setup.outputs.targets != '[]' &&
-      needs.gate.result == 'success' &&
       needs.toolchain.result != 'failure' &&
       needs.toolchain.result != 'cancelled'
     runs-on: ubuntu-latest
@@ -177,32 +147,7 @@ jobs:
       #
       # matrix.target 은 'frontend/<프로젝트>' 다(캐시 키가 그 형태를 쓴다).
       # 스크립트는 이미 frontend 안에 있어서 프로젝트 이름만 받으므로 접두사를 뗀다.
-      # ── 산출물 갖추기 ────────────────────────────────────────────────────
-      # 부르는 쪽이 이미 빌드했으면 받아 쓰고(main.yml), 단독 실행이면 직접 빌드한다.
-      # 이름 규칙은 fe-build.yml 의 업로드와 **같아야 한다** — 한쪽만 고치면 못 찾는다.
-      - name: 아티팩트 이름
-        id: art
-        if: inputs.from_artifact
-        env:
-          TARGET: ${{ matrix.target }}
-          SHA: ${{ github.sha }}
-        run: echo "name=fe-dist-${TARGET#frontend/}-$SHA" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/download-artifact@v8
-        if: inputs.from_artifact
-        with:
-          name: ${{ steps.art.outputs.name }}
-          path: ${{ matrix.target }}
-
-      - name: 산출물 풀기
-        if: inputs.from_artifact
-        run: ./frontend/ci-unbundle.sh "${TARGET#frontend/}"
-        env:
-          TARGET: ${{ matrix.target }}
-          APP_ENV: develop
-
       - name: 빌드
-        if: ${{ !inputs.from_artifact }}
         run: ./frontend/ci-build.sh "${TARGET#frontend/}"
         env:
           TARGET: ${{ matrix.target }}

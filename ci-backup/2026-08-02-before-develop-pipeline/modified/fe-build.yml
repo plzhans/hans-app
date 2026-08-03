@@ -1,6 +1,6 @@
 # 프론트를 빌드만 한다. **배포하지 않는다.**
 #
-# 두 곳이 부른다 — main.yml 의 평소 검증과 release.yml 의 릴리스 검증. 배포와 같은 경로
+# 두 곳이 부른다 — fe.yml 의 평소 검증과 release.yml 의 릴리스 검증. 배포와 같은 경로
 # (frontend/ci-build.sh)를 지나므로 "빌드는 됐는데 배포에서 깨지는" 차이가 생기지 않는다.
 #
 # **환경(environment)을 걸지 않는다.** 환경을 선언하면 보호 규칙(허용 브랜치·승인)을
@@ -21,12 +21,6 @@ on:
         default: all
       toolchain:
         description: '툴체인 이미지를 먼저 굽는다'
-        type: boolean
-        default: false
-      upload:
-        # **기본이 false 다.** release.yml 은 "이 버전이 빌드되는지" 만 보므로 산출물이
-        # 필요 없다. 배포로 이어지는 호출(main.yml)만 켠다 — 그때만 아티팩트가 쓰인다.
-        description: '산출물을 아티팩트로 남긴다 (배포 잡이 받아 쓴다)'
         type: boolean
         default: false
 
@@ -129,36 +123,3 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           APP_ENV: ${{ inputs.app_env }}
-
-      # **배포 잡이 이것을 받아 그대로 올린다.** 다시 빌드하지 않으므로 검사한 산출물과
-      # 배포된 산출물이 같은 것임이 보장된다 — ci-build.sh 헤더가 말하는 성질이다.
-      #
-      # 디렉터리째 올리지 않는 이유는 dist 에 작은 파일이 수천 개라서다. 하나로 묶으면
-      # 파일 1개가 되고 업로드가 몇 초로 끝난다.
-      - name: 산출물 묶기
-        if: inputs.upload
-        run: ./frontend/ci-bundle.sh "${TARGET#frontend/}"
-        env:
-          TARGET: ${{ matrix.target }}
-          APP_ENV: ${{ inputs.app_env }}
-
-      # **아티팩트 이름에 `/` 를 못 쓴다.** matrix.target 은 'frontend/<프로젝트>' 라
-      # 그대로 쓰면 업로드가 거부된다. 표현식에는 문자열 치환이 없어서 셸로 만든다.
-      # 배포 잡도 같은 규칙으로 만들어야 서로를 찾는다(fe-deploy-develop.yml).
-      - name: 아티팩트 이름
-        id: art
-        if: inputs.upload
-        env:
-          TARGET: ${{ matrix.target }}
-          SHA: ${{ github.sha }}
-        run: echo "name=fe-dist-${TARGET#frontend/}-$SHA" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/upload-artifact@v7
-        if: inputs.upload
-        with:
-          # 대상마다 따로 올린다. 하나가 깨져도 나머지는 배포될 수 있어야 한다.
-          name: ${{ steps.art.outputs.name }}
-          path: ${{ matrix.target }}/fe-dist.tgz
-          retention-days: 1
-          # 이미 gzip 으로 압축돼 있다. 다시 감싸 봐야 시간만 든다.
-          compression-level: 0

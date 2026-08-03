@@ -13,8 +13,8 @@
 name: be - docker image
 
 on:
-  # **push 트리거가 없다.** 진입점은 be.yml 하나로 모은다 — 여기에도 두면 같은 커밋에
-  # 이미지가 두 번 구워진다(be.yml 이 부르는 한 번, 자기 트리거로 한 번).
+  # **push 트리거가 없다.** develop 은 main.yml 이 자기 안에서 굽고, production 은
+  # release.yml 이 여기를 부른다. 트리거를 여기에도 두면 같은 커밋에 이미지가 두 번 구워진다.
   workflow_dispatch:
     inputs:
       environment:
@@ -58,51 +58,30 @@ jobs:
     outputs:
       targets: ${{ steps.pick.outputs.list }}
       app_env: ${{ steps.pick.outputs.app_env }}
-      # push 인데 #deploy 가 없으면 굽지 않는다. build 잡이 통째로 건너뛴다.
-      run: ${{ steps.pick.outputs.run }}
     steps:
       - name: 대상·환경 고르기
         id: pick
         env:
           INPUT_TARGET: ${{ inputs.target }}
           INPUT_ENV: ${{ inputs.environment }}
-          HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
-          # **입력이 있으면 그게 답이다.** 사람이 골랐든 다른 워크플로가 넘겼든 같다.
-          # github.event_name 으로 가르면 workflow_call 일 때 부르는 쪽의 이벤트가 잡힌다.
-          if [ -n "$INPUT_ENV" ]; then
-            app_env="$INPUT_ENV"
-            run=true
-            if [ "$INPUT_TARGET" = 'all' ]; then
-              list='["hansapp-api","hansapp-batch","hansapp-cli"]'
-            else
-              list="[\"$INPUT_TARGET\"]"
-            fi
+          # **환경은 반드시 들어온다.** workflow_call 은 required 이고 workflow_dispatch 는
+          # 기본값이 있다. 그래서 "안 왔을 때" 를 가르는 분기가 없다 — 예전에는 push
+          # 트리거가 있어서 그 갈래가 필요했지만, 지금 진입점은 부르는 쪽 둘뿐이다.
+          if [ "$INPUT_TARGET" = 'all' ]; then
+            list='["hansapp-api","hansapp-batch","hansapp-cli"]'
           else
-            # 여기로 오지 않는다. be.yml 과 release.yml 이 항상 environment 를 준다.
-            app_env='develop'
-            list='["hansapp-api","hansapp-batch"]'
-
-            # **develop 은 같이 쓰는 서버다.** 협업하려고 미완성 코드를 main 에 먼저
-            # 합치는 일이 있으므로, 합쳤다는 이유만으로 이미지가 갱신되면 안 된다.
-            # fe-deploy 와 같은 규칙으로 #deploy 를 요구한다.
-            if printf '%s' "$HEAD_MSG" | grep -q '#deploy'; then
-              run=true
-            else
-              run=false
-              echo "커밋 메시지에 #deploy 가 없다 → 이미지를 굽지 않는다."
-            fi
+            list="[\"$INPUT_TARGET\"]"
           fi
 
-          echo "list=$list"       >> "$GITHUB_OUTPUT"
-          echo "app_env=$app_env" >> "$GITHUB_OUTPUT"
-          echo "run=$run"         >> "$GITHUB_OUTPUT"
-          echo "환경=$app_env  대상=$list  실행=$run"
+          echo "list=$list"          >> "$GITHUB_OUTPUT"
+          echo "app_env=$INPUT_ENV"  >> "$GITHUB_OUTPUT"
+          echo "환경=$INPUT_ENV  대상=$list"
 
   # ───────────────────────────────────────────────────────────────────────────
   # **도커 밖에서 굽는다.** 산출물만 다음 잡으로 넘긴다.
   #
-  # develop(be.yml)과 같은 방식이다. 도커 안에서 워크스페이스를 통째로 설치·빌드하면
+  # develop(main.yml)과 같은 방식이다. 도커 안에서 워크스페이스를 통째로 설치·빌드하면
   # 릴리스마다 몇 분이 드는데, 러너에서 한 번 만들고 이미지는 COPY 만 하면 몇 초로 끝난다.
   #
   # **arm64 에서 만든다.** 배포 서버가 arm64 이고 prisma 쿼리 엔진은 플랫폼별 네이티브
@@ -113,7 +92,6 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   build:
     needs: setup
-    if: needs.setup.outputs.run == 'true'
     name: build (arm64)
     runs-on: ubuntu-24.04-arm
     permissions:
@@ -177,7 +155,6 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   image:
     needs: [setup, build]
-    if: needs.setup.outputs.run == 'true'
     # 이미지도 arm64 에서 만든다. 산출물이 arm64 이므로 그것을 담는 이미지의 플랫폼도
     # 같아야 한다 — 여기서는 COPY 만 하므로 빌드 시간은 몇 초다.
     runs-on: ubuntu-24.04-arm
@@ -315,7 +292,7 @@ jobs:
               echo "CI: [be - deploy - PRODUCTION](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be-deploy-production.yml)"
               echo "→ Use workflow from 에 \`staging\` 또는 \`release-backend/$tag\`"
             else
-              echo "CI: [be](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/be.yml) → stage \`deploy\`"
+              echo "CI: [main](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/main.yml) → stage \`deploy\`"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 

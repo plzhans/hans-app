@@ -5,9 +5,9 @@
 **버전이 붙는 것은 이미지뿐이다.** 배포 스크립트·compose·설정은 항상 main 것을 쓴다.
 
 ```
-이미지          v0.5.0        고정 — 이것이 "무엇을 배포했나"
-ci-deploy.sh    main 최신     배포 도구. 릴리스의 일부가 아니다
-compose·config  main 최신     서버와 이미지 사이의 계약
+이미지            v0.5.0        고정 — 이것이 "무엇을 배포했나"
+scripts/deploy/   main 최신     배포 도구. 릴리스의 일부가 아니다
+compose·config    main 최신     서버와 이미지 사이의 계약
 ```
 
 배포 도구를 릴리스에 묶으면 나중에 고친 버그가 옛 태그에서 되살아난다. 도구는 계속
@@ -21,17 +21,35 @@ develop 에 먼저 올려보는 것**으로 막는다.
 
 ## 전체 흐름
 
-**`be.yml` 은 develop 에 관한 전부다.** production 으로 가는 길이 없다.
+**`main.yml` 은 develop 에 관한 전부다.** production 으로 가는 길이 없다.
+프론트와 백엔드가 한 실행 안에서 나란히 돈다.
 
 ```
-be                            main 푸시 · PR · 수동
-├─ plan
-├─ verify · build (arm64)     **도커 밖에서** install → build → lint → 산출물
-├─ first_notify               슬랙 카드 게시 + 관문. 굽는 실행에서만 존재
-├─ image                      산출물을 COPY 만 → :develop · :develop-<sha>
-├─ migrate                    #deploy · #be-deploy · 수동
-├─ deploy                            〃
+main                          main 푸시 · PR · 수동
+├─ plan                       변경 경로로 대상을 가른다
+├─ first_notify               슬랙 카드 게시 → ts 를 아래로 흘린다
+│
+├─ fe_build ─────┐            fe-build.yml 호출 → dist 아티팩트
+├─ be_build ─────┤            도커 밖에서 install → build → lint → out.tar.zst
+│                │
+├─ ══ gate ══════┘            **승인 1번.** fe·be 둘 다 여기서 풀린다
+│
+├─ docker-image-push          산출물을 COPY 만 → :develop · :develop-<sha>
+├─ be_deploy                  be-deploy-develop.yml 호출
+├─ fe_deploy                  fe-deploy-develop.yml 호출
 └─ report                     always() — 스레드에 최종 결과
+```
+
+**관문 앞에서는 아무 흔적도 남기지 않는다.** 빌드만 하고 아티팩트는 하루면 사라진다.
+이미지를 굽는 것과 서버를 건드리는 것은 전부 관문 뒤라, 승인하지 않고 버려도 손해가 없다.
+
+배포 자체는 별도 워크플로가 갖는다. **어디서 부르든 같은 동작이라** 사람이 직접 돌릴 수도
+있다 — 그때가 곧 "설정만 배포" 다.
+
+```
+be-deploy-develop.yml    workflow_call(main.yml) · workflow_dispatch(단독)
+├─ gate                  관문. main.yml 에서 이미 승인했으면 그냥 통과한다
+└─ deploy                scripts/deploy/ 의 단계들을 순서대로 부른다
 ```
 
 **검사와 빌드가 한 잡이다.** 둘 다 같은 install·같은 컴파일을 필요로 하는데, 나누면
@@ -56,9 +74,12 @@ main 에 **직접 푸시**한 것은 검사한 적이 없으므로 반드시 돈
 그래서 동시성 그룹을 둘로 가른다. **취소는 같은 그룹 안에서만 일어나므로 이것이 유일한 방법이다.**
 
 ```
-be-ci-<ref>   검사만 하는 실행. 새 푸시가 앞의 것을 취소한다
-be-deploy     배포까지 가는 실행. 취소하지 않고 서로 줄을 선다
+main-ci-<ref>   검사만 하는 실행. 새 푸시가 앞의 것을 취소한다
+main-deploy     배포까지 가는 실행. 취소하지 않고 서로 줄을 선다
 ```
+
+서버를 건드리는 쪽은 **한 겹 더** 잠근다. WireGuard 피어는 같은 키로 두 곳에서 붙을 수
+없어서, 배포 워크플로 자체가 `be-server-develop` 그룹을 갖는다.
 
 > `cancel-in-progress` 는 **"내가 취소당할까" 가 아니라 "내가 남을 취소할까"** 다. 새로 들어온
 > 실행 기준으로 평가되기 때문에, 한 그룹에 섞어 두면 평범한 푸시가 배포 중인 실행을 죽인다.
@@ -92,21 +113,30 @@ be·fe·develop·production 이 모두 같은 채널에 뜨므로 제목에 무�
 로컬 배포(`scripts/deploy/deploy.sh`)에는 토큰이 없으므로 아무것도 안 보낸다. 그때는 경고도
 찍지 않는다 — CI 안에서만 "설정이 빠졌다" 고 알린다.
 
-### first_notify 가 관문이다
+### 관문
 
-`environment` 의 보호 규칙(승인자·대기)이 이 잡에 걸린다. `image` 가 여기에 매달려 있으므로
-**승인 전에는 아무것도 굽지도 배포하지도 않는다.**
+`gate` 잡은 **하는 일이 없다 — 존재하는 것이 일이다.** `develop-deploy` environment 의
+보호 규칙(승인자)이 여기 걸리고, 이미지 굽기와 배포가 전부 여기에 매달려 있다.
 
 ```
-plan ─┬─ first_notify ─┐
-      └─ build ────────┴─ image → migrate → deploy → report
+plan ─┬─ fe_build ─┐
+      ├─ be_build ─┴─ gate ─┬─ docker-image-push → be_deploy
+      └─ first_notify       └─ fe_deploy
 ```
 
-- **`build` 는 여기에 매달지 않는다.** 매달면 이 잡이 없는 평범한 CI 에서 빌드가 통째로
-  skip 된다. 나란히 도니 승인을 기다리는 동안 빌드가 미리 끝나 있게 된다.
-- **잡 조건이 `deploy` 가 아니라 `image` 다.** `deploy` 로 걸면 `stage=image` 수동 실행에서
-  이 잡이 skip 되고 `image` 까지 연쇄로 죽는다. 반대로 조건을 아예 안 걸면 평범한 푸시·PR 도
-  관문에서 승인을 기다리게 된다.
+- **시크릿이 없는 빈 환경이다.** 잡은 environment 를 하나만 가질 수 있는데, 실제 배포
+  잡은 SSH 키·Cloudflare 토큰이 있는 `develop` 을 써야 한다. 관문을 거기 걸면 시크릿을
+  복제해야 하고 두 벌이 어긋날 자리가 생긴다. 관문만 따로 떼면 그 문제가 사라진다.
+- **승인은 (실행 × 환경) 단위로 기억된다.** `be-deploy-develop.yml`·`fe-deploy-develop.yml`
+  도 같은 환경으로 관문을 하나씩 갖지만, 같은 실행 안에서는 **클릭이 한 번이다.**
+- **이미지 굽기 앞에 둔다.** 뒤에 두면 승인하지 않을 것을 굽게 된다.
+- **`#deploy` 마커를 없애지 않은 이유.** 관문과 역할이 겹쳐 보이지만, 마커를 빼면 매
+  푸시마다 승인 대기 중인 노란 실행이 쌓인다(30일 매달린다). 마커는 "이건 배포할
+  커밋이다" 는 표시이고, 관문은 "지금 나가도 되나" 의 최종 확인이다.
+
+> **지금은 승인자가 설정돼 있지 않다.** 환경만 만들어 두고 보호 규칙은 비워 뒀으므로
+> 관문이 그냥 통과한다. 켜려면 Settings → Environments → `develop-deploy` →
+> Required reviewers. environment 승인은 PR 리뷰와 달리 **자기가 자기 걸 승인할 수 있다.**
 
 ### 채널로 내보내는 것
 
@@ -125,10 +155,11 @@ plan ─┬─ first_notify ─┐
 마지막 줄이 CI 의 추측이 아니라 **앱 본인의 말**(버전·sha 포함)이 된다.
 
 ```
-be.yml deploy → SLACK_DEPLOY_THREAD_TIMESTAMP
-  → ci-deploy.sh 가 `docker compose up` 앞에 붙임 (서버 .env 에는 안 남긴다)
-    → compose 의 api 서비스 environment (batch·migrate 는 제외)
-      → config.<환경>.yaml 의 slack.deployThreadTimestamp
+main.yml first_notify → ts
+  → be-deploy-develop.yml 의 slack_thread 입력
+    → stage/app-start.sh 가 `docker compose up` 앞에 붙임 (서버 .env 에는 안 남긴다)
+      → compose 의 api 서비스 environment (batch·migrate 는 제외)
+        → config.<환경>.yaml 의 slack.deployThreadTimestamp
 ```
 
 **값은 컨테이너에 구워진다.** 재부팅이나 크래시 재시작에서도 살아남으므로, 사흘 뒤에 그냥
@@ -194,18 +225,32 @@ Dockerfile 의 `--target with-build`(도커 안에서 빌드)는 남겨 뒀다. 
 
 ## 마이그레이션
 
-**배포가 항상 앞세운다.** 옛 스키마 위에서는 새 코드가 뜨지도 못하므로 순서가 정해져 있고,
-실패하면 배포하지 않는다 — 반쯤 간 상태를 만들 이유가 없다.
+**앱을 멈춘 채로 돌린다.** 스키마를 바꾸는 동안 옛 코드가 새 스키마 위에서 돌면 깨진다 —
+컬럼을 지우거나 이름을 바꾸는 변경이 특히 그렇다.
 
-```bash
-scripts/deploy/deploy.sh develop                  # 마이그레이션 먼저 → 배포
-scripts/deploy/deploy.sh develop --skip-migrate   # 이미 돌렸거나 스키마 변경이 없을 때
-scripts/deploy/migrate.sh develop                 # 스키마만 먼저 올려볼 때
+```
+config-upload  →  docker-image-pull  →  app-stop  ┐
+                                        db-migrate │ 다운타임
+                                        app-start  ┘
 ```
 
-**마이그레이션은 필요한 것을 스스로 갖춘다.** compose 와 env 를 직접 올린 뒤 컨테이너를
-띄운다 — 배포가 날라 주기를 기다리면 첫 배포에서 순서가 꼬인다(마이그레이션이 먼저 도는데
-그 파일을 만드는 것이 배포다). 그래서 **첫 배포에도 예외 절차가 없다.**
+이미지를 **앱이 살아 있는 동안** 받는 이유가 이것이다 — 받는 시간만큼 다운타임이 짧아진다.
+
+> **develop 은 공용 서버라 다운타임을 감수한다.** 무중단이 필요해지면 스키마 변경을
+> 하위호환으로만 하는(expand-contract) 규율로 바꾸고 `app-stop` 을 뺀다. 지금은 그 규율이
+> 없으므로 멈추는 쪽이 안전하다.
+
+**실패해도 앱은 다시 띄운다.** `app-start` 가 `always()` 라, 마이그레이션이 깨져도 서버가
+내려간 채로 남지 않는다 — 공용 서버가 죽어 있으면 다른 사람들이 전부 막힌다. 대신 잡은
+빨간불로 끝나고 "새 코드가 옛 스키마 위에 있다" 고 알린다.
+
+```bash
+scripts/deploy/deploy-develop.sh                  # 전체
+scripts/deploy/deploy-develop.sh --skip-migrate   # 이미 돌렸거나 스키마 변경이 없을 때
+scripts/deploy/deploy-develop.sh --config-only    # 설정만 (이미지·스키마 건너뜀)
+
+APP_ENV=develop scripts/deploy/stage/db-migrate.sh   # 스키마만 따로
+```
 
 `migrate deploy` 는 적용할 것이 없으면 그냥 통과하므로(멱등) 매번 돌려도 무해하다.
 
@@ -262,14 +307,15 @@ git push
 `#be-deploy` 도 같다 — 백엔드만 올리고 싶을 때 쓴다.
 
 ```
-be
-├─ verify · build  ✅
-├─ image           ✅
-├─ migrate         ✅
-└─ deploy          ✅
+main
+├─ fe_build · be_build   ✅
+├─ gate                  ✅  승인 (지금은 규칙이 없어 그냥 통과)
+├─ docker-image-push     ✅
+├─ be_deploy             ✅
+└─ fe_deploy             ✅
 ```
 
-마커가 없으면 `verify · build` 만 초록이고 나머지는 회색으로 남는다.
+마커가 없으면 빌드까지만 초록이고 나머지는 회색으로 남는다.
 나중에 올리고 싶으면 수동 실행(`stage=deploy`)이 그때 굽고 배포까지 간다.
 
 **opt-out 이 아니라 opt-in 이다.** develop 은 같이 쓰는 서버라, 협업하려고 아직 완성되지
@@ -280,12 +326,21 @@ be
 ### 수동
 
 ```
-Actions → be → Run workflow
+Actions → main - develop 배포 → Run workflow
   Use workflow from:  main
-  stage:              deploy      ← 굽고 올린다 (image = 굽기만)
+  stage:              deploy      ← 굽고 올린다 (verify = 검사만)
 ```
 
-**환경을 고르는 자리가 없다.** `be` 에는 production 으로 가는 길이 아예 없어서, 잘못 골라
+설정만 바꿨거나 재기동만 하고 싶으면 배포 워크플로를 직접 돌린다. **빌드도 이미지도 없이
+1분 안쪽으로 끝난다** — 설정은 이미지에 안 들어가고 compose 가 마운트하기 때문이다.
+
+```
+Actions → be - deploy - develop → Run workflow
+  config_only:   ✔   (기본)
+  skip_migrate:  ✔   (기본)
+```
+
+**환경을 고르는 자리가 없다.** 둘 다 production 으로 가는 길이 아예 없어서, 잘못 골라
 운영이 나가는 실수가 성립하지 않는다 — 주의로 막을 수 있는 종류가 아니라 설계로 막았다.
 
 **고른 ref 를 그 자리에서 빌드한다.** production 처럼 미리 구운 이미지를 당기는 것이
@@ -297,10 +352,10 @@ Actions → be → Run workflow
 > **그럼 지금 뭐가 떠 있나.** 태그로는 알 수 없고 앱이 답한다 —
 > 산출물에 `dist/build-info.json` 이 들어 있어 sha·branch 를 갖고 있다.
 
-로컬도 같다.
+로컬도 같다. **CI 와 같은 스크립트를 같은 순서로 지나간다.**
 
 ```bash
-scripts/deploy/deploy.sh develop
+scripts/deploy/deploy-develop.sh
 ```
 
 ---
@@ -437,13 +492,52 @@ gh auth refresh -h github.com -s write:packages
 
 ## 배포가 실제로 하는 일
 
+**단계마다 스크립트가 하나다.** 이름만 읽어도 지금 서버를 건드리는 중인지 알 수 있다.
+
 ```
-연결 확인          WireGuard(CI 만) · SSH
-compose 전송       infra/<환경>/docker-compose.yml
-설정 · 시크릿      .enc 를 배포하는 쪽에서 풀어 서버로. yaml 도 같이
-GHCR 로그인        배포 직전에만. 끝나면 지운다
-pull · up          .env 에 IMAGE_TAG 를 쓰고 compose 가 당겨 띄운다
+wireguard.sh up          터널. **인프라지 배포 절차가 아니다** — 로컬은 안 부른다
+stage/
+  ssh-connect.sh         키·known_hosts → ssh_config 한 장. 이후 전부 -F 로 그것만 본다
+  config-bundle.sh       .enc 를 풀어 번들로. **서버를 건드리지 않는다**
+  config-upload.sh       전송 · 원자적 교체 · .env 생성(uid 는 서버가 답한다)
+  docker-image-pull.sh   GHCR 로그인 → pull → 로그아웃. 앱은 아직 살아 있다
+  app-stop.sh            api·batch 만. redis 는 남긴다
+  db-migrate.sh
+  app-start.sh           --force-recreate
+  secret-cleanup.sh      평문·키 삭제
+wireguard.sh down
 ```
+
+각 단계는 **혼자 돌 수 있다.** 앞 단계가 `.deploy-work/<환경>/` 에 남긴 것을 읽고, 자기
+몫만 하고, 다음을 위해 남긴다.
+
+```bash
+APP_ENV=develop scripts/deploy/stage/config-bundle.sh   # 뭐가 나갈지만 확인. VPN 없이
+ls -R .deploy-work/develop/bundle
+
+APP_ENV=develop scripts/deploy/stage/app-start.sh       # 재기동만
+```
+
+> **평문이 디스크에 남는다.** 예전에는 한 스크립트가 `mktemp -d` 로 잡고 트랩으로 지웠지만,
+> 단계를 나누면 그럴 수 없다 — 다음 단계가 그것을 읽어야 하기 때문이다. 그래서 지우는 것이
+> `secret-cleanup.sh` 의 명시적인 일이 되었고 CI 는 `always()` 로 부른다.
+> **개별 단계만 돌렸다면 직접 불러야 한다.**
+
+### `--force-recreate` 가 반드시 필요하다
+
+compose 는 **서비스 정의가 바뀌어야** 컨테이너를 다시 만든다. 그런데 앱 설정은 bind mount
+라 경로가 그대로다.
+
+```
+./config/config.develop.yaml:/app/config/config.yaml:ro
+```
+
+파일 내용을 갈아끼워도 정의는 그대로라 컨테이너가 재생성되지 않고, 앱은 부팅 때 읽어둔
+옛 설정을 계속 들고 돈다 — **파일은 바뀌었는데 동작은 안 바뀌는** 제일 헷갈리는 실패다.
+
+지금까지 안 터진 것은 우연에 가깝다. `api` 만 `SLACK_DEPLOY_THREAD_TIMESTAMP` 를
+environment 로 받는데 그 값이 배포마다 달라서 매번 재생성됐다. 그런데 그건 `x-common` 이
+아니라 `api` 에만 있어서 **`batch` 는 해당이 없다.**
 
 서버에는 이렇게 남는다.
 

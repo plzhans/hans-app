@@ -46,3 +46,7 @@ backend/.deploy/
 
 # db-sync.sh 백업 (실데이터)
 backend/backups/
+
+# 배포 단계들이 주고받는 작업 공간. **복호화된 시크릿과 SSH 키가 들어간다.**
+# stage/secret-cleanup.sh 가 지우지만, 개별 단계만 돌렸다면 남아 있을 수 있다.
+.deploy-work/
