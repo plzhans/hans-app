@@ -20,8 +20,16 @@ import {
   type HospitalListRow,
   type HospitalDetailModel,
 } from './healthcare-hospital.repository';
-import { HealthcareHospitalSearchRepository } from './healthcare-hospital-search.repository';
-import { HealthcareCodeCache, codeName } from './healthcare-code.cache';
+import {
+  HealthcareHospitalSearchRepository,
+  type HospitalNearbyRow,
+  type HospitalNearbyRows,
+} from './healthcare-hospital-search.repository';
+import {
+  HealthcareCodeCache,
+  codeName,
+  type CodeEntry,
+} from './healthcare-code.cache';
 import {
   HiraAsmCodeCache,
   asmGroupName,
@@ -40,6 +48,9 @@ import {
   HospitalAssessmentItem,
   HospitalDetail,
   HospitalFilterCommand,
+  HospitalMatchedSubject,
+  HospitalNearbyCommand,
+  HospitalNearbyResult,
   HospitalScrollCommand,
   HospitalScrollResult,
   HospitalSearchCommand,
@@ -178,6 +189,98 @@ export class HealthcareHospitalService {
       items: rows.map((row) => this.toSummary(this.listRowToSource(row), lang)),
       nextToken,
     };
+  }
+
+  /**
+   * 근처의 유사한 병원. 상세 화면 하단 "이 병원 말고 근처 다른 곳" 섹션용이다.
+   *
+   * **유사도의 정의는 "대신 갈 수 있는가" 다.** 그래서 진료과목 겹침이 가장 크고, 거리는
+   * 순위 결정자가 아니라 가중치로 들어간다 — 바로 옆 치과가 1km 밖 같은 정형외과를 이기면 안 된다.
+   * 점수 조립은 ES 저장소가 하고(NEARBY_WEIGHT), 여기서는 코드에 이름을 붙이는 일만 한다.
+   *
+   * **반경은 기준 병원의 등급이 정한다**(저장소의 NEARBY_TIER_POLICY). 의원은 걸어갈 곳을
+   * 찾는 자리라 1km, 상급종합은 권역에서 찾는 자리라 80km 다 — 전국에 47곳뿐이라 그보다
+   * 좁게 잡으면 서로를 아예 못 찾는다. command.radius 가 오면 그 값이 이긴다.
+   *
+   * **결과는 캐싱한다.** 색인은 배치가 다시 만들 때만 바뀌는데 상세를 열 때마다 ES 를 두 번
+   * 치기 때문이다. 담는 건 저장소 행(코드값)이라, 코드표 번역을 고치면 캐시를 비우지 않아도
+   * 다음 조회에 바로 반영된다 — 상세 캐시(base/i18n 분리)와 같은 태도다.
+   *
+   * 없는 병원이면 null(호출자가 404 로 옮긴다). 좌표가 없거나 반경 안에 후보가 없으면 빈 items 다.
+   */
+  async nearby(
+    command: HospitalNearbyCommand,
+    lang: SupportedLang = FALLBACK_LANG,
+  ): Promise<HospitalNearbyResult | null> {
+    const key = this.nearbyKey(command, lang);
+
+    let found: HospitalNearbyRows | undefined;
+    try {
+      found = await this.cache.get<HospitalNearbyRows>(key);
+    } catch {
+      // 캐시 조회 실패는 무시하고 ES 로 진행한다.
+    }
+
+    if (found === undefined) {
+      const fetched = await this.searchRepo.findNearby(
+        command.id,
+        { radius: command.radius, size: command.size },
+        lang,
+      );
+      // 없는 병원은 캐싱하지 않는다(상세 캐시와 같은 규칙).
+      if (fetched === null) {
+        return null;
+      }
+      found = fetched;
+      await this.trySet(key, found);
+    }
+
+    return {
+      radius: found.radius,
+      items: found.rows.map((row) => ({
+        // 요약 매핑은 검색·스크롤과 같은 한 벌을 쓴다(행 모양을 맞춰둔 이유다).
+        ...this.toSummary(this.listRowToSource(row), lang),
+        distance: row.distance_m,
+        matchedSubjects: this.buildMatchedSubjects(row, lang),
+      })),
+    };
+  }
+
+  /**
+   * 근처 병원 캐시 키.
+   *
+   * **반경·개수·언어가 다 키에 들어간다** — 셋 중 하나만 달라도 결과가 다르다. 반경은 안 왔을 때
+   * 서버가 등급으로 정하므로 그때는 auto 로 적는다(등급은 병원 id 가 이미 결정한다).
+   * 언어가 키에 있는 이유는 저장하는 행에 **병원 이름 번역**이 박혀 있어서다(코드표 이름은 안 박힌다).
+   *
+   * {id} 를 해시태그로 감싸 상세 캐시와 같은 슬롯에 묶는다.
+   */
+  private nearbyKey(
+    command: HospitalNearbyCommand,
+    lang: SupportedLang,
+  ): string {
+    const radius = command.radius ?? 'auto';
+    return `${CachePrefix.hospital}:{${command.id}}:nearby:${radius}:${command.size}:${lang}`;
+  }
+
+  /**
+   * 겹친 과목 코드에 이름을 붙인다. **코드표에 없는 코드는 버리고 코드표 sort 순으로 낸다** —
+   * 상세의 buildSubjects 와 같은 규칙이라, 같은 병원의 과목 순서가 화면마다 달라지지 않는다.
+   */
+  private buildMatchedSubjects(
+    row: HospitalNearbyRow,
+    lang: SupportedLang,
+  ): HospitalMatchedSubject[] {
+    const specialists = new Set(row.matched_specialist_cds);
+    return row.matched_subject_cds
+      .map((cd) => this.codes.get('subject', cd))
+      .filter((entry): entry is CodeEntry => entry !== undefined)
+      .sort((a, b) => a.sort - b.sort)
+      .map((entry) => ({
+        code: entry.code,
+        name: codeName(entry, lang),
+        specialist: specialists.has(entry.code),
+      }));
   }
 
   /**

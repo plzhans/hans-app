@@ -30,6 +30,8 @@ import { ApiScrollResponse } from '../common/dto/api-scroll-response.decorator';
 import { ScrollResponseDto } from '../common/dto/scroll.response.dto';
 import {
   HospitalDetailDto,
+  HospitalNearbyRequestDto,
+  HospitalNearbyResponseDto,
   HospitalScrollRequestDto,
   HospitalSearchRequestDto,
   HospitalSummaryDto,
@@ -150,6 +152,39 @@ export class HealthcareHospitalController {
       throw new NotFoundException(`Hospital not found: ${id}`);
     }
     return hospital;
+  }
+
+  @Get(':id/nearby')
+  @Header('Cache-Control', DETAIL_CACHE_CONTROL)
+  @ApiOperation({
+    summary: '근처의 유사한 병원',
+    description:
+      '이 병원 **대신 갈 만한** 근처 병원을 찾는다. 상세 화면 하단 섹션용이다.\n\n' +
+      '**단순히 가까운 순이 아니다.** 진료과목이 겹치는지를 가장 크게 보고, ' +
+      '전문병원 지정분야·종별·응급실 운영 여부로 보정한 뒤, 거리를 가중치로 곱해 정렬한다. ' +
+      '바로 옆 치과가 1km 밖 같은 정형외과를 이기지 않는다는 뜻이다.\n\n' +
+      '**왜 유사한지는 matchedSubjects 로 돌려준다** — 겹친 과목을 그대로 실어 주므로 ' +
+      '"정형외과·재활의학과" 같은 배지를 달 수 있다.\n\n' +
+      '요양병원·정신병원은 기본적으로 빠지지만, **기준 병원이 그 계열이면 같은 계열만** 찾는다 ' +
+      '— 요양병원 보는 사람에게 근처 의원은 대체재가 아니다.\n\n' +
+      '결과가 비어도 정상이다(좌표가 없는 병원이거나 반경 안에 후보가 없다). ' +
+      '병원 자체가 없을 때만 404 다.',
+  })
+  @ApiParam({ name: 'id', description: '기준이 될 통합 병원 id' })
+  @ApiOkResponse({ type: HospitalNearbyResponseDto })
+  async nearby(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() request: HospitalNearbyRequestDto,
+    @Lang() lang: SupportedLang,
+  ): Promise<HospitalNearbyResponseDto> {
+    const result = await this.service.nearby(
+      { id, radius: request.radius, size: request.size },
+      lang,
+    );
+    if (!result) {
+      throw new NotFoundException(`Hospital not found: ${id}`);
+    }
+    return result;
   }
 
   @Get(':id/hira-npay')

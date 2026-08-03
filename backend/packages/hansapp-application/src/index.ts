@@ -7,6 +7,14 @@ export {
   MAX_PAGE_SIZE,
 } from './common/pagination.constants';
 
+export {
+  MIN_NEARBY_RADIUS,
+  MAX_NEARBY_RADIUS,
+  DEFAULT_NEARBY_SIZE,
+  MIN_NEARBY_SIZE,
+  MAX_NEARBY_SIZE,
+} from './healthcare/hospital-nearby.constants';
+
 export type { MirrorListCommand } from './common/mirror.result';
 
 // 원본 API 는 같은 필드를 문자열/숫자로 섞어서 준다. 값을 쓰기 전에 반드시 통과시킨다.
@@ -63,6 +71,10 @@ export type {
   HospitalSearchCommand,
   HospitalScrollCommand,
   HospitalScrollResult,
+  HospitalNearbyCommand,
+  HospitalNearbyResult,
+  HospitalNearby,
+  HospitalMatchedSubject,
   HospitalSubject,
   HospitalHours,
   HospitalStaff,
