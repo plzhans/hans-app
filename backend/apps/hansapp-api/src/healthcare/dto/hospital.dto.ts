@@ -722,6 +722,26 @@ export class TransportDto {
 }
 
 export class HospitalDetailDto extends HospitalSummaryDto {
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      '법인격 + 법인명. `name` 은 원본에서 이 표기를 뗀 값이다. ' +
+      '어느 재단·학원 소속인지는 대학병원 계열을 알아보는 단서라 버리지 않고 따로 준다. ' +
+      '**법인 표기가 없으면 필드 자체가 없다**(전체의 98.8%).',
+    example: '의료법인 일맥의료재단',
+  })
+  readonly corpName?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      '원문 이름(원본이 준 그대로). **`name` 과 다를 때만 온다.** ' +
+      '`corpName` + `name` 이면 같은 내용이라 셋 다 표시하면 같은 글자가 두 번 나온다 — ' +
+      '화면용이 아니라 서류·간판 표기가 필요하거나 원문과 대조할 때 쓰는 값이다.',
+    example: '(의)일맥의료재단 강동더서울의원',
+  })
+  readonly legalName?: string;
+
   @ApiProperty({ type: SourcesDto })
   readonly sources!: SourcesDto;
 

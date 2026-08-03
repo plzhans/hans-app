@@ -86,6 +86,8 @@ export {
 export type { HiraStage } from './hira/hira-stage.service';
 
 export { HealthcareBuildService } from './healthcare/healthcare-build.service';
+export { HealthcareNameBuildService } from './healthcare/healthcare-name-build.service';
+export type { NameBuildResult } from './healthcare/healthcare-name-build.service';
 export { HealthcareDetailBuildService } from './healthcare/healthcare-detail-build.service';
 export type { DetailBuildResult } from './healthcare/healthcare-detail-build.service';
 export type { BuildResult } from './healthcare/healthcare-build.service';

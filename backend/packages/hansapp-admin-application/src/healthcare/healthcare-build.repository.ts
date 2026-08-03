@@ -9,7 +9,11 @@ import type { BuiltHospital } from './healthcare-build.service';
 const FIELDS = [
   'hpid',
   'source',
+  // name 은 파생값(법인 표기를 뗀 것)이라 잠금 대상이다 — 규칙이 못 푸는 것을 사람이 고친다.
+  // legal_name 은 원문이라 잠그지 않는다. 원본이 바뀌면 따라가야 한다.
   'name',
+  'legal_name',
+  'corp_name',
   'addr',
   'tel',
   'homepage',
@@ -152,7 +156,9 @@ export class HealthcareBuildRepository {
       const values = Prisma.join(
         chunk.map(
           (r) => Prisma.sql`(
-            ${r.ykiho}, ${r.hpid}, ${r.source}, ${r.name}, ${r.addr}, ${r.tel}, ${r.homepage},
+            ${r.ykiho}, ${r.hpid}, ${r.source},
+            ${r.name}, ${r.legal_name}, ${r.corp_name},
+            ${r.addr}, ${r.tel}, ${r.homepage},
             ${r.class_cd}, ${r.tier}, ${r.region_cd}, ${r.emdong_nm}, ${r.post_no},
             ${r.lat}, ${r.lon}, ${r.estb_dd}, ${r.emergency_yn}, ${r.baby_yn},
             ${r.intro}, ${r.notice}, ${r.directions},
@@ -165,7 +171,7 @@ export class HealthcareBuildRepository {
 
       await this.prisma.$executeRaw(Prisma.sql`
         INSERT INTO healthcare_hospital
-          (ykiho, hpid, source, name, addr, tel, homepage,
+          (ykiho, hpid, source, name, legal_name, corp_name, addr, tel, homepage,
            class_cd, tier, region_cd, emdong_nm, post_no,
            lat, lon, estb_dd, emergency_yn, baby_yn,
            intro, notice, directions, park_qty, park_paid, park_note,

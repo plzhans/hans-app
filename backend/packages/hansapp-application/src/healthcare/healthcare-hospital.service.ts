@@ -427,7 +427,15 @@ export class HealthcareHospitalService {
 
       // 번역된 이름 옆에 붙일 한국어 원문. 번역이 실제로 있을 때만 온다.
       // 외국인이 영문 링크를 한국인에게 보냈을 때 언어를 안 바꿔도 알아보게 하려는 것이다.
+      //
+      // **짧은 이름(name) 기준이다.** 간판에는 법인명이 없으므로, 대조용으로 붙이는 값에
+      // 법인명이 들어가면 오히려 현실 세계와 안 맞는다.
       nameKo: annotateKo(row.name, i18n?.name ?? null),
+
+      // 법인명·원문은 **다를 때만** 내린다. 98.7% 는 법인 표기가 없어 두 필드가 다 빠진다.
+      // 프론트는 `{corpName && …}` 한 줄이면 된다 — nameKo 와 같은 규약이다.
+      corpName: row.corpName ?? undefined,
+      legalName: row.legalName === row.name ? undefined : row.legalName,
 
       sources: {
         ykiho: row.ykiho ?? undefined,

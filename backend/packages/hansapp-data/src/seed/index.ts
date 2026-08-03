@@ -13,6 +13,9 @@ export type { HiraCodeSeed, AsmScope } from './hira-code.seed';
 
 export { REGION_CODES } from './region-code.seed';
 export type { RegionCodeSeed } from './region-code.seed';
+
+export { splitHospitalName } from './hospital-name.seed';
+export type { HospitalNameParts } from './hospital-name.seed';
 export {
   SUBJECT_GROUPS,
   HOSPITAL_TIERS,

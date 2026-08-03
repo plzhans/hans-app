@@ -339,6 +339,29 @@ export interface HospitalDetail extends HospitalSummary {
    */
   nameKo?: string;
 
+  /**
+   * 법인격 + 법인명. "의료법인 일맥의료재단" · "학교법인 고려중앙학원"
+   *
+   * `name` 은 원본에서 법인 표기를 뗀 값이라 목록에 쓰기 좋지만, 떼어낸 것이 군더더기는
+   * 아니다 — 어느 재단·학원 소속인지는 대학병원 계열을 알아보는 단서다.
+   * 상세 헤더에서 병원 이름 위 작은 줄로 쓰라고 내린다.
+   *
+   * **법인 표기가 없으면 필드 자체가 없다**(전체의 98.8%).
+   */
+  corpName?: string;
+
+  /**
+   * 원문 이름. 원본(HIRA yadmNm · NMC dutyName)이 준 그대로다.
+   *
+   * **`name` 과 다를 때만 온다.** 같은 값을 두 번 내리면 응답만 부풀고, 클라이언트가
+   * "둘 중 뭘 보여줘야 하나" 를 매번 판단해야 한다 — nameKo 와 같은 규약이다.
+   *
+   * 화면에 그대로 쓰라는 값이 아니다. `corpName` + `name` 이면 같은 내용이 되므로
+   * 셋 다 보여주면 같은 글자가 두 번 나온다. 규칙이 이름을 잘못 갈랐을 때 대조하거나,
+   * 서류·간판 표기가 필요한 클라이언트를 위한 것이다.
+   */
+  legalName?: string;
+
   sources: HospitalSources;
   homepage?: string;
 

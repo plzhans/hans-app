@@ -27,6 +27,7 @@ import { HiraSpecialtySyncRepository } from './hira/hira-specialty-sync.reposito
 import { HiraSubjectSyncRepository } from './hira/hira-subject-sync.repository';
 import { HealthcareCodeSeedRepository } from './healthcare/healthcare-code-seed.repository';
 import { HealthcareBuildRepository } from './healthcare/healthcare-build.repository';
+import { HealthcareNameBuildRepository } from './healthcare/healthcare-name-build.repository';
 import { HealthcareDetailBuildRepository } from './healthcare/healthcare-detail-build.repository';
 import { HealthcareIndexRepository } from './healthcare/healthcare-index.repository';
 import { HealthcareIndexService } from './healthcare/healthcare-index.service';
@@ -52,6 +53,7 @@ import { NmcBasicSyncService } from './nmc/nmc-basic-sync.service';
 import { NmcStageService } from './nmc/nmc-stage.service';
 import { NmcSubjectSyncService } from './nmc/nmc-subject-sync.service';
 import { HealthcareBuildService } from './healthcare/healthcare-build.service';
+import { HealthcareNameBuildService } from './healthcare/healthcare-name-build.service';
 import { HealthcareDetailBuildService } from './healthcare/healthcare-detail-build.service';
 import { HealthcareCodeSeedService } from './healthcare/healthcare-code-seed.service';
 import { HiraNmcMatchService } from './match/hira-nmc-match.service';
@@ -109,6 +111,7 @@ export class AdminApplicationModule {
         HiraSubjectSyncRepository,
         HealthcareCodeSeedRepository,
         HealthcareBuildRepository,
+        HealthcareNameBuildRepository,
         HealthcareDetailBuildRepository,
         // ES 색인: DB 읽기(repo) + 오케스트레이션(service). ES 쓰기 프리미티브는 SearchModule 이 준다.
         HealthcareIndexRepository,
@@ -149,6 +152,7 @@ export class AdminApplicationModule {
         HealthcareCodeSeedService,
         HiraCodeSeedService,
         HealthcareBuildService,
+        HealthcareNameBuildService,
         HealthcareDetailBuildService,
       ],
       // SDK 클라이언트는 export 하지 않는다. 외부 API 호출은 이 계층 안에 가둔다.
@@ -171,6 +175,7 @@ export class AdminApplicationModule {
         HealthcareCodeSeedService,
         HiraCodeSeedService,
         HealthcareBuildService,
+        HealthcareNameBuildService,
         HealthcareDetailBuildService,
         // ES 색인 오케스트레이션. CLI(es hospital)가 호출한다.
         HealthcareIndexService,
