@@ -1166,9 +1166,13 @@ export default function HospitalDetailPage() {
                 {hospital.location.postNo}
               </span>
             )}
+            {/*
+              **주소만 낸다.** 예전엔 뒤에 병원 이름을 덧붙였는데, 바로 위 헤더에 이름이
+              큼직하게 있어서 같은 이름이 한 화면에 두 번 나왔다.
+              (복사 버튼은 이름을 붙인 채로 둔다 — 지도 앱에 붙여넣을 때 그게 잘 찾힌다.)
+            */}
             <p className="min-w-0 flex-1 break-keep text-sm text-slate-700">
-              {hospital.location.address}{' '}
-              <span className="text-slate-800">{hospital.name}</span>
+              {hospital.location.address}
             </p>
             {(() => {
               const copyText = `${hospital.location.address} ${hospital.name}`;
