@@ -176,7 +176,9 @@
       "title": "附近的相似医院",
       "hint": "在{{radius}}范围内，按诊疗科目重合程度排序。",
       "empty": "附近没有相似的医院。",
-      "within": "{{distance}}以内"
+      "within": "{{distance}}以内",
+      "showMap": "在地图上查看",
+      "hideMap": "关闭地图"
     },
     "assessment": {
       "title": "审评院 医院评价",

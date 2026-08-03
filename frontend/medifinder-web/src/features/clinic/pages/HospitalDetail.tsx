@@ -1233,8 +1233,20 @@ export default function HospitalDetailPage() {
         떠오르는 자리다.
 
         섹션 껍데기까지 저 컴포넌트가 그린다 — 조회가 실패하면 제목째로 사라져야 해서다.
+        origin 은 그 안 지도의 가운데가 된다(좌표가 없으면 안 넘겨 지도 버튼이 안 뜬다).
       */}
-      <NearbyHospitals id={id} />
+      <NearbyHospitals
+        id={id}
+        origin={
+          hospital.location?.lat != null && hospital.location?.lon != null
+            ? {
+                lat: hospital.location.lat,
+                lng: hospital.location.lon,
+                name: hospital.name,
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

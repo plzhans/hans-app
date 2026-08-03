@@ -2,12 +2,24 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, ChevronDown } from 'lucide-react';
 import { PlatformMap } from './PlatformMap';
-import { MAP_ADAPTERS, type PlatformAdapter, type PlatformId } from './mapAdapters';
+import {
+  MAP_ADAPTERS,
+  type MapPoint,
+  type PlatformAdapter,
+  type PlatformId,
+} from './mapAdapters';
 
 interface MapViewProps {
   lat: number;
   lng: number;
   name: string;
+  /**
+   * 함께 찍을 곁들임 지점(근처의 비슷한 병원). 회색 핀으로 그리고, 다 들어오게 확대율을 맞춘다.
+   *
+   * **위치 섹션의 지도는 이걸 넘기지 않는다.** 그 지도는 "여기가 어디냐" 에 답하는 자리라
+   * 다른 병원이 섞이면 정작 이 병원을 못 찾는다.
+   */
+  nearby?: MapPoint[];
 }
 
 /**
@@ -18,7 +30,7 @@ interface MapViewProps {
  * **고른 플랫폼만 렌더한다** — `key` 를 달아, 바꾸면 이전 지도가 언마운트되고 그때서야
  * 새 SDK 가 로드된다. 고르지 않은 플랫폼의 지도 API 를 미리 부를 이유가 없다.
  */
-export function MapView({ lat, lng, name }: MapViewProps) {
+export function MapView({ lat, lng, name, nearby }: MapViewProps) {
   const { t } = useTranslation();
 
   // 키가 설정된 플랫폼만 노출한다. 키 없는 탭은 "미설정" 안내 대신 아예 안 그린다.
@@ -71,7 +83,12 @@ export function MapView({ lat, lng, name }: MapViewProps) {
             const isActive = a.id === platform;
             return (
               <div key={a.id} className={isActive ? '' : 'hidden'}>
-                <PlatformMap adapter={a} point={point} visible={isActive} />
+                <PlatformMap
+                  adapter={a}
+                  point={point}
+                  visible={isActive}
+                  nearby={nearby}
+                />
               </div>
             );
           })}

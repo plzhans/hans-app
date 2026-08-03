@@ -176,7 +176,9 @@
       "title": "Similar hospitals nearby",
       "hint": "Within {{radius}}, ranked by overlapping medical departments.",
       "empty": "No similar hospitals nearby.",
-      "within": "within {{distance}}"
+      "within": "within {{distance}}",
+      "showMap": "View on map",
+      "hideMap": "Hide map"
     },
     "assessment": {
       "title": "HIRA Hospital Assessment",

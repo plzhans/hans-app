@@ -176,7 +176,9 @@
       "title": "近くの似た病院",
       "hint": "半径{{radius}}以内で、診療科目が重なる順に表示します。",
       "empty": "近くに似た病院がありません。",
-      "within": "{{distance}}以内"
+      "within": "{{distance}}以内",
+      "showMap": "地図で見る",
+      "hideMap": "地図を閉じる"
     },
     "assessment": {
       "title": "審査評価院 病院評価",

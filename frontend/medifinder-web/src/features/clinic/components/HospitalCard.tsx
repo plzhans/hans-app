@@ -31,6 +31,8 @@ import { cn } from '@/shared/lib/utils';
 export type HospitalCardVariant = 'search' | 'brief' | 'nearby';
 
 /**
+ * @param rank 목록에서 몇 번째인가. **지도의 번호 핀과 같은 숫자다** —
+ *   이게 없으면 지도의 ②가 어느 카드인지 알 방법이 없다. nearby 에서만 준다.
  * @param distance 기준 병원으로부터의 직선거리(m). nearby 에서만 준다.
  * @param matchedSubjects 기준 병원과 겹친 진료과목. distance 와 같은 자리에서만 준다 —
  *   **이 카드가 왜 거기 떠 있는지**를 설명하는 값이라, 근거 없이 목록에 뿌리면 의미가 없다.
@@ -38,11 +40,13 @@ export type HospitalCardVariant = 'search' | 'brief' | 'nearby';
 export function HospitalCard({
   hospital,
   variant = 'search',
+  rank,
   distance,
   matchedSubjects,
 }: {
   hospital: Hospital;
   variant?: HospitalCardVariant;
+  rank?: number;
   distance?: number;
   matchedSubjects?: MatchedSubject[];
 }) {
@@ -69,6 +73,15 @@ export function HospitalCard({
         "상급병원인데 응급실도 있다" 가 이름보다 먼저 읽혀야 "지금 갈 수 있나" 를 바로 판단한다.
       */}
       <div className="flex flex-wrap items-center gap-1.5">
+        {/*
+          순위 번호. **지도의 번호 핀과 같은 숫자**라, 지도에서 ②를 보고 어느 카드인지 찾는
+          유일한 단서다. 모양도 지도 핀과 맞춘다(진한 남색 원 + 흰 숫자).
+        */}
+        {rank !== undefined && (
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-bold tabular-nums text-white">
+            {rank}
+          </span>
+        )}
         {/*
           거리는 **배지 줄 맨 앞**이다. 근처 목록에서 가장 먼저 비교하는 값이라 제일 왼쪽에 둔다.
           윤곽선으로 그려 등급·전문병원 같은 채워진 배지와 구분한다 — 병원의 속성이 아니라

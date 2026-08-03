@@ -176,7 +176,9 @@
       "title": "근처의 비슷한 병원",
       "hint": "반경 {{radius}} 안에서 진료과목이 겹치는 순으로 보여줍니다.",
       "empty": "근처에 비슷한 병원이 없습니다.",
-      "within": "{{distance}} 이내"
+      "within": "{{distance}} 이내",
+      "showMap": "지도로 보기",
+      "hideMap": "지도 닫기"
     },
     "assessment": {
       "title": "심평원 병원평가",
