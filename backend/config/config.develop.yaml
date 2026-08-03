@@ -22,6 +22,10 @@ redis:
 # 검색 엔진 연결(시크릿 포함).
 elasticsearch:
   url: ${ELASTICSEARCH_URL}
+  # 인덱스 이름 접두사(develop-healthcare_hospital). 한 클러스터를 여러 환경이 나눠 쓰는
+  # 유일한 격리 단위다. **환경 이름과 분리**돼 있어 같은 develop 안에서도 접두사만 따로
+  # 돌릴 수 있다(새 매핑을 나란히 올려 비교할 때). 미설정이면 환경 이름을 쓴다.
+  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:-develop}
 
 # 서버 기동·종료 슬랙 알림. **셋 다 비면 알림만 꺼지고 서버는 정상으로 뜬다** — 부가 기능이라
 # 없다고 부팅을 막지 않는다.

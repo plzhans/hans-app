@@ -42,7 +42,7 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
     private readonly es: ElasticsearchService,
     @Inject(SEARCH_CONFIG) config: SearchConfig,
   ) {
-    this.alias = aliasOf(HEALTHCARE_HOSPITAL_ALIAS, config.env);
+    this.alias = aliasOf(HEALTHCARE_HOSPITAL_ALIAS, config.indexPrefix);
   }
 
   async searchScroll(

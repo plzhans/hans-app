@@ -13,6 +13,7 @@ redis:
 
 elasticsearch:
   url: ${ELASTICSEARCH_URL}
+  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:-production}
 
 # 서버 기동·종료 슬랙 알림. 비면 알림만 꺼지고 서버는 정상으로 뜬다.
 # botToken 이 있어야 종료 알림이 시작 알림의 스레드에 달린다(자세한 설명은 config.develop.yaml).
