@@ -109,5 +109,12 @@ export {
   buildSlackNotifyConfig,
 } from './notify/slack-notify.config';
 export type { SlackNotifyConfig } from './notify/slack-notify.config';
+
+/**
+ * 의존 인프라(MySQL·Redis·Elasticsearch) 접속 점검. 판정만 하고 결과를 돌려준다 —
+ * 서버는 리슨 전에 이걸 불러 하나라도 실패하면 부팅을 중단한다.
+ */
+export { HealthService } from './health/health.service';
+export type { HealthCheckResult } from './health/health.service';
 export { matchesAllowedIp, parseIp } from './env/ip-match';
 export type { ParsedIp } from './env/ip-match';

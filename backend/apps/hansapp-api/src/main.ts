@@ -17,7 +17,11 @@ import {
   isFirstPartyOrigin,
   normalizeRootDomain,
 } from '@hansapp/auth-application';
-import { SlackNotifyService, SwaggerAccessService } from '@hansapp/application';
+import {
+  HealthService,
+  SlackNotifyService,
+  SwaggerAccessService,
+} from '@hansapp/application';
 
 import { AppModule } from './app.module';
 import { appConfig } from './boot-config';
@@ -108,6 +112,39 @@ function readCertFile(configPath: string, value: string): Buffer {
     );
   }
   return readFileSync(resolved);
+}
+
+/**
+ * 의존 인프라 접속을 확인하고, **하나라도 실패하면 던져서 부팅을 중단한다.**
+ *
+ * 점검 자체(무엇을 어떻게 찔러 보는지)는 응용 계층(HealthService)이 하고, 여기서는
+ * **그 결과로 뜰지 말지를 정한다** — 서버는 다 붙어야 뜨지만 CLI 는 ES 가 죽어 있어도
+ * 돌아야 하는 것처럼, 무엇이 치명적인지는 실행 주체마다 다르기 때문이다.
+ *
+ * 실패해도 결과를 전부 찍는다. 첫 실패에서 멈추면 재시작을 세 번 해야 문제 세 개를 안다.
+ */
+async function verifyInfrastructure(
+  app: NestExpressApplication,
+  logger: Logger,
+): Promise<void> {
+  const results = await app.get(HealthService).checkAll();
+  for (const { name, status, reason } of results) {
+    const line = `${name}: ${status}${reason ? ` — ${reason}` : ''}`;
+    if (status === 'failed') {
+      logger.error(`❌ ${line}`);
+    } else if (status === 'skipped') {
+      logger.warn(`⚠️ ${line}`);
+    } else {
+      logger.log(`✅ ${line}`);
+    }
+  }
+
+  const failed = results.filter((r) => r.status === 'failed');
+  if (failed.length > 0) {
+    throw new Error(
+      `인프라 접속 실패: ${failed.map((r) => r.name).join(', ')}`,
+    );
+  }
 }
 
 async function bootstrap() {
@@ -248,6 +285,13 @@ async function bootstrap() {
   // 슬랙만 보고는 설정이 잘못됐는지 원래 그런지를 알 수 없다.
   const slackNotify = app.get(SlackNotifyService);
   logger.log(slackNotify.statusLine);
+
+  // 인프라(MySQL·Redis·ES)에 못 붙으면 **리슨 전에** 죽는다. 반쯤 죽은 채 뜨면 포트는
+  // 열려 있어 앞단은 정상으로 보고 요청마다 500 이 난다.
+  //
+  // **재시도하지 않는다.** 배포에서는 컨테이너가 재시작되며 인프라가 뜨기를 기다리므로
+  // 여기서 또 기다리면 같은 일을 두 겹으로 하는 것이다 — 죽는 게 곧 재시도다.
+  await verifyInfrastructure(app, logger);
 
   const port = appConfig.getNumberOrDefault('apps-api.web.port', 3000);
   await app.listen(port);

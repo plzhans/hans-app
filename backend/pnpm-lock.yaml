@@ -378,6 +378,9 @@ importers:
       '@prisma/client':
         specifier: ^6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@6.0.3))(typescript@6.0.3)
+      '@redis/client':
+        specifier: ^5.12.1
+        version: 5.12.1(@opentelemetry/api@1.9.1)
       cache-manager:
         specifier: ^7.2.9
         version: 7.2.9
