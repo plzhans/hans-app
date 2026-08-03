@@ -65,9 +65,10 @@ auth:
     secret: ${AUTH_JWT_SECRET}
     # access token 비대칭(ES256) 키 디렉터리. 없으면 HS256(secret) 폴백.
     keyDir: ${AUTH_JWT_KEY_DIR}
-    accessTokenExpiresIn: 1h
-    refreshTokenExpiresIn: 7d
-    authCodeExpiresIn: 5m
+    # 만료 3종. 기본값은 코드(auth.config.ts)에 있다 — 운영만 다르게 갈 때 살린다.
+    #accessTokenExpiresIn: 1h
+    #refreshTokenExpiresIn: 7d
+    #authCodeExpiresIn: 5m
   otp:
     codeLength: ${AUTH_OTP_CODE_LENGTH:-6}
     ttlSec: ${AUTH_OTP_TTL_SEC:-600}

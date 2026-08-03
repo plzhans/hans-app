@@ -93,12 +93,15 @@ auth:
     secret: ${AUTH_JWT_SECRET}
     # access token 비대칭(ES256) 서명 키 디렉터리. 키가 있으면 ES256, 없으면 HS256(secret) 폴백.
     keyDir: ${AUTH_JWT_KEY_DIR}
-    # access token 만료(짧게). 만료되면 refresh 로 재발급. 1h, 7d 등. 미설정이면 무제한.
-    accessTokenExpiresIn: 1h
+    # 만료 3종. **기본값이 코드(auth.config.ts)에 있어 주석으로 가려 둔다** —
+    # 이 환경만 다르게 가져갈 때 그 줄을 살린다. 값은 기간 문자열(1h·7d·5m).
+    #
+    # access token 만료(짧게). 만료되면 refresh 로 재발급.
+    #accessTokenExpiresIn: 1h
     # refresh token 만료(길게). 이 기간엔 재로그인 없이 세션이 유지된다.
-    refreshTokenExpiresIn: 7d
+    #refreshTokenExpiresIn: 7d
     # 인가코드(소셜/OAuth) 만료. 1회용이라 아주 짧게.
-    authCodeExpiresIn: 5m
+    #authCodeExpiresIn: 5m
   otp:
     # 이메일 인증코드 자릿수.
     codeLength: ${AUTH_OTP_CODE_LENGTH:-6}

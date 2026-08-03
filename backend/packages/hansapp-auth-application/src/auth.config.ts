@@ -211,9 +211,21 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     externalUrl,
     allowedIssuers: Object.freeze(allowedIssuers),
     // 만료는 기간 문자열(1h·7d·5m)로 선언되고 초로 변환된다.
-    accessTokenTtlSec: source.getDurationSec('auth.jwt.accessTokenExpiresIn'),
-    refreshTokenTtlSec: source.getDurationSec('auth.jwt.refreshTokenExpiresIn'),
-    authCodeTtlSec: source.getDurationSec('auth.jwt.authCodeExpiresIn'),
+    // **기본값은 여기가 원천이다** — yaml 에서는 주석으로 가려 두고, 환경마다 다르게
+    // 가져갈 때만 그 줄을 살린다. 예전엔 필수였는데, 그러면 yaml 에 한 줄만 빠져도
+    // 부팅이 죽었다(환경 yaml 은 서로 상속하지 않아 세 파일에 다 적어야 했다).
+    accessTokenTtlSec: source.getDurationSecOrDefault(
+      'auth.jwt.accessTokenExpiresIn',
+      60 * 60, // 1h
+    ),
+    refreshTokenTtlSec: source.getDurationSecOrDefault(
+      'auth.jwt.refreshTokenExpiresIn',
+      7 * 24 * 60 * 60, // 7d
+    ),
+    authCodeTtlSec: source.getDurationSecOrDefault(
+      'auth.jwt.authCodeExpiresIn',
+      5 * 60, // 5m
+    ),
     accessCache: Object.freeze({
       memoryTtlSec: source.getNumberOrDefault('cache.memoryTtlSec', 5 * 60),
       memoryMaxEntries: source.getNumberOrDefault(
