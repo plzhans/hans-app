@@ -172,6 +172,12 @@
     "showMap": "查看地图",
     "copyAddress": "复制地址",
     "map": "地图",
+    "nearby": {
+      "title": "附近的相似医院",
+      "hint": "在{{radius}}范围内，按诊疗科目重合程度排序。",
+      "empty": "附近没有相似的医院。",
+      "within": "{{distance}}以内"
+    },
     "assessment": {
       "title": "审评院 医院评价",
       "source": "健康保险审查评价院对医疗给付适当性的评价结果。1级为最佳。",

@@ -29,6 +29,7 @@ import {
   type MetroCity,
 } from '../lib/subwayLine';
 import { LineBadge } from '../components/LineBadge';
+import { NearbyHospitals } from '../components/NearbyHospitals';
 import { Section } from '../components/Section';
 import {
   HospitalHeader,
@@ -1216,6 +1217,20 @@ export default function HospitalDetailPage() {
         ) : null}
         </div>
       </Section>
+
+      {/*
+        근처의 비슷한 병원. **맨 아래이고, 탭에도 없다.**
+
+        위 섹션들은 전부 "이 병원이 어떤 곳인가" 에 답하는데 이건 성격이 다르다 —
+        "여기 말고 다른 데" 라, 상세를 다 읽고 결정이 안 섰을 때 비로소 쓸모가 생긴다.
+        탭에 올리면 그 판단 순서를 건너뛰게 만든다.
+
+        지도 바로 아래인 것도 같은 이유다. 위치를 확인한 직후가 "이 동네에 다른 데는?" 이
+        떠오르는 자리다.
+
+        섹션 껍데기까지 저 컴포넌트가 그린다 — 조회가 실패하면 제목째로 사라져야 해서다.
+      */}
+      <NearbyHospitals id={id} />
     </div>
   );
 }

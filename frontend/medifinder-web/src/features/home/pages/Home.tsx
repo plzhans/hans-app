@@ -200,7 +200,11 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
                 <HospitalCardSkeleton key={i} />
               ))
             : hospitals.map((hospital) => (
-                <HospitalCard key={hospital.id} hospital={hospital} compact />
+                <HospitalCard
+                  key={hospital.id}
+                  hospital={hospital}
+                  variant="brief"
+                />
               ))}
         </div>
       )}

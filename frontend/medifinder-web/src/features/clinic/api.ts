@@ -7,6 +7,7 @@ import {
   useHealthcareHospitalControllerSearch,
   healthcareHospitalControllerScroll,
   useHealthcareHospitalControllerGet,
+  useHealthcareHospitalControllerNearby,
   useHealthcareHospitalControllerNonPayments,
   getHealthcareHospitalControllerNonPaymentsQueryOptions,
   getHealthcareHospitalControllerNonPaymentsQueryKey,
@@ -32,6 +33,8 @@ import type {
   NonPaymentPriceDto,
   HospitalSummaryDto,
   HospitalDetailDto,
+  HospitalNearbyDto,
+  MatchedSubjectDto,
   MetaCodeDto,
   MetaSubjectDto,
   MetaHospitalTierDto,
@@ -177,6 +180,37 @@ export function useHospitalDetail(id: string | undefined) {
   return useHealthcareHospitalControllerGet(Number(id ?? 0), {
     query: { enabled: !!id },
   });
+}
+
+export type NearbyHospital = HospitalNearbyDto;
+export type MatchedSubject = MatchedSubjectDto;
+
+/** 상세 하단에 보여줄 개수. 훑어보는 자리라 다섯이면 충분하다. */
+export const NEARBY_SIZE = 5;
+
+/**
+ * GET /healthcare/hospitals/{id}/nearby — 근처의 비슷한 병원.
+ *
+ * **단순히 가까운 순이 아니다.** 서버가 진료과목 겹침을 가장 크게 보고 전문병원 분야·종별로
+ * 보정한 뒤 거리를 가중치로 곱해 정렬한다 — 바로 옆 치과가 1km 밖 같은 정형외과를 이기지 않는다.
+ * 그래서 화면은 받은 순서를 그대로 그린다. **다시 정렬하지 마라** — 순위의 근거가 사라진다.
+ *
+ * **상세(useHospitalDetail)와 별개 호출이다.** 상세 응답에 끼워 넣지 않은 이유는 이게 병원의
+ * 속성이 아니라 조회 맥락에서 계산된 값이라서고(반경이 바뀌면 결과가 바뀐다), 화면 맨 아래라
+ * 상세보다 늦게 도착해도 아무도 기다리지 않기 때문이다.
+ *
+ * **반경을 보내지 않는다.** 서버가 기준 병원의 등급을 보고 정한다 — 의원은 걸어갈 곳을 찾는
+ * 자리라 1km, 상급종합은 전국에 47곳뿐이라 80km 다. 화면이 그 표를 들고 있으면 서버와
+ * 어긋나는 순간을 못 잡으므로 판단을 넘긴다. 실제 적용값은 응답의 radius 로 온다.
+ *
+ * **items 를 벗기지 않는다** — radius 를 화면이 써야 해서다(다른 목록 훅과 다른 점).
+ */
+export function useHospitalNearby(id: string | undefined) {
+  return useHealthcareHospitalControllerNearby(
+    Number(id ?? 0),
+    { size: NEARBY_SIZE },
+    { query: { enabled: !!id } },
+  );
 }
 
 export type NonPayment = HospitalNonPaymentDto;
@@ -416,6 +450,35 @@ export function stationName(arrival?: string): string | undefined {
  */
 export function stationLabel(name: string, hasBadge: boolean): string {
   return hasBadge ? name.replace(/역$/, '') : name;
+}
+
+/**
+ * 미터를 사람이 읽는 거리로. 1km 미만은 미터, 그 이상은 소수 한 자리 km.
+ *
+ * **단위를 번역하지 않는다.** m·km 는 어느 언어에서나 그대로 읽히고, 숫자 옆에 붙는 기호라
+ * 번역 키로 만들면 "420 미터" 같은 어색한 띄어쓰기만 생긴다.
+ *
+ * 십 단위로 반올림하지 않는 이유는 같은 건물 병원이 0m 로 나오는 게 사실이기 때문이다 —
+ * 상가 하나에 의원이 여럿이면 좌표가 완전히 같다. 억지로 "10m" 로 만들면 그게 거짓말이 된다.
+ */
+export function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)}m`;
+  // 소수 한 자리로 자르되 끝의 0 은 뗀다 — "3.0km" 는 "3km" 보다 길기만 하고 더 정확하지도 않다.
+  return `${(meters / 1000).toFixed(1).replace(/\.0$/, '')}km`;
+}
+
+/**
+ * 거리를 **올려서 뭉갠다**("57m" → 100m, "705m" → 800m, "38.9km" → 39km).
+ *
+ * 직선거리를 미터 단위로 그대로 보여주면 없는 정확도를 주장하게 된다 — 실제로 걷는 길은
+ * 직선이 아니고, 같은 건물에 입주한 의원은 0m 로 나온다. "57m" 는 그럴듯해서 더 나쁘다.
+ *
+ * 0m 도 100m 로 올린다. "0m 이내" 는 말이 안 되고, 같은 건물이어도 층·출입구가 다르다.
+ * 단위가 커질수록 눈금도 키운다 — 39km 를 100m 단위로 끊어봐야 읽는 사람에게 의미가 없다.
+ */
+export function distanceCeiling(meters: number): number {
+  if (meters < 10000) return Math.max(100, Math.ceil(meters / 100) * 100);
+  return Math.ceil(meters / 1000) * 1000;
 }
 
 /** 헤더에 띄울 지하철역. 1km 이내(또는 도보 15분 이내)로 확인된 것만 쓴다. */

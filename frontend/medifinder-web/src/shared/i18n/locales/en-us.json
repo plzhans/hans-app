@@ -172,6 +172,12 @@
     "showMap": "Show map",
     "copyAddress": "Copy address",
     "map": "Map",
+    "nearby": {
+      "title": "Similar hospitals nearby",
+      "hint": "Within {{radius}}, ranked by overlapping medical departments.",
+      "empty": "No similar hospitals nearby.",
+      "within": "within {{distance}}"
+    },
     "assessment": {
       "title": "HIRA Hospital Assessment",
       "source": "Results from the Health Insurance Review & Assessment Service (HIRA). Grade 1 is the best.",
