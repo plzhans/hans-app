@@ -138,7 +138,17 @@ export class HealthcareBuildService {
     let skippedNonHospital = 0;
 
     // 1) HIRA 기준. 매칭된 NMC 가 있으면 합친다.
+    //
+    // 종별이 무시 대상이면(약국 등) 아예 만들지 않는다. 시드에서 매핑을 지우는 것만으로는
+    // 부족하다 — 매핑이 없으면 class_cd 가 NULL 인 채로 들어와 "기타" 처럼 남는다.
+    const ignoredClCd = new Set<string>(IGNORED_SOURCE_CODES.class.hira);
+
     for (const h of hira) {
+      if (h.clCd && ignoredClCd.has(h.clCd)) {
+        skippedNonHospital += 1;
+        continue;
+      }
+
       const hpid = linkedHpid.get(h.ykiho);
       const n = hpid ? nmcByHpid.get(hpid) : undefined;
 
