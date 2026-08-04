@@ -220,6 +220,11 @@ krdata:
   # HIRA(심평원) 상세 API 버전. 미설정이면 기본 버전을 쓴다.
   hiraDetailVersion: ${KRDATA_HIRA_DETAIL_VERSION}
 
+# 국토교통부(vworld). 3D 지도·항공사진. **vworld 서비스키는 공공데이터포털과 별개**.
+molit:
+  vworld:
+    serviceKey: ${KRGO_MOLIT_VWORLD_SERVICE_KEY}
+
 # 도로명주소(juso.go.kr).
 juso:
   # confmKey(시크릿).
