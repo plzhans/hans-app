@@ -185,8 +185,13 @@ export function useHospitalDetail(id: string | undefined) {
 export type NearbyHospital = HospitalNearbyDto;
 export type MatchedSubject = MatchedSubjectDto;
 
-/** 상세 하단에 보여줄 개수. 훑어보는 자리라 다섯이면 충분하다. */
-export const NEARBY_SIZE = 5;
+/**
+ * 상세 하단에 보여줄 개수.
+ *
+ * **여섯인 건 격자가 2열이라서다** — 640px 부터 두 칸으로 갈리는데 홀수면 마지막 줄에
+ * 빈칸이 남는다. 서버 기본값도 같은 이유로 6이지만, 화면이 정하는 값이라 여기서 명시한다.
+ */
+export const NEARBY_SIZE = 6;
 
 /**
  * GET /healthcare/hospitals/{id}/nearby — 근처의 비슷한 병원.

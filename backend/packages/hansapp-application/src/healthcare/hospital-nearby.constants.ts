@@ -85,8 +85,13 @@ export const MIN_NEARBY_RADIUS = 500;
  */
 export const MAX_NEARBY_RADIUS = 100000;
 
-/** 기본 개수. 상세 하단 섹션은 다섯 곳이면 충분하다. */
-export const DEFAULT_NEARBY_SIZE = 5;
+/**
+ * 기본 개수.
+ *
+ * **여섯인 건 화면이 2열이라서다** — 상세 하단 격자가 640px 부터 두 칸으로 갈리는데,
+ * 홀수면 마지막 줄에 빈칸이 남는다. 여섯이면 세 줄이 꽉 찬다.
+ */
+export const DEFAULT_NEARBY_SIZE = 6;
 
 export const MIN_NEARBY_SIZE = 1;
 
