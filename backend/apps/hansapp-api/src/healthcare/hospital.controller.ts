@@ -17,6 +17,8 @@ import {
 import {
   HealthcareHospitalService,
   HealthcareNonPaymentService,
+  type HospitalBbox,
+  type HospitalCoords,
 } from '@hansapp/application';
 
 import { Lang } from '../common/lang.decorator';
@@ -30,6 +32,7 @@ import { ApiScrollResponse } from '../common/dto/api-scroll-response.decorator';
 import { ScrollResponseDto } from '../common/dto/scroll.response.dto';
 import {
   HospitalDetailDto,
+  HospitalFilterRequestDto,
   HospitalNearbyRequestDto,
   HospitalNearbyResponseDto,
   HospitalScrollRequestDto,
@@ -87,6 +90,10 @@ export class HealthcareHospitalController {
         specialtyCds: csv(request.specialty),
         specialCds: csv(request.special),
         equipmentCds: csv(request.equipment),
+        // 지도 영역·정렬. 넷이 다 와야 사각형이고, 거리순은 lat/lon 이 있어야 성립한다.
+        bbox: bboxOf(request),
+        sort: request.sort,
+        origin: originOf(request),
       },
       lang,
     );
@@ -126,6 +133,10 @@ export class HealthcareHospitalController {
         specialtyCds: csv(request.specialty),
         specialCds: csv(request.special),
         equipmentCds: csv(request.equipment),
+        // 지도 영역·정렬. 넷이 다 와야 사각형이고, 거리순은 lat/lon 이 있어야 성립한다.
+        bbox: bboxOf(request),
+        sort: request.sort,
+        origin: originOf(request),
       },
       lang,
     );
@@ -238,6 +249,39 @@ export class HealthcareHospitalController {
     }
     return { result };
   }
+}
+
+/**
+ * 지도 영역 넷 → bbox. **하나라도 빠지면 undefined 다** — 세 변짜리 사각형은 없다.
+ * 뒤집혀 온 값(min > max)은 서로 바꿔 담는다. 지도를 어느 방향으로 끌었든 사각형은 같다.
+ */
+function bboxOf(request: HospitalFilterRequestDto): HospitalBbox | undefined {
+  const { minLat, minLon, maxLat, maxLon } = request;
+  if (
+    minLat === undefined ||
+    minLon === undefined ||
+    maxLat === undefined ||
+    maxLon === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    minLat: Math.min(minLat, maxLat),
+    minLon: Math.min(minLon, maxLon),
+    maxLat: Math.max(minLat, maxLat),
+    maxLon: Math.max(minLon, maxLon),
+  };
+}
+
+/**
+ * 거리 계산 기준점. **둘 다 와야 한다** — 위도만으로는 잴 수 없다.
+ * 하나만 온 경우 여기서 버리면, sort=distance 였을 때 서비스가 400 으로 막아 준다.
+ */
+function originOf(
+  request: HospitalFilterRequestDto,
+): HospitalCoords | undefined {
+  const { lat, lon } = request;
+  return lat !== undefined && lon !== undefined ? { lat, lon } : undefined;
 }
 
 /** 'A,B,C' → ['A','B','C']. 빈 값은 버린다 — 빈 문자열이 코드로 들어가면 아무것도 안 걸린다. */

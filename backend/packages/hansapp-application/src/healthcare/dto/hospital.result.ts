@@ -225,6 +225,14 @@ export interface HospitalSummary {
 
   /** 달빛어린이병원 */
   baby: boolean;
+
+  /**
+   * 기준 좌표로부터의 **직선거리**(m, 반올림). 도로 거리도 소요시간도 아니다.
+   *
+   * **거리순(sort=distance)으로 조회했을 때만 채워진다.** 기본 정렬에는 기준 좌표 자체가
+   * 없어서 잴 것이 없다 — 화면은 값이 없으면 거리 표시를 그리지 않으면 된다.
+   */
+  distance?: number;
 }
 
 /**
@@ -407,7 +415,57 @@ export interface HospitalDetail extends HospitalSummary {
  * 커서 방식만 다르므로 필터 필드를 여기 모아 두고, 각 명령이 자기 커서 필드를 얹어 확장한다.
  * buildFilter 는 이 타입만 받는다 — 두 경로가 필터 조립을 한 벌로 공유한다.
  */
+/** 좌표 한 점. */
+export interface HospitalCoords {
+  lat: number;
+  lon: number;
+}
+
+/**
+ * 지도 영역(경계 상자). "이 지역에서 검색" 이 보내는 값이다.
+ *
+ * **지역 코드 필터와 별개다.** 지도를 끌어 옮긴 자리에는 시군구 경계가 없다 — 화면에 보이는
+ * 사각형이 곧 조건이라 좌표로 받는다. 둘 다 오면 둘 다 걸린다(교집합).
+ */
+export interface HospitalBbox {
+  minLat: number;
+  minLon: number;
+  maxLat: number;
+  maxLon: number;
+}
+
+/**
+ * 정렬 기준.
+ *
+ * - `default` 서울 → 경기 → 부산 → 인천 → 나머지, 같은 시도 안에서는 id 순(키워드가 있으면 관련도 우선)
+ * - `distance` 기준 좌표에서 가까운 순. **origin 이 반드시 함께 온다.**
+ *
+ * **거리를 점수에 섞지 않는다.** 가까운 순은 정렬 축을 통째로 바꾸는 것이지 가점이 아니다 —
+ * 섞으면 왜 이 순서인지 설명할 수 없고, 가중치를 손볼 때마다 스크롤 중이던 커서가 어긋난다.
+ */
+export type HospitalSortBy = 'default' | 'distance';
+
 export interface HospitalFilterCommand {
+  /** 지도 영역. 있으면 그 사각형 안의 병원만 건다. */
+  bbox?: HospitalBbox;
+
+  /**
+   * 정렬 기준. 기본은 `default`.
+   *
+   * `distance` 인데 origin 이 없으면 서비스가 400 으로 막는다 — 조용히 기본 정렬로 돌리면
+   * 사용자는 "가까운 순" 을 눌렀는데 먼 병원이 위에 있는 화면을 보게 된다.
+   */
+  sort?: HospitalSortBy;
+
+  /**
+   * 거리 계산 기준점. `sort=distance` 일 때만 쓴다.
+   *
+   * **호출자가 1km 격자로 뭉개서 보낸다.** 사람마다 좌표가 미세하게 달라 캐시가 통째로
+   * 빗나가는 걸 막는 장치다(같은 동네면 같은 요청이 된다). 정확도 손해는 순위가 몇 칸
+   * 흔들리는 정도라 감수한다.
+   */
+  origin?: HospitalCoords;
+
   /**
    * 지역 코드. **시도·시군구 둘 다 받는다.**
    *

@@ -22,7 +22,10 @@ import type {
   HospitalSearchPage,
   HospitalSearchSource,
   HospitalSearchFilter,
+  HospitalSearchOrder,
 } from './healthcare-hospital.repository';
+import { DEFAULT_SEARCH_ORDER } from './healthcare-hospital.repository';
+import type { HospitalCoords } from './dto/hospital.result';
 import {
   DEFAULT_NEARBY_POLICY,
   NEARBY_TIER_FALLBACK,
@@ -117,6 +120,42 @@ const SEARCH_SORT: Sort = [
   { 'location.sido_rank': { order: 'asc', missing: '_last' } },
   { id: 'asc' },
 ];
+
+/**
+ * 거리순 정렬. **거리 → id** 두 키뿐이다.
+ *
+ * **_score 를 앞에 두지 않는다.** "가까운 순" 은 정렬 축을 통째로 바꾸겠다는 뜻이지 가점이
+ * 아니다 — 관련도를 앞에 두면 키워드가 있을 때 먼 병원이 위로 올라와 버튼 이름과 화면이
+ * 어긋난다. 키워드는 여전히 질의(must)에 남아 **거르는** 일은 그대로 한다.
+ *
+ * sort[0] 이 곧 거리(m)다 — 정렬키를 그대로 받아 쓰면 script_fields 없이 거리를 얻는다.
+ * 뒤의 id 는 동거리 동점을 갈라 search_after 커서를 안정시킨다(id 가 유일키다).
+ */
+function distanceSort(origin: HospitalCoords): Sort {
+  return [
+    { _geo_distance: { 'location.point': origin, order: 'asc', unit: 'm' } },
+    { id: 'asc' },
+  ];
+}
+
+/** 정렬 지시 → ES sort. 거리순만 다르고 나머지는 기본 정렬이다. */
+function sortOf(order: HospitalSearchOrder): Sort {
+  return order.by === 'distance' ? distanceSort(order.origin) : SEARCH_SORT;
+}
+
+/**
+ * 히트에서 거리(m)를 꺼낸다. **거리순일 때만 값이 있다** — 기본 정렬에는 기준 좌표가 없어
+ * 잴 것이 없다. distanceSort 의 sort[0] 이 미터 단위 거리다(unit:'m' 로 요청했다).
+ */
+function distanceOf(
+  order: HospitalSearchOrder,
+  sortValues: SortResults | undefined,
+): number | undefined {
+  if (order.by !== 'distance') return undefined;
+  const raw = Number(sortValues?.[0]);
+  // 좌표 없는 문서는 ES 가 무한대를 준다. 화면에 "Infinitym" 를 띄우느니 값이 없는 게 낫다.
+  return Number.isFinite(raw) ? Math.round(raw) : undefined;
+}
 
 /** 요약에 필요한 필드만 가져온다(상세는 별도 API). 본문 payload 를 줄인다. */
 const SEARCH_SOURCE_FIELDS = [
@@ -246,12 +285,13 @@ export class HealthcareHospitalSearchRepository
     lang: SupportedLang,
     page: number,
     size: number,
+    order: HospitalSearchOrder = DEFAULT_SEARCH_ORDER,
   ): Promise<HospitalSearchPage> {
     const res = await this.es.client.search<Partial<HealthcareHospitalDoc>>({
       index: this.alias,
       from: (page - 1) * size,
       size,
-      sort: SEARCH_SORT,
+      sort: sortOf(order),
       // 총건수를 정확히 센다. 스크롤은 이 값이 필요 없어 꺼 두지만(track_total_hits:false)
       // 여기서는 "N건" 과 페이지 수가 그 값에 걸려 있다.
       track_total_hits: true,
@@ -261,7 +301,10 @@ export class HealthcareHospitalSearchRepository
 
     const total = res.hits.total;
     return {
-      rows: res.hits.hits.map((hit) => hitToListRow(hit._source ?? {}, lang)),
+      rows: res.hits.hits.map((hit) => ({
+        ...hitToListRow(hit._source ?? {}, lang),
+        distance_m: distanceOf(order, hit.sort),
+      })),
       // track_total_hits:true 면 객체({value,relation})로 온다. 숫자로 오는 형태도 방어한다.
       total: typeof total === 'number' ? total : (total?.value ?? 0),
     };
@@ -272,6 +315,7 @@ export class HealthcareHospitalSearchRepository
     lang: SupportedLang,
     nextToken: string | undefined,
     size: number,
+    order: HospitalSearchOrder = DEFAULT_SEARCH_ORDER,
   ): Promise<HospitalScrollRows> {
     const searchAfter = decodeSearchAfter(nextToken);
 
@@ -279,7 +323,12 @@ export class HealthcareHospitalSearchRepository
       index: this.alias,
       // size+1 로 다음 페이지 유무를 판정한다(DB 경로와 같은 규칙).
       size: size + 1,
-      sort: SEARCH_SORT,
+      /*
+        **정렬을 바꾸면 커서가 깨진다.** nextToken 은 직전 sort 값 그대로라, 스크롤 도중
+        기본↔거리순을 바꾸면 ES 가 엉뚱한 자리에서 이어 준다. 화면은 정렬을 바꿀 때
+        nextToken 을 버리고 처음부터 받아야 한다(db 스위치와 같은 규칙이다).
+      */
+      sort: sortOf(order),
       search_after: searchAfter,
       track_total_hits: false,
       _source: SEARCH_SOURCE_FIELDS,
@@ -290,7 +339,10 @@ export class HealthcareHospitalSearchRepository
     const hasMore = hits.length > size;
     const page = hasMore ? hits.slice(0, size) : hits;
 
-    const rows = page.map((hit) => hitToListRow(hit._source ?? {}, lang));
+    const rows = page.map((hit) => ({
+      ...hitToListRow(hit._source ?? {}, lang),
+      distance_m: distanceOf(order, hit.sort),
+    }));
     const lastSort = page[page.length - 1]?.sort;
     return {
       rows,
@@ -672,6 +724,24 @@ export class HealthcareHospitalSearchRepository
       return must;
     }
 
+    if (filter.bbox) {
+      /*
+        지도 영역("이 지역에서 검색"). **지역 코드와 함께 오면 둘 다 걸린다**(교집합) —
+        지도를 옮긴 자리에는 시군구 경계가 없어서 화면의 사각형이 곧 조건이다.
+
+        좌표가 없는 병원은 자연히 빠진다(geo_bounding_box 가 필드 없는 문서를 안 잡는다).
+        지도에 찍히지도 않을 병원이라 목록에서 빠지는 게 맞다.
+      */
+      const { minLat, minLon, maxLat, maxLon } = filter.bbox;
+      must.push({
+        geo_bounding_box: {
+          'location.point': {
+            top_left: { lat: maxLat, lon: minLon },
+            bottom_right: { lat: minLat, lon: maxLon },
+          },
+        },
+      });
+    }
     if (filter.regionCds?.length) {
       // 서비스가 시도→시군구로 이미 편 목록. 시도 코드 자신은 region_cd 와 안 맞지만 하위가 다 걸린다.
       must.push({ terms: { 'location.region_cd': filter.regionCds } });
