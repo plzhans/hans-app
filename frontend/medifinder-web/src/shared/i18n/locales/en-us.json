@@ -62,7 +62,8 @@
       "blocked": "Location permission is blocked in your browser. Allow it from the lock icon in the address bar.",
       "timeout": "Locating is taking too long. Please try again.",
       "unavailable": "Couldn't get your location. Check that location services are on for this device.",
-      "notFound": "We couldn't match your location to a region. Please pick one manually."
+      "notFound": "We couldn't match your location to a region. Please pick one manually.",
+      "clear": "Clear {{name}}"
     }
   },
   "search": {

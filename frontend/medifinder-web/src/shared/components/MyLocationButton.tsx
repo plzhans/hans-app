@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import { Spinner } from '@/shared/ui/Spinner';
 import { cn } from '@/shared/lib/utils';
 import { useMyRegion } from '@/shared/hooks/useMyRegion';
@@ -21,6 +21,17 @@ interface MyLocationButtonProps {
   /** 지역을 알아냈을 때. 실패는 이 컴포넌트가 안내하므로 부모가 처리할 게 없다. */
   onResolved: (point: RegionPointDto) => void;
 
+  /**
+   * 이미 잡혀 있는 지역 이름("하남시"). 주면 **활성 상태**로 그리고 이 이름을 라벨로 쓴다.
+   *
+   * **결과를 보여줄 데가 없는 자리를 위한 것이다.** 상세검색은 시도·시군구 콤보박스가
+   * 채워지는 게 곧 피드백이라 필요 없지만, 홈 검색박스는 버튼 말고는 보여줄 곳이 없다.
+   */
+  selectedName?: string;
+
+  /** 활성 상태에서 눌렀을 때. 없으면 다시 위치를 잡는다. */
+  onClear?: () => void;
+
   /** 아이콘 옆에 "내 위치" 글자를 함께 보일지. 좁은 자리에서는 끈다. */
   showLabel?: boolean;
 
@@ -32,6 +43,8 @@ const MESSAGE_TIMEOUT_MS = 5000;
 
 export function MyLocationButton({
   onResolved,
+  selectedName,
+  onClear,
   showLabel = false,
   className,
 }: MyLocationButtonProps) {
@@ -66,37 +79,77 @@ export function MyLocationButton({
   }, [status, reason, t]);
 
   const label = t('common.myLocation.label');
-  const title = blocked ? t('common.myLocation.blocked') : label;
+  /** 지역이 잡혔고 해제 수단까지 있는 상태. 이때만 칩(✕ 포함)으로 그린다. */
+  const chip = Boolean(selectedName && onClear);
+
+  /** 칩·버튼 공통 껍데기. 둘이 같은 자리에 서므로 크기·모양을 한 벌로 맞춘다. */
+  const shell = cn(
+    'inline-flex shrink-0 items-center gap-1.5 rounded-lg border text-sm transition-colors',
+    // 기본형은 **Combobox 에 맞춘다** — 상세검색에서 시도·시군구 옆에 서기 때문이다.
+    // 히어로 검색박스(Input: h-11·rounded-xl)처럼 다른 자리는 className 으로 덮어쓴다.
+    'px-3 py-2',
+    className,
+  );
 
   return (
-    <div className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => void onClick()}
-        disabled={locating}
-        title={title}
-        aria-label={label}
-        className={cn(
-          'inline-flex shrink-0 items-center justify-center gap-1.5 bg-white transition-colors',
-          'hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60',
-          'focus:outline-none focus:ring-2 focus:ring-primary-500/30',
-          // 기본형은 **Combobox 에 맞춘다** — 상세검색에서 시도·시군구 옆에 서기 때문이다.
-          // 히어로 검색박스(Input: h-11·rounded-xl)처럼 다른 자리는 className 으로 덮어쓴다.
-          'rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600',
-          // 권한이 이미 막혀 있으면 눌러도 프롬프트가 안 뜬다. 흐리게 두어 미리 알린다.
-          blocked && 'text-slate-400',
-          className,
-        )}
-      >
-        {locating ? (
-          <Spinner className="h-4 w-4 border-2 border-slate-400" />
-        ) : (
-          <MapPin className="h-4 w-4" />
-        )}
-        {showLabel && (
-          <span>{locating ? t('common.myLocation.locating') : label}</span>
-        )}
-      </button>
+    <div className="relative inline-flex max-w-full">
+      {chip ? (
+        /*
+          잡힌 상태 — **필터 칩이다.** ✕ 를 눌러야 풀린다.
+
+          칩 몸통을 버튼으로 만들지 않는 이유는 두 가지다. 버튼 안에 버튼을 넣을 수 없고(HTML),
+          몸통을 눌렀을 때 "다시 잡기" 인지 "해제" 인지가 사용자에게 모호하다. 동작은 ✕ 하나뿐이다.
+        */
+        <span
+          className={cn(
+            shell,
+            'border-primary bg-primary-50 pr-1.5 font-medium text-primary',
+          )}
+        >
+          <MapPin className="h-4 w-4 shrink-0" />
+          {/*
+            지역명이 길 수 있다("전남광주통합특별시"). min-w-0 이 없으면 flex 항목이
+            콘텐츠 폭 밑으로 안 줄어 칩이 부모를 뚫고 나간다 — truncate 와 짝으로 둔다.
+          */}
+          <span className="min-w-0 truncate">{selectedName}</span>
+          <button
+            type="button"
+            onClick={onClear}
+            title={t('common.myLocation.clear', { name: selectedName })}
+            aria-label={t('common.myLocation.clear', { name: selectedName })}
+            className="-mr-0.5 shrink-0 rounded p-0.5 text-primary/70 transition-colors hover:bg-primary-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => void onClick()}
+          disabled={locating}
+          title={blocked ? t('common.myLocation.blocked') : label}
+          aria-label={label}
+          className={cn(
+            shell,
+            'justify-center bg-white text-slate-600',
+            'hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60',
+            'border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30',
+            // 권한이 이미 막혀 있으면 눌러도 프롬프트가 안 뜬다. 흐리게 두어 미리 알린다.
+            blocked && 'text-slate-400',
+          )}
+        >
+          {locating ? (
+            <Spinner className="h-4 w-4 shrink-0 border-2 border-slate-400" />
+          ) : (
+            <MapPin className="h-4 w-4 shrink-0" />
+          )}
+          {(showLabel || locating) && (
+            <span className="min-w-0 truncate">
+              {locating ? t('common.myLocation.locating') : label}
+            </span>
+          )}
+        </button>
+      )}
 
       {/*
         실패 안내. **자리를 차지하지 않게 띄운다** — 버튼이 검색 줄 안에 있어서 흐름에 끼워
