@@ -291,6 +291,99 @@ model HiraNpayCode {
   @@map("hira_npay_code")
 }
 
+/// 행정안전부 법정동코드. 출처: StanReginCd/getStanReginCdList (@krdata/mois)
+///
+/// **[주의] 테이블·컬럼 COMMENT 는 Prisma 가 관리하지 않는다.**
+/// 스키마에는 DB COMMENT 를 선언할 문법이 없어 마이그레이션 SQL 에 직접 적었다.
+/// 그 COMMENT 는 **DB 명세서의 설명 항목**이라 항목명 수준으로 짧게 유지한다 —
+/// 배경·판단 근거는 여기 `///` 주석이 맡는다. 컬럼을 바꾸는 마이그레이션을 쓸 때
+/// COMMENT 를 같이 적지 않으면 조용히 날아간다.
+///
+/// **위경도는 없다.** 원본 API 가 좌표를 주지 않는다 — 필드 13개에 좌표 후보가 하나도 없다
+/// (2026-08 전량 확인). 지역 중심좌표가 필요하면 별도 출처를 붙여야 한다.
+///
+/// **다른 미러와 성격이 다르다. 이건 지역의 원천이다.**
+/// HIRA·NMC 는 지역을 자기 방식으로 준다(코드 vs 이름). 그 둘을 우리 코드(region_code)로
+/// 옮기려면 기준이 되는 정본이 있어야 하고, 그게 법정동코드다. 그래서 배치가 **가장 먼저** 돈다.
+///
+/// [한 테이블이다]
+/// 시도·시군구·읍면동을 나누지 않는다. 전량 20,560행 2MB 라 통째로 버퍼풀에 올라가고,
+/// level 인덱스로 뽑는 비용이 측정 한계 아래다. 나누면 같은 사실이 3곳에 중복돼
+/// 동기화가 갈라진다 — 세종처럼 레벨이 어긋나는 행이 실제로 있어 예외 처리만 늘어난다.
+///
+/// [전량을 매번 다시 받는다]
+/// 상한 1,000건 × 21콜이면 전량이다(개발계정 한도 10,000의 0.2%). 원본에 변경분만 주는
+/// 파라미터도 없다. 증분을 설계할 이유가 없다.
+model MoisRegionCode {
+  /// 지역코드 10자리 = 시도(2) + 시군구(3) + 읍면동(3) + 리(2).
+  /// 하위 자리가 0 이면 그 단계 자체를 가리킨다 — 1100000000 서울특별시, 1171000000 송파구.
+  /// 전량 20,560건에 중복이 없어 PK 로 쓴다. (2026-08 실측)
+  regionCd String @id @map("region_cd") @db.VarChar(10)
+
+  sidoCd String @map("sido_cd") @db.VarChar(2)
+  sggCd  String @map("sgg_cd") @db.VarChar(3)
+  umdCd  String @map("umd_cd") @db.VarChar(3)
+  riCd   String @map("ri_cd") @db.VarChar(2)
+
+  /// 지역주소명. 상위를 포함한 전체 이름이다. 실측 최대 24자 — 한자 병기가 섞인다.
+  /// "충청북도 청주시 상당구 미원면 기암리(岐岩)"
+  locataddNm String @map("locatadd_nm") @db.VarChar(100)
+
+  /// 최하위지역명. 자기 단계의 이름만이다. "잠실동"
+  locallowNm String? @map("locallow_nm") @db.VarChar(50)
+
+  /// **우리가 코드 자릿수에서 파생한다.** sido | sggu | umd | ri
+  /// 원본은 레벨을 주지 않는데 조회는 늘 레벨 단위다. 매번 자릿수를 따지면 인덱스를 못 탄다.
+  /// 분포(2026-08): sido 15 · sggu 269 · umd 5,067 · ri 15,209
+  ///
+  /// **세종은 sido 행이 없다.** 3611000000(세종특별자치시)가 sggu 로만 존재한다.
+  /// 이 컬럼으로 시도 목록을 만들면 세종이 빠진다 — region_code 로 승격할 때 반드시 보정하라.
+  level String @db.VarChar(10)
+
+  /// 상위지역코드. 시도면 0000000000 이다.
+  ///
+  /// **FK 를 걸지 않는다.** 목록에 없는 코드를 가리키는 행이 2건(영덕 대동리·통영 당포리),
+  /// 값이 공백인 행이 2건, 자릿수로 계산한 상위와 다른 행이 16건 있다. (2026-08 실측)
+  /// 원본이 그런 것이라 우리가 고칠 수 없고, FK 를 걸면 적재 자체가 실패한다.
+  locathighCd String? @map("locathigh_cd") @db.VarChar(10)
+
+  /// 지역코드_주민 / 지역코드_지적. 보통 region_cd 와 같지만 1,918건이 다르다.
+  /// 주민코드가 0000000000 인 행도 있다 — 코드 필드라고 항상 유효하지 않다.
+  locatjuminCd String? @map("locatjumin_cd") @db.VarChar(10)
+  locatjijukCd String? @map("locatjijuk_cd") @db.VarChar(10)
+
+  /// 서열(정렬용). 가이드 표기와 달리 숫자로 온다.
+  locatOrder Int? @map("locat_order")
+
+  /// 비고. 대부분 조례명이다. 공백 한 칸(' ')으로 오는 행이 6,992건이라 NULL 로 정규화해 넣는다.
+  locatRm String? @map("locat_rm") @db.Text
+
+  /// 생성일 YYYYMMDD. 절반(10,936건)이 빈 문자열이라 날짜가 아니라 문자열로 둔다.
+  adptDe String? @map("adpt_de") @db.VarChar(8)
+
+  /// 원본에서 사라진 시각.
+  ///
+  /// **원본에 폐지 필드가 없다.** 현행만 내려주므로 "이번 동기화에 안 온 것"이 곧 폐지다.
+  /// 지우지 않고 표시만 하는 이유는 병원 주소가 폐지된 동을 가리킬 수 있어서다 —
+  /// 지우면 그 주소에 이름을 못 붙인다.
+  ///
+  /// **전량을 다 받은 실행에서만 찍는다.** 21콜 중간에 실패한 뒤 스윕하면 못 받은 페이지가
+  /// 통째로 폐지로 찍힌다.
+  removedAt DateTime? @map("removed_at") @db.DateTime(0)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.DateTime(0)
+
+  /// 레벨 단위 조회(시도 목록, 특정 시도의 시군구 목록)가 주 패턴이다.
+  @@index([level, sidoCd, sggCd], map: "idx_mois_region_code_level")
+  /// 주소 문자열로 코드를 역추적한다. NMC 가 지역을 이름으로만 주기 때문이다.
+  @@index([locataddNm], map: "idx_mois_region_code_addr")
+  /// 스윕 대상(이번 동기화에 안 온 행)을 고른다.
+  @@index([removedAt, syncedAt], map: "idx_mois_region_code_removed")
+  @@map("mois_region_code")
+}
+
 // 지역 목록 (검색 UI 용).
 //
 // 병원 데이터를 GROUP BY 해서 만드는 집계 테이블이다. 병원 sync 가 끝날 때마다 통째로 재생성한다.

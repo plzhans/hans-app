@@ -51,6 +51,10 @@ import { NmcCodeReadService } from './nmc/nmc-code-read.service';
 import { NmcBabySyncService } from './nmc/nmc-baby-sync.service';
 import { NmcBasicSyncService } from './nmc/nmc-basic-sync.service';
 import { NmcStageService } from './nmc/nmc-stage.service';
+import { MoisStageService } from './mois/mois-stage.service';
+import { MoisQueryService } from './mois/mois-query.service';
+import { MoisRegionSyncService } from './mois/mois-region-sync.service';
+import { MoisRegionSyncRepository } from './mois/mois-region-sync.repository';
 import { NmcSubjectSyncService } from './nmc/nmc-subject-sync.service';
 import { HealthcareBuildService } from './healthcare/healthcare-build.service';
 import { HealthcareNameBuildService } from './healthcare/healthcare-name-build.service';
@@ -145,6 +149,11 @@ export class AdminApplicationModule {
         NmcBabySyncService,
         NmcBasicSyncService,
         HiraDetailSyncService,
+        // 행정안전부 법정동코드. 지역 정본이라 배치에서 가장 먼저 돈다.
+        MoisQueryService,
+        MoisRegionSyncRepository,
+        MoisRegionSyncService,
+        MoisStageService,
         NmcStageService,
         HiraStageService,
         SyncRunnerService,
@@ -168,6 +177,9 @@ export class AdminApplicationModule {
         NmcCodeReadService,
         HiraCodeReadService,
         SyncStateService,
+        MoisQueryService,
+        MoisRegionSyncService,
+        MoisStageService,
         NmcStageService,
         HiraStageService,
         SyncRunnerService,

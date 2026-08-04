@@ -281,6 +281,16 @@ importers:
         specifier: ^7.13.2
         version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
 
+  clients/krdata-mois:
+    dependencies:
+      '@krdata/core':
+        specifier: workspace:*
+        version: link:../krdata-core
+    devDependencies:
+      orval:
+        specifier: ^7.13.2
+        version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
+
   clients/krdata-nmc:
     dependencies:
       '@krdata/core':
@@ -326,6 +336,9 @@ importers:
       '@krdata/hira':
         specifier: workspace:*
         version: link:../../clients/krdata-hira
+      '@krdata/mois':
+        specifier: workspace:*
+        version: link:../../clients/krdata-mois
       '@krdata/nmc':
         specifier: workspace:*
         version: link:../../clients/krdata-nmc

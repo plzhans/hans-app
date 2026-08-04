@@ -46,6 +46,22 @@ export type { CodeSyncOptions, CodeSyncResult } from './common/code-sync.types';
 export { rebuildNmcRegions, rebuildHiraRegions } from './common/region-rebuild';
 export type { RegionRebuildResult } from './common/region-rebuild';
 
+/** 행정안전부 법정동코드. 지역 정본이라 배치에서 가장 먼저 적재한다. */
+export { MoisQueryService } from './mois/mois-query.service';
+export { MoisRegionSyncService } from './mois/mois-region-sync.service';
+export {
+  REGION_SYNC_MODES,
+  REGION_LEVELS,
+} from './mois/mois-region-sync.service';
+export type {
+  RegionSyncMode,
+  RegionSyncOptions,
+  RegionSyncResult,
+  RegionLevel,
+} from './mois/mois-region-sync.service';
+export { MoisStageService, MOIS_STAGES } from './mois/mois-stage.service';
+export type { MoisStage } from './mois/mois-stage.service';
+
 export { SyncRunnerService } from './common/sync-runner.service';
 export type {
   RunAllOptions,
@@ -61,6 +77,7 @@ export {
   NmcStageService,
   NMC_STAGES,
   STAGE_FRESHNESS_HOURS,
+  PROVIDER_FRESHNESS_HOURS,
   freshnessHours,
 } from './nmc/nmc-stage.service';
 export type {

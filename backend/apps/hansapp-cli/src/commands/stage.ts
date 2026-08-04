@@ -6,9 +6,12 @@ import {
   HIRA_EXTRA_OPS,
   HIRA_STAGES,
   HiraStageService,
+  MOIS_STAGES,
+  MoisStageService,
   NMC_STAGES,
   NmcStageService,
   SyncStateService,
+  type DataProvider,
   type StageResult,
 } from '@hansapp/admin-application';
 
@@ -23,6 +26,10 @@ const NMC_STAGE_HELP: Record<number, string> = {
   1: '전체 병원 벌크 + 진료과목 역조회 (62콜, 매일)',
   2: '규모기관 basic — 종합 380 → 병원 1,429 → 한방 613 → 치과 246 → 요양 1,283 (3,951콜)',
   3: '의원급 basic 74,680 (운영계정 필요)',
+};
+
+const MOIS_STAGE_HELP: Record<number, string> = {
+  1: '법정동코드 전량 20,560건 (21콜, 매일). 지역 정본이라 배치에서 가장 먼저 돈다',
 };
 
 const HIRA_STAGE_HELP: Record<number, string> = {
@@ -82,17 +89,24 @@ function parseStage<T extends number>(value: string, stages: readonly T[]): T {
   return stage as T;
 }
 
+const STAGE_HELP: Record<DataProvider, Record<number, string>> = {
+  mois: MOIS_STAGE_HELP,
+  nmc: NMC_STAGE_HELP,
+  hira: HIRA_STAGE_HELP,
+};
+
 /**
- * 단계 sync 커맨드. NMC·HIRA 가 옵션 체계는 같고 단계 구성만 다르다.
+ * 단계 sync 커맨드. 기관마다 옵션 체계는 같고 단계 구성만 다르다.
  *
  * 실행 로직은 admin-application 의 StageService 가 갖는다. CLI 는 옵션 파싱과 출력만 한다.
  */
 export function stageSyncCommand(
-  provider: 'nmc' | 'hira',
+  provider: DataProvider,
   source: ConfigSource,
 ): Command {
-  const isNmc = provider === 'nmc';
-  const help = isNmc ? NMC_STAGE_HELP : HIRA_STAGE_HELP;
+  // --op 는 HIRA 상세 단계 전용이다. 나머지 기관은 오퍼레이션을 나눌 일이 없다.
+  const isHira = provider === 'hira';
+  const help = STAGE_HELP[provider];
   const label = provider.toUpperCase();
 
   const command = new Command('sync')
@@ -113,7 +127,7 @@ export function stageSyncCommand(
       '병원 하나하나의 호출 로그까지 낸다. 무엇이 몇 행 왔는지 본다',
     );
 
-  if (!isNmc) {
+  if (isHira) {
     command.option(
       '--op <name...>',
       '받을 오퍼레이션만 지정한다 (HIRA 상세 단계 전용).\n' +
@@ -130,19 +144,27 @@ export function stageSyncCommand(
     const result = await withAdminContext(
       source,
       (context) => {
-        if (isNmc) {
-          const stage = parseStage(options.stage, NMC_STAGES);
-          return context.get(NmcStageService).run(stage, {
-            force: options.force,
-            limit: options.limit ? Number(options.limit) : undefined,
-          });
-        }
-        const stage = parseStage(options.stage, HIRA_STAGES);
-        return context.get(HiraStageService).run(stage, {
+        const common = {
           force: options.force,
           limit: options.limit ? Number(options.limit) : undefined,
-          ops: parseOps(options.op),
-        });
+        };
+        switch (provider) {
+          case 'mois':
+            return context
+              .get(MoisStageService)
+              .run(parseStage(options.stage, MOIS_STAGES), common);
+          case 'nmc':
+            return context
+              .get(NmcStageService)
+              .run(parseStage(options.stage, NMC_STAGES), common);
+          case 'hira':
+            return context
+              .get(HiraStageService)
+              .run(parseStage(options.stage, HIRA_STAGES), {
+                ...common,
+                ops: parseOps(options.op),
+              });
+        }
       },
       { verbose: !options.quiet, debug: options.debug },
     );
@@ -150,15 +172,22 @@ export function stageSyncCommand(
     printStageResult(label, Number(options.stage), result);
   });
 
+  // 단계가 1개뿐인 기관(mois)에 --stage 2 예시를 보여주면 그대로 따라 하다 에러가 난다.
+  const hasDetailStages = Object.keys(help).length > 1;
+
   return addExamples(command, [
-    `hansapp-cli ${provider} sync --stage 1              # 매일 도는 벌크 + 역조회`,
-    `hansapp-cli ${provider} sync --stage 2 --limit 500  # 개별 조회를 500콜까지만`,
+    `hansapp-cli ${provider} sync --stage 1              # 매일 도는 벌크`,
+    ...(hasDetailStages
+      ? [
+          `hansapp-cli ${provider} sync --stage 2 --limit 500  # 개별 조회를 500콜까지만`,
+        ]
+      : []),
     `hansapp-cli ${provider} sync --stage 1 --force      # 오늘 이미 성공했어도 다시`,
-    ...(isNmc
-      ? []
-      : [
+    ...(isHira
+      ? [
           `hansapp-cli hira sync --stage 2 --op transport   # 교통정보만 (병원당 1콜)`,
-        ]),
+        ]
+      : []),
   ]);
 }
 

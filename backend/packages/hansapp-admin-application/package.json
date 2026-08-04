@@ -22,6 +22,7 @@
     "@kr-or/hira": "workspace:*",
     "@krdata/core": "workspace:*",
     "@krdata/hira": "workspace:*",
+    "@krdata/mois": "workspace:*",
     "@krdata/nmc": "workspace:*",
     "@nestjs/common": "^11.0.1",
     "@prisma/client": "^6.19.3",

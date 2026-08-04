@@ -64,6 +64,9 @@ export interface StageResult extends SyncOutcome {
  *   1단계  목록 벌크. 8만 건을 통째로 다시 받는다 → 주 1회면 충분하다
  *   2단계~ 개별 상세. 못 받은 병원을 이어받는다 → 매일 돌아야 진도가 나간다
  *          (큐가 비면 콜 0으로 즉시 끝나므로 매일 돌아도 부담이 없다)
+ *
+ * **병원 기관(NMC·HIRA)의 기준이다.** 단계 번호가 같아도 기관이 다르면 의미가 다르므로,
+ * 다른 값을 쓰는 기관은 PROVIDER_FRESHNESS_HOURS 로 덮어쓴다.
  */
 export const STAGE_FRESHNESS_HOURS: Record<number, number> = {
   1: 24 * 7,
@@ -71,8 +74,27 @@ export const STAGE_FRESHNESS_HOURS: Record<number, number> = {
 
 export const DEFAULT_FRESHNESS_HOURS = 24;
 
-export function freshnessHours(stage: number): number {
-  return STAGE_FRESHNESS_HOURS[stage] ?? DEFAULT_FRESHNESS_HOURS;
+/**
+ * 기관별 신선도 예외. 단계 번호만으로 판정하면 틀리는 자리다.
+ *
+ * **행정안전부 1단계는 매일 돌아야 한다.** 같은 "1단계" 지만 병원 목록 벌크(8만 건)와
+ * 성격이 완전히 다르다 — 전량이 21콜 / 9초이고, 갱신주기가 '수시'이며, 무엇보다
+ * 다른 기관 적재가 이 정본을 기준으로 지역을 매긴다. 주 1회로 두면 행정구역이 바뀐 주에
+ * 최대 6일간 새 지역의 병원이 지역 없이 쌓인다.
+ */
+export const PROVIDER_FRESHNESS_HOURS: Record<
+  string,
+  Record<number, number>
+> = {
+  mois: { 1: 24 },
+};
+
+export function freshnessHours(stage: number, provider?: string): number {
+  const override =
+    provider === undefined
+      ? undefined
+      : PROVIDER_FRESHNESS_HOURS[provider]?.[stage];
+  return override ?? STAGE_FRESHNESS_HOURS[stage] ?? DEFAULT_FRESHNESS_HOURS;
 }
 
 /**
@@ -93,7 +115,7 @@ export async function skipReason(
     return undefined;
   }
 
-  const hours = freshnessHours(stage);
+  const hours = freshnessHours(stage, job.provider);
   if (await state.isFresh(job, hours)) {
     const days = hours / 24;
     return days >= 1
