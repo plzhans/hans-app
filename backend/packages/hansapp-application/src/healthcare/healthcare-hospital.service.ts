@@ -142,16 +142,28 @@ export class HealthcareHospitalService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
+  /**
+   * 페이지네이션 검색. 첫 화면의 추천 목록(응급실·달빛어린이 등)과 얕은 페이지네이션이 쓴다.
+   *
+   * **스크롤과 같은 ES 를 본다.** 예전엔 여기만 DB(Prisma)였는데, 그러면 정렬 규칙이 갈라진다 —
+   * 검색 목록은 서울부터 나오는데 첫 화면 응급실은 id 순이라 지방부터 나왔다. 같은 서비스로
+   * 안 읽히는 상태였다. 이제 정렬(SEARCH_SORT)도 질의도 저장소 한 곳에서 공유한다.
+   *
+   * 행과 총건수를 **한 번에** 받는다(searchPage). ES 는 같은 질의에서 둘 다 주기 때문에
+   * 예전처럼 두 번 조회(search + countSearch)할 이유가 없다.
+   */
   async search(
     command: HospitalSearchCommand,
     lang: SupportedLang = FALLBACK_LANG,
   ): Promise<Page<HospitalSummary>> {
     const filter = this.buildFilter(command);
 
-    const [rows, total] = await Promise.all([
-      this.repo.search(filter, lang, command.page, command.size),
-      this.repo.countSearch(filter),
-    ]);
+    const { rows, total } = await this.searchRepo.searchPage(
+      filter,
+      lang,
+      command.page,
+      command.size,
+    );
 
     return new Page(
       rows.map((row) => this.toSummary(this.listRowToSource(row), lang)),

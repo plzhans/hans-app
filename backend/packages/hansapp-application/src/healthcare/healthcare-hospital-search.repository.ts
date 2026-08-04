@@ -11,6 +11,7 @@ import {
 } from '@hansapp/search';
 import type {
   QueryDslQueryContainer,
+  Sort,
   SortResults,
 } from '@elastic/elasticsearch/lib/api/types';
 
@@ -18,6 +19,8 @@ import type {
   HospitalListRow,
   HospitalScrollRows,
   HospitalScrollSource,
+  HospitalSearchPage,
+  HospitalSearchSource,
   HospitalSearchFilter,
 } from './healthcare-hospital.repository';
 import {
@@ -90,6 +93,44 @@ interface NearbySearchContext {
  * 순위가 갈린다 — 두 경우 모두 의도한 대로 된다.
  */
 const SUBJECT_SPECIALIST_BOOST = 1;
+
+/**
+ * 검색 정렬. **페이지 검색과 스크롤이 같은 것을 쓴다** — 첫 화면과 검색 목록이 다른 순서로
+ * 나오면 같은 서비스로 안 읽힌다. 실제로 그렇게 갈라져 있었다(홈은 DB, 검색은 ES).
+ *
+ * 우선순위가 배열 순서에 그대로 드러난다:
+ *   _score     키워드 관련도와 전문의 가점. 없으면 전건 동점이라 다음 키로 넘어간다
+ *   sido_rank  서울 0 · 경기 1 · 부산 2 · 인천 3 · 나머지 99 (색인 시점에 채운다)
+ *   id         같은 시도 안에서의 안정적 순서
+ *
+ * 세 키가 전순서를 보장해 search_after 커서가 안정적이다(id 가 유일키다).
+ *
+ * **시도를 점수에 가점으로 얹지 않는다.** 그러면 키워드 관련도와 섞여 왜 이 순서인지
+ * 설명할 수 없고, 커서가 점수에 걸려 있어 가중치를 손볼 때마다 스크롤 중이던 사용자가 어긋난다.
+ * 필드로 두면 조건별 분기도 필요 없다 — 키워드가 있으면 _score 가 갈라주고, 없으면 자연히
+ * sido_rank 로 넘어간다.
+ *
+ * missing: '_last' — 아직 이 필드가 없는 문서(재색인 전)를 맨 뒤로 보낸다.
+ */
+const SEARCH_SORT: Sort = [
+  { _score: { order: 'desc' } },
+  { 'location.sido_rank': { order: 'asc', missing: '_last' } },
+  { id: 'asc' },
+];
+
+/** 요약에 필요한 필드만 가져온다(상세는 별도 API). 본문 payload 를 줄인다. */
+const SEARCH_SOURCE_FIELDS = [
+  'id',
+  'name',
+  'tel',
+  'emergency',
+  'baby',
+  'class_cd',
+  'tier',
+  'specialty_cds',
+  'subway',
+  'location',
+];
 
 /**
  * 유사도 가중치. 겹치는 만큼 **합산**하고, 그 합에 거리 감쇠를 곱해 순위를 낸다.
@@ -176,7 +217,9 @@ const NEARBY_SOURCE = [
  * 반환 행은 DB 경로와 같은 HospitalListRow 모양으로 맞춰, 서비스의 매핑(toSummary)을 한 벌로 공유한다.
  */
 @Injectable()
-export class HealthcareHospitalSearchRepository implements HospitalScrollSource {
+export class HealthcareHospitalSearchRepository
+  implements HospitalScrollSource, HospitalSearchSource
+{
   /** env 접두사가 붙은 물리 alias(develop-healthcare_hospital). 검색은 이 이름으로만 조회한다. */
   private readonly alias: string;
 
@@ -185,6 +228,43 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
     @Inject(SEARCH_CONFIG) config: SearchConfig,
   ) {
     this.alias = aliasOf(HEALTHCARE_HOSPITAL_ALIAS, config.indexPrefix);
+  }
+
+  /**
+   * 검색 한 페이지. **정렬 규칙은 스크롤과 같다** — 첫 화면과 검색 목록이 다른 순서로 나오면
+   * 같은 서비스로 안 읽힌다.
+   *
+   * **한 번만 조회한다.** 예전엔 DB 경로가 행과 총건수를 따로 세었는데(search + countSearch),
+   * ES 는 같은 질의에서 둘 다 준다 — track_total_hits 만 켜면 된다.
+   *
+   * **깊은 페이지는 막힌다.** from+size 는 index.max_result_window(기본 10,000)를 넘으면 ES 가
+   * 거절한다. 이 엔드포인트는 첫 화면 추천(섹션당 5건)과 얕은 페이지네이션이 쓰는 자리이고,
+   * 끝까지 훑는 일은 커서(searchScroll)가 맡는다 — 그쪽은 이 한계가 없다.
+   */
+  async searchPage(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+    page: number,
+    size: number,
+  ): Promise<HospitalSearchPage> {
+    const res = await this.es.client.search<Partial<HealthcareHospitalDoc>>({
+      index: this.alias,
+      from: (page - 1) * size,
+      size,
+      sort: SEARCH_SORT,
+      // 총건수를 정확히 센다. 스크롤은 이 값이 필요 없어 꺼 두지만(track_total_hits:false)
+      // 여기서는 "N건" 과 페이지 수가 그 값에 걸려 있다.
+      track_total_hits: true,
+      _source: SEARCH_SOURCE_FIELDS,
+      query: this.buildQuery(filter, lang),
+    });
+
+    const total = res.hits.total;
+    return {
+      rows: res.hits.hits.map((hit) => hitToListRow(hit._source ?? {}, lang)),
+      // track_total_hits:true 면 객체({value,relation})로 온다. 숫자로 오는 형태도 방어한다.
+      total: typeof total === 'number' ? total : (total?.value ?? 0),
+    };
   }
 
   async searchScroll(
@@ -199,56 +279,11 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
       index: this.alias,
       // size+1 로 다음 페이지 유무를 판정한다(DB 경로와 같은 규칙).
       size: size + 1,
-      /*
-        **관련도 → 시도 → id.** 세 키가 전순서를 보장해 search_after 커서가 안정적이다
-        (id 가 유일키다. 단일 샤드라 _score 도 결정적).
-
-        우선순위가 배열 순서에 그대로 드러난다:
-          _score     키워드 관련도와 전문의 가점. 없으면 전건 동점이라 다음 키로 넘어간다
-          sido_rank  서울 0 · 경기 1 · 부산 2 · 인천 3 · 나머지 99 (색인 시점에 채운다)
-          id         같은 시도 안에서의 안정적 순서
-
-        **시도를 점수에 가점으로 얹지 않는다.** 그러면 키워드 관련도와 섞여 왜 이 순서인지
-        설명할 수 없고, 커서가 점수에 걸려 있어 가중치를 손볼 때마다 스크롤 중이던 사용자가
-        어긋난다. 필드로 두면 조건별 분기도 필요 없다 — 키워드가 있으면 _score 가 갈라주고,
-        없으면 자연히 sido_rank 로 넘어간다.
-
-        missing: '_last' — 아직 이 필드가 없는 문서(재색인 전)를 맨 뒤로 보낸다.
-      */
-      sort: [
-        { _score: { order: 'desc' } },
-        { 'location.sido_rank': { order: 'asc', missing: '_last' } },
-        { id: 'asc' },
-      ],
+      sort: SEARCH_SORT,
       search_after: searchAfter,
       track_total_hits: false,
-      // 요약에 필요한 필드만 가져온다(상세는 별도 API). 본문 payload 를 줄인다.
-      _source: [
-        'id',
-        'name',
-        'tel',
-        'emergency',
-        'baby',
-        'class_cd',
-        'tier',
-        'specialty_cds',
-        'subway',
-        'location',
-      ],
-      query: {
-        bool: {
-          // 코드 필터는 점수 무관(filter 컨텍스트, 캐시된다).
-          filter: this.buildFilter(filter),
-          // **키워드는 must(점수 컨텍스트)에 둔다** — 그래야 관련도 정렬이 산다.
-          // 키워드가 없으면 must 를 빼서 순수 필터 질의로 둔다(전건 _score 균일 → id 순).
-          ...(filter.name
-            ? { must: this.keywordQuery(filter.name, lang) }
-            : {}),
-          // 진료과목 필터의 전문의 가점. **점수 전용이라 걸리는 병원 수는 바뀌지 않는다.**
-          should: this.buildSpecialistBoost(filter),
-          minimum_should_match: 0,
-        },
-      },
+      _source: SEARCH_SOURCE_FIELDS,
+      query: this.buildQuery(filter, lang),
     });
 
     const hits = res.hits.hits;
@@ -583,6 +618,27 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
    *
    * **specialistCds(전문의 필터)에는 안 건다** — 그건 이미 필터가 전건을 걸러 놔서 전부 동점이다.
    */
+  /**
+   * 검색 질의. **페이지 검색과 스크롤이 같은 것을 쓴다**(정렬과 같은 이유).
+   *
+   * 코드 필터는 filter 컨텍스트라 점수에 관여하지 않고 캐시된다. 키워드만 must(점수 컨텍스트)에
+   * 두어 관련도 정렬이 살고, 키워드가 없으면 must 를 빼 순수 필터 질의가 된다.
+   */
+  private buildQuery(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+  ): QueryDslQueryContainer {
+    return {
+      bool: {
+        filter: this.buildFilter(filter),
+        ...(filter.name ? { must: this.keywordQuery(filter.name, lang) } : {}),
+        // 진료과목 필터의 전문의 가점. **점수 전용이라 걸리는 병원 수는 바뀌지 않는다.**
+        should: this.buildSpecialistBoost(filter),
+        minimum_should_match: 0,
+      },
+    };
+  }
+
   private buildSpecialistBoost(
     filter: HospitalSearchFilter,
   ): QueryDslQueryContainer[] {

@@ -78,6 +78,28 @@ export interface HospitalScrollSource {
   ): Promise<HospitalScrollRows>;
 }
 
+/** 페이지 검색 결과. 행과 총건수를 함께 낸다 — 두 번 조회할 이유가 없다. */
+export interface HospitalSearchPage {
+  rows: HospitalListRow[];
+  total: number;
+}
+
+/**
+ * 페이지 검색 원천. 스크롤(HospitalScrollSource)과 나란한 계약이다 — 커서 대신 page/size 를 쓰고
+ * 총건수를 함께 낸다(첫 화면의 "N건" 과 페이지네이션이 그 값을 쓴다).
+ *
+ * **정렬 규칙이 스크롤과 같아야 한다.** 첫 화면과 검색 목록이 다른 순서로 나오면 같은 서비스로
+ * 안 읽힌다 — 그래서 둘 다 ES 가 맡는다(DB 구현은 ES 장애 때의 우회로로만 남긴다).
+ */
+export interface HospitalSearchSource {
+  searchPage(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+    page: number,
+    size: number,
+  ): Promise<HospitalSearchPage>;
+}
+
 /**
  * 검색 결과 한 행(프로젝션). healthcare_hospital 엔티티와 모양이 다르다 — 전문병원분야(specialty_cd)
  * 를 조인하고, transport JSON 에서 지하철 하차지점을 뽑아 넣는다. 값은 raw 조회라 드라이버가
@@ -120,8 +142,29 @@ export type HospitalDetailModel = Prisma.HealthcareHospitalGetPayload<{
 }>;
 
 @Injectable()
-export class HealthcareHospitalRepository implements HospitalScrollSource {
+export class HealthcareHospitalRepository
+  implements HospitalScrollSource, HospitalSearchSource
+{
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * 페이지 검색(HospitalSearchSource). **ES 가 죽었을 때 버티는 자리다** — 기본 경로는 ES 다
+   * (거기만 sido_rank 정렬과 전문의 가점이 있다. searchScroll 주석 참고).
+   *
+   * 행과 총건수를 **두 번 조회로** 얻는다. ES 처럼 한 질의에서 둘 다 나오지 않아서다.
+   */
+  async searchPage(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+    page: number,
+    size: number,
+  ): Promise<HospitalSearchPage> {
+    const [rows, total] = await Promise.all([
+      this.search(filter, lang, page, size),
+      this.countSearch(filter),
+    ]);
+    return { rows, total };
+  }
 
   /** 검색 한 페이지. 종별·전문병원분야·지역 이름은 조인하지 않는다 — 코드만 뽑고 이름은 서비스가 캐시에서 붙인다. */
   search(
