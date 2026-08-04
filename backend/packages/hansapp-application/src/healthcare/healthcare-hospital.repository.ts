@@ -145,6 +145,12 @@ export class HealthcareHospitalRepository implements HospitalScrollSource {
    * nextToken 은 직전 응답의 마지막 병원 id 다(불투명하지만 여기선 곧 id). 디코딩해 `h.id > afterId`
    * 로 그 이후만 읽으므로 정렬(ORDER BY h.id)이 커서와 일치한다. **size+1 개를 뽑아** 다음 페이지
    * 유무를 판정하고, 남으면 size 로 자른 뒤 마지막 id 를 다음 nextToken 으로 준다(없으면 끝).
+   *
+   * **순위는 id 순뿐이다.** ES 경로에는 진료과목 필터에 전문의 가점이 붙지만(저장소의
+   * SUBJECT_SPECIALIST_BOOST) 여기엔 일부러 옮기지 않는다 — 이 경로는 ES 가 죽었을 때
+   * **최소 기능으로 버티는 자리**다. 순위를 맞추려면 정렬키가 id 를 벗어나고, 그러면 커서
+   * (h.id > afterId)까지 다시 짜야 한다. 장애 중에 검색이 되는 것과 잘 정렬되는 것 중
+   * 전자가 훨씬 중요하다.
    */
   async searchScroll(
     filter: HospitalSearchFilter,

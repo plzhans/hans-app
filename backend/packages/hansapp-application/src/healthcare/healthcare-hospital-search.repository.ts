@@ -79,6 +79,19 @@ interface NearbySearchContext {
 }
 
 /**
+ * 진료과목 필터로 고른 코드에 **전문의까지 있으면** 얹는 가점(코드 1개당).
+ *
+ * subject_cds 는 신고 기반이라 실제 진료 역량과 따로 논다 — 이비인후과 의원이 소아청소년과를
+ * 얹어두는 일이 흔하다. 소아과를 고른 사람이 기대하는 건 소아과 전문의가 있는 곳이므로,
+ * **거르지는 않되**(신고만 한 곳도 볼 수 있어야 한다) 순위에서 위로 올린다.
+ *
+ * 값이 1인 건 **키워드 점수를 덮지 않으려는 것**이다. 키워드가 있으면 BM25 가 이보다 훨씬 큰
+ * 폭으로 움직여 이름 관련도가 그대로 주도하고, 키워드가 없으면 전건이 0점이라 이 값만으로
+ * 순위가 갈린다 — 두 경우 모두 의도한 대로 된다.
+ */
+const SUBJECT_SPECIALIST_BOOST = 1;
+
+/**
  * 유사도 가중치. 겹치는 만큼 **합산**하고, 그 합에 거리 감쇠를 곱해 순위를 낸다.
  *
  * 절대값에 의미는 없고 **서로의 비율만 의미가 있다.** 조정할 때는 이 표만 보면 된다.
@@ -187,8 +200,8 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
       // size+1 로 다음 페이지 유무를 판정한다(DB 경로와 같은 규칙).
       size: size + 1,
       // **관련도(_score) 우선, id 로 tie-break.** id 가 유일키라 [_score,id] 가 전순서를 보장해
-      // search_after 커서가 안정적이다(단일 샤드라 _score 도 결정적). 키워드가 없으면 모든 문서
-      // _score 가 같아 자연히 id 순이 된다 — 기존 동작과 동일하다.
+      // search_after 커서가 안정적이다(단일 샤드라 _score 도 결정적). 점수를 만드는 건 키워드와
+      // 진료과목 전문의 가점 둘뿐이라, 그마저 없으면 전건 동점이 되어 id 순으로 물러난다.
       sort: [{ _score: { order: 'desc' } }, { id: 'asc' }],
       search_after: searchAfter,
       track_total_hits: false,
@@ -214,6 +227,9 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
           ...(filter.name
             ? { must: this.keywordQuery(filter.name, lang) }
             : {}),
+          // 진료과목 필터의 전문의 가점. **점수 전용이라 걸리는 병원 수는 바뀌지 않는다.**
+          should: this.buildSpecialistBoost(filter),
+          minimum_should_match: 0,
         },
       },
     });
@@ -538,6 +554,27 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
         type: 'best_fields',
       },
     };
+  }
+
+  /**
+   * 진료과목 필터에 대한 전문의 가점 절(should). **필터가 고른 코드마다** 같은 코드의 전문의
+   * 보유를 점수로 쳐서, 겹칠수록 쌓는다(소아과·이비인후과를 골랐고 둘 다 전문의가 있으면 2점).
+   *
+   * 각 절을 constant_score 로 감싸 **BM25 를 걷어낸다.** 안 그러면 희소한 과목이 IDF 로 더 높은
+   * 점수를 받아 과목마다 가점이 달라진다 — 어느 과목을 골랐느냐로 순위 폭이 흔들릴 이유가 없다
+   * (근처 병원 buildSimilarity 와 같은 이유).
+   *
+   * **specialistCds(전문의 필터)에는 안 건다** — 그건 이미 필터가 전건을 걸러 놔서 전부 동점이다.
+   */
+  private buildSpecialistBoost(
+    filter: HospitalSearchFilter,
+  ): QueryDslQueryContainer[] {
+    return (filter.subjectCds ?? []).map((cd) => ({
+      constant_score: {
+        filter: { term: { specialist_subject_cds: cd } },
+        boost: SUBJECT_SPECIALIST_BOOST,
+      },
+    }));
   }
 
   /**
