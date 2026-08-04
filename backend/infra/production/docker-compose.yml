@@ -117,17 +117,24 @@ services:
         max-size: '10m'
         max-file: '5'
 
-  # 스키마 반영. **서비스가 아니라 작업이다** — 한 번 돌고 죽는다.
+  # 운영 도구(hansapp-cli). **서비스가 아니라 작업이다** — 한 번 돌고 죽는다.
   #
-  #   docker compose run --rm migrate
+  #   docker compose run --rm hansapp-cli db deploy              스키마 반영
+  #   docker compose run --rm hansapp-cli db seed                코드·지역 시드
+  #   docker compose run --rm hansapp-cli healthcare names       병원 이름 재계산
+  #   docker compose run --rm hansapp-cli es hospital reindex    무중단 재색인
+  #
+  # **이미지 이름을 그대로 서비스 이름으로 쓴다.** 예전엔 migrate 였는데, 실제로는
+  # 마이그레이션 말고도 시드·재색인을 다 이 컨테이너로 돌리고 있어서 이름이 하는 일을
+  # 좁게 말하고 있었다. 무엇이 뜨는지가 이름에 그대로 보이는 편이 낫다.
   #
   # profiles 에 넣어 `up` 이 이것까지 띄우지 않게 한다. 배포 스크립트가 배포 직전에
   # 부른다 — 컨테이너 교체와 스키마 반영은 실패했을 때 할 일이 달라서, 한 덩어리로
   # 묶으면 "어디까지 갔나" 가 흐려진다.
-  migrate:
+  hansapp-cli:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-cli:${IMAGE_TAG}
-    profiles: [migrate]
+    profiles: [cli]
     restart: 'no'
     # 비밀 에셋(jwt·TLS)은 앱의 것이라 붙이지 않는다. CLI 는 yaml 과 env 만 있으면 된다.
     volumes:
