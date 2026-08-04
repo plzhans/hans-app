@@ -15,15 +15,18 @@ interface ComboboxProps {
   placeholder: string;
 
   /**
-   * 선택을 지우는 항목의 이름. 기본 '전체'.
+   * 선택을 지우는 항목의 이름("전체").
    *
    * **placeholder 와 다르다.** 트리거에는 "시도" 라고 좁게 쓰지만, 목록 안에서 "시도" 라는
    * 항목이 보이면 그게 무슨 뜻인지 알 수 없다. 목록에서는 "전체" 여야 한다.
+   *
+   * **기본값을 두지 않는다.** 예전에 '전체' 를 박아뒀더니 아무도 안 넘겨서, 영어·일본어
+   * 화면에서도 한글이 그대로 나왔다. 문구는 화면이 번역해 주는 게 맞다.
    */
-  allLabel?: string;
+  allLabel: string;
 
-  /** 검색창 안내 문구 */
-  searchPlaceholder?: string;
+  /** 검색창 안내 문구. 위와 같은 이유로 기본값이 없다. */
+  searchPlaceholder: string;
 
   disabled?: boolean;
   className?: string;
@@ -42,8 +45,8 @@ export function Combobox({
   onChange,
   options,
   placeholder,
-  allLabel = '전체',
-  searchPlaceholder = '검색',
+  allLabel,
+  searchPlaceholder,
   disabled,
   className,
 }: ComboboxProps) {

@@ -64,7 +64,8 @@
       "unavailable": "Couldn't get your location. Check that location services are on for this device.",
       "notFound": "We couldn't match your location to a region. Please pick one manually.",
       "clear": "Clear {{name}}"
-    }
+    },
+    "all": "All"
   },
   "search": {
     "tabs": {

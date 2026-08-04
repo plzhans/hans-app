@@ -729,6 +729,7 @@ export default function SearchPage() {
               options={toOptions(sidos)}
               placeholder={t('search.sido')}
               searchPlaceholder={t('search.sidoSearch')}
+              allLabel={t('common.all')}
               className="min-w-0 flex-1 sm:w-28 sm:flex-none"
             />
 
@@ -739,6 +740,7 @@ export default function SearchPage() {
               options={toOptions(sggus)}
               placeholder={t('search.sggu')}
               searchPlaceholder={t('search.sgguSearch')}
+              allLabel={t('common.all')}
               disabled={!sido}
               className="min-w-0 flex-1 sm:w-32 sm:flex-none"
             />
