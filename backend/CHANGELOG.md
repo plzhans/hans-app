@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.12.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.11.0...release-backend/v0.12.0) (2026-08-04)
+
+
+### 기능
+
+* 근처 병원 기본 개수를 6개로 늘린다 ([954aac7](https://github.com/plzhans/hans-app/commit/954aac7c3f359df3f7a80e5b42707d288c1937ea))
+* 근처의 비슷한 병원을 찾는 API 를 추가한다 ([083d77f](https://github.com/plzhans/hans-app/commit/083d77f6a98399e996402c1e6f91721d81609945))
+* 내 위치로 지역을 찾아 검색한다 ([8388f4e](https://github.com/plzhans/hans-app/commit/8388f4e47657b9e64cdafb20029dc7e1eeea7c81))
+* 법정동코드를 로컬 DB 에 동기화한다 ([e7abb5e](https://github.com/plzhans/hans-app/commit/e7abb5ec572ea62dc9143ae10223c2891df1c248))
+* 병원 이름에서 법인 표기를 뗀다 ([d6ad305](https://github.com/plzhans/hans-app/commit/d6ad30522b28f54d75caa203808eaa5b3db11111))
+* 부팅 때 MySQL·Redis·ES 접속을 확인한다 ([a8ca881](https://github.com/plzhans/hans-app/commit/a8ca881f22c0438a09b435ea4db5231225b57f79))
+* 브이월드 지오코딩 클라이언트를 추가한다 ([89990f9](https://github.com/plzhans/hans-app/commit/89990f9e62ee37fb51038fe0c56c6339193042a1))
+* 지역 영문 이름을 채우고 일본어·중국어를 영어로 폴백한다 ([1bcfd70](https://github.com/plzhans/hans-app/commit/1bcfd70e25162a7e60b59531fa1697832b0496db))
+* 진료과목 검색에서 전문의 있는 병원을 위로 올린다 ([6c489e3](https://github.com/plzhans/hans-app/commit/6c489e383af649f8262ba719728cdb7d8f91b6e1))
+* 행정안전부 법정동코드 API 클라이언트를 추가한다 ([7029fce](https://github.com/plzhans/hans-app/commit/7029fced4ef9f5c6e210986aa84ce1b0e49317ba))
+
+
+### 버그 수정
+
+* 소셜 로그인 경로 변수를 스펙에 선언한다 ([d7cb602](https://github.com/plzhans/hans-app/commit/d7cb602cc2dfc52b352addc9340edd47456f3181))
+* 약국·NMC 기타를 통합 병원에서 뺀다 ([d4b1946](https://github.com/plzhans/hans-app/commit/d4b1946b5a9ce21b3a15ffd33927bd646c2b8598))
+* 인증서 경로에 파일이 없으면 부팅을 멈춘다 ([cf0f536](https://github.com/plzhans/hans-app/commit/cf0f536506d54ad16efbc3ff2c6d756a4f176ac2))
+
+
+### 구조 변경
+
+* ES 인덱스 접두사를 ELASTICSEARCH_INDEX_PREFIX 로 뺀다 ([a9862eb](https://github.com/plzhans/hans-app/commit/a9862ebf6965e236b81deb5b64207ba34d7f280d))
+* 토큰 만료 기본값을 코드로 옮긴다 ([6cf019c](https://github.com/plzhans/hans-app/commit/6cf019c5756574dfc6708923806afd261aa3d541))
+
 ## [0.11.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.10.0...release-backend/v0.11.0) (2026-07-31)
 
 
