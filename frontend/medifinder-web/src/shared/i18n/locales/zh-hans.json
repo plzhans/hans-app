@@ -120,7 +120,9 @@
     "mapSoon": "地图视图正在准备中",
     "mapSoonHint": "拖动地图重新搜索该区域需要服务器支持区域检索。准备好后这里会显示地图。",
     "openFilters": "筛选条件",
-    "closeFilters": "关闭"
+    "closeFilters": "关闭",
+    "mapNote": "显示当前列表中的 {{count}} 家。拖动地图不会重新搜索。",
+    "mapEmpty": "此结果中没有带坐标的医院"
   },
   "clinic": {
     "badge": {

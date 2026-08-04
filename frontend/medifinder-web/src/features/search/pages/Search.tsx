@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui/Input';
@@ -36,6 +36,7 @@ import {
   X,
 } from 'lucide-react';
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
+import { MapView } from '@/shared/components/map/MapView';
 import * as Popover from '@radix-ui/react-popover';
 
 const PAGE_SIZE = 20;
@@ -565,6 +566,57 @@ export default function SearchPage() {
   // 모든 페이지의 항목을 이어 붙인다. 필터가 바뀌면 useInfiniteQuery 가 새 키로 처음부터 다시 쌓는다.
   const items = data?.pages.flatMap((p) => p.items ?? []) ?? [];
 
+  /**
+   * 지도에 찍을 결과. **좌표가 있는 것만** — 없는 병원이 실제로 있다(원본에 안 들어온다).
+   *
+   * 번호는 **목록에서 몇 번째인가**로 매긴다(index+1). 좌표 없는 병원을 걸러낸 뒤의 순서로
+   * 매기면 목록의 3번이 지도의 2번이 되어 서로 못 알아본다 — 카드와 핀이 같은 글자를 달아야
+   * "지도의 B가 어느 카드인지" 를 찾을 수 있다(HospitalCard 의 rankMark 주석과 같은 규칙).
+   *
+   * **배열 정체성을 묶는다.** 렌더마다 새 배열을 넘기면 그때마다 핀을 다시 만든다.
+   */
+  /**
+   * 지도에서 고른 병원. **목록의 그 카드를 잠깐 칠한다.**
+   *
+   * 핀을 눌러 상세로 바로 보내지 않는 이유는 지도가 **비교하는 화면**이라서다 — 한 곳을
+   * 열고 뒤로 돌아오면 지도가 다시 만들어지고(SDK 호출 = 과금) 확대율과 쌓아둔 결과가
+   * 처음으로 돌아간다. 여기서는 "그게 목록의 어느 것인지" 만 알려주고, 들어갈지는
+   * 카드를 눌러 사용자가 정한다.
+   */
+  const [focusedId, setFocusedId] = useState<string>();
+  const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(focusTimer.current), []);
+
+  const focusResult = (id: string) => {
+    setFocusedId(id);
+    document
+      .getElementById(`search-result-${id}`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+    // 칠한 채로 두지 않는다 — 다음에 다른 핀을 누르면 어느 쪽이 방금 것인지 헷갈린다.
+    clearTimeout(focusTimer.current);
+    focusTimer.current = setTimeout(() => setFocusedId(undefined), 2400);
+  };
+
+  const mapPoints = useMemo(
+    () =>
+      items
+        .map((h, index) => ({ h, rank: index + 1 }))
+        .filter(({ h }) => h.location?.lat != null && h.location?.lon != null)
+        .map(({ h, rank }) => ({
+          lat: h.location!.lat!,
+          lng: h.location!.lon!,
+          name: h.name,
+          rank,
+          // 말풍선을 누르면 이 id 로 아래 목록의 카드를 찾는다.
+          // 문자열인 이유: 지도 쪽에서는 DOM 속성(data-map-select)으로 오간다.
+          id: String(h.id),
+        })),
+    // 좌표·이름이 바뀌는 건 결국 목록이 바뀔 때뿐이라 길이와 첫 항목으로 충분하다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items.length, items[0]?.id],
+  );
+
   // 무한스크롤: 리스트 끝 센티넬이 화면에 들어오면(바닥 근처) 다음 페이지를 당긴다.
   const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -671,7 +723,8 @@ export default function SearchPage() {
         */
         'mx-auto px-[3px] py-4 sm:py-6',
         mapView
-          ? 'max-w-[100rem] lg:grid lg:grid-cols-[21rem_1fr] lg:items-start lg:gap-5'
+          ? // 지도는 화면을 꽉 쓴다. 조건은 레이어로 떠 있어 여기서 자리를 차지하지 않는다.
+            'max-w-none'
           : // 목록만 볼 때는 아주 넓은 화면(xl~)에서 폭을 연다. 그 아래는 읽기 좋은 768px.
             'max-w-3xl xl:max-w-6xl',
       )}
@@ -696,7 +749,7 @@ export default function SearchPage() {
           type="button"
           aria-label={t('search.closeFilters')}
           onClick={() => setFilterDrawer(false)}
-          className="fixed inset-0 z-40 bg-ink/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-ink/40"
         />
       )}
 
@@ -712,17 +765,16 @@ export default function SearchPage() {
             'transition-transform duration-200 ease-native',
             filterDrawer ? 'translate-x-0' : '-translate-x-full',
             /*
-              넓은 화면: 서랍을 풀고 평범한 칸으로 되돌린다.
-              **PC 동작은 아직 정하지 않았다** — 조건을 붙박이로 둘지 지도를 붙박이로 둘지는
-              PC 화면을 통째로 설계할 때 함께 정한다. 지금은 페이지와 함께 흐른다.
+              **넓은 화면에서도 서랍 그대로다.** 지도 모드에서 조건이 칸을 하나 차지하면
+              그만큼 지도가 좁아진다 — 지도는 넓을수록 쓸모가 커지고, 조건은 한 번 정하고
+              나면 계속 볼 필요가 없다. 필요할 때만 위로 덮어 꺼낸다.
             */
-            'lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-0 lg:shadow-none',
           ],
         )}
       >
         {/* 서랍 머리. 닫기는 좁은 화면에서만 — 넓은 화면에서는 서랍이 아니다. */}
         {mapView && (
-          <div className="mb-3 flex items-center justify-between px-4 lg:hidden">
+          <div className="mb-3 flex items-center justify-between px-4">
             <span className="text-[0.95rem] font-extrabold text-ink">
               {t('search.openFilters')}
             </span>
@@ -765,7 +817,7 @@ export default function SearchPage() {
                   (달빛어린이·더보기)이 화면 밖에 숨는데, 밀 수 있다는 표시가 없어서
                   아예 없는 것처럼 보인다. 서랍은 자기 여백이 이미 있어 좌우도 안 띄운다.
                 */
-                'mx-0 flex-wrap px-4 lg:px-0'
+                'mx-0 flex-wrap px-4'
               : // 본문에 누울 때는 한 줄을 지키고 넘치면 가로로 민다(줄이 늘면 결과가 밀린다).
                 'overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           )}
@@ -883,7 +935,7 @@ export default function SearchPage() {
             넓어지면(lg) 다시 홀로 서는 카드로 돌아온다.
           */
           mapView
-            ? 'mx-0 border-x-0 lg:rounded-card lg:border-x lg:shadow-card'
+            ? 'mx-0 border-x-0'
             : 'rounded-card shadow-card',
         )}
       >
@@ -1193,7 +1245,17 @@ export default function SearchPage() {
       <section className={cn('mt-5 min-w-0', mapView && 'lg:mt-0')}>
 
       {/* 결과 목록의 제목 줄. 카드 바로 위에 붙여 "이 아래가 결과" 임을 잇는다. */}
-      <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
+      {/*
+        **전부 왼쪽에 모은다** — 버튼 먼저, 건수가 그 뒤.
+
+        조건·보기를 바꾸는 것은 손이 가는 일이라 눈이 먼저 닿는 왼쪽에 두고, 건수는 그 결과로
+        따라 읽는 값이라 바로 옆에 붙인다. 한때 건수를 반대편 끝으로 보냈는데, 지도 모드에서는
+        그 끝이 **지도 위**라 왼쪽 목록을 설명하는 값이 엉뚱한 자리에 떠 있게 됐다.
+
+        row-reverse + justify-end: 화면에는 [버튼][건수] 순으로 왼쪽부터 쌓인다.
+        (DOM 순서는 건수가 먼저다 — 스크린리더가 "20건" 을 먼저 읽는 편이 맞다.)
+      */}
+      <div className="mb-2.5 flex flex-row-reverse items-center justify-end gap-3 px-1">
         <p className="min-w-0 truncate text-[0.85rem] font-extrabold text-ink">
           {isLoading
             ? t('common.loading')
@@ -1211,7 +1273,7 @@ export default function SearchPage() {
           <button
             type="button"
             onClick={() => setFilterDrawer(true)}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[0.75rem] font-bold text-ink-body shadow-card ring-1 ring-inset ring-line transition-transform duration-100 ease-native active:scale-95 lg:hidden"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[0.75rem] font-bold text-ink-body shadow-card ring-1 ring-inset ring-line transition-transform duration-100 ease-native active:scale-95"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             {t('search.openFilters')}
@@ -1243,18 +1305,61 @@ export default function SearchPage() {
         지도를 움직여 그 영역을 다시 검색하는, 이 화면의 핵심 동작을 못 만든다. 결과에 좌표는
         이미 들어 있으므로(LocationDto.lat/lon) 서버가 영역 검색을 주면 여기에 핀부터 붙인다.
       */}
-      {mapView && (
-        <div className="mb-3 flex h-64 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line-strong bg-surface px-6 text-center lg:h-[26rem]">
-          <MapIcon className="h-6 w-6 text-ink-subtle" />
-          <p className="!my-0 text-sm font-bold text-ink-body">
-            {t('search.mapSoon')}
-          </p>
-          <p className="!my-0 max-w-xs text-xs leading-relaxed text-ink-subtle">
-            {t('search.mapSoonHint')}
-          </p>
-        </div>
-      )}
 
+      {/*
+        지도 모드의 본문. **왼쪽 목록 1/3 · 오른쪽 지도 2/3.**
+
+        지도는 넓을수록 쓸모가 커지고(핀 사이가 벌어져야 고를 수 있다) 목록은 훑는 자리라
+        좁아도 된다. 높이를 화면에 맞춰 고정하고 **목록만 안에서 스크롤**한다 — 그래야
+        목록을 내리는 동안 지도가 화면에 남는다(에어비앤비가 그렇게 한다).
+
+        좁은 화면에서는 나누지 않는다. 지도가 위, 목록이 아래로 쌓이고 페이지가 통째로
+        스크롤된다 — 1/3 로 쪼개면 어느 쪽도 쓸 수 없는 폭이 된다.
+      */}
+      <div
+        className={cn(
+          mapView &&
+            'lg:grid lg:h-[calc(100vh-10rem)] lg:grid-cols-[1fr_2fr] lg:gap-4',
+        )}
+      >
+        {/* 지도. DOM 에서 앞에 두어 좁은 화면에서 위로 오게 하고, 넓으면 오른쪽 칸으로 보낸다. */}
+      {mapView &&
+        (mapPoints.length > 0 ? (
+          <div className={cn('mb-3', mapView && 'lg:col-start-2 lg:row-start-1 lg:mb-0 lg:h-full')}>
+            <MapView
+              // 지도의 가운데. 결과 중 첫 좌표를 쓰고, 나머지가 다 들어오게 확대율이 맞춰진다.
+              lat={mapPoints[0].lat}
+              lng={mapPoints[0].lng}
+              name={mapPoints[0].name}
+              nearby={mapPoints}
+              // 검색 결과에는 '기준 병원' 이 없다 — 가운데 회색 점을 그리지 않는다.
+              anchor={false}
+              /*
+                화면 높이를 따라간다. 목록을 훑다가 지도를 보는 화면이라 지도가 한 화면을
+                다 먹으면 안 되고, 그렇다고 고정 높이로 두면 넓은 모니터에서 우표만 해진다.
+                아래위로 한계를 둔 채(clamp) 뷰포트의 절반쯤을 쓴다.
+              */
+              height={isWide ? '100%' : 'clamp(18rem, 55vh, 38rem)'}
+              onSelect={focusResult}
+            />
+            <p className="!mb-0 !mt-2 px-1 text-[0.7rem] text-ink-subtle">
+              {t('search.mapNote', { count: mapPoints.length })}
+            </p>
+          </div>
+        ) : (
+          <div className="mb-3 flex h-56 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line-strong bg-surface px-6 text-center">
+            <MapIcon className="h-6 w-6 text-ink-subtle" />
+            <p className="!my-0 text-sm font-bold text-ink-body">
+              {t('search.mapEmpty')}
+            </p>
+          </div>
+        ))}
+
+        <div
+          className={cn(
+            mapView && 'lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto',
+          )}
+        >
       {isLoading && (
         <div className="py-12 text-center">
           <Spinner />
@@ -1273,7 +1378,21 @@ export default function SearchPage() {
       */}
       <div className={cn('grid gap-2.5', !mapView && 'xl:grid-cols-2')}>
         {items.map((h) => (
-          <HospitalCard key={h.id} hospital={h} />
+          /*
+            지도에서 고른 카드를 잠깐 칠한다. 감싸는 div 에 거는 이유는 HospitalCard 가
+            홈·상세와 공용이라, 검색에서만 필요한 표식을 그쪽까지 들고 가지 않으려는 것이다.
+            scroll-mt: 스크롤해서 데려올 때 위 고정 헤더에 가리지 않게 비운다.
+          */
+          <div
+            key={h.id}
+            id={`search-result-${h.id}`}
+            className={cn(
+              'scroll-mt-24 rounded-tile transition-shadow duration-300',
+              focusedId === String(h.id) && 'ring-2 ring-brand ring-offset-2',
+            )}
+          >
+            <HospitalCard hospital={h} />
+          </div>
         ))}
       </div>
 
@@ -1288,6 +1407,8 @@ export default function SearchPage() {
           <Spinner />
         </div>
       )}
+        </div>
+      </div>
       </section>
     </div>
   );

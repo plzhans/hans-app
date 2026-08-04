@@ -120,7 +120,9 @@
     "mapSoon": "Map view is on the way",
     "mapSoonHint": "Searching by the area you pan to needs area search on the server. The map will appear here once it lands.",
     "openFilters": "Filters",
-    "closeFilters": "Close"
+    "closeFilters": "Close",
+    "mapNote": "Showing {{count}} places from the current list. Panning the map does not re-search.",
+    "mapEmpty": "No results in this list have coordinates"
   },
   "clinic": {
     "badge": {

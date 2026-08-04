@@ -21,6 +21,12 @@ export interface MapPoint {
    * 그러면 목록의 3번이 지도의 2번이 되어 서로 못 알아본다. 목록이 정한 번호를 그대로 받는다.
    */
   rank?: number;
+
+  /**
+   * 이 지점이 무엇인가(병원 id). 말풍선을 눌렀을 때 화면 쪽이 **어느 카드인지 찾는 단서**다.
+   * 지도 어댑터는 그 id 로 무엇을 할지 모르고, 알 필요도 없다 — 그대로 되돌려줄 뿐이다.
+   */
+  id?: string;
 }
 
 /** 생성된 지도를 조종하는 손잡이. 크게보기/현위치 버튼이 이걸 부른다. */
@@ -30,13 +36,24 @@ export interface MapController {
   /** 병원 위치로 되돌린다(+ 기본 확대율). */
   recenter(): void;
   /**
-   * 곁들임 핀(근처의 비슷한 병원)을 갈아 끼운다. 이전 것은 지운다.
+   * 곁들임 핀(근처의 비슷한 병원·검색 결과)을 갈아 끼운다. 이전 것은 지운다.
    *
    * **생성(create)이 아니라 별도 메서드인 이유**는 이 목록이 지도보다 늦게 도착할 수 있어서다 —
    * 지도는 사용자가 "지도 보기" 를 누르는 순간 만들어지는데, 그때 근처 병원 조회가 아직
    * 안 끝났을 수 있다. 지도를 다시 만들면 SDK 호출이 또 오르므로(과금) 핀만 얹는다.
+   *
+   * @param opts.onSelect **말풍선**을 눌렀을 때. MapPoint.id 를 그대로 돌려준다.
+   *   핀 자체는 말풍선을 여는 데까지만 쓴다 — 지도를 훑는 동안 핀은 자주 스치듯 눌리는데,
+   *   그때마다 화면이 목록으로 끌려가면 정작 지도를 볼 수가 없다. 이름을 확인하고 나서
+   *   그 이름을 누르는 것이 "이걸 고른다" 는 뜻이 된다.
+   * @param opts.anchor 기준 병원 핀을 그릴지. **검색 결과 지도에는 기준이 없다** —
+   *   상세에서는 "이 병원 주변" 이라 가운데 병원이 실재하지만, 검색은 결과 목록일 뿐이라
+   *   가운데에 아무 뜻 없는 회색 점이 하나 남는다. 그럴 때 끈다(기본은 그린다).
    */
-  setNearby(points: MapPoint[]): void;
+  setNearby(
+    points: MapPoint[],
+    opts?: { anchor?: boolean; onSelect?: (id: string) => void },
+  ): void;
 }
 
 export type PlatformId = 'naver' | 'kakao' | 'google';
@@ -213,7 +230,19 @@ export function buildRankPin(rank: number): Pin {
  *
  * 마커를 만드는 순서로도 대개 되지만(늦게 만든 게 위) SDK 마다 규칙이 달라 zIndex 를 명시한다.
  */
-const PIN_Z = { primary: 100, rank: 50, anchor: 10 } as const;
+const PIN_Z = {
+  /**
+   * 말풍선. **핀 전부보다 위다.**
+   *
+   * 지정하지 않으면 SDK 기본값이라, 나중에 만들어진 핀이 말풍선을 덮는다 — 핀이 몰려 있는
+   * 자리에서 이름을 열면 옆 핀에 가려 정작 무엇을 눌렀는지 못 읽는다. 말풍선은 사용자가
+   * **직접 열어 지금 보고 있는 것**이라 언제나 맨 위여야 한다.
+   */
+  info: 1000,
+  primary: 100,
+  rank: 50,
+  anchor: 10,
+} as const;
 
 /**
  * 번호 핀을 눌렀을 때 뜨는 말풍선의 내용(HTML 문자열).
@@ -225,10 +254,14 @@ const PIN_Z = { primary: 100, rank: 50, anchor: 10 } as const;
  * 이스케이프한다** — 병원 이름에 <, & 가 들어간 사례가 실제로 있다.
  */
 function infoContent(point: MapPoint): string {
-  const name = point.name
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  const escape = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const name = escape(point.name);
   const rank =
     point.rank === undefined
       ? ''
@@ -236,10 +269,23 @@ function infoContent(point: MapPoint): string {
         `width:18px;height:18px;margin-right:6px;border-radius:5px;` +
         `background:${rankMark(point.rank).solid};color:#fff;font-size:11px;font-weight:700">` +
         `${rankLabel(point.rank)}</span>`;
-  return (
-    `<div style="display:flex;align-items:center;white-space:nowrap;` +
+
+  const inner =
+    `display:flex;align-items:center;white-space:nowrap;` +
     `padding:7px 11px;font-size:13px;font-weight:600;color:#0f172a;` +
-    `font-family:-apple-system,BlinkMacSystemFont,sans-serif">${rank}${name}</div>`
+    `font-family:-apple-system,BlinkMacSystemFont,sans-serif`;
+
+  /*
+    id 가 있으면 **누를 수 있는 것**으로 만든다. 링크(`<a href>`)가 아니라 버튼인 이유는
+    이게 페이지를 옮기는 일이 아니기 때문이다 — 아래 목록의 그 카드로 데려갈 뿐이라,
+    링크로 두면 새 탭·주소 미리보기 같은 "다른 데로 간다" 는 신호를 거짓으로 준다.
+  */
+  if (!point.id) {
+    return `<div style="${inner}">${rank}${name}</div>`;
+  }
+  return (
+    `<button type="button" data-map-select="${escape(point.id)}" ` +
+    `style="${inner};border:0;background:none;cursor:pointer">${rank}${name}</button>`
   );
 }
 
@@ -323,6 +369,39 @@ function symmetricBounds(
   return {
     sw: { lat: center.lat - padLat, lng: center.lng - padLng },
     ne: { lat: center.lat + padLat, lng: center.lng + padLng },
+  };
+}
+
+/**
+ * 점들을 **딱 감싸는** 사각형. 기준점이 없는 지도(검색 결과)가 쓴다.
+ *
+ * symmetricBounds 와 다른 점은 가운데를 고정하지 않는다는 것이다. 그쪽은 "이 병원 주변" 이라
+ * 기준 병원이 한가운데 있어야 하지만, 검색 결과에는 가운데를 지킬 이유가 없다 — 대칭으로
+ * 잡으면 **첫 결과가 한쪽에 치우쳐 있을 때 상자가 두 배로 커져** 지도가 쓸데없이 멀어진다.
+ *
+ * 여백은 폭·높이의 8% 다. 핀이 가장자리에 딱 붙지 않을 만큼만 준다.
+ * 점이 하나뿐이면(또는 모두 같은 자리면) 폭이 0 이라, 최소 여백으로 그 언저리를 보여준다.
+ */
+function fitBounds(
+  points: MapPoint[],
+): { sw: { lat: number; lng: number }; ne: { lat: number; lng: number } } | undefined {
+  if (points.length === 0) return undefined;
+
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => p.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  // 약 150m. 한 점만 있을 때 동네가 보일 정도의 최소 반경이다.
+  const MIN_PAD = 0.0015;
+  const padLat = Math.max((maxLat - minLat) * 0.08, MIN_PAD);
+  const padLng = Math.max((maxLng - minLng) * 0.08, MIN_PAD);
+
+  return {
+    sw: { lat: minLat - padLat, lng: minLng - padLng },
+    ne: { lat: maxLat + padLat, lng: maxLng + padLng },
   };
 }
 
@@ -499,12 +578,16 @@ export const naverAdapter: PlatformAdapter = {
         },
       });
 
-    let anchorMarker = marker(point, buildPin(point.name), PIN_Z.primary);
+    let anchorMarker: RemovableMarker | undefined = marker(
+      point,
+      buildPin(point.name),
+      PIN_Z.primary,
+    );
     let nearby: RemovableMarker[] = [];
     let restore: (() => void) | undefined;
 
     // 말풍선은 하나만 만들어 돌려 쓴다 — 핀마다 만들면 여러 개가 동시에 떠 지도를 덮는다.
-    const info = new m.InfoWindow({ content: '', borderWidth: 0 });
+    const info = new m.InfoWindow({ content: '', borderWidth: 0, zIndex: PIN_Z.info });
     m.Event.addListener(map, 'click', () => info.close());
 
     return {
@@ -528,7 +611,7 @@ export const naverAdapter: PlatformAdapter = {
         map.panTo(center);
         map.setZoom(17, true);
       },
-      setNearby: (points) => {
+      setNearby: (points, opts) => {
         info.close();
         nearby.forEach((mk) => mk.setMap(null));
 
@@ -536,16 +619,21 @@ export const naverAdapter: PlatformAdapter = {
         const spread = spreadOverlaps(point, points);
 
         // 곁들임이 있으면 기준 병원은 뒤로 물린다 — 이 지도의 주인공은 후보들이다.
-        anchorMarker.setMap(null);
-        anchorMarker = marker(
-          point,
-          points.length > 0 ? buildAnchorPin() : buildPin(point.name),
-          points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
-        );
+        // anchor:false 면 아예 안 그린다(검색 결과 지도 — 가운데에 기준이 없다).
+        anchorMarker?.setMap(null);
+        anchorMarker =
+          opts?.anchor === false
+            ? undefined
+            : marker(
+                point,
+                points.length > 0 ? buildAnchorPin() : buildPin(point.name),
+                points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
+              );
 
         nearby = spread.map((p, i) => {
           const mk = marker(p, buildRankPin(p.rank ?? i + 1), PIN_Z.rank);
           m.Event.addListener(mk, 'click', () => {
+
             // 누른 핀을 가운데로 옮긴다. **말풍선이 잘리는 걸 막는 가장 싼 방법**이다 —
             // 지도 컨테이너가 overflow-hidden 이라 가장자리에서 열리면 잘리고,
             // 왼쪽 위는 크게보기·현위치 버튼이 덮는다. 가운데면 둘 다 피한다.
@@ -557,7 +645,11 @@ export const naverAdapter: PlatformAdapter = {
         });
 
         // 곁들임이 있으면 다 들어오게 확대율을 맞춘다. 없으면 기본 확대율 그대로.
-        const box = symmetricBounds(point, spread);
+        // 기준점이 없으면(검색 결과) 점들을 딱 감싼다. 있으면 기준점을 가운데 두고 대칭으로.
+        const box =
+          opts?.anchor === false
+            ? fitBounds(spread)
+            : symmetricBounds(point, spread);
         if (!box) {
           restore = undefined;
           return;
@@ -642,11 +734,15 @@ export const kakaoAdapter: PlatformAdapter = {
         }),
       });
 
-    let anchorMarker = marker(point, buildPin(point.name), PIN_Z.primary);
+    let anchorMarker: RemovableMarker | undefined = marker(
+      point,
+      buildPin(point.name),
+      PIN_Z.primary,
+    );
     let nearby: RemovableMarker[] = [];
     let restore: (() => void) | undefined;
 
-    const info = new m.InfoWindow({ content: '', removable: true });
+    const info = new m.InfoWindow({ content: '', removable: true, zIndex: PIN_Z.info });
     m.event.addListener(map, 'click', () => info.close());
 
     return {
@@ -662,7 +758,7 @@ export const kakaoAdapter: PlatformAdapter = {
         map.setCenter(center);
         map.setLevel(KAKAO_LEVEL);
       },
-      setNearby: (points) => {
+      setNearby: (points, opts) => {
         info.close();
         nearby.forEach((mk) => mk.setMap(null));
 
@@ -670,16 +766,21 @@ export const kakaoAdapter: PlatformAdapter = {
         const spread = spreadOverlaps(point, points);
 
         // 곁들임이 있으면 기준 병원은 뒤로 물린다 — 이 지도의 주인공은 후보들이다.
-        anchorMarker.setMap(null);
-        anchorMarker = marker(
-          point,
-          points.length > 0 ? buildAnchorPin() : buildPin(point.name),
-          points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
-        );
+        // anchor:false 면 아예 안 그린다(검색 결과 지도 — 가운데에 기준이 없다).
+        anchorMarker?.setMap(null);
+        anchorMarker =
+          opts?.anchor === false
+            ? undefined
+            : marker(
+                point,
+                points.length > 0 ? buildAnchorPin() : buildPin(point.name),
+                points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
+              );
 
         nearby = spread.map((p, i) => {
           const mk = marker(p, buildRankPin(p.rank ?? i + 1), PIN_Z.rank);
           m.event.addListener(mk, 'click', () => {
+
             // 누른 핀을 가운데로 옮긴다. **말풍선이 잘리는 걸 막는 가장 싼 방법**이다 —
             // 지도 컨테이너가 overflow-hidden 이라 가장자리에서 열리면 잘리고,
             // 왼쪽 위는 크게보기·현위치 버튼이 덮는다. 가운데면 둘 다 피한다.
@@ -690,7 +791,11 @@ export const kakaoAdapter: PlatformAdapter = {
           return mk;
         });
 
-        const box = symmetricBounds(point, spread);
+        // 기준점이 없으면(검색 결과) 점들을 딱 감싼다. 있으면 기준점을 가운데 두고 대칭으로.
+        const box =
+          opts?.anchor === false
+            ? fitBounds(spread)
+            : symmetricBounds(point, spread);
         if (!box) {
           restore = undefined;
           return;
@@ -759,11 +864,15 @@ export const googleAdapter: PlatformAdapter = {
         },
       });
 
-    let anchorMarker = marker(point, buildPin(point.name), PIN_Z.primary);
+    let anchorMarker: RemovableMarker | undefined = marker(
+      point,
+      buildPin(point.name),
+      PIN_Z.primary,
+    );
     let nearby: RemovableMarker[] = [];
     let restore: (() => void) | undefined;
 
-    const info = new m.InfoWindow({ content: '' });
+    const info = new m.InfoWindow({ content: '', zIndex: PIN_Z.info });
     map.addListener('click', () => info.close());
 
     return {
@@ -779,7 +888,7 @@ export const googleAdapter: PlatformAdapter = {
         map.setCenter(center);
         map.setZoom(17);
       },
-      setNearby: (points) => {
+      setNearby: (points, opts) => {
         info.close();
         nearby.forEach((mk) => mk.setMap(null));
 
@@ -787,16 +896,21 @@ export const googleAdapter: PlatformAdapter = {
         const spread = spreadOverlaps(point, points);
 
         // 곁들임이 있으면 기준 병원은 뒤로 물린다 — 이 지도의 주인공은 후보들이다.
-        anchorMarker.setMap(null);
-        anchorMarker = marker(
-          point,
-          points.length > 0 ? buildAnchorPin() : buildPin(point.name),
-          points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
-        );
+        // anchor:false 면 아예 안 그린다(검색 결과 지도 — 가운데에 기준이 없다).
+        anchorMarker?.setMap(null);
+        anchorMarker =
+          opts?.anchor === false
+            ? undefined
+            : marker(
+                point,
+                points.length > 0 ? buildAnchorPin() : buildPin(point.name),
+                points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
+              );
 
         nearby = spread.map((p, i) => {
           const mk = marker(p, buildRankPin(p.rank ?? i + 1), PIN_Z.rank);
           mk.addListener('click', () => {
+
             // 누른 핀을 가운데로 옮긴다. **말풍선이 잘리는 걸 막는 가장 싼 방법**이다 —
             // 지도 컨테이너가 overflow-hidden 이라 가장자리에서 열리면 잘리고,
             // 왼쪽 위는 크게보기·현위치 버튼이 덮는다. 가운데면 둘 다 피한다.
@@ -807,7 +921,11 @@ export const googleAdapter: PlatformAdapter = {
           return mk;
         });
 
-        const box = symmetricBounds(point, spread);
+        // 기준점이 없으면(검색 결과) 점들을 딱 감싼다. 있으면 기준점을 가운데 두고 대칭으로.
+        const box =
+          opts?.anchor === false
+            ? fitBounds(spread)
+            : symmetricBounds(point, spread);
         if (!box) {
           restore = undefined;
           return;

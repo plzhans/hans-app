@@ -120,7 +120,9 @@
     "mapSoon": "지도 보기는 준비 중입니다",
     "mapSoonHint": "지도를 움직여 그 지역을 다시 검색하려면 서버의 영역 검색이 필요합니다. 준비되면 이 자리에 지도가 뜹니다.",
     "openFilters": "검색 조건",
-    "closeFilters": "닫기"
+    "closeFilters": "닫기",
+    "mapNote": "지금 목록의 {{count}}곳을 표시합니다. 지도를 움직여도 다시 검색되지 않습니다.",
+    "mapEmpty": "이 결과에는 좌표가 있는 병원이 없습니다"
   },
   "clinic": {
     "badge": {

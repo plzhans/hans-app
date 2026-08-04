@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Crosshair, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
@@ -27,6 +27,13 @@ interface PlatformMapProps {
    * 부모가 useMemo 로 묶어서 넘긴다.
    */
   nearby?: MapPoint[];
+  /**
+   * 기준 병원 핀을 그릴지. **검색 결과 지도에는 기준이 없다** — 가운데에 아무 뜻 없는
+   * 회색 점이 남으므로 끈다. 상세(이 병원 주변)에서는 기본값 그대로 그린다.
+   */
+  anchor?: boolean;
+  /** 말풍선을 눌렀을 때. MapPoint.id 를 그대로 돌려준다 — 무엇을 할지는 화면이 정한다. */
+  onSelect?: (id: string) => void;
 }
 
 /** 크게 보기 높이. 지도만 화면을 다 먹지 않도록 뷰포트의 70% 로 제한한다. */
@@ -60,6 +67,8 @@ export function PlatformMap({
   bare = false,
   visible = true,
   nearby = EMPTY_NEARBY,
+  anchor = true,
+  onSelect,
 }: PlatformMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const renderedRef = useRef(false);
@@ -68,6 +77,17 @@ export function PlatformMap({
   // 그 사이 목록이 바뀌었을 수 있고, 클로저에 갇힌 옛 값을 쓰면 핀이 어긋난다.
   const nearbyRef = useRef(nearby);
   nearbyRef.current = nearby;
+
+  /**
+   * **콜백을 ref 로 붙잡아 안정된 함수 하나만 어댑터에 넘긴다.**
+   *
+   * 부모는 보통 `onSelect={(id) => …}` 처럼 렌더마다 새 함수를 만든다. 그걸 그대로 넘기면
+   * setNearby 의 의존성이 매 렌더 바뀌어 **핀을 통째로 다시 만든다** — 마커 생성은 SDK
+   * 호출이라 그만큼 값이 나가고, 열려 있던 말풍선도 매번 닫힌다.
+   */
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const selectPoint = useCallback((id: string) => onSelectRef.current?.(id), []);
 
   const { t } = useTranslation();
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -84,7 +104,7 @@ export function PlatformMap({
         renderedRef.current = true;
         const controller = adapter.create(mapRef.current, point);
         controllerRef.current = controller;
-        controller.setNearby(nearbyRef.current);
+        controller.setNearby(nearbyRef.current, { anchor, onSelect: selectPoint });
 
         /*
           **그려졌는지 확인한다.** 카카오는 인증에 실패해도(키가 틀리거나 이 도메인이 등록돼
@@ -154,8 +174,32 @@ export function PlatformMap({
    * 최초 생성 때는 위 훅이 이미 얹었으므로 여기서는 이미 그려진 지도만 손댄다.
    */
   useEffect(() => {
-    if (renderedRef.current) controllerRef.current?.setNearby(nearby);
-  }, [nearby]);
+    if (renderedRef.current)
+      controllerRef.current?.setNearby(nearby, { anchor, onSelect: selectPoint });
+  }, [nearby, anchor, selectPoint]);
+
+  /**
+   * 말풍선 클릭을 받는다.
+   *
+   * **위임으로 잡는다.** 말풍선은 SDK 가 열 때마다 새로 만들어 컨테이너에 꽂았다 빼는
+   * DOM 이라, 우리가 그때그때 리스너를 달 방법이 없다. 컨테이너 한 곳에서 듣고 올라온
+   * 클릭이 말풍선 버튼에서 왔는지만 본다.
+   */
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el || !onSelect) return;
+
+    const onClick = (event: MouseEvent) => {
+      const target = (event.target as HTMLElement | null)?.closest?.(
+        '[data-map-select]',
+      );
+      const id = target?.getAttribute('data-map-select');
+      if (id) onSelect(id);
+    };
+
+    el.addEventListener('click', onClick);
+    return () => el.removeEventListener('click', onClick);
+  }, [onSelect]);
 
   /**
    * 숨김(display:none) → 보임으로 돌아오면 컨테이너가 0 크기였다가 복원된다.
@@ -201,7 +245,8 @@ export function PlatformMap({
   const toggleSize = () => setExpanded((prev) => !prev);
 
   return (
-    <div className="relative">
+    // h-full: 부모가 정한 높이를 지도 상자까지 내려보낸다(height="100%" 를 쓰는 경우).
+    <div className="relative h-full">
       <div
         ref={mapRef}
         className={cn(
