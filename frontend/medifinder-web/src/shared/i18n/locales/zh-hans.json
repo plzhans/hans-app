@@ -39,7 +39,8 @@
         "title": "新生儿重症监护优秀",
         "subtitle": "适当性评价1级 · 新生儿重症"
       }
-    }
+    },
+    "advancedSearch": "高级搜索"
   },
   "common": {
     "loading": "加载中…",
@@ -63,7 +64,8 @@
       "timeout": "定位耗时过长，请重试。",
       "unavailable": "无法获取位置。请确认设备已开启定位服务。",
       "notFound": "未能匹配到当前位置所属地区，请手动选择。",
-      "clear": "取消 {{name}}"
+      "clear": "取消 {{name}}",
+      "granted": "已允许访问位置信息。可在浏览器设置中取消。"
     },
     "all": "全部"
   },
@@ -122,7 +124,8 @@
     "openFilters": "筛选条件",
     "closeFilters": "关闭",
     "mapNote": "显示当前列表中的 {{count}} 家。拖动地图不会重新搜索。",
-    "mapEmpty": "此结果中没有带坐标的医院"
+    "mapEmpty": "此结果中没有带坐标的医院",
+    "useMyLocation": "使用我的位置"
   },
   "clinic": {
     "badge": {

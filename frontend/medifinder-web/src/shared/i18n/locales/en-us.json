@@ -39,7 +39,8 @@
         "title": "Top-rated Neonatal ICU",
         "subtitle": "HIRA grade 1 · critical newborn care"
       }
-    }
+    },
+    "advancedSearch": "Advanced search"
   },
   "common": {
     "loading": "Loading…",
@@ -63,7 +64,8 @@
       "timeout": "Locating is taking too long. Please try again.",
       "unavailable": "Couldn't get your location. Check that location services are on for this device.",
       "notFound": "We couldn't match your location to a region. Please pick one manually.",
-      "clear": "Clear {{name}}"
+      "clear": "Clear {{name}}",
+      "granted": "Location access is allowed. You can revoke it in your browser settings."
     },
     "all": "All"
   },
@@ -122,7 +124,8 @@
     "openFilters": "Filters",
     "closeFilters": "Close",
     "mapNote": "Showing {{count}} places from the current list. Panning the map does not re-search.",
-    "mapEmpty": "No results in this list have coordinates"
+    "mapEmpty": "No results in this list have coordinates",
+    "useMyLocation": "Use my location"
   },
   "clinic": {
     "badge": {

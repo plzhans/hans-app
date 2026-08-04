@@ -37,6 +37,15 @@ export interface UseMyRegion {
    */
   blocked: boolean;
 
+  /**
+   * 이 사이트가 위치를 **이미 쓸 수 있는가**(브라우저·OS 가 허용을 기억하고 있다).
+   *
+   * 버튼에 불을 켜는 근거다 — 한 번 허용한 사람에게 매번 눌러야 켜지는 표시는 "지금 위치가
+   * 공유되고 있는가" 에 답하지 못한다. 여기서 켜져 있다고 좌표를 미리 받아오지는 않는다.
+   * Permissions API 가 없는 브라우저에서는 늘 false 다(눌러봐야 안다).
+   */
+  granted: boolean;
+
   /** 실행. 성공하면 지역, 실패하면 null 이다(사유는 reason 으로 남는다). */
   locate: () => Promise<RegionPointDto | null>;
 }
@@ -45,12 +54,15 @@ export function useMyRegion(): UseMyRegion {
   const [status, setStatus] = useState<MyRegionStatus>('idle');
   const [reason, setReason] = useState<MyRegionFailure>();
   const [blocked, setBlocked] = useState(false);
+  const [granted, setGranted] = useState(false);
 
   // 프롬프트를 띄우지 않는 조회다. 마운트 때 한 번 봐서 버튼 안내를 미리 맞춰 둔다.
   useEffect(() => {
     let alive = true;
     void getGeoPermission().then((state) => {
-      if (alive) setBlocked(state === 'denied');
+      if (!alive) return;
+      setBlocked(state === 'denied');
+      setGranted(state === 'granted');
     });
     return () => {
       alive = false;
@@ -62,6 +74,8 @@ export function useMyRegion(): UseMyRegion {
     setReason(undefined);
 
     const coords = await getCurrentCoords();
+    // 좌표를 받아냈다면 허용된 것이다. 마운트 때 'prompt' 였어도 여기서 켜진다.
+    if (coords.ok) setGranted(true);
     if (!coords.ok) {
       // 이번에 거부했다면 다음부터는 프롬프트가 안 뜬다 — 안내를 바로 바꿔 둔다.
       if (coords.reason === 'denied') setBlocked(true);
@@ -85,5 +99,5 @@ export function useMyRegion(): UseMyRegion {
     }
   }, []);
 
-  return { status, reason, blocked, locate };
+  return { status, reason, blocked, granted, locate };
 }

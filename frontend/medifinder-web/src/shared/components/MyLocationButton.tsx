@@ -49,7 +49,7 @@ export function MyLocationButton({
   className,
 }: MyLocationButtonProps) {
   const { t } = useTranslation();
-  const { status, reason, blocked, locate } = useMyRegion();
+  const { status, reason, blocked, granted, locate } = useMyRegion();
   const [message, setMessage] = useState<string>();
 
   // 안내를 띄운 채 두지 않는다. 다음 시도에 다시 뜬다.
@@ -62,7 +62,14 @@ export function MyLocationButton({
   const locating = status === 'locating';
 
   const onClick = async () => {
-    if (locating) return;
+    /*
+      **이미 허용돼 있으면 누를 일이 없다.** 웹에는 권한을 코드로 해제하는 API 가 없어서
+      이 버튼이 할 수 있는 일은 "허용을 받는 것" 하나뿐이다. 이미 받았는데 또 누르면
+      좌표만 한 번 더 받아올 뿐 화면에서 달라지는 게 없다 — 눌리지만 아무 일도 안 나는
+      버튼이 되어, 켜진 불이 무슨 뜻인지 오히려 흐려진다.
+      해제는 브라우저·OS 설정에서 한다(그건 우리가 못 연다).
+    */
+    if (locating || granted) return;
     const point = await locate();
     // 실패(null)는 여기서 다루지 않는다 — 사유는 훅의 상태로 오므로 아래 useEffect 가 띄운다.
     if (point) {
@@ -126,13 +133,36 @@ export function MyLocationButton({
         <button
           type="button"
           onClick={() => void onClick()}
-          disabled={locating}
-          title={blocked ? t('common.myLocation.blocked') : label}
+          disabled={locating || granted}
+          title={
+            granted
+              ? t('common.myLocation.granted')
+              : blocked
+                ? t('common.myLocation.blocked')
+                : label
+          }
           aria-label={label}
           className={cn(
             shell,
-            'justify-center bg-surface text-ink-body ring-1 ring-inset ring-line',
-            'disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.97] active:bg-surface-subtle',
+            'justify-center',
+            /*
+              **허용돼 있으면 켜진 색.** 눌렀을 때가 아니라 이 사이트가 위치를 쓸 수 있는
+              상태인지를 보여준다 — 한 번 허용한 사람에게 매번 눌러야 켜지는 표시는
+              "지금 위치가 공유되고 있나" 에 답하지 못한다. 켜져 있다고 좌표를 미리
+              받아오지는 않는다(누를 때만 받는다).
+            */
+            granted
+              ? 'bg-brand-tint text-brand ring-1 ring-inset ring-brand-tint-strong'
+              : 'bg-surface text-ink-body ring-1 ring-inset ring-line',
+            'active:scale-[0.97] active:bg-surface-subtle',
+            /*
+              켜진 상태는 **흐려지지도, 금지 커서가 뜨지도 않는다.** 그건 "이미 쓸 수 있다" 는
+              표시지 고장이나 비활성이 아니다 — 흐리게 하거나 🚫 를 띄우면 뜻이 반대로 읽힌다.
+              누를 수 없다는 것은 마우스를 올렸을 때 뜨는 안내(title)가 말한다.
+            */
+            granted
+              ? 'disabled:opacity-100 disabled:cursor-default'
+              : 'disabled:cursor-not-allowed disabled:opacity-60',
             'focus:outline-none focus:ring-2 focus:ring-brand/30',
             // 권한이 이미 막혀 있으면 눌러도 프롬프트가 안 뜬다. 흐리게 두어 미리 알린다.
             blocked && 'text-ink-subtle',

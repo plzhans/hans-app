@@ -10,11 +10,11 @@ import {
   Ribbon,
   Search,
   Siren,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Input } from '@/shared/ui/Input';
 import { Button } from '@/shared/ui/Button';
 import { MyLocationButton } from '@/shared/components/MyLocationButton';
-import type { RegionPointDto } from '@/shared/api/generated/model';
 import { LangLink } from '@/shared/i18n/LangLink';
 import { useLangPath } from '@/shared/i18n/routing';
 import { useHospitalSearch, type HospitalSearchParams } from '@/features/clinic/api';
@@ -23,20 +23,6 @@ import { cn } from '@/shared/lib/utils';
 
 /** 섹션당 노출 카드 수. */
 const FEATURED_SIZE = 5;
-
-/**
- * 잡힌 지역의 표시 이름. **시군구만 쓰면 안 된다** — "하남시"·"Hanam-si" 만 보고 그게 어디인지
- * 아는 건 한국 지리에 익숙한 사람뿐이다. 시도를 앞에 붙여야 외국어 화면에서도 위치가 읽힌다.
- *
- * 시도는 shortName 을 먼저 쓴다. 한국어에서는 "경기도"→"경기" 로 짧아지고, 다른 언어에서는
- * 서버가 번역명을 그 자리에 넣어주므로("Gyeonggi-do") 짧아지지 않을 뿐 손해는 없다.
- *
- * 세종처럼 시군구가 없는 시도면 시도 이름만 나온다.
- */
-function regionLabel(point: RegionPointDto): string {
-  const sido = point.sido.shortName ?? point.sido.name;
-  return point.region ? `${sido} ${point.region.name}` : sido;
-}
 
 /**
  * 첫 페이지 추천 섹션.
@@ -110,26 +96,12 @@ export default function Home() {
   const path = useLangPath();
   const [keyword, setKeyword] = useState('');
 
-  /**
-   * "내 위치" 로 잡아둔 지역. **잡기만 하고 이동하지 않는다** — 검색 버튼을 눌러야 넘어간다.
-   *
-   * 상세검색이 초안(draft)에만 얹고 검색 버튼을 기다리는 것과 같은 태도다. 위치는 조건 하나지
-   * 검색 실행 명령이 아니라서, 누르자마자 화면이 넘어가면 검색어를 칠 기회가 없다.
-   */
-  const [myRegion, setMyRegion] = useState<RegionPointDto>();
-
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     const params = new URLSearchParams();
 
     const q = keyword.trim();
     if (q) params.set('q', q);
-
-    if (myRegion) {
-      params.set('sido', myRegion.sido.code);
-      // 세종처럼 시군구가 없는 시도면 시도 코드만 넘긴다(검색 API 가 하위로 편다).
-      if (myRegion.region) params.set('region', myRegion.region.code);
-    }
 
     const query = params.toString();
     // 접두사를 붙여 보낸다. 안 붙이면 영어 페이지에서 검색했는데 한국어 검색으로 튕긴다.
@@ -186,15 +158,23 @@ export default function Home() {
             "내 위치"에서 "하남시"로 넓어지면서 입력칸을 그만큼 먹는다 — 390px 화면에서는
             무엇을 치는 칸인지 안 보일 만큼 쪼그라든다. 줄을 나누면 폭을 다툴 일이 없다.
           */}
-          <MyLocationButton
-            onResolved={setMyRegion}
-            selectedName={myRegion && regionLabel(myRegion)}
-            onClear={() => setMyRegion(undefined)}
-            showLabel
-            className="h-11 justify-center"
-          />
-
           <div className="flex gap-2">
+            {/* min-w-0 이 없으면 flex 항목이 콘텐츠 폭 밑으로 안 줄어 버튼을 밀어낸다. */}
+            {/*
+              내 위치. **입력칸 밖 왼쪽**이다. 한때 칸 안에 넣어 봤는데, 안에 있으면 검색어를
+              고치는 도구처럼 읽힌다 — 이건 입력과 상관없이 켜고 끄는 별개의 스위치다.
+              칸 앞에 세우면 "위치를 켜고 · 무엇을 찾을지 치고 · 검색" 이 왼쪽부터 차례로 읽힌다.
+
+              **위치로 검색 조건을 바꾸지 않는다.** 예전엔 누르면 그 시군구가 조건으로 박혔는데,
+              "내 위치" 는 어디를 검색할지가 아니라 **가까운 것을 위로 올릴지** 를 정하는 값이다 —
+              경계에 서 있는 사람에게 길 건너 병원을 지우는 건 위치를 알려준 대가로는 이상하다.
+              좌표를 실제로 쓰려면 서버가 거리 가중치 정렬을 지원해야 한다(아직 없다).
+            */}
+            <MyLocationButton
+              onResolved={() => undefined}
+              className="h-11 w-11 shrink-0 px-0"
+            />
+
             {/* min-w-0 이 없으면 flex 항목이 콘텐츠 폭 밑으로 안 줄어 버튼을 밀어낸다. */}
             <div className="min-w-0 flex-1">
               <Input
@@ -204,10 +184,26 @@ export default function Home() {
                 aria-label={t('home.searchPlaceholder')}
               />
             </div>
+
             <Button type="submit" className="shrink-0">
               <Search className="h-4 w-4" />
               {t('home.searchButton')}
             </Button>
+          </div>
+
+          {/*
+            잡힌 지역과 상세검색 입구. **검색 상자 바로 아래**다 — 위치를 잡았는지 확인하고,
+            더 좁혀 찾고 싶으면 그 자리에서 바로 넘어간다.
+          */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* 상세검색으로 바로. advanced=1 이면 검색 화면이 조건을 펼친 채로 연다. */}
+            <LangLink
+              to="/search?advanced=1"
+              className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-[0.72rem] font-bold text-ink-muted no-underline transition-colors active:text-brand"
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+              {t('home.advancedSearch')}
+            </LangLink>
           </div>
         </form>
       </div>

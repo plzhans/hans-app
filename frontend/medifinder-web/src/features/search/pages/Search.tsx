@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui/Input';
 import { Combobox } from '@/shared/ui/Combobox';
-import { MyLocationButton } from '@/shared/components/MyLocationButton';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import {
@@ -21,6 +20,7 @@ import {
 } from '@/features/clinic/api';
 import { cn } from '@/shared/lib/utils';
 import { useIsWide } from '@/shared/hooks/useIsWide';
+import { useMyRegion } from '@/shared/hooks/useMyRegion';
 import {
   BedDouble,
   Brain,
@@ -29,6 +29,7 @@ import {
   Moon,
   List as ListIcon,
   Map as MapIcon,
+  MapPin,
   Search as SearchIcon,
   Siren,
   SlidersHorizontal,
@@ -344,6 +345,11 @@ export default function SearchPage() {
    */
   const isWide = useIsWide();
 
+  /** 시도 셀렉트 안의 "내 위치로 찾기". 좌표는 훅 안에서만 살고 지역 코드만 나온다. */
+  const { locate, status: locateStatus } = useMyRegion();
+  const locating = locateStatus === 'locating';
+
+
   const mapView = searchParams.get('view') === 'map';
 
   /**
@@ -366,8 +372,9 @@ export default function SearchPage() {
    */
   const [detailOpen, setDetailOpen] = useState(false);
   useEffect(() => {
-    setDetailOpen(mapView || isWide);
-  }, [mapView, isWide]);
+    // advanced=1 은 첫 화면의 '상세검색' 입구로 들어온 것이다 — 조건을 만지러 온 사람이라 편다.
+    setDetailOpen(mapView || isWide || searchParams.get('advanced') === '1');
+  }, [mapView, isWide, searchParams]);
 
   /** 지도 모드를 나가면 서랍도 닫는다 — 목록 모드에서는 조건이 본문에 그대로 있다. */
   useEffect(() => {
@@ -952,28 +959,32 @@ export default function SearchPage() {
         */}
         <div className={cn('flex flex-col gap-2', !mapView && 'sm:flex-row')}>
           <div className="flex flex-wrap gap-2">
-            {/*
-              내 위치. **좌표로 검색하는 게 아니라 시도·시군구를 채운다** — 결과가 콤보박스에
-              그대로 보여서 틀렸으면 사용자가 바로 고칠 수 있다. 지역 선택 왼쪽에 두는 것도
-              "어디서" 를 정하는 같은 무리이기 때문이다.
-
-              **검색까지 하지는 않는다.** 과목·장비를 고르는 중일 수 있어서, 다른 필터와 똑같이
-              초안(draft)에만 얹고 검색 버튼을 누를 때 함께 나간다.
-            */}
-            <MyLocationButton
-              onResolved={(point) =>
-                update({
-                  sido: point.sido.code,
-                  // 세종처럼 시군구가 없는 시도면 비운다 — 시도만으로도 검색은 된다.
-                  region: point.region?.code ?? '',
-                })
-              }
-            />
-
             {/* 시도는 17개지만 목록으로 훑는 것보다 "부산" 이라고 치는 게 빠르다. */}
             <Combobox
               value={sido}
               onChange={(value) => update({ sido: value, region: '' })}
+              /*
+                내 위치로 지역 채우기. **셀렉트 목록 안에 둔다** — 여기서 고를 값(시도)을
+                대신 정해 주는 일이라, 밖에 버튼으로 세우면 또 하나의 조건처럼 보이고
+                좁은 화면에서는 그만큼 셀렉트가 좁아진다.
+
+                **검색까지 하지는 않는다.** 다른 필터와 똑같이 초안(draft)에만 얹고
+                검색 버튼을 누를 때 함께 나간다 — 과목·장비를 고르는 중일 수 있다.
+              */
+              action={{
+                icon: <MapPin className="h-3.5 w-3.5" />,
+                label: t('search.useMyLocation'),
+                busy: locating,
+                onSelect: async () => {
+                  const point = await locate();
+                  if (!point) return;
+                  update({
+                    sido: point.sido.code,
+                    // 세종처럼 시군구가 없는 시도면 비운다 — 시도만으로도 검색은 된다.
+                    region: point.region?.code ?? '',
+                  });
+                },
+              }}
               options={toOptions(sidos)}
               placeholder={t('search.sido')}
               searchPlaceholder={t('search.sidoSearch')}
