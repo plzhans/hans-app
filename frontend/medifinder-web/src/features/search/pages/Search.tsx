@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui/Input';
@@ -68,9 +76,41 @@ const FEATURED_ASSESSMENTS = ['08', '24', '16', '12', '13', '14', '15'];
  * 트리거는 button 이 아니라 span 이다 — 접힌 FilterRow 는 행 전체가 button 이라, 그 안에
  * button 을 또 넣으면 HTML 이 깨진다. 클릭 전파만 막아 행이 같이 펴지지 않게 한다.
  */
-function InfoHint({ text }: { text: string }) {
+/**
+ * 지금 열려 있는 설명이 어느 것인가.
+ *
+ * **Radix 는 Popover 마다 따로 논다** — 하나를 열어 둔 채 다른 ? 를 누르면 둘이 같이 뜬다.
+ * 화면에 검은 말풍선이 서넛씩 쌓이면 어느 것이 방금 누른 것인지 알 수 없다.
+ * 그래서 "열린 것 하나" 를 위에서 들고, 각 설명은 자기가 그것인지만 본다.
+ *
+ * 바깥에 provider 가 없으면 null 이고, 그때는 Radix 가 알아서 여닫는다(단독으로 써도 된다).
+ */
+const OpenHintContext = createContext<{
+  openId: string | null;
+  setOpenId: (id: string | null) => void;
+} | null>(null);
+
+/** 이 안의 ? 들은 한 번에 하나만 열린다. */
+function InfoHintScope({ children }: { children: React.ReactNode }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const value = useMemo(() => ({ openId, setOpenId }), [openId]);
   return (
-    <Popover.Root>
+    <OpenHintContext.Provider value={value}>{children}</OpenHintContext.Provider>
+  );
+}
+
+function InfoHint({ text }: { text: string }) {
+  const id = useId();
+  const scope = useContext(OpenHintContext);
+
+  return (
+    <Popover.Root
+      // scope 가 없으면 open 을 넘기지 않는다 — Radix 가 스스로 여닫는 원래 동작.
+      open={scope ? scope.openId === id : undefined}
+      onOpenChange={
+        scope ? (next) => scope.setOpenId(next ? id : null) : undefined
+      }
+    >
       <Popover.Trigger asChild>
         <span
           role="button"
@@ -156,17 +196,18 @@ function AssessmentFilter({
     return (
       <label
         key={item.code}
-        className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-body"
+        className={cn(
+          'flex cursor-pointer items-center gap-1.5 text-[0.82rem] transition-colors',
+          checked ? 'font-bold text-brand-strong' : 'font-medium text-ink-body',
+        )}
       >
         <input
           type="checkbox"
           checked={checked}
           onChange={() => toggle(item.code)}
-          className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
+          className="h-[0.95rem] w-[0.95rem] rounded border-line-strong text-brand focus:ring-brand focus:ring-offset-0"
         />
-        <span className={cn(checked && 'font-medium text-brand-strong')}>
-          {item.name}
-        </span>
+        <span>{item.name}</span>
       </label>
     );
   };
@@ -204,7 +245,11 @@ function AssessmentFilter({
             ) : (
               groups.map((g) => (
                 <div key={g.code}>
-                  <div className="mb-1 text-xs font-semibold text-ink-muted">
+                  {/*
+                    분야 이름(급성질환·약제…). 아래 항목들보다 **한 단계 진하다** —
+                    같은 흐림이면 항목 중 하나로 읽혀서 묶음의 머리인지 알 수 없다.
+                  */}
+                  <div className="mb-1.5 text-xs font-bold text-ink-body">
                     {g.name}
                   </div>
                   <div className="flex flex-wrap gap-x-5 gap-y-1.5">
@@ -219,7 +264,7 @@ function AssessmentFilter({
             <button
               type="button"
               onClick={() => setExpanded(!expanded)}
-              className="shrink-0 self-start text-xs font-medium text-ink-muted hover:text-brand"
+              className={cn('shrink-0 self-start', FILTER_PILL)}
             >
               {expanded ? t('search.close') : `+${hidden}`}
             </button>
@@ -760,6 +805,7 @@ export default function SearchPage() {
         />
       )}
 
+      <InfoHintScope>
       <aside
         className={cn(
           mapView && [
@@ -1251,6 +1297,7 @@ export default function SearchPage() {
         </div>
       </div>
       </aside>
+      </InfoHintScope>
 
       {/* 결과. min-w-0 이 없으면 grid 칸이 콘텐츠 폭 밑으로 안 줄어 사이드바를 밀어낸다. */}
       <section className={cn('mt-5 min-w-0', mapView && 'lg:mt-0')}>
@@ -1455,6 +1502,16 @@ function Chip({
   );
 }
 
+/**
+ * `+N` · 닫기 · 접기 버튼의 공통 모양.
+ *
+ * **한 곳에 둔다.** 같은 뜻의 버튼이 필터마다 따로 그려져 있었다 — 진료과목·전문분야는
+ * 알약인데 우수병원(심평원 평가)만 밑줄 없는 맨 글자라, 같은 자리에서 같은 일을 하는데
+ * 다른 것처럼 보였다. 밋밋한 텍스트가 아니라 **살짝 버튼 느낌**이어야 눌러야 할 것으로 읽힌다.
+ */
+const FILTER_PILL =
+  'rounded-full bg-surface-subtle px-2.5 py-1 text-[0.68rem] font-bold text-ink-muted transition-all duration-100 ease-native hover:bg-brand-tint hover:text-brand-strong active:scale-95';
+
 const COLLAPSED_COUNT = 10;
 
 interface FilterOption {
@@ -1548,10 +1605,6 @@ function FilterRow({
       'sm:mb-0 sm:w-28 sm:shrink-0 sm:bg-surface-subtle sm:px-3 sm:py-3 sm:text-sm sm:font-bold sm:text-ink-body',
   );
   const bodyClass = cn(inline && 'sm:flex-1 sm:px-3 sm:py-2.5');
-
-  // +N·닫기·접기 버튼 공통 모양. 밋밋한 텍스트가 아니라 **살짝 버튼 느낌**(옅은 테두리·배경·pill).
-  const pill =
-    'rounded-full bg-surface-subtle px-2.5 py-1 text-[0.68rem] font-bold text-ink-muted transition-all duration-100 ease-native hover:bg-brand-tint hover:text-brand-strong active:scale-95';
 
   // 라벨 + (있으면) ? 아이콘. 접힌 상태·펼친 상태 두 곳에서 같은 걸 쓴다.
   const labelNode = hint ? (
@@ -1669,7 +1722,11 @@ function FilterRow({
                 shown.some((o) => o.field === f),
               ).map((f) => (
                 <div key={f}>
-                  <p className="!my-0 mb-1.5 text-[0.68rem] font-bold text-ink-subtle">
+                  {/*
+                    계열 이름(의과·치과·한방). 우수병원의 분야 이름과 **같은 무게**다 —
+                    둘 다 "아래 항목들의 머리" 라는 같은 일을 하므로 다르게 보이면 안 된다.
+                  */}
+                  <p className="!my-0 mb-1.5 text-xs font-bold text-ink-body">
                     {t(`search.field.${f}`)}
                   </p>
                   <div className="flex flex-wrap gap-x-5 gap-y-1.5">
@@ -1707,7 +1764,7 @@ function FilterRow({
             <button
               type="button"
               onClick={() => setExpanded(!expanded)}
-              className={cn('shrink-0 self-start', pill)}
+              className={cn('shrink-0 self-start', FILTER_PILL)}
             >
               {expanded ? t('search.close') : `+${hidden}`}
             </button>
@@ -1722,7 +1779,7 @@ function FilterRow({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className={cn('shrink-0 self-start', pill)}
+              className={cn('shrink-0 self-start', FILTER_PILL)}
             >
               {t('search.close')}
             </button>
@@ -1734,7 +1791,7 @@ function FilterRow({
           <button
             type="button"
             onClick={() => setExpanded(!expanded)}
-            className={cn('mt-1.5', pill)}
+            className={cn('mt-1.5', FILTER_PILL)}
           >
             {expanded ? t('search.collapse') : t('search.more', { count: hidden })}
           </button>
