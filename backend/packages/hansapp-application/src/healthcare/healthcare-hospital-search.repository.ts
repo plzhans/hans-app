@@ -113,6 +113,15 @@ const NEARBY_WEIGHT = {
  */
 const NEARBY_DECAY_AT_SCALE = 0.5;
 
+/**
+ * 역지오코딩 탐색 반경(m). 이 밖이면 **한국 안이 아니라고 본다** — 못 찾은 것으로 낸다.
+ *
+ * 50km 는 도서 지역을 덮으려고 잡은 값이다. 흑산면·옥도면처럼 한 읍면이 60km 에 걸쳐 흩어진
+ * 곳이 있어서 좁게 잡으면 섬 주민이 자기 지역을 못 찾는다. 반대로 무제한으로 두면 일본에서
+ * 접속해도 부산이 나온다 — 그건 "위치를 모른다" 가 맞는 답이다.
+ */
+const REVERSE_MAX_DISTANCE = 50_000;
+
 /** 기준 병원에서 읽을 필드. 유사도 질의를 조립하는 데 필요한 것만 가져온다. */
 const NEARBY_SEED_SOURCE = [
   'location',
@@ -219,6 +228,50 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
       rows,
       nextToken: hasMore && lastSort ? encodeSearchAfter(lastSort) : undefined,
     };
+  }
+
+  /**
+   * 좌표 → 지역 코드(역지오코딩). **가장 가까운 병원의 지역을 그 좌표의 지역으로 본다.**
+   *
+   * 지역표(region_code)에 좌표가 없어서 병원 색인을 **공간 프록시로 빌려 쓴다.** 활성 병원이
+   * 전국에 8만 곳 깔려 있어 사람이 사는 곳이면 대개 지척에 하나는 있다 — 경계 근처에서 옆
+   * 시군구가 나올 수 있지만, 그 경우 사용자에게는 그쪽이 더 가까우므로 실용적으로는 맞는 답이다.
+   *
+   * **지역별 기준점(healthcare_region_stat)이 들어오면 이 메서드는 사라진다.** 그때는 지역표만
+   * 보고 답할 수 있어 병원 색인에 기대지 않아도 된다.
+   *
+   * 반환은 **시군구 코드가 보통이지만 시도 코드일 수도 있다** — 세종처럼 시군구가 없는 시도가
+   * 있고, 매핑이 시도까지만 된 병원도 21곳 있다. 코드의 레벨 판정은 호출자(지역표)가 한다.
+   */
+  async findRegionCdAt(lat: number, lon: number): Promise<string | null> {
+    const point = { lat, lon };
+    const res = await this.es.client.search<Partial<HealthcareHospitalDoc>>({
+      index: this.alias,
+      size: 1,
+      track_total_hits: false,
+      _source: ['location.region_cd'],
+      query: {
+        bool: {
+          filter: [
+            { term: { status: 'active' } },
+            // 지역을 모르는 병원(2곳)이 최근접이면 답을 못 낸다 — 아예 후보에서 뺀다.
+            { exists: { field: 'location.region_cd' } },
+            {
+              geo_distance: {
+                distance: `${REVERSE_MAX_DISTANCE}m`,
+                'location.point': point,
+              },
+            },
+          ],
+        },
+      },
+      // 점수는 필요 없다. 거리만으로 1등을 뽑는다.
+      sort: [
+        { _geo_distance: { 'location.point': point, order: 'asc', unit: 'm' } },
+      ],
+    });
+
+    return res.hits.hits[0]?._source?.location?.region_cd ?? null;
   }
 
   /**

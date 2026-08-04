@@ -2239,7 +2239,7 @@
             "schema": {
               "minimum": 1,
               "maximum": 20,
-              "default": 5,
+              "default": 6,
               "type": "number"
             }
           }
@@ -2855,6 +2855,58 @@
         ]
       }
     },
+    "/address/regions/reverse": {
+      "get": {
+        "description": "위경도를 주면 그 좌표가 속한 시도·시군구를 돌려준다. \"내 위치\" 버튼이 브라우저에서 받은 좌표를 지역 필터로 바꿀 때 쓴다.\n\n받은 코드는 **병원 검색의 `region` 파라미터에 그대로** 넣으면 된다 — `region` 이 있으면 그 시군구 코드를, 없으면 `sido` 코드를 보낸다.\n\n**한국 밖이거나 주변에 병원이 없으면 404** 다. 위치를 못 알아낸 것이지 오류가 아니니, 클라이언트는 조용히 지역 선택을 비워두면 된다.",
+        "operationId": "RegionController_reverse",
+        "parameters": [
+          {
+            "name": "lat",
+            "required": true,
+            "in": "query",
+            "description": "위도",
+            "schema": {
+              "example": 37.5597,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lon",
+            "required": true,
+            "in": "query",
+            "description": "경도",
+            "schema": {
+              "example": 127.1935,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionPointDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "client-id": []
+          }
+        ],
+        "summary": "좌표 → 지역 코드 (역지오코딩)",
+        "tags": [
+          "address"
+        ]
+      }
+    },
     "/nts/business/{bno}/status": {
       "get": {
         "description": "사업자번호로 납세자상태(계속/휴업/폐업)와 과세유형을 조회한다.\n\n**등록되지 않은 번호도 에러가 아니다** — registered=false 로 응답한다.",
@@ -3037,12 +3089,12 @@
   "tags": [],
   "servers": [
     {
-      "url": "http://127.0.0.1:3000",
-      "description": "Local"
-    },
-    {
       "url": "https://develop-api.plzhans.com",
       "description": "Development"
+    },
+    {
+      "url": "http://127.0.0.1:3000",
+      "description": "Local"
     }
   ],
   "components": {
@@ -4810,6 +4862,16 @@
             "type": "boolean",
             "description": "달빛어린이병원 (야간·휴일 소아진료)"
           },
+          "corpName": {
+            "type": "string",
+            "description": "법인격 + 법인명. `name` 은 원본에서 이 표기를 뗀 값이다. 어느 재단·학원 소속인지는 대학병원 계열을 알아보는 단서라 버리지 않고 따로 준다. **법인 표기가 없으면 필드 자체가 없다**(전체의 98.8%).",
+            "example": "의료법인 일맥의료재단"
+          },
+          "legalName": {
+            "type": "string",
+            "description": "원문 이름(원본이 준 그대로). **`name` 과 다를 때만 온다.** `corpName` + `name` 이면 같은 내용이라 셋 다 표시하면 같은 글자가 두 번 나온다 — 화면용이 아니라 서류·간판 표기가 필요하거나 원문과 대조할 때 쓰는 값이다.",
+            "example": "(의)일맥의료재단 강동더서울의원"
+          },
           "sources": {
             "$ref": "#/components/schemas/SourcesDto"
           },
@@ -5429,6 +5491,30 @@
           "code",
           "name",
           "level"
+        ]
+      },
+      "RegionPointDto": {
+        "type": "object",
+        "properties": {
+          "sido": {
+            "description": "시도. 늘 있다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RegionDto"
+              }
+            ]
+          },
+          "region": {
+            "description": "시군구. **없을 수 있다** — 세종특별자치시처럼 시군구가 없는 시도가 있다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RegionDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "sido"
         ]
       },
       "BusinessStatusDto": {

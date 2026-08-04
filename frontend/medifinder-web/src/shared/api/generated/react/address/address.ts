@@ -24,7 +24,9 @@ import type {
   AddressControllerSearchEnglish200,
   AddressControllerSearchEnglishParams,
   RegionControllerList200,
-  RegionControllerListParams
+  RegionControllerListParams,
+  RegionControllerReverseParams,
+  RegionPointDto
 } from '../../model';
 
 import { reactFetch } from '../../../mutator';
@@ -150,6 +152,118 @@ export function useRegionControllerList<TData = Awaited<ReturnType<typeof region
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getRegionControllerListQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export const getRegionControllerReverseUrl = (params: RegionControllerReverseParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/address/regions/reverse?${stringifiedParams}` : `/address/regions/reverse`
+}
+
+/**
+ * 위경도를 주면 그 좌표가 속한 시도·시군구를 돌려준다. "내 위치" 버튼이 브라우저에서 받은 좌표를 지역 필터로 바꿀 때 쓴다.
+ *
+ * 받은 코드는 **병원 검색의 `region` 파라미터에 그대로** 넣으면 된다 — `region` 이 있으면 그 시군구 코드를, 없으면 `sido` 코드를 보낸다.
+ *
+ * **한국 밖이거나 주변에 병원이 없으면 404** 다. 위치를 못 알아낸 것이지 오류가 아니니, 클라이언트는 조용히 지역 선택을 비워두면 된다.
+ * @summary 좌표 → 지역 코드 (역지오코딩)
+ */
+export const regionControllerReverse = async (params: RegionControllerReverseParams, options?: RequestInit): Promise<RegionPointDto> => {
+
+  return reactFetch<RegionPointDto>(getRegionControllerReverseUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getRegionControllerReverseQueryKey = (params?: RegionControllerReverseParams,) => {
+    return [
+    `/address/regions/reverse`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getRegionControllerReverseQueryOptions = <TData = Awaited<ReturnType<typeof regionControllerReverse>>, TError = unknown>(params: RegionControllerReverseParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof regionControllerReverse>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRegionControllerReverseQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof regionControllerReverse>>> = ({ signal }) => regionControllerReverse(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof regionControllerReverse>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RegionControllerReverseQueryResult = NonNullable<Awaited<ReturnType<typeof regionControllerReverse>>>
+export type RegionControllerReverseQueryError = unknown
+
+
+export function useRegionControllerReverse<TData = Awaited<ReturnType<typeof regionControllerReverse>>, TError = unknown>(
+ params: RegionControllerReverseParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof regionControllerReverse>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof regionControllerReverse>>,
+          TError,
+          Awaited<ReturnType<typeof regionControllerReverse>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRegionControllerReverse<TData = Awaited<ReturnType<typeof regionControllerReverse>>, TError = unknown>(
+ params: RegionControllerReverseParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof regionControllerReverse>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof regionControllerReverse>>,
+          TError,
+          Awaited<ReturnType<typeof regionControllerReverse>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRegionControllerReverse<TData = Awaited<ReturnType<typeof regionControllerReverse>>, TError = unknown>(
+ params: RegionControllerReverseParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof regionControllerReverse>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 좌표 → 지역 코드 (역지오코딩)
+ */
+
+export function useRegionControllerReverse<TData = Awaited<ReturnType<typeof regionControllerReverse>>, TError = unknown>(
+ params: RegionControllerReverseParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof regionControllerReverse>>, TError, TData>>, request?: SecondParameter<typeof reactFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRegionControllerReverseQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

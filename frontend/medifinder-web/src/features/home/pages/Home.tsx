@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { Input } from '@/shared/ui/Input';
 import { Button } from '@/shared/ui/Button';
+import { MyLocationButton } from '@/shared/components/MyLocationButton';
+import type { RegionPointDto } from '@/shared/api/generated/model';
 import { LangLink } from '@/shared/i18n/LangLink';
 import { useLangPath } from '@/shared/i18n/routing';
 import { useHospitalSearch, type HospitalSearchParams } from '@/features/clinic/api';
@@ -102,6 +104,22 @@ export default function Home() {
     navigate(path(q ? `/search?q=${encodeURIComponent(q)}` : '/search'));
   }
 
+  /**
+   * "내 위치" 로 지역을 알아냈을 때. **홈에서는 곧바로 검색으로 넘어간다** —
+   * 상세검색은 조건을 더 고를 수 있으니 초안만 채우지만, 여기는 진입점이라 누른 것 자체가
+   * "이 지역에서 찾아 달라" 는 뜻이다. 치던 검색어가 있으면 함께 싣는다.
+   */
+  function onLocationResolved(point: RegionPointDto) {
+    const params = new URLSearchParams({ sido: point.sido.code });
+    // 세종처럼 시군구가 없는 시도면 시도 코드만으로 검색한다(검색 API 가 하위로 편다).
+    if (point.region) params.set('region', point.region.code);
+
+    const q = keyword.trim();
+    if (q) params.set('q', q);
+
+    navigate(path(`/search?${params.toString()}`));
+  }
+
   return (
     <div className="mx-auto w-full max-w-7xl px-6">
       <section className="flex flex-col items-center py-14 text-center">
@@ -110,7 +128,16 @@ export default function Home() {
         </h1>
         <p className="mt-3 max-w-md text-slate-500">{t('home.heroSubtitle')}</p>
 
-        <form onSubmit={onSubmit} className="mt-8 flex w-full max-w-lg gap-3">
+        <form onSubmit={onSubmit} className="mt-8 flex w-full max-w-lg gap-2">
+          {/*
+            내 위치. **여기서 권한을 받는다** — 화면이 열릴 때 미리 묻지 않는다.
+            누르면 지역을 알아내 그 지역으로 바로 검색 페이지를 연다. 검색어를 이미 쳤으면
+            같이 실고, 안 쳤으면 지역만 걸린 목록이 열린다.
+          */}
+          <MyLocationButton
+            onResolved={onLocationResolved}
+            className="h-11 rounded-xl border-slate-300 px-3"
+          />
           <Input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
