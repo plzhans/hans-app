@@ -8,6 +8,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   useHospitalScroll,
+  type HospitalSortBy,
   useSubjects,
   useSubjectGroups,
   useHospitalTiers,
@@ -20,6 +21,7 @@ import {
 } from '@/features/clinic/api';
 import { useIsWide } from '@/shared/hooks/useIsWide';
 import { useMyRegion } from '@/shared/hooks/useMyRegion';
+import { useMyCoords } from '@/shared/hooks/useMyCoords';
 import {
   BedDouble,
   Brain,
@@ -163,6 +165,50 @@ export function useSearchState() {
 
 
   const mapView = searchParams.get('view') === 'map';
+
+  /**
+   * 정렬 기준. **URL 에 두되 좌표는 안 둔다.**
+   *
+   * "가까운 순" 이라는 **선택**은 공유·뒤로가기로 복원돼야 한다(?sort=distance).
+   * 하지만 **좌표는 URL 에 절대 싣지 않는다** — 링크를 주고받는 순간 내가 어디 있었는지가
+   * 같이 건너간다. 좌표는 useMyCoords 안에서만 살고 API 요청 파라미터로만 나간다.
+   *
+   * 그래서 링크를 받은 사람은 "가까운 순" 상태로 들어오되 **자기 위치로** 정렬된다 —
+   * 보낸 사람의 위치가 아니라. 위치 기반 정렬에서는 그게 맞는 동작이기도 하다.
+   */
+  const sortBy: HospitalSortBy =
+    searchParams.get('sort') === 'distance' ? 'distance' : 'default';
+
+  const { coords, locate: locateCoords, status: coordsStatus } = useMyCoords();
+
+  /**
+   * 정렬을 바꾼다. 거리순은 **좌표를 받고 나서** URL 에 넣는다.
+   *
+   * 순서가 중요하다 — 먼저 URL 을 바꾸면 좌표 없는 거리순 상태가 잠깐 생기고, 그 사이
+   * 기본 정렬 결과가 "가까운 순" 이라는 이름표를 달고 화면에 남는다. 거부당하면 아무 일도
+   * 일어나지 않는다(정렬이 그대로다) — 눌렀는데 안 바뀌는 게 틀린 순서로 바뀌는 것보다 낫다.
+   */
+  const changeSort = async (next: HospitalSortBy) => {
+    if (next === 'distance' && !(await locateCoords())) return;
+
+    const params = new URLSearchParams(searchParams);
+    if (next === 'distance') params.set('sort', 'distance');
+    else params.delete('sort');
+    setSearchParams(params, { replace: true });
+  };
+
+  /**
+   * 거리순인데 아직 좌표가 없는 상태. **요청을 보내지 않는다**(서버가 400 을 준다).
+   *
+   * 링크로 ?sort=distance 를 받고 들어온 경우다 — 그 사람의 좌표는 아직 없다.
+   * 화면이 이 값을 보고 "위치 허용" 안내를 띄운다.
+   */
+  const needsCoords = sortBy === 'distance' && !coords;
+
+  /** 링크로 들어온 거리순이면 좌표를 한 번 물어본다. 누른 적 없는 사람에겐 안 묻는다. */
+  useEffect(() => {
+    if (sortBy === 'distance') void locateCoords();
+  }, [sortBy, locateCoords]);
 
   /**
    * 조건 서랍이 열렸는가. **지도 모드의 좁은 화면에서만 쓴다.**
@@ -380,6 +426,10 @@ export function useSearchState() {
     assessment: applied.assessment,
     special: applied.special,
     equipment: applied.equipment,
+    sort: sortBy,
+    origin: coords,
+    // 거리순인데 좌표가 아직 없으면 요청을 멈춘다 — 보내봐야 400 이라 목록이 통째로 빈다.
+    enabled: !needsCoords,
   });
 
   // 모든 페이지의 항목을 이어 붙인다. 필터가 바뀌면 useInfiniteQuery 가 새 키로 처음부터 다시 쌓는다.
@@ -553,6 +603,11 @@ export function useSearchState() {
     region,
     scopedAssessmentGroups,
     search,
+    // 정렬. 좌표는 내주지 않는다 — 화면이 쥐고 있을 이유가 없고, 쥐면 URL 로 샐 길이 생긴다.
+    sortBy,
+    changeSort,
+    needsCoords,
+    locatingCoords: coordsStatus === 'locating',
     selectTab,
     selected,
     sentinelRef,

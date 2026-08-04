@@ -125,7 +125,10 @@
     "closeFilters": "閉じる",
     "mapNote": "現在のリストの{{count}}件を表示しています。地図を動かしても再検索はされません。",
     "mapEmpty": "この結果には座標のある病院がありません",
-    "useMyLocation": "現在地から探す"
+    "useMyLocation": "現在地から探す",
+    "sortNearest": "近い順",
+    "nearestNeedsLocation": "近い順で見るには位置情報が必要です。",
+    "allowLocation": "位置情報を許可"
   },
   "clinic": {
     "badge": {

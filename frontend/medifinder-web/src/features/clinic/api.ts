@@ -101,6 +101,73 @@ export interface HospitalSearchParams {
 
   /** 보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조. */
   equipment?: string;
+
+  /**
+   * 정렬 기준. 기본은 서울 → 경기 → 부산 → 인천 → 나머지 순이다.
+   *
+   * `distance` 는 **origin 이 함께 있어야 한다** — 없으면 아예 요청을 보내지 않는다
+   * (서버는 400 을 준다). 좌표를 기다리는 동안 기본 정렬 결과를 보여주고 있으면,
+   * 사용자는 "가까운 순" 을 눌렀는데 먼 병원이 위에 있는 화면을 보게 된다.
+   */
+  sort?: HospitalSortBy;
+
+  /** 거리 계산 기준점. **격자로 뭉개서 보낸다**(toQuery 참고). */
+  origin?: { lat: number; lon: number };
+
+  /** 지도 영역("이 지역에서 검색"). 넷이 한 벌이라 통째로 넘긴다. */
+  bbox?: MapBounds;
+}
+
+/**
+ * 정렬 기준.
+ * - `default` 서울 → 경기 → 부산 → 인천 → 나머지 (병원명 키워드가 있으면 관련도가 먼저)
+ * - `distance` 기준 좌표에서 가까운 순
+ */
+export type HospitalSortBy = 'default' | 'distance';
+
+/** 지도 영역(경계 상자). */
+export interface MapBounds {
+  minLat: number;
+  minLon: number;
+  maxLat: number;
+  maxLon: number;
+}
+
+/**
+ * 좌표를 약 1km 격자로 뭉갠다.
+ *
+ * **캐시를 살리려는 것이다.** 사람마다 좌표 끝자리가 달라 그대로 보내면 요청 하나하나가
+ * 다른 URL 이 되어 캐시가 통째로 빗나간다. 같은 동네면 같은 요청이 되게 맞춘다.
+ *
+ * 손해는 순위가 몇 칸 흔들리는 정도다 — "가까운 순" 은 500m 를 정확히 가리는 기능이 아니라
+ * 걸어갈 만한 곳을 위로 올리는 기능이라 감수할 만하다.
+ *
+ * 위도 0.01° ≈ 1.1km. 경도는 위도에 따라 좁아지지만(서울에서 0.01° ≈ 0.9km) 같은 값을 쓴다 —
+ * 뭉개는 목적에 정밀도가 필요 없다.
+ */
+const GRID = 0.01;
+
+function snapToGrid(coords: { lat: number; lon: number }) {
+  return {
+    lat: Math.round(coords.lat / GRID) * GRID,
+    lon: Math.round(coords.lon / GRID) * GRID,
+  };
+}
+
+/**
+ * 정렬·좌표·지도 영역을 쿼리 파라미터로 편다. 검색과 스크롤이 같이 쓴다.
+ *
+ * **거리순인데 좌표가 없으면 정렬 자체를 안 보낸다** — 서버가 400 으로 막는 조합이라,
+ * 보내봐야 목록이 통째로 비고 화면엔 오류만 남는다.
+ */
+function geoQuery(params: Omit<HospitalSearchParams, 'page' | 'size'>) {
+  const origin = params.origin ? snapToGrid(params.origin) : undefined;
+  return {
+    sort: params.sort === 'distance' && origin ? ('distance' as const) : undefined,
+    lat: origin?.lat,
+    lon: origin?.lon,
+    ...params.bbox,
+  };
 }
 
 /** GET /healthcare/hospitals — 통합 병원 검색 */
@@ -121,6 +188,7 @@ export function useHospitalSearch(params: HospitalSearchParams) {
       specialty: params.specialty || undefined,
       special: params.special || undefined,
       equipment: params.equipment || undefined,
+      ...geoQuery(params),
     },
     {
       query: {
@@ -146,7 +214,15 @@ export type HospitalScrollParams = Omit<HospitalSearchParams, 'page'>;
  * 조회한다. getNextPageParam 이 nextToken 을 반환하면 다음 페이지가 있는 것이고, undefined 면 끝이다
  * (hasNextPage=false). 필터가 바뀌면 queryKey 가 바뀌어 스크롤이 처음부터 다시 시작한다.
  */
-export function useHospitalScroll(params: HospitalScrollParams) {
+export function useHospitalScroll(
+  params: HospitalScrollParams & {
+    /**
+     * 요청을 보낼지. **거리순인데 좌표가 아직 없을 때** 끈다 — 서버가 400 을 주는 조합이라
+     * 보내봐야 목록이 통째로 비고 화면엔 오류만 남는다.
+     */
+    enabled?: boolean;
+  },
+) {
   const query = {
     size: params.size,
     region: params.region || undefined,
@@ -161,6 +237,7 @@ export function useHospitalScroll(params: HospitalScrollParams) {
     specialty: params.specialty || undefined,
     special: params.special || undefined,
     equipment: params.equipment || undefined,
+    ...geoQuery(params),
   };
   return useInfiniteQuery({
     queryKey: ['hospital-scroll', query],
@@ -169,6 +246,7 @@ export function useHospitalScroll(params: HospitalScrollParams) {
         ...query,
         nextToken: pageParam || undefined,
       }),
+    enabled: params.enabled ?? true,
     initialPageParam: '' as string,
     // nextToken 이 있으면 다음 커서, 없으면 undefined → 다음 페이지 없음.
     getNextPageParam: (last) => last.nextToken || undefined,

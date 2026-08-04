@@ -125,7 +125,10 @@
     "closeFilters": "关闭",
     "mapNote": "显示当前列表中的 {{count}} 家。拖动地图不会重新搜索。",
     "mapEmpty": "此结果中没有带坐标的医院",
-    "useMyLocation": "使用我的位置"
+    "useMyLocation": "使用我的位置",
+    "sortNearest": "距离最近",
+    "nearestNeedsLocation": "按距离排序需要您的位置信息。",
+    "allowLocation": "允许获取位置"
   },
   "clinic": {
     "badge": {

@@ -34,8 +34,10 @@ export type HospitalCardVariant = 'search' | 'brief' | 'nearby';
 /**
  * @param rank 목록에서 몇 번째인가. **지도의 번호 핀과 같은 숫자다** —
  *   이게 없으면 지도의 ②가 어느 카드인지 알 방법이 없다. nearby 에서만 준다.
- * @param distance 기준 병원으로부터의 직선거리(m). nearby 에서만 준다.
- * @param matchedSubjects 기준 병원과 겹친 진료과목. distance 와 같은 자리에서만 준다 —
+ * @param distance 기준점으로부터의 직선거리(m). 상세의 "근처 병원"(기준=그 병원)과
+ *   검색의 "가까운 순"(기준=내 위치)이 준다 — 어느 쪽이든 **지금 보고 있는 자리 기준**의
+ *   값이라 병원의 속성처럼 그리지 않는다(배지 모양이 다른 이유).
+ * @param matchedSubjects 기준 병원과 겹친 진료과목. 상세의 "근처 병원" 에서만 준다 —
  *   **이 카드가 왜 거기 떠 있는지**를 설명하는 값이라, 근거 없이 목록에 뿌리면 의미가 없다.
  */
 export function HospitalCard({

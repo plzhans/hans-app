@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.11.0
+ * OpenAPI spec version: 0.12.0
  */
 import type { HiraRegionBodyDto } from './hiraRegionBodyDto';
 import type { KrDataHeaderDto } from './krDataHeaderDto';

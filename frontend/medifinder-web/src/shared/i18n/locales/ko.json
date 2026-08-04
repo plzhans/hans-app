@@ -125,7 +125,10 @@
     "closeFilters": "닫기",
     "mapNote": "지금 목록의 {{count}}곳을 표시합니다. 지도를 움직여도 다시 검색되지 않습니다.",
     "mapEmpty": "이 결과에는 좌표가 있는 병원이 없습니다",
-    "useMyLocation": "내 위치로 찾기"
+    "useMyLocation": "내 위치로 찾기",
+    "sortNearest": "가까운 순",
+    "nearestNeedsLocation": "가까운 순으로 보려면 위치 정보가 필요합니다.",
+    "allowLocation": "위치 허용하기"
   },
   "clinic": {
     "badge": {

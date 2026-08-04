@@ -125,7 +125,10 @@
     "closeFilters": "Close",
     "mapNote": "Showing {{count}} places from the current list. Panning the map does not re-search.",
     "mapEmpty": "No results in this list have coordinates",
-    "useMyLocation": "Use my location"
+    "useMyLocation": "Use my location",
+    "sortNearest": "Nearest",
+    "nearestNeedsLocation": "Sorting by distance needs your location.",
+    "allowLocation": "Allow location"
   },
   "clinic": {
     "badge": {

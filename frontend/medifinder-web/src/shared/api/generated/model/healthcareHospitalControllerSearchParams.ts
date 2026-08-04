@@ -3,8 +3,9 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.11.0
+ * OpenAPI spec version: 0.12.0
  */
+import type { HealthcareHospitalControllerSearchSort } from './healthcareHospitalControllerSearchSort';
 
 export type HealthcareHospitalControllerSearchParams = {
 /**
@@ -63,6 +64,41 @@ special?: string;
  * 보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조.
  */
 equipment?: string;
+/**
+ * 지도 영역의 남서쪽 위도. **minLat·minLon·maxLat·maxLon 을 넷 다** 보내야 걸린다. 지도를 옮긴 자리에는 시군구 경계가 없어서 화면의 사각형이 그대로 조건이 된다.
+ */
+minLat?: number;
+/**
+ * 지도 영역의 남서쪽 경도
+ */
+minLon?: number;
+/**
+ * 지도 영역의 북동쪽 위도
+ */
+maxLat?: number;
+/**
+ * 지도 영역의 북동쪽 경도
+ */
+maxLon?: number;
+/**
+ * 정렬 기준.
+ *
+ * - `default`(기본) 서울 → 경기 → 부산 → 인천 → 나머지, 같은 시도 안에서는 id 순 (병원명 키워드가 있으면 관련도가 먼저다)
+ * - `distance` 기준 좌표에서 가까운 순. **lat·lon 을 함께 보내야 한다** — 없으면 400 이다.
+ *
+ * **거리순은 스크롤 커서와 묶여 있다.** 정렬을 바꾸면 nextToken 을 버리고 처음부터 받아라.
+ */
+sort?: HealthcareHospitalControllerSearchSort;
+/**
+ * 거리 계산 기준 위도. `sort=distance` 일 때만 쓴다.
+ *
+ * **1km 격자로 뭉개서 보내라.** 사람마다 좌표가 미세하게 달라 캐시가 통째로 빗나가는 걸 막는다 — 같은 동네면 같은 요청이 된다. 순위가 몇 칸 흔들리는 정도의 손해는 감수한다.
+ */
+lat?: number;
+/**
+ * 거리 계산 기준 경도. `sort=distance` 일 때만 쓴다(lat 설명 참고).
+ */
+lon?: number;
 /**
  * 페이지 번호
  */

@@ -1,5 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { List as ListIcon, Map as MapIcon, SlidersHorizontal } from 'lucide-react';
+import {
+  List as ListIcon,
+  LocateFixed,
+  Map as MapIcon,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { Spinner } from '@/shared/ui/Spinner';
 import { cn } from '@/shared/lib/utils';
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
@@ -28,6 +33,10 @@ export function SearchResults({ state }: { state: SearchState }) {
     sentinelRef,
     setFilterDrawer,
     setView,
+    sortBy,
+    changeSort,
+    needsCoords,
+    locatingCoords,
   } = state;
 
   return (
@@ -68,6 +77,29 @@ export function SearchResults({ state }: { state: SearchState }) {
           {t('search.openFilters')}
         </button>
       )}
+
+      {/*
+        정렬. **보기 전환 옆이다** — 둘 다 "결과를 어떻게 볼까" 라 같은 묶음으로 읽힌다.
+
+        토글 하나다(기본↔가까운 순). 선택지가 둘뿐인데 드롭다운을 열게 하면 무엇이 있는지
+        보려고 한 번 더 눌러야 한다 — 지금 무엇으로 정렬돼 있는지도 접힌 채로 숨는다.
+      */}
+      <button
+        type="button"
+        onClick={() => void changeSort(sortBy === 'distance' ? 'default' : 'distance')}
+        disabled={locatingCoords}
+        aria-pressed={sortBy === 'distance'}
+        className={cn(
+          'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.75rem] font-bold shadow-card ring-1 ring-inset transition-transform duration-100 ease-native active:scale-95',
+          sortBy === 'distance'
+            ? 'bg-brand text-white ring-brand'
+            : 'bg-surface text-ink-body ring-line',
+          locatingCoords && 'opacity-60',
+        )}
+      >
+        <LocateFixed className={cn('h-3.5 w-3.5', locatingCoords && 'animate-pulse')} />
+        {t('search.sortNearest')}
+      </button>
 
       {/*
         보기 전환. **결과 줄에 둔다** — 무엇을 보고 있는지(N건) 바로 옆이 "그걸 어떻게
@@ -159,6 +191,26 @@ export function SearchResults({ state }: { state: SearchState }) {
     )}
 
     {/*
+      거리순인데 좌표가 없다. 링크로 ?sort=distance 를 받고 들어왔거나 위치를 거부한 경우다.
+
+      **빈 목록을 보여주지 않는다** — 조건에 맞는 병원이 없는 것과 위치를 못 얻은 것은
+      해야 할 일이 다르다(조건을 고치는 것 vs 위치를 허용하는 것). 여기서는 그대로 눌러
+      다시 시도할 수 있게 둔다.
+    */}
+    {needsCoords && !locatingCoords && (
+      <div className="py-12 text-center">
+        <p className="text-ink-muted">{t('search.nearestNeedsLocation')}</p>
+        <button
+          type="button"
+          onClick={() => void changeSort('distance')}
+          className="mt-3 rounded-full bg-brand px-4 py-2 text-[0.8rem] font-bold text-white shadow-brand transition-transform duration-100 ease-native active:scale-95"
+        >
+          {t('search.allowLocation')}
+        </button>
+      </div>
+    )}
+
+    {/*
       **목록 모드에서만 2열로 편다.** 1920px 화면에서 768px 한 줄만 쓰면 좌우가 텅 빈다.
 
       지도 모드는 1열 그대로다 — 거기서는 오른쪽 칸을 결과와 지도가 나눠 쓰기 때문에,
@@ -180,12 +232,16 @@ export function SearchResults({ state }: { state: SearchState }) {
             focusedId === String(h.id) && 'ring-2 ring-brand ring-offset-2',
           )}
         >
-          <HospitalCard hospital={h} />
+          {/*
+            거리는 **거리순으로 조회했을 때만** 서버가 준다(그때만 기준 좌표가 있다).
+            기본 정렬이면 undefined 라 카드가 알아서 안 그린다.
+          */}
+          <HospitalCard hospital={h} distance={h.distance} />
         </div>
       ))}
     </div>
 
-    {items.length === 0 && !isLoading && (
+    {items.length === 0 && !isLoading && !needsCoords && (
       <p className="py-12 text-center text-ink-muted">{t('search.empty')}</p>
     )}
 
