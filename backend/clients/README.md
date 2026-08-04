@@ -8,6 +8,7 @@
 | `@krdata/core`      | 공공데이터포털(data.go.kr) 공통 HTTP 처리              |
 | `@krdata/nmc`       | 국립중앙의료원(NMC) 전국 병·의원 찾기 — 오퍼레이션 7개 |
 | `@krdata/hira`      | 건강보험심사평가원(HIRA) 병원정보 — 오퍼레이션 18개    |
+| `@krdata/mois`      | 행정안전부 행정표준코드 법정동코드 — 오퍼레이션 1개    |
 | `@seouldata/subway` | 서울열린데이터광장 지하철역 정보 — 오퍼레이션 1개      |
 | `@kr-or/hira`       | 심평원 **홈페이지** 비급여 진료비 — 의원급 포함        |
 
@@ -46,6 +47,12 @@ pnpm --filter @seouldata/subway codegen
 - **`_type=json` 도 스펙에 넣지 말 것.** 이 값을 주지 않으면 XML 로 응답한다. mutator 가 항상 주입한다.
 - **에러가 XML 로 올 수 있다.** `_type=json` 을 줘도 서비스키 오류 등은 XML 로 떨어진다.
   mutator 가 본문이 `<` 로 시작하면 에러로 판정한다.
+- **부처마다 봉투가 다르다.** 게이트웨이는 공유하지만 그 뒤 서비스는 부처가 따로 만든 것이라
+  포맷 파라미터 이름·성공 결과코드·목록 위치가 갈린다. 갈리는 이 셋만 `KrDataEnvelope` 로
+  갈아끼운다 — 기본값이 심평원·중앙의료원이 쓰는 표준 봉투라 기존 패키지는 아무것도 넘기지 않는다.
+  행정안전부(`@krdata/mois`)가 첫 사례다. 자세한 건 [`krdata-mois/README.md`](krdata-mois/README.md).
+- **인증 에러가 XML 로도 JSON 으로도 온다.** JSON 은 `OpenAPI_ServiceResponse.cmmMsgHeader` 형태다.
+  본문이 `<` 로 시작하는지만 보면 **인증 실패가 정상 응답으로 통과한다.** mutator 가 둘 다 잡는다.
 - **응답이 스펙대로 오지 않는다.** 결과 0건이면 `items` 가 빈 문자열(`""`)로 오고,
   1건이면 `items.item` 이 배열이 아니라 단일 객체로 온다. 숫자 필드가 문자열로 오기도 한다.
   앞의 두 가지는 `normalizeKrDataResponse` 가 항상 배열이 되도록 보정한다.

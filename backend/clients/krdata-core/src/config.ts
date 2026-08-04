@@ -1,3 +1,5 @@
+import { KRDATA_STANDARD_ENVELOPE, KrDataEnvelope } from './envelope';
+
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
 const DEFAULT_READ_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_RETRY = 3;
@@ -20,6 +22,12 @@ export interface KrDataConfig {
 
   /** 요청 실패 시 최대 시도 횟수 */
   maxRetry?: number;
+
+  /**
+   * 응답 봉투 어댑터. 기본값은 표준 봉투(`response.body.items.item`)다.
+   * 부처가 다른 봉투를 쓰면 기관별 클라이언트가 주입한다.
+   */
+  envelope?: KrDataEnvelope;
 }
 
 export type ResolvedKrDataConfig = Required<KrDataConfig>;
@@ -33,6 +41,7 @@ export function resolveConfig(config: KrDataConfig): ResolvedKrDataConfig {
     baseUrl: config.baseUrl.replace(/\/+$/, ''),
     readTimeoutMs: positiveOr(config.readTimeoutMs, DEFAULT_READ_TIMEOUT_MS),
     maxRetry: positiveOr(config.maxRetry, DEFAULT_MAX_RETRY),
+    envelope: config.envelope ?? KRDATA_STANDARD_ENVELOPE,
   };
 }
 
