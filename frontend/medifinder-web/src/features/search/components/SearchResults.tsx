@@ -37,6 +37,8 @@ export function SearchResults({ state }: { state: SearchState }) {
     changeSort,
     needsCoords,
     locatingCoords,
+    canSearchArea,
+    searchArea,
   } = state;
 
   return (
@@ -146,7 +148,23 @@ export function SearchResults({ state }: { state: SearchState }) {
       {/* 지도. DOM 에서 앞에 두어 좁은 화면에서 위로 오게 하고, 넓으면 오른쪽 칸으로 보낸다. */}
     {mapView &&
       (mapPoints.length > 0 ? (
-        <div className={cn('mb-3', mapView && 'lg:col-start-2 lg:row-start-1 lg:mb-0 lg:h-full')}>
+        <div className={cn('relative mb-3', mapView && 'lg:col-start-2 lg:row-start-1 lg:mb-0 lg:h-full')}>
+          {/*
+            "이 지역에서 검색". **지도 위에 띄운다** — 방금 옮긴 그 지도를 보면서 누르는
+            버튼이라, 화면 밖(조건 패널·결과 줄)에 두면 무엇에 대한 검색인지 끊긴다.
+
+            **지도를 옮겨야 나타난다.** 늘 떠 있으면 지도의 한가운데를 상시로 가리는데,
+            정작 누를 일은 자리를 옮겼을 때뿐이다. 판정은 상태가 한다(canSearchArea).
+          */}
+          {canSearchArea && (
+            <button
+              type="button"
+              onClick={searchArea}
+              className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full bg-brand px-4 py-2 text-[0.78rem] font-extrabold text-white shadow-pop transition-transform duration-100 ease-native active:scale-95"
+            >
+              {t('search.searchThisArea')}
+            </button>
+          )}
           <MapView
             // 지도의 가운데. 결과 중 첫 좌표를 쓰고, 나머지가 다 들어오게 확대율이 맞춰진다.
             lat={mapPoints[0].lat}
@@ -162,6 +180,12 @@ export function SearchResults({ state }: { state: SearchState }) {
             */
             height={isWide ? '100%' : 'clamp(18rem, 55vh, 38rem)'}
             onSelect={focusResult}
+            onBoundsChange={state.handleBoundsChange}
+            /*
+              영역으로 검색한 뒤에는 확대율을 다시 맞추지 않는다 — 사용자가 정한 자리에서
+              지도가 밀려나면 버튼을 누른 대가가 "화면이 엉뚱한 데로 감" 이 된다.
+            */
+            fitToPoints={!state.searchedBounds}
           />
           <p className="!mb-0 !mt-2 px-1 text-[0.7rem] text-ink-subtle">
             {t('search.mapNote', { count: mapPoints.length })}

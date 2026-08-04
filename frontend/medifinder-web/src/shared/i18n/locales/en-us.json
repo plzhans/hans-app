@@ -128,7 +128,8 @@
     "useMyLocation": "Use my location",
     "sortNearest": "Nearest",
     "nearestNeedsLocation": "Sorting by distance needs your location.",
-    "allowLocation": "Allow location"
+    "allowLocation": "Allow location",
+    "searchThisArea": "Search this area"
   },
   "clinic": {
     "badge": {

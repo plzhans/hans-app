@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -22,6 +23,7 @@ import {
 import { useIsWide } from '@/shared/hooks/useIsWide';
 import { useMyRegion } from '@/shared/hooks/useMyRegion';
 import { useMyCoords } from '@/shared/hooks/useMyCoords';
+import type { MapBounds } from '@/shared/components/map/mapAdapters';
 import {
   BedDouble,
   Brain,
@@ -118,6 +120,25 @@ export const MORE_TABS = TABS.slice(3);
  * 조각이 늘 때마다 중간에서 props 를 다시 엮는 일이 없어진다. 타입은 추론에 맡긴다 —
  * 손으로 적으면 반드시 실제와 어긋난다.
  */
+/**
+ * 두 영역이 사실상 같은가.
+ *
+ * **정확히 같은지 묻지 않는다.** 지도는 손을 뗄 때마다 소수점 끝자리가 미세하게 달라져서,
+ * 엄밀히 비교하면 아무것도 안 건드려도 "이 지역에서 검색" 이 계속 떠 있게 된다.
+ * 0.0001° 는 약 11m — 그보다 적게 움직인 것은 안 움직인 것으로 본다.
+ */
+const BOUNDS_EPSILON = 0.0001;
+
+function sameBounds(a: MapBounds, b: MapBounds | undefined): boolean {
+  if (!b) return false;
+  return (
+    Math.abs(a.minLat - b.minLat) < BOUNDS_EPSILON &&
+    Math.abs(a.minLon - b.minLon) < BOUNDS_EPSILON &&
+    Math.abs(a.maxLat - b.maxLat) < BOUNDS_EPSILON &&
+    Math.abs(a.maxLon - b.maxLon) < BOUNDS_EPSILON
+  );
+}
+
 export function useSearchState() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -209,6 +230,61 @@ export function useSearchState() {
   useEffect(() => {
     if (sortBy === 'distance') void locateCoords();
   }, [sortBy, locateCoords]);
+
+  /**
+   * 지도 영역 검색.
+   *
+   * **URL 에 넣지 않는다.** 정렬(?sort=distance)과 다른 판단이다 — 지도 영역은 좌표 그 자체라,
+   * 링크로 건네는 순간 내가 어디를 보고 있었는지가 같이 건너간다. 특히 "내 위치" 로 지도를
+   * 옮긴 직후의 영역은 사실상 내 위치다. 그래서 이 화면 안에서만 산다.
+   *
+   * 대가는 지도 영역이 공유·뒤로가기로 복원되지 않는다는 것이다. 그 편을 택했다 —
+   * 링크를 받은 사람은 조건만 같은 전국 검색을 보게 되고, 지도는 다시 옮기면 된다.
+   */
+  const [searchedBounds, setSearchedBounds] = useState<MapBounds>();
+
+  /** 지금 지도에 보이는 영역. 아직 검색에 쓰지 않은 값이다. */
+  const [visibleBounds, setVisibleBounds] = useState<MapBounds>();
+
+  /**
+   * "이 지역에서 검색" 을 띄울까. **사용자가 지도를 옮겼고, 그 영역으로 아직 검색하지 않았을 때**다.
+   *
+   * 지도 어댑터가 이미 우리가 옮긴 이동은 걸러서 알린다(watchBounds) — 여기서는 "알려온 영역이
+   * 마지막으로 검색한 영역과 다른가" 만 본다.
+   */
+  const canSearchArea =
+    !!visibleBounds && !sameBounds(visibleBounds, searchedBounds);
+
+  /** 지도가 멈출 때마다 온다. 검색은 아직 안 나간다 — 버튼을 눌러야 나간다. */
+  const handleBoundsChange = useCallback((next: MapBounds) => {
+    setVisibleBounds(next);
+  }, []);
+
+  /**
+   * 보이는 영역으로 검색한다.
+   *
+   * **지역 조건을 지운다.** "서울" 을 고른 채 부산 앞바다를 비추고 이 버튼을 누르면 결과가
+   * 0 건이다(교집합이라서다) — 사용자가 방금 한 행동은 "여기를 보겠다" 인데 화면은 아무것도
+   * 못 찾은 것처럼 보인다. 지도로 자리를 정했으면 그게 지역 조건을 대신한다.
+   */
+  const searchArea = () => {
+    if (!visibleBounds) return;
+    setSearchedBounds(visibleBounds);
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('sido');
+    next.delete('region');
+    setSearchParams(next, { replace: true });
+    setDraft((prev) => ({ ...prev, sido: '', region: '' }));
+  };
+
+  /** 지도 모드를 나가면 영역 검색을 푼다 — 목록 모드에는 그 영역을 보여줄 지도가 없다. */
+  useEffect(() => {
+    if (!mapView) {
+      setSearchedBounds(undefined);
+      setVisibleBounds(undefined);
+    }
+  }, [mapView]);
 
   /**
    * 조건 서랍이 열렸는가. **지도 모드의 좁은 화면에서만 쓴다.**
@@ -428,6 +504,7 @@ export function useSearchState() {
     equipment: applied.equipment,
     sort: sortBy,
     origin: coords,
+    bbox: searchedBounds,
     // 거리순인데 좌표가 아직 없으면 요청을 멈춘다 — 보내봐야 400 이라 목록이 통째로 빈다.
     enabled: !needsCoords,
   });
@@ -608,6 +685,11 @@ export function useSearchState() {
     changeSort,
     needsCoords,
     locatingCoords: coordsStatus === 'locating',
+    // 지도 영역 검색. 좌표는 화면 밖으로 안 나간다(URL·링크에 안 실린다).
+    canSearchArea,
+    searchArea,
+    searchedBounds,
+    handleBoundsChange,
     selectTab,
     selected,
     sentinelRef,

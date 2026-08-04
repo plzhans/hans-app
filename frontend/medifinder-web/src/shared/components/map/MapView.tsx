@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { PlatformMap } from './PlatformMap';
 import {
   MAP_ADAPTERS,
+  type MapBounds,
   type MapPoint,
   type PlatformAdapter,
   type PlatformId,
@@ -26,6 +27,10 @@ interface MapViewProps {
   height?: string;
   /** 말풍선을 눌렀을 때(PlatformMap 주석 참고). */
   onSelect?: (id: string) => void;
+  /** 사용자가 지도를 옮긴 뒤의 보이는 영역("이 지역에서 검색" 재료). */
+  onBoundsChange?: (bounds: MapBounds) => void;
+  /** 핀이 다 들어오게 확대율을 맞출지(기본 true). 지도 영역 검색 중에는 끈다. */
+  fitToPoints?: boolean;
 }
 
 /**
@@ -44,6 +49,8 @@ export function MapView({
   anchor,
   height,
   onSelect,
+  onBoundsChange,
+  fitToPoints,
 }: MapViewProps) {
   const { t } = useTranslation();
 
@@ -111,6 +118,8 @@ export function MapView({
                   anchor={anchor}
                   height={height}
                   onSelect={onSelect}
+                  onBoundsChange={onBoundsChange}
+                  fitToPoints={fitToPoints}
                 />
               </div>
             );

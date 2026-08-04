@@ -128,7 +128,8 @@
     "useMyLocation": "使用我的位置",
     "sortNearest": "距离最近",
     "nearestNeedsLocation": "按距离排序需要您的位置信息。",
-    "allowLocation": "允许获取位置"
+    "allowLocation": "允许获取位置",
+    "searchThisArea": "搜索此区域"
   },
   "clinic": {
     "badge": {

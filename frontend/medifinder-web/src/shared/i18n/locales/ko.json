@@ -128,7 +128,8 @@
     "useMyLocation": "내 위치로 찾기",
     "sortNearest": "가까운 순",
     "nearestNeedsLocation": "가까운 순으로 보려면 위치 정보가 필요합니다.",
-    "allowLocation": "위치 허용하기"
+    "allowLocation": "위치 허용하기",
+    "searchThisArea": "이 지역에서 검색"
   },
   "clinic": {
     "badge": {

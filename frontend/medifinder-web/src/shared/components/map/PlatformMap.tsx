@@ -4,6 +4,7 @@ import { Crosshair, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import {
   MapError,
+  type MapBounds,
   type MapController,
   type MapPoint,
   type PlatformAdapter,
@@ -34,6 +35,17 @@ interface PlatformMapProps {
   anchor?: boolean;
   /** 말풍선을 눌렀을 때. MapPoint.id 를 그대로 돌려준다 — 무엇을 할지는 화면이 정한다. */
   onSelect?: (id: string) => void;
+  /**
+   * **사용자가** 지도를 옮긴 뒤의 보이는 영역. "이 지역에서 검색" 을 띄우는 재료다.
+   * 우리가 결과에 맞춰 옮긴 것은 오지 않는다(MapController.watchBounds 주석 참고).
+   */
+  onBoundsChange?: (bounds: MapBounds) => void;
+  /**
+   * 핀이 다 들어오게 확대율을 맞출지(기본 true).
+   * 지도 영역으로 검색한 뒤에는 꺼야 사용자가 고른 자리가 유지된다
+   * (MapController.setNearby 의 opts.fit 주석 참고).
+   */
+  fitToPoints?: boolean;
 }
 
 /** 크게 보기 높이. 지도만 화면을 다 먹지 않도록 뷰포트의 70% 로 제한한다. */
@@ -69,6 +81,8 @@ export function PlatformMap({
   nearby = EMPTY_NEARBY,
   anchor = true,
   onSelect,
+  onBoundsChange,
+  fitToPoints = true,
 }: PlatformMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const renderedRef = useRef(false);
@@ -89,6 +103,17 @@ export function PlatformMap({
   onSelectRef.current = onSelect;
   const selectPoint = useCallback((id: string) => onSelectRef.current?.(id), []);
 
+  /** 영역 알림도 같은 이유로 ref 를 거친다(부모가 렌더마다 새 함수를 만든다). */
+  const onBoundsChangeRef = useRef(onBoundsChange);
+  onBoundsChangeRef.current = onBoundsChange;
+
+  /**
+   * 확대율 맞춤 여부도 ref 로 읽는다. **의존성에 넣지 않는다** — 이 값이 바뀌었다고 핀을
+   * 다시 얹을 이유가 없고(핀은 그대로다), 다시 얹으면 그 김에 지도가 한 번 튄다.
+   */
+  const fitToPointsRef = useRef(fitToPoints);
+  fitToPointsRef.current = fitToPoints;
+
   const { t } = useTranslation();
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -104,7 +129,12 @@ export function PlatformMap({
         renderedRef.current = true;
         const controller = adapter.create(mapRef.current, point);
         controllerRef.current = controller;
-        controller.setNearby(nearbyRef.current, { anchor, onSelect: selectPoint });
+        controller.setNearby(nearbyRef.current, {
+          anchor,
+          onSelect: selectPoint,
+          fit: fitToPointsRef.current,
+        });
+        controller.watchBounds((bounds) => onBoundsChangeRef.current?.(bounds));
 
         /*
           **그려졌는지 확인한다.** 카카오는 인증에 실패해도(키가 틀리거나 이 도메인이 등록돼
@@ -175,7 +205,11 @@ export function PlatformMap({
    */
   useEffect(() => {
     if (renderedRef.current)
-      controllerRef.current?.setNearby(nearby, { anchor, onSelect: selectPoint });
+      controllerRef.current?.setNearby(nearby, {
+        anchor,
+        onSelect: selectPoint,
+        fit: fitToPointsRef.current,
+      });
   }, [nearby, anchor, selectPoint]);
 
   /**

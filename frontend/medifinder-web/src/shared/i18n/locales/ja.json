@@ -128,7 +128,8 @@
     "useMyLocation": "現在地から探す",
     "sortNearest": "近い順",
     "nearestNeedsLocation": "近い順で見るには位置情報が必要です。",
-    "allowLocation": "位置情報を許可"
+    "allowLocation": "位置情報を許可",
+    "searchThisArea": "このエリアで検索"
   },
   "clinic": {
     "badge": {
