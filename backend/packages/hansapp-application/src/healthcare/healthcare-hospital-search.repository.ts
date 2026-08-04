@@ -199,10 +199,27 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
       index: this.alias,
       // size+1 로 다음 페이지 유무를 판정한다(DB 경로와 같은 규칙).
       size: size + 1,
-      // **관련도(_score) 우선, id 로 tie-break.** id 가 유일키라 [_score,id] 가 전순서를 보장해
-      // search_after 커서가 안정적이다(단일 샤드라 _score 도 결정적). 점수를 만드는 건 키워드와
-      // 진료과목 전문의 가점 둘뿐이라, 그마저 없으면 전건 동점이 되어 id 순으로 물러난다.
-      sort: [{ _score: { order: 'desc' } }, { id: 'asc' }],
+      /*
+        **관련도 → 시도 → id.** 세 키가 전순서를 보장해 search_after 커서가 안정적이다
+        (id 가 유일키다. 단일 샤드라 _score 도 결정적).
+
+        우선순위가 배열 순서에 그대로 드러난다:
+          _score     키워드 관련도와 전문의 가점. 없으면 전건 동점이라 다음 키로 넘어간다
+          sido_rank  서울 0 · 경기 1 · 부산 2 · 인천 3 · 나머지 99 (색인 시점에 채운다)
+          id         같은 시도 안에서의 안정적 순서
+
+        **시도를 점수에 가점으로 얹지 않는다.** 그러면 키워드 관련도와 섞여 왜 이 순서인지
+        설명할 수 없고, 커서가 점수에 걸려 있어 가중치를 손볼 때마다 스크롤 중이던 사용자가
+        어긋난다. 필드로 두면 조건별 분기도 필요 없다 — 키워드가 있으면 _score 가 갈라주고,
+        없으면 자연히 sido_rank 로 넘어간다.
+
+        missing: '_last' — 아직 이 필드가 없는 문서(재색인 전)를 맨 뒤로 보낸다.
+      */
+      sort: [
+        { _score: { order: 'desc' } },
+        { 'location.sido_rank': { order: 'asc', missing: '_last' } },
+        { id: 'asc' },
+      ],
       search_after: searchAfter,
       track_total_hits: false,
       // 요약에 필요한 필드만 가져온다(상세는 별도 API). 본문 payload 를 줄인다.
