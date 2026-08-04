@@ -21,6 +21,7 @@ import { hiraCommand } from './commands/hira';
 import { healthcareCommand } from './commands/healthcare';
 import { hiraNmcCommand } from './commands/hira-nmc';
 import { i18nCommand } from './commands/i18n';
+import { moisCommand } from './commands/mois';
 import { nmcCommand } from './commands/nmc';
 import { esCommand } from './commands/es';
 import { appCommand } from './commands/app';
@@ -74,6 +75,8 @@ const program = new Command()
     `대상 환경. ${APP_ENVS.join(' | ')} 중 하나. config/.env.<환경> 을 읽는다`,
   )
   .option('--pretty', 'JSON 응답에 색을 입혀 출력한다 (TTY 에서만)')
+  // 법정동코드가 먼저다 — 지역 정본이라 배치도 이 순서로 돈다.
+  .addCommand(moisCommand(envSource))
   .addCommand(nmcCommand(envSource))
   .addCommand(hiraCommand(envSource))
   .addCommand(hiraNmcCommand(envSource))

@@ -32,7 +32,7 @@ export class HealthcareHospitalIndexer {
     private readonly es: ElasticsearchService,
     @Inject(SEARCH_CONFIG) config: SearchConfig,
   ) {
-    this.indexName = aliasOf(HEALTHCARE_HOSPITAL_ALIAS, config.env);
+    this.indexName = aliasOf(HEALTHCARE_HOSPITAL_ALIAS, config.indexPrefix);
   }
 
   private get client() {

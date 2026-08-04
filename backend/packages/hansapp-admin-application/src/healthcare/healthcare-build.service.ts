@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapp/application';
-import { hospitalTier, IGNORED_SOURCE_CODES } from '@hansapp/data/seed';
+import {
+  hospitalTier,
+  splitHospitalName,
+  IGNORED_SOURCE_CODES,
+} from '@hansapp/data/seed';
 
 import { HealthcareBuildRepository } from './healthcare-build.repository';
 import { normalizeTel, hiraAreaCode, nmcAreaCode } from './phone';
@@ -10,7 +14,14 @@ export interface BuiltHospital {
   ykiho: string | null;
   hpid: string | null;
   source: 'hira_nmc' | 'hira' | 'nmc';
+
+  /// 표시용 짧은 이름. 원문에서 법인 표기를 뗀 파생값이다(splitHospitalName).
   name: string;
+  /// 원문 그대로. 법인 표기가 없으면 name 과 같은 값이다.
+  legal_name: string;
+  /// 법인격 + 법인명. 못 가르면 null.
+  corp_name: string | null;
+
   addr: string | null;
   tel: string | null;
   homepage: string | null;
@@ -138,7 +149,17 @@ export class HealthcareBuildService {
     let skippedNonHospital = 0;
 
     // 1) HIRA 기준. 매칭된 NMC 가 있으면 합친다.
+    //
+    // 종별이 무시 대상이면(약국 등) 아예 만들지 않는다. 시드에서 매핑을 지우는 것만으로는
+    // 부족하다 — 매핑이 없으면 class_cd 가 NULL 인 채로 들어와 "기타" 처럼 남는다.
+    const ignoredClCd = new Set<string>(IGNORED_SOURCE_CODES.class.hira);
+
     for (const h of hira) {
+      if (h.clCd && ignoredClCd.has(h.clCd)) {
+        skippedNonHospital += 1;
+        continue;
+      }
+
       const hpid = linkedHpid.get(h.ykiho);
       const n = hpid ? nmcByHpid.get(hpid) : undefined;
 
@@ -147,11 +168,16 @@ export class HealthcareBuildService {
       if (!classCd && h.clCd) unmappedClass += 1;
       if (!regionCd && h.sgguCd) unmappedRegion += 1;
 
+      // 이름은 HIRA 를 쓴다. NMC 와 매칭됐어도 마찬가지다 — 요양기호 기준 표기가 원본이다.
+      const hiraName = splitHospitalName(h.name);
+
       built.push({
         ykiho: h.ykiho,
         hpid: n?.hpid ?? null,
         source: n ? 'hira_nmc' : 'hira',
-        name: h.name,
+        name: hiraName.name,
+        legal_name: h.name,
+        corp_name: hiraName.corpName,
         addr: h.addr,
         // 원본 HIRA sggu_cd 로 지역번호를 뽑는다 — tel 이 NMC 에서 왔어도 병원 위치는 같다.
         tel: normalizeTel(h.tel ?? n?.tel ?? null, hiraAreaCode(h.sgguCd)),
@@ -202,11 +228,15 @@ export class HealthcareBuildService {
       if (!classCd && n.dutyDiv) unmappedClass += 1;
       if (!regionCd && n.sidoNm) unmappedRegion += 1;
 
+      const nmcName = splitHospitalName(n.name);
+
       built.push({
         ykiho: null,
         hpid: n.hpid,
         source: 'nmc',
-        name: n.name,
+        name: nmcName.name,
+        legal_name: n.name,
+        corp_name: nmcName.corpName,
         addr: n.addr,
         tel: normalizeTel(n.tel, nmcAreaCode(n.sidoNm)),
         homepage: null,

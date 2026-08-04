@@ -281,6 +281,16 @@ importers:
         specifier: ^7.13.2
         version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
 
+  clients/krdata-mois:
+    dependencies:
+      '@krdata/core':
+        specifier: workspace:*
+        version: link:../krdata-core
+    devDependencies:
+      orval:
+        specifier: ^7.13.2
+        version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
+
   clients/krdata-nmc:
     dependencies:
       '@krdata/core':
@@ -292,6 +302,12 @@ importers:
         version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
 
   clients/seouldata-subway:
+    devDependencies:
+      orval:
+        specifier: ^7.13.2
+        version: 7.21.0(openapi-types@12.1.3)(typescript@5.9.3)
+
+  clients/vworld-geocoder:
     devDependencies:
       orval:
         specifier: ^7.13.2
@@ -326,6 +342,9 @@ importers:
       '@krdata/hira':
         specifier: workspace:*
         version: link:../../clients/krdata-hira
+      '@krdata/mois':
+        specifier: workspace:*
+        version: link:../../clients/krdata-mois
       '@krdata/nmc':
         specifier: workspace:*
         version: link:../../clients/krdata-nmc
@@ -378,6 +397,9 @@ importers:
       '@prisma/client':
         specifier: ^6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@6.0.3))(typescript@6.0.3)
+      '@redis/client':
+        specifier: ^5.12.1
+        version: 5.12.1(@opentelemetry/api@1.9.1)
       cache-manager:
         specifier: ^7.2.9
         version: 7.2.9

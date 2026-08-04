@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/shared/ui/Input';
 import { Combobox } from '@/shared/ui/Combobox';
+import { MyLocationButton } from '@/shared/components/MyLocationButton';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import {
@@ -703,6 +704,24 @@ export default function SearchPage() {
         */}
         <div className="flex flex-col gap-2 sm:flex-row">
           <div className="flex gap-2">
+            {/*
+              내 위치. **좌표로 검색하는 게 아니라 시도·시군구를 채운다** — 결과가 콤보박스에
+              그대로 보여서 틀렸으면 사용자가 바로 고칠 수 있다. 지역 선택 왼쪽에 두는 것도
+              "어디서" 를 정하는 같은 무리이기 때문이다.
+
+              **검색까지 하지는 않는다.** 과목·장비를 고르는 중일 수 있어서, 다른 필터와 똑같이
+              초안(draft)에만 얹고 검색 버튼을 누를 때 함께 나간다.
+            */}
+            <MyLocationButton
+              onResolved={(point) =>
+                update({
+                  sido: point.sido.code,
+                  // 세종처럼 시군구가 없는 시도면 비운다 — 시도만으로도 검색은 된다.
+                  region: point.region?.code ?? '',
+                })
+              }
+            />
+
             {/* 시도는 17개지만 목록으로 훑는 것보다 "부산" 이라고 치는 게 빠르다. */}
             <Combobox
               value={sido}
@@ -710,7 +729,8 @@ export default function SearchPage() {
               options={toOptions(sidos)}
               placeholder={t('search.sido')}
               searchPlaceholder={t('search.sidoSearch')}
-              className="w-1/2 shrink-0 sm:w-28"
+              allLabel={t('common.all')}
+              className="min-w-0 flex-1 sm:w-28 sm:flex-none"
             />
 
             {/* 시군구는 250개다. 스크롤로는 못 찾으니 타이핑해서 거른다. */}
@@ -720,8 +740,9 @@ export default function SearchPage() {
               options={toOptions(sggus)}
               placeholder={t('search.sggu')}
               searchPlaceholder={t('search.sgguSearch')}
+              allLabel={t('common.all')}
               disabled={!sido}
-              className="w-1/2 shrink-0 sm:w-32"
+              className="min-w-0 flex-1 sm:w-32 sm:flex-none"
             />
           </div>
 

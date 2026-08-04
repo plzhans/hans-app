@@ -9,9 +9,14 @@ import {
   Min,
 } from 'class-validator';
 import {
+  DEFAULT_NEARBY_SIZE,
   DEFAULT_PAGE,
   DEFAULT_PAGE_SIZE,
+  MAX_NEARBY_RADIUS,
+  MAX_NEARBY_SIZE,
   MAX_PAGE_SIZE,
+  MIN_NEARBY_RADIUS,
+  MIN_NEARBY_SIZE,
   MIN_PAGE_SIZE,
 } from '@hansapp/application';
 
@@ -201,6 +206,53 @@ export class HospitalScrollRequestDto extends HospitalFilterRequestDto {
   readonly db?: string;
 }
 
+/**
+ * 근처 유사 병원 조회 조건.
+ *
+ * **검색 필터가 없다** — 무엇과 비슷한지는 사용자가 고르는 게 아니라 경로의 기준 병원이 정한다.
+ * 반경과 개수만 받는다.
+ */
+export class HospitalNearbyRequestDto {
+  @ApiPropertyOptional({
+    description:
+      '반경(미터). **웬만하면 비워라** — 비우면 서버가 기준 병원의 등급을 보고 정한다.\n\n' +
+      '"근처" 의 크기가 등급마다 다르기 때문이다. 의원은 걸어갈 곳을 찾는 자리라 1km 면 되지만 ' +
+      '(같은 등급 다섯 곳이 잡히는 거리가 중앙값 75m 다), 상급종합은 전국에 47곳뿐이라 ' +
+      '서로 중앙값 38.7km 떨어져 있다 — 좁게 잡으면 **서로를 아예 못 찾는다.**\n\n' +
+      '```\n' +
+      '의원급    1km      병원급   5km     상급종합  80km\n' +
+      '요양병원  15km     정신병원 30km\n' +
+      '```\n\n' +
+      '값을 주면 그 값이 이긴다. **어느 쪽이든 실제 적용값은 응답의 radius 에 실려 온다** — ' +
+      '화면에 "반경 N 안에서" 를 쓰려면 요청값이 아니라 그 값을 봐라.',
+    minimum: MIN_NEARBY_RADIUS,
+    maximum: MAX_NEARBY_RADIUS,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(MIN_NEARBY_RADIUS)
+  @Max(MAX_NEARBY_RADIUS)
+  readonly radius?: number;
+
+  @ApiPropertyOptional({
+    description:
+      '개수. 상세 하단 섹션은 기본 5개면 충분하다.\n\n' +
+      '**이어받기(커서)가 없다.** "더 보기" 가 필요하면 size 를 키워 다시 불러라 — ' +
+      '앞 항목이 중복되지만 클라이언트가 교체하면 된다. 채점 비용은 반경이 정하지 size 가 ' +
+      '정하지 않아서, 커서를 두어도 서버가 아끼는 게 없다.',
+    default: DEFAULT_NEARBY_SIZE,
+    minimum: MIN_NEARBY_SIZE,
+    maximum: MAX_NEARBY_SIZE,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(MIN_NEARBY_SIZE)
+  @Max(MAX_NEARBY_SIZE)
+  readonly size: number = DEFAULT_NEARBY_SIZE;
+}
+
 // ── 응답 ───────────────────────────────────────────────────
 
 export class CodeDto {
@@ -319,6 +371,66 @@ export class HospitalSummaryDto {
     description: '달빛어린이병원 (야간·휴일 소아진료)',
   })
   readonly baby!: boolean;
+}
+
+/** 기준 병원과 겹친 진료과목 하나. */
+export class MatchedSubjectDto {
+  @ApiProperty({ type: String, example: 'ORTHO' })
+  readonly code!: string;
+
+  @ApiProperty({ type: String, example: '정형외과' })
+  readonly name!: string;
+
+  @ApiProperty({
+    type: Boolean,
+    description:
+      '기준 병원과 이 병원이 **둘 다** 그 과 전문의를 보유하는가.\n\n' +
+      '신고만 한 과목과 전문의가 실제 있는 과목은 대체재로서 무게가 다르다. ' +
+      '배지를 진하게 칠하는 식으로 쓰면 되고, 무시해도 그만이다.',
+  })
+  readonly specialist!: boolean;
+}
+
+/**
+ * 근처의 유사한 병원 한 건.
+ *
+ * **검색 결과(HospitalSummaryDto)와 같은 모양에 두 필드만 얹었다** — 목록 카드를 그대로
+ * 재사용하라는 뜻이다.
+ */
+export class HospitalNearbyDto extends HospitalSummaryDto {
+  @ApiProperty({
+    type: Number,
+    example: 420,
+    description:
+      '기준 병원으로부터의 **직선거리(m)**. 도로 거리도 소요시간도 아니다 — ' +
+      '"420m" 처럼 대략의 가까움을 보여주는 용도다.',
+  })
+  readonly distance!: number;
+
+  @ApiProperty({
+    type: MatchedSubjectDto,
+    isArray: true,
+    description:
+      '기준 병원과 겹친 진료과목. **이 병원이 위에 뜬 이유**이자 화면 배지 재료다.\n\n' +
+      '**빈 배열일 수 있다** — 겹치는 과목이 없어도 반경 안이면 거리순으로 채운다. ' +
+      '섹션이 통째로 비는 것보다 낫다는 판단이니, 비면 배지만 안 그리면 된다.',
+  })
+  readonly matchedSubjects!: MatchedSubjectDto[];
+}
+
+/** 근처 유사 병원 목록. */
+export class HospitalNearbyResponseDto {
+  @ApiProperty({
+    type: Number,
+    example: 1000,
+    description:
+      '이 결과를 만든 반경(m). 요청에 radius 가 있었으면 그 값, 없었으면 **기준 병원 등급으로 ' +
+      '서버가 고른 값**이다. 화면에 "반경 N 안에서" 를 쓸 거면 이 값을 써라.',
+  })
+  readonly radius!: number;
+
+  @ApiProperty({ type: HospitalNearbyDto, isArray: true })
+  readonly items!: HospitalNearbyDto[];
 }
 
 export class SourcesDto {
@@ -610,6 +722,26 @@ export class TransportDto {
 }
 
 export class HospitalDetailDto extends HospitalSummaryDto {
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      '법인격 + 법인명. `name` 은 원본에서 이 표기를 뗀 값이다. ' +
+      '어느 재단·학원 소속인지는 대학병원 계열을 알아보는 단서라 버리지 않고 따로 준다. ' +
+      '**법인 표기가 없으면 필드 자체가 없다**(전체의 98.8%).',
+    example: '의료법인 일맥의료재단',
+  })
+  readonly corpName?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      '원문 이름(원본이 준 그대로). **`name` 과 다를 때만 온다.** ' +
+      '`corpName` + `name` 이면 같은 내용이라 셋 다 표시하면 같은 글자가 두 번 나온다 — ' +
+      '화면용이 아니라 서류·간판 표기가 필요하거나 원문과 대조할 때 쓰는 값이다.',
+    example: '(의)일맥의료재단 강동더서울의원',
+  })
+  readonly legalName?: string;
+
   @ApiProperty({ type: SourcesDto })
   readonly sources!: SourcesDto;
 

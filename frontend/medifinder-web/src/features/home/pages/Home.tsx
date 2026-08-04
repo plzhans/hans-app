@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { Input } from '@/shared/ui/Input';
 import { Button } from '@/shared/ui/Button';
+import { MyLocationButton } from '@/shared/components/MyLocationButton';
+import type { RegionPointDto } from '@/shared/api/generated/model';
 import { LangLink } from '@/shared/i18n/LangLink';
 import { useLangPath } from '@/shared/i18n/routing';
 import { useHospitalSearch, type HospitalSearchParams } from '@/features/clinic/api';
@@ -21,6 +23,20 @@ import { cn } from '@/shared/lib/utils';
 
 /** 섹션당 노출 카드 수. */
 const FEATURED_SIZE = 5;
+
+/**
+ * 잡힌 지역의 표시 이름. **시군구만 쓰면 안 된다** — "하남시"·"Hanam-si" 만 보고 그게 어디인지
+ * 아는 건 한국 지리에 익숙한 사람뿐이다. 시도를 앞에 붙여야 외국어 화면에서도 위치가 읽힌다.
+ *
+ * 시도는 shortName 을 먼저 쓴다. 한국어에서는 "경기도"→"경기" 로 짧아지고, 다른 언어에서는
+ * 서버가 번역명을 그 자리에 넣어주므로("Gyeonggi-do") 짧아지지 않을 뿐 손해는 없다.
+ *
+ * 세종처럼 시군구가 없는 시도면 시도 이름만 나온다.
+ */
+function regionLabel(point: RegionPointDto): string {
+  const sido = point.sido.shortName ?? point.sido.name;
+  return point.region ? `${sido} ${point.region.name}` : sido;
+}
 
 /**
  * 첫 페이지 추천 섹션.
@@ -95,11 +111,30 @@ export default function Home() {
   const path = useLangPath();
   const [keyword, setKeyword] = useState('');
 
+  /**
+   * "내 위치" 로 잡아둔 지역. **잡기만 하고 이동하지 않는다** — 검색 버튼을 눌러야 넘어간다.
+   *
+   * 상세검색이 초안(draft)에만 얹고 검색 버튼을 기다리는 것과 같은 태도다. 위치는 조건 하나지
+   * 검색 실행 명령이 아니라서, 누르자마자 화면이 넘어가면 검색어를 칠 기회가 없다.
+   */
+  const [myRegion, setMyRegion] = useState<RegionPointDto>();
+
   function onSubmit(e: FormEvent) {
     e.preventDefault();
+    const params = new URLSearchParams();
+
     const q = keyword.trim();
+    if (q) params.set('q', q);
+
+    if (myRegion) {
+      params.set('sido', myRegion.sido.code);
+      // 세종처럼 시군구가 없는 시도면 시도 코드만 넘긴다(검색 API 가 하위로 편다).
+      if (myRegion.region) params.set('region', myRegion.region.code);
+    }
+
+    const query = params.toString();
     // 접두사를 붙여 보낸다. 안 붙이면 영어 페이지에서 검색했는데 한국어 검색으로 튕긴다.
-    navigate(path(q ? `/search?q=${encodeURIComponent(q)}` : '/search'));
+    navigate(path(query ? `/search?${query}` : '/search'));
   }
 
   return (
@@ -110,17 +145,43 @@ export default function Home() {
         </h1>
         <p className="mt-3 max-w-md text-slate-500">{t('home.heroSubtitle')}</p>
 
-        <form onSubmit={onSubmit} className="mt-8 flex w-full max-w-lg gap-3">
-          <Input
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder={t('home.searchPlaceholder')}
-            aria-label={t('home.searchPlaceholder')}
+        {/*
+          **위치와 검색어를 다른 줄에 둔다.** 한 줄에 넣으면 지역이 잡히는 순간 버튼이
+          "내 위치"에서 "하남시"로 넓어지면서 입력칸을 그만큼 먹는다 — 390px 화면에서는
+          무엇을 치는 칸인지 안 보일 만큼 쪼그라든다. 줄을 나누면 폭을 다툴 일이 없다.
+        */}
+        <form
+          onSubmit={onSubmit}
+          className="mt-8 flex w-full max-w-lg flex-col gap-2"
+        >
+          {/*
+            내 위치. **여기서 권한을 받는다** — 화면이 열릴 때 미리 묻지 않는다.
+            누르면 지역만 잡아두고(버튼에 "하남시" 가 뜬다) 이동은 검색 버튼이 한다.
+            한 번 더 누르면 해제된다 — 잡아둔 지역을 무르는 다른 수단이 이 화면엔 없다.
+          */}
+          <MyLocationButton
+            onResolved={setMyRegion}
+            selectedName={myRegion && regionLabel(myRegion)}
+            onClear={() => setMyRegion(undefined)}
+            showLabel
+            className="rounded-xl"
           />
-          <Button type="submit" className="shrink-0">
-            <Search className="h-4 w-4" />
-            {t('home.searchButton')}
-          </Button>
+
+          <div className="flex gap-2">
+            {/* min-w-0 이 없으면 flex 항목이 콘텐츠 폭 밑으로 안 줄어 버튼을 밀어낸다. */}
+            <div className="min-w-0 flex-1">
+              <Input
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder={t('home.searchPlaceholder')}
+                aria-label={t('home.searchPlaceholder')}
+              />
+            </div>
+            <Button type="submit" className="shrink-0">
+              <Search className="h-4 w-4" />
+              {t('home.searchButton')}
+            </Button>
+          </div>
         </form>
       </section>
 
@@ -200,7 +261,11 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
                 <HospitalCardSkeleton key={i} />
               ))
             : hospitals.map((hospital) => (
-                <HospitalCard key={hospital.id} hospital={hospital} compact />
+                <HospitalCard
+                  key={hospital.id}
+                  hospital={hospital}
+                  variant="brief"
+                />
               ))}
         </div>
       )}

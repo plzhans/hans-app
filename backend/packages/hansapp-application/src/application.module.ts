@@ -10,6 +10,8 @@ import {
 } from '@hansapp/search';
 
 import { EnvSwaggerAllowedIpRepository } from './env/env-swagger-allowed-ip.repository';
+import { buildHealthConfig, HEALTH_CONFIG } from './health/health.config';
+import { HealthService } from './health/health.service';
 import { SwaggerAccessService } from './env/swagger-access.service';
 import {
   buildSlackNotifyConfig,
@@ -130,6 +132,9 @@ export class ApplicationModule {
           useValue: buildSlackNotifyConfig(source),
         },
         SlackNotifyService,
+        // 의존 인프라 접속 점검. 판정만 하고 죽일지는 부른 쪽(서버)이 정한다.
+        { provide: HEALTH_CONFIG, useValue: buildHealthConfig(source) },
+        HealthService,
       ],
       exports: [
         HiraHospitalService,
@@ -155,6 +160,8 @@ export class ApplicationModule {
         SwaggerAccessService,
         // main.ts 가 부팅 마지막에 app.get() 으로 꺼내 시작을 알린다.
         SlackNotifyService,
+        // main.ts 가 리슨 전에 app.get() 으로 꺼내 인프라 접속을 확인한다.
+        HealthService,
       ],
     };
   }

@@ -20,10 +20,20 @@ interface PlatformMapProps {
    * 숨겼다 다시 보일 때 컨테이너 크기가 복원된다 — 그때 refresh() 로 다시 그려야 안 잘린다.
    */
   visible?: boolean;
+  /**
+   * 곁들임 핀(근처의 비슷한 병원). 있으면 회색으로 함께 찍고, 다 들어오게 확대율을 맞춘다.
+   *
+   * **배열 정체성이 안정적이어야 한다** — 렌더마다 새 배열을 넘기면 그때마다 핀을 다시 만든다.
+   * 부모가 useMemo 로 묶어서 넘긴다.
+   */
+  nearby?: MapPoint[];
 }
 
 /** 크게 보기 높이. 지도만 화면을 다 먹지 않도록 뷰포트의 70% 로 제한한다. */
 const EXPANDED_HEIGHT = '70vh';
+
+/** 곁들임 핀 기본값. 모듈 상수라 정체성이 고정된다 — 매번 [] 을 만들면 효과가 헛돈다. */
+const EMPTY_NEARBY: MapPoint[] = [];
 
 /**
  * 지도 한 장의 공용 껍데기.
@@ -40,10 +50,15 @@ export function PlatformMap({
   height = '312px',
   bare = false,
   visible = true,
+  nearby = EMPTY_NEARBY,
 }: PlatformMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const renderedRef = useRef(false);
   const controllerRef = useRef<MapController | null>(null);
+  // 지도 생성이 끝나는 시점에 최신 목록을 얹어야 한다 — 생성은 비동기(SDK 로드)라
+  // 그 사이 목록이 바뀌었을 수 있고, 클로저에 갇힌 옛 값을 쓰면 핀이 어긋난다.
+  const nearbyRef = useRef(nearby);
+  nearbyRef.current = nearby;
 
   const { t } = useTranslation();
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -58,7 +73,9 @@ export function PlatformMap({
       .then(() => {
         if (cancelled || !mapRef.current || renderedRef.current) return;
         renderedRef.current = true;
-        controllerRef.current = adapter.create(mapRef.current, point);
+        const controller = adapter.create(mapRef.current, point);
+        controllerRef.current = controller;
+        controller.setNearby(nearbyRef.current);
       })
       .catch((e: unknown) => {
         if (!cancelled) {
@@ -70,6 +87,15 @@ export function PlatformMap({
       cancelled = true;
     };
   }, [adapter, point.lat, point.lng, point.name]);
+
+  /**
+   * 목록이 지도보다 늦게 오거나 도중에 바뀌면 핀만 갈아 끼운다.
+   * **지도를 다시 만들지 않는다** — 인스턴스 생성이 과금 단위다.
+   * 최초 생성 때는 위 훅이 이미 얹었으므로 여기서는 이미 그려진 지도만 손댄다.
+   */
+  useEffect(() => {
+    if (renderedRef.current) controllerRef.current?.setNearby(nearby);
+  }, [nearby]);
 
   /**
    * 숨김(display:none) → 보임으로 돌아오면 컨테이너가 0 크기였다가 복원된다.

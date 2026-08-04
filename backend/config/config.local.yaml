@@ -1,8 +1,5 @@
-# hansapp local 환경 설정. (yaml=구조·기본값, ${}=env 주입. 자세한 규칙은 config.develop.yaml)
-# **자기완결적** — 공통 base 없이 이 파일 하나가 local 설정 전부다.
-# local 은 127.0.0.1 에서 뜬다(단일 오리진). 현재는 dev DB 를 본다(.env.local).
+# hansapp local 환경 설정.
 
-# ── DB (Prisma) ───────────────────────────────────────────────────────────────
 database:
   url: ${DATABASE_URL}
   logUrl: ${DATABASE_LOG_URL}
@@ -13,13 +10,9 @@ redis:
 
 elasticsearch:
   url: ${ELASTICSEARCH_URL}
-
-# 서버 기동·종료 슬랙 알림. 비면 알림만 꺼지고 서버는 정상으로 뜬다.
-# 로컬은 뜨고 지는 일이 잦아 보통 비워 둔다(채널이 시끄러워진다).
-slack:
-  botToken: ${SLACK_BOT_TOKEN}
-  channel: ${SLACK_CHANNEL}
-  webhookUrl: ${SLACK_WEBHOOK_URL}
+  # 인덱스 이름 접두사. 미설정이면 환경 이름(local). dev 클러스터를 같이 쓰므로
+  # 남의 인덱스를 건드리지 않으려면 자기 접두사를 준다.
+  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:-local}
 
 cache:
   memoryMaxEntries: 10000
@@ -27,121 +20,44 @@ cache:
   sharedTtlSec: 600
 
 auth:
-  # 소셜 로그인 흐름(state·흐름 쿠키)의 유효시간(초). **둘이 같은 값을 쓴다.**
-  # provider 화면에서 계정을 고르고 동의하는 시간이라 너무 짧으면 정상 로그인이 실패한다.
-  socialFlowTtlSec: ${AUTH_SOCIAL_FLOW_TTL_SEC:-600}
-  # 쿠키에 Secure 를 붙일지. HTTPS 로 서비스하면 켠다.
-  #
-  # **sameSite 와는 별개다** — 그쪽은 lax 로 고정돼 있다(refresh-cookie.ts).
-  # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
-  # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
-  cookieSecure: ${AUTH_COOKIE_SECURE:-false}
-  # 쿠키 이름 접두사. **환경마다 달라야 한다.**
-  # develop-auth·api 는 develop.plzhans.com 의 서브도메인이 아니라 plzhans.com 의 형제라,
-  # 쿠키 도메인을 양쪽 다 plzhans.com 까지 올려야 한다. 이름까지 같으면 한 환경에서
-  # 로그인할 때마다 다른 환경의 세션 토큰을 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
-  cookiePrefix: 'local.'
-  # **로컬은 rootDomain 을 비운다** — 127.0.0.1(IP)은 쿠키 Domain 으로 못 써서(브라우저 거부),
-  # host-only 쿠키 + 루프백(127.0.0.1·localhost·::1) 폴백으로 1st-party 를 판정한다.
   rootDomain:
-  bcryptRounds: ${AUTH_BCRYPT_ROUNDS:-10}
-  # 프론트(hans-auth) 로그인 URL. 단일 오리진이라 콘솔(5274) 뒤 /auth 로 마운트.
-  # 인증웹(fe/hans-auth) 외부 주소. 자사 로그인 착지점(/me·/callback)과 discovery 의
-  # authorization_endpoint(/login)가 모두 여기서 파생된다.
-  externalUrl: http://127.0.0.1:5274/auth
-  withdrawalRetentionDays: 30
+  externalUrl: http://localhost:5173
   jwt:
-    # 로컬이 발급하는 access token 의 iss.
     issuer: http://127.0.0.1:3000
     allowedIssuers:
+      - http://develop.plzhans.com
       - http://127.0.0.1:3000
     secret: ${AUTH_JWT_SECRET}
     keyDir: ${AUTH_JWT_KEY_DIR}
-    accessTokenExpiresIn: 1h
-    refreshTokenExpiresIn: 7d
-    authCodeExpiresIn: 5m
-  otp:
-    codeLength: ${AUTH_OTP_CODE_LENGTH:-6}
-    ttlSec: ${AUTH_OTP_TTL_SEC:-600}
-    maxAttempts: ${AUTH_OTP_MAX_ATTEMPTS:-5}
-    resendCooldownSec: ${AUTH_OTP_RESEND_COOLDOWN_SEC:-60}
-    maxSendsPerHour: ${AUTH_OTP_MAX_SENDS_PER_HOUR:-5}
-    hashSecret: ${AUTH_JWT_SECRET}
 
 apps-api:
-  name: hansapp
   # 이 서비스의 외부 주소(포털웹). 메일 템플릿의 링크 base 로 쓴다.
-  externalUrl: http://127.0.0.1:5273
-  web:
-    port: 3000
-    # nginx 의 ssl_certificate / ssl_certificate_key. 로컬은 평문 HTTP 라 비운다.
-    # (둘 다 있으면 HTTPS, 한쪽만 있으면 부팅 거부 — config.develop.yaml 설명 참고)
-    sslCertificate:
-    sslCertificateKey:
-  proxy:
-    # 로컬은 프록시 없음 → 끔(빈값).
-    trust:
-    clientIpHeader:
-  # 에러 추적(Sentry). **로컬은 끈다** — 내 머신 에러가 팀 이슈 스트림에 섞이면 안 된다.
-  # 로컬에서 연동을 확인하고 싶을 때만 아래 dsn 주석을 푼다(DSN 은 비밀 아님 — 전송 전용 공개값).
-  sentry:
-    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
-    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:-true}
-    dsn:
-    #dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
-    tracesSampleRate: 1.0
+  externalUrl: http://127.0.0.1:3000
 
-search:
-  # 비우면 패키지 동봉본(@hansapp/search 의 elasticsearch/). 경로를 적으면 cwd 기준이다.
-  schemaDir: ''
-  batchSize: 1000
-
-mail:
-  from: HansApp <no-reply@plzhans.com>
-  provider: smtp
-  smtp:
-    # host 가 비면 발송 끄고 콘솔 로깅(로컬 개발).
-    host: ${MAIL_SMTP_HOST}
-    port: ${MAIL_SMTP_PORT:-587}
-    secure: ${MAIL_SMTP_SECURE:-false}
-    user: ${MAIL_SMTP_USER}
-    password: ${MAIL_SMTP_PASSWORD}
-
-# ── 외부 플랫폼 provider (OAuth) ──
 google:
   clientId: ${GOOGLE_CLIENT_ID}
   clientSecret: ${GOOGLE_CLIENT_SECRET}
+
 naver:
   clientId: ${NAVER_CLIENT_ID}
   clientSecret: ${NAVER_CLIENT_SECRET}
+
 kakao:
   clientId: ${KAKAO_CLIENT_ID}
   clientSecret: ${KAKAO_CLIENT_SECRET}
+
 line:
   clientId: ${LINE_CLIENT_ID}
   clientSecret: ${LINE_CLIENT_SECRET}
 
 krdata:
   serviceKey: ${KRDATA_SERVICE_KEY}
-  maxRetry: 3
-  readTimeoutMs: 60000
   hiraDetailVersion: ${KRDATA_HIRA_DETAIL_VERSION}
+
+# 국토교통부(vworld). 3D 지도·항공사진. **vworld 서비스키는 공공데이터포털과 별개**.
+molit:
+  vworld:
+    serviceKey: ${KRGO_MOLIT_VWORLD_SERVICE_KEY}
 
 juso:
   serviceKey: ${KRGO_JUSO_SERVICE_KEY}
-  maxRetry: 3
-  readTimeoutMs: 30000
-
-# 배치 잡. **`batch:` 를 두 번 쓰면 안 된다** — YAML 중복 키는 뒤엣것이 앞엣것을 통째로 덮는다.
-apps-batch:
-  name: hansapp-batch
-  cron: ${BATCH_CRON:-0 4 * * *}
-  maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
-  # 로컬은 Sentry 끔. (배치는 apps-api 와 별도 Sentry 프로젝트를 쓴다 — 켜려면 그 DSN 을 여기.)
-  sentry:
-    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
-    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:-true}
-    dsn:
-    tracesSampleRate: 0

@@ -29,6 +29,7 @@ import {
   type MetroCity,
 } from '../lib/subwayLine';
 import { LineBadge } from '../components/LineBadge';
+import { NearbyHospitals } from '../components/NearbyHospitals';
 import { Section } from '../components/Section';
 import {
   HospitalHeader,
@@ -1165,9 +1166,13 @@ export default function HospitalDetailPage() {
                 {hospital.location.postNo}
               </span>
             )}
+            {/*
+              **주소만 낸다.** 예전엔 뒤에 병원 이름을 덧붙였는데, 바로 위 헤더에 이름이
+              큼직하게 있어서 같은 이름이 한 화면에 두 번 나왔다.
+              (복사 버튼은 이름을 붙인 채로 둔다 — 지도 앱에 붙여넣을 때 그게 잘 찾힌다.)
+            */}
             <p className="min-w-0 flex-1 break-keep text-sm text-slate-700">
-              {hospital.location.address}{' '}
-              <span className="text-slate-800">{hospital.name}</span>
+              {hospital.location.address}
             </p>
             {(() => {
               const copyText = `${hospital.location.address} ${hospital.name}`;
@@ -1216,6 +1221,32 @@ export default function HospitalDetailPage() {
         ) : null}
         </div>
       </Section>
+
+      {/*
+        근처의 비슷한 병원. **맨 아래이고, 탭에도 없다.**
+
+        위 섹션들은 전부 "이 병원이 어떤 곳인가" 에 답하는데 이건 성격이 다르다 —
+        "여기 말고 다른 데" 라, 상세를 다 읽고 결정이 안 섰을 때 비로소 쓸모가 생긴다.
+        탭에 올리면 그 판단 순서를 건너뛰게 만든다.
+
+        지도 바로 아래인 것도 같은 이유다. 위치를 확인한 직후가 "이 동네에 다른 데는?" 이
+        떠오르는 자리다.
+
+        섹션 껍데기까지 저 컴포넌트가 그린다 — 조회가 실패하면 제목째로 사라져야 해서다.
+        origin 은 그 안 지도의 가운데가 된다(좌표가 없으면 안 넘겨 지도 버튼이 안 뜬다).
+      */}
+      <NearbyHospitals
+        id={id}
+        origin={
+          hospital.location?.lat != null && hospital.location?.lon != null
+            ? {
+                lat: hospital.location.lat,
+                lng: hospital.location.lon,
+                name: hospital.name,
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

@@ -64,15 +64,15 @@ export class SearchSchemaService {
   /** 정본 JSON 을 읽어올 디렉터리(설정 우선, 없으면 패키지 동봉본). */
   readonly schemaDir: string;
 
-  /** 인덱스 이름 접두사로 쓸 환경. 모든 물리 이름 해석(aliasOf 등)에 넘긴다. */
-  private readonly env: string;
+  /** 인덱스 이름 접두사. 모든 물리 이름 해석(aliasOf 등)에 넘긴다. */
+  private readonly indexPrefix: string;
 
   constructor(
     private readonly es: ElasticsearchService,
     @Inject(SEARCH_CONFIG) config: SearchConfig,
   ) {
     this.schemaDir = resolveSchemaDir(config.schemaDir);
-    this.env = config.env;
+    this.indexPrefix = config.indexPrefix;
   }
 
   private get client() {
@@ -117,7 +117,7 @@ export class SearchSchemaService {
     }
     if (
       await this.client.indices.existsAlias({
-        name: aliasOf(def.name, this.env),
+        name: aliasOf(def.name, this.indexPrefix),
       })
     ) {
       return undefined;
@@ -144,13 +144,13 @@ export class SearchSchemaService {
     }
     // 시작 전에 거른다 — 맨이름 인덱스가 있으면 어차피 마지막 swapAlias 에서 실패한다.
     // 8만 건 색인을 헛으로 돌리지 말고 여기서 즉시 던진다.
-    await this.assertNotBareIndex(aliasOf(name, this.env));
+    await this.assertNotBareIndex(aliasOf(name, this.indexPrefix));
     await this.putComponentTemplate();
     await this.putIndexTemplate(def);
 
     const versions = await this.listVersions(name);
     const next = (versions.at(-1) ?? 0) + 1;
-    const index = versionIndexOf(name, this.env, next);
+    const index = versionIndexOf(name, this.indexPrefix, next);
     // 인덱스 템플릿(index_patterns: <env>-name-v*)이 생성 시점에 매핑을 붙인다(-v1 생성과 동일 경로).
     await this.client.indices.create({ index });
     this.logger.log(`새 버전 인덱스 생성: ${index}`);
@@ -165,7 +165,7 @@ export class SearchSchemaService {
    * 다른 버전(v1 등)은 다른 목적으로 살아있을 수 있으므로 여기서 임의로 손대지 않는다.
    */
   async swapAlias(name: string, toIndex: string): Promise<string[]> {
-    const alias = aliasOf(name, this.env);
+    const alias = aliasOf(name, this.indexPrefix);
     const actions: estypes.IndicesUpdateAliasesAction[] = [
       { add: { index: toIndex, alias } },
     ];
@@ -216,10 +216,10 @@ export class SearchSchemaService {
    */
   private async listVersions(name: string): Promise<number[]> {
     const found = await this.client.indices.get(
-      { index: indexPatternOf(name, this.env) },
+      { index: indexPatternOf(name, this.indexPrefix) },
       { ignore: [404] },
     );
-    const re = new RegExp(`^${aliasOf(name, this.env)}-v(\\d+)$`);
+    const re = new RegExp(`^${aliasOf(name, this.indexPrefix)}-v(\\d+)$`);
     const versions: number[] = [];
     for (const index of Object.keys(found ?? {})) {
       const m = re.exec(index);
@@ -244,13 +244,13 @@ export class SearchSchemaService {
     name: string;
     templateFilename: string;
   }): Promise<void> {
-    const templateName = aliasOf(def.name, this.env);
+    const templateName = aliasOf(def.name, this.indexPrefix);
     const body = await readTemplate(
       path.join(this.schemaDir, def.templateFilename),
     );
     // 물리 인덱스가 env 접두사를 가지므로, 템플릿의 index_patterns 도 그 패턴으로 덮어쓴다.
     // (정본 파일엔 논리이름 `name-v*` 로 두고, 적용 시점에 `<env>-name-v*` 로 맞춘다.)
-    body.index_patterns = [indexPatternOf(def.name, this.env)];
+    body.index_patterns = [indexPatternOf(def.name, this.indexPrefix)];
     await this.client.indices.putIndexTemplate({ name: templateName, ...body });
     this.logger.log(`index template '${templateName}' 적용`);
   }
@@ -259,14 +259,14 @@ export class SearchSchemaService {
   private async createIndexIfMissing(def: {
     name: string;
   }): Promise<IndexImportRow> {
-    const alias = aliasOf(def.name, this.env);
+    const alias = aliasOf(def.name, this.indexPrefix);
     if (await this.client.indices.existsAlias({ name: alias })) {
       this.logger.log(`alias '${alias}' 이미 존재 — 인덱스는 그대로 둔다`);
       return { name: def.name, aliasTarget: alias };
     }
     // alias 를 새로 만들어야 하는데, 그 이름 맨이름 인덱스가 있으면 못 만든다 — 먼저 걸러 명확히 던진다.
     await this.assertNotBareIndex(alias);
-    const initial = initialIndexOf(def.name, this.env);
+    const initial = initialIndexOf(def.name, this.indexPrefix);
     await this.client.indices.create({ index: initial });
     await this.client.indices.putAlias({ index: initial, name: alias });
     this.logger.log(`인덱스 '${initial}' 생성 + alias '${alias}' 연결`);
@@ -294,11 +294,11 @@ export class SearchSchemaService {
 
     for (const def of INDEX_DEFINITIONS) {
       const template = await this.client.indices.getIndexTemplate({
-        name: aliasOf(def.name, this.env),
+        name: aliasOf(def.name, this.indexPrefix),
       });
       await write(`index-template.${def.name}.json`, template);
 
-      const alias = aliasOf(def.name, this.env);
+      const alias = aliasOf(def.name, this.indexPrefix);
       if (await this.client.indices.existsAlias({ name: alias })) {
         const settings = await this.client.indices.getSettings({
           index: alias,
@@ -324,7 +324,7 @@ export class SearchSchemaService {
       // 인덱스를 지우면 그 위 alias 도 함께 사라진다.
       const names = new Set<string>();
 
-      const alias = aliasOf(def.name, this.env);
+      const alias = aliasOf(def.name, this.indexPrefix);
       if (await this.client.indices.existsAlias({ name: alias })) {
         const got = await this.client.indices.getAlias({ name: alias });
         for (const name of Object.keys(got)) {
@@ -337,8 +337,8 @@ export class SearchSchemaService {
       const found = await this.client.indices.get(
         {
           index: [
-            aliasOf(def.name, this.env),
-            indexPatternOf(def.name, this.env),
+            aliasOf(def.name, this.indexPrefix),
+            indexPatternOf(def.name, this.indexPrefix),
           ],
         },
         { ignore: [404] },
@@ -356,7 +356,7 @@ export class SearchSchemaService {
       }
 
       await this.client.indices.deleteIndexTemplate(
-        { name: aliasOf(def.name, this.env) },
+        { name: aliasOf(def.name, this.indexPrefix) },
         { ignore: [404] },
       );
     }
@@ -378,7 +378,7 @@ export class SearchSchemaService {
 
     const rows: IndexStatusRow[] = [];
     for (const def of INDEX_DEFINITIONS) {
-      const alias = aliasOf(def.name, this.env);
+      const alias = aliasOf(def.name, this.indexPrefix);
       const aliasExists = await this.client.indices.existsAlias({
         name: alias,
       });
@@ -393,7 +393,7 @@ export class SearchSchemaService {
       }
 
       const indexTemplateExists = await this.client.indices
-        .existsIndexTemplate({ name: aliasOf(def.name, this.env) })
+        .existsIndexTemplate({ name: aliasOf(def.name, this.indexPrefix) })
         .catch(() => false);
 
       rows.push({

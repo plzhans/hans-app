@@ -228,6 +228,48 @@ export interface HospitalSummary {
 }
 
 /**
+ * 근처의 유사한 병원 한 건(상세 화면 하단 섹션용).
+ *
+ * **요약(HospitalSummary)을 그대로 물려받고 조회 맥락 값 둘만 얹는다** — 화면이 목록 카드를
+ * 손대지 않고 재사용하게 하려는 것이다. 부가 필드가 넷째로 늘어나는 날엔 서브 오브젝트로
+ * 묶는다(최상위가 잡다해지는 걸 막는 선). 지금은 둘뿐이라 그럴 값어치가 없다.
+ */
+export interface HospitalNearby extends HospitalSummary {
+  /** 기준 병원으로부터의 **직선거리**(m, 반올림). 도로 거리도 소요시간도 아니다. */
+  distance: number;
+
+  /**
+   * 기준 병원과 겹친 진료과목. **순위의 근거를 그대로 노출한 것**이라 화면 배지로 쓴다.
+   * 코드표 정렬순이라 카드마다 과목 순서가 흔들리지 않는다.
+   *
+   * **빈 배열일 수 있다.** 겹치는 과목이 하나도 없어도 반경 안이면 거리순으로 채우기 때문이다
+   * — 섹션이 통째로 비는 것보다 낫다는 판단이다. 화면은 빈 배열이면 배지를 안 그리면 된다.
+   */
+  matchedSubjects: HospitalMatchedSubject[];
+}
+
+/** 겹친 진료과목 하나. */
+export interface HospitalMatchedSubject extends HospitalCode {
+  /**
+   * 기준 병원과 후보가 **둘 다** 그 과 전문의를 보유하는가.
+   *
+   * 신고만 한 과목과 전문의가 실제 있는 과목은 대체재로서 무게가 다르다(HospitalSubject 주석 참고).
+   * 화면이 그걸 구분해 표시할 수 있게 실어 준다 — 무시해도 그만인 값이다.
+   */
+  specialist: boolean;
+}
+
+/** 근처 유사 병원 조회 결과. */
+export interface HospitalNearbyResult {
+  /**
+   * 이 결과를 만든 반경(m). 요청에 radius 가 있었으면 그 값이고, 없었으면 **기준 병원 등급으로
+   * 서버가 고른 값**이다. 화면이 "반경 N 안에서" 를 표시하려면 요청값이 아니라 이 값을 써야 한다.
+   */
+  radius: number;
+  items: HospitalNearby[];
+}
+
+/**
  * 교통편 하나.
  *
  * 원본(HIRA)에 코드 체계가 없다. 전부 병원이 적어 넣은 문자열이라 그대로 내보낸다 —
@@ -296,6 +338,29 @@ export interface HospitalDetail extends HospitalSummary {
    * 병기하면 같은 이름이 두 번 나온다. 프론트는 `{nameKo && …}` 로 끝난다.
    */
   nameKo?: string;
+
+  /**
+   * 법인격 + 법인명. "의료법인 일맥의료재단" · "학교법인 고려중앙학원"
+   *
+   * `name` 은 원본에서 법인 표기를 뗀 값이라 목록에 쓰기 좋지만, 떼어낸 것이 군더더기는
+   * 아니다 — 어느 재단·학원 소속인지는 대학병원 계열을 알아보는 단서다.
+   * 상세 헤더에서 병원 이름 위 작은 줄로 쓰라고 내린다.
+   *
+   * **법인 표기가 없으면 필드 자체가 없다**(전체의 98.8%).
+   */
+  corpName?: string;
+
+  /**
+   * 원문 이름. 원본(HIRA yadmNm · NMC dutyName)이 준 그대로다.
+   *
+   * **`name` 과 다를 때만 온다.** 같은 값을 두 번 내리면 응답만 부풀고, 클라이언트가
+   * "둘 중 뭘 보여줘야 하나" 를 매번 판단해야 한다 — nameKo 와 같은 규약이다.
+   *
+   * 화면에 그대로 쓰라는 값이 아니다. `corpName` + `name` 이면 같은 내용이 되므로
+   * 셋 다 보여주면 같은 글자가 두 번 나온다. 규칙이 이름을 잘못 갈랐을 때 대조하거나,
+   * 서류·간판 표기가 필요한 클라이언트를 위한 것이다.
+   */
+  legalName?: string;
 
   sources: HospitalSources;
   homepage?: string;
@@ -407,6 +472,26 @@ export interface HospitalFilterCommand {
 /** 페이지네이션 검색 명령. 필터는 공통, 커서는 page/size(offset). */
 export interface HospitalSearchCommand extends HospitalFilterCommand {
   page: number;
+  size: number;
+}
+
+/**
+ * 근처 유사 병원 조회 명령.
+ *
+ * **검색 필터를 물려받지 않는다** — 조건을 사용자가 고르는 게 아니라 기준 병원이 통째로 정한다
+ * (어느 과목·종별과 비슷한지는 기준 병원을 읽어야 안다). 그래서 반경과 개수만 받는다.
+ */
+export interface HospitalNearbyCommand {
+  /** 기준 병원 id */
+  id: number;
+
+  /**
+   * 반경(m). **없으면 서버가 기준 병원의 등급을 보고 정한다** — 의원은 걸어갈 곳을 찾는 자리라
+   * 좁게, 상급종합은 권역에서 찾는 자리라 아주 넓게 잡는다. 값이 오면 그 값이 이긴다.
+   * 어느 쪽이든 실제 적용값은 결과(HospitalNearbyResult.radius)에 실어 준다.
+   */
+  radius?: number;
+
   size: number;
 }
 

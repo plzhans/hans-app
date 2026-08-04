@@ -5,7 +5,6 @@ import {
   ResolvedKrDataConfig,
 } from './config';
 import { isQuotaExceeded, KrDataError, KrDataQuotaError } from './error';
-import { extractResultHeader, normalizeKrDataResponse } from './normalize';
 
 /**
  * 응답 봉투. orval 의 fetch 클라이언트가 mutator 반환값으로 기대하는 형태다.
@@ -53,11 +52,12 @@ export function createKrDataFetch(config: KrDataConfig): KrDataFetch {
  * `%2B` 가 `%252B` 가 되어 401 이 난다. URL/URLSearchParams 는 이를 재인코딩하므로
  * 여기서는 문자열로 직접 이어 붙인다. 나머지 파라미터는 생성된 코드가 이미 인코딩해서 넘겨준다.
  *
- * `_type=json` 을 주지 않으면 XML 로 응답한다.
+ * 포맷 파라미터를 주지 않으면 XML 로 응답한다. 이름은 부처마다 다르다(`_type` / `type`).
  */
 function buildUrl(config: ResolvedKrDataConfig, url: string): string {
   const separator = url.includes('?') ? '&' : '?';
-  return `${config.baseUrl}${url}${separator}ServiceKey=${config.serviceKey}&_type=json`;
+  const { name, value } = config.envelope.formatParam;
+  return `${config.baseUrl}${url}${separator}ServiceKey=${config.serviceKey}&${name}=${value}`;
 }
 
 /**
@@ -196,8 +196,27 @@ function parseBody(
     );
   }
 
-  const header = extractResultHeader(payload);
-  if (header?.resultCode !== undefined && header.resultCode !== '00') {
+  // 게이트웨이 인증 에러가 **JSON 으로도 온다.** XML 만 보면 놓친다.
+  // 행정안전부(1741000)에 type=json 으로 잘못된 키를 보내면 이 형태다. (2026-08 실측)
+  //   {"OpenAPI_ServiceResponse":{"cmmMsgHeader":{"errMsg":…,"returnAuthMsg":…,"returnReasonCode":…}}}
+  // 여기서 못 잡으면 인증 실패가 정상 응답으로 통과해 빈 결과처럼 보인다.
+  const gatewayError = extractGatewayError(payload);
+  if (gatewayError) {
+    const message = `KR-DATA API returned a gateway error: ${gatewayError.message} (service key: ${maskServiceKey(config.serviceKey)})`;
+    if (isQuotaExceeded(gatewayError.code, body)) {
+      throw new KrDataQuotaError(message, gatewayError.code, body, endpoint);
+    }
+    throw new KrDataError(message, gatewayError.code, {
+      responseBody: body,
+      endpoint,
+    });
+  }
+
+  const header = config.envelope.readHeader(payload);
+  if (
+    header?.resultCode !== undefined &&
+    !config.envelope.isSuccess(header.resultCode)
+  ) {
     const message = `KR-DATA API returned an error: ${header.resultMsg ?? 'unknown'}`;
 
     // 한도 초과는 장애가 아니다. 배치가 "오늘은 여기까지"로 다룰 수 있게 따로 구분한다.
@@ -211,8 +230,41 @@ function parseBody(
     });
   }
 
-  normalizeKrDataResponse(payload);
+  config.envelope.normalize(payload);
   return payload;
+}
+
+/** 게이트웨이가 JSON 으로 준 인증·서비스 에러. 정상 응답이면 undefined. */
+function extractGatewayError(
+  payload: unknown,
+): { code: string; message: string } | undefined {
+  if (typeof payload !== 'object' || payload === null) {
+    return undefined;
+  }
+  const envelope = (payload as Record<string, unknown>).OpenAPI_ServiceResponse;
+  if (typeof envelope !== 'object' || envelope === null) {
+    return undefined;
+  }
+  const header = (envelope as Record<string, unknown>).cmmMsgHeader;
+  if (typeof header !== 'object' || header === null) {
+    return undefined;
+  }
+  const fields = header as Record<string, unknown>;
+  return {
+    code: asText(fields.returnReasonCode) ?? 'GATEWAY_ERROR',
+    message: asText(fields.returnAuthMsg) ?? asText(fields.errMsg) ?? 'unknown',
+  };
+}
+
+/** 원시값이면 문자열로, 아니면 undefined. 객체가 섞여 와도 "[object Object]" 를 남기지 않는다. */
+function asText(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return undefined;
 }
 
 function extractXmlErrorMessage(body: string): string {

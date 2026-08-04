@@ -54,7 +54,18 @@
       "6": "Sat",
       "7": "Sun",
       "8": "Holiday"
-    }
+    },
+    "myLocation": {
+      "label": "My location",
+      "locating": "Locating…",
+      "denied": "Location permission was denied. Allow it from the lock icon in the address bar.",
+      "blocked": "Location permission is blocked in your browser. Allow it from the lock icon in the address bar.",
+      "timeout": "Locating is taking too long. Please try again.",
+      "unavailable": "Couldn't get your location. Check that location services are on for this device.",
+      "notFound": "We couldn't match your location to a region. Please pick one manually.",
+      "clear": "Clear {{name}}"
+    },
+    "all": "All"
   },
   "search": {
     "tabs": {
@@ -172,6 +183,14 @@
     "showMap": "Show map",
     "copyAddress": "Copy address",
     "map": "Map",
+    "nearby": {
+      "title": "Similar hospitals nearby",
+      "hint": "Within {{radius}}, ranked by overlapping medical departments.",
+      "empty": "No similar hospitals nearby.",
+      "within": "within {{distance}}",
+      "showMap": "View on map",
+      "hideMap": "Hide map"
+    },
     "assessment": {
       "title": "HIRA Hospital Assessment",
       "source": "Results from the Health Insurance Review & Assessment Service (HIRA). Grade 1 is the best.",

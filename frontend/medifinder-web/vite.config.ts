@@ -27,6 +27,19 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
+
+      /**
+       * Capacitor core 를 **한 벌만** 번들한다.
+       *
+       * auth-sdk 가 `link:` 로 붙어 있고 자기 node_modules 에 @capacitor/core 를 따로 갖는다.
+       * 그대로 두면 auth-sdk(Preferences)와 앱(Geolocation·NativeSettings)이 **서로 다른
+       * core 인스턴스**를 잡는다. 플러그인 레지스트리가 core 모듈의 전역 상태라, 갈라지면
+       * 한쪽이 네이티브 구현을 못 찾고 조용히 웹 폴백으로 떨어진다 — 앱에서만 재현되는
+       * 종류의 버그다.
+       *
+       * 지금은 auth 코드가 아직 어디서도 안 불려 번들에 없지만, 붙는 순간 문제가 된다.
+       */
+      dedupe: ['@capacitor/core'],
     },
     server: {
       host: true,

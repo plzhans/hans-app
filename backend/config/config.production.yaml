@@ -13,6 +13,7 @@ redis:
 
 elasticsearch:
   url: ${ELASTICSEARCH_URL}
+  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:-production}
 
 # 서버 기동·종료 슬랙 알림. 비면 알림만 꺼지고 서버는 정상으로 뜬다.
 # botToken 이 있어야 종료 알림이 시작 알림의 스레드에 달린다(자세한 설명은 config.develop.yaml).
@@ -65,9 +66,10 @@ auth:
     secret: ${AUTH_JWT_SECRET}
     # access token 비대칭(ES256) 키 디렉터리. 없으면 HS256(secret) 폴백.
     keyDir: ${AUTH_JWT_KEY_DIR}
-    accessTokenExpiresIn: 1h
-    refreshTokenExpiresIn: 7d
-    authCodeExpiresIn: 5m
+    # 만료 3종. 기본값은 코드(auth.config.ts)에 있다 — 운영만 다르게 갈 때 살린다.
+    #accessTokenExpiresIn: 1h
+    #refreshTokenExpiresIn: 7d
+    #authCodeExpiresIn: 5m
   otp:
     codeLength: ${AUTH_OTP_CODE_LENGTH:-6}
     ttlSec: ${AUTH_OTP_TTL_SEC:-600}
@@ -168,6 +170,11 @@ krdata:
   maxRetry: 3
   readTimeoutMs: 60000
   hiraDetailVersion: ${KRDATA_HIRA_DETAIL_VERSION}
+
+# 국토교통부(vworld). 3D 지도·항공사진. **vworld 서비스키는 공공데이터포털과 별개**.
+molit:
+  vworld:
+    serviceKey: ${KRGO_MOLIT_VWORLD_SERVICE_KEY}
 
 # 도로명주소(juso.go.kr).
 juso:

@@ -236,6 +236,9 @@ export const HOSPITAL_TIERS: HospitalTierSeed[] = [
       ja: '町の医院。外来中心、病床30床未満',
       zh: '社区诊所。以门诊为主，病床30张以下',
     },
+    // 보건기관(보건소·보건지소·보건진료소)은 의료법상 의료기관이 아니지만 외래 진료를
+    // 하고 병상이 없어 여기 둔다. 농어촌에서는 가장 가까운 진료처라 빼면 안 된다.
+    // 보건의료원만 TIER2 다 — 지역보건법 제12조가 "병원의 요건을 갖춘 보건소" 로 정의한다.
     classes: [
       'CLINIC',
       'DENTAL_CLINIC',
@@ -244,7 +247,6 @@ export const HOSPITAL_TIERS: HospitalTierSeed[] = [
       'HEALTH_CENTER',
       'HEALTH_SUB',
       'HEALTH_POST',
-      'HEALTH_MED',
     ],
   },
   {
@@ -264,6 +266,11 @@ export const HOSPITAL_TIERS: HospitalTierSeed[] = [
       'DENTAL_HOSP',
       'KM_HOSPITAL',
       'KM_GENERAL',
+      // 보건의료원. 16곳 전부 군 단위이고 인력이 병원 평균을 넘는다
+      // (실측 2026-08: 의사 11.6명 vs 병원 7.4명). 그 군에서 입원 가능한 유일한
+      // 시설인 경우가 많아 "병원급 이상" 검색에서 빠지면 안 된다.
+      // 병상 데이터가 없는 건 심평원이 보건기관에 안 주기 때문이지 병상이 없어서가 아니다.
+      'HEALTH_MED',
     ],
   },
   {

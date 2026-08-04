@@ -132,16 +132,15 @@ export default withMermaid(defineConfig({
   lang: 'ko-KR',
   // apis/notes/*.md 는 개별 페이지가 아니라 태그 페이지에 주입되는 조각이므로 라우팅에서 제외한다.
   srcExclude: ['apis/notes/**'],
-  // 다크/라이트 토글은 유지하되(appearance: true) 기본값은 라이트로 강제한다.
-  // 저장된 사용자 선택이 없을 때 'light' 를 시드해 OS 가 다크여도 라이트로 시작하게 한다.
-  appearance: true,
-  head: [
-    [
-      'script',
-      {},
-      "try{if(!localStorage.getItem('vitepress-theme-appearance')){localStorage.setItem('vitepress-theme-appearance','light')}}catch(e){}",
-    ],
-  ],
+  // 다크/라이트 토글은 유지하되 기본값은 다크다.
+  //
+  // 'dark' 는 'force-dark' 와 다르다 — 토글은 그대로 있고, 저장된 선택이 없을 때만
+  // (OS 가 라이트여도) 다크로 시작한다. 사용자가 라이트로 바꾸면 그 선택이 유지된다.
+  //
+  // 예전엔 appearance: true + head 스크립트로 localStorage 에 'light' 를 시드했다.
+  // 지금은 VitePress 가 넣는 인라인 스크립트가 폴백을 'dark' 로 잡아 주므로 시드가 필요 없다.
+  // (직접 시드하면 사용자가 고른 값을 덮어써서 토글이 먹지 않는다)
+  appearance: 'dark',
   // 완전 정적 사이트(vitepress build). base 는 배포 경로에 맞춰 조정한다.
   //
   // 하나의 Pages 사이트가 여러 환경을 담는다.

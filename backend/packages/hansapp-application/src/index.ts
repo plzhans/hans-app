@@ -7,6 +7,14 @@ export {
   MAX_PAGE_SIZE,
 } from './common/pagination.constants';
 
+export {
+  MIN_NEARBY_RADIUS,
+  MAX_NEARBY_RADIUS,
+  DEFAULT_NEARBY_SIZE,
+  MIN_NEARBY_SIZE,
+  MAX_NEARBY_SIZE,
+} from './healthcare/hospital-nearby.constants';
+
 export type { MirrorListCommand } from './common/mirror.result';
 
 // 원본 API 는 같은 필드를 문자열/숫자로 섞어서 준다. 값을 쓰기 전에 반드시 통과시킨다.
@@ -63,6 +71,10 @@ export type {
   HospitalSearchCommand,
   HospitalScrollCommand,
   HospitalScrollResult,
+  HospitalNearbyCommand,
+  HospitalNearbyResult,
+  HospitalNearby,
+  HospitalMatchedSubject,
   HospitalSubject,
   HospitalHours,
   HospitalStaff,
@@ -109,5 +121,12 @@ export {
   buildSlackNotifyConfig,
 } from './notify/slack-notify.config';
 export type { SlackNotifyConfig } from './notify/slack-notify.config';
+
+/**
+ * 의존 인프라(MySQL·Redis·Elasticsearch) 접속 점검. 판정만 하고 결과를 돌려준다 —
+ * 서버는 리슨 전에 이걸 불러 하나라도 실패하면 부팅을 중단한다.
+ */
+export { HealthService } from './health/health.service';
+export type { HealthCheckResult } from './health/health.service';
 export { matchesAllowedIp, parseIp } from './env/ip-match';
 export type { ParsedIp } from './env/ip-match';

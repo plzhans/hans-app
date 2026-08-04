@@ -23,7 +23,8 @@
     "seouldata:codegen": "pnpm --filter \"@seouldata/*\" codegen",
     "kr-go:codegen": "pnpm --filter \"@kr-go/*\" codegen",
     "openapi:gen": "pnpm --filter hansapp-api openapi:gen",
-    "hansapp-batch": "SWC_NODE_PROJECT=apps/hansapp-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapp-batch/src/main.ts"
+    "hansapp-batch": "SWC_NODE_PROJECT=apps/hansapp-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapp-batch/src/main.ts",
+    "vworld:codegen": "pnpm --filter \"@vworld/*\" codegen"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",

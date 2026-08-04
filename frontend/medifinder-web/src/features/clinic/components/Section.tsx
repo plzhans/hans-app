@@ -12,6 +12,7 @@ export function Section({
   children,
   id,
   first,
+  action,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -21,6 +22,14 @@ export function Section({
 
   /** 첫 섹션. 위쪽 구분선을 그리지 않는다 — 바로 위 탭의 밑줄과 겹쳐 이중선이 된다. */
   first?: boolean;
+
+  /**
+   * 제목 줄 오른쪽 끝에 붙일 것(주로 토글 버튼).
+   *
+   * 본문 아래에 두면 **스크롤을 다 내려야 보인다** — 구역 단위로 켜고 끄는 조작은
+   * 그 구역을 읽기 시작하는 자리, 즉 제목 옆에 있어야 눈에 걸린다.
+   */
+  action?: React.ReactNode;
 }) {
   return (
     <section
@@ -34,10 +43,13 @@ export function Section({
       className={cn(first ? 'pt-1' : 'border-t border-slate-200 pt-5')}
       style={{ scrollMarginTop: 'var(--detail-anchor-offset, 112px)' }}
     >
-      <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-        {icon}
-        {title}
-      </h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 font-semibold text-slate-900">
+          {icon}
+          {title}
+        </h2>
+        {action}
+      </div>
       <div className="mt-3">{children}</div>
     </section>
   );

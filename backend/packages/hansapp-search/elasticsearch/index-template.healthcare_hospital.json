@@ -66,6 +66,20 @@
           }
         },
 
+        "legal_name": {
+          "type": "keyword",
+          "normalizer": "keyword_fold",
+          "ignore_above": 256,
+          "copy_to": "search.name.ko"
+        },
+
+        "corp_name": {
+          "type": "keyword",
+          "normalizer": "keyword_fold",
+          "ignore_above": 256,
+          "copy_to": "search.name.ko"
+        },
+
         "name_chosung": { "type": "keyword", "ignore_above": 64 },
 
         "subway": {

@@ -16,6 +16,7 @@ import {
   ApiExcludeEndpoint,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -123,6 +124,14 @@ export class SocialController {
     summary: '소셜 로그인 시작',
     description:
       'provider 인가 페이지로 리다이렉트한다. link_token 쿼리가 있으면 현재 계정 연동 의도로 시작한다. provider: google|naver|kakao|line',
+  })
+  // 핸들러가 @Param 을 안 받아(가드가 처리한다) 스웨거 플러그인이 경로 변수를 못 만든다.
+  // 그러면 경로에 {provider} 가 있는데 parameters 가 비어 OpenAPI 규격에 어긋나고,
+  // 스펙으로 클라이언트를 생성하는 도구(orval)가 거기서 멈춘다. 문서용으로만 선언해 둔다.
+  @ApiParam({
+    name: 'provider',
+    description: '소셜 제공자',
+    enum: ['google', 'naver', 'kakao', 'line'],
   })
   start(): void {
     // 리다이렉트는 SocialAuthGuard(passport)가 처리한다. 여기 도달하지 않는다.

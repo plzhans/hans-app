@@ -1,5 +1,10 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, NotFoundException, Query } from '@nestjs/common';
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { RegionService } from '@hansapp/application';
 
 import { Lang } from '../common/lang.decorator';
@@ -9,6 +14,10 @@ import { AuthType } from '../auth/auth-type.enum';
 import { ApiListResponse } from '../common/dto/api-list-response.decorator';
 import { ListResponseDto } from '../common/dto/list.response.dto';
 import { RegionDto } from './dto/region.dto';
+import {
+  RegionPointDto,
+  RegionReverseRequestDto,
+} from './dto/region-reverse.dto';
 
 /**
  * 지역(주소) API.
@@ -53,5 +62,36 @@ export class RegionController {
     return new ListResponseDto(
       this.service.list({ level, parentCode: parent }, lang),
     );
+  }
+
+  /*
+    경로가 `/address/regions/reverse` 다. 목록(`GET /address/regions`)과 같은 그룹에 두는 건
+    **클라이언트 입장에서 같은 일**이기 때문이다 — 지역 코드를 얻는다. 목록에서 고르느냐
+    좌표로 찾느냐만 다르다.
+
+    지금 구현은 병원 색인을 공간 프록시로 빌려 쓰지만(RegionService.reverse 주석 참고),
+    그건 구현 세부라 URL 에 드러내지 않는다. 지역별 기준점이 들어오면 내부만 갈아끼운다.
+  */
+  @Get('reverse')
+  @ApiOperation({
+    summary: '좌표 → 지역 코드 (역지오코딩)',
+    description:
+      '위경도를 주면 그 좌표가 속한 시도·시군구를 돌려준다. ' +
+      '"내 위치" 버튼이 브라우저에서 받은 좌표를 지역 필터로 바꿀 때 쓴다.\n\n' +
+      '받은 코드는 **병원 검색의 `region` 파라미터에 그대로** 넣으면 된다 — ' +
+      '`region` 이 있으면 그 시군구 코드를, 없으면 `sido` 코드를 보낸다.\n\n' +
+      '**한국 밖이거나 주변에 병원이 없으면 404** 다. 위치를 못 알아낸 것이지 오류가 아니니, ' +
+      '클라이언트는 조용히 지역 선택을 비워두면 된다.',
+  })
+  @ApiOkResponse({ type: RegionPointDto })
+  async reverse(
+    @Lang() lang: SupportedLang,
+    @Query() query: RegionReverseRequestDto,
+  ): Promise<RegionPointDto> {
+    const point = await this.service.reverse(query.lat, query.lon, lang);
+    if (!point) {
+      throw new NotFoundException('No region found for the given coordinates');
+    }
+    return point;
   }
 }

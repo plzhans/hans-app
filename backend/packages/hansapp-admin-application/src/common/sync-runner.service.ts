@@ -11,6 +11,11 @@ import {
   NmcStageService,
   StageResult,
 } from '../nmc/nmc-stage.service';
+import {
+  MOIS_STAGES,
+  MoisStage,
+  MoisStageService,
+} from '../mois/mois-stage.service';
 import { DataProvider } from './provider';
 
 /** 한 단계의 실행 결과 */
@@ -58,6 +63,7 @@ export class SyncRunnerService {
   private readonly logger = new Logger(SyncRunnerService.name);
 
   constructor(
+    private readonly mois: MoisStageService,
     private readonly nmc: NmcStageService,
     private readonly hira: HiraStageService,
   ) {}
@@ -66,8 +72,7 @@ export class SyncRunnerService {
     provider: DataProvider,
     options: RunAllOptions = {},
   ): Promise<RunAllResult> {
-    const stages: readonly number[] =
-      provider === 'nmc' ? NMC_STAGES : HIRA_STAGES;
+    const stages: readonly number[] = STAGES_BY_PROVIDER[provider];
 
     const runs: StageRun[] = [];
     let spent = 0;
@@ -124,8 +129,20 @@ export class SyncRunnerService {
     stage: number,
     options: { force?: boolean; limit?: number },
   ): Promise<StageResult> {
-    return provider === 'nmc'
-      ? this.nmc.run(stage as NmcStage, options)
-      : this.hira.run(stage as HiraStage, options);
+    switch (provider) {
+      case 'mois':
+        return this.mois.run(stage as MoisStage, options);
+      case 'nmc':
+        return this.nmc.run(stage as NmcStage, options);
+      case 'hira':
+        return this.hira.run(stage as HiraStage, options);
+    }
   }
 }
+
+/** 기관별 단계 목록. 기관을 추가하면 여기에만 넣으면 된다. */
+const STAGES_BY_PROVIDER: Record<DataProvider, readonly number[]> = {
+  mois: MOIS_STAGES,
+  nmc: NMC_STAGES,
+  hira: HIRA_STAGES,
+};

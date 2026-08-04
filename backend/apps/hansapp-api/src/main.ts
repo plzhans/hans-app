@@ -3,7 +3,7 @@
 // instrument 가 부팅 설정(boot-config)을 읽고 Sentry.init 까지 끝낸다.
 import { sentryStatusLine } from './instrument';
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
@@ -17,7 +17,11 @@ import {
   isFirstPartyOrigin,
   normalizeRootDomain,
 } from '@hansapp/auth-application';
-import { SlackNotifyService, SwaggerAccessService } from '@hansapp/application';
+import {
+  HealthService,
+  SlackNotifyService,
+  SwaggerAccessService,
+} from '@hansapp/application';
 
 import { AppModule } from './app.module';
 import { appConfig } from './boot-config';
@@ -66,25 +70,81 @@ function parseTrustProxy(raw?: string): boolean | number | string | undefined {
  * 이 코드는 그대로다. 인프라 교체가 설정 두 줄로 끝나는 이유가 여기 있다.
  */
 function readHttpsOptions() {
+  // 빈 문자열·공백뿐인 값은 **없는 것으로 본다** — yaml 에 키만 남겨 두거나
+  // SSL_CERTIFICATE= 로 비우는 건 '끄겠다'는 뜻이지 경로가 아니다.
+  // getStringOrDefault 가 그렇게 정규화하지만, 여기서 스킴이 갈리므로
+  // 판단 기준을 이 자리에 드러내 둔다.
   const cert = appConfig.getStringOrDefault('apps-api.web.sslCertificate');
   const key = appConfig.getStringOrDefault('apps-api.web.sslCertificateKey');
+  const hasCert = cert.length > 0;
+  const hasKey = key.length > 0;
 
   // 한쪽만 설정된 건 설정 실수다. 조용히 HTTP 로 떨어뜨리면 운영이 평문으로 뜬다.
-  if (!!cert !== !!key) {
+  if (hasCert !== hasKey) {
     throw new Error(
       'apps-api.web.sslCertificate 와 sslCertificateKey 는 둘 다 설정하거나 둘 다 비워야 한다',
     );
   }
-  if (!cert) return undefined;
+  if (!hasCert) return undefined;
 
-  // 상대경로는 설정이 선언된 자리(워크스페이스 루트) 기준으로도 찾는다. cwd 만 보면
-  // 하위 디렉터리에서 띄웠을 때 yaml 은 읽히는데 인증서만 안 잡힌다.
-  //
-  // 경로가 있는데 파일이 없으면 readFileSync 가 던진다 — 평문으로 뜨는 것보다 낫다.
   return {
-    cert: readFileSync(resolveConfigPath(__dirname, cert)),
-    key: readFileSync(resolveConfigPath(__dirname, key)),
+    cert: readCertFile('apps-api.web.sslCertificate', cert),
+    key: readCertFile('apps-api.web.sslCertificateKey', key),
   };
+}
+
+/**
+ * 인증서 파일을 읽는다. 경로만 있고 파일이 없으면 **부팅을 멈춘다** —
+ * 평문으로 뜨는 것보다 안 뜨는 게 낫다.
+ *
+ * 상대경로는 설정이 선언된 자리(워크스페이스 루트) 기준으로도 찾는다. cwd 만 보면
+ * 하위 디렉터리에서 띄웠을 때 yaml 은 읽히는데 인증서만 안 잡힌다.
+ *
+ * readFileSync 의 ENOENT 를 그대로 두지 않는 이유는 **어느 설정 값 때문인지**와
+ * 상대경로가 어디로 풀렸는지가 메시지에 없어서다. 그게 없으면 띄운 위치가 문제인지
+ * 경로 오타인지를 로그만 보고는 못 가린다.
+ */
+function readCertFile(configPath: string, value: string): Buffer {
+  const resolved = resolveConfigPath(__dirname, value);
+  if (!existsSync(resolved)) {
+    throw new Error(
+      `${configPath} 가 가리키는 파일이 없다: ${value} (resolved: ${resolved}, cwd: ${process.cwd()})`,
+    );
+  }
+  return readFileSync(resolved);
+}
+
+/**
+ * 의존 인프라 접속을 확인하고, **하나라도 실패하면 던져서 부팅을 중단한다.**
+ *
+ * 점검 자체(무엇을 어떻게 찔러 보는지)는 응용 계층(HealthService)이 하고, 여기서는
+ * **그 결과로 뜰지 말지를 정한다** — 서버는 다 붙어야 뜨지만 CLI 는 ES 가 죽어 있어도
+ * 돌아야 하는 것처럼, 무엇이 치명적인지는 실행 주체마다 다르기 때문이다.
+ *
+ * 실패해도 결과를 전부 찍는다. 첫 실패에서 멈추면 재시작을 세 번 해야 문제 세 개를 안다.
+ */
+async function verifyInfrastructure(
+  app: NestExpressApplication,
+  logger: Logger,
+): Promise<void> {
+  const results = await app.get(HealthService).checkAll();
+  for (const { name, status, reason } of results) {
+    const line = `${name}: ${status}${reason ? ` — ${reason}` : ''}`;
+    if (status === 'failed') {
+      logger.error(`❌ ${line}`);
+    } else if (status === 'skipped') {
+      logger.warn(`⚠️ ${line}`);
+    } else {
+      logger.log(`✅ ${line}`);
+    }
+  }
+
+  const failed = results.filter((r) => r.status === 'failed');
+  if (failed.length > 0) {
+    throw new Error(
+      `인프라 접속 실패: ${failed.map((r) => r.name).join(', ')}`,
+    );
+  }
 }
 
 async function bootstrap() {
@@ -225,6 +285,13 @@ async function bootstrap() {
   // 슬랙만 보고는 설정이 잘못됐는지 원래 그런지를 알 수 없다.
   const slackNotify = app.get(SlackNotifyService);
   logger.log(slackNotify.statusLine);
+
+  // 인프라(MySQL·Redis·ES)에 못 붙으면 **리슨 전에** 죽는다. 반쯤 죽은 채 뜨면 포트는
+  // 열려 있어 앞단은 정상으로 보고 요청마다 500 이 난다.
+  //
+  // **재시도하지 않는다.** 배포에서는 컨테이너가 재시작되며 인프라가 뜨기를 기다리므로
+  // 여기서 또 기다리면 같은 일을 두 겹으로 하는 것이다 — 죽는 게 곧 재시도다.
+  await verifyInfrastructure(app, logger);
 
   const port = appConfig.getNumberOrDefault('apps-api.web.port', 3000);
   await app.listen(port);

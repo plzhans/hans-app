@@ -3,6 +3,7 @@ import { ConfigSource } from '@hansapp/common';
 import {
   HealthcareBuildService,
   HealthcareDetailBuildService,
+  HealthcareNameBuildService,
 } from '@hansapp/admin-application';
 
 import { withAdminContext } from '../context';
@@ -83,6 +84,54 @@ export function healthcareCommand(source: ConfigSource): Command {
       'hansapp-cli healthcare build',
       'hansapp-cli healthcare build --only-main',
     ],
+  );
+
+  addExamples(
+    healthcare
+      .command('names')
+      .description(
+        '병원 이름을 다시 계산한다. legal_name(원문)만 읽어 name·corp_name 을 만든다 — ' +
+          '미러가 없어도 돌고, 원문을 건드리지 않아 몇 번을 돌려도 결과가 같다',
+      )
+      .option('--dry-run', '무엇이 바뀌는지만 보고 쓰지 않는다')
+      .option('--quiet', '진행 로그를 숨긴다')
+      .action(
+        async (options: {
+          dryRun?: boolean;
+          quiet?: boolean;
+        }): Promise<void> => {
+          const result = await withAdminContext(
+            source,
+            (context) =>
+              context
+                .get(HealthcareNameBuildService)
+                .run({ dryRun: options.dryRun }),
+            { verbose: !options.quiet },
+          );
+
+          console.log(
+            [
+              result.dryRun
+                ? '이름 재계산 (dry-run — 아무것도 쓰지 않았다)'
+                : '이름 재계산 완료',
+              `  검사      : ${result.scanned.toLocaleString()}`,
+              `  변경      : ${result.changed.toLocaleString()}`,
+              `  법인 분리 : ${result.withCorp.toLocaleString()}`,
+              `  잠금 유지 : ${result.locked.toLocaleString()} (사람이 고친 이름)`,
+              `  소요 시간 : ${(result.elapsedMs / 1000).toFixed(1)}초`,
+            ].join('\n'),
+          );
+
+          if (result.samples.length > 0) {
+            console.log(`\n  바뀌는 예시 (앞 ${result.samples.length}건)`);
+            for (const s of result.samples) {
+              const corp = s.corp ? `   [${s.corp}]` : '';
+              console.log(`    ${s.before}  →  ${s.after}${corp}`);
+            }
+          }
+        },
+      ),
+    ['hansapp-cli healthcare names --dry-run', 'hansapp-cli healthcare names'],
   );
 
   return healthcare;

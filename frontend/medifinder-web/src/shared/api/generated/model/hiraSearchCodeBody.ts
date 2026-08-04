@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.0.1
+ * OpenAPI spec version: 0.11.0
  */
 import type { HiraPageInfo } from './hiraPageInfo';
 import type { HiraSearchCodeItems } from './hiraSearchCodeItems';

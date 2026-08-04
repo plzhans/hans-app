@@ -17,11 +17,15 @@ export interface SearchConfig {
   readonly node: string;
 
   /**
-   * 환경 이름(develop·production·local). **인덱스 이름 접두사**로 쓴다 — 한 ES 클러스터를 여러 환경이
-   * 공유해도 인덱스가 안 겹치게(예: develop-healthcare_hospital). Redis 가 env 를 키 namespace 로
-   * 거는 것과 같은 격리다. 접두사 적용은 이름 해석 헬퍼(schema/index.ts) 한 곳에서만 한다.
+   * **인덱스 이름 접두사**(예: develop → develop-healthcare_hospital). 한 ES 클러스터를 여러
+   * 환경이 공유해도 인덱스가 안 겹치게 하는 유일한 격리 단위다. 접두사 적용은 이름 해석
+   * 헬퍼(schema/index.ts) 한 곳에서만 한다.
+   *
+   * **환경 이름과 분리해 둔다**(ELASTICSEARCH_INDEX_PREFIX). 클러스터를 나눠 쓰는 방식이
+   * 환경 구분과 늘 같지는 않기 때문이다 — 같은 develop 이라도 사람마다 다른 접두사로 띄우거나,
+   * 새 매핑을 나란히 올려 비교해 보려면 접두사만 따로 돌릴 수 있어야 한다.
    */
-  readonly env: string;
+  readonly indexPrefix: string;
 
   /** 대량 색인 배치 크기(keyset 페이지·bulk 묶음). 인덱스와 무관한 전역 값이라 여기 둔다. */
   readonly batchSize: number;
@@ -43,12 +47,15 @@ export interface SearchConfig {
  * 접속 URL(node)은 시크릿이라 .env(ELASTICSEARCH_URL)로 주입되고, schemaDir 은 비밀 아닌
  * 값이라 config/config.<환경>.yaml(elasticsearchSchemaDir) 또는 환경변수로 준다. getX 가 둘을 한
  * 트리에서 경로로 읽는다(ELASTICSEARCH_URL → elasticsearchUrl 등 __/camelCase 규칙).
+ *
+ * 인덱스 접두사(indexPrefix)도 같은 자리에서 온다(ELASTICSEARCH_INDEX_PREFIX).
  */
 export function buildSearchConfig(cfg: ConfigSource): SearchConfig {
   return Object.freeze({
     node: cfg.getUrl('elasticsearch.url'),
-    // 인덱스 접두사로 쓸 환경 이름. Redis 키 namespace 와 같은 값(cfg.env)이라 격리가 한 스위치로 묶인다.
-    env: cfg.env,
+    // 인덱스 접두사(ELASTICSEARCH_INDEX_PREFIX). **미설정이면 환경 이름으로 떨어진다** —
+    // 예전엔 환경 이름이 곧 접두사였고, 그 시절에 만든 인덱스(develop-…)를 그대로 찾아야 한다.
+    indexPrefix: cfg.getStringOrDefault('elasticsearch.indexPrefix') || cfg.env,
     batchSize: cfg.getNumberOrDefault('search.batchSize', 1000),
     schemaDir: cfg.getStringOrDefault('search.schemaDir') || undefined,
   });

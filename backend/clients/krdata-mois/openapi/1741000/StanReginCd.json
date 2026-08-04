@@ -1,0 +1,185 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "행정안전부_행정표준코드_법정동코드",
+    "version": "1.0.0",
+    "description": "행정표준코드관리시스템(StanReginCd)이 제공하는 법정동코드.\n\n출처: 행정안전부 행정·안전 공공데이터 Open API 활용가이드 (서비스 버전 1.0, 2021-04-01 배포)\n원본 가이드는 origin/ 에 보관한다.\n\n[운영 제약]\n- 초당 최대 트랜잭션: 30 TPS\n- 개발계정 일 10,000건 (운영계정은 활용사례 등록 시 증량 신청 가능)\n- 데이터 갱신주기: 수시\n- 한 번에 최대 1,000건. 전체 20,560건이므로 전량 수집이 21콜이면 끝난다.\n\n[이 스펙의 규칙]\n- ServiceKey 와 type 파라미터는 정의하지 않는다. @krdata/core 의 mutator 가 주입한다.\n  ServiceKey 를 스펙에 넣으면 생성된 코드가 재인코딩해 이미 인코딩된 발급키가 깨진다.\n- 응답은 원본 봉투를 그대로 모델링한다. 쓰기 편한 형태로 펴는 일은 MoisClient 가 한다.\n\n[가이드와 실제 API 가 다른 지점] — 전부 2026-08-04 실측\n- 포맷 파라미터가 표준(_type)이 아니라 type 이다. **둘은 결과 봉투가 다르다.**\n  type=json  → {\"StanReginCd\":[{\"head\":[…]},{\"row\":[…]}]}   row 가 항상 배열\n  _type=json → {\"head\":{…},\"row\":{…}}                       row 가 1건이면 단일 객체\n  둘 다 주면 type 이 이긴다. 이 스펙은 문서상 정식 경로인 type=json 을 따른다.\n- 성공 결과코드가 '00' 이 아니라 'INFO-0' 이다. 헤더 위치도 표준과 다르다.\n- 가이드가 필수(1)로 표기한 flag 파라미터는 **있으나 없으나 응답이 같다.** 정의하지 않는다.\n- 결과가 없으면 봉투가 통째로 사라지고 {\"RESULT\":{\"resultCode\":\"INFO-3\"}} 만 온다.\n  가이드의 에러표에는 '200 INFO 해당하는 데이터가 없습니다' 로 적혀 있으나 실제 코드는 INFO-3 다.\n  범위를 넘긴 페이지도 같은 응답이라, @krdata/mois 는 이를 에러가 아니라 빈 결과로 다룬다.\n- numOfRows 가 1,000 을 넘으면 가이드의 336 이 아니라 {\"resultCode\":\"ERROR-1\"} 이 온다.\n- 잘못된 키는 XML 이 아니라 JSON(OpenAPI_ServiceResponse.cmmMsgHeader)으로 떨어진다.",
+    "contact": {
+      "name": "행정안전부 정보통계담당관",
+      "email": "thjang2414@korea.kr"
+    }
+  },
+  "servers": [{ "url": "https://apis.data.go.kr/1741000" }],
+  "paths": {
+    "/StanReginCd/getStanReginCdList": {
+      "get": {
+        "operationId": "getStandardRegionCodeList",
+        "summary": "법정동코드 조회",
+        "description": "법정동코드의 지역코드·시도코드·시군구코드·읍면동코드·리코드·지역주소명을 조회한다.\n\n필터 없이 부르면 전체 20,560건이다. (2026-08 확인)\n정렬 기준은 코드순도 이름순도 아니지만 **같은 페이지를 다시 불러도 순서가 같다.** (실측 2회)\n전량 수집은 numOfRows=1000 으로 21콜이면 끝난다.",
+        "tags": ["region"],
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNo" },
+          { "$ref": "#/components/parameters/NumOfRows" },
+          { "$ref": "#/components/parameters/LocataddNm" }
+        ],
+        "responses": {
+          "200": {
+            "description": "법정동코드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardRegionCodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PageNo": {
+        "name": "pageNo",
+        "in": "query",
+        "required": false,
+        "description": "페이지 번호. 범위를 넘기면 데이터없음(INFO-3)으로 응답한다.",
+        "schema": { "type": "integer", "default": 1 }
+      },
+      "NumOfRows": {
+        "name": "numOfRows",
+        "in": "query",
+        "required": false,
+        "description": "한 페이지 결과 수. **최대 1,000 이다.**\n초과하면 {\"RESULT\":{\"resultCode\":\"ERROR-1\",\"resultMsg\":\"어플리케이션 에러\"}} 가 온다.\n(가이드는 이 경우를 336 '데이터 요청은 한번에 최대 1,000건을 넘을 수 없습니다' 로 적었다.)\n콜수 제한이 있으므로 배치는 항상 1,000 으로 받는다 — 전체 20,560건이 21콜이다.",
+        "schema": { "type": "integer", "default": 10, "maximum": 1000 }
+      },
+      "LocataddNm": {
+        "name": "locatadd_nm",
+        "in": "query",
+        "required": false,
+        "description": "지역주소명 필터. **부분일치다.** '송파' 로 14건이 걸린다. (2026-08 실측)",
+        "schema": { "type": "string", "maxLength": 50 }
+      }
+    },
+    "schemas": {
+      "StandardRegionCodeResponse": {
+        "type": "object",
+        "description": "원본 봉투를 그대로 모델링한 것이다. **서비스명이 최상위 키이고 값이 2칸짜리 배열이다.**\n0번이 헤더, 1번이 행 목록이다. 쓰기 편한 형태로 펴는 일은 MoisClient 가 한다.",
+        "properties": {
+          "StanReginCd": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/StandardRegionCodeHeadSection"
+                },
+                { "$ref": "#/components/schemas/StandardRegionCodeRowSection" }
+              ]
+            }
+          },
+          "RESULT": {
+            "$ref": "#/components/schemas/ResultHeader",
+            "description": "결과가 없을 때만 온다. 이때 StanReginCd 는 아예 없다."
+          }
+        }
+      },
+      "StandardRegionCodeHeadSection": {
+        "type": "object",
+        "description": "봉투 0번. head 는 객체 하나가 아니라 **서로 다른 객체 3개가 든 배열**이다.\n0번 {totalCount}, 1번 {numOfRows,pageNo,type}, 2번 {RESULT}.",
+        "properties": {
+          "head": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StandardRegionCodeHead" }
+          }
+        }
+      },
+      "StandardRegionCodeHead": {
+        "type": "object",
+        "description": "head 배열의 한 칸. 어느 칸이냐에 따라 채워지는 필드가 다르다.",
+        "properties": {
+          "totalCount": {
+            "type": "integer",
+            "description": "전체 결과 수. 이 칸에만 숫자로 온다(다른 페이지 필드는 문자열이다)."
+          },
+          "numOfRows": { "type": "string", "description": "한 페이지 결과 수" },
+          "pageNo": { "type": "string", "description": "페이지 번호" },
+          "type": {
+            "type": "string",
+            "description": "수신 문서양식. type=json 이면 'JSON'"
+          },
+          "RESULT": { "$ref": "#/components/schemas/ResultHeader" }
+        }
+      },
+      "StandardRegionCodeRowSection": {
+        "type": "object",
+        "description": "봉투 1번. type=json 이면 결과가 1건이어도 배열로 온다.",
+        "properties": {
+          "row": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StandardRegionCodeRow" }
+          }
+        }
+      },
+      "ResultHeader": {
+        "type": "object",
+        "description": "결과 헤더. 정상은 INFO-0, 데이터없음은 INFO-3 이다.",
+        "properties": {
+          "resultCode": {
+            "type": "string",
+            "description": "결과코드. INFO-0(정상) | INFO-3(데이터없음) | ERROR-1(어플리케이션 에러)"
+          },
+          "resultMsg": {
+            "type": "string",
+            "description": "결과메시지. 정상은 'NOMAL SERVICE' (원본 오타 그대로다)"
+          }
+        }
+      },
+      "StandardRegionCodeRow": {
+        "type": "object",
+        "description": "법정동코드 한 건.\n지역코드 10자리는 시도(2) + 시군구(3) + 읍면동(3) + 리(2) 로 쪼개진다.\n하위 자리가 0 이면 그 단계 자체를 가리킨다 — 1100000000 은 서울특별시, 1171000000 은 송파구다.",
+        "properties": {
+          "region_cd": {
+            "type": "string",
+            "description": "지역코드 10자리. 예: 1171010100 (서울특별시 송파구 잠실동)"
+          },
+          "sido_cd": { "type": "string", "description": "시도코드 2자리" },
+          "sgg_cd": { "type": "string", "description": "시군구코드 3자리" },
+          "umd_cd": { "type": "string", "description": "읍면동코드 3자리" },
+          "ri_cd": { "type": "string", "description": "리코드 2자리" },
+          "locatjumin_cd": {
+            "type": "string",
+            "description": "지역코드_주민. 주민등록 체계의 코드다."
+          },
+          "locatjijuk_cd": {
+            "type": "string",
+            "description": "지역코드_지적. 지적 체계의 코드다."
+          },
+          "locatadd_nm": {
+            "type": "string",
+            "description": "지역주소명. 상위를 포함한 전체 이름이다. 예: 서울특별시 송파구 잠실동"
+          },
+          "locat_order": {
+            "type": "integer",
+            "description": "서열. 정렬용. **숫자로 온다** (가이드 표기는 문자열이다)."
+          },
+          "locat_rm": {
+            "type": "string",
+            "description": "비고. 대부분 빈 문자열이다."
+          },
+          "locathigh_cd": {
+            "type": "string",
+            "description": "상위지역코드. 시도면 0000000000 이다."
+          },
+          "locallow_nm": {
+            "type": "string",
+            "description": "최하위지역명. 자기 단계의 이름만이다. 예: 잠실동"
+          },
+          "adpt_de": {
+            "type": "string",
+            "description": "생성일 YYYYMMDD. **빈 문자열인 행이 많다.**"
+          }
+        }
+      }
+    }
+  }
+}

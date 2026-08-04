@@ -4,14 +4,22 @@ import { RunAllResult, SyncRunnerService } from '@hansapp/admin-application';
 import { BATCH_CONFIG, BatchConfig } from './batch.config';
 
 /**
- * 하루치 배치. NMC 와 HIRA 를 각각 1단계부터 끝까지 순서대로 돌린다.
+ * 하루치 배치. 기관별로 1단계부터 끝까지 순서대로 돌린다.
  *
  * 크론은 하나뿐이다. "목록은 주 1회, 상세는 매일" 이라는 요구는 크론을 나누지 않고
  * **단계별 신선도**로 푼다. 1단계는 신선도가 7일이라 주 6일은 스스로 생략된다.
  * (생략은 실패가 아니다. 다음 단계로 그대로 진행한다)
  *
- * NMC 와 HIRA 는 서로 다른 API 서버라 콜 한도가 별개다. 그래서 예산도 따로 잡고,
- * 한쪽이 실패해도 다른 쪽은 계속 돈다. 두 기관의 데이터는 독립이다.
+ * 기관마다 API 서버가 달라 콜 한도가 별개다. 그래서 예산도 따로 잡고, 한 기관이 실패해도
+ * 다음 기관은 계속 돈다 — 기관끼리 데이터를 참조하지 않기 때문이다.
+ *
+ * [행정안전부가 맨 앞이다]
+ * **유일하게 순서가 의미를 갖는 자리다.** 법정동코드는 병원 데이터가 아니라 지역의 정본이고,
+ * HIRA(코드)와 NMC(이름)가 서로 다른 방식으로 주는 지역을 우리 코드로 옮길 때의 기준이 된다.
+ * 정본이 낡은 채로 병원을 적재하면 새로 생긴 행정구역의 병원이 지역 없이 쌓인다.
+ * 21콜 / 5초라 앞에 세우는 비용도 사실상 없다.
+ *
+ * 나머지(NMC·HIRA) 사이에는 순서 의존이 없다. 지금 순서는 관례일 뿐이다.
  */
 @Injectable()
 export class BatchService {
@@ -41,6 +49,14 @@ export class BatchService {
       // budget 은 사고 방지용 안전판일 뿐이고 보통은 없다.
       const budget = this.config.maxCallsPerRun;
 
+      // 법정동코드가 가장 먼저다. 지역 정본이라 뒤따르는 적재의 기준이 된다.
+      //
+      // **실패해도 멈추지 않는다.** 정본이 하루 낡는 것과 병원 적재를 하루 통째로 거르는 것
+      // 중에는 전자가 낫다 — 행정구역은 수시로 바뀌지만 하루 사이에 바뀌는 일은 드물고,
+      // 병원은 매일 이어받아야 진도가 나간다. 실패는 로그와 sync_state 에 남는다.
+      const mois = await this.runner.runAll('mois', { budget, force });
+      this.report('MOIS', mois);
+
       const nmc = await this.runner.runAll('nmc', { budget, force });
       this.report('NMC', nmc);
 
@@ -48,9 +64,10 @@ export class BatchService {
       const hira = await this.runner.runAll('hira', { budget, force });
       this.report('HIRA', hira);
 
+      const calls = mois.calls + nmc.calls + hira.calls;
       const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
       this.logger.log(
-        `배치 완료 — 총 ${(nmc.calls + hira.calls).toLocaleString()}콜 / ${seconds}초`,
+        `배치 완료 — 총 ${calls.toLocaleString()}콜 / ${seconds}초`,
       );
     } finally {
       this.running = false;

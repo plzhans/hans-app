@@ -31,7 +31,13 @@ export function logConfigSummary(
   log(`Config AppEnv : ${cfg.env}`);
   log(`Config Database : ${endpoint(u('database.url'))}`);
   log(`Config Redis: ${endpoint(u('redis.url'))}`);
-  log(`Config Elasticsearch : ${endpoint(u('elasticsearch.url'))}`);
+  // 인덱스 접두사도 같이 남긴다. 이게 어긋나면 붙기는 붙고 **빈 인덱스를 조회**하는데,
+  // 주소만 찍혀 있으면 정상으로 보인다. 미설정 시 환경 이름으로 떨어지는 것도 여기서 보인다.
+  log(
+    `Config Elasticsearch : ${endpoint(u('elasticsearch.url'))} (index prefix: ${
+      s('elasticsearch.indexPrefix') || cfg.env
+    })`,
+  );
   const mailHost = s('mail.smtp.host');
   log(
     `Config Mail : ${mailHost ? `${s('mail.provider') || 'smtp'} (${mailHost})` : 'inactive — host missing'}`,

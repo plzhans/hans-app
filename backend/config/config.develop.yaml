@@ -22,6 +22,10 @@ redis:
 # 검색 엔진 연결(시크릿 포함).
 elasticsearch:
   url: ${ELASTICSEARCH_URL}
+  # 인덱스 이름 접두사(develop-healthcare_hospital). 한 클러스터를 여러 환경이 나눠 쓰는
+  # 유일한 격리 단위다. **환경 이름과 분리**돼 있어 같은 develop 안에서도 접두사만 따로
+  # 돌릴 수 있다(새 매핑을 나란히 올려 비교할 때). 미설정이면 환경 이름을 쓴다.
+  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:-develop}
 
 # 서버 기동·종료 슬랙 알림. **셋 다 비면 알림만 꺼지고 서버는 정상으로 뜬다** — 부가 기능이라
 # 없다고 부팅을 막지 않는다.
@@ -93,12 +97,15 @@ auth:
     secret: ${AUTH_JWT_SECRET}
     # access token 비대칭(ES256) 서명 키 디렉터리. 키가 있으면 ES256, 없으면 HS256(secret) 폴백.
     keyDir: ${AUTH_JWT_KEY_DIR}
-    # access token 만료(짧게). 만료되면 refresh 로 재발급. 1h, 7d 등. 미설정이면 무제한.
-    accessTokenExpiresIn: 1h
+    # 만료 3종. **기본값이 코드(auth.config.ts)에 있어 주석으로 가려 둔다** —
+    # 이 환경만 다르게 가져갈 때 그 줄을 살린다. 값은 기간 문자열(1h·7d·5m).
+    #
+    # access token 만료(짧게). 만료되면 refresh 로 재발급.
+    #accessTokenExpiresIn: 1h
     # refresh token 만료(길게). 이 기간엔 재로그인 없이 세션이 유지된다.
-    refreshTokenExpiresIn: 7d
+    #refreshTokenExpiresIn: 7d
     # 인가코드(소셜/OAuth) 만료. 1회용이라 아주 짧게.
-    authCodeExpiresIn: 5m
+    #authCodeExpiresIn: 5m
   otp:
     # 이메일 인증코드 자릿수.
     codeLength: ${AUTH_OTP_CODE_LENGTH:-6}
@@ -212,6 +219,11 @@ krdata:
   readTimeoutMs: 60000
   # HIRA(심평원) 상세 API 버전. 미설정이면 기본 버전을 쓴다.
   hiraDetailVersion: ${KRDATA_HIRA_DETAIL_VERSION}
+
+# 국토교통부(vworld). 3D 지도·항공사진. **vworld 서비스키는 공공데이터포털과 별개**.
+molit:
+  vworld:
+    serviceKey: ${KRGO_MOLIT_VWORLD_SERVICE_KEY}
 
 # 도로명주소(juso.go.kr).
 juso:

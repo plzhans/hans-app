@@ -81,6 +81,8 @@ export interface HealthcareHospitalBaseRow {
   hpid: string | null;
   source: string;
   name: string;
+  legalName: string;
+  corpName: string | null;
   addr: string | null;
   tel: string | null;
   homepage: string | null;
@@ -147,6 +149,10 @@ export function buildHealthcareHospitalDoc(
     hpid: h.hpid ?? undefined,
 
     name: langText({ ko: h.name }, row.i18n, 'name'),
+    // 원문·법인명은 **다를 때만** 넣는다. 같은 값을 두 번 색인하면 tf 가 부풀어
+    // 그 병원만 점수가 올라간다(98.7% 가 법인 표기 없음 → 랭킹이 통째로 흔들린다).
+    legal_name: h.legalName === h.name ? undefined : h.legalName,
+    corp_name: h.corpName ?? undefined,
     // 초성 검색용. 한국어 원문 이름에서만 뽑는다(초성은 한글 개념).
     name_chosung: toChosung(h.name) || undefined,
 
