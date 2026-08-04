@@ -10,6 +10,7 @@ import {
   type RouteObject,
 } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
+import { DetailLayout } from './layouts/DetailLayout';
 import { LangLayout } from './LangLayout';
 import { Spinner } from '@/shared/ui/Spinner';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/shared/i18n';
@@ -54,15 +55,31 @@ function StripKoPrefix() {
   return <Navigate to={`${stripLang(pathname)}${search}${hash}`} replace />;
 }
 
-/** 언어와 무관한 페이지 트리. 언어마다 이 트리를 그대로 붙인다. */
+/**
+ * 언어와 무관한 페이지 트리. 언어마다 이 트리를 그대로 붙인다.
+ *
+ * **껍데기가 둘이다.** 목록 계열(첫 화면·검색)은 로고와 언어 전환이 있는 전역 헤더를 쓰고,
+ * 상세 계열은 그 자리를 뒤로가기 내비바가 대신한다 — 이유는 DetailLayout 주석 참고.
+ * 라우터가 껍데기를 갈아 끼우므로 화면 안에서 헤더를 숨기는 분기를 둘 필요가 없다.
+ */
 const pages: RouteObject[] = [
-  { index: true, element: <Home /> },
-  { path: 'search', element: <Search /> },
-  { path: 'hospitals/:id', element: <HospitalDetail /> },
-  // 비급여는 상세의 탭이 아니라 페이지다. 가격표가 수백 줄이라(최다 1,048행) 상세에 이어
-  // 붙이면 위치·평가가 저 아래로 밀린다. HospitalNonPayment 주석 참고.
-  { path: 'hospitals/:id/npay', element: <HospitalNonPayment /> },
-  { path: '*', element: <NotFound /> },
+  {
+    element: <MainLayout />,
+    children: [
+      { index: true, element: <Home /> },
+      { path: 'search', element: <Search /> },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
+  {
+    element: <DetailLayout />,
+    children: [
+      { path: 'hospitals/:id', element: <HospitalDetail /> },
+      // 비급여는 상세의 탭이 아니라 페이지다. 가격표가 수백 줄이라(최다 1,048행) 상세에 이어
+      // 붙이면 위치·평가가 저 아래로 밀린다. HospitalNonPayment 주석 참고.
+      { path: 'hospitals/:id/npay', element: <HospitalNonPayment /> },
+    ],
+  },
 ];
 
 /**
@@ -76,7 +93,7 @@ const langRoutes: RouteObject[] = SUPPORTED_LANGUAGES.map((lang) => ({
   // 기본 언어는 접두사가 없다.
   path: lang === DEFAULT_LANGUAGE ? '/' : `/${lang}`,
   element: <LangLayout lang={lang} />,
-  children: [{ element: <MainLayout />, children: pages }],
+  children: pages,
 }));
 
 /**

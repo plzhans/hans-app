@@ -20,12 +20,15 @@ import {
   useSgguRegions,
 } from '@/features/clinic/api';
 import { cn } from '@/shared/lib/utils';
+import { useIsWide } from '@/shared/hooks/useIsWide';
 import {
   BedDouble,
   Brain,
   ChevronDown,
   HelpCircle,
   Moon,
+  List as ListIcon,
+  Map as MapIcon,
   Search as SearchIcon,
   Siren,
   SlidersHorizontal,
@@ -72,7 +75,7 @@ function InfoHint({ text }: { text: string }) {
           tabIndex={0}
           aria-label={text}
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex cursor-help text-slate-400 hover:text-slate-600"
+          className="inline-flex cursor-help text-ink-subtle hover:text-ink-body"
         >
           <HelpCircle className="h-3.5 w-3.5" />
         </span>
@@ -83,10 +86,10 @@ function InfoHint({ text }: { text: string }) {
           align="start"
           sideOffset={6}
           collisionPadding={12}
-          className="z-50 max-w-xs rounded-lg bg-slate-800 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg"
+          className="z-50 max-w-xs rounded-xl bg-ink px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-pop"
         >
           {text}
-          <Popover.Arrow className="fill-slate-800" />
+          <Popover.Arrow className="fill-ink" />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -107,6 +110,7 @@ function AssessmentFilter({
   selected,
   onChange,
   featured,
+  stacked,
 }: {
   label: string;
   hint: string;
@@ -116,6 +120,9 @@ function AssessmentFilter({
 
   /** 자주 찾는 항목 코드. 기본은 이것들(+선택된 것)만, +N 으로 전부 펼친다. */
   featured?: string[];
+
+  /** 라벨을 내용 위로. 좁은 사이드바용 — FilterRow 의 같은 이름 주석 참고. */
+  stacked?: boolean;
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -147,15 +154,15 @@ function AssessmentFilter({
     return (
       <label
         key={item.code}
-        className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700"
+        className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-body"
       >
         <input
           type="checkbox"
           checked={checked}
           onChange={() => toggle(item.code)}
-          className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+          className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
         />
-        <span className={cn(checked && 'font-medium text-primary-700')}>
+        <span className={cn(checked && 'font-medium text-brand-strong')}>
           {item.name}
         </span>
       </label>
@@ -163,16 +170,27 @@ function AssessmentFilter({
   };
 
   return (
-    // FilterRow 와 같은 좌우 구조: 왼쪽 라벨 고정(w-28), 오른쪽에 분야들을 세로로.
-    <div className="flex border-b border-slate-100 last:border-b-0">
-      <div className="w-28 shrink-0 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700">
+    // FilterRow 와 같은 규칙: 기본은 라벨이 윗줄, 넓어지면(sm~) 왼쪽 칸으로. stacked 면 늘 윗줄.
+    <div
+      className={cn(
+        'border-b border-line px-3 py-3 last:border-b-0',
+        !stacked && 'sm:flex sm:p-0',
+      )}
+    >
+      <div
+        className={cn(
+          'mb-2 block text-[0.8rem] font-extrabold text-ink',
+          !stacked &&
+            'sm:mb-0 sm:w-28 sm:shrink-0 sm:bg-surface-subtle sm:px-3 sm:py-3 sm:text-sm sm:font-bold sm:text-ink-body',
+        )}
+      >
         <span className="inline-flex items-center gap-1">
           {label}
           <InfoHint text={hint} />
         </span>
       </div>
 
-      <div className="flex-1 px-3 py-3">
+      <div className={cn(!stacked && 'sm:flex-1 sm:px-3 sm:py-3')}>
         {/* items-start: 항목이 여러 줄이어도 +N/닫기 가 오른쪽 위 끝에 고정된다. */}
         <div className="flex items-start gap-3">
           <div className="flex-1 space-y-3">
@@ -184,7 +202,7 @@ function AssessmentFilter({
             ) : (
               groups.map((g) => (
                 <div key={g.code}>
-                  <div className="mb-1 text-xs font-semibold text-slate-500">
+                  <div className="mb-1 text-xs font-semibold text-ink-muted">
                     {g.name}
                   </div>
                   <div className="flex flex-wrap gap-x-5 gap-y-1.5">
@@ -199,7 +217,7 @@ function AssessmentFilter({
             <button
               type="button"
               onClick={() => setExpanded(!expanded)}
-              className="shrink-0 self-start text-xs font-medium text-slate-500 hover:text-primary-600"
+              className="shrink-0 self-start text-xs font-medium text-ink-muted hover:text-brand"
             >
               {expanded ? t('search.close') : `+${hidden}`}
             </button>
@@ -228,8 +246,7 @@ const TABS = [
   {
     key: 'hospital',
     icon: Stethoscope,
-    on: 'border-primary-600 text-primary-700',
-    dot: 'text-primary-600',
+    tone: 'text-brand',
     emergency: false,
     baby: false,
     tier: '',
@@ -237,8 +254,7 @@ const TABS = [
   {
     key: 'emergency',
     icon: Siren,
-    on: 'border-rose-600 text-rose-700',
-    dot: 'text-rose-600',
+    tone: 'text-danger',
     emergency: true,
     baby: false,
     tier: '',
@@ -246,8 +262,7 @@ const TABS = [
   {
     key: 'baby',
     icon: Moon,
-    on: 'border-indigo-600 text-indigo-700',
-    dot: 'text-indigo-600',
+    tone: 'text-indigo-600',
     emergency: false,
     baby: true,
     tier: '',
@@ -255,8 +270,7 @@ const TABS = [
   {
     key: 'nursing',
     icon: BedDouble,
-    on: 'border-emerald-600 text-emerald-700',
-    dot: 'text-emerald-600',
+    tone: 'text-ok',
     emergency: false,
     baby: false,
     tier: 'NURSING',
@@ -264,8 +278,7 @@ const TABS = [
   {
     key: 'mental',
     icon: Brain,
-    on: 'border-violet-600 text-violet-700',
-    dot: 'text-violet-600',
+    tone: 'text-violet-600',
     emergency: false,
     baby: false,
     tier: 'MENTAL',
@@ -321,6 +334,65 @@ export default function SearchPage() {
   const emergency = searchParams.get('emergency') === '1';
   const baby = searchParams.get('baby') === '1';
 
+  /**
+   * 보기 모드. **URL 에 둔다** — 목록으로 보다가 지도로 넘어간 상태를 그대로 공유·즐겨찾기할 수
+   * 있고, 뒤로가기로 되돌아온다. 나중에 지도 영역 검색(bbox)이 붙으면 중심·줌도 여기 같이 실린다.
+   *
+   * **모드가 레이아웃을 정한다.** 목록에서는 조건이 위에 한 줄로 눕고(익숙한 검색 화면),
+   * 지도에서는 왼쪽 사이드바로 선다 — 지도가 오른쪽 폭을 다 써야 해서다.
+   */
+  const isWide = useIsWide();
+
+  const mapView = searchParams.get('view') === 'map';
+
+  /**
+   * 조건 서랍이 열렸는가. **지도 모드의 좁은 화면에서만 쓴다.**
+   *
+   * 지도는 가로·세로를 다 써야 쓸모가 있어서, 좁은 화면에서 조건을 위에 얹어 두면 지도가
+   * 손바닥만 해진다. 조건을 화면 밖으로 밀어두고 필요할 때만 왼쪽에서 꺼낸다.
+   */
+  const [filterDrawer, setFilterDrawer] = useState(false);
+
+  /**
+   * 상세 검색이 펼쳐져 있는가. **모드가 기본값을 정한다.**
+   *
+   *   좁은 목록  접는다. 조건이 결과 위에 눕는 자리라, 펼쳐 두면 결과가 화면 밖으로 밀려서
+   *              검색하러 온 사람이 정작 결과를 못 본다.
+   *   지도       편다. 조건이 서랍·사이드바로 빠져 결과와 자리를 다투지 않고, 거기까지
+   *              일부러 연 사람은 조건을 만지러 온 것이다.
+   *   넓은 화면  편다. 조건이 가로로 펼쳐져도 결과가 아래로 얼마 안 밀리고, 애초에 상세검색이
+   *              있다는 것조차 모른 채 지나가는 게 더 큰 손해다.
+   */
+  const [detailOpen, setDetailOpen] = useState(false);
+  useEffect(() => {
+    setDetailOpen(mapView || isWide);
+  }, [mapView, isWide]);
+
+  /** 지도 모드를 나가면 서랍도 닫는다 — 목록 모드에서는 조건이 본문에 그대로 있다. */
+  useEffect(() => {
+    if (!mapView) setFilterDrawer(false);
+  }, [mapView]);
+
+  /**
+   * 서랍이 열린 동안 **뒤 페이지가 안 움직이게** 잠근다. 안 잠그면 서랍 위에서 손가락을
+   * 굴렸을 때 뒤 목록이 따라 흘러서, 닫고 나면 엉뚱한 자리에 와 있다.
+   */
+  useEffect(() => {
+    if (!filterDrawer) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [filterDrawer]);
+  const setView = (next: 'list' | 'map') => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'map') params.set('view', 'map');
+    else params.delete('view');
+    // replace 가 아니다 — 뒤로가기로 이전 보기로 돌아갈 수 있어야 한다.
+    setSearchParams(params);
+  };
+
   const [draft, setDraft] = useState(applied);
 
   /** 뒤로가기·링크로 URL 이 바뀌면 초안도 따라간다. 그래야 화면과 URL 이 어긋나지 않는다. */
@@ -341,7 +413,17 @@ export default function SearchPage() {
     setDraft((prev) => ({ ...prev, ...patch }));
   };
 
-  /** 검색 실행. 초안을 URL 로 넘긴다 — 이때 비로소 API 가 나간다. */
+  /**
+   * 검색 실행. 초안을 URL 로 넘긴다 — 이때 비로소 API 가 나간다.
+   *
+   * **누르고 나면 조건을 치운다.** 검색 버튼을 누른 사람이 다음으로 보려는 것은 조건이
+   * 아니라 결과다. 다만 치우는 방법이 모드마다 다르다:
+   *
+   *   목록  상세검색을 접는다. 조건이 결과 위에 그대로 누워 있어서, 펼친 채로 두면
+   *         결과가 그 아래 묻혀 방금 누른 것이 먹혔는지조차 확인하러 스크롤해야 한다.
+   *   지도  **접지 않는다.** 서랍이 통째로 닫히면서 조건이 이미 화면 밖으로 나간다.
+   *         여기서 또 접으면 다음에 서랍을 열었을 때 접힌 채로 나와 한 번 더 눌러야 한다.
+   */
   const search = () => {
     const next = new URLSearchParams(searchParams);
     for (const [key, value] of Object.entries(draft)) {
@@ -349,6 +431,8 @@ export default function SearchPage() {
       else next.delete(key);
     }
     setSearchParams(next, { replace: true });
+    if (!mapView) setDetailOpen(false);
+    setFilterDrawer(false);
   };
 
   /** 탭은 진입점이라 즉시 검색한다. 초안도 함께 갱신해 화면이 어긋나지 않게 한다. */
@@ -379,12 +463,6 @@ export default function SearchPage() {
   const assessmentCds = assessment ? assessment.split(',') : [];
   const specialCds = special ? special.split(',') : [];
   const equipmentCds = equipment ? equipment.split(',') : [];
-
-  /**
-   * 상세 검색은 **기본으로 펼친다.** 접어두면 규모·과목 필터가 있다는 걸 아무도 모른다 —
-   * 접기 버튼은 남겨두되(화면이 길다고 느끼는 사람을 위해) 처음엔 보이게 둔다.
-   */
-  const [detailOpen, setDetailOpen] = useState(true);
 
   /** "더보기" 로 접어둔 탭(요양·정신)을 펼쳤는가. 바깥을 누르면 닫는다. */
   const [moreOpen, setMoreOpen] = useState(false);
@@ -572,7 +650,92 @@ export default function SearchPage() {
     }));
 
   return (
-    <div className="mx-auto max-w-3xl px-0 py-4 sm:px-4 sm:py-6">
+    /*
+      **보기 모드가 배치를 정한다.**
+        목록  조건이 위에 눕고 결과가 그 아래 — 여느 검색 화면과 같은 순서다.
+        지도  조건이 왼쪽 사이드바로 서고 오른쪽을 지도가 쓴다.
+
+      지도에서만 사이드바인 이유는, 지도가 가로 폭을 다 써야 쓸모가 있어서다. 목록만 볼 때까지
+      조건을 옆으로 밀어두면 좁아진 사이드바에서 체크박스가 줄줄이 줄바꿈된다.
+    */
+    <div
+      className={cn(
+        /*
+          모바일에서도 좌우를 띄우되 **최소치만** 준다(3px). 예전엔 px-0 이라 결과 카드가
+          화면 끝에 붙어 잘린 것처럼 읽혔다. 그렇다고 넉넉히 주면 그러잖아도 좁은 폭에서
+          카드가 한 번 더 안으로 밀려 병원 이름·주소가 일찍 줄바꿈된다. 목록은 훑는 자리라
+          **내용 폭이 우선**이고, 여백은 "화면에 붙어 있지 않다" 는 것만 보이면 된다.
+
+          rem 이 아니라 px 인 이유: 기준 글자 크기가 17px 이라 px-1 조차 4.25px 이 된다.
+          이 값은 글자와 함께 커질 이유가 없는 물리적 여백이다.
+        */
+        'mx-auto px-[3px] py-4 sm:py-6',
+        mapView
+          ? 'max-w-[100rem] lg:grid lg:grid-cols-[21rem_1fr] lg:items-start lg:gap-5'
+          : // 목록만 볼 때는 아주 넓은 화면(xl~)에서 폭을 연다. 그 아래는 읽기 좋은 768px.
+            'max-w-3xl xl:max-w-6xl',
+      )}
+    >
+      {/*
+        필터.
+
+        **사이드바 안에서 따로 스크롤되지 않는다.** 한때 화면에 붙여 두고(sticky) 넘치는 만큼
+        안쪽에서 스크롤하게 했는데, 그러면 스크롤 영역이 두 겹이 된다 — 트랙패드나 손가락을
+        굴렸을 때 페이지가 움직일지 사이드바가 움직일지 예측이 안 되고, 경계에서 스크롤이
+        걸린다. 조건이 길어지면(상세검색을 펼치면) 사이드바 안에서 또 헤매야 한다.
+
+        지금은 **자기 높이를 그대로 차지하고 페이지와 함께 움직인다.** 스크롤은 하나뿐이다.
+        (지도가 실제로 붙으면 붙박이가 될 쪽은 이 조건이 아니라 지도다 — 목록을 내리는 동안
+        지도가 남아 있어야 하고, 그건 오른쪽 칸에서 따로 잡는다.)
+      */}
+      {/*
+        서랍 뒤 가림막. 눌러서 닫는다. lg 이상에서는 조건이 서랍이 아니라 그냥 칸이라 없다.
+      */}
+      {mapView && filterDrawer && (
+        <button
+          type="button"
+          aria-label={t('search.closeFilters')}
+          onClick={() => setFilterDrawer(false)}
+          className="fixed inset-0 z-40 bg-ink/40 lg:hidden"
+        />
+      )}
+
+      <aside
+        className={cn(
+          mapView && [
+            /*
+              좁은 화면: 왼쪽에서 밀려 나오는 서랍. **여기서는 안쪽 스크롤이 맞다** —
+              화면을 덮고 있어서 뒤 페이지는 잠겨 있고, 스크롤할 대상이 이것 하나다.
+              (본문에 눕혀 둘 때 안쪽 스크롤을 주면 스크롤이 두 겹이 되어 안 된다.)
+            */
+            'fixed inset-y-0 left-0 z-50 w-[86vw] max-w-sm overflow-y-auto overscroll-contain bg-surface-sunken pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] shadow-pop',
+            'transition-transform duration-200 ease-native',
+            filterDrawer ? 'translate-x-0' : '-translate-x-full',
+            /*
+              넓은 화면: 서랍을 풀고 평범한 칸으로 되돌린다.
+              **PC 동작은 아직 정하지 않았다** — 조건을 붙박이로 둘지 지도를 붙박이로 둘지는
+              PC 화면을 통째로 설계할 때 함께 정한다. 지금은 페이지와 함께 흐른다.
+            */
+            'lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-0 lg:shadow-none',
+          ],
+        )}
+      >
+        {/* 서랍 머리. 닫기는 좁은 화면에서만 — 넓은 화면에서는 서랍이 아니다. */}
+        {mapView && (
+          <div className="mb-3 flex items-center justify-between px-4 lg:hidden">
+            <span className="text-[0.95rem] font-extrabold text-ink">
+              {t('search.openFilters')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setFilterDrawer(false)}
+              aria-label={t('search.closeFilters')}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-body transition-transform duration-100 ease-native active:scale-90 active:bg-surface-subtle"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
       {/*
         탭. **필터가 아니라 진입점이다.**
         찾는 사람이 서로 다르다 — 병원은 진료를 계획하는 사람, 응급실은 지금 당장 아픈 사람,
@@ -580,11 +743,12 @@ export default function SearchPage() {
         오히려 헷갈린다. 하나만 고르는 탭이 맞다.
       */}
       {/*
-        탭. **폴더 탭이다** — 회색 트랙 위에 켜진 탭만 흰색으로 얹히고, 그 흰색이 아래
-        검색 조건 패널로 그대로 이어진다. 탭과 패널이 한 상자로 읽혀야 "이 탭의 조건" 이 된다.
+        탭. **알약 세그먼트다** — 회색 바닥 위에 켜진 탭만 흰색으로 떠오르고, 그 탭의 색
+        (응급은 빨강·달빛은 남보라)을 글자와 아이콘이 그대로 쓴다.
 
-        배경으로 구분하려면 **트랙이 있어야 한다.** 예전엔 흰 페이지 위에 흰 탭이라 배경 대비가
-        안 나와서 밑줄로만 구분했다. 트랙(slate-100)을 깔아 흰 탭이 떠 보이게 만들었다.
+        예전엔 폴더 탭이었다 — 회색 트랙 위에 흰 탭이 얹혀 아래 조건 패널로 이어지는 모양.
+        페이지 바닥이 흰색에서 회색으로 바뀌면서 **트랙과 바닥이 같은 색**이 되어 탭이 떠
+        보이지 않게 됐다. 상세 화면이 쓰는 알약과 같은 모양으로 맞춰 그 문제를 없앴다.
       */}
       {/*
         relative 래퍼. 더보기 드롭다운은 이 래퍼 기준으로 띄운다 —
@@ -593,7 +757,18 @@ export default function SearchPage() {
       <div className="relative" ref={moreRef}>
         <div
           role="tablist"
-          className="mx-3 flex gap-1 overflow-x-auto rounded-t-2xl border border-b-0 border-slate-200 bg-slate-100 px-1.5 pt-1.5 sm:mx-0 [&::-webkit-scrollbar]:hidden"
+          className={cn(
+            'flex gap-1 pb-2.5',
+            mapView
+              ? /*
+                  좁은 자리(서랍·사이드바)에서는 **줄을 바꾼다.** 가로로 밀면 뒤쪽 탭
+                  (달빛어린이·더보기)이 화면 밖에 숨는데, 밀 수 있다는 표시가 없어서
+                  아예 없는 것처럼 보인다. 서랍은 자기 여백이 이미 있어 좌우도 안 띄운다.
+                */
+                'mx-0 flex-wrap px-4 lg:px-0'
+              : // 본문에 누울 때는 한 줄을 지키고 넘치면 가로로 민다(줄이 늘면 결과가 밀린다).
+                'overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          )}
         >
           {PRIMARY_TABS.map((tab) => {
             const active = tab === activeTab;
@@ -612,16 +787,16 @@ export default function SearchPage() {
                   (예전엔 흰 배경 위에 흰 탭이라 배경으로는 구분이 안 됐다. 트랙을 깔아 해결.)
                 */
                 className={cn(
-                  'flex shrink-0 items-center gap-1.5 rounded-t-xl px-3 py-2.5 text-sm transition-colors sm:px-4',
+                  'flex shrink-0 items-center gap-1 rounded-full px-2.5 py-2 text-sm transition-all duration-100 ease-native active:scale-95',
                   active
-                    ? cn('bg-white font-bold', tab.on)
-                    : 'font-medium text-slate-500 hover:bg-slate-200/60 hover:text-slate-800',
+                    ? cn('bg-surface font-extrabold shadow-card', tab.tone)
+                    : 'font-bold text-ink-muted',
                 )}
               >
                 <Icon
                   className={cn(
                     'h-4 w-4 shrink-0',
-                    active ? tab.dot : 'text-slate-400',
+                    active ? tab.tone : 'text-ink-subtle',
                   )}
                 />
                 {t(`search.tabs.${tab.key}`)}
@@ -639,16 +814,18 @@ export default function SearchPage() {
             aria-expanded={moreOpen}
             onClick={() => setMoreOpen((o) => !o)}
             className={cn(
-              'ml-auto flex shrink-0 items-center gap-1.5 rounded-t-xl px-3 py-2.5 text-sm transition-colors sm:px-4',
+              'flex shrink-0 items-center gap-1 rounded-full px-2.5 py-2 text-sm transition-all duration-100 ease-native active:scale-95',
+              // 한 줄로 밀 때만 오른쪽 끝으로 보낸다. 줄바꿈 모드에서는 탭 뒤에 그대로 붙는다.
+              !mapView && 'ml-auto',
               moreActive
-                ? cn('bg-white font-bold', activeTab.on)
-                : 'font-medium text-slate-500 hover:bg-slate-200/60 hover:text-slate-800',
+                ? cn('bg-surface font-extrabold shadow-card', activeTab.tone)
+                : 'font-bold text-ink-muted',
             )}
           >
             {moreActive &&
               (() => {
                 const Icon = activeTab.icon;
-                return <Icon className={cn('h-4 w-4 shrink-0', activeTab.dot)} />;
+                return <Icon className={cn('h-4 w-4 shrink-0', activeTab.tone)} />;
               })()}
             {moreActive ? t(`search.tabs.${activeTab.key}`) : t('search.tabs.more')}
             <ChevronDown
@@ -662,7 +839,7 @@ export default function SearchPage() {
 
         {/* 더보기 목록. overflow 밖에 둬야 세로로 안 잘린다. 오른쪽 정렬로 버튼 아래에 편다. */}
         {moreOpen && (
-          <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+          <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-pop">
             {MORE_TABS.map((tab) => {
               const active = tab === activeTab;
               const Icon = tab.icon;
@@ -677,14 +854,14 @@ export default function SearchPage() {
                   className={cn(
                     'flex w-full items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm transition-colors',
                     active
-                      ? cn('bg-slate-50 font-bold', tab.on)
-                      : 'font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                      ? cn('bg-brand-tint font-extrabold', tab.tone)
+                      : 'font-medium text-ink-body hover:bg-surface-subtle hover:text-ink',
                   )}
                 >
                   <Icon
                     className={cn(
                       'h-4 w-4 shrink-0',
-                      active ? tab.dot : 'text-slate-400',
+                      active ? tab.tone : 'text-ink-subtle',
                     )}
                   />
                   {t(`search.tabs.${tab.key}`)}
@@ -696,14 +873,33 @@ export default function SearchPage() {
       </div>
 
       {/* 켜진 탭의 검색 조건 패널. 탭과 하나의 상자로 이어진다. */}
-      <div className="mx-3 space-y-3 rounded-b-2xl border border-t-0 border-slate-200 bg-white p-4 sm:mx-0">
+      <div
+        className={cn(
+          'space-y-3 border border-line-subtle bg-surface p-4',
+          /*
+            서랍(모바일 지도 모드)에서는 **벽까지 닿는다.** 모바일은 그러잖아도 폭이 좁은데
+            서랍 여백과 카드 여백이 겹치면 양쪽에서 28px 을 먹는다 — 그래서 서랍은 좌우 여백을
+            아예 안 두고, 패널이 모서리·좌우 테두리·그림자를 뗀 채 벽에 붙는다.
+            넓어지면(lg) 다시 홀로 서는 카드로 돌아온다.
+          */
+          mapView
+            ? 'mx-0 border-x-0 lg:rounded-card lg:border-x lg:shadow-card'
+            : 'rounded-card shadow-card',
+        )}
+      >
         {/* 시도 | 시군구 | 병원명. 한 줄이다 — 지역을 좁히고 이름을 치는 게 한 동작이다. */}
         {/*
           좁은 화면에서는 **두 줄로 접는다.** 셀렉트 둘 + 입력 + 버튼을 390px 에 한 줄로 밀어 넣으면
           병원명 칸이 글자 몇 개 폭으로 쪼그라들어 무엇을 치는 칸인지도 안 보인다.
         */}
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="flex gap-2">
+        {/*
+          **`sm:` 는 뷰포트를 본다 — 이 칸의 폭이 아니다.** 서랍(86vw·최대 24rem)이나
+          사이드바(21rem)는 창이 아무리 넓어도 좁은데, 창 기준으로 가로 배치가 켜지면
+          시도·시군구·병원명·버튼이 그 폭에 밀려 들어가 잘린다. 그래서 폭이 아니라
+          **모드**로 가른다 — 지도 모드면 어떤 창에서든 세로로 쌓는다.
+        */}
+        <div className={cn('flex flex-col gap-2', !mapView && 'sm:flex-row')}>
+          <div className="flex flex-wrap gap-2">
             {/*
               내 위치. **좌표로 검색하는 게 아니라 시도·시군구를 채운다** — 결과가 콤보박스에
               그대로 보여서 틀렸으면 사용자가 바로 고칠 수 있다. 지역 선택 왼쪽에 두는 것도
@@ -730,7 +926,7 @@ export default function SearchPage() {
               placeholder={t('search.sido')}
               searchPlaceholder={t('search.sidoSearch')}
               allLabel={t('common.all')}
-              className="min-w-0 flex-1 sm:w-28 sm:flex-none"
+              className={cn('min-w-0 flex-1', !mapView && 'sm:w-28 sm:flex-none')}
             />
 
             {/* 시군구는 250개다. 스크롤로는 못 찾으니 타이핑해서 거른다. */}
@@ -742,14 +938,14 @@ export default function SearchPage() {
               searchPlaceholder={t('search.sgguSearch')}
               allLabel={t('common.all')}
               disabled={!sido}
-              className="min-w-0 flex-1 sm:w-32 sm:flex-none"
+              className={cn('min-w-0 flex-1', !mapView && 'sm:w-32 sm:flex-none')}
             />
           </div>
 
-          <div className="flex flex-1 gap-3">
+          <div className={cn('flex flex-1', mapView ? 'gap-2' : 'gap-3')}>
             {/* 돋보기를 칸 안에 둔다 — 버튼을 보기 전에 "여기가 검색어" 라는 게 먼저 읽힌다. */}
             <div className="relative flex-1">
-              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
               <Input
                 placeholder={t('search.hospitalName')}
                 value={keyword}
@@ -814,7 +1010,7 @@ export default function SearchPage() {
         <button
           type="button"
           onClick={() => setDetailOpen(!detailOpen)}
-          className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="flex items-center gap-1.5 text-[0.8rem] font-bold text-ink-muted transition-colors hover:text-ink"
         >
           <SlidersHorizontal className="h-4 w-4" />
           {t('search.advanced')}
@@ -824,7 +1020,7 @@ export default function SearchPage() {
         </button>
 
         {detailOpen && (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-line-subtle bg-surface">
             {/*
               병원 규모가 맨 위다. **"동네 의원이냐 큰 병원이냐" 가 과목보다 먼저 정해진다** —
               감기면 의원, 수술이면 종합병원. 그걸 고르고 나서 과를 고른다.
@@ -833,6 +1029,7 @@ export default function SearchPage() {
             {/* 요양·정신 탭에서는 규모를 안 보여준다 — 그 탭 자체가 이미 규모를 정한다. */}
             {!inpatient && (
               <FilterRow
+                stacked={mapView}
                 label={t('search.tier')}
                 options={(tiers ?? []).map((t) => ({
                   code: t.code,
@@ -851,6 +1048,7 @@ export default function SearchPage() {
             */}
             {!baby && (
               <FilterRow
+                stacked={mapView}
                 label={t('search.subject')}
                 options={subjects ?? []}
                 selected={subjectCds}
@@ -867,6 +1065,7 @@ export default function SearchPage() {
             */}
             {!baby && (
               <FilterRow
+                stacked={mapView}
                 label={t('search.specialist')}
                 hint={t('search.specialistHint')}
                 options={(subjects ?? []).filter((s) => s.specialist)}
@@ -880,6 +1079,7 @@ export default function SearchPage() {
             {/* 전문병원 지정분야 (관절·척추·심장 …). 보건복지부 지정, 심평원 위탁 심사.
                 자주 찾는 6개만 기본 노출, 나머지는 +N 으로 펼친다. */}
             <FilterRow
+              stacked={mapView}
               label={t('search.specialty')}
               hint={t('search.specialtyHint')}
               options={specialties ?? []}
@@ -895,6 +1095,7 @@ export default function SearchPage() {
             */}
             {scopedAssessmentGroups.length > 0 && (
               <AssessmentFilter
+                stacked={mapView}
                 label={t('search.assessmentLabel')}
                 hint={t('search.assessmentHint')}
                 groups={scopedAssessmentGroups}
@@ -906,6 +1107,7 @@ export default function SearchPage() {
 
             {/* 보유장비 (CT·MRI·PET …). */}
             <FilterRow
+              stacked={mapView}
               label={t('search.equipment')}
               options={equipments ?? []}
               selected={equipmentCds}
@@ -918,6 +1120,7 @@ export default function SearchPage() {
               시범사업 대상이라 대상 병원도 적고 용어도 낯설다.
             */}
             <FilterRow
+              stacked={mapView}
               label={t('search.special')}
               options={specials ?? []}
               selected={specialCds}
@@ -934,16 +1137,16 @@ export default function SearchPage() {
             */}
         {/* 흰 바탕에 흰 칩이면 안 보인다 — 옅은 회색 판을 깔아 "지금 켜둔 것" 이 따로 읽히게 한다. */}
         {selected.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-slate-50 px-2.5 py-2">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-brand-wash px-2.5 py-2">
             {selected.map((item) => (
               <button
                 key={item.code}
                 type="button"
                 onClick={item.remove}
-                className="flex items-center gap-1 rounded-full bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200 hover:text-primary-700"
+                className="flex items-center gap-1 rounded-full bg-surface py-1 pl-2.5 pr-1.5 text-xs font-bold text-ink-body ring-1 ring-inset ring-line transition-transform duration-100 ease-native active:scale-95"
               >
                 {item.name}
-                <X className="h-3.5 w-3.5 text-slate-400" />
+                <X className="h-3.5 w-3.5 text-ink-subtle" />
               </button>
             ))}
 
@@ -960,7 +1163,7 @@ export default function SearchPage() {
                   equipment: '',
                 })
               }
-              className="ml-1 text-xs font-medium text-slate-500 hover:text-primary-600"
+              className="ml-1 text-[0.72rem] font-bold text-ink-muted transition-colors hover:text-brand"
             >
               {t('search.clearAll')}
             </button>
@@ -968,28 +1171,89 @@ export default function SearchPage() {
             )}
 
         {/*
-          **조건을 바꿨을 때만** 나타난다. 이미 검색된 상태와 같으면 누를 이유가 없다.
-          위 검색 버튼과 같은 동작이지만, 상세검색을 펼쳐 놓으면 위 버튼이 화면 밖으로 밀린다.
+          검색 버튼. **늘 자리에 있다.**
+
+          예전엔 조건이 바뀌었을 때만(dirty) 나타났다. 누를 이유가 없을 땐 감춘다는 뜻이었는데,
+          정작 사용자는 조건을 고르는 내내 "그래서 검색은 어디서 하지" 를 찾게 된다 —
+          버튼이 있다 없다 하면 그게 어디 있었는지조차 기억에 안 남는다.
+
+          **패널 바닥에 붙어 따라온다**(sticky). 상세검색을 펼치면 조건이 화면 몇 개 길이가
+          되는데, 그때 버튼이 맨 아래에만 있으면 끝까지 내려가야 누른다.
         */}
-        {dirty && (
+        <div className="sticky bottom-0 -mx-4 -mb-4 bg-surface px-4 pb-4 pt-3">
           <Button onClick={search} className="w-full">
             <SearchIcon className="h-4 w-4" />
-            {t('search.applyFilters')}
+            {dirty ? t('search.applyFilters') : t('search.submit')}
           </Button>
-        )}
+        </div>
       </div>
+      </aside>
+
+      {/* 결과. min-w-0 이 없으면 grid 칸이 콘텐츠 폭 밑으로 안 줄어 사이드바를 밀어낸다. */}
+      <section className={cn('mt-5 min-w-0', mapView && 'lg:mt-0')}>
 
       {/* 결과 목록의 제목 줄. 카드 바로 위에 붙여 "이 아래가 결과" 임을 잇는다. */}
-      <p className="mb-2 mt-5 pl-1 text-sm font-medium text-slate-700">
-        {isLoading
-          ? t('common.loading')
-          : t('search.count', { count: items.length })}
-        {isFetching && !isLoading && !isFetchingNextPage && (
-          <span className="ml-1 font-normal text-slate-400">
-            {t('search.refreshing')}
-          </span>
+      <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
+        <p className="min-w-0 truncate text-[0.85rem] font-extrabold text-ink">
+          {isLoading
+            ? t('common.loading')
+            : t('search.count', { count: items.length })}
+          {isFetching && !isLoading && !isFetchingNextPage && (
+            <span className="ml-1.5 text-[0.75rem] font-medium text-ink-subtle">
+              {t('search.refreshing')}
+            </span>
+          )}
+        </p>
+
+        <div className="flex shrink-0 items-center gap-1.5">
+        {/* 조건 서랍 열기. 지도 모드의 좁은 화면에서만 — 그때만 조건이 화면 밖에 있다. */}
+        {mapView && (
+          <button
+            type="button"
+            onClick={() => setFilterDrawer(true)}
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[0.75rem] font-bold text-ink-body shadow-card ring-1 ring-inset ring-line transition-transform duration-100 ease-native active:scale-95 lg:hidden"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {t('search.openFilters')}
+          </button>
         )}
-      </p>
+
+        {/*
+          보기 전환. **결과 줄에 둔다** — 무엇을 보고 있는지(N건) 바로 옆이 "그걸 어떻게
+          볼까" 를 정하는 자리다. 조건 패널에 넣으면 필터의 하나처럼 읽힌다.
+        */}
+        <button
+          type="button"
+          onClick={() => setView(mapView ? 'list' : 'map')}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[0.75rem] font-bold text-ink-body shadow-card ring-1 ring-inset ring-line transition-transform duration-100 ease-native active:scale-95"
+        >
+          {mapView ? (
+            <ListIcon className="h-3.5 w-3.5" />
+          ) : (
+            <MapIcon className="h-3.5 w-3.5" />
+          )}
+          {mapView ? t('search.viewList') : t('search.viewMap')}
+        </button>
+        </div>
+      </div>
+
+      {/*
+        지도 자리. **아직 지도를 띄우지 않는다.**
+        지금 검색 API 는 지역 코드(region)로만 거를 수 있고 좌표·영역(bbox) 파라미터가 없다 —
+        지도를 움직여 그 영역을 다시 검색하는, 이 화면의 핵심 동작을 못 만든다. 결과에 좌표는
+        이미 들어 있으므로(LocationDto.lat/lon) 서버가 영역 검색을 주면 여기에 핀부터 붙인다.
+      */}
+      {mapView && (
+        <div className="mb-3 flex h-64 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line-strong bg-surface px-6 text-center lg:h-[26rem]">
+          <MapIcon className="h-6 w-6 text-ink-subtle" />
+          <p className="!my-0 text-sm font-bold text-ink-body">
+            {t('search.mapSoon')}
+          </p>
+          <p className="!my-0 max-w-xs text-xs leading-relaxed text-ink-subtle">
+            {t('search.mapSoonHint')}
+          </p>
+        </div>
+      )}
 
       {isLoading && (
         <div className="py-12 text-center">
@@ -997,17 +1261,24 @@ export default function SearchPage() {
         </div>
       )}
       {isError && (
-        <p className="py-12 text-center text-rose-600">{t('common.loadError')}</p>
+        <p className="py-12 text-center text-danger">{t('common.loadError')}</p>
       )}
 
-      <div className="space-y-2">
+      {/*
+        **목록 모드에서만 2열로 편다.** 1920px 화면에서 768px 한 줄만 쓰면 좌우가 텅 빈다.
+
+        지도 모드는 1열 그대로다 — 거기서는 오른쪽 칸을 결과와 지도가 나눠 쓰기 때문에,
+        결과가 2열로 벌어지면 지도가 설 자리가 없다. 두 모드가 애초에 다른 갈래라
+        나중에 지도가 실제로 붙어도 이쪽은 손댈 일이 없다.
+      */}
+      <div className={cn('grid gap-2.5', !mapView && 'xl:grid-cols-2')}>
         {items.map((h) => (
           <HospitalCard key={h.id} hospital={h} />
         ))}
       </div>
 
       {items.length === 0 && !isLoading && (
-        <p className="py-12 text-center text-slate-500">{t('search.empty')}</p>
+        <p className="py-12 text-center text-ink-muted">{t('search.empty')}</p>
       )}
 
       {/* 무한스크롤 센티넬 — 화면에 들어오면(바닥 근처) 다음 페이지를 부른다 */}
@@ -1017,7 +1288,7 @@ export default function SearchPage() {
           <Spinner />
         </div>
       )}
-
+      </section>
     </div>
   );
 }
@@ -1041,10 +1312,10 @@ function Chip({
       onClick={onClick}
       title={title}
       className={cn(
-        'rounded-full border px-3 py-1.5 text-sm transition-colors',
+        'rounded-full px-3 py-1.5 text-sm transition-all duration-100 ease-native active:scale-95',
         active
-          ? 'border-primary-600 bg-primary-600 font-medium text-white'
-          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900',
+          ? 'bg-brand font-bold text-white shadow-brand-sm'
+          : 'bg-surface font-semibold text-ink-body ring-1 ring-inset ring-line',
       )}
     >
       {children}
@@ -1085,6 +1356,7 @@ function FilterRow({
   collapsible,
   featured,
   groupByField,
+  stacked,
 }: {
   label: string;
 
@@ -1109,13 +1381,45 @@ function FilterRow({
    * 진료과목·전문의처럼 계열이 있는 필터에 쓴다. collapsible 과 같이 쓴다(접었다 펴는 긴 목록).
    */
   groupByField?: boolean;
+
+  /**
+   * 라벨을 **내용 위로 올린다.** 사이드바(지도 모드)처럼 좁은 자리를 위한 것이다.
+   *
+   * 넓은 자리에서는 [라벨 | 체크박스] 가로 배치가 낫다 — 라벨이 왼쪽에 줄지어 서서 무엇을
+   * 고르는 행인지 훑기 좋다. 그런데 그 라벨 칸이 112px 고정이라, 21rem 사이드바에서는
+   * 그것만으로 폭의 3분의 1을 먹고 체크박스가 두세 개마다 줄바꿈된다.
+   */
+  stacked?: boolean;
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
+  /*
+    행 껍데기. **기본은 세로(라벨이 위)이고, 넓어지면 가로로 편다.**
+
+    가로 배치는 라벨이 왼쪽에 줄지어 서서 무엇을 고르는 행인지 훑기 좋다. 그런데 그 라벨 칸이
+    112px 고정이라 좁은 화면에서는 폭의 3분의 1을 먹고, 체크박스가 두세 개마다 줄바꿈된다.
+    그래서 **좁으면 라벨을 위로 올린다.**
+
+    좁다는 판정이 둘이다:
+      stacked  서랍·사이드바처럼 **창과 무관하게** 칸이 좁은 자리. 창이 아무리 넓어도 세로다.
+      sm 미만  본문에 누웠을 때의 화면 폭. 이때는 칸 폭이 곧 화면 폭이라 미디어쿼리로 충분하다.
+  */
+  const inline = !stacked;
+  const rowClass = cn(
+    'border-b border-line px-3 py-3 last:border-b-0',
+    inline && 'sm:flex sm:p-0',
+  );
+  const labelClass = cn(
+    'mb-2 block text-[0.8rem] font-extrabold text-ink',
+    inline &&
+      'sm:mb-0 sm:w-28 sm:shrink-0 sm:bg-surface-subtle sm:px-3 sm:py-3 sm:text-sm sm:font-bold sm:text-ink-body',
+  );
+  const bodyClass = cn(inline && 'sm:flex-1 sm:px-3 sm:py-2.5');
+
   // +N·닫기·접기 버튼 공통 모양. 밋밋한 텍스트가 아니라 **살짝 버튼 느낌**(옅은 테두리·배경·pill).
   const pill =
-    'rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500 transition-colors hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700';
+    'rounded-full bg-surface-subtle px-2.5 py-1 text-[0.68rem] font-bold text-ink-muted transition-all duration-100 ease-native hover:bg-brand-tint hover:text-brand-strong active:scale-95';
 
   // 라벨 + (있으면) ? 아이콘. 접힌 상태·펼친 상태 두 곳에서 같은 걸 쓴다.
   const labelNode = hint ? (
@@ -1165,15 +1469,35 @@ function FilterRow({
 
   if (collapsible && !visible) {
     return (
+      /*
+        **접힌 행은 좁아도 한 줄이다.** 펼친 행과 달리 라벨 밑에 놓일 내용이 없다 —
+        "47개 ▾" 하나뿐이라, 라벨을 윗줄로 올려봐야 자리만 한 줄 더 먹는다.
+        그래서 여기서는 stacked 여부와 무관하게 라벨과 개수를 나란히 둔다.
+      */
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center border-b border-slate-100 text-left last:border-b-0 hover:bg-slate-50"
+        className={cn(
+          'flex w-full items-center border-b border-line px-3 py-3 text-left last:border-b-0',
+          inline && 'sm:p-0',
+        )}
       >
-        <span className="w-28 shrink-0 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700">
+        <span
+          className={cn(
+            'text-[0.8rem] font-extrabold text-ink',
+            inline &&
+              'sm:w-28 sm:shrink-0 sm:bg-surface-subtle sm:px-3 sm:py-3 sm:text-sm sm:font-bold sm:text-ink-body',
+          )}
+        >
           {labelNode}
         </span>
-        <span className="flex flex-1 items-center gap-1 px-3 py-3 text-sm text-slate-400">
+        <span
+          className={cn(
+            // 좁을 때는 개수를 오른쪽 끝으로 밀어 목록 행처럼 읽히게 한다.
+            'ml-auto flex items-center gap-1 text-sm text-ink-subtle',
+            inline && 'sm:ml-0 sm:flex-1 sm:px-3 sm:py-3',
+          )}
+        >
           {t('search.optionCount', { count: options.length })}{' '}
           <ChevronDown className="h-4 w-4" />
         </span>
@@ -1193,12 +1517,10 @@ function FilterRow({
   };
 
   return (
-    <div className="flex border-b border-slate-100 last:border-b-0">
-      <div className="w-28 shrink-0 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700">
-        {labelNode}
-      </div>
+    <div className={rowClass}>
+      <div className={labelClass}>{labelNode}</div>
 
-      <div className="flex-1 px-3 py-2.5">
+      <div className={bodyClass}>
         {/*
           featured·collapsible 는 체크박스 영역과 접기/펼치기 버튼을 나란히 둔다(items-start) —
           항목이 여러 줄로 펼쳐져도 버튼이 **오른쪽 위 끝에 고정**된다.
@@ -1215,7 +1537,7 @@ function FilterRow({
                 shown.some((o) => o.field === f),
               ).map((f) => (
                 <div key={f}>
-                  <p className="!my-0 mb-1 text-xs font-semibold text-slate-400">
+                  <p className="!my-0 mb-1.5 text-[0.68rem] font-bold text-ink-subtle">
                     {t(`search.field.${f}`)}
                   </p>
                   <div className="flex flex-wrap gap-x-5 gap-y-1.5">
@@ -1308,17 +1630,18 @@ function FilterCheckbox({
   return (
     <label
       title={option.description}
-      className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700"
+      className={cn(
+        'flex cursor-pointer items-center gap-1.5 text-[0.82rem] transition-colors',
+        checked ? 'font-bold text-brand-strong' : 'font-medium text-ink-body',
+      )}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+        className="h-[0.95rem] w-[0.95rem] rounded border-line-strong text-brand focus:ring-brand focus:ring-offset-0"
       />
-      <span className={cn('truncate', checked && 'font-medium text-primary-700')}>
-        {option.name}
-      </span>
+      <span className="truncate">{option.name}</span>
     </label>
   );
 }

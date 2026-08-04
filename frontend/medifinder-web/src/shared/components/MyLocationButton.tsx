@@ -84,7 +84,7 @@ export function MyLocationButton({
 
   /** 칩·버튼 공통 껍데기. 둘이 같은 자리에 서므로 크기·모양을 한 벌로 맞춘다. */
   const shell = cn(
-    'inline-flex shrink-0 items-center gap-1.5 rounded-lg border text-sm transition-colors',
+    'inline-flex shrink-0 items-center gap-1.5 rounded-field text-sm font-semibold transition-all duration-100 ease-native',
     // 기본형은 **Combobox 에 맞춘다** — 상세검색에서 시도·시군구 옆에 서기 때문이다.
     // 히어로 검색박스(Input: h-11·rounded-xl)처럼 다른 자리는 className 으로 덮어쓴다.
     'px-3 py-2',
@@ -103,7 +103,7 @@ export function MyLocationButton({
         <span
           className={cn(
             shell,
-            'border-primary bg-primary-50 pr-1.5 font-medium text-primary',
+            'bg-brand-tint pr-1.5 text-brand-strong ring-1 ring-inset ring-brand-tint-strong',
           )}
         >
           <MapPin className="h-4 w-4 shrink-0" />
@@ -117,7 +117,7 @@ export function MyLocationButton({
             onClick={onClear}
             title={t('common.myLocation.clear', { name: selectedName })}
             aria-label={t('common.myLocation.clear', { name: selectedName })}
-            className="-mr-0.5 shrink-0 rounded p-0.5 text-primary/70 transition-colors hover:bg-primary-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            className="-mr-0.5 shrink-0 rounded-md p-0.5 text-brand/70 transition-colors focus:outline-none focus:ring-2 focus:ring-brand/30 active:bg-brand-tint-strong active:text-brand"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -131,15 +131,15 @@ export function MyLocationButton({
           aria-label={label}
           className={cn(
             shell,
-            'justify-center bg-white text-slate-600',
-            'hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60',
-            'border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30',
+            'justify-center bg-surface text-ink-body ring-1 ring-inset ring-line',
+            'disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.97] active:bg-surface-subtle',
+            'focus:outline-none focus:ring-2 focus:ring-brand/30',
             // 권한이 이미 막혀 있으면 눌러도 프롬프트가 안 뜬다. 흐리게 두어 미리 알린다.
-            blocked && 'text-slate-400',
+            blocked && 'text-ink-subtle',
           )}
         >
           {locating ? (
-            <Spinner className="h-4 w-4 shrink-0 border-2 border-slate-400" />
+            <Spinner className="h-4 w-4 shrink-0 border-2 border-ink-subtle" />
           ) : (
             <MapPin className="h-4 w-4 shrink-0" />
           )}
@@ -159,7 +159,7 @@ export function MyLocationButton({
         <p
           role="status"
           aria-live="polite"
-          className="absolute left-0 top-full z-20 mt-1 w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs leading-relaxed text-slate-600 shadow-lg"
+          className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl border border-line bg-surface px-3 py-2 text-xs leading-relaxed text-ink-body shadow-pop"
         >
           {message}
         </p>

@@ -395,6 +395,63 @@ export function tomorrowDay(): number {
   return (todayDay() % 7) + 1;
 }
 
+/**
+ * 지금 진료 중인가.
+ *
+ * **상세에서 가장 먼저 확인하는 사실이다** — 진료시간표를 요일별로 읽어 내려가며 오늘을 찾고
+ * 지금 시각과 견주는 일을 사용자가 대신 하고 있었다. 그 계산을 우리가 해서 한 줄로 알린다.
+ *
+ * **점심시간을 '진료중' 으로 치지 않는다.** 문은 열려 있어도 접수가 안 되는 시간이라,
+ * 그때 출발하면 헛걸음한다. 상태를 따로 두고 몇 시에 다시 여는지까지 알린다.
+ *
+ * 오늘 시간표가 아예 없으면(휴진일이거나 데이터가 없거나) **undefined 를 낸다** —
+ * '휴진' 이라고 단정하지 않는다. 그 둘을 구분할 근거가 데이터에 없어서, 단정하면 열려 있는
+ * 병원을 닫혔다고 말하게 된다. 호출부는 이때 상태 표시를 아예 그리지 않는다.
+ */
+export interface OpenStatus {
+  /** open 진료중 · break 점심시간 · closed 오늘 진료가 끝났거나 아직 시작 전 */
+  state: 'open' | 'break' | 'closed';
+  /** 다음 경계 시각('HHMM'). open=마감, break=점심 끝, closed=오늘 중 시작 시각(있으면). */
+  at?: string;
+}
+
+/** 진료시간 한 줄. DTO 를 그대로 받지 않고 쓰는 칸만 구조로 받는다. */
+interface HoursRow {
+  kind?: string;
+  day?: number;
+  open?: string;
+  close?: string;
+  breakStart?: string;
+  breakEnd?: string;
+}
+
+export function openStatus(
+  hours: HoursRow[] | undefined,
+  /** general(일반) 과 baby(달빛) 는 시간대가 달라 따로 묻는다. */
+  kind: string = 'general',
+): OpenStatus | undefined {
+  const today = hours?.find((h) => h.kind === kind && h.day === todayDay());
+  if (!today?.open || !today?.close) return undefined;
+
+  // 'HHMM' 문자열끼리 사전순으로 비교한다 — 자릿수가 고정이라 숫자로 바꿀 필요가 없다.
+  const now = new Date();
+  const current = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+
+  if (current < today.open) return { state: 'closed', at: today.open };
+  if (current >= today.close) return { state: 'closed' };
+
+  if (
+    today.breakStart &&
+    today.breakEnd &&
+    current >= today.breakStart &&
+    current < today.breakEnd
+  ) {
+    return { state: 'break', at: today.breakEnd };
+  }
+
+  return { state: 'open', at: today.close };
+}
+
 /** 'HHMM' → 'HH:MM' */
 export function formatTime(value?: string): string {
   if (!value || value.length !== 4) return '';

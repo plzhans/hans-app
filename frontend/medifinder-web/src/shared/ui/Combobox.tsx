@@ -63,33 +63,33 @@ export function Combobox({
       <Popover.Trigger
         disabled={disabled}
         className={cn(
-          'inline-flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm',
-          'hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/30',
-          'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
-          selected ? 'text-slate-700' : 'text-slate-500',
+          'inline-flex items-center justify-between gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm',
+          'hover:border-line focus:outline-none focus:ring-2 focus:ring-brand/30',
+          'disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-ink-subtle',
+          selected ? 'text-ink-body' : 'text-ink-muted',
           className,
         )}
       >
         {selected?.label ?? placeholder}
-        <ChevronDown className="h-4 w-4 text-slate-400" />
+        <ChevronDown className="h-4 w-4 text-ink-subtle" />
       </Popover.Trigger>
 
       <Popover.Portal>
         <Popover.Content
           align="start"
           sideOffset={4}
-          className="z-50 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+          className="z-50 w-64 overflow-hidden rounded-xl border border-line bg-white shadow-lg"
         >
           <Command>
-            <div className="border-b border-slate-100 px-3 py-2">
+            <div className="border-b border-line px-3 py-2">
               <Command.Input
                 placeholder={searchPlaceholder}
-                className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                className="w-full bg-transparent text-sm text-ink-body outline-none placeholder:text-ink-subtle"
               />
             </div>
 
             <Command.List className="max-h-64 overflow-y-auto p-1">
-              <Command.Empty className="px-2.5 py-6 text-center text-sm text-slate-400">
+              <Command.Empty className="px-2.5 py-6 text-center text-sm text-ink-subtle">
                 결과가 없습니다
               </Command.Empty>
 
@@ -129,9 +129,9 @@ function Item({
       value={children}
       onSelect={onSelect}
       className={cn(
-        'flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-sm text-slate-700',
-        'data-[selected=true]:bg-slate-50',
-        selected && 'font-medium text-primary-600',
+        'flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-sm text-ink-body',
+        'data-[selected=true]:bg-surface-subtle',
+        selected && 'font-medium text-brand',
       )}
     >
       {children}

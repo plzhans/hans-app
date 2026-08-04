@@ -2,15 +2,19 @@ import { Outlet } from 'react-router-dom';
 import { Header } from '@/shared/components/layout/Header';
 import { Footer } from '@/shared/components/layout/Footer';
 
+/**
+ * 목록 계열(첫 화면·검색)의 껍데기.
+ *
+ * **본문 폭을 여기서 잡지 않는다.** 첫 화면의 파란 히어로가 화면 끝까지 닿아야 하는데,
+ * 여기서 max-width 와 좌우 여백을 걸면 그 색이 가운데 상자 안에만 갇힌다.
+ * 폭은 각 화면이 자기 조각마다 정한다 — 히어로·탭 바는 꽉 채우고, 카드만 가운데로 모은다
+ * (DetailLayout 과 같은 규칙이다).
+ */
 export function MainLayout() {
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-full flex-col bg-surface-sunken">
       <Header />
-      {/*
-        바깥 폭은 넉넉하게 연다(첫 페이지가 PC 에서 카드 5장을 한 줄로 편다). 검색·상세·비급여는
-        각자 max-w-3xl 로 자기 폭을 잡으므로 여기 폭을 넓혀도 그 페이지들은 그대로 768px 다.
-      */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-0 sm:px-4">
+      <main className="flex-1">
         <Outlet />
       </main>
       <Footer />

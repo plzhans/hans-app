@@ -6,9 +6,9 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "local": "dotenv -e .env.local -- vite",
-    "develop": "dotenv -e .env.develop -- vite",
+    "develop": "dotenv -e .env.develop.local -e .env.develop -- vite",
     "build": "tsc -b && vite build",
-    "build:develop": "dotenv -e .env.develop -- vite build",
+    "build:develop": "dotenv -e .env.develop.local -e .env.develop -- vite build",
     "build:production": "dotenv -e .env.production -- vite build",
     "preview": "vite preview --port 5173 --strictPort",
     "spec:local": "pnpm -C ../../backend openapi:gen:local",

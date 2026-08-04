@@ -353,6 +353,8 @@ interface InfoWindowInstance {
 /** 전역 이벤트 등록기(네이버 Event, 카카오 event). 마커·지도에 클릭을 건다. */
 interface EventRegistry {
   addListener: (target: object, type: string, handler: () => void) => void;
+  /** 지도에 이벤트를 직접 쏜다. 컨테이너 크기가 바뀐 걸 알릴 때 쓴다(아래 naver refresh). */
+  trigger: (target: object, type: string) => void;
 }
 
 interface NaverMapInstance {
@@ -507,6 +509,12 @@ export const naverAdapter: PlatformAdapter = {
 
     return {
       refresh: () => {
+        /*
+          **resize 를 직접 쏜다.** `map.refresh()` 는 이미 알고 있는 크기로 다시 그릴 뿐이라,
+          컨테이너가 커져도 지도는 예전 크기 그대로 남는다 — 크게보기를 눌렀을 때 늘어난
+          아래쪽이 잘린 채 비어 보이는 게 그래서다. resize 를 받아야 컨테이너를 다시 잰다.
+        */
+        m.Event.trigger(map, 'resize');
         map.refresh();
         map.panTo(center);
       },
@@ -570,16 +578,41 @@ export const naverAdapter: PlatformAdapter = {
 /* -------------------------------------------------------------------------- */
 
 const KAKAO_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
+
+/** 카카오 SDK 초기화를 기다리는 한계 시간(ms). 넘으면 실패로 본다 — 위 주석 참고. */
+const KAKAO_LOAD_TIMEOUT_MS = 8000;
 let kakaoPromise: Promise<void> | null = null;
 
 function loadKakao(): Promise<void> {
   if (kakaoPromise) return kakaoPromise;
   kakaoPromise = new Promise<void>((resolve, reject) => {
+    /**
+     * **카카오는 실패를 알려주지 않는다.**
+     *
+     * 네이버는 authFailure 훅을, 구글은 콜백 미호출을 준다. 카카오는 스크립트가 200 으로
+     * 받아진 뒤 `kakao.maps.load()` 로 본 모듈을 받는데, 그 단계에서 키·도메인이 거절되면
+     * **콜백이 영영 안 불린다** — 오류도 없고 화면도 안 바뀌어, 빈 상자만 남은 채 무한정
+     * 기다리게 된다. 무엇이 잘못됐는지 짐작할 단서가 하나도 없는 상태가 그렇게 만들어진다.
+     *
+     * 그래서 시간을 끊는다. 원인까지는 알 수 없지만 "못 불러왔다" 는 말은 할 수 있다.
+     */
+    const timer = window.setTimeout(
+      () => reject(new MapError('map.loadFailed')),
+      KAKAO_LOAD_TIMEOUT_MS,
+    );
+    const done = () => {
+      window.clearTimeout(timer);
+      resolve();
+    };
+
     const s = document.createElement('script');
     // autoload=false: 스크립트 로드와 SDK 초기화를 분리한다. kakao.maps.load 로 직접 켠다.
     s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&autoload=false`;
-    s.onload = () => window.kakao.maps.load(() => resolve());
-    s.onerror = () => reject(new MapError('map.loadFailed'));
+    s.onload = () => window.kakao.maps.load(done);
+    s.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new MapError('map.loadFailed'));
+    };
     document.head.appendChild(s);
   });
   return kakaoPromise;

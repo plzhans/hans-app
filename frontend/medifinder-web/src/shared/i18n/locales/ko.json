@@ -114,7 +114,13 @@
       "med": "의과",
       "dent": "치과",
       "km": "한방"
-    }
+    },
+    "viewMap": "지도로 보기",
+    "viewList": "목록으로 보기",
+    "mapSoon": "지도 보기는 준비 중입니다",
+    "mapSoonHint": "지도를 움직여 그 지역을 다시 검색하려면 서버의 영역 검색이 필요합니다. 준비되면 이 자리에 지도가 뜹니다.",
+    "openFilters": "검색 조건",
+    "closeFilters": "닫기"
   },
   "clinic": {
     "badge": {
@@ -124,6 +130,20 @@
       "babyDetail": "달빛어린이병원"
     },
     "backToSearch": "검색으로",
+    "actions": {
+      "call": "전화",
+      "callCta": "전화 문의하기",
+      "hours": "진료시간",
+      "assessment": "평가",
+      "directions": "길찾기",
+      "mapProvider": {
+        "naver": "네이버 지도",
+        "kakao": "카카오 지도",
+        "google": "구글 지도"
+      },
+      "share": "공유",
+      "linkCopied": "복사됨"
+    },
     "tabs": {
       "subject": "소개",
       "care": "진료",
@@ -133,8 +153,20 @@
       "npay": "비급여"
     },
     "contact": "연락처",
+    "contactField": {
+      "tel": "대표번호",
+      "homepage": "홈페이지"
+    },
     "intro": "소개",
     "hours": "진료시간",
+    "status": {
+      "open": "진료중",
+      "break": "점심시간",
+      "closed": "진료 종료",
+      "closesAt": "{{time}} 종료",
+      "opensAt": "{{time}} 시작",
+      "resumesAt": "{{time}} 재개"
+    },
     "hoursEmpty": "진료시간 정보가 없습니다.",
     "hoursConfirm": "{{tel}} 전화로 확인",
     "lunch": "점심 {{start}}~{{end}}",
@@ -143,6 +175,7 @@
     "tomorrow": "내일",
     "notice": "안내",
     "subjects": "진료과목",
+    "subjectCount": "{{count}}개",
     "specialCare": "특수진료",
     "specialtyHospital": "전문",
     "specialist": "전문의",

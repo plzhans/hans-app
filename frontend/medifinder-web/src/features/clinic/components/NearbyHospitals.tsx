@@ -72,15 +72,17 @@ export function NearbyHospitals({
   return (
     <Section
       id="nearby"
+      // 안에 병원 카드가 들어오는 구역이라 껍데기를 두르지 않는다 — 카드 안의 카드가 된다.
+      bare
       title={t('clinic.nearby.title')}
-      icon={<Compass className="h-4 w-4 text-primary-600" />}
+      icon={<Compass className="h-4 w-4 text-brand" />}
       action={
         canMap && (
           <button
             type="button"
             onClick={() => setMapOpen((v) => !v)}
             aria-expanded={mapOpen}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white py-1 pl-2 pr-2.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line bg-white py-1 pl-2 pr-2.5 text-xs font-medium text-ink-body transition-colors hover:bg-surface-subtle hover:text-ink"
           >
             <MapPin className="h-3.5 w-3.5" />
             {t(mapOpen ? 'clinic.nearby.hideMap' : 'clinic.nearby.showMap')}
@@ -101,14 +103,14 @@ export function NearbyHospitals({
             **반경은 응답이 준 값을 쓴다** — 서버가 기준 병원 등급을 보고 정하므로
             의원이면 1km, 상급종합이면 80km 로 화면마다 다르다.
           */}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-muted">
             {t('clinic.nearby.hint', {
               radius: formatDistance(data.radius),
             })}
           </p>
 
           {data.items.length === 0 ? (
-            <p className="mt-3 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
+            <p className="mt-3 rounded-xl bg-surface-subtle p-4 text-center text-sm text-ink-muted">
               {t('clinic.nearby.empty')}
             </p>
           ) : (

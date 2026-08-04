@@ -28,7 +28,7 @@ export function LineBadge({
   // stationLines() 로 걸러 넣으므로 여기까지 오지 않는다.
   if (!resolved) {
     return (
-      <span className="rounded bg-slate-100 px-2 py-0.5 text-sm text-slate-800">
+      <span className="rounded bg-surface-subtle px-2 py-0.5 text-sm text-ink">
         {line}
       </span>
     );

@@ -114,7 +114,13 @@
       "med": "Medical",
       "dent": "Dental",
       "km": "Korean Medicine"
-    }
+    },
+    "viewMap": "Map view",
+    "viewList": "List view",
+    "mapSoon": "Map view is on the way",
+    "mapSoonHint": "Searching by the area you pan to needs area search on the server. The map will appear here once it lands.",
+    "openFilters": "Filters",
+    "closeFilters": "Close"
   },
   "clinic": {
     "badge": {
@@ -124,6 +130,20 @@
       "babyDetail": "Night pediatric clinic"
     },
     "backToSearch": "Back to search",
+    "actions": {
+      "call": "Call",
+      "callCta": "Call the hospital",
+      "hours": "Hours",
+      "assessment": "Ratings",
+      "directions": "Directions",
+      "mapProvider": {
+        "naver": "Naver Map",
+        "kakao": "Kakao Map",
+        "google": "Google Maps"
+      },
+      "share": "Share",
+      "linkCopied": "Copied"
+    },
     "tabs": {
       "subject": "About",
       "care": "Care",
@@ -133,8 +153,20 @@
       "npay": "Fees"
     },
     "contact": "Contact",
+    "contactField": {
+      "tel": "Main number",
+      "homepage": "Website"
+    },
     "intro": "About",
     "hours": "Opening hours",
+    "status": {
+      "open": "Open now",
+      "break": "Lunch break",
+      "closed": "Closed",
+      "closesAt": "Closes {{time}}",
+      "opensAt": "Opens {{time}}",
+      "resumesAt": "Resumes {{time}}"
+    },
     "hoursEmpty": "No opening hours available.",
     "hoursConfirm": "Call {{tel}} to confirm",
     "lunch": "Lunch {{start}}–{{end}}",
@@ -143,6 +175,7 @@
     "tomorrow": "Tomorrow",
     "notice": "Notice",
     "subjects": "Specialties",
+    "subjectCount": "{{count}} depts",
     "specialCare": "Special care programs",
     "specialtyHospital": "Specialty",
     "specialist": "Specialists",
