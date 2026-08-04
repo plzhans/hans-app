@@ -10,10 +10,12 @@
 | `@krdata/hira`      | 건강보험심사평가원(HIRA) 병원정보 — 오퍼레이션 18개    |
 | `@krdata/mois`      | 행정안전부 행정표준코드 법정동코드 — 오퍼레이션 1개    |
 | `@seouldata/subway` | 서울열린데이터광장 지하철역 정보 — 오퍼레이션 1개      |
+| `@vworld/geocoder`  | 국토교통부 브이월드 지오코딩 — 오퍼레이션 2개          |
 | `@kr-or/hira`       | 심평원 **홈페이지** 비급여 진료비 — 의원급 포함        |
 
 **포털이 다르면 패키지 계열이 다르다.** `@krdata/*` 는 공공데이터포털(data.go.kr),
-`@seouldata/*` 는 서울열린데이터광장(openapi.seoul.go.kr)이다. 봉투가 근본적으로 달라서
+`@seouldata/*` 는 서울열린데이터광장(openapi.seoul.go.kr), `@vworld/*` 는 국토교통부
+공간정보 오픈플랫폼(api.vworld.kr)이다. **기관이 아니라 포털이 기준이다.** 봉투가 근본적으로 달라서
 `@krdata/core` 를 재사용할 수 없다 — 자세한 차이는 아래 표.
 
 `@krdata/hira` 와 `@kr-or/hira` 는 **기관은 같고 포털이 다르다.** 전자는 공개 API(data.go.kr),
