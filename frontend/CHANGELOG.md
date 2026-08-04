@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.4.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.3.1...release-frontend/v0.4.0) (2026-08-04)
+
+
+### 기능
+
+* 근처 병원 기본 개수를 6개로 늘린다 ([954aac7](https://github.com/plzhans/hans-app/commit/954aac7c3f359df3f7a80e5b42707d288c1937ea))
+* 근처의 비슷한 병원을 지도에서 함께 본다 ([570c316](https://github.com/plzhans/hans-app/commit/570c3165af7d1ae41a71049b984c53321b0108a3))
+* 내 위치로 지역을 찾아 검색한다 ([8388f4e](https://github.com/plzhans/hans-app/commit/8388f4e47657b9e64cdafb20029dc7e1eeea7c81))
+* 병원 상세 하단에 근처의 비슷한 병원을 보여준다 ([51999d8](https://github.com/plzhans/hans-app/commit/51999d8e44bee1a1ff4ab35d5e99ccbac8e3ab7f))
+* 병원 헤더에 법인명을 보여준다 ([b5ec2fc](https://github.com/plzhans/hans-app/commit/b5ec2fcc1e04ffe1c85138326f86551f8cdd4faf))
+
+
+### 버그 수정
+
+* 시도·시군구 셀렉트의 '전체' 가 번역된다 ([07187d4](https://github.com/plzhans/hans-app/commit/07187d45d3a5178bb65586c047db39d8c0ba1134))
+* 위치를 Capacitor 플러그인으로 받는다 ([b56ae46](https://github.com/plzhans/hans-app/commit/b56ae4640c3ed290736c654d3052e17c74c54cb7))
+* 주소 줄에서 병원 이름 중복을 없앤다 ([610f497](https://github.com/plzhans/hans-app/commit/610f4975ea9796055862b2370b8d0ad81e8b3c93))
+* 홈에서 내 위치를 잡아도 바로 이동하지 않는다 ([a61be2f](https://github.com/plzhans/hans-app/commit/a61be2f4dbf066759655e0d9eb2031dc10c6a869))
+
+
+### 구조 변경
+
+* 근처 병원 순위를 A~E 색 표식으로 바꾼다 ([9908442](https://github.com/plzhans/hans-app/commit/99084423776894d047a7d9402053666fee7dcc9b))
+
+
+### 문서
+
+* 문서 기본 테마를 다크로 바꾼다 ([679b67e](https://github.com/plzhans/hans-app/commit/679b67e100486ff77c5418574bf4c8500a81a05d))
+* 소개 페이지를 사이트 전체 기준으로 고쳐 쓴다 ([29fa22d](https://github.com/plzhans/hans-app/commit/29fa22ddff7f846942d9cb2206e46807d470c3ae))
+* 인증·앱 관리 API 를 문서에서 감춘다 ([bd64f70](https://github.com/plzhans/hans-app/commit/bd64f708a6549dcb467ba01f78d146e5582d4381))
+
 ## [0.3.1](https://github.com/plzhans/hans-app/compare/release-frontend/v0.3.0...release-frontend/v0.3.1) (2026-07-31)
 
 
