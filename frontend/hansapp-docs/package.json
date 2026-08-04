@@ -1,6 +1,6 @@
 {
   "name": "hansapp-docs",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Hans API 명세 문서 (VitePress + OpenAPI)",
