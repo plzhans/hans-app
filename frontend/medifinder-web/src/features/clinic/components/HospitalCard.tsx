@@ -8,6 +8,7 @@ import {
   type Hospital,
   type MatchedSubject,
 } from '../api';
+import { rankLabel, rankMark } from '@/shared/lib/rankMark';
 import { metroCityOf, stationLines } from '../lib/subwayLine';
 import { LineBadge } from './LineBadge';
 import { cn } from '@/shared/lib/utils';
@@ -74,12 +75,24 @@ export function HospitalCard({
       */}
       <div className="flex flex-wrap items-center gap-1.5">
         {/*
-          순위 번호. **지도의 번호 핀과 같은 숫자**라, 지도에서 ②를 보고 어느 카드인지 찾는
-          유일한 단서다. 모양도 지도 핀과 맞춘다(진한 남색 원 + 흰 숫자).
+          순위 표식. **지도 핀과 같은 글자·같은 색·같은 모양**이라, 지도에서 B 를 보고
+          어느 카드인지 찾는 단서다.
+
+          숫자가 아니라 알파벳인 것도, 동그라미가 아니라 사각형인 것도 **바로 아래 줄의
+          지하철 노선 배지와 구분하기 위해서다** — 그쪽이 색 동그라미 + 숫자다(LineBadge).
+          글자·색·모양은 지도 핀과 같은 함수에서 가져온다(rankMark). 두 곳에 따로 적으면
+          반드시 어긋나고, 그러면 지도의 B 와 목록의 B 가 달라져 표식을 준 이유가 사라진다.
+          tailwind 클래스가 아니라 인라인인 것도 그래서다(동적 클래스명은 purge 에 걸린다).
         */}
         {rank !== undefined && (
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-bold tabular-nums text-white">
-            {rank}
+          <span
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-xs font-bold"
+            style={{
+              backgroundColor: rankMark(rank).tint,
+              color: rankMark(rank).ink,
+            }}
+          >
+            {rankLabel(rank)}
           </span>
         )}
         {/*

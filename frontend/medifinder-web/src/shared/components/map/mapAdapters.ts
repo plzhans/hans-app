@@ -1,4 +1,5 @@
 import i18n from '@/shared/i18n';
+import { rankLabel, rankMark } from '@/shared/lib/rankMark';
 
 /**
  * 지도 플랫폼 어댑터.
@@ -83,14 +84,6 @@ const PIN_PRIMARY = '#2563EB';
 const PIN_ANCHOR = '#94A3B8';
 
 /**
- * 번호 핀 색. **이 지도의 주인공이라 브랜드 파랑을 쓴다**(tailwind primary-600 과 같은 값).
- *
- * 회색이었다가 파랑으로 옮겼다 — 기준 병원을 뒤로 물리고 나니 번호가 눈에 안 띄면
- * 지도를 연 이유가 사라진다. 카드의 번호 배지도 같은 색이라 지도와 목록이 한눈에 이어진다.
- */
-const PIN_RANK = '#2563EB';
-
-/**
  * 이름표를 얹은 핀을 SVG 로 만든다. 세 플랫폼 모두 URL 이미지 마커로 이걸 쓴다.
  *
  * **HTML 마커가 아니라 이미지다.** 크기를 우리가 지정해야 마커가 확실히 뜬다(네이버에서 실측한 버그).
@@ -170,26 +163,29 @@ export function buildAnchorPin(): Pin {
 }
 
 /**
- * 순위 번호만 담은 **동그란** 핀.
+ * 순위 표식(A·B·C…)만 담은 **모난** 핀.
  *
  * 이름표를 버린 이유는 **겹침** 때문이다. 근처 병원 다섯 곳은 의원 기준으로 300m 안에
- * 모이는데, 이름표가 붙으면 말풍선끼리 서로 덮어 아무것도 못 읽는다. 원은 폭이 좁아
- * 겹칠 면적 자체가 작고, 겹쳐도 번호는 보인다.
+ * 모이는데, 이름표가 붙으면 말풍선끼리 서로 덮어 아무것도 못 읽는다. 작은 도형은 겹칠
+ * 면적 자체가 작고, 겹쳐도 글자는 보인다.
  *
- * **흐리게 하지 않는다.** 뒤로 물리려고 투명도를 주면 번호가 안 읽힌다 — 주인공과의 구분은
- * 모양(이름표 핀 ↔ 번호 원)과 색으로 낸다.
+ * **동그라미도 숫자도 아닌 이유**는 이 앱에서 그 조합이 이미 지하철 노선 배지이기 때문이다
+ * (LineBadge). 글자를 알파벳으로 바꿔 충돌을 없애고(rankLabel 주석 참고), 모양까지
+ * 사각형으로 갈라 한 카드에 둘이 같이 떠도 한눈에 구분되게 한다.
  *
- * 번호는 목록 순서 그대로다. 카드에도 같은 번호를 달아 지도와 목록이 이어지게 한다.
+ * **흐리게 하지 않는다.** 뒤로 물리려고 투명도를 주면 글자가 안 읽힌다.
+ * 카드에도 같은 글자·같은 색·같은 모양을 달아 지도와 목록이 서로 찾히게 한다.
  */
 export function buildRankPin(rank: number): Pin {
   const size = 28;
-  const r = size / 2 - 2;
+  const inset = 2;
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
-    `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="${PIN_RANK}" stroke="#fff" stroke-width="2.5"/>`,
+    `<rect x="${inset}" y="${inset}" width="${size - inset * 2}" height="${size - inset * 2}"`,
+    ` rx="7" fill="${rankMark(rank).solid}" stroke="#fff" stroke-width="2.5"/>`,
     `<text x="${size / 2}" y="${size / 2 + 4.5}" text-anchor="middle" fill="#fff" font-size="13"`,
     ' font-weight="700" font-family="-apple-system, BlinkMacSystemFont, sans-serif">',
-    String(rank),
+    rankLabel(rank),
     '</text>',
     '</svg>',
   ].join('');
@@ -198,7 +194,7 @@ export function buildRankPin(rank: number): Pin {
     url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     width: size,
     height: size,
-    // 원은 뾰족한 끝이 없다 — 가운데가 그 좌표다.
+    // 뾰족한 끝이 없는 도형이다 — 가운데가 그 좌표다.
     anchorX: size / 2,
     anchorY: size / 2,
   };
@@ -237,8 +233,9 @@ function infoContent(point: MapPoint): string {
     point.rank === undefined
       ? ''
       : `<span style="display:inline-flex;align-items:center;justify-content:center;` +
-        `width:18px;height:18px;margin-right:6px;border-radius:9999px;` +
-        `background:${PIN_RANK};color:#fff;font-size:11px;font-weight:700">${point.rank}</span>`;
+        `width:18px;height:18px;margin-right:6px;border-radius:5px;` +
+        `background:${rankMark(point.rank).solid};color:#fff;font-size:11px;font-weight:700">` +
+        `${rankLabel(point.rank)}</span>`;
   return (
     `<div style="display:flex;align-items:center;white-space:nowrap;` +
     `padding:7px 11px;font-size:13px;font-weight:600;color:#0f172a;` +
