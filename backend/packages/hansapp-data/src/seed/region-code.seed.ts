@@ -15,6 +15,20 @@
  *   nmc_nm   NMC 는 지역을 **코드로 주지 않는다**. 주소에서 뽑은 이름으로 매핑한다.
  *            이 이름들은 매칭된 병원 76,704쌍의 다수결로 뽑았다 (사람이 손으로 짝지은 게 아니다).
  *
+ * [영문 이름(nm_en)]
+ *   **지어내지 않았다.** 도로명주소 영문주소 API(business.juso.go.kr, addrEngApi.do)가 주는
+ *   정부 공식 로마자 표기를 그대로 옮겼다 — 시도는 siNm, 시군구는 sggNm 이다.
+ *   시군구마다 그 지역 병원 주소 하나를 키워드로 조회해 뽑았다(시도명 단독으로는 검색이
+ *   막혀 있다 — E0006). 로마자 표기법은 예외가 많아(왕십리→Wangsimni) 규칙으로 만들면 틀린다.
+ *
+ *   한글과 구조가 다른 것이 둘 있다.
+ *     · 시 아래 구는 상위 시를 뒤에 붙인다 — "부천소사구" → "Sosa-gu, Bucheon-si" (40곳)
+ *     · 광역시 아래 구는 안 붙는다 — "대구서구" → "Seo-gu". 시도로 이미 갈리기 때문이다
+ *
+ *   **일본어(nm_ja)는 비워 둔다.** 정부가 정본을 안 준다 — 한자(河南市)와 가타카나(ハナムシ)
+ *   중 무엇이 맞는지 관행이 갈려서, 지어내면 지명이라 틀린 게 바로 보인다.
+ *   비어 있으면 영어로 물러난다(pickName) — 한글보다 읽히기 때문이다.
+ *
  * [대응이 없는 것]
  *   광주동구·광주북구  전남광주 통합으로 폐지된 코드. 병원 3곳이 아직 달고 있어 남겨 둔다.
  *   화성시            NMC 는 구 단위(동탄구·만세구…)로만 표기해 시 단위 대응이 없다.
@@ -44,6 +58,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11',
     nm: '서울특별시',
+    nm_en: 'Seoul',
     short_nm: '서울',
     level: 'sido',
     hira_cd: ['110000'],
@@ -53,6 +68,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26',
     nm: '부산광역시',
+    nm_en: 'Busan',
     short_nm: '부산',
     level: 'sido',
     hira_cd: ['210000'],
@@ -62,6 +78,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28',
     nm: '인천광역시',
+    nm_en: 'Incheon',
     short_nm: '인천',
     level: 'sido',
     hira_cd: ['220000'],
@@ -71,6 +88,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27',
     nm: '대구광역시',
+    nm_en: 'Daegu',
     short_nm: '대구',
     level: 'sido',
     hira_cd: ['230000'],
@@ -80,6 +98,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '30',
     nm: '대전광역시',
+    nm_en: 'Daejeon',
     short_nm: '대전',
     level: 'sido',
     hira_cd: ['250000'],
@@ -89,6 +108,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '31',
     nm: '울산광역시',
+    nm_en: 'Ulsan',
     short_nm: '울산',
     level: 'sido',
     hira_cd: ['260000'],
@@ -98,6 +118,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41',
     nm: '경기도',
+    nm_en: 'Gyeonggi-do',
     short_nm: '경기',
     level: 'sido',
     hira_cd: ['310000'],
@@ -107,6 +128,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51',
     nm: '강원특별자치도',
+    nm_en: 'Gangwon-do',
     short_nm: '강원',
     level: 'sido',
     hira_cd: ['320000'],
@@ -116,6 +138,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43',
     nm: '충청북도',
+    nm_en: 'Chungcheongbuk-do',
     short_nm: '충북',
     level: 'sido',
     hira_cd: ['330000'],
@@ -125,6 +148,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44',
     nm: '충청남도',
+    nm_en: 'Chungcheongnam-do',
     short_nm: '충남',
     level: 'sido',
     hira_cd: ['340000'],
@@ -134,6 +158,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52',
     nm: '전북특별자치도',
+    nm_en: 'Jeonbuk-do',
     short_nm: '전북',
     level: 'sido',
     hira_cd: ['350000'],
@@ -143,6 +168,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46',
     nm: '전남광주통합특별시',
+    nm_en: 'Jeonnam-Gwangju',
     short_nm: '전남광주',
     level: 'sido',
     hira_cd: ['360000', '240000'],
@@ -152,6 +178,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47',
     nm: '경상북도',
+    nm_en: 'Gyeongsangbuk-do',
     short_nm: '경북',
     level: 'sido',
     hira_cd: ['370000'],
@@ -161,6 +188,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48',
     nm: '경상남도',
+    nm_en: 'Gyeongsangnam-do',
     short_nm: '경남',
     level: 'sido',
     hira_cd: ['380000'],
@@ -170,6 +198,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '50',
     nm: '제주특별자치도',
+    nm_en: 'Jeju-do',
     short_nm: '제주',
     level: 'sido',
     hira_cd: ['390000'],
@@ -179,6 +208,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '36',
     nm: '세종특별자치시',
+    nm_en: 'Sejong-si',
     short_nm: '세종',
     level: 'sido',
     hira_cd: ['410000'],
@@ -191,6 +221,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11001',
     nm: '강남구',
+    nm_en: 'Gangnam-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110001'],
@@ -200,6 +231,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11002',
     nm: '강동구',
+    nm_en: 'Gangdong-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110002'],
@@ -209,6 +241,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11003',
     nm: '강서구',
+    nm_en: 'Gangseo-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110003'],
@@ -218,6 +251,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11004',
     nm: '관악구',
+    nm_en: 'Gwanak-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110004'],
@@ -227,6 +261,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11005',
     nm: '구로구',
+    nm_en: 'Guro-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110005'],
@@ -236,6 +271,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11006',
     nm: '도봉구',
+    nm_en: 'Dobong-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110006'],
@@ -245,6 +281,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11007',
     nm: '동대문구',
+    nm_en: 'Dongdaemun-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110007'],
@@ -254,6 +291,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11008',
     nm: '동작구',
+    nm_en: 'Dongjak-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110008'],
@@ -263,6 +301,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11009',
     nm: '마포구',
+    nm_en: 'Mapo-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110009'],
@@ -272,6 +311,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11010',
     nm: '서대문구',
+    nm_en: 'Seodaemun-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110010'],
@@ -281,6 +321,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11011',
     nm: '성동구',
+    nm_en: 'Seongdong-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110011'],
@@ -290,6 +331,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11012',
     nm: '성북구',
+    nm_en: 'Seongbuk-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110012'],
@@ -299,6 +341,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11013',
     nm: '영등포구',
+    nm_en: 'Yeongdeungpo-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110013'],
@@ -308,6 +351,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11014',
     nm: '용산구',
+    nm_en: 'Yongsan-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110014'],
@@ -317,6 +361,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11015',
     nm: '은평구',
+    nm_en: 'Eunpyeong-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110015'],
@@ -326,6 +371,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11016',
     nm: '종로구',
+    nm_en: 'Jongno-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110016'],
@@ -335,6 +381,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11017',
     nm: '중구',
+    nm_en: 'Jung-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110017'],
@@ -344,6 +391,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11018',
     nm: '송파구',
+    nm_en: 'Songpa-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110018'],
@@ -353,6 +401,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11019',
     nm: '중랑구',
+    nm_en: 'Jungnang-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110019'],
@@ -362,6 +411,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11020',
     nm: '양천구',
+    nm_en: 'Yangcheon-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110020'],
@@ -371,6 +421,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11021',
     nm: '서초구',
+    nm_en: 'Seocho-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110021'],
@@ -380,6 +431,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11022',
     nm: '노원구',
+    nm_en: 'Nowon-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110022'],
@@ -389,6 +441,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11023',
     nm: '광진구',
+    nm_en: 'Gwangjin-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110023'],
@@ -398,6 +451,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11024',
     nm: '강북구',
+    nm_en: 'Gangbuk-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110024'],
@@ -407,6 +461,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '11025',
     nm: '금천구',
+    nm_en: 'Geumcheon-gu',
     level: 'sggu',
     parent_cd: '11',
     hira_cd: ['110025'],
@@ -417,6 +472,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26001',
     nm: '부산남구',
+    nm_en: 'Nam-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210001'],
@@ -426,6 +482,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26002',
     nm: '부산동구',
+    nm_en: 'Dong-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210002'],
@@ -435,6 +492,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26003',
     nm: '부산동래구',
+    nm_en: 'Dongnae-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210003'],
@@ -444,6 +502,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26004',
     nm: '부산진구',
+    nm_en: 'Busanjin-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210004'],
@@ -453,6 +512,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26005',
     nm: '부산북구',
+    nm_en: 'Buk-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210005'],
@@ -462,6 +522,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26006',
     nm: '부산서구',
+    nm_en: 'Seo-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210006'],
@@ -471,6 +532,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26007',
     nm: '부산영도구',
+    nm_en: 'Yeongdo-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210007'],
@@ -480,6 +542,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26008',
     nm: '부산중구',
+    nm_en: 'Jung-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210008'],
@@ -489,6 +552,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26009',
     nm: '부산해운대구',
+    nm_en: 'Haeundae-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210009'],
@@ -498,6 +562,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26010',
     nm: '부산사하구',
+    nm_en: 'Saha-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210010'],
@@ -507,6 +572,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26011',
     nm: '부산금정구',
+    nm_en: 'Geumjeong-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210011'],
@@ -516,6 +582,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26012',
     nm: '부산강서구',
+    nm_en: 'Gangseo-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210012'],
@@ -525,6 +592,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26013',
     nm: '부산연제구',
+    nm_en: 'Yeonje-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210013'],
@@ -534,6 +602,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26014',
     nm: '부산수영구',
+    nm_en: 'Suyeong-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210014'],
@@ -543,6 +612,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26015',
     nm: '부산사상구',
+    nm_en: 'Sasang-gu',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210015'],
@@ -552,6 +622,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '26016',
     nm: '부산기장군',
+    nm_en: 'Gijang-gun',
     level: 'sggu',
     parent_cd: '26',
     hira_cd: ['210100'],
@@ -562,6 +633,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28001',
     nm: '인천미추홀구',
+    nm_en: 'Michuhol-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220001'],
@@ -571,6 +643,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28002',
     nm: '인천부평구',
+    nm_en: 'Bupyeong-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220003'],
@@ -580,6 +653,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28003',
     nm: '인천남동구',
+    nm_en: 'Namdong-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220006'],
@@ -589,6 +663,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28004',
     nm: '인천연수구',
+    nm_en: 'Yeonsu-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220007'],
@@ -598,6 +673,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28005',
     nm: '인천계양구',
+    nm_en: 'Gyeyang-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220008'],
@@ -607,6 +683,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28006',
     nm: '인천영종구',
+    nm_en: 'Yeongjong-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220009'],
@@ -616,6 +693,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28007',
     nm: '인천제물포구',
+    nm_en: 'Jemulpo-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220010'],
@@ -625,6 +703,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28008',
     nm: '인천서해구',
+    nm_en: 'Seohae-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220011'],
@@ -634,6 +713,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28009',
     nm: '인천검단구',
+    nm_en: 'Geomdan-gu',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220012'],
@@ -643,6 +723,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28010',
     nm: '인천강화군',
+    nm_en: 'Ganghwa-gun',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220100'],
@@ -652,6 +733,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '28011',
     nm: '인천옹진군',
+    nm_en: 'Ongjin-gun',
     level: 'sggu',
     parent_cd: '28',
     hira_cd: ['220200'],
@@ -662,6 +744,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27001',
     nm: '대구남구',
+    nm_en: 'Nam-gu',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230001'],
@@ -671,6 +754,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27002',
     nm: '대구동구',
+    nm_en: 'Dong-gu',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230002'],
@@ -680,6 +764,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27003',
     nm: '대구북구',
+    nm_en: 'Buk-gu',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230003'],
@@ -689,6 +774,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27004',
     nm: '대구서구',
+    nm_en: 'Seo-gu',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230004'],
@@ -698,6 +784,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27005',
     nm: '대구수성구',
+    nm_en: 'Suseong-gu',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230005'],
@@ -707,6 +794,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27006',
     nm: '대구중구',
+    nm_en: 'Jung-gu',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230006'],
@@ -716,6 +804,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27007',
     nm: '대구달서구',
+    nm_en: 'Dalseo-gu',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230007'],
@@ -725,6 +814,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27008',
     nm: '대구달성군',
+    nm_en: 'Dalseong-gun',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230100'],
@@ -734,6 +824,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '27009',
     nm: '대구군위군',
+    nm_en: 'Gunwi-gun',
     level: 'sggu',
     parent_cd: '27',
     hira_cd: ['230200'],
@@ -744,6 +835,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46001',
     nm: '광주동구',
+    nm_en: 'Dong-gu',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['240001'],
@@ -753,6 +845,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46002',
     nm: '광주북구',
+    nm_en: 'Buk-gu',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['240002'],
@@ -763,6 +856,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '30001',
     nm: '대전유성구',
+    nm_en: 'Yuseong-gu',
     level: 'sggu',
     parent_cd: '30',
     hira_cd: ['250001'],
@@ -772,6 +866,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '30002',
     nm: '대전대덕구',
+    nm_en: 'Daedeok-gu',
     level: 'sggu',
     parent_cd: '30',
     hira_cd: ['250002'],
@@ -781,6 +876,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '30003',
     nm: '대전서구',
+    nm_en: 'Seo-gu',
     level: 'sggu',
     parent_cd: '30',
     hira_cd: ['250003'],
@@ -790,6 +886,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '30004',
     nm: '대전동구',
+    nm_en: 'Dong-gu',
     level: 'sggu',
     parent_cd: '30',
     hira_cd: ['250004'],
@@ -799,6 +896,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '30005',
     nm: '대전중구',
+    nm_en: 'Jung-gu',
     level: 'sggu',
     parent_cd: '30',
     hira_cd: ['250005'],
@@ -809,6 +907,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '31001',
     nm: '울산남구',
+    nm_en: 'Nam-gu',
     level: 'sggu',
     parent_cd: '31',
     hira_cd: ['260001'],
@@ -818,6 +917,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '31002',
     nm: '울산동구',
+    nm_en: 'Dong-gu',
     level: 'sggu',
     parent_cd: '31',
     hira_cd: ['260002'],
@@ -827,6 +927,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '31003',
     nm: '울산중구',
+    nm_en: 'Jung-gu',
     level: 'sggu',
     parent_cd: '31',
     hira_cd: ['260003'],
@@ -836,6 +937,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '31004',
     nm: '울산북구',
+    nm_en: 'Buk-gu',
     level: 'sggu',
     parent_cd: '31',
     hira_cd: ['260004'],
@@ -845,6 +947,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '31005',
     nm: '울산울주군',
+    nm_en: 'Ulju-gun',
     level: 'sggu',
     parent_cd: '31',
     hira_cd: ['260100'],
@@ -855,6 +958,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41001',
     nm: '가평군',
+    nm_en: 'Gapyeong-gun',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310001'],
@@ -864,6 +968,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41002',
     nm: '양평군',
+    nm_en: 'Yangpyeong-gun',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310009'],
@@ -873,6 +978,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41003',
     nm: '연천군',
+    nm_en: 'Yeoncheon-gun',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310011'],
@@ -882,6 +988,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41004',
     nm: '광명시',
+    nm_en: 'Gwangmyeong-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310100'],
@@ -891,6 +998,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41005',
     nm: '동두천시',
+    nm_en: 'Dongducheon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310200'],
@@ -900,6 +1008,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41006',
     nm: '부천소사구',
+    nm_en: 'Sosa-gu, Bucheon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310301'],
@@ -909,6 +1018,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41007',
     nm: '부천오정구',
+    nm_en: 'Ojeong-gu, Bucheon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310302'],
@@ -918,6 +1028,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41008',
     nm: '부천원미구',
+    nm_en: 'Wonmi-gu, Bucheon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310303'],
@@ -927,6 +1038,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41009',
     nm: '성남수정구',
+    nm_en: 'Sujeong-gu, Seongnam-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310401'],
@@ -936,6 +1048,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41010',
     nm: '성남중원구',
+    nm_en: 'Jungwon-gu, Seongnam-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310402'],
@@ -945,6 +1058,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41011',
     nm: '성남분당구',
+    nm_en: 'Bundang-gu, Seongnam-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310403'],
@@ -954,6 +1068,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41012',
     nm: '수원권선구',
+    nm_en: 'Gwonseon-gu, Suwon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310601'],
@@ -963,6 +1078,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41013',
     nm: '수원장안구',
+    nm_en: 'Jangan-gu, Suwon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310602'],
@@ -972,6 +1088,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41014',
     nm: '수원팔달구',
+    nm_en: 'Paldal-gu, Suwon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310603'],
@@ -981,6 +1098,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41015',
     nm: '수원영통구',
+    nm_en: 'Yeongtong-gu, Suwon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310604'],
@@ -990,6 +1108,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41016',
     nm: '안양만안구',
+    nm_en: 'Manan-gu, Anyang-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310701'],
@@ -999,6 +1118,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41017',
     nm: '안양동안구',
+    nm_en: 'Dongan-gu, Anyang-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310702'],
@@ -1008,6 +1128,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41018',
     nm: '의정부시',
+    nm_en: 'Uijeongbu-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310800'],
@@ -1017,6 +1138,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41019',
     nm: '과천시',
+    nm_en: 'Gwacheon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['310900'],
@@ -1026,6 +1148,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41020',
     nm: '구리시',
+    nm_en: 'Guri-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311000'],
@@ -1035,6 +1158,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41021',
     nm: '안산단원구',
+    nm_en: 'Danwon-gu, Ansan-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311101'],
@@ -1044,6 +1168,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41022',
     nm: '안산상록구',
+    nm_en: 'Sangnok-gu, Ansan-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311102'],
@@ -1053,6 +1178,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41023',
     nm: '평택시',
+    nm_en: 'Pyeongtaek-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311200'],
@@ -1062,6 +1188,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41024',
     nm: '하남시',
+    nm_en: 'Hanam-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311300'],
@@ -1071,6 +1198,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41025',
     nm: '군포시',
+    nm_en: 'Gunpo-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311400'],
@@ -1080,6 +1208,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41026',
     nm: '남양주시',
+    nm_en: 'Namyangju-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311500'],
@@ -1089,6 +1218,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41027',
     nm: '의왕시',
+    nm_en: 'Uiwang-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311600'],
@@ -1098,6 +1228,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41028',
     nm: '시흥시',
+    nm_en: 'Siheung-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311700'],
@@ -1107,6 +1238,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41029',
     nm: '오산시',
+    nm_en: 'Osan-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311800'],
@@ -1116,6 +1248,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41030',
     nm: '고양덕양구',
+    nm_en: 'Deogyang-gu, Goyang-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311901'],
@@ -1125,6 +1258,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41031',
     nm: '고양일산서구',
+    nm_en: 'Ilsanseo-gu, Goyang-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311902'],
@@ -1134,6 +1268,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41032',
     nm: '고양일산동구',
+    nm_en: 'Ilsandong-gu, Goyang-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['311903'],
@@ -1143,6 +1278,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41033',
     nm: '용인기흥구',
+    nm_en: 'Giheung-gu, Yongin-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312001'],
@@ -1152,6 +1288,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41034',
     nm: '용인수지구',
+    nm_en: 'Suji-gu, Yongin-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312002'],
@@ -1161,6 +1298,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41035',
     nm: '용인처인구',
+    nm_en: 'Cheoin-gu, Yongin-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312003'],
@@ -1170,6 +1308,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41036',
     nm: '이천시',
+    nm_en: 'Icheon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312100'],
@@ -1179,6 +1318,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41037',
     nm: '파주시',
+    nm_en: 'Paju-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312200'],
@@ -1188,6 +1328,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41038',
     nm: '김포시',
+    nm_en: 'Gimpo-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312300'],
@@ -1197,6 +1338,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41039',
     nm: '안성시',
+    nm_en: 'Anseong-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312400'],
@@ -1206,6 +1348,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41040',
     nm: '화성시',
+    nm_en: 'Manse-gu, Hwaseong-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312500'],
@@ -1215,6 +1358,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41041',
     nm: '화성만세구',
+    nm_en: 'Manse-gu, Hwaseong-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312501'],
@@ -1224,6 +1368,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41042',
     nm: '화성효행구',
+    nm_en: 'Hyohaeng-gu, Hwaseong-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312502'],
@@ -1233,6 +1378,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41043',
     nm: '화성병점구',
+    nm_en: 'Byeongjeom-gu, Hwaseong-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312503'],
@@ -1242,6 +1388,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41044',
     nm: '화성동탄구',
+    nm_en: 'Dongtan-gu, Hwaseong-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312504'],
@@ -1251,6 +1398,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41045',
     nm: '광주시',
+    nm_en: 'Gwangju-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312600'],
@@ -1260,6 +1408,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41046',
     nm: '양주시',
+    nm_en: 'Yangju-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312700'],
@@ -1269,6 +1418,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41047',
     nm: '포천시',
+    nm_en: 'Pocheon-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312800'],
@@ -1278,6 +1428,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '41048',
     nm: '여주시',
+    nm_en: 'Yeoju-si',
     level: 'sggu',
     parent_cd: '41',
     hira_cd: ['312900'],
@@ -1288,6 +1439,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51001',
     nm: '고성군',
+    nm_en: 'Goseong-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320001'],
@@ -1297,6 +1449,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51002',
     nm: '양구군',
+    nm_en: 'Yanggu-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320004'],
@@ -1306,6 +1459,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51003',
     nm: '양양군',
+    nm_en: 'Yangyang-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320005'],
@@ -1315,6 +1469,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51004',
     nm: '영월군',
+    nm_en: 'Yeongwol-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320006'],
@@ -1324,6 +1479,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51005',
     nm: '인제군',
+    nm_en: 'Inje-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320008'],
@@ -1333,6 +1489,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51006',
     nm: '정선군',
+    nm_en: 'Jeongseon-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320009'],
@@ -1342,6 +1499,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51007',
     nm: '철원군',
+    nm_en: 'Cheorwon-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320010'],
@@ -1351,6 +1509,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51008',
     nm: '평창군',
+    nm_en: 'Pyeongchang-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320012'],
@@ -1360,6 +1519,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51009',
     nm: '홍천군',
+    nm_en: 'Hongcheon-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320013'],
@@ -1369,6 +1529,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51010',
     nm: '화천군',
+    nm_en: 'Hwacheon-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320014'],
@@ -1378,6 +1539,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51011',
     nm: '횡성군',
+    nm_en: 'Hoengseong-gun',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320015'],
@@ -1387,6 +1549,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51012',
     nm: '강릉시',
+    nm_en: 'Gangneung-si',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320100'],
@@ -1396,6 +1559,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51013',
     nm: '동해시',
+    nm_en: 'Donghae-si',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320200'],
@@ -1405,6 +1569,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51014',
     nm: '속초시',
+    nm_en: 'Sokcho-si',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320300'],
@@ -1414,6 +1579,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51015',
     nm: '원주시',
+    nm_en: 'Wonju-si',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320400'],
@@ -1423,6 +1589,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51016',
     nm: '춘천시',
+    nm_en: 'Chuncheon-si',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320500'],
@@ -1432,6 +1599,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51017',
     nm: '태백시',
+    nm_en: 'Taebaek-si',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320600'],
@@ -1441,6 +1609,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '51018',
     nm: '삼척시',
+    nm_en: 'Samcheok-si',
     level: 'sggu',
     parent_cd: '51',
     hira_cd: ['320700'],
@@ -1451,6 +1620,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43001',
     nm: '괴산군',
+    nm_en: 'Goesan-gun',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330001'],
@@ -1460,6 +1630,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43002',
     nm: '단양군',
+    nm_en: 'Danyang-gun',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330002'],
@@ -1469,6 +1640,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43003',
     nm: '보은군',
+    nm_en: 'Boeun-gun',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330003'],
@@ -1478,6 +1650,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43004',
     nm: '영동군',
+    nm_en: 'Yeongdong-gun',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330004'],
@@ -1487,6 +1660,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43005',
     nm: '옥천군',
+    nm_en: 'Okcheon-gun',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330005'],
@@ -1496,6 +1670,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43006',
     nm: '음성군',
+    nm_en: 'Eumseong-gun',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330006'],
@@ -1505,6 +1680,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43007',
     nm: '진천군',
+    nm_en: 'Jincheon-gun',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330009'],
@@ -1514,6 +1690,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43008',
     nm: '증평군',
+    nm_en: 'Jeungpyeong-gun',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330011'],
@@ -1523,6 +1700,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43009',
     nm: '청주상당구',
+    nm_en: 'Sangdang-gu, Cheongju-si',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330101'],
@@ -1532,6 +1710,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43010',
     nm: '청주흥덕구',
+    nm_en: 'Heungdeok-gu, Cheongju-si',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330102'],
@@ -1541,6 +1720,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43011',
     nm: '청주청원구',
+    nm_en: 'Cheongwon-gu, Cheongju-si',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330103'],
@@ -1550,6 +1730,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43012',
     nm: '청주서원구',
+    nm_en: 'Seowon-gu, Cheongju-si',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330104'],
@@ -1559,6 +1740,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43013',
     nm: '충주시',
+    nm_en: 'Chungju-si',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330200'],
@@ -1568,6 +1750,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '43014',
     nm: '제천시',
+    nm_en: 'Jecheon-si',
     level: 'sggu',
     parent_cd: '43',
     hira_cd: ['330300'],
@@ -1578,6 +1761,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44001',
     nm: '금산군',
+    nm_en: 'Geumsan-gun',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340002'],
@@ -1587,6 +1771,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44002',
     nm: '부여군',
+    nm_en: 'Buyeo-gun',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340007'],
@@ -1596,6 +1781,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44003',
     nm: '서천군',
+    nm_en: 'Seocheon-gun',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340009'],
@@ -1605,6 +1791,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44004',
     nm: '예산군',
+    nm_en: 'Yesan-gun',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340012'],
@@ -1614,6 +1801,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44005',
     nm: '청양군',
+    nm_en: 'Cheongyang-gun',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340014'],
@@ -1623,6 +1811,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44006',
     nm: '홍성군',
+    nm_en: 'Hongseong-gun',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340015'],
@@ -1632,6 +1821,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44007',
     nm: '태안군',
+    nm_en: 'Taean-gun',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340016'],
@@ -1641,6 +1831,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44008',
     nm: '천안서북구',
+    nm_en: 'Seobuk-gu, Cheonan-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340201'],
@@ -1650,6 +1841,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44009',
     nm: '천안동남구',
+    nm_en: 'Dongnam-gu, Cheonan-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340202'],
@@ -1659,6 +1851,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44010',
     nm: '공주시',
+    nm_en: 'Gongju-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340300'],
@@ -1668,6 +1861,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44011',
     nm: '보령시',
+    nm_en: 'Boryeong-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340400'],
@@ -1677,6 +1871,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44012',
     nm: '아산시',
+    nm_en: 'Asan-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340500'],
@@ -1686,6 +1881,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44013',
     nm: '서산시',
+    nm_en: 'Seosan-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340600'],
@@ -1695,6 +1891,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44014',
     nm: '논산시',
+    nm_en: 'Nonsan-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340700'],
@@ -1704,6 +1901,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44015',
     nm: '계룡시',
+    nm_en: 'Gyeryong-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340800'],
@@ -1713,6 +1911,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '44016',
     nm: '당진시',
+    nm_en: 'Dangjin-si',
     level: 'sggu',
     parent_cd: '44',
     hira_cd: ['340900'],
@@ -1723,6 +1922,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52001',
     nm: '고창군',
+    nm_en: 'Gochang-gun',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350001'],
@@ -1732,6 +1932,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52002',
     nm: '무주군',
+    nm_en: 'Muju-gun',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350004'],
@@ -1741,6 +1942,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52003',
     nm: '부안군',
+    nm_en: 'Buan-gun',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350005'],
@@ -1750,6 +1952,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52004',
     nm: '순창군',
+    nm_en: 'Sunchang-gun',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350006'],
@@ -1759,6 +1962,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52005',
     nm: '완주군',
+    nm_en: 'Wanju-gun',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350008'],
@@ -1768,6 +1972,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52006',
     nm: '임실군',
+    nm_en: 'Imsil-gun',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350010'],
@@ -1777,6 +1982,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52007',
     nm: '장수군',
+    nm_en: 'Jangsu-gun',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350011'],
@@ -1786,6 +1992,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52008',
     nm: '진안군',
+    nm_en: 'Jinan-gun',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350013'],
@@ -1795,6 +2002,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52009',
     nm: '군산시',
+    nm_en: 'Gunsan-si',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350100'],
@@ -1804,6 +2012,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52010',
     nm: '남원시',
+    nm_en: 'Namwon-si',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350200'],
@@ -1813,6 +2022,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52011',
     nm: '익산시',
+    nm_en: 'Iksan-si',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350300'],
@@ -1822,6 +2032,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52012',
     nm: '전주완산구',
+    nm_en: 'Wansan-gu, Jeonju-si',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350401'],
@@ -1831,6 +2042,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52013',
     nm: '전주덕진구',
+    nm_en: 'Deokjin-gu, Jeonju-si',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350402'],
@@ -1840,6 +2052,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52014',
     nm: '정읍시',
+    nm_en: 'Jeongeup-si',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350500'],
@@ -1849,6 +2062,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '52015',
     nm: '김제시',
+    nm_en: 'Gimje-si',
     level: 'sggu',
     parent_cd: '52',
     hira_cd: ['350600'],
@@ -1859,6 +2073,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46003',
     nm: '강진군',
+    nm_en: 'Gangjin-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360001'],
@@ -1868,6 +2083,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46004',
     nm: '고흥군',
+    nm_en: 'Goheung-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360002'],
@@ -1877,6 +2093,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46005',
     nm: '곡성군',
+    nm_en: 'Gokseong-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360003'],
@@ -1886,6 +2103,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46006',
     nm: '구례군',
+    nm_en: 'Gurye-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360006'],
@@ -1895,6 +2113,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46007',
     nm: '담양군',
+    nm_en: 'Damyang-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360008'],
@@ -1904,6 +2123,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46008',
     nm: '무안군',
+    nm_en: 'Muan-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360009'],
@@ -1913,6 +2133,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46009',
     nm: '보성군',
+    nm_en: 'Boseong-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360010'],
@@ -1922,6 +2143,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46010',
     nm: '신안군',
+    nm_en: 'Sinan-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360012'],
@@ -1931,6 +2153,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46011',
     nm: '영광군',
+    nm_en: 'Yeonggwang-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360014'],
@@ -1940,6 +2163,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46012',
     nm: '영암군',
+    nm_en: 'Yeongam-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360015'],
@@ -1949,6 +2173,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46013',
     nm: '완도군',
+    nm_en: 'Wando-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360016'],
@@ -1958,6 +2183,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46014',
     nm: '장성군',
+    nm_en: 'Jangseong-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360017'],
@@ -1967,6 +2193,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46015',
     nm: '장흥군',
+    nm_en: 'Jangheung-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360018'],
@@ -1976,6 +2203,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46016',
     nm: '진도군',
+    nm_en: 'Jindo-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360019'],
@@ -1985,6 +2213,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46017',
     nm: '함평군',
+    nm_en: 'Hampyeong-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360020'],
@@ -1994,6 +2223,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46018',
     nm: '해남군',
+    nm_en: 'Haenam-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360021'],
@@ -2003,6 +2233,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46019',
     nm: '화순군',
+    nm_en: 'Hwasun-gun',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360022'],
@@ -2012,6 +2243,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46020',
     nm: '나주시',
+    nm_en: 'Naju-si',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360200'],
@@ -2021,6 +2253,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46021',
     nm: '목포시',
+    nm_en: 'Mokpo-si',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360300'],
@@ -2030,6 +2263,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46022',
     nm: '순천시',
+    nm_en: 'Suncheon-si',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360400'],
@@ -2039,6 +2273,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46023',
     nm: '여수시',
+    nm_en: 'Yeosu-si',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360500'],
@@ -2048,6 +2283,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46024',
     nm: '광양시',
+    nm_en: 'Gwangyang-si',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360700'],
@@ -2057,6 +2293,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46025',
     nm: '광주동구',
+    nm_en: 'Dong-gu',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360801'],
@@ -2066,6 +2303,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46026',
     nm: '광주북구',
+    nm_en: 'Gwangsan-gu',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360802'],
@@ -2075,6 +2313,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46027',
     nm: '광주서구',
+    nm_en: 'Seo-gu',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360803'],
@@ -2084,6 +2323,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46028',
     nm: '광주광산구',
+    nm_en: 'Gwangsan-gu',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360804'],
@@ -2093,6 +2333,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '46029',
     nm: '광주남구',
+    nm_en: 'Nam-gu',
     level: 'sggu',
     parent_cd: '46',
     hira_cd: ['360805'],
@@ -2103,6 +2344,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47001',
     nm: '고령군',
+    nm_en: 'Goryeong-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370002'],
@@ -2112,6 +2354,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47002',
     nm: '봉화군',
+    nm_en: 'Bonghwa-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370007'],
@@ -2121,6 +2364,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47003',
     nm: '성주군',
+    nm_en: 'Seongju-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370010'],
@@ -2130,6 +2374,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47004',
     nm: '영덕군',
+    nm_en: 'Yeongdeok-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370012'],
@@ -2139,6 +2384,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47005',
     nm: '영양군',
+    nm_en: 'Yeongyang-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370013'],
@@ -2148,6 +2394,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47006',
     nm: '예천군',
+    nm_en: 'Yecheon-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370017'],
@@ -2157,6 +2404,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47007',
     nm: '울릉군',
+    nm_en: 'Ulleung-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370018'],
@@ -2166,6 +2414,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47008',
     nm: '울진군',
+    nm_en: 'Uljin-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370019'],
@@ -2175,6 +2424,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47009',
     nm: '의성군',
+    nm_en: 'Uiseong-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370021'],
@@ -2184,6 +2434,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47010',
     nm: '청도군',
+    nm_en: 'Cheongdo-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370022'],
@@ -2193,6 +2444,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47011',
     nm: '청송군',
+    nm_en: 'Cheongsong-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370023'],
@@ -2202,6 +2454,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47012',
     nm: '칠곡군',
+    nm_en: 'Chilgok-gun',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370024'],
@@ -2211,6 +2464,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47013',
     nm: '경주시',
+    nm_en: 'Gyeongju-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370100'],
@@ -2220,6 +2474,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47014',
     nm: '구미시',
+    nm_en: 'Gumi-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370200'],
@@ -2229,6 +2484,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47015',
     nm: '김천시',
+    nm_en: 'Gimcheon-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370300'],
@@ -2238,6 +2494,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47016',
     nm: '안동시',
+    nm_en: 'Andong-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370400'],
@@ -2247,6 +2504,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47017',
     nm: '영주시',
+    nm_en: 'Yeongju-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370500'],
@@ -2256,6 +2514,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47018',
     nm: '영천시',
+    nm_en: 'Yeongcheon-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370600'],
@@ -2265,6 +2524,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47019',
     nm: '포항남구',
+    nm_en: 'Nam-gu, Pohang-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370701'],
@@ -2274,6 +2534,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47020',
     nm: '포항북구',
+    nm_en: 'Buk-gu, Pohang-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370702'],
@@ -2283,6 +2544,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47021',
     nm: '문경시',
+    nm_en: 'Mungyeong-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370800'],
@@ -2292,6 +2554,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47022',
     nm: '상주시',
+    nm_en: 'Sangju-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['370900'],
@@ -2301,6 +2564,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '47023',
     nm: '경산시',
+    nm_en: 'Gyeongsan-si',
     level: 'sggu',
     parent_cd: '47',
     hira_cd: ['371000'],
@@ -2311,6 +2575,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48001',
     nm: '거창군',
+    nm_en: 'Geochang-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380002'],
@@ -2320,6 +2585,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48002',
     nm: '고성군',
+    nm_en: 'Goseong-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380003'],
@@ -2329,6 +2595,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48003',
     nm: '남해군',
+    nm_en: 'Namhae-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380005'],
@@ -2338,6 +2605,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48004',
     nm: '산청군',
+    nm_en: 'Sancheong-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380008'],
@@ -2347,6 +2615,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48005',
     nm: '의령군',
+    nm_en: 'Uiryeong-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380011'],
@@ -2356,6 +2625,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48006',
     nm: '창녕군',
+    nm_en: 'Changnyeong-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380014'],
@@ -2365,6 +2635,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48007',
     nm: '하동군',
+    nm_en: 'Hadong-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380016'],
@@ -2374,6 +2645,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48008',
     nm: '함안군',
+    nm_en: 'Haman-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380017'],
@@ -2383,6 +2655,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48009',
     nm: '함양군',
+    nm_en: 'Hamyang-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380018'],
@@ -2392,6 +2665,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48010',
     nm: '합천군',
+    nm_en: 'Hapcheon-gun',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380019'],
@@ -2401,6 +2675,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48011',
     nm: '김해시',
+    nm_en: 'Gimhae-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380100'],
@@ -2410,6 +2685,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48012',
     nm: '사천시',
+    nm_en: 'Sacheon-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380300'],
@@ -2419,6 +2695,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48013',
     nm: '진주시',
+    nm_en: 'Jinju-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380500'],
@@ -2428,6 +2705,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48014',
     nm: '창원마산회원구',
+    nm_en: 'Masanhoewon-gu, Changwon-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380701'],
@@ -2437,6 +2715,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48015',
     nm: '창원마산합포구',
+    nm_en: 'Masanhappo-gu, Changwon-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380702'],
@@ -2446,6 +2725,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48016',
     nm: '창원진해구',
+    nm_en: 'Jinhae-gu, Changwon-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380703'],
@@ -2455,6 +2735,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48017',
     nm: '창원의창구',
+    nm_en: 'Uichang-gu, Changwon-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380704'],
@@ -2464,6 +2745,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48018',
     nm: '창원성산구',
+    nm_en: 'Seongsan-gu, Changwon-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380705'],
@@ -2473,6 +2755,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48019',
     nm: '통영시',
+    nm_en: 'Tongyeong-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380800'],
@@ -2482,6 +2765,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48020',
     nm: '밀양시',
+    nm_en: 'Miryang-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['380900'],
@@ -2491,6 +2775,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48021',
     nm: '거제시',
+    nm_en: 'Geoje-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['381000'],
@@ -2500,6 +2785,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '48022',
     nm: '양산시',
+    nm_en: 'Yangsan-si',
     level: 'sggu',
     parent_cd: '48',
     hira_cd: ['381100'],
@@ -2510,6 +2796,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '50001',
     nm: '서귀포시',
+    nm_en: 'Seogwipo-si',
     level: 'sggu',
     parent_cd: '50',
     hira_cd: ['390100'],
@@ -2519,6 +2806,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '50002',
     nm: '제주시',
+    nm_en: 'Jeju-si',
     level: 'sggu',
     parent_cd: '50',
     hira_cd: ['390200'],
@@ -2529,6 +2817,7 @@ export const REGION_CODES: RegionCodeSeed[] = [
   {
     cd: '36001',
     nm: '세종시',
+    nm_en: 'Sejong-si',
     level: 'sggu',
     parent_cd: '36',
     hira_cd: ['410000'],
