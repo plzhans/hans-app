@@ -100,6 +100,22 @@ export function HospitalHeader(props: Props) {
           </div>
         )}
 
+        {/*
+          법인명. **이름 위에 둔다** — 읽는 순서가 "어느 법인의 → 무슨 병원" 이라서다.
+          아래에 두면 병원 이름을 읽고 나서 소속을 다시 올려다보게 되고, 그 자리는 이미
+          지역 줄이 쓰고 있어 층위가 섞인다.
+
+          배지가 아니라 그냥 텍스트다. 배지는 분류·상태(등급·응급·달빛)라 눌러서 거르는
+          것처럼 읽히는데, 법인명은 거르는 축이 아니라 이 병원이 어디 소속인지일 뿐이다.
+          지역 줄(text-sm/500)보다 한 단계 더 흐리게 해서 뒤로 물러나게 한다.
+
+          법인 표기가 없는 병원(98.7%)은 이 줄이 아예 안 그려진다. 붙는 병원도 대개
+          제목이 그만큼 짧아져서 헤더 높이는 그대로다 — 스티키라 높이가 늘면 본문이 줄어든다.
+        */}
+        {hospital.corpName && (
+          <p className="text-xs text-slate-400">{hospital.corpName}</p>
+        )}
+
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
           {hospital.name}
         </h1>
