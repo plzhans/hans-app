@@ -265,7 +265,13 @@ export function SearchResults({ state }: { state: SearchState }) {
       ))}
     </div>
 
-    {items.length === 0 && !isLoading && !needsCoords && (
+    {/*
+      **못 불러온 것과 없는 것은 다르다.** 조회가 실패하면 결과도 당연히 0 건이라, 조건을
+      안 걸면 "불러오지 못했습니다" 바로 아래에 "검색 결과가 없습니다" 가 같이 뜬다 —
+      사용자는 조건을 고쳐야 하는지 다시 시도해야 하는지 알 수 없게 된다.
+      좌표를 기다리는 중(needsCoords)도 같은 이유로 뺀다.
+    */}
+    {items.length === 0 && !isLoading && !isError && !needsCoords && (
       <p className="py-12 text-center text-ink-muted">{t('search.empty')}</p>
     )}
 
