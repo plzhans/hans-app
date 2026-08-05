@@ -20,7 +20,7 @@ import type { RequestWithId } from '../common/request-id.middleware';
  */
 type AuthedRequest = Request & {
   user?: { userId?: number };
-  apiAccess?: { appId: number; keyId?: number };
+  apiAccess?: { appId: number };
 };
 import {
   AiSearchQuotaError,
@@ -87,23 +87,18 @@ export class HealthcareAiSearchController {
         사실상 자격증명이고, Redis 키에 평문으로 두면 KEYS 한 번에 다 보인다(질문을 해시로
         넣은 것과 같은 이유). appId 는 짧고 비밀도 아니다.
 
-        서비스 키는 같은 앱 안에서 keyId 로 한 번 더 갈린다 — 서버 대 서버 호출을 앱과 같은
-        통에 담으면 한쪽이 다른 쪽 몫을 먹는다.
+        브라우저로 왔든 서버 키로 왔든 같은 앱이면 한 통이다 — 정산 주체가 앱이라
+        부르는 경로가 달라도 몫은 하나다.
       */
       const authed = req as AuthedRequest;
       const userId = authed.user?.userId;
-      const access = authed.apiAccess;
-      const clientId = access
-        ? access.keyId
-          ? `${access.appId}:key:${access.keyId}`
-          : String(access.appId)
-        : undefined;
+      const appId = authed.apiAccess?.appId;
 
       // 추적 id 는 미들웨어가 이미 붙여 놨다(요청 헤더를 다시 읽지 않는다).
       const { requestId } = req as RequestWithId;
       const result = await this.service.extractFilter(request.q, {
         userId,
-        clientId,
+        appId,
         requestId,
       });
       return new AiSearchResponseDto(result);

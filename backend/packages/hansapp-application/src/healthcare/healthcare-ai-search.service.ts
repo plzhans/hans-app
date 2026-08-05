@@ -13,6 +13,7 @@ import {
   type LlmProviderName,
 } from '@hansapp/llm';
 import { CachePrefix } from '../common/cache-keys';
+import { LlmUsageService } from '../common/llm-usage.service';
 import { DailyQuotaService } from '../common/daily-quota.service';
 import { RegionCache, type RegionEntry } from '../region/region.cache';
 import { HealthcareCodeCache } from './healthcare-code.cache';
@@ -256,6 +257,7 @@ export class HealthcareAiSearchService {
     private readonly quota: DailyQuotaService,
     // 한도 값만 본다. 실행은 LlmService 가 하고 이쪽은 "누가 얼마나 쓸 수 있나" 만 정한다.
     @Inject(LLM_CONFIG) private readonly llmConfig: LlmConfig,
+    private readonly usage: LlmUsageService,
   ) {}
 
   /**
@@ -271,12 +273,8 @@ export class HealthcareAiSearchService {
    * 프롬프트 해시는 **파일을 읽을 때 한 번** 계산해 둔 값이다(SvcPrompt.hash) — 8천 토큰을
    * 요청마다 해싱하지 않는다. 프롬프트가 바뀌면 키 공간이 통째로 갈려 옛 답이 안 나온다.
    */
-  private cacheKey(question: string, promptHash: string): string {
-    const q = createHash('sha256')
-      .update(normalizeQuestion(question))
-      .digest('hex')
-      .slice(0, 32);
-    return `${CachePrefix.aiSearch}:v${CACHE_SHAPE_VERSION}:${promptHash}:${q}`;
+  private cacheKey(questionHash: string, promptHash: string): string {
+    return `${CachePrefix.aiSearch}:v${CACHE_SHAPE_VERSION}:${promptHash}:${questionHash}`;
   }
 
   /**
@@ -382,11 +380,16 @@ export class HealthcareAiSearchService {
     /**
      * 누가 물었나. 하루 몫을 **누구 통에서 깎을지** 정하는 데만 쓴다.
      *   userId 있음   그 사람 몫 (로그인 붙은 뒤)
-     *   없음          그 앱 몫 (숫자 appId) — 로그인 전 사용자들이 나눠 쓴다
+     *   없음          그 앱 몫 (appId) — 로그인 전 사용자들이 나눠 쓴다
      *
      * `requestId` 는 추적용이다. **로그에만 쓴다** — 판단에 끼어들지 않는다.
      */
-    caller: { userId?: number; clientId?: string; requestId?: string } = {},
+    caller: {
+      userId?: number;
+      /** 어느 앱에서 왔나. **하루 몫도 사용 기록도 이 값으로 묶인다.** */
+      appId?: number;
+      requestId?: string;
+    } = {},
   ): Promise<AiSearchResult> {
     const prompt = this.prompts.get(PROMPT_NAME);
 
@@ -400,13 +403,35 @@ export class HealthcareAiSearchService {
       **모든 사용자가 나눠 쓴다.** "천식 소아과" 는 누가 물어도 같은 조건이 나오므로,
       한 명이 물으면 나머지는 호출 없이 받는다.
     */
-    const key = this.cacheKey(question, prompt.hash);
+    const questionHash = questionHashOf(question);
+    const key = this.cacheKey(questionHash, prompt.hash);
     const cached = await this.tryGet(key);
     if (cached) {
       const elapsedMs = Date.now() - startedAt;
       this.logger.log(
         `${tag(caller.requestId)}${PROMPT_NAME} cache hit ${elapsedMs}ms (${key})`,
       );
+      /*
+        **캐시 히트도 남긴다**(토큰 0). 안 남기면 수요를 알 수 없어 캐시가 얼마나 값을
+        하는지 못 잰다 — 정산은 cached=false 만 합산하면 된다.
+
+        await 하지 않는다. 응답을 만든 뒤에 남기는 기록이라 사용자를 기다리게 할 이유가 없다.
+      */
+      void this.usage.record({
+        requestId: caller.requestId,
+        appId: caller.appId,
+        userId: caller.userId,
+        feature: PROMPT_NAME,
+        promptName: PROMPT_NAME,
+        promptHash: prompt.hash,
+        questionHash,
+        provider: cached.provider,
+        model: cached.model,
+        inputTokens: 0,
+        outputTokens: 0,
+        cached: true,
+        elapsedMs,
+      });
       return { ...cached, elapsedMs };
     }
 
@@ -449,10 +474,11 @@ export class HealthcareAiSearchService {
           limit: this.llmConfig.userDailyLimit,
         }
       : {
-          // 로그인 전이면 **어느 앱에서 왔나**(숫자 appId)로 센다. 인증이 필수라 여기까지
-          // 왔다면 값이 있다 — 없으면 셀 대상이 불분명하므로 한 통(unknown)으로 묶는다.
-          scope: `ai-search:client:${caller.clientId ?? 'unknown'}`,
-          limit: this.llmConfig.clientDailyLimit,
+          // 로그인 전이면 **어느 앱에서 왔나**로 센다. 같은 앱이면 브라우저든 서버 키든
+          // 한 통이다 — 정산 주체가 앱이라 부르는 경로가 달라도 몫은 하나다.
+          // 인증이 필수라 여기까지 왔다면 값이 있다. 없으면 한 통(unknown)으로 묶는다.
+          scope: `ai-search:app:${caller.appId ?? 'unknown'}`,
+          limit: this.llmConfig.appDailyLimit,
         };
 
     if (!(await this.quota.take(scope, limit))) {
@@ -492,6 +518,25 @@ export class HealthcareAiSearchService {
         `cacheRead=${usage.cacheReadTokens ?? 0} cacheWrite=${usage.cacheWriteTokens ?? 0}` +
         (upstreamId ? ` upstream=${upstreamId}` : ''),
     );
+
+    void this.usage.record({
+      requestId: caller.requestId,
+      appId: caller.appId,
+      userId: caller.userId,
+      feature: PROMPT_NAME,
+      promptName: PROMPT_NAME,
+      promptHash: prompt.hash,
+      questionHash,
+      provider,
+      model,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cacheReadTokens: usage.cacheReadTokens,
+      cacheWriteTokens: usage.cacheWriteTokens,
+      cached: false,
+      elapsedMs: Date.now() - startedAt,
+      upstreamId,
+    });
 
     // SDK 가 스키마 검증까지 끝낸 값이다(실패하면 chat 이 던진다).
     const raw = (response.output ?? {}) as RawFilter;
@@ -692,6 +737,17 @@ function aliases(region: RegionEntry): string[] {
  */
 function normalizeQuestion(question: string): string {
   return question.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * 질문의 신원(sha256 앞 128비트). **캐시 키와 사용 기록이 같은 값을 쓴다** —
+ * 원문은 복원할 수 없으면서 "같은 질문인가" 는 판별된다.
+ */
+function questionHashOf(question: string): string {
+  return createHash('sha256')
+    .update(normalizeQuestion(question))
+    .digest('hex')
+    .slice(0, 32);
 }
 
 /** 스키마가 null 을 허용하는 자리. 빈 문자열도 없는 것으로 본다. */

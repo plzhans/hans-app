@@ -57,22 +57,24 @@ export interface LlmConfig {
   /** 응답 최대 토큰. 넘치면 잘린 JSON 이 와서 호출이 실패한다. */
   readonly maxTokens: number;
   /**
-   * **클라이언트 앱 하나가 하루에 쓸 수 있는 호출 수.** 0 이하면 제한 없음.
+   * **앱 하나가 하루에 쓸 수 있는 호출 수.** 0 이하면 제한 없음.
    *
    * IP 당 rate limit 이 못 막는 것을 막는다 — 그쪽은 한 명이 얼마나 빨리 부르는지를 묶을
    * 뿐이라 IP 를 돌리면 총액이 그대로 늘어난다. 브라우저는 CORS 로 막혀도 curl 은 안 막힌다.
    *
-   * **앱마다 통이 갈린다**(웹·iOS·파트너 키). 하나가 다 써도 나머지는 살아 있다.
+   * **앱(appId)마다 통이 갈린다.** 하나가 다 써도 다른 앱은 살아 있다 — 파트너가 퍼가도
+   * 우리 웹앱은 돈다. 같은 앱 안에서는 브라우저든 서버 키든 한 통을 쓴다(정산 주체가 앱이다).
+   *
    * 로그인 전 사용자는 같은 앱을 쓰므로 한 통을 나눠 쓰게 된다 — 로그인이 붙으면
    * 그 사람 몫(userDailyLimit)으로 옮겨 간다.
    *
    * **이 값을 LlmService 가 보지 않는다.** 대행자는 실행만 하고, 누가 얼마나 쓸 수 있는지는
    * 부르는 계층이 정한다 — 같은 LLM 을 다른 기능이 쓰기 시작하면 몫도 기능마다 다르다.
    */
-  readonly clientDailyLimit: number;
+  readonly appDailyLimit: number;
   /**
    * 사람 한 명의 하루 호출 수. **로그인이 붙어야 의미가 있다** — 그전까지는 식별할 주체가
-   * 없어 clientDailyLimit 만 걸린다. 0 이하면 제한 없음.
+   * 없어 appDailyLimit 만 걸린다. 0 이하면 제한 없음.
    */
   readonly userDailyLimit: number;
   /*
@@ -114,7 +116,7 @@ export function buildLlmConfig(cfg: ConfigSource): LlmConfig {
       'anthropic') as LlmProviderName,
     timeoutSec: cfg.getNumberOrDefault('llm.timeoutSec', 30),
     maxTokens: cfg.getNumberOrDefault('llm.maxTokens', 2048),
-    clientDailyLimit: cfg.getNumberOrDefault('llm.clientDailyLimit', 2000),
+    appDailyLimit: cfg.getNumberOrDefault('llm.appDailyLimit', 2000),
     // 로그인이 없으니 기본은 꺼 둔다. 붙으면 설정으로 켠다.
     userDailyLimit: cfg.getNumberOrDefault('llm.userDailyLimit', 0),
     promptDir:

@@ -60,9 +60,8 @@ export class DailyQuotaService implements OnModuleDestroy {
    * 오늘 몫을 하나 쓴다. **넘었으면 false.**
    *
    * `scope` 가 계수 단위다. 누구 몫인지를 부르는 쪽이 정한다:
-   *   `ai-search:client:7`        로그인 전 — 앱(appId)마다 한 통
-   *   `ai-search:client:7:key:3`  서버 키 — 같은 앱 안에서 키마다 따로
-   *   `ai-search:user:123`        로그인 후 — 사람마다 따로
+   *   `ai-search:app:7`     로그인 전 — 앱(appId)마다 한 통
+   *   `ai-search:user:123`  로그인 후 — 사람마다 따로
    *
    * `limit` 이 0 이하면 제한 없음으로 본다 — 설정을 비워 끄는 길을 남긴다.
    */
@@ -83,7 +82,7 @@ export class DailyQuotaService implements OnModuleDestroy {
       return false;
     }
 
-    // 예: `develop:quota:ai-search:client:7:2026-08-05`
+    // 예: `develop:quota:ai-search:app:7:2026-08-05`
     const key = `${this.prefix}quota:${scope}:${today()}`;
     try {
       const used = await client.incr(key);

@@ -51,6 +51,7 @@ import { RegionService } from './region/region.service';
 import { RegionCache } from './region/region.cache';
 import { HealthcareAiSearchService } from './healthcare/healthcare-ai-search.service';
 import { DailyQuotaService } from './common/daily-quota.service';
+import { LlmUsageService } from './common/llm-usage.service';
 
 /**
  * 응용 계층의 DI 진입점. 제공하는 서비스를 여기서 export 하고,
@@ -149,6 +150,8 @@ export class ApplicationModule {
         HealthcareAiSearchService,
         // 하루 총량 계수기. rate limit 이 못 막는 "총액" 을 묶는다.
         { provide: DailyQuotaService, useValue: new DailyQuotaService(source) },
+        // LLM 사용량 기록(로그 DB). 정산과 추적에 쓴다.
+        LlmUsageService,
       ],
       exports: [
         HiraHospitalService,
