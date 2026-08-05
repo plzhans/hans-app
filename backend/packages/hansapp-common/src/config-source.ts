@@ -35,16 +35,27 @@ export function buildConfigTree(
 }
 
 /**
- * `${VAR}` / `${VAR:-기본값}` 자리표시자. VAR 는 대문자·숫자·밑줄. Spring `${...}` 과 같다.
+ * `${VAR}` / `${VAR:기본값}` 자리표시자. VAR 는 대문자·숫자·밑줄. **Spring `${...}` 과 같다** —
+ * 콜론은 이름과 기본값을 가르는 구분자일 뿐이고, bash 처럼 `:-` 와 `-` 로 의미가 갈리지 않는다.
+ *
  * yaml 이 구조의 단일 원천이고, env 값은 이 자리표시자로만 주입된다 — 그래서 시크릿 env 이름을
  * 바꾸거나 sops 를 다시 만들 필요가 없다(yaml 경로는 중첩, env 이름은 그대로).
  */
-const PLACEHOLDER = /\$\{([A-Z0-9_]+)(?::-([^}]*))?\}/g;
+const PLACEHOLDER = /\$\{([A-Z0-9_]+)(?::([^}]*))?\}/g;
 
+/**
+ * **기본값은 키가 없을 때만 쓴다. 빈 문자열은 어엿한 값이다**(Spring 이 null 만 보는 것과 같다).
+ *
+ * `.env` 의 `SSL_CERTIFICATE=` 는 '경로를 안 정했다' 가 아니라 '**끄겠다**' 는 뜻이다. 빈값을
+ * 미설정과 같이 보면 그 의사를 표현할 방법이 사라져 yaml 기본값이 되살아난다 — TLS 처럼
+ * 빈값에 의미가 걸린 설정이 조용히 켜진다.
+ *
+ * 그래서 기본값을 원하면 `.env` 에서 **줄을 지워야** 한다. 비워 두는 것으로는 안 된다.
+ */
 function interpolateString(raw: string, env: NodeJS.ProcessEnv): string {
   return raw.replace(PLACEHOLDER, (_, name: string, fallback?: string) => {
     const value = env[name];
-    return value !== undefined && value !== '' ? value : (fallback ?? '');
+    return value !== undefined ? value : (fallback ?? '');
   });
 }
 

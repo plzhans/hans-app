@@ -12,7 +12,7 @@ elasticsearch:
   url: ${ELASTICSEARCH_URL}
   # 인덱스 이름 접두사. 미설정이면 환경 이름(local). dev 클러스터를 같이 쓰므로
   # 남의 인덱스를 건드리지 않으려면 자기 접두사를 준다.
-  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:-local}
+  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:local}
 
 # AI 검색(자연어 → 검색 조건). **비어 있어도 서버는 정상 부팅한다** —
 # 키가 없으면 /healthcare/ai-search 만 503 이 된다.
@@ -36,7 +36,7 @@ llm:
     # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
     model: ${OPENAI_MODEL}
   local:
-    baseUrl: ${LLM_LOCAL_BASE_URL:-http://127.0.0.1:11434}
+    baseUrl: ${LLM_LOCAL_BASE_URL:http://127.0.0.1:11434}
     model: ${LLM_LOCAL_MODEL}
 
 cache:
