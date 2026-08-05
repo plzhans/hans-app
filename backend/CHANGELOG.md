@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.13.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.12.0...release-backend/v0.13.0) (2026-08-05)
+
+
+### 기능
+
+* **healthcare:** 거리순 정렬과 지도 영역(bbox) 검색 ([f6f0d3f](https://github.com/plzhans/hans-app/commit/f6f0d3ffa5d9d73881e07af372bd28191044b527))
+* **healthcare:** 페이지 검색도 ES로 (홈 목록 정렬 통일) ([5b02711](https://github.com/plzhans/hans-app/commit/5b0271105076d2ef57cb193fa71170e9018f7266))
+* medifinder 앱 스타일 개편 + 거리·지도 영역 검색 ([75fcbc9](https://github.com/plzhans/hans-app/commit/75fcbc97f2b039155a179ff4cb45dd42058843c5))
+* 기본 정렬을 시도 순으로 — sido_rank 색인 필드 ([f62c70d](https://github.com/plzhans/hans-app/commit/f62c70d1b22e7556f248af4c4388424601ddc246))
+
+
+### 구조 변경
+
+* compose 의 migrate 서비스를 hansapp-cli 로 바꾼다 ([90c4d75](https://github.com/plzhans/hans-app/commit/90c4d7506e41f0c620655c9b07fea507d3800a1a))
+
 ## [0.12.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.11.0...release-backend/v0.12.0) (2026-08-04)
 
 
