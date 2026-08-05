@@ -1,0 +1,33 @@
+{
+  "name": "@hansapp/llm",
+  "version": "0.0.1",
+  "private": true,
+  "description": "LLM 호출 계층. 업체(Claude·OpenAI·로컬)를 감추고 공통 인터페이스만 낸다. hansapp 도메인을 알지 못한다.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.28",
+    "@ai-sdk/openai": "^4.0.28",
+    "@ai-sdk/openai-compatible": "^3.0.21",
+    "@hansapp/common": "workspace:*",
+    "@nestjs/common": "^11.0.1",
+    "ai": "^7.0.50",
+    "reflect-metadata": "^0.2.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@types/node": "^24.13.2"
+  }
+}

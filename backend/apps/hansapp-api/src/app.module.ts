@@ -4,6 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
 import type { ConfigSource } from '@hansapp/common';
 import { ApplicationModule } from '@hansapp/application';
+import { McpModule } from '@hansapp/mcp';
 import {
   AuthModule,
   AuthGuard,
@@ -34,6 +35,8 @@ import { NmcRegionController } from './datagokr/nmc/nmc-region.controller';
 import { NmcHospitalController } from './datagokr/nmc/nmc-hospital.controller';
 import { HealthcareHospitalController } from './healthcare/hospital.controller';
 import { HealthcareMetaController } from './healthcare/meta.controller';
+import { HealthcareAiSearchController } from './healthcare/ai-search.controller';
+import { HealthcareMcpController } from './mcp/healthcare-mcp.controller';
 import { TransportController } from './transport/transport.controller';
 import { RegionController } from './region/region.controller';
 
@@ -60,6 +63,9 @@ export class AppModule {
         // DSN 이 없어 init 을 건너뛴 경우에도 안전하다(전부 no-op).
         SentryModule.forRoot(),
         ApplicationModule.forRoot(config),
+        // MCP 도구 서버. 설정을 안 받는다 — 도구가 부르는 서비스는 ApplicationModule 이
+        // 이미 챙겼고, 여기서는 그걸 도구로 노출만 한다(그래서 위에 와야 한다).
+        McpModule,
         AuthModule.forRoot(config),
         // 전역 rate limit. 라이브러리 기본 저장소는 인메모리(인스턴스별) 다 —
         // 단일 인스턴스면 그대로 충분하고, 수평 확장 시 @nest-lab/throttler-storage-redis 로 교체한다.
@@ -88,6 +94,8 @@ export class AppModule {
         NmcBabyController,
         HealthcareHospitalController,
         HealthcareMetaController,
+        HealthcareAiSearchController,
+        HealthcareMcpController,
         TransportController,
         RegionController,
         BusinessController,

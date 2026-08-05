@@ -3,6 +3,12 @@
     "name": "MediFinder",
     "tagline": "Find hospitals across Korea, fast"
   },
+  "footer": {
+    "disclaimer": "MediFinder is a search service that organizes and displays public data released by Korea's Health Insurance Review and Assessment Service (HIRA) and National Medical Center (NMC). We are not a party to any treatment or appointment, and responsibility for medical care rests with each medical institution.",
+    "accuracy": "Specialties, opening hours, and non-covered treatment costs are reproduced from the source data and may differ from what a hospital currently offers. Please confirm with the institution before visiting.",
+    "dataSource": "Source: public data from HIRA and the National Medical Center",
+    "operator": "Operated by an individual."
+  },
   "nav": {
     "home": "Home",
     "search": "Search"

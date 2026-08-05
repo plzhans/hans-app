@@ -15,6 +15,7 @@
     "@elastic/elasticsearch": "^9.0.0",
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",
+    "@hansapp/llm": "workspace:*",
     "@hansapp/search": "workspace:*",
     "@hansapp/slack-notify": "workspace:*",
     "@keyv/redis": "^5.1.6",

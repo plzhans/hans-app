@@ -3,6 +3,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
 import type { ConfigSource } from '@hansapp/common';
 import { DataModule } from '@hansapp/data';
+import { LlmModule } from '@hansapp/llm';
 import {
   buildSearchConfig,
   ElasticsearchService,
@@ -48,6 +49,7 @@ import { HealthcareCodeCache } from './healthcare/healthcare-code.cache';
 import { HiraAsmCodeCache } from './healthcare/hira-asm-code.cache';
 import { RegionService } from './region/region.service';
 import { RegionCache } from './region/region.cache';
+import { HealthcareAiSearchService } from './healthcare/healthcare-ai-search.service';
 
 /**
  * 응용 계층의 DI 진입점. 제공하는 서비스를 여기서 export 하고,
@@ -81,7 +83,13 @@ export class ApplicationModule {
 
     return {
       module: ApplicationModule,
-      imports: [DataModule.forRoot(source), cacheModule],
+      // LlmModule 은 **통째로 붙인다**(SEARCH_CONFIG 처럼 조각만 뽑지 않는다) —
+      // 무거운 연결도 두 번째 커넥션 풀도 없고, 설정이 비면 스스로 조용해지기 때문이다.
+      imports: [
+        DataModule.forRoot(source),
+        LlmModule.forRoot(source),
+        cacheModule,
+      ],
       providers: [
         // ES 검색(무한 스크롤의 기본 원천). SearchModule 전체가 아니라 조회에 필요한 것만 단다
         // — 색인 서비스·두 번째 Prisma 풀을 서버에 끌어오지 않으려는 것이다. ElasticsearchService 는
@@ -135,6 +143,9 @@ export class ApplicationModule {
         // 의존 인프라 접속 점검. 판정만 하고 죽일지는 부른 쪽(서버)이 정한다.
         { provide: HEALTH_CONFIG, useValue: buildHealthConfig(source) },
         HealthService,
+        // 자연어 질문 → 검색 조건. LLM 호출 자체는 LlmModule 이 맡고(업체 무관),
+        // 여기서는 병원 도메인 지식(코드표 검증·범위 판정)만 얹는다.
+        HealthcareAiSearchService,
       ],
       exports: [
         HiraHospitalService,
@@ -152,6 +163,7 @@ export class ApplicationModule {
         HealthcareHospitalService,
         HealthcareNonPaymentService,
         HealthcareMetaService,
+        HealthcareAiSearchService,
         RegionService,
         // 작업 큐. 서버가 넣고 배치(CLI)가 꺼낸다 — MQ 대체품이다.
         JobQueueService,
