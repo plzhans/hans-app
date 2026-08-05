@@ -30,6 +30,24 @@ interface ComboboxProps {
 
   disabled?: boolean;
   className?: string;
+
+  /**
+   * 목록 맨 위에 붙는 **동작 항목**. 고르는 값이 아니라 값을 만들어 주는 일이다
+   * (시도 목록의 "내 위치로 찾기" 처럼).
+   *
+   * 목록 안에 두는 이유는 그 일이 **여기서 고를 값과 같은 것을 정하기** 때문이다 —
+   * 밖에 버튼으로 세우면 셀렉트와 나란한 또 하나의 조건처럼 보이고, 좁은 화면에서는
+   * 그만큼 셀렉트가 좁아진다.
+   *
+   * @param onSelect 고르면 실행하고, 끝나면 목록을 닫는다(비동기여도 기다린다).
+   */
+  action?: {
+    icon?: React.ReactNode;
+    label: string;
+    onSelect: () => void | Promise<void>;
+    /** 실행 중인가. 그동안 목록을 열어 두고 다시 못 누르게 한다. */
+    busy?: boolean;
+  };
 }
 
 /**
@@ -49,6 +67,7 @@ export function Combobox({
   searchPlaceholder,
   disabled,
   className,
+  action,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
@@ -63,35 +82,61 @@ export function Combobox({
       <Popover.Trigger
         disabled={disabled}
         className={cn(
-          'inline-flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm',
-          'hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/30',
-          'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
-          selected ? 'text-slate-700' : 'text-slate-500',
+          'inline-flex items-center justify-between gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm',
+          'hover:border-line focus:outline-none focus:ring-2 focus:ring-brand/30',
+          'disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-ink-subtle',
+          selected ? 'text-ink-body' : 'text-ink-muted',
           className,
         )}
       >
         {selected?.label ?? placeholder}
-        <ChevronDown className="h-4 w-4 text-slate-400" />
+        <ChevronDown className="h-4 w-4 text-ink-subtle" />
       </Popover.Trigger>
 
       <Popover.Portal>
         <Popover.Content
           align="start"
           sideOffset={4}
-          className="z-50 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+          className="z-50 w-64 overflow-hidden rounded-xl border border-line bg-white shadow-lg"
         >
           <Command>
-            <div className="border-b border-slate-100 px-3 py-2">
+            <div className="border-b border-line px-3 py-2">
               <Command.Input
                 placeholder={searchPlaceholder}
-                className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                className="w-full bg-transparent text-sm text-ink-body outline-none placeholder:text-ink-subtle"
               />
             </div>
 
             <Command.List className="max-h-64 overflow-y-auto p-1">
-              <Command.Empty className="px-2.5 py-6 text-center text-sm text-slate-400">
+              <Command.Empty className="px-2.5 py-6 text-center text-sm text-ink-subtle">
                 결과가 없습니다
               </Command.Empty>
+
+              {/*
+                동작 항목. 값 목록과 성격이 달라 **선 하나로 갈라 둔다** — 안 그러면
+                "내 위치로 찾기" 가 시도 이름 중 하나처럼 읽힌다.
+              */}
+              {action && (
+                <>
+                  <Command.Item
+                    value={`__action__ ${action.label}`}
+                    disabled={action.busy}
+                    onSelect={() => {
+                      void Promise.resolve(action.onSelect()).then(() =>
+                        setOpen(false),
+                      );
+                    }}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-brand-strong outline-none',
+                      'data-[selected=true]:bg-brand-tint data-[disabled=true]:opacity-60',
+                    )}
+                  >
+                    {action.icon}
+                    {action.label}
+                  </Command.Item>
+                  <span aria-hidden className="my-1 block h-px bg-line" />
+                </>
+              )}
 
               <Item selected={value === ''} onSelect={() => select('')}>
                 {allLabel}
@@ -129,9 +174,9 @@ function Item({
       value={children}
       onSelect={onSelect}
       className={cn(
-        'flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-sm text-slate-700',
-        'data-[selected=true]:bg-slate-50',
-        selected && 'font-medium text-primary-600',
+        'flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-sm text-ink-body',
+        'data-[selected=true]:bg-surface-subtle',
+        selected && 'font-medium text-brand',
       )}
     >
       {children}

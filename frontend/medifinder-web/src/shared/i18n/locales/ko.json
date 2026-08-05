@@ -39,7 +39,8 @@
         "title": "신생아중환자실 우수",
         "subtitle": "적정성평가 1등급 · 신생아 중증"
       }
-    }
+    },
+    "advancedSearch": "상세검색"
   },
   "common": {
     "loading": "불러오는 중…",
@@ -63,7 +64,8 @@
       "timeout": "위치 확인이 지연됩니다. 다시 시도해 주세요.",
       "unavailable": "위치를 확인할 수 없습니다. 기기의 위치 서비스가 켜져 있는지 확인해 주세요.",
       "notFound": "현재 위치의 지역을 찾지 못했습니다. 지역을 직접 선택해 주세요.",
-      "clear": "{{name}} 해제"
+      "clear": "{{name}} 해제",
+      "granted": "위치 정보가 허용되어 있습니다. 해제는 브라우저 설정에서 할 수 있습니다."
     },
     "all": "전체"
   },
@@ -114,7 +116,20 @@
       "med": "의과",
       "dent": "치과",
       "km": "한방"
-    }
+    },
+    "viewMap": "지도로 보기",
+    "viewList": "목록으로 보기",
+    "mapSoon": "지도 보기는 준비 중입니다",
+    "mapSoonHint": "지도를 움직여 그 지역을 다시 검색하려면 서버의 영역 검색이 필요합니다. 준비되면 이 자리에 지도가 뜹니다.",
+    "openFilters": "검색 조건",
+    "closeFilters": "닫기",
+    "mapNote": "지금 목록의 {{count}}곳을 표시합니다. 지도를 움직여도 다시 검색되지 않습니다.",
+    "mapEmpty": "이 결과에는 좌표가 있는 병원이 없습니다",
+    "useMyLocation": "내 위치로 찾기",
+    "sortNearest": "가까운 순",
+    "nearestNeedsLocation": "가까운 순으로 보려면 위치 정보가 필요합니다.",
+    "allowLocation": "위치 허용하기",
+    "searchThisArea": "이 지역에서 검색"
   },
   "clinic": {
     "badge": {
@@ -124,6 +139,20 @@
       "babyDetail": "달빛어린이병원"
     },
     "backToSearch": "검색으로",
+    "actions": {
+      "call": "전화",
+      "callCta": "전화 문의하기",
+      "hours": "진료시간",
+      "assessment": "평가",
+      "directions": "길찾기",
+      "mapProvider": {
+        "naver": "네이버 지도",
+        "kakao": "카카오 지도",
+        "google": "구글 지도"
+      },
+      "share": "공유",
+      "linkCopied": "복사됨"
+    },
     "tabs": {
       "subject": "소개",
       "care": "진료",
@@ -133,8 +162,20 @@
       "npay": "비급여"
     },
     "contact": "연락처",
+    "contactField": {
+      "tel": "대표번호",
+      "homepage": "홈페이지"
+    },
     "intro": "소개",
     "hours": "진료시간",
+    "status": {
+      "open": "진료중",
+      "break": "점심시간",
+      "closed": "진료 종료",
+      "closesAt": "{{time}} 종료",
+      "opensAt": "{{time}} 시작",
+      "resumesAt": "{{time}} 재개"
+    },
     "hoursEmpty": "진료시간 정보가 없습니다.",
     "hoursConfirm": "{{tel}} 전화로 확인",
     "lunch": "점심 {{start}}~{{end}}",
@@ -143,6 +184,7 @@
     "tomorrow": "내일",
     "notice": "안내",
     "subjects": "진료과목",
+    "subjectCount": "{{count}}개",
     "specialCare": "특수진료",
     "specialtyHospital": "전문",
     "specialist": "전문의",

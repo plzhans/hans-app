@@ -214,7 +214,17 @@ scripts/deploy/migrate.sh develop                 # 스키마만 먼저 올려�
 **배포 대상 서버에서 컨테이너로 한 번 돌고 죽는다.**
 
 ```
-ssh → docker compose run --rm migrate → 끝나면 컨테이너 삭제
+ssh → docker compose run --rm hansapp-cli db deploy → 끝나면 컨테이너 삭제
+```
+
+같은 컨테이너로 다른 운영 작업도 돌린다. 서비스 이름이 이미지 이름과 같은 이유다.
+
+```bash
+cd <배포 경로>
+IMAGE_TAG=<태그> APP_UID="$(id -u)" APP_GID="$(id -g)" \
+  docker compose run --rm hansapp-cli db seed              # 코드·지역 시드
+  docker compose run --rm hansapp-cli healthcare names     # 병원 이름 재계산
+  docker compose run --rm hansapp-cli es hospital reindex  # 무중단 재색인
 ```
 
 배포하는 쪽(CI 러너·맥)에서 prisma 를 돌리지 않는 이유가 셋이다.

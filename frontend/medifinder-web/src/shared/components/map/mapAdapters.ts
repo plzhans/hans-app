@@ -21,6 +21,12 @@ export interface MapPoint {
    * 그러면 목록의 3번이 지도의 2번이 되어 서로 못 알아본다. 목록이 정한 번호를 그대로 받는다.
    */
   rank?: number;
+
+  /**
+   * 이 지점이 무엇인가(병원 id). 말풍선을 눌렀을 때 화면 쪽이 **어느 카드인지 찾는 단서**다.
+   * 지도 어댑터는 그 id 로 무엇을 할지 모르고, 알 필요도 없다 — 그대로 되돌려줄 뿐이다.
+   */
+  id?: string;
 }
 
 /** 생성된 지도를 조종하는 손잡이. 크게보기/현위치 버튼이 이걸 부른다. */
@@ -30,14 +36,114 @@ export interface MapController {
   /** 병원 위치로 되돌린다(+ 기본 확대율). */
   recenter(): void;
   /**
-   * 곁들임 핀(근처의 비슷한 병원)을 갈아 끼운다. 이전 것은 지운다.
+   * 곁들임 핀(근처의 비슷한 병원·검색 결과)을 갈아 끼운다. 이전 것은 지운다.
    *
    * **생성(create)이 아니라 별도 메서드인 이유**는 이 목록이 지도보다 늦게 도착할 수 있어서다 —
    * 지도는 사용자가 "지도 보기" 를 누르는 순간 만들어지는데, 그때 근처 병원 조회가 아직
    * 안 끝났을 수 있다. 지도를 다시 만들면 SDK 호출이 또 오르므로(과금) 핀만 얹는다.
+   *
+   * @param opts.onSelect **말풍선**을 눌렀을 때. MapPoint.id 를 그대로 돌려준다.
+   *   핀 자체는 말풍선을 여는 데까지만 쓴다 — 지도를 훑는 동안 핀은 자주 스치듯 눌리는데,
+   *   그때마다 화면이 목록으로 끌려가면 정작 지도를 볼 수가 없다. 이름을 확인하고 나서
+   *   그 이름을 누르는 것이 "이걸 고른다" 는 뜻이 된다.
+   * @param opts.anchor 기준 병원 핀을 그릴지. **검색 결과 지도에는 기준이 없다** —
+   *   상세에서는 "이 병원 주변" 이라 가운데 병원이 실재하지만, 검색은 결과 목록일 뿐이라
+   *   가운데에 아무 뜻 없는 회색 점이 하나 남는다. 그럴 때 끈다(기본은 그린다).
+   * @param opts.fit 핀이 다 들어오게 확대율을 맞출지(기본 true).
+   *
+   *   **지도 영역으로 검색한 뒤에는 끈다.** 사용자가 자리를 정해서 검색한 것인데 결과에
+   *   맞춰 다시 확대율을 잡으면 방금 고른 자리에서 지도가 밀려난다 — 누른 대가가 화면이
+   *   엉뚱한 데로 가는 것이 된다. 그때는 핀만 갈아 끼우고 지도는 그대로 둔다.
+   *
+   *   꺼도 "현위치" 버튼(recenter)은 여전히 결과 전체가 보이는 자리로 돌아간다 —
+   *   되돌릴 자리는 계산해 두고 지금 옮기지만 않는 것이다.
    */
-  setNearby(points: MapPoint[]): void;
+  setNearby(
+    points: MapPoint[],
+    opts?: { anchor?: boolean; onSelect?: (id: string) => void; fit?: boolean },
+  ): void;
+
+  /**
+   * **사용자가** 지도를 옮긴 뒤의 보이는 영역을 알린다("이 지역에서 검색" 재료).
+   * 구독을 끊는 함수를 돌려준다.
+   *
+   * **우리가 옮긴 것은 안 알린다.** 검색 결과에 맞춰 확대율을 맞추는 것(setNearby 의
+   * fitBounds)도 지도를 움직이지만, 그건 사용자가 한 일이 아니다 — 그것까지 알리면
+   * 검색할 때마다 "이 지역에서 검색" 버튼이 스스로 튀어나온다.
+   *
+   * 손짓이 끝난 뒤에 한 번만 부른다(끄는 동안 매 프레임이 아니라). 영역은 손을 떼야
+   * 확정되고, 그 사이 매번 알려봐야 받는 쪽이 버릴 값이다.
+   */
+  watchBounds(listener: (bounds: MapBounds) => void): () => void;
 }
+
+/** 지도에 보이는 영역. 검색 API 의 bbox 와 같은 모양이다. */
+export interface MapBounds {
+  minLat: number;
+  minLon: number;
+  maxLat: number;
+  maxLon: number;
+}
+
+/**
+ * 영역 알림을 관리하는 공통 살림. 세 플랫폼이 이벤트 이름만 다르고 나머지는 같다.
+ *
+ * **우리가 지도를 옮기는 동안은 알림을 끈다**(suppress). fitBounds 는 비동기로 애니메이션
+ * 하며 여러 이벤트를 뱉으므로, 다 가라앉을 때까지 시간을 두고 다시 켠다.
+ */
+function boundsNotifier() {
+  let listener: ((bounds: MapBounds) => void) | undefined;
+  let suppressed = false;
+  let timer: number | undefined;
+
+  /**
+   * 사용자가 지도를 건드렸는가. **시간만으로는 못 가른다.**
+   *
+   * 처음엔 억제 시간(PROGRAMMATIC_MOVE_SETTLE_MS)만으로 막았는데, 타일이 늦게 오는 등으로
+   * idle 이 그 창을 넘겨 오면 우리가 맞춘 확대율이 사용자 동작으로 읽혔다 — 아무것도 안
+   * 건드렸는데 "이 지역에서 검색" 이 혼자 떠 있는 상태가 된다.
+   *
+   * 그래서 **손짓이 있었을 때만 문을 연다.** 끌기·확대는 사용자만 하는 일이고(arm),
+   * 우리가 옮기는 동안에는 그 문마저 안 열린다(suppressed 확인) — fitBounds 도 확대율을
+   * 바꾸므로 그 구분이 없으면 우리 동작이 스스로 문을 열어버린다.
+   */
+  let armed = false;
+
+  return {
+    watch(next: (bounds: MapBounds) => void) {
+      listener = next;
+      return () => {
+        if (listener === next) listener = undefined;
+      };
+    },
+    /** 사용자 손짓(끌기 끝·확대율 변경)에 건다. */
+    arm() {
+      if (!suppressed) armed = true;
+    },
+    /** 우리가 지도를 옮기기 직전에 부른다. 가라앉을 때까지 알림을 막는다. */
+    suppress() {
+      suppressed = true;
+      armed = false;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        suppressed = false;
+      }, PROGRAMMATIC_MOVE_SETTLE_MS);
+    },
+    emit(bounds: MapBounds | undefined) {
+      if (suppressed || !armed || !bounds || !listener) return;
+      listener(bounds);
+    },
+  };
+}
+
+/**
+ * 우리가 옮긴 지도가 가라앉기를 기다리는 시간(ms).
+ *
+ * fitBounds 는 애니메이션이라 끝나는 시점을 알려주지 않는다 — 넉넉히 잡는다. 짧으면
+ * 애니메이션 끝자락의 이벤트가 사용자 동작으로 잘못 읽혀 버튼이 스스로 뜨고, 길면
+ * 그만큼 실제 손짓을 놓치는데 **후자가 훨씬 덜 나쁘다**(다시 끌면 그만이다).
+ */
+const PROGRAMMATIC_MOVE_SETTLE_MS = 600;
 
 export type PlatformId = 'naver' | 'kakao' | 'google';
 
@@ -213,7 +319,19 @@ export function buildRankPin(rank: number): Pin {
  *
  * 마커를 만드는 순서로도 대개 되지만(늦게 만든 게 위) SDK 마다 규칙이 달라 zIndex 를 명시한다.
  */
-const PIN_Z = { primary: 100, rank: 50, anchor: 10 } as const;
+const PIN_Z = {
+  /**
+   * 말풍선. **핀 전부보다 위다.**
+   *
+   * 지정하지 않으면 SDK 기본값이라, 나중에 만들어진 핀이 말풍선을 덮는다 — 핀이 몰려 있는
+   * 자리에서 이름을 열면 옆 핀에 가려 정작 무엇을 눌렀는지 못 읽는다. 말풍선은 사용자가
+   * **직접 열어 지금 보고 있는 것**이라 언제나 맨 위여야 한다.
+   */
+  info: 1000,
+  primary: 100,
+  rank: 50,
+  anchor: 10,
+} as const;
 
 /**
  * 번호 핀을 눌렀을 때 뜨는 말풍선의 내용(HTML 문자열).
@@ -225,10 +343,14 @@ const PIN_Z = { primary: 100, rank: 50, anchor: 10 } as const;
  * 이스케이프한다** — 병원 이름에 <, & 가 들어간 사례가 실제로 있다.
  */
 function infoContent(point: MapPoint): string {
-  const name = point.name
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  const escape = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const name = escape(point.name);
   const rank =
     point.rank === undefined
       ? ''
@@ -236,10 +358,23 @@ function infoContent(point: MapPoint): string {
         `width:18px;height:18px;margin-right:6px;border-radius:5px;` +
         `background:${rankMark(point.rank).solid};color:#fff;font-size:11px;font-weight:700">` +
         `${rankLabel(point.rank)}</span>`;
-  return (
-    `<div style="display:flex;align-items:center;white-space:nowrap;` +
+
+  const inner =
+    `display:flex;align-items:center;white-space:nowrap;` +
     `padding:7px 11px;font-size:13px;font-weight:600;color:#0f172a;` +
-    `font-family:-apple-system,BlinkMacSystemFont,sans-serif">${rank}${name}</div>`
+    `font-family:-apple-system,BlinkMacSystemFont,sans-serif`;
+
+  /*
+    id 가 있으면 **누를 수 있는 것**으로 만든다. 링크(`<a href>`)가 아니라 버튼인 이유는
+    이게 페이지를 옮기는 일이 아니기 때문이다 — 아래 목록의 그 카드로 데려갈 뿐이라,
+    링크로 두면 새 탭·주소 미리보기 같은 "다른 데로 간다" 는 신호를 거짓으로 준다.
+  */
+  if (!point.id) {
+    return `<div style="${inner}">${rank}${name}</div>`;
+  }
+  return (
+    `<button type="button" data-map-select="${escape(point.id)}" ` +
+    `style="${inner};border:0;background:none;cursor:pointer">${rank}${name}</button>`
   );
 }
 
@@ -326,6 +461,39 @@ function symmetricBounds(
   };
 }
 
+/**
+ * 점들을 **딱 감싸는** 사각형. 기준점이 없는 지도(검색 결과)가 쓴다.
+ *
+ * symmetricBounds 와 다른 점은 가운데를 고정하지 않는다는 것이다. 그쪽은 "이 병원 주변" 이라
+ * 기준 병원이 한가운데 있어야 하지만, 검색 결과에는 가운데를 지킬 이유가 없다 — 대칭으로
+ * 잡으면 **첫 결과가 한쪽에 치우쳐 있을 때 상자가 두 배로 커져** 지도가 쓸데없이 멀어진다.
+ *
+ * 여백은 폭·높이의 8% 다. 핀이 가장자리에 딱 붙지 않을 만큼만 준다.
+ * 점이 하나뿐이면(또는 모두 같은 자리면) 폭이 0 이라, 최소 여백으로 그 언저리를 보여준다.
+ */
+function fitBounds(
+  points: MapPoint[],
+): { sw: { lat: number; lng: number }; ne: { lat: number; lng: number } } | undefined {
+  if (points.length === 0) return undefined;
+
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => p.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  // 약 150m. 한 점만 있을 때 동네가 보일 정도의 최소 반경이다.
+  const MIN_PAD = 0.0015;
+  const padLat = Math.max((maxLat - minLat) * 0.08, MIN_PAD);
+  const padLng = Math.max((maxLng - minLng) * 0.08, MIN_PAD);
+
+  return {
+    sw: { lat: minLat - padLat, lng: minLng - padLng },
+    ne: { lat: maxLat + padLat, lng: maxLng + padLng },
+  };
+}
+
 /** BCP-47 로케일(en-us…)을 네이버/구글이 받는 짧은 코드로 줄인다. 지원 밖은 한국어. */
 function shortLang(locale: string): 'ko' | 'en' | 'zh' | 'ja' {
   const base = locale.toLowerCase().split('-')[0];
@@ -353,6 +521,28 @@ interface InfoWindowInstance {
 /** 전역 이벤트 등록기(네이버 Event, 카카오 event). 마커·지도에 클릭을 건다. */
 interface EventRegistry {
   addListener: (target: object, type: string, handler: () => void) => void;
+  /** 지도에 이벤트를 직접 쏜다. 컨테이너 크기가 바뀐 걸 알릴 때 쓴다(아래 naver refresh). */
+  trigger: (target: object, type: string) => void;
+}
+
+/**
+ * 지도에 보이는 영역. **세 SDK 가 모서리를 꺼내는 이름이 다 다르다** —
+ * 네이버는 getSW/getNE, 카카오·구글은 getSouthWest/getNorthEast 다.
+ * 좌표를 꺼내는 방법도 다르다(네이버·카카오는 lat()/lng() 메서드, 카카오 LatLng 은 getLat()).
+ */
+interface NaverLatLngBounds {
+  getSW: () => { lat: () => number; lng: () => number };
+  getNE: () => { lat: () => number; lng: () => number };
+}
+
+interface KakaoLatLngBounds {
+  getSouthWest: () => { getLat: () => number; getLng: () => number };
+  getNorthEast: () => { getLat: () => number; getLng: () => number };
+}
+
+interface GoogleLatLngBounds {
+  getSouthWest: () => { lat: () => number; lng: () => number };
+  getNorthEast: () => { lat: () => number; lng: () => number };
 }
 
 interface NaverMapInstance {
@@ -360,6 +550,7 @@ interface NaverMapInstance {
   panTo: (coord: object, opts?: object) => void;
   setZoom: (zoom: number, effect?: boolean) => void;
   fitBounds: (bounds: object) => void;
+  getBounds: () => NaverLatLngBounds | undefined;
 }
 
 interface KakaoMapInstance {
@@ -368,6 +559,7 @@ interface KakaoMapInstance {
   setLevel: (level: number) => void;
   addControl: (control: object, position: unknown) => void;
   setBounds: (bounds: object) => void;
+  getBounds: () => KakaoLatLngBounds | undefined;
 }
 
 interface GoogleMapInstance {
@@ -375,6 +567,7 @@ interface GoogleMapInstance {
   setZoom: (zoom: number) => void;
   fitBounds: (bounds: object) => void;
   addListener: (type: string, handler: () => void) => void;
+  getBounds: () => GoogleLatLngBounds | undefined;
 }
 
 /** 카카오·구글의 빈 경계 상자. 모서리를 extend 로 넣어 만든다. */
@@ -497,16 +690,46 @@ export const naverAdapter: PlatformAdapter = {
         },
       });
 
-    let anchorMarker = marker(point, buildPin(point.name), PIN_Z.primary);
+    let anchorMarker: RemovableMarker | undefined = marker(
+      point,
+      buildPin(point.name),
+      PIN_Z.primary,
+    );
     let nearby: RemovableMarker[] = [];
     let restore: (() => void) | undefined;
 
     // 말풍선은 하나만 만들어 돌려 쓴다 — 핀마다 만들면 여러 개가 동시에 떠 지도를 덮는다.
-    const info = new m.InfoWindow({ content: '', borderWidth: 0 });
+    const info = new m.InfoWindow({ content: '', borderWidth: 0, zIndex: PIN_Z.info });
     m.Event.addListener(map, 'click', () => info.close());
+
+    /*
+      영역 알림. **idle 에 건다** — 끄는 중·확대 중에는 계속 바뀌고, 손을 떼야 확정된다.
+      우리가 옮긴 것인지는 notifier 가 가른다(setNearby 가 suppress 를 부른다).
+    */
+    const boundsWatcher = boundsNotifier();
+    m.Event.addListener(map, 'dragend', () => boundsWatcher.arm());
+    m.Event.addListener(map, 'zoom_changed', () => boundsWatcher.arm());
+    m.Event.addListener(map, 'idle', () => {
+      const b = map.getBounds();
+      if (!b) return;
+      const sw = b.getSW();
+      const ne = b.getNE();
+      boundsWatcher.emit({
+        minLat: sw.lat(),
+        minLon: sw.lng(),
+        maxLat: ne.lat(),
+        maxLon: ne.lng(),
+      });
+    });
 
     return {
       refresh: () => {
+        /*
+          **resize 를 직접 쏜다.** `map.refresh()` 는 이미 알고 있는 크기로 다시 그릴 뿐이라,
+          컨테이너가 커져도 지도는 예전 크기 그대로 남는다 — 크게보기를 눌렀을 때 늘어난
+          아래쪽이 잘린 채 비어 보이는 게 그래서다. resize 를 받아야 컨테이너를 다시 잰다.
+        */
+        m.Event.trigger(map, 'resize');
         map.refresh();
         map.panTo(center);
       },
@@ -520,7 +743,7 @@ export const naverAdapter: PlatformAdapter = {
         map.panTo(center);
         map.setZoom(17, true);
       },
-      setNearby: (points) => {
+      setNearby: (points, opts) => {
         info.close();
         nearby.forEach((mk) => mk.setMap(null));
 
@@ -528,16 +751,21 @@ export const naverAdapter: PlatformAdapter = {
         const spread = spreadOverlaps(point, points);
 
         // 곁들임이 있으면 기준 병원은 뒤로 물린다 — 이 지도의 주인공은 후보들이다.
-        anchorMarker.setMap(null);
-        anchorMarker = marker(
-          point,
-          points.length > 0 ? buildAnchorPin() : buildPin(point.name),
-          points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
-        );
+        // anchor:false 면 아예 안 그린다(검색 결과 지도 — 가운데에 기준이 없다).
+        anchorMarker?.setMap(null);
+        anchorMarker =
+          opts?.anchor === false
+            ? undefined
+            : marker(
+                point,
+                points.length > 0 ? buildAnchorPin() : buildPin(point.name),
+                points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
+              );
 
         nearby = spread.map((p, i) => {
           const mk = marker(p, buildRankPin(p.rank ?? i + 1), PIN_Z.rank);
           m.Event.addListener(mk, 'click', () => {
+
             // 누른 핀을 가운데로 옮긴다. **말풍선이 잘리는 걸 막는 가장 싼 방법**이다 —
             // 지도 컨테이너가 overflow-hidden 이라 가장자리에서 열리면 잘리고,
             // 왼쪽 위는 크게보기·현위치 버튼이 덮는다. 가운데면 둘 다 피한다.
@@ -549,18 +777,27 @@ export const naverAdapter: PlatformAdapter = {
         });
 
         // 곁들임이 있으면 다 들어오게 확대율을 맞춘다. 없으면 기본 확대율 그대로.
-        const box = symmetricBounds(point, spread);
+        // 기준점이 없으면(검색 결과) 점들을 딱 감싼다. 있으면 기준점을 가운데 두고 대칭으로.
+        const box =
+          opts?.anchor === false
+            ? fitBounds(spread)
+            : symmetricBounds(point, spread);
         if (!box) {
           restore = undefined;
           return;
         }
-        const bounds = new m.LatLngBounds(
+        const mapBounds = new m.LatLngBounds(
           new m.LatLng(box.sw.lat, box.sw.lng),
           new m.LatLng(box.ne.lat, box.ne.lng),
         );
-        restore = () => map.fitBounds(bounds);
-        restore();
+        restore = () => {
+          // 우리가 옮기는 것이다 — 알리지 않는다(안 그러면 검색할 때마다 버튼이 뜬다).
+          boundsWatcher.suppress();
+          map.fitBounds(mapBounds);
+        };
+        if (opts?.fit !== false) restore();
       },
+      watchBounds: (listener) => boundsWatcher.watch(listener),
     };
   },
 };
@@ -570,16 +807,41 @@ export const naverAdapter: PlatformAdapter = {
 /* -------------------------------------------------------------------------- */
 
 const KAKAO_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
+
+/** 카카오 SDK 초기화를 기다리는 한계 시간(ms). 넘으면 실패로 본다 — 위 주석 참고. */
+const KAKAO_LOAD_TIMEOUT_MS = 8000;
 let kakaoPromise: Promise<void> | null = null;
 
 function loadKakao(): Promise<void> {
   if (kakaoPromise) return kakaoPromise;
   kakaoPromise = new Promise<void>((resolve, reject) => {
+    /**
+     * **카카오는 실패를 알려주지 않는다.**
+     *
+     * 네이버는 authFailure 훅을, 구글은 콜백 미호출을 준다. 카카오는 스크립트가 200 으로
+     * 받아진 뒤 `kakao.maps.load()` 로 본 모듈을 받는데, 그 단계에서 키·도메인이 거절되면
+     * **콜백이 영영 안 불린다** — 오류도 없고 화면도 안 바뀌어, 빈 상자만 남은 채 무한정
+     * 기다리게 된다. 무엇이 잘못됐는지 짐작할 단서가 하나도 없는 상태가 그렇게 만들어진다.
+     *
+     * 그래서 시간을 끊는다. 원인까지는 알 수 없지만 "못 불러왔다" 는 말은 할 수 있다.
+     */
+    const timer = window.setTimeout(
+      () => reject(new MapError('map.loadFailed')),
+      KAKAO_LOAD_TIMEOUT_MS,
+    );
+    const done = () => {
+      window.clearTimeout(timer);
+      resolve();
+    };
+
     const s = document.createElement('script');
     // autoload=false: 스크립트 로드와 SDK 초기화를 분리한다. kakao.maps.load 로 직접 켠다.
     s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&autoload=false`;
-    s.onload = () => window.kakao.maps.load(() => resolve());
-    s.onerror = () => reject(new MapError('map.loadFailed'));
+    s.onload = () => window.kakao.maps.load(done);
+    s.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new MapError('map.loadFailed'));
+    };
     document.head.appendChild(s);
   });
   return kakaoPromise;
@@ -609,12 +871,33 @@ export const kakaoAdapter: PlatformAdapter = {
         }),
       });
 
-    let anchorMarker = marker(point, buildPin(point.name), PIN_Z.primary);
+    let anchorMarker: RemovableMarker | undefined = marker(
+      point,
+      buildPin(point.name),
+      PIN_Z.primary,
+    );
     let nearby: RemovableMarker[] = [];
     let restore: (() => void) | undefined;
 
-    const info = new m.InfoWindow({ content: '', removable: true });
+    const info = new m.InfoWindow({ content: '', removable: true, zIndex: PIN_Z.info });
     m.event.addListener(map, 'click', () => info.close());
+
+    // 영역 알림. idle 에 거는 이유·suppress 규칙은 네이버 쪽 주석 참고.
+    const boundsWatcher = boundsNotifier();
+    m.event.addListener(map, 'dragend', () => boundsWatcher.arm());
+    m.event.addListener(map, 'zoom_changed', () => boundsWatcher.arm());
+    m.event.addListener(map, 'idle', () => {
+      const b = map.getBounds();
+      if (!b) return;
+      const sw = b.getSouthWest();
+      const ne = b.getNorthEast();
+      boundsWatcher.emit({
+        minLat: sw.getLat(),
+        minLon: sw.getLng(),
+        maxLat: ne.getLat(),
+        maxLon: ne.getLng(),
+      });
+    });
 
     return {
       refresh: () => {
@@ -629,7 +912,7 @@ export const kakaoAdapter: PlatformAdapter = {
         map.setCenter(center);
         map.setLevel(KAKAO_LEVEL);
       },
-      setNearby: (points) => {
+      setNearby: (points, opts) => {
         info.close();
         nearby.forEach((mk) => mk.setMap(null));
 
@@ -637,16 +920,21 @@ export const kakaoAdapter: PlatformAdapter = {
         const spread = spreadOverlaps(point, points);
 
         // 곁들임이 있으면 기준 병원은 뒤로 물린다 — 이 지도의 주인공은 후보들이다.
-        anchorMarker.setMap(null);
-        anchorMarker = marker(
-          point,
-          points.length > 0 ? buildAnchorPin() : buildPin(point.name),
-          points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
-        );
+        // anchor:false 면 아예 안 그린다(검색 결과 지도 — 가운데에 기준이 없다).
+        anchorMarker?.setMap(null);
+        anchorMarker =
+          opts?.anchor === false
+            ? undefined
+            : marker(
+                point,
+                points.length > 0 ? buildAnchorPin() : buildPin(point.name),
+                points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
+              );
 
         nearby = spread.map((p, i) => {
           const mk = marker(p, buildRankPin(p.rank ?? i + 1), PIN_Z.rank);
           m.event.addListener(mk, 'click', () => {
+
             // 누른 핀을 가운데로 옮긴다. **말풍선이 잘리는 걸 막는 가장 싼 방법**이다 —
             // 지도 컨테이너가 overflow-hidden 이라 가장자리에서 열리면 잘리고,
             // 왼쪽 위는 크게보기·현위치 버튼이 덮는다. 가운데면 둘 다 피한다.
@@ -657,17 +945,25 @@ export const kakaoAdapter: PlatformAdapter = {
           return mk;
         });
 
-        const box = symmetricBounds(point, spread);
+        // 기준점이 없으면(검색 결과) 점들을 딱 감싼다. 있으면 기준점을 가운데 두고 대칭으로.
+        const box =
+          opts?.anchor === false
+            ? fitBounds(spread)
+            : symmetricBounds(point, spread);
         if (!box) {
           restore = undefined;
           return;
         }
-        const bounds = new m.LatLngBounds();
-        bounds.extend(new m.LatLng(box.sw.lat, box.sw.lng));
-        bounds.extend(new m.LatLng(box.ne.lat, box.ne.lng));
-        restore = () => map.setBounds(bounds as object);
-        restore();
+        const mapBounds = new m.LatLngBounds();
+        mapBounds.extend(new m.LatLng(box.sw.lat, box.sw.lng));
+        mapBounds.extend(new m.LatLng(box.ne.lat, box.ne.lng));
+        restore = () => {
+          boundsWatcher.suppress();
+          map.setBounds(mapBounds as object);
+        };
+        if (opts?.fit !== false) restore();
       },
+      watchBounds: (listener) => boundsWatcher.watch(listener),
     };
   },
 };
@@ -726,12 +1022,33 @@ export const googleAdapter: PlatformAdapter = {
         },
       });
 
-    let anchorMarker = marker(point, buildPin(point.name), PIN_Z.primary);
+    let anchorMarker: RemovableMarker | undefined = marker(
+      point,
+      buildPin(point.name),
+      PIN_Z.primary,
+    );
     let nearby: RemovableMarker[] = [];
     let restore: (() => void) | undefined;
 
-    const info = new m.InfoWindow({ content: '' });
+    const info = new m.InfoWindow({ content: '', zIndex: PIN_Z.info });
     map.addListener('click', () => info.close());
+
+    // 영역 알림. idle 에 거는 이유·suppress 규칙은 네이버 쪽 주석 참고.
+    const boundsWatcher = boundsNotifier();
+    map.addListener('dragend', () => boundsWatcher.arm());
+    map.addListener('zoom_changed', () => boundsWatcher.arm());
+    map.addListener('idle', () => {
+      const b = map.getBounds();
+      if (!b) return;
+      const sw = b.getSouthWest();
+      const ne = b.getNorthEast();
+      boundsWatcher.emit({
+        minLat: sw.lat(),
+        minLon: sw.lng(),
+        maxLat: ne.lat(),
+        maxLon: ne.lng(),
+      });
+    });
 
     return {
       refresh: () => {
@@ -746,7 +1063,7 @@ export const googleAdapter: PlatformAdapter = {
         map.setCenter(center);
         map.setZoom(17);
       },
-      setNearby: (points) => {
+      setNearby: (points, opts) => {
         info.close();
         nearby.forEach((mk) => mk.setMap(null));
 
@@ -754,16 +1071,21 @@ export const googleAdapter: PlatformAdapter = {
         const spread = spreadOverlaps(point, points);
 
         // 곁들임이 있으면 기준 병원은 뒤로 물린다 — 이 지도의 주인공은 후보들이다.
-        anchorMarker.setMap(null);
-        anchorMarker = marker(
-          point,
-          points.length > 0 ? buildAnchorPin() : buildPin(point.name),
-          points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
-        );
+        // anchor:false 면 아예 안 그린다(검색 결과 지도 — 가운데에 기준이 없다).
+        anchorMarker?.setMap(null);
+        anchorMarker =
+          opts?.anchor === false
+            ? undefined
+            : marker(
+                point,
+                points.length > 0 ? buildAnchorPin() : buildPin(point.name),
+                points.length > 0 ? PIN_Z.anchor : PIN_Z.primary,
+              );
 
         nearby = spread.map((p, i) => {
           const mk = marker(p, buildRankPin(p.rank ?? i + 1), PIN_Z.rank);
           mk.addListener('click', () => {
+
             // 누른 핀을 가운데로 옮긴다. **말풍선이 잘리는 걸 막는 가장 싼 방법**이다 —
             // 지도 컨테이너가 overflow-hidden 이라 가장자리에서 열리면 잘리고,
             // 왼쪽 위는 크게보기·현위치 버튼이 덮는다. 가운데면 둘 다 피한다.
@@ -774,17 +1096,25 @@ export const googleAdapter: PlatformAdapter = {
           return mk;
         });
 
-        const box = symmetricBounds(point, spread);
+        // 기준점이 없으면(검색 결과) 점들을 딱 감싼다. 있으면 기준점을 가운데 두고 대칭으로.
+        const box =
+          opts?.anchor === false
+            ? fitBounds(spread)
+            : symmetricBounds(point, spread);
         if (!box) {
           restore = undefined;
           return;
         }
-        const bounds = new m.LatLngBounds();
-        bounds.extend(box.sw);
-        bounds.extend(box.ne);
-        restore = () => map.fitBounds(bounds as object);
-        restore();
+        const mapBounds = new m.LatLngBounds();
+        mapBounds.extend(box.sw);
+        mapBounds.extend(box.ne);
+        restore = () => {
+          boundsWatcher.suppress();
+          map.fitBounds(mapBounds as object);
+        };
+        if (opts?.fit !== false) restore();
       },
+      watchBounds: (listener) => boundsWatcher.watch(listener),
     };
   },
 };

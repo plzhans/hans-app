@@ -11,6 +11,7 @@ import {
 } from '@hansapp/search';
 import type {
   QueryDslQueryContainer,
+  Sort,
   SortResults,
 } from '@elastic/elasticsearch/lib/api/types';
 
@@ -18,8 +19,13 @@ import type {
   HospitalListRow,
   HospitalScrollRows,
   HospitalScrollSource,
+  HospitalSearchPage,
+  HospitalSearchSource,
   HospitalSearchFilter,
+  HospitalSearchOrder,
 } from './healthcare-hospital.repository';
+import { DEFAULT_SEARCH_ORDER } from './healthcare-hospital.repository';
+import type { HospitalCoords } from './dto/hospital.result';
 import {
   DEFAULT_NEARBY_POLICY,
   NEARBY_TIER_FALLBACK,
@@ -90,6 +96,80 @@ interface NearbySearchContext {
  * 순위가 갈린다 — 두 경우 모두 의도한 대로 된다.
  */
 const SUBJECT_SPECIALIST_BOOST = 1;
+
+/**
+ * 검색 정렬. **페이지 검색과 스크롤이 같은 것을 쓴다** — 첫 화면과 검색 목록이 다른 순서로
+ * 나오면 같은 서비스로 안 읽힌다. 실제로 그렇게 갈라져 있었다(홈은 DB, 검색은 ES).
+ *
+ * 우선순위가 배열 순서에 그대로 드러난다:
+ *   _score     키워드 관련도와 전문의 가점. 없으면 전건 동점이라 다음 키로 넘어간다
+ *   sido_rank  서울 0 · 경기 1 · 부산 2 · 인천 3 · 나머지 99 (색인 시점에 채운다)
+ *   id         같은 시도 안에서의 안정적 순서
+ *
+ * 세 키가 전순서를 보장해 search_after 커서가 안정적이다(id 가 유일키다).
+ *
+ * **시도를 점수에 가점으로 얹지 않는다.** 그러면 키워드 관련도와 섞여 왜 이 순서인지
+ * 설명할 수 없고, 커서가 점수에 걸려 있어 가중치를 손볼 때마다 스크롤 중이던 사용자가 어긋난다.
+ * 필드로 두면 조건별 분기도 필요 없다 — 키워드가 있으면 _score 가 갈라주고, 없으면 자연히
+ * sido_rank 로 넘어간다.
+ *
+ * missing: '_last' — 아직 이 필드가 없는 문서(재색인 전)를 맨 뒤로 보낸다.
+ */
+const SEARCH_SORT: Sort = [
+  { _score: { order: 'desc' } },
+  { 'location.sido_rank': { order: 'asc', missing: '_last' } },
+  { id: 'asc' },
+];
+
+/**
+ * 거리순 정렬. **거리 → id** 두 키뿐이다.
+ *
+ * **_score 를 앞에 두지 않는다.** "가까운 순" 은 정렬 축을 통째로 바꾸겠다는 뜻이지 가점이
+ * 아니다 — 관련도를 앞에 두면 키워드가 있을 때 먼 병원이 위로 올라와 버튼 이름과 화면이
+ * 어긋난다. 키워드는 여전히 질의(must)에 남아 **거르는** 일은 그대로 한다.
+ *
+ * sort[0] 이 곧 거리(m)다 — 정렬키를 그대로 받아 쓰면 script_fields 없이 거리를 얻는다.
+ * 뒤의 id 는 동거리 동점을 갈라 search_after 커서를 안정시킨다(id 가 유일키다).
+ */
+function distanceSort(origin: HospitalCoords): Sort {
+  return [
+    { _geo_distance: { 'location.point': origin, order: 'asc', unit: 'm' } },
+    { id: 'asc' },
+  ];
+}
+
+/** 정렬 지시 → ES sort. 거리순만 다르고 나머지는 기본 정렬이다. */
+function sortOf(order: HospitalSearchOrder): Sort {
+  return order.by === 'distance' ? distanceSort(order.origin) : SEARCH_SORT;
+}
+
+/**
+ * 히트에서 거리(m)를 꺼낸다. **거리순일 때만 값이 있다** — 기본 정렬에는 기준 좌표가 없어
+ * 잴 것이 없다. distanceSort 의 sort[0] 이 미터 단위 거리다(unit:'m' 로 요청했다).
+ */
+function distanceOf(
+  order: HospitalSearchOrder,
+  sortValues: SortResults | undefined,
+): number | undefined {
+  if (order.by !== 'distance') return undefined;
+  const raw = Number(sortValues?.[0]);
+  // 좌표 없는 문서는 ES 가 무한대를 준다. 화면에 "Infinitym" 를 띄우느니 값이 없는 게 낫다.
+  return Number.isFinite(raw) ? Math.round(raw) : undefined;
+}
+
+/** 요약에 필요한 필드만 가져온다(상세는 별도 API). 본문 payload 를 줄인다. */
+const SEARCH_SOURCE_FIELDS = [
+  'id',
+  'name',
+  'tel',
+  'emergency',
+  'baby',
+  'class_cd',
+  'tier',
+  'specialty_cds',
+  'subway',
+  'location',
+];
 
 /**
  * 유사도 가중치. 겹치는 만큼 **합산**하고, 그 합에 거리 감쇠를 곱해 순위를 낸다.
@@ -176,7 +256,9 @@ const NEARBY_SOURCE = [
  * 반환 행은 DB 경로와 같은 HospitalListRow 모양으로 맞춰, 서비스의 매핑(toSummary)을 한 벌로 공유한다.
  */
 @Injectable()
-export class HealthcareHospitalSearchRepository implements HospitalScrollSource {
+export class HealthcareHospitalSearchRepository
+  implements HospitalScrollSource, HospitalSearchSource
+{
   /** env 접두사가 붙은 물리 alias(develop-healthcare_hospital). 검색은 이 이름으로만 조회한다. */
   private readonly alias: string;
 
@@ -187,11 +269,53 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
     this.alias = aliasOf(HEALTHCARE_HOSPITAL_ALIAS, config.indexPrefix);
   }
 
+  /**
+   * 검색 한 페이지. **정렬 규칙은 스크롤과 같다** — 첫 화면과 검색 목록이 다른 순서로 나오면
+   * 같은 서비스로 안 읽힌다.
+   *
+   * **한 번만 조회한다.** 예전엔 DB 경로가 행과 총건수를 따로 세었는데(search + countSearch),
+   * ES 는 같은 질의에서 둘 다 준다 — track_total_hits 만 켜면 된다.
+   *
+   * **깊은 페이지는 막힌다.** from+size 는 index.max_result_window(기본 10,000)를 넘으면 ES 가
+   * 거절한다. 이 엔드포인트는 첫 화면 추천(섹션당 5건)과 얕은 페이지네이션이 쓰는 자리이고,
+   * 끝까지 훑는 일은 커서(searchScroll)가 맡는다 — 그쪽은 이 한계가 없다.
+   */
+  async searchPage(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+    page: number,
+    size: number,
+    order: HospitalSearchOrder = DEFAULT_SEARCH_ORDER,
+  ): Promise<HospitalSearchPage> {
+    const res = await this.es.client.search<Partial<HealthcareHospitalDoc>>({
+      index: this.alias,
+      from: (page - 1) * size,
+      size,
+      sort: sortOf(order),
+      // 총건수를 정확히 센다. 스크롤은 이 값이 필요 없어 꺼 두지만(track_total_hits:false)
+      // 여기서는 "N건" 과 페이지 수가 그 값에 걸려 있다.
+      track_total_hits: true,
+      _source: SEARCH_SOURCE_FIELDS,
+      query: this.buildQuery(filter, lang),
+    });
+
+    const total = res.hits.total;
+    return {
+      rows: res.hits.hits.map((hit) => ({
+        ...hitToListRow(hit._source ?? {}, lang),
+        distance_m: distanceOf(order, hit.sort),
+      })),
+      // track_total_hits:true 면 객체({value,relation})로 온다. 숫자로 오는 형태도 방어한다.
+      total: typeof total === 'number' ? total : (total?.value ?? 0),
+    };
+  }
+
   async searchScroll(
     filter: HospitalSearchFilter,
     lang: SupportedLang,
     nextToken: string | undefined,
     size: number,
+    order: HospitalSearchOrder = DEFAULT_SEARCH_ORDER,
   ): Promise<HospitalScrollRows> {
     const searchAfter = decodeSearchAfter(nextToken);
 
@@ -199,46 +323,26 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
       index: this.alias,
       // size+1 로 다음 페이지 유무를 판정한다(DB 경로와 같은 규칙).
       size: size + 1,
-      // **관련도(_score) 우선, id 로 tie-break.** id 가 유일키라 [_score,id] 가 전순서를 보장해
-      // search_after 커서가 안정적이다(단일 샤드라 _score 도 결정적). 점수를 만드는 건 키워드와
-      // 진료과목 전문의 가점 둘뿐이라, 그마저 없으면 전건 동점이 되어 id 순으로 물러난다.
-      sort: [{ _score: { order: 'desc' } }, { id: 'asc' }],
+      /*
+        **정렬을 바꾸면 커서가 깨진다.** nextToken 은 직전 sort 값 그대로라, 스크롤 도중
+        기본↔거리순을 바꾸면 ES 가 엉뚱한 자리에서 이어 준다. 화면은 정렬을 바꿀 때
+        nextToken 을 버리고 처음부터 받아야 한다(db 스위치와 같은 규칙이다).
+      */
+      sort: sortOf(order),
       search_after: searchAfter,
       track_total_hits: false,
-      // 요약에 필요한 필드만 가져온다(상세는 별도 API). 본문 payload 를 줄인다.
-      _source: [
-        'id',
-        'name',
-        'tel',
-        'emergency',
-        'baby',
-        'class_cd',
-        'tier',
-        'specialty_cds',
-        'subway',
-        'location',
-      ],
-      query: {
-        bool: {
-          // 코드 필터는 점수 무관(filter 컨텍스트, 캐시된다).
-          filter: this.buildFilter(filter),
-          // **키워드는 must(점수 컨텍스트)에 둔다** — 그래야 관련도 정렬이 산다.
-          // 키워드가 없으면 must 를 빼서 순수 필터 질의로 둔다(전건 _score 균일 → id 순).
-          ...(filter.name
-            ? { must: this.keywordQuery(filter.name, lang) }
-            : {}),
-          // 진료과목 필터의 전문의 가점. **점수 전용이라 걸리는 병원 수는 바뀌지 않는다.**
-          should: this.buildSpecialistBoost(filter),
-          minimum_should_match: 0,
-        },
-      },
+      _source: SEARCH_SOURCE_FIELDS,
+      query: this.buildQuery(filter, lang),
     });
 
     const hits = res.hits.hits;
     const hasMore = hits.length > size;
     const page = hasMore ? hits.slice(0, size) : hits;
 
-    const rows = page.map((hit) => hitToListRow(hit._source ?? {}, lang));
+    const rows = page.map((hit) => ({
+      ...hitToListRow(hit._source ?? {}, lang),
+      distance_m: distanceOf(order, hit.sort),
+    }));
     const lastSort = page[page.length - 1]?.sort;
     return {
       rows,
@@ -566,6 +670,27 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
    *
    * **specialistCds(전문의 필터)에는 안 건다** — 그건 이미 필터가 전건을 걸러 놔서 전부 동점이다.
    */
+  /**
+   * 검색 질의. **페이지 검색과 스크롤이 같은 것을 쓴다**(정렬과 같은 이유).
+   *
+   * 코드 필터는 filter 컨텍스트라 점수에 관여하지 않고 캐시된다. 키워드만 must(점수 컨텍스트)에
+   * 두어 관련도 정렬이 살고, 키워드가 없으면 must 를 빼 순수 필터 질의가 된다.
+   */
+  private buildQuery(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+  ): QueryDslQueryContainer {
+    return {
+      bool: {
+        filter: this.buildFilter(filter),
+        ...(filter.name ? { must: this.keywordQuery(filter.name, lang) } : {}),
+        // 진료과목 필터의 전문의 가점. **점수 전용이라 걸리는 병원 수는 바뀌지 않는다.**
+        should: this.buildSpecialistBoost(filter),
+        minimum_should_match: 0,
+      },
+    };
+  }
+
   private buildSpecialistBoost(
     filter: HospitalSearchFilter,
   ): QueryDslQueryContainer[] {
@@ -599,6 +724,24 @@ export class HealthcareHospitalSearchRepository implements HospitalScrollSource 
       return must;
     }
 
+    if (filter.bbox) {
+      /*
+        지도 영역("이 지역에서 검색"). **지역 코드와 함께 오면 둘 다 걸린다**(교집합) —
+        지도를 옮긴 자리에는 시군구 경계가 없어서 화면의 사각형이 곧 조건이다.
+
+        좌표가 없는 병원은 자연히 빠진다(geo_bounding_box 가 필드 없는 문서를 안 잡는다).
+        지도에 찍히지도 않을 병원이라 목록에서 빠지는 게 맞다.
+      */
+      const { minLat, minLon, maxLat, maxLon } = filter.bbox;
+      must.push({
+        geo_bounding_box: {
+          'location.point': {
+            top_left: { lat: maxLat, lon: minLon },
+            bottom_right: { lat: minLat, lon: maxLon },
+          },
+        },
+      });
+    }
     if (filter.regionCds?.length) {
       // 서비스가 시도→시군구로 이미 편 목록. 시도 코드 자신은 region_cd 와 안 맞지만 하위가 다 걸린다.
       must.push({ terms: { 'location.region_cd': filter.regionCds } });

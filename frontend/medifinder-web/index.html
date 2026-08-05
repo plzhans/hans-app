@@ -3,12 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      viewport-fit=cover: 노치 기기에서 화면 끝까지 그리게 하고, 그 대신 세이프에어리어
+      값(env(safe-area-inset-*))을 CSS 로 넘겨준다. **이게 없으면 그 값이 전부 0 이라**
+      상단 바에 준 pt-safe-top 이 아무 일도 하지 않고 내비바가 상태바에 깔린다.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- 안드로이드 크롬의 상태바 색. 스티키 내비바와 같은 흰색이라 경계가 안 보인다. -->
+    <meta name="theme-color" content="#FFFFFF" />
     <title>MediFinder · 병원 찾기</title>
     <meta name="description" content="전국 병원을 쉽고 빠르게 찾아보세요 - MediFinder" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!--
+      Pretendard. dynamic-subset 은 화면에 실제로 쓰인 글자만 잘라 받는 방식이라
+      한글 전체(수 MB)를 받지 않는다. 변수 서체 한 벌로 400~800 굵기가 전부 나온다.
+    -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      as="style"
+      crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
   </head>
   <body>
     <div id="root"></div>

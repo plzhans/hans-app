@@ -101,6 +101,73 @@ export interface HospitalSearchParams {
 
   /** 보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조. */
   equipment?: string;
+
+  /**
+   * 정렬 기준. 기본은 서울 → 경기 → 부산 → 인천 → 나머지 순이다.
+   *
+   * `distance` 는 **origin 이 함께 있어야 한다** — 없으면 아예 요청을 보내지 않는다
+   * (서버는 400 을 준다). 좌표를 기다리는 동안 기본 정렬 결과를 보여주고 있으면,
+   * 사용자는 "가까운 순" 을 눌렀는데 먼 병원이 위에 있는 화면을 보게 된다.
+   */
+  sort?: HospitalSortBy;
+
+  /** 거리 계산 기준점. **격자로 뭉개서 보낸다**(toQuery 참고). */
+  origin?: { lat: number; lon: number };
+
+  /** 지도 영역("이 지역에서 검색"). 넷이 한 벌이라 통째로 넘긴다. */
+  bbox?: MapBounds;
+}
+
+/**
+ * 정렬 기준.
+ * - `default` 서울 → 경기 → 부산 → 인천 → 나머지 (병원명 키워드가 있으면 관련도가 먼저)
+ * - `distance` 기준 좌표에서 가까운 순
+ */
+export type HospitalSortBy = 'default' | 'distance';
+
+/** 지도 영역(경계 상자). */
+export interface MapBounds {
+  minLat: number;
+  minLon: number;
+  maxLat: number;
+  maxLon: number;
+}
+
+/**
+ * 좌표를 약 1km 격자로 뭉갠다.
+ *
+ * **캐시를 살리려는 것이다.** 사람마다 좌표 끝자리가 달라 그대로 보내면 요청 하나하나가
+ * 다른 URL 이 되어 캐시가 통째로 빗나간다. 같은 동네면 같은 요청이 되게 맞춘다.
+ *
+ * 손해는 순위가 몇 칸 흔들리는 정도다 — "가까운 순" 은 500m 를 정확히 가리는 기능이 아니라
+ * 걸어갈 만한 곳을 위로 올리는 기능이라 감수할 만하다.
+ *
+ * 위도 0.01° ≈ 1.1km. 경도는 위도에 따라 좁아지지만(서울에서 0.01° ≈ 0.9km) 같은 값을 쓴다 —
+ * 뭉개는 목적에 정밀도가 필요 없다.
+ */
+const GRID = 0.01;
+
+function snapToGrid(coords: { lat: number; lon: number }) {
+  return {
+    lat: Math.round(coords.lat / GRID) * GRID,
+    lon: Math.round(coords.lon / GRID) * GRID,
+  };
+}
+
+/**
+ * 정렬·좌표·지도 영역을 쿼리 파라미터로 편다. 검색과 스크롤이 같이 쓴다.
+ *
+ * **거리순인데 좌표가 없으면 정렬 자체를 안 보낸다** — 서버가 400 으로 막는 조합이라,
+ * 보내봐야 목록이 통째로 비고 화면엔 오류만 남는다.
+ */
+function geoQuery(params: Omit<HospitalSearchParams, 'page' | 'size'>) {
+  const origin = params.origin ? snapToGrid(params.origin) : undefined;
+  return {
+    sort: params.sort === 'distance' && origin ? ('distance' as const) : undefined,
+    lat: origin?.lat,
+    lon: origin?.lon,
+    ...params.bbox,
+  };
 }
 
 /** GET /healthcare/hospitals — 통합 병원 검색 */
@@ -121,6 +188,7 @@ export function useHospitalSearch(params: HospitalSearchParams) {
       specialty: params.specialty || undefined,
       special: params.special || undefined,
       equipment: params.equipment || undefined,
+      ...geoQuery(params),
     },
     {
       query: {
@@ -146,7 +214,15 @@ export type HospitalScrollParams = Omit<HospitalSearchParams, 'page'>;
  * 조회한다. getNextPageParam 이 nextToken 을 반환하면 다음 페이지가 있는 것이고, undefined 면 끝이다
  * (hasNextPage=false). 필터가 바뀌면 queryKey 가 바뀌어 스크롤이 처음부터 다시 시작한다.
  */
-export function useHospitalScroll(params: HospitalScrollParams) {
+export function useHospitalScroll(
+  params: HospitalScrollParams & {
+    /**
+     * 요청을 보낼지. **거리순인데 좌표가 아직 없을 때** 끈다 — 서버가 400 을 주는 조합이라
+     * 보내봐야 목록이 통째로 비고 화면엔 오류만 남는다.
+     */
+    enabled?: boolean;
+  },
+) {
   const query = {
     size: params.size,
     region: params.region || undefined,
@@ -161,6 +237,7 @@ export function useHospitalScroll(params: HospitalScrollParams) {
     specialty: params.specialty || undefined,
     special: params.special || undefined,
     equipment: params.equipment || undefined,
+    ...geoQuery(params),
   };
   return useInfiniteQuery({
     queryKey: ['hospital-scroll', query],
@@ -169,6 +246,7 @@ export function useHospitalScroll(params: HospitalScrollParams) {
         ...query,
         nextToken: pageParam || undefined,
       }),
+    enabled: params.enabled ?? true,
     initialPageParam: '' as string,
     // nextToken 이 있으면 다음 커서, 없으면 undefined → 다음 페이지 없음.
     getNextPageParam: (last) => last.nextToken || undefined,
@@ -393,6 +471,63 @@ export function todayDay(): number {
 /** 내일의 요일 번호. 일요일(7) 다음은 월요일(1)이다. */
 export function tomorrowDay(): number {
   return (todayDay() % 7) + 1;
+}
+
+/**
+ * 지금 진료 중인가.
+ *
+ * **상세에서 가장 먼저 확인하는 사실이다** — 진료시간표를 요일별로 읽어 내려가며 오늘을 찾고
+ * 지금 시각과 견주는 일을 사용자가 대신 하고 있었다. 그 계산을 우리가 해서 한 줄로 알린다.
+ *
+ * **점심시간을 '진료중' 으로 치지 않는다.** 문은 열려 있어도 접수가 안 되는 시간이라,
+ * 그때 출발하면 헛걸음한다. 상태를 따로 두고 몇 시에 다시 여는지까지 알린다.
+ *
+ * 오늘 시간표가 아예 없으면(휴진일이거나 데이터가 없거나) **undefined 를 낸다** —
+ * '휴진' 이라고 단정하지 않는다. 그 둘을 구분할 근거가 데이터에 없어서, 단정하면 열려 있는
+ * 병원을 닫혔다고 말하게 된다. 호출부는 이때 상태 표시를 아예 그리지 않는다.
+ */
+export interface OpenStatus {
+  /** open 진료중 · break 점심시간 · closed 오늘 진료가 끝났거나 아직 시작 전 */
+  state: 'open' | 'break' | 'closed';
+  /** 다음 경계 시각('HHMM'). open=마감, break=점심 끝, closed=오늘 중 시작 시각(있으면). */
+  at?: string;
+}
+
+/** 진료시간 한 줄. DTO 를 그대로 받지 않고 쓰는 칸만 구조로 받는다. */
+interface HoursRow {
+  kind?: string;
+  day?: number;
+  open?: string;
+  close?: string;
+  breakStart?: string;
+  breakEnd?: string;
+}
+
+export function openStatus(
+  hours: HoursRow[] | undefined,
+  /** general(일반) 과 baby(달빛) 는 시간대가 달라 따로 묻는다. */
+  kind: string = 'general',
+): OpenStatus | undefined {
+  const today = hours?.find((h) => h.kind === kind && h.day === todayDay());
+  if (!today?.open || !today?.close) return undefined;
+
+  // 'HHMM' 문자열끼리 사전순으로 비교한다 — 자릿수가 고정이라 숫자로 바꿀 필요가 없다.
+  const now = new Date();
+  const current = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+
+  if (current < today.open) return { state: 'closed', at: today.open };
+  if (current >= today.close) return { state: 'closed' };
+
+  if (
+    today.breakStart &&
+    today.breakEnd &&
+    current >= today.breakStart &&
+    current < today.breakEnd
+  ) {
+    return { state: 'break', at: today.breakEnd };
+  }
+
+  return { state: 'open', at: today.close };
 }
 
 /** 'HHMM' → 'HH:MM' */

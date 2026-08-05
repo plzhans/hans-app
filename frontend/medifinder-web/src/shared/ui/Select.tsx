@@ -44,16 +44,16 @@ export function Select({
     >
       <RadixSelect.Trigger
         className={cn(
-          'inline-flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700',
-          'hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/30',
-          'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
-          'data-[placeholder]:text-slate-500',
+          'inline-flex items-center justify-between gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink-body',
+          'hover:border-line focus:outline-none focus:ring-2 focus:ring-brand/30',
+          'disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-ink-subtle',
+          'data-[placeholder]:text-ink-muted',
           className,
         )}
       >
         <RadixSelect.Value placeholder={placeholder} />
         <RadixSelect.Icon>
-          <ChevronDown className="h-4 w-4 text-slate-400" />
+          <ChevronDown className="h-4 w-4 text-ink-subtle" />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
 
@@ -61,7 +61,7 @@ export function Select({
         <RadixSelect.Content
           position="popper"
           sideOffset={4}
-          className="z-50 max-h-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+          className="z-50 max-h-72 overflow-hidden rounded-xl border border-line bg-white shadow-lg"
         >
           <RadixSelect.Viewport className="p-1">
             <Item value={ALL}>{placeholder}</Item>
@@ -85,8 +85,8 @@ function Item({ value, children }: { value: string; children: string }) {
     <RadixSelect.Item
       value={value}
       className={cn(
-        'flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-sm text-slate-700 outline-none',
-        'data-[highlighted]:bg-slate-50 data-[state=checked]:font-medium data-[state=checked]:text-primary-600',
+        'flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-sm text-ink-body outline-none',
+        'data-[highlighted]:bg-surface-subtle data-[state=checked]:font-medium data-[state=checked]:text-brand',
       )}
     >
       <RadixSelect.ItemText>{children}</RadixSelect.ItemText>

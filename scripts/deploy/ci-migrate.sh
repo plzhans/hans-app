@@ -224,8 +224,12 @@ phase '마이그레이션'
 # **반드시 pull 부터 한다.** develop 은 :develop 처럼 움직이는 태그를 쓰는데, 이름이 그대로면
 # 도커는 "이미 있다" 고 보고 로컬 캐시를 쓴다. 그러면 레지스트리에 새 이미지가 올라와 있어도
 # 서버는 옛것으로 돈다 — 고친 줄 알았던 버그가 그대로 재현되어 원인을 짚기 어렵다.
-remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' docker compose --profile migrate pull migrate"
-remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' APP_UID=\"\$(id -u)\" APP_GID=\"\$(id -g)\" docker compose run --rm migrate"
+#
+# **명령을 명시한다.** 이미지 기본 CMD 도 `db deploy` 지만, 서비스 이름이 hansapp-cli 라
+# 무엇을 돌리는지가 이름으로는 안 드러난다. 같은 컨테이너로 시드·재색인도 돌리므로
+# 여기서만은 적어 둔다 — 로그에도 그대로 남는다.
+remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' docker compose --profile cli pull hansapp-cli"
+remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' APP_UID=\"\$(id -u)\" APP_GID=\"\$(id -g)\" docker compose run --rm hansapp-cli db deploy"
 
 if [ -n "${ghcr_logged_in:-}" ]; then
   remote 'docker logout ghcr.io' >/dev/null 2>&1 || true

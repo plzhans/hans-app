@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { PlatformMap } from './PlatformMap';
 import {
   MAP_ADAPTERS,
+  type MapBounds,
   type MapPoint,
   type PlatformAdapter,
   type PlatformId,
@@ -20,6 +21,16 @@ interface MapViewProps {
    * 다른 병원이 섞이면 정작 이 병원을 못 찾는다.
    */
   nearby?: MapPoint[];
+  /** 기준 병원 핀을 그릴지. 검색 결과 지도는 기준이 없어 끈다(PlatformMap 주석 참고). */
+  anchor?: boolean;
+  /** 지도 높이. 검색은 화면을 크게 쓰므로 상세보다 높다. */
+  height?: string;
+  /** 말풍선을 눌렀을 때(PlatformMap 주석 참고). */
+  onSelect?: (id: string) => void;
+  /** 사용자가 지도를 옮긴 뒤의 보이는 영역("이 지역에서 검색" 재료). */
+  onBoundsChange?: (bounds: MapBounds) => void;
+  /** 핀이 다 들어오게 확대율을 맞출지(기본 true). 지도 영역 검색 중에는 끈다. */
+  fitToPoints?: boolean;
 }
 
 /**
@@ -30,7 +41,17 @@ interface MapViewProps {
  * **고른 플랫폼만 렌더한다** — `key` 를 달아, 바꾸면 이전 지도가 언마운트되고 그때서야
  * 새 SDK 가 로드된다. 고르지 않은 플랫폼의 지도 API 를 미리 부를 이유가 없다.
  */
-export function MapView({ lat, lng, name, nearby }: MapViewProps) {
+export function MapView({
+  lat,
+  lng,
+  name,
+  nearby,
+  anchor,
+  height,
+  onSelect,
+  onBoundsChange,
+  fitToPoints,
+}: MapViewProps) {
   const { t } = useTranslation();
 
   // 키가 설정된 플랫폼만 노출한다. 키 없는 탭은 "미설정" 안내 대신 아예 안 그린다.
@@ -55,13 +76,19 @@ export function MapView({ lat, lng, name, nearby }: MapViewProps) {
   };
 
   return (
-    <div>
+    /*
+      **높이를 그대로 물려준다.** 검색의 지도 모드는 칸을 꽉 채우라고 height="100%" 를
+      넘기는데, 중간 래퍼가 높이를 안 가지면 그 100% 가 0 이 되어 지도가 통째로 사라진다.
+      세로 flex 로 짜서 전환 UI 는 제 높이만 갖고(shrink-0) 지도가 남은 높이를 다 먹게 한다.
+      min-h-0 이 없으면 flex 자식이 내용 높이 밑으로 안 줄어 칸을 뚫고 나간다.
+    */
+    <div className="flex h-full flex-col">
       {/*
         지도가 둘 이상일 때만 전환 UI 를 띄운다. 눌러야 목록이 펼쳐지므로
         스치듯 다른 지도를 로드하는 일이 없다. 오른쪽 위에 조그맣게 둔다.
       */}
       {adapters.length > 1 && (
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex shrink-0 justify-end">
           <PlatformSwitcher
             adapters={adapters}
             value={platform}
@@ -76,18 +103,23 @@ export function MapView({ lat, lng, name, nearby }: MapViewProps) {
         방문한 플랫폼을 겹쳐 쌓고, 활성 아닌 건 display:none 으로 숨긴다.
         지도 인스턴스는 살아 있으니 재선택 시 새로 만들지 않는다(콜 절약).
       */}
-      <div className="relative">
+      <div className="relative min-h-0 flex-1">
         {adapters
           .filter((a) => activated.includes(a.id))
           .map((a) => {
             const isActive = a.id === platform;
             return (
-              <div key={a.id} className={isActive ? '' : 'hidden'}>
+              <div key={a.id} className={isActive ? 'h-full' : 'hidden'}>
                 <PlatformMap
                   adapter={a}
                   point={point}
                   visible={isActive}
                   nearby={nearby}
+                  anchor={anchor}
+                  height={height}
+                  onSelect={onSelect}
+                  onBoundsChange={onBoundsChange}
+                  fitToPoints={fitToPoints}
                 />
               </div>
             );

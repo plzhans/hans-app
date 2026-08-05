@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Page } from '@hansapp/common';
@@ -15,8 +15,10 @@ import {
 
 import {
   HealthcareHospitalRepository,
+  DEFAULT_SEARCH_ORDER,
   type HospitalScrollSource,
   type HospitalSearchFilter,
+  type HospitalSearchOrder,
   type HospitalListRow,
   type HospitalDetailModel,
 } from './healthcare-hospital.repository';
@@ -86,6 +88,8 @@ interface SummarySource {
   emdongNm: string | null;
   lat: number | undefined;
   lon: number | undefined;
+  /** 기준 좌표로부터의 직선거리(m). 거리순 조회일 때만 있다. */
+  distance?: number;
 }
 
 /**
@@ -142,16 +146,30 @@ export class HealthcareHospitalService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
+  /**
+   * 페이지네이션 검색. 첫 화면의 추천 목록(응급실·달빛어린이 등)과 얕은 페이지네이션이 쓴다.
+   *
+   * **스크롤과 같은 ES 를 본다.** 예전엔 여기만 DB(Prisma)였는데, 그러면 정렬 규칙이 갈라진다 —
+   * 검색 목록은 서울부터 나오는데 첫 화면 응급실은 id 순이라 지방부터 나왔다. 같은 서비스로
+   * 안 읽히는 상태였다. 이제 정렬(SEARCH_SORT)도 질의도 저장소 한 곳에서 공유한다.
+   *
+   * 행과 총건수를 **한 번에** 받는다(searchPage). ES 는 같은 질의에서 둘 다 주기 때문에
+   * 예전처럼 두 번 조회(search + countSearch)할 이유가 없다.
+   */
   async search(
     command: HospitalSearchCommand,
     lang: SupportedLang = FALLBACK_LANG,
   ): Promise<Page<HospitalSummary>> {
     const filter = this.buildFilter(command);
+    const order = this.buildOrder(command);
 
-    const [rows, total] = await Promise.all([
-      this.repo.search(filter, lang, command.page, command.size),
-      this.repo.countSearch(filter),
-    ]);
+    const { rows, total } = await this.searchRepo.searchPage(
+      filter,
+      lang,
+      command.page,
+      command.size,
+      order,
+    );
 
     return new Page(
       rows.map((row) => this.toSummary(this.listRowToSource(row), lang)),
@@ -174,6 +192,20 @@ export class HealthcareHospitalService {
     lang: SupportedLang = FALLBACK_LANG,
   ): Promise<HospitalScrollResult> {
     const filter = this.buildFilter(command);
+    const order = this.buildOrder(command);
+
+    /*
+      **DB 우회로는 좌표 조건을 못 받는다.** 저장소도 거절하지만 거기서 나면 500 이다 —
+      서버가 고장난 게 아니라 조합이 잘못 온 것이라 여기서 400 으로 돌려준다.
+
+      DB 에 옮겨 구현하지 않는 이유는 저장소(assertNoGeoQuery) 주석에 있다.
+    */
+    if (command.db && (order.by === 'distance' || filter.bbox)) {
+      throw new BadRequestException(
+        'db=true does not support coordinate-based queries (sort=distance, map bounds).',
+      );
+    }
+
     const source: HospitalScrollSource = command.db
       ? this.repo
       : this.searchRepo;
@@ -183,6 +215,7 @@ export class HealthcareHospitalService {
       lang,
       command.nextToken,
       command.size,
+      order,
     );
 
     return {
@@ -316,7 +349,26 @@ export class HealthcareHospitalService {
       equipmentCds: command.equipmentCds,
       subjectCds: command.subjectCds,
       specialistCds: command.specialistCds,
+      // 지도 영역("이 지역에서 검색"). 지역 코드와 함께 오면 둘 다 걸린다(교집합).
+      bbox: command.bbox,
     };
+  }
+
+  /**
+   * 정렬 지시를 만든다.
+   *
+   * **거리순인데 기준 좌표가 없으면 막는다.** 조용히 기본 정렬로 돌리면 사용자는 "가까운 순"
+   * 을 눌렀는데 먼 병원이 위에 있는 목록을 보게 된다 — 틀린 답을 맞는 척 주는 셈이라,
+   * 아무것도 안 주는 편이 낫다.
+   */
+  private buildOrder(command: HospitalFilterCommand): HospitalSearchOrder {
+    if (command.sort !== 'distance') return DEFAULT_SEARCH_ORDER;
+    if (!command.origin) {
+      throw new BadRequestException(
+        'sort=distance requires origin coordinates (lat, lon).',
+      );
+    }
+    return { by: 'distance', origin: command.origin };
   }
 
   /**
@@ -681,6 +733,8 @@ export class HealthcareHospitalService {
       tel: src.tel ?? undefined,
       emergency: src.emergency,
       baby: src.baby,
+      // 거리순으로 조회했을 때만 값이 있다. 화면은 없으면 거리 표시를 그리지 않는다.
+      distance: src.distance,
       location: {
         address: src.addr ?? undefined,
         postNo: src.postNo ?? undefined,
@@ -725,6 +779,7 @@ export class HealthcareHospitalService {
       emdongNm: row.emdong_nm,
       lat: this.num(row.lat),
       lon: this.num(row.lon),
+      distance: row.distance_m,
     };
   }
 

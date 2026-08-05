@@ -144,6 +144,7 @@
         "location": {
           "properties": {
             "sido_cd": { "type": "keyword" },
+            "sido_rank": { "type": "byte", "index": false },
             "region_cd": { "type": "keyword" },
             "emdong_nm": {
               "properties": {

@@ -20,8 +20,8 @@ export function CopyField({
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      {label && <span className="w-14 shrink-0 text-xs text-slate-400">{label}</span>}
-      <code className="min-w-0 flex-1 truncate rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-xs text-slate-700">
+      {label && <span className="w-14 shrink-0 text-xs text-ink-subtle">{label}</span>}
+      <code className="min-w-0 flex-1 truncate rounded-lg bg-surface-subtle px-2.5 py-1.5 font-mono text-xs text-ink-body">
         {value}
       </code>
       <button
@@ -32,7 +32,7 @@ export function CopyField({
           'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors',
           isCopied
             ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
-            : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700',
+            : 'border-line text-ink-muted hover:bg-surface-subtle hover:text-ink-body',
         )}
       >
         {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}

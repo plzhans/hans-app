@@ -36,6 +36,11 @@ pnpm api:gen      # docs/openapi/hansapp-openapi.json → src/shared/api/schema.
 > 서비스 키(`sk_...`)는 **프론트에 두지 않는다.** 오리진 검사를 받지 않는 비밀값이라
 > 번들에 포함되는 순간 그대로 유출된다 — 서버-서버 호출에서만 쓴다.
 
+## 문서
+
+- [앱 출시 준비](docs/app-release.md) — Capacitor 로 스토어에 올릴 때 걸리는 것들.
+  아직 착수 전이고, 네이티브 플랫폼(`ios/`·`android/`)도 만들지 않았다.
+
 ## 알려진 제약 (TODO)
 
 - 백엔드 `/healthcare/hospitals` 는 현재 `source`/`page`/`size` 만 지원한다. 키워드/지역

@@ -39,7 +39,8 @@
         "title": "Top-rated Neonatal ICU",
         "subtitle": "HIRA grade 1 · critical newborn care"
       }
-    }
+    },
+    "advancedSearch": "Advanced search"
   },
   "common": {
     "loading": "Loading…",
@@ -63,7 +64,8 @@
       "timeout": "Locating is taking too long. Please try again.",
       "unavailable": "Couldn't get your location. Check that location services are on for this device.",
       "notFound": "We couldn't match your location to a region. Please pick one manually.",
-      "clear": "Clear {{name}}"
+      "clear": "Clear {{name}}",
+      "granted": "Location access is allowed. You can revoke it in your browser settings."
     },
     "all": "All"
   },
@@ -114,7 +116,20 @@
       "med": "Medical",
       "dent": "Dental",
       "km": "Korean Medicine"
-    }
+    },
+    "viewMap": "Map view",
+    "viewList": "List view",
+    "mapSoon": "Map view is on the way",
+    "mapSoonHint": "Searching by the area you pan to needs area search on the server. The map will appear here once it lands.",
+    "openFilters": "Filters",
+    "closeFilters": "Close",
+    "mapNote": "Showing {{count}} places from the current list. Panning the map does not re-search.",
+    "mapEmpty": "No results in this list have coordinates",
+    "useMyLocation": "Use my location",
+    "sortNearest": "Nearest",
+    "nearestNeedsLocation": "Sorting by distance needs your location.",
+    "allowLocation": "Allow location",
+    "searchThisArea": "Search this area"
   },
   "clinic": {
     "badge": {
@@ -124,6 +139,20 @@
       "babyDetail": "Night pediatric clinic"
     },
     "backToSearch": "Back to search",
+    "actions": {
+      "call": "Call",
+      "callCta": "Call the hospital",
+      "hours": "Hours",
+      "assessment": "Ratings",
+      "directions": "Directions",
+      "mapProvider": {
+        "naver": "Naver Map",
+        "kakao": "Kakao Map",
+        "google": "Google Maps"
+      },
+      "share": "Share",
+      "linkCopied": "Copied"
+    },
     "tabs": {
       "subject": "About",
       "care": "Care",
@@ -133,8 +162,20 @@
       "npay": "Fees"
     },
     "contact": "Contact",
+    "contactField": {
+      "tel": "Main number",
+      "homepage": "Website"
+    },
     "intro": "About",
     "hours": "Opening hours",
+    "status": {
+      "open": "Open now",
+      "break": "Lunch break",
+      "closed": "Closed",
+      "closesAt": "Closes {{time}}",
+      "opensAt": "Opens {{time}}",
+      "resumesAt": "Resumes {{time}}"
+    },
     "hoursEmpty": "No opening hours available.",
     "hoursConfirm": "Call {{tel}} to confirm",
     "lunch": "Lunch {{start}}–{{end}}",
@@ -143,6 +184,7 @@
     "tomorrow": "Tomorrow",
     "notice": "Notice",
     "subjects": "Specialties",
+    "subjectCount": "{{count}} depts",
     "specialCare": "Special care programs",
     "specialtyHospital": "Specialty",
     "specialist": "Specialists",

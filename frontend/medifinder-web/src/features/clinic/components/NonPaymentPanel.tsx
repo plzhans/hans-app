@@ -38,27 +38,50 @@ function PriceText({ price }: { price: NonPaymentPrice }) {
   return (
     <>
       {price.min.toLocaleString()}
-      <span className="mx-0.5 font-normal text-slate-400">~</span>
+      <span className="mx-0.5 font-normal text-ink-subtle">~</span>
       {formatAmount(price.max, won)}
     </>
   );
 }
 
-function CategoryBlock({ category }: { category: NonPaymentCategory }) {
+/**
+ * 중분류 하나(펼침/접기).
+ *
+ * **구분선을 스스로 긋지 않는다.** 예전엔 `border-b … last:border-b-0` 를 달았는데, 그
+ * `last:` 가 잡는 건 **그룹 안에서의 마지막**이었다 — 그룹마다 끝 줄의 선이 지워져서
+ * 정작 선이 가장 필요한 자리(예방접종 끝 ↔ 검사 시작)에 선이 없었다.
+ * 지금은 부모가 divide-y 로 사이사이에만 긋는다. 끝에 남는 선도 없다.
+ */
+function CategoryBlock({
+  category,
+  /** 그룹의 첫 중분류에만 붙는 책갈피 목적지. 나머지는 undefined 다. */
+  anchorId,
+}: {
+  category: NonPaymentCategory;
+  anchorId?: string;
+}) {
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="border-b border-slate-100 last:border-b-0">
+    <div
+      id={anchorId}
+      // 앱바+탭 바 아래로 내려오게 위를 비운다. Section 과 같은 변수를 쓴다.
+      style={
+        anchorId
+          ? { scrollMarginTop: 'var(--detail-anchor-offset, 170px)' }
+          : undefined
+      }
+    >
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 py-3 text-left"
+        className="flex w-full items-center justify-between gap-2 py-2.5 text-left"
       >
-        <span className="text-sm font-bold text-slate-800">{category.name}</span>
+        <span className="text-[0.8rem] font-bold text-ink-body">{category.name}</span>
         <ChevronDown
           className={cn(
-            'h-4 w-4 shrink-0 text-slate-400 transition-transform',
+            'h-4 w-4 shrink-0 text-ink-subtle transition-transform',
             open && 'rotate-180',
           )}
         />
@@ -95,7 +118,7 @@ function PriceRowItem({ item }: { item: NonPaymentItem }) {
   const only = details.length === 1 ? details[0] : undefined;
 
   return (
-    <li className="py-1.5">
+    <li className="py-1">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           {expandable ? (
@@ -103,36 +126,36 @@ function PriceRowItem({ item }: { item: NonPaymentItem }) {
               type="button"
               onClick={() => setOpen((prev) => !prev)}
               aria-expanded={open}
-              className="flex items-center gap-1 text-left text-sm text-slate-700 hover:text-primary-700"
+              className="flex items-center gap-1 text-left text-[0.78rem] leading-snug text-ink-body active:text-brand"
             >
               {item.name}
-              <span className="shrink-0 text-xs text-slate-400">
+              <span className="shrink-0 text-[0.66rem] text-ink-subtle">
                 {t('clinic.npay.variants', { count: details.length })}
               </span>
               <ChevronDown
                 className={cn(
-                  'h-3 w-3 shrink-0 text-slate-400 transition-transform',
+                  'h-3 w-3 shrink-0 text-ink-subtle transition-transform',
                   open && 'rotate-180',
                 )}
               />
             </button>
           ) : (
-            <p className="!my-0 text-sm text-slate-700">{item.name}</p>
+            <p className="!my-0 text-[0.78rem] leading-snug text-ink-body">{item.name}</p>
           )}
 
           {/* 병원이 붙인 이름. 한 건뿐일 때만 여기 붙는다 — 여러 건이면 펼침 목록이 대신한다. */}
           {only && only.name && only.name !== item.name && (
-            <p className="!my-0 text-xs text-slate-400">{only.name}</p>
+            <p className="!my-0 text-[0.68rem] text-ink-subtle">{only.name}</p>
           )}
         </div>
 
-        <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+        <span className="shrink-0 text-[0.76rem] font-bold tabular-nums text-ink-body">
           <PriceText price={item.price} />
         </span>
       </div>
 
       {open && expandable && (
-        <ul className="!mt-1 list-none space-y-0 border-l-2 border-slate-100 pl-3">
+        <ul className="!mt-1 list-none space-y-0 border-l-2 border-line pl-3">
           {details.map((detail, index) => (
             /*
               **key 가 index 다.** 같은 코드 안에서 이름도 금액도 겹칠 수 있어(유도초음파2
@@ -143,10 +166,10 @@ function PriceRowItem({ item }: { item: NonPaymentItem }) {
               key={index}
               className="flex items-start justify-between gap-3 py-1"
             >
-              <span className="min-w-0 text-xs text-slate-500">
+              <span className="min-w-0 text-[0.7rem] leading-snug text-ink-muted">
                 {detail.name || item.name}
               </span>
-              <span className="shrink-0 text-xs tabular-nums text-slate-600">
+              <span className="shrink-0 text-[0.7rem] tabular-nums text-ink-muted">
                 {formatAmount(detail.amount, t('clinic.npay.won'))}
               </span>
             </li>
@@ -194,26 +217,30 @@ export function NonPaymentPanel({ id }: { id: string | undefined }) {
 
   return (
     <div>
-      <p className="!mt-0 text-xs leading-relaxed text-slate-500">
+      <p className="!mt-0 text-[0.7rem] leading-relaxed text-ink-subtle">
         {t('clinic.npay.source')}
       </p>
 
       {/* 그룹이 둘 이상일 때만 책갈피 탭을 띄운다 — 하나뿐이면 점프할 곳이 없다. */}
       {groups.length > 1 && <GroupTabs groups={groups} />}
 
-      <div className="mt-3">
-        {groups.map((group) => (
-          <div
-            key={group.key}
-            id={`npay-group-${group.key}`}
-            // sticky 병원 헤더(탭 바) 아래로 스크롤되게 위를 비운다. Section 과 같은 변수를 쓴다.
-            style={{ scrollMarginTop: 'var(--detail-anchor-offset, 170px)' }}
-          >
-            {group.categories.map((category) => (
-              <CategoryBlock key={category.name} category={category} />
-            ))}
-          </div>
-        ))}
+      {/*
+        **중분류를 한 줄로 편다 — 그룹마다 감싸지 않는다.** 감싸면 구분선을 긋는 first/last 가
+        그룹 안에서만 세어져서 그룹 경계에 선이 빠진다(CategoryBlock 주석 참고).
+        평평하게 두면 divide-y 가 전체를 통틀어 사이사이에만 긋고, 책갈피 목적지는
+        그 그룹의 첫 중분류가 대신 맡는다.
+      */}
+      <div className="mt-3 divide-y divide-line">
+        {groups.flatMap((group) =>
+          group.categories.map((category, index) => (
+            <CategoryBlock
+              // 중분류 이름은 그룹을 넘나들며 겹칠 수 있어 그룹 키를 앞에 붙인다.
+              key={`${group.key}-${category.name}`}
+              category={category}
+              anchorId={index === 0 ? `npay-group-${group.key}` : undefined}
+            />
+          )),
+        )}
       </div>
     </div>
   );
@@ -243,28 +270,41 @@ function buildGroups(categories: NonPaymentCategory[]): NpayGroup[] {
 }
 
 /**
- * 표시 그룹 책갈피 탭. 누르면 그 그룹으로 스크롤한다.
+ * 표시 그룹 책갈피. 누르면 그 그룹으로 스크롤한다.
  *
- * 상세의 탭과 성격이 같다 — 내용을 감추지 않고 위치로 데려다줄 뿐이다. 가로로 넘치면 스크롤된다
- * (그룹이 최대 9개라 좁은 화면에서 한 줄을 넘길 수 있다).
+ * 상세의 탭과 성격이 같다 — 내용을 감추지 않고 위치로 데려다줄 뿐이다.
+ *
+ * **줄을 바꾼다. 가로로 스크롤하지 않는다.** 예전엔 넘치면 옆으로 밀리게 뒀는데, 그러면
+ * 뒤쪽 그룹(치과·서류·기타)이 화면 밖에 숨고 밀 수 있다는 표시도 없어서 없는 것처럼 보인다.
+ * 게다가 스크롤바가 카드 안에 그대로 드러나 카드가 창처럼 읽혔다.
+ *
+ * 상세의 탭 바가 가로로 미는 것과 다른 판단인 이유는 **그쪽은 화면에 붙어 있는 한 줄**이라서다.
+ * 거기서 줄을 바꾸면 고정 영역이 두 배가 되어 본문을 그만큼 먹는다. 여긴 카드 안이라
+ * 두 줄이 되어도 아래가 밀릴 뿐이고, 최대 9개짜리 짧은 이름이라 두 줄이면 다 보인다.
  */
 function GroupTabs({ groups }: { groups: NpayGroup[] }) {
   const { t } = useTranslation();
 
+  /**
+   * **부드러운 스크롤을 쓰지 않는다.** 가격표는 수백 줄이라(최다 1,048행) 뒤쪽 그룹으로 갈수록
+   * 이동 거리가 길어지고, behavior:'smooth' 는 그 거리를 다 훑으며 내려간다 — 누르고 나서
+   * 한참을 기다리게 되고, 그동안 화면이 계속 흐르니 멀미가 난다.
+   * 책갈피는 "데려다 달라" 는 뜻이지 "가는 길을 보여달라" 가 아니다.
+   */
   const jump = (key: NpayGroupKey) => {
     document
       .getElementById(`npay-group-${key}`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      ?.scrollIntoView({ block: 'start' });
   };
 
   return (
-    <div className="-mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4 pb-1">
+    <div className="mt-3 flex flex-wrap gap-1.5">
       {groups.map((group) => (
         <button
           key={group.key}
           type="button"
           onClick={() => jump(group.key)}
-          className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+          className="rounded-full bg-surface-subtle px-3 py-1.5 text-[0.75rem] font-bold text-ink-body transition-transform duration-100 ease-native active:scale-95 active:bg-brand-tint active:text-brand-strong"
         >
           {t(`clinic.npay.group.${group.key}`)}
         </button>
@@ -318,8 +358,8 @@ function RequestPanel({
 
   return (
     <div className="flex flex-col items-center gap-3 py-12 text-center">
-      <Receipt className="h-6 w-6 text-slate-300" />
-      <p className="!my-0 max-w-xs text-sm leading-relaxed text-slate-500">
+      <Receipt className="h-6 w-6 text-ink-subtle" />
+      <p className="!my-0 max-w-xs text-sm leading-relaxed text-ink-muted">
         {requested ? t('clinic.npay.requested') : t('clinic.npay.requestHint')}
       </p>
       {!requested && (
@@ -327,7 +367,7 @@ function RequestPanel({
           type="button"
           onClick={() => request.mutate()}
           disabled={request.isPending}
-          className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-medium text-primary-700 hover:bg-primary-100 disabled:opacity-50"
+          className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-brand-tint-strong bg-brand-tint px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-tint-strong disabled:opacity-50"
         >
           <RefreshCw
             className={cn('h-3.5 w-3.5', request.isPending && 'animate-spin')}
@@ -342,8 +382,8 @@ function RequestPanel({
 function Empty({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center gap-2 py-12 text-center">
-      <Receipt className="h-6 w-6 text-slate-300" />
-      <p className="!my-0 text-sm text-slate-500">{message}</p>
+      <Receipt className="h-6 w-6 text-ink-subtle" />
+      <p className="!my-0 text-sm text-ink-muted">{message}</p>
     </div>
   );
 }

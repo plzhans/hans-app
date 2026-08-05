@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.11.0
+ * OpenAPI spec version: 0.12.0
  */
 
 export * from './addressControllerSearchEnglish200';
@@ -58,8 +58,10 @@ export * from './equipmentDto';
 export * from './healthcareHospitalControllerNearbyParams';
 export * from './healthcareHospitalControllerScroll200';
 export * from './healthcareHospitalControllerScrollParams';
+export * from './healthcareHospitalControllerScrollSort';
 export * from './healthcareHospitalControllerSearch200';
 export * from './healthcareHospitalControllerSearchParams';
+export * from './healthcareHospitalControllerSearchSort';
 export * from './healthcareMetaControllerAssessments200';
 export * from './healthcareMetaControllerClasses200';
 export * from './healthcareMetaControllerEquipments200';

@@ -236,6 +236,31 @@ export function buildHealthcareHospitalDoc(
 
 // ── 파생 헬퍼 ─────────────────────────────────────────────────────────────
 
+/**
+ * 시도별 정렬 순위. **작을수록 앞이다.** 목록에 없는 시도와 시도를 모르는 병원은 맨 뒤로 간다.
+ *
+ * 인구 순이 아니라 **방문자 기준**이다 — 인구는 경기가 가장 많지만, 이 서비스는 외국인
+ * 방문자를 염두에 두고 있어 그들이 머무는 곳이 먼저여야 한다. 경기는 넓어서 "경기도 병원" 이
+ * 서울에서 한 시간 넘게 걸리는 경우도 흔하다.
+ *
+ * 코드는 법정동 시도 코드 2자리다(11 서울 · 41 경기 · 26 부산 · 28 인천).
+ */
+const SIDO_RANK: Readonly<Record<string, number>> = {
+  '11': 0, // 서울
+  '41': 1, // 경기
+  '26': 2, // 부산
+  '28': 3, // 인천
+};
+
+/** 목록 밖·미상은 맨 뒤. byte 범위 안이면 되고, 나중에 시도를 더 끼워 넣을 여지를 둔다. */
+const SIDO_RANK_DEFAULT = 99;
+
+function sidoRank(sidoCd: string | undefined): number {
+  // ?? 만 쓰면 빈 문자열이 그대로 새어 나간다(null·undefined 만 걸러서다).
+  if (!sidoCd) return SIDO_RANK_DEFAULT;
+  return SIDO_RANK[sidoCd] ?? SIDO_RANK_DEFAULT;
+}
+
 function buildLocation(
   h: HealthcareHospitalBaseRow,
   regionParents: Map<string, string>,
@@ -246,6 +271,7 @@ function buildLocation(
 
   return {
     sido_cd: sido,
+    sido_rank: sidoRank(sido),
     region_cd: h.regionCd ?? undefined,
     emdong_nm: h.emdongNm ? { ko: h.emdongNm } : undefined,
     post_no: h.postNo ?? undefined,

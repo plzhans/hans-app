@@ -8,6 +8,8 @@ import {
 import { INPATIENT_TIERS } from '@hansapp/data/seed';
 import type { SupportedLang } from '@hansapp/common';
 
+import type { HospitalBbox, HospitalCoords } from './dto/hospital.result';
+
 /**
  * 통합 병원 저장소. healthcare_* 테이블을 읽고, 병원평가만 예외로 hira_hospital_asm 을 읽는다
  * (사유는 HealthcareHospitalService 클래스 주석 참고).
@@ -50,7 +52,50 @@ export interface HospitalSearchFilter {
   equipmentCds?: string[];
   subjectCds?: string[];
   specialistCds?: string[];
+  /** 지도 영역. 있으면 이 사각형 안의 병원만 건다("이 지역에서 검색"). */
+  bbox?: HospitalBbox;
 }
+
+/**
+ * 정렬 지시. **필터와 나눠 둔다** — 거는 조건과 줄 세우는 기준은 캐시·커서에 미치는 영향이 달라
+ * (필터는 결과 집합을, 정렬은 순서를 바꾼다) 한 덩어리로 묶으면 어느 쪽이 순위를 흔들었는지
+ * 추적이 안 된다.
+ *
+ * 판별 유니온이라 **거리순인데 기준점이 없는 상태를 타입이 막는다** — 그 조합은 조용히
+ * 기본 정렬로 떨어지기 딱 좋은 자리다.
+ */
+export type HospitalSearchOrder =
+  { by: 'default' } | { by: 'distance'; origin: HospitalCoords };
+
+/**
+ * DB 경로가 **좌표 기반 조건을 거절한다** — 거리순 정렬(order)과 지도 영역(bbox) 둘 다.
+ *
+ * **DB 에 옮겨 구현하지 않는 게 원칙이다.** 이 경로의 목적은 ES 장애 중 **최소 기능으로
+ * 버티는 것**인데(searchScroll 주석 참고), 좌표 조건은 공간 색인이 없어 8만 행 풀스캔이 된다.
+ * 이미 ES 가 죽어 부하가 몰린 DB 에 그 질의를 얹으면 우회로가 장애를 키운다.
+ *
+ * **조용히 무시하지도 않는다.** bbox 를 빼고 조회하면 화면 밖 병원이 목록에 섞이고,
+ * 거리순을 id 순으로 주면 "가까운 순" 을 누른 사용자가 먼 병원을 위에서 보게 된다 —
+ * 둘 다 틀린 답을 맞는 척 주는 것이라, 실패하는 편이 낫다.
+ */
+function assertNoGeoQuery(
+  filter: HospitalSearchFilter,
+  order: HospitalSearchOrder,
+): void {
+  if (order.by === 'distance') {
+    throw new Error(
+      'Distance sorting is not supported by the database source. Use Elasticsearch.',
+    );
+  }
+  if (filter.bbox) {
+    throw new Error(
+      'Map bounds (bbox) filtering is not supported by the database source. Use Elasticsearch.',
+    );
+  }
+}
+
+/** 기본 정렬. 지시가 없을 때 저장소가 쓰는 값이다. */
+export const DEFAULT_SEARCH_ORDER: HospitalSearchOrder = { by: 'default' };
 
 /**
  * 무한 스크롤 한 묶음. **커서 방식(offset/id/search_after)에 무관한 공통 반환**이다.
@@ -75,7 +120,31 @@ export interface HospitalScrollSource {
     lang: SupportedLang,
     nextToken: string | undefined,
     size: number,
+    order?: HospitalSearchOrder,
   ): Promise<HospitalScrollRows>;
+}
+
+/** 페이지 검색 결과. 행과 총건수를 함께 낸다 — 두 번 조회할 이유가 없다. */
+export interface HospitalSearchPage {
+  rows: HospitalListRow[];
+  total: number;
+}
+
+/**
+ * 페이지 검색 원천. 스크롤(HospitalScrollSource)과 나란한 계약이다 — 커서 대신 page/size 를 쓰고
+ * 총건수를 함께 낸다(첫 화면의 "N건" 과 페이지네이션이 그 값을 쓴다).
+ *
+ * **정렬 규칙이 스크롤과 같아야 한다.** 첫 화면과 검색 목록이 다른 순서로 나오면 같은 서비스로
+ * 안 읽힌다 — 그래서 둘 다 ES 가 맡는다(DB 구현은 ES 장애 때의 우회로로만 남긴다).
+ */
+export interface HospitalSearchSource {
+  searchPage(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+    page: number,
+    size: number,
+    order?: HospitalSearchOrder,
+  ): Promise<HospitalSearchPage>;
 }
 
 /**
@@ -101,6 +170,15 @@ export interface HospitalListRow {
   tier: string | null;
   specialty_cd: string | null;
   region_cd: string | null;
+
+  /**
+   * 기준 좌표로부터의 직선거리(m). **거리순 조회일 때만 채워진다** — 기본 정렬에는 기준
+   * 좌표가 없어 잴 것이 없고, DB 경로는 거리순 자체를 지원하지 않는다.
+   *
+   * 근처 유사 병원(HospitalNearbyRow)이 같은 이름으로 필수 필드로 좁혀 쓴다 — 그쪽은 거리가
+   * 없는 결과가 성립하지 않는다.
+   */
+  distance_m?: number;
 }
 
 /**
@@ -120,8 +198,31 @@ export type HospitalDetailModel = Prisma.HealthcareHospitalGetPayload<{
 }>;
 
 @Injectable()
-export class HealthcareHospitalRepository implements HospitalScrollSource {
+export class HealthcareHospitalRepository
+  implements HospitalScrollSource, HospitalSearchSource
+{
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * 페이지 검색(HospitalSearchSource). **ES 가 죽었을 때 버티는 자리다** — 기본 경로는 ES 다
+   * (거기만 sido_rank 정렬과 전문의 가점이 있다. searchScroll 주석 참고).
+   *
+   * 행과 총건수를 **두 번 조회로** 얻는다. ES 처럼 한 질의에서 둘 다 나오지 않아서다.
+   */
+  async searchPage(
+    filter: HospitalSearchFilter,
+    lang: SupportedLang,
+    page: number,
+    size: number,
+    order: HospitalSearchOrder = DEFAULT_SEARCH_ORDER,
+  ): Promise<HospitalSearchPage> {
+    assertNoGeoQuery(filter, order);
+    const [rows, total] = await Promise.all([
+      this.search(filter, lang, page, size),
+      this.countSearch(filter),
+    ]);
+    return { rows, total };
+  }
 
   /** 검색 한 페이지. 종별·전문병원분야·지역 이름은 조인하지 않는다 — 코드만 뽑고 이름은 서비스가 캐시에서 붙인다. */
   search(
@@ -157,7 +258,9 @@ export class HealthcareHospitalRepository implements HospitalScrollSource {
     lang: SupportedLang,
     nextToken: string | undefined,
     size: number,
+    order: HospitalSearchOrder = DEFAULT_SEARCH_ORDER,
   ): Promise<HospitalScrollRows> {
+    assertNoGeoQuery(filter, order);
     const afterId = decodeIdToken(nextToken);
     const where = this.buildWhere(filter);
     const cursor =

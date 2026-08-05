@@ -34,8 +34,10 @@ export type HospitalCardVariant = 'search' | 'brief' | 'nearby';
 /**
  * @param rank 목록에서 몇 번째인가. **지도의 번호 핀과 같은 숫자다** —
  *   이게 없으면 지도의 ②가 어느 카드인지 알 방법이 없다. nearby 에서만 준다.
- * @param distance 기준 병원으로부터의 직선거리(m). nearby 에서만 준다.
- * @param matchedSubjects 기준 병원과 겹친 진료과목. distance 와 같은 자리에서만 준다 —
+ * @param distance 기준점으로부터의 직선거리(m). 상세의 "근처 병원"(기준=그 병원)과
+ *   검색의 "가까운 순"(기준=내 위치)이 준다 — 어느 쪽이든 **지금 보고 있는 자리 기준**의
+ *   값이라 병원의 속성처럼 그리지 않는다(배지 모양이 다른 이유).
+ * @param matchedSubjects 기준 병원과 겹친 진료과목. 상세의 "근처 병원" 에서만 준다 —
  *   **이 카드가 왜 거기 떠 있는지**를 설명하는 값이라, 근거 없이 목록에 뿌리면 의미가 없다.
  */
 export function HospitalCard({
@@ -86,11 +88,8 @@ export function HospitalCard({
         */}
         {rank !== undefined && (
           <span
-            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-xs font-bold"
-            style={{
-              backgroundColor: rankMark(rank).tint,
-              color: rankMark(rank).ink,
-            }}
+            className="flex h-[1.35rem] w-[1.35rem] shrink-0 items-center justify-center rounded-md text-[0.68rem] font-extrabold text-white"
+            style={{ backgroundColor: rankMark(rank).solid }}
           >
             {rankLabel(rank)}
           </span>
@@ -101,7 +100,7 @@ export function HospitalCard({
           "지금 보고 있는 병원 기준" 의 값이라서, 같은 모양이면 성격이 섞여 읽힌다.
         */}
         {distance !== undefined && (
-          <span className="rounded-full border border-slate-300 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-600">
+          <span className="rounded-full bg-surface-subtle px-2.5 py-0.5 text-[0.68rem] font-extrabold tabular-nums text-ink-body">
             {t('clinic.nearby.within', {
               distance: formatDistance(distanceCeiling(distance)),
             })}
@@ -109,25 +108,25 @@ export function HospitalCard({
         )}
         {/* 의원급(TIER1)은 등급 배지를 달지 않는다 — 종별 배지가 없으면 어차피 의원이다. */}
         {hospital.tier && hospital.tier.code !== 'TIER1' && (
-          <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
+          <span className="rounded-full bg-brand-tint px-2.5 py-0.5 text-[0.68rem] font-extrabold text-brand-strong">
             {hospital.tier.name}
           </span>
         )}
         {/* 전문병원 지정분야. 등급 옆에 "척추 전문병원" 처럼 붙인다 — 상세 페이지와 같은 규칙. */}
         {hospital.specialty && (
-          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+          <span className="rounded-full bg-ok-tint px-2.5 py-0.5 text-[0.68rem] font-extrabold text-ok">
             {hospital.specialty.name
               ? `${hospital.specialty.name} ${t('clinic.specialtyHospital')}`
               : t('clinic.specialtyHospital')}
           </span>
         )}
         {hospital.emergency && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-danger-tint px-2.5 py-0.5 text-[0.68rem] font-extrabold text-danger">
             <Ambulance className="h-3 w-3" /> {t('clinic.badge.emergency')}
           </span>
         )}
         {hospital.baby && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[0.68rem] font-extrabold text-amber-600">
             <Baby className="h-3 w-3" /> {t('clinic.badge.baby')}
           </span>
         )}
@@ -136,7 +135,7 @@ export function HospitalCard({
       <div className="mt-1 flex items-start justify-between gap-2">
         <h3
           className={cn(
-            'font-semibold text-slate-900',
+            'font-extrabold tracking-tight text-ink',
             // 추천 카드는 폭이 좁아 이름을 살짝 줄이고, 길면 한 줄에서 말줄임(…)한다.
             // truncate 가 먹으려면 flex 안에서 min-w-0 이 있어야 한다(안 그러면 안 줄고 옆칸을 민다).
             variant === 'brief' && 'min-w-0 flex-1 truncate text-sm',
@@ -146,10 +145,10 @@ export function HospitalCard({
         >
           {hospital.name}
         </h3>
-        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" />
       </div>
 
-      <dl className="mt-2 space-y-1.5 text-xs text-slate-600">
+      <dl className="mt-2 space-y-1.5 text-xs text-ink-body">
         {(showStation || locationText) && (
           <div className="flex items-start gap-1.5">
             <span className="break-keep">
@@ -162,7 +161,7 @@ export function HospitalCard({
                   {lines.map((line) => (
                     <LineBadge key={line} line={line} city={city} />
                   ))}
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
+                  <span className="rounded bg-surface-subtle px-1.5 py-0.5 text-xs text-ink-body">
                     {stationLabel(hospital.location.station, lines.length > 0)}
                   </span>
                 </span>
@@ -174,7 +173,7 @@ export function HospitalCard({
         {/* 검색만 전화번호를 싣는다 — 나머지는 훑어보는 자리라 상세에서 본다. */}
         {variant === 'search' && hospital.tel && (
           <div className="flex items-center gap-1.5">
-            <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <Phone className="h-3.5 w-3.5 shrink-0 text-ink-subtle" />
             <span>{hospital.tel}</span>
           </div>
         )}
@@ -197,15 +196,15 @@ export function HospitalCard({
               className={cn(
                 'rounded px-1.5 py-0.5 text-xs',
                 subject.specialist
-                  ? 'bg-primary-50 font-medium text-primary-700'
-                  : 'bg-slate-100 text-slate-600',
+                  ? 'bg-brand-tint font-medium text-brand-ink'
+                  : 'bg-surface-subtle text-ink-body',
               )}
             >
               {subject.name}
             </span>
           ))}
           {matchedSubjects.length > MATCHED_SUBJECT_LIMIT && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-ink-subtle">
               +{matchedSubjects.length - MATCHED_SUBJECT_LIMIT}
             </span>
           )}
@@ -218,7 +217,7 @@ export function HospitalCard({
     <LangLink
       to={`/hospitals/${hospital.id}`}
       className={cn(
-        'block rounded-2xl border border-slate-200 bg-white p-3 transition-shadow hover:shadow-md',
+        'block rounded-2xl border border-line bg-white p-3 transition-shadow hover:shadow-md',
         // 2열 격자에서 옆 카드와 키를 맞춘다. 한 장이 과목 배지 때문에 길어져도 나란히 선다.
         variant === 'nearby' && 'h-full',
       )}

@@ -39,7 +39,8 @@
         "title": "新生儿重症监护优秀",
         "subtitle": "适当性评价1级 · 新生儿重症"
       }
-    }
+    },
+    "advancedSearch": "高级搜索"
   },
   "common": {
     "loading": "加载中…",
@@ -63,7 +64,8 @@
       "timeout": "定位耗时过长，请重试。",
       "unavailable": "无法获取位置。请确认设备已开启定位服务。",
       "notFound": "未能匹配到当前位置所属地区，请手动选择。",
-      "clear": "取消 {{name}}"
+      "clear": "取消 {{name}}",
+      "granted": "已允许访问位置信息。可在浏览器设置中取消。"
     },
     "all": "全部"
   },
@@ -114,7 +116,20 @@
       "med": "医科",
       "dent": "牙科",
       "km": "韩医"
-    }
+    },
+    "viewMap": "地图视图",
+    "viewList": "列表视图",
+    "mapSoon": "地图视图正在准备中",
+    "mapSoonHint": "拖动地图重新搜索该区域需要服务器支持区域检索。准备好后这里会显示地图。",
+    "openFilters": "筛选条件",
+    "closeFilters": "关闭",
+    "mapNote": "显示当前列表中的 {{count}} 家。拖动地图不会重新搜索。",
+    "mapEmpty": "此结果中没有带坐标的医院",
+    "useMyLocation": "使用我的位置",
+    "sortNearest": "距离最近",
+    "nearestNeedsLocation": "按距离排序需要您的位置信息。",
+    "allowLocation": "允许获取位置",
+    "searchThisArea": "搜索此区域"
   },
   "clinic": {
     "badge": {
@@ -124,6 +139,20 @@
       "babyDetail": "夜间儿童诊疗医院"
     },
     "backToSearch": "返回搜索",
+    "actions": {
+      "call": "拨打电话",
+      "callCta": "电话咨询",
+      "hours": "门诊时间",
+      "assessment": "评价",
+      "directions": "路线",
+      "mapProvider": {
+        "naver": "Naver 地图",
+        "kakao": "Kakao 地图",
+        "google": "谷歌地图"
+      },
+      "share": "分享",
+      "linkCopied": "已复制"
+    },
     "tabs": {
       "subject": "简介",
       "care": "诊疗",
@@ -133,8 +162,20 @@
       "npay": "自费项目"
     },
     "contact": "联系方式",
+    "contactField": {
+      "tel": "总机",
+      "homepage": "官网"
+    },
     "intro": "医院介绍",
     "hours": "诊疗时间",
+    "status": {
+      "open": "就诊中",
+      "break": "午休",
+      "closed": "已结束",
+      "closesAt": "{{time}} 结束",
+      "opensAt": "{{time}} 开始",
+      "resumesAt": "{{time}} 恢复"
+    },
     "hoursEmpty": "暂无诊疗时间信息。",
     "hoursConfirm": "请拨打 {{tel}} 确认",
     "lunch": "午休 {{start}}~{{end}}",
@@ -143,6 +184,7 @@
     "tomorrow": "明天",
     "notice": "说明",
     "subjects": "诊疗科目",
+    "subjectCount": "{{count}}个",
     "specialCare": "特殊诊疗",
     "specialtyHospital": "专科",
     "specialist": "专科医生",

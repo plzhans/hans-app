@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.11.0
+ * OpenAPI spec version: 0.12.0
  */
 import type { CodeDto } from './codeDto';
 import type { LocationDto } from './locationDto';
@@ -27,4 +27,10 @@ export interface HospitalSummaryDto {
   emergency: boolean;
   /** 달빛어린이병원 (야간·휴일 소아진료) */
   baby: boolean;
+  /**
+     * 기준 좌표로부터의 **직선거리**(m, 반올림). 도로 거리도 소요시간도 아니다.
+     *
+     * **`sort=distance` 로 조회했을 때만 있다** — 기본 정렬에는 기준 좌표가 없어 잴 것이 없다.
+     */
+  distance?: number;
 }

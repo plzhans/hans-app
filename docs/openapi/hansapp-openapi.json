@@ -1908,6 +1908,80 @@
             }
           },
           {
+            "name": "minLat",
+            "required": false,
+            "in": "query",
+            "description": "지도 영역의 남서쪽 위도. **minLat·minLon·maxLat·maxLon 을 넷 다** 보내야 걸린다. 지도를 옮긴 자리에는 시군구 경계가 없어서 화면의 사각형이 그대로 조건이 된다.",
+            "schema": {
+              "example": 37.4,
+              "type": "number"
+            }
+          },
+          {
+            "name": "minLon",
+            "required": false,
+            "in": "query",
+            "description": "지도 영역의 남서쪽 경도",
+            "schema": {
+              "example": 126.8,
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxLat",
+            "required": false,
+            "in": "query",
+            "description": "지도 영역의 북동쪽 위도",
+            "schema": {
+              "example": 37.7,
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxLon",
+            "required": false,
+            "in": "query",
+            "description": "지도 영역의 북동쪽 경도",
+            "schema": {
+              "example": 127.2,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "정렬 기준.\n\n- `default`(기본) 서울 → 경기 → 부산 → 인천 → 나머지, 같은 시도 안에서는 id 순 (병원명 키워드가 있으면 관련도가 먼저다)\n- `distance` 기준 좌표에서 가까운 순. **lat·lon 을 함께 보내야 한다** — 없으면 400 이다.\n\n**거리순은 스크롤 커서와 묶여 있다.** 정렬을 바꾸면 nextToken 을 버리고 처음부터 받아라.",
+            "schema": {
+              "default": "default",
+              "type": "string",
+              "enum": [
+                "default",
+                "distance"
+              ]
+            }
+          },
+          {
+            "name": "lat",
+            "required": false,
+            "in": "query",
+            "description": "거리 계산 기준 위도. `sort=distance` 일 때만 쓴다.\n\n**1km 격자로 뭉개서 보내라.** 사람마다 좌표가 미세하게 달라 캐시가 통째로 빗나가는 걸 막는다 — 같은 동네면 같은 요청이 된다. 순위가 몇 칸 흔들리는 정도의 손해는 감수한다.",
+            "schema": {
+              "example": 37.5,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lon",
+            "required": false,
+            "in": "query",
+            "description": "거리 계산 기준 경도. `sort=distance` 일 때만 쓴다(lat 설명 참고).",
+            "schema": {
+              "example": 127,
+              "type": "number"
+            }
+          },
+          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -2091,6 +2165,80 @@
             "schema": {
               "example": "CT,MRI",
               "type": "string"
+            }
+          },
+          {
+            "name": "minLat",
+            "required": false,
+            "in": "query",
+            "description": "지도 영역의 남서쪽 위도. **minLat·minLon·maxLat·maxLon 을 넷 다** 보내야 걸린다. 지도를 옮긴 자리에는 시군구 경계가 없어서 화면의 사각형이 그대로 조건이 된다.",
+            "schema": {
+              "example": 37.4,
+              "type": "number"
+            }
+          },
+          {
+            "name": "minLon",
+            "required": false,
+            "in": "query",
+            "description": "지도 영역의 남서쪽 경도",
+            "schema": {
+              "example": 126.8,
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxLat",
+            "required": false,
+            "in": "query",
+            "description": "지도 영역의 북동쪽 위도",
+            "schema": {
+              "example": 37.7,
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxLon",
+            "required": false,
+            "in": "query",
+            "description": "지도 영역의 북동쪽 경도",
+            "schema": {
+              "example": 127.2,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "정렬 기준.\n\n- `default`(기본) 서울 → 경기 → 부산 → 인천 → 나머지, 같은 시도 안에서는 id 순 (병원명 키워드가 있으면 관련도가 먼저다)\n- `distance` 기준 좌표에서 가까운 순. **lat·lon 을 함께 보내야 한다** — 없으면 400 이다.\n\n**거리순은 스크롤 커서와 묶여 있다.** 정렬을 바꾸면 nextToken 을 버리고 처음부터 받아라.",
+            "schema": {
+              "default": "default",
+              "type": "string",
+              "enum": [
+                "default",
+                "distance"
+              ]
+            }
+          },
+          {
+            "name": "lat",
+            "required": false,
+            "in": "query",
+            "description": "거리 계산 기준 위도. `sort=distance` 일 때만 쓴다.\n\n**1km 격자로 뭉개서 보내라.** 사람마다 좌표가 미세하게 달라 캐시가 통째로 빗나가는 걸 막는다 — 같은 동네면 같은 요청이 된다. 순위가 몇 칸 흔들리는 정도의 손해는 감수한다.",
+            "schema": {
+              "example": 37.5,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lon",
+            "required": false,
+            "in": "query",
+            "description": "거리 계산 기준 경도. `sort=distance` 일 때만 쓴다(lat 설명 참고).",
+            "schema": {
+              "example": 127,
+              "type": "number"
             }
           },
           {
@@ -3083,18 +3231,18 @@
   "info": {
     "title": "Hans API",
     "description": "Hans API backend 문서",
-    "version": "0.11.0",
+    "version": "0.12.0",
     "contact": {}
   },
   "tags": [],
   "servers": [
     {
-      "url": "https://develop-api.plzhans.com",
-      "description": "Development"
-    },
-    {
       "url": "http://127.0.0.1:3000",
       "description": "Local"
+    },
+    {
+      "url": "https://develop-api.plzhans.com",
+      "description": "Development"
     }
   ],
   "components": {
@@ -4438,6 +4586,11 @@
           "baby": {
             "type": "boolean",
             "description": "달빛어린이병원 (야간·휴일 소아진료)"
+          },
+          "distance": {
+            "type": "number",
+            "description": "기준 좌표로부터의 **직선거리**(m, 반올림). 도로 거리도 소요시간도 아니다.\n\n**`sort=distance` 로 조회했을 때만 있다** — 기본 정렬에는 기준 좌표가 없어 잴 것이 없다.",
+            "example": 820
           }
         },
         "required": [
@@ -4862,6 +5015,11 @@
             "type": "boolean",
             "description": "달빛어린이병원 (야간·휴일 소아진료)"
           },
+          "distance": {
+            "type": "number",
+            "description": "기준 좌표로부터의 **직선거리**(m, 반올림). 도로 거리도 소요시간도 아니다.\n\n**`sort=distance` 로 조회했을 때만 있다** — 기본 정렬에는 기준 좌표가 없어 잴 것이 없다.",
+            "example": 820
+          },
           "corpName": {
             "type": "string",
             "description": "법인격 + 법인명. `name` 은 원본에서 이 표기를 뗀 값이다. 어느 재단·학원 소속인지는 대학병원 계열을 알아보는 단서라 버리지 않고 따로 준다. **법인 표기가 없으면 필드 자체가 없다**(전체의 98.8%).",
@@ -5035,8 +5193,8 @@
           },
           "distance": {
             "type": "number",
-            "example": 420,
-            "description": "기준 병원으로부터의 **직선거리(m)**. 도로 거리도 소요시간도 아니다 — \"420m\" 처럼 대략의 가까움을 보여주는 용도다."
+            "description": "기준 병원으로부터의 **직선거리(m)**. 도로 거리도 소요시간도 아니다 — \"420m\" 처럼 대략의 가까움을 보여주는 용도다.",
+            "example": 420
           },
           "matchedSubjects": {
             "description": "기준 병원과 겹친 진료과목. **이 병원이 위에 뜬 이유**이자 화면 배지 재료다.\n\n**빈 배열일 수 있다** — 겹치는 과목이 없어도 반경 안이면 거리순으로 채운다. 섹션이 통째로 비는 것보다 낫다는 판단이니, 비면 배지만 안 그리면 된다.",
@@ -5052,7 +5210,6 @@
           "location",
           "emergency",
           "baby",
-          "distance",
           "matchedSubjects"
         ]
       },

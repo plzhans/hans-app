@@ -39,7 +39,8 @@
         "title": "新生児集中治療室 優秀",
         "subtitle": "適正性評価1等級・新生児の重症"
       }
-    }
+    },
+    "advancedSearch": "詳細検索"
   },
   "common": {
     "loading": "読み込み中…",
@@ -63,7 +64,8 @@
       "timeout": "位置の確認に時間がかかっています。もう一度お試しください。",
       "unavailable": "位置を取得できませんでした。端末の位置情報サービスをご確認ください。",
       "notFound": "現在地の地域を特定できませんでした。地域を直接選んでください。",
-      "clear": "{{name}} を解除"
+      "clear": "{{name}} を解除",
+      "granted": "位置情報が許可されています。解除はブラウザの設定から行えます。"
     },
     "all": "すべて"
   },
@@ -114,7 +116,20 @@
       "med": "医科",
       "dent": "歯科",
       "km": "韓方"
-    }
+    },
+    "viewMap": "地図で見る",
+    "viewList": "リストで見る",
+    "mapSoon": "地図表示は準備中です",
+    "mapSoonHint": "地図を動かしてその地域を再検索するにはサーバーの範囲検索が必要です。準備でき次第ここに地図が表示されます。",
+    "openFilters": "検索条件",
+    "closeFilters": "閉じる",
+    "mapNote": "現在のリストの{{count}}件を表示しています。地図を動かしても再検索はされません。",
+    "mapEmpty": "この結果には座標のある病院がありません",
+    "useMyLocation": "現在地から探す",
+    "sortNearest": "近い順",
+    "nearestNeedsLocation": "近い順で見るには位置情報が必要です。",
+    "allowLocation": "位置情報を許可",
+    "searchThisArea": "このエリアで検索"
   },
   "clinic": {
     "badge": {
@@ -124,6 +139,20 @@
       "babyDetail": "夜間小児対応病院"
     },
     "backToSearch": "検索へ戻る",
+    "actions": {
+      "call": "電話",
+      "callCta": "電話で問い合わせ",
+      "hours": "診療時間",
+      "assessment": "評価",
+      "directions": "経路",
+      "mapProvider": {
+        "naver": "NAVER マップ",
+        "kakao": "カカオマップ",
+        "google": "Google マップ"
+      },
+      "share": "共有",
+      "linkCopied": "コピー済み"
+    },
     "tabs": {
       "subject": "概要",
       "care": "診療",
@@ -133,8 +162,20 @@
       "npay": "自費診療"
     },
     "contact": "連絡先",
+    "contactField": {
+      "tel": "代表番号",
+      "homepage": "ホームページ"
+    },
     "intro": "病院紹介",
     "hours": "診療時間",
+    "status": {
+      "open": "診療中",
+      "break": "昼休み",
+      "closed": "診療終了",
+      "closesAt": "{{time}} 終了",
+      "opensAt": "{{time}} 開始",
+      "resumesAt": "{{time}} 再開"
+    },
     "hoursEmpty": "診療時間の情報がありません。",
     "hoursConfirm": "{{tel}} に電話で確認",
     "lunch": "昼休み {{start}}〜{{end}}",
@@ -143,6 +184,7 @@
     "tomorrow": "明日",
     "notice": "案内",
     "subjects": "診療科目",
+    "subjectCount": "{{count}}科",
     "specialCare": "特殊診療",
     "specialtyHospital": "専門",
     "specialist": "専門医",

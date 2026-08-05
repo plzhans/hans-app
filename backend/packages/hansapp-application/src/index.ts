@@ -68,6 +68,9 @@ export type { Region } from './region/region.service';
 export type {
   HospitalSummary,
   HospitalDetail,
+  HospitalBbox,
+  HospitalCoords,
+  HospitalSortBy,
   HospitalSearchCommand,
   HospitalScrollCommand,
   HospitalScrollResult,

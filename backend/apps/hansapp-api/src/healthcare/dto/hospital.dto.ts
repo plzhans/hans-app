@@ -2,7 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBooleanString,
+  IsIn,
   IsInt,
+  IsLatitude,
+  IsLongitude,
   IsOptional,
   IsString,
   Max,
@@ -137,6 +140,84 @@ export class HospitalFilterRequestDto {
   @IsOptional()
   @IsString()
   readonly equipment?: string;
+
+  /*
+    지도 영역("이 지역에서 검색"). **넷을 다 보내야 걸린다** — 하나라도 빠지면 사각형이
+    성립하지 않아 서버가 통째로 무시한다. 지역 코드(region)와 함께 보내면 둘 다 걸린다.
+  */
+  @ApiPropertyOptional({
+    description:
+      '지도 영역의 남서쪽 위도. **minLat·minLon·maxLat·maxLon 을 넷 다** 보내야 걸린다. ' +
+      '지도를 옮긴 자리에는 시군구 경계가 없어서 화면의 사각형이 그대로 조건이 된다.',
+    example: 37.4,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  readonly minLat?: number;
+
+  @ApiPropertyOptional({
+    description: '지도 영역의 남서쪽 경도',
+    example: 126.8,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  readonly minLon?: number;
+
+  @ApiPropertyOptional({
+    description: '지도 영역의 북동쪽 위도',
+    example: 37.7,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  readonly maxLat?: number;
+
+  @ApiPropertyOptional({
+    description: '지도 영역의 북동쪽 경도',
+    example: 127.2,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  readonly maxLon?: number;
+
+  @ApiPropertyOptional({
+    description:
+      '정렬 기준.\n\n' +
+      '- `default`(기본) 서울 → 경기 → 부산 → 인천 → 나머지, 같은 시도 안에서는 id 순 ' +
+      '(병원명 키워드가 있으면 관련도가 먼저다)\n' +
+      '- `distance` 기준 좌표에서 가까운 순. **lat·lon 을 함께 보내야 한다** — 없으면 400 이다.\n\n' +
+      '**거리순은 스크롤 커서와 묶여 있다.** 정렬을 바꾸면 nextToken 을 버리고 처음부터 받아라.',
+    enum: ['default', 'distance'],
+    default: 'default',
+  })
+  @IsOptional()
+  @IsIn(['default', 'distance'])
+  readonly sort?: 'default' | 'distance';
+
+  @ApiPropertyOptional({
+    description:
+      '거리 계산 기준 위도. `sort=distance` 일 때만 쓴다.\n\n' +
+      '**1km 격자로 뭉개서 보내라.** 사람마다 좌표가 미세하게 달라 캐시가 통째로 빗나가는 걸 ' +
+      '막는다 — 같은 동네면 같은 요청이 된다. 순위가 몇 칸 흔들리는 정도의 손해는 감수한다.',
+    example: 37.5,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  readonly lat?: number;
+
+  @ApiPropertyOptional({
+    description:
+      '거리 계산 기준 경도. `sort=distance` 일 때만 쓴다(lat 설명 참고).',
+    example: 127.0,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  readonly lon?: number;
 }
 
 /**
@@ -371,6 +452,15 @@ export class HospitalSummaryDto {
     description: '달빛어린이병원 (야간·휴일 소아진료)',
   })
   readonly baby!: boolean;
+
+  @ApiPropertyOptional({
+    type: Number,
+    description:
+      '기준 좌표로부터의 **직선거리**(m, 반올림). 도로 거리도 소요시간도 아니다.\n\n' +
+      '**`sort=distance` 로 조회했을 때만 있다** — 기본 정렬에는 기준 좌표가 없어 잴 것이 없다.',
+    example: 820,
+  })
+  readonly distance?: number;
 }
 
 /** 기준 병원과 겹친 진료과목 하나. */
@@ -398,6 +488,11 @@ export class MatchedSubjectDto {
  * 재사용하라는 뜻이다.
  */
 export class HospitalNearbyDto extends HospitalSummaryDto {
+  /*
+    요약(HospitalSummaryDto)에도 같은 이름의 선택 필드가 있다. 여기서는 **항상 있다** —
+    거리 없는 "근처 병원" 은 성립하지 않는다. declare 는 필드를 다시 만들지 않고 타입만
+    좁힌다는 표시다(값은 부모가 그대로 담고, 여기서 덮어 지우면 안 된다).
+  */
   @ApiProperty({
     type: Number,
     example: 420,
@@ -405,7 +500,7 @@ export class HospitalNearbyDto extends HospitalSummaryDto {
       '기준 병원으로부터의 **직선거리(m)**. 도로 거리도 소요시간도 아니다 — ' +
       '"420m" 처럼 대략의 가까움을 보여주는 용도다.',
   })
-  readonly distance!: number;
+  declare readonly distance: number;
 
   @ApiProperty({
     type: MatchedSubjectDto,

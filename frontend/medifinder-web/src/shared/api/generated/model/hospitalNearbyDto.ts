@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.11.0
+ * OpenAPI spec version: 0.12.0
  */
 import type { CodeDto } from './codeDto';
 import type { LocationDto } from './locationDto';
@@ -29,7 +29,7 @@ export interface HospitalNearbyDto {
   /** 달빛어린이병원 (야간·휴일 소아진료) */
   baby: boolean;
   /** 기준 병원으로부터의 **직선거리(m)**. 도로 거리도 소요시간도 아니다 — "420m" 처럼 대략의 가까움을 보여주는 용도다. */
-  distance: number;
+  distance?: number;
   /**
      * 기준 병원과 겹친 진료과목. **이 병원이 위에 뜬 이유**이자 화면 배지 재료다.
      *
