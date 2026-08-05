@@ -22,6 +22,9 @@ const HospitalDetail = lazy(() => import('@/features/clinic/pages/HospitalDetail
 const HospitalNonPayment = lazy(
   () => import('@/features/clinic/pages/HospitalNonPayment'),
 );
+const Terms = lazy(() => import('@/features/legal/pages/Terms'));
+const LocationTerms = lazy(() => import('@/features/legal/pages/LocationTerms'));
+const Privacy = lazy(() => import('@/features/legal/pages/Privacy'));
 const NotFound = lazy(() => import('@/features/home/pages/NotFound'));
 
 function PageLoader() {
@@ -68,6 +71,10 @@ const pages: RouteObject[] = [
     children: [
       { index: true, element: <Home /> },
       { path: 'search', element: <Search /> },
+      // 약관·방침은 푸터에서만 들어오는 읽기 화면이라 목록 껍데기를 그대로 쓴다.
+      { path: 'terms', element: <Terms /> },
+      { path: 'terms/location', element: <LocationTerms /> },
+      { path: 'privacy', element: <Privacy /> },
       { path: '*', element: <NotFound /> },
     ],
   },
