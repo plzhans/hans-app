@@ -1,4 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { HOSPITAL_TIERS, INPATIENT_TIERS } from '@hansapp/data/seed';
 
 import {
@@ -7,6 +10,8 @@ import {
   jsonOutput,
   type LlmProviderName,
 } from '@hansapp/llm';
+import { CachePrefix } from '../common/cache-keys';
+import { RegionCache, type RegionEntry } from '../region/region.cache';
 import { HealthcareCodeCache } from './healthcare-code.cache';
 import { HiraAsmCodeCache } from './hira-asm-code.cache';
 
@@ -81,15 +86,49 @@ export interface AiSearchUsage {
   readonly cacheWriteTokens?: number;
 }
 
-export interface AiSearchResult {
+/**
+ * 화면이 실행할 일. **필터가 아니라 지시다.**
+ *
+ * 필터 하나로 다 표현하려니 "조건은 비었는데 할 일은 있는" 경우가 표현이 안 됐다 —
+ * "하남 병원 보여줘"(지역만)나 "근처 병원"(위치만)이 조건 0개로 읽혀 아무것도 못 했다.
+ * 무엇을 할지를 이름으로 드러내면 그 자리가 사라진다.
+ *
+ * **닫힌 집합이다.** 모델이 도구 이름을 지어내지 않는다 — 서버가 모델의 출력(조건·지역·
+ * 위치 의도)과 자기가 아는 것(지역 해석 결과·코드 검증 결과)을 합쳐 이 중 하나로 정한다.
+ * 그래서 프론트는 switch 하나로 갈리고, 모르는 이름이 오면 조용히 넘기면 된다.
+ */
+export type AiSearchTool =
+  /** 조건(+지역)으로 목록을 조회한다. 좌표가 필요 없다. */
+  | 'search_hospitals'
+  /** 현재 위치 기준 거리순으로 조회한다. **측위는 화면 몫이다** — 서버는 좌표를 모른다. */
+  | 'search_nearby'
+  /** 지역을 되물어야 한다. 사용자가 장소를 말했는데 코드로 못 옮겼다(역 이름·읍면동). */
+  | 'ask_location'
+  /** 검색하지 않는다. 범위 밖이거나 조건을 하나도 못 잡았다. */
+  | 'reject';
+
+/** 툴 인자. 툴마다 쓰는 것만 채워진다 — 안 쓰는 자리는 비어 있다. */
+export interface AiSearchParams {
+  /** search_hospitals · search_nearby · ask_location 이 쓴다. reject 면 비어 있다. */
   readonly filter: AiSearchFilter;
   /**
-   * 사용자가 쓴 지역 표현 원문. **코드로 바꾸지 않는다** — 역·동·시군구 해석은
-   * 아직 이 서비스가 하지 않는다(지역 기준점 테이블이 들어오면 그때).
-   * 화면이 이 문자열로 지역 선택을 유도하거나 그대로 보여준다.
+   * 시군구 코드(없으면 시도 코드). **search_hospitals 에서만 채워진다** —
+   * 나머지 툴은 지역이 없거나(nearby) 아직 못 정한 것(ask_location)이다.
+   */
+  readonly regionCd?: string;
+  /**
+   * 사용자가 쓴 지역 표현 원문("강남역"). ask_location 이 되물을 때 화면에 보여준다.
+   * search_hospitals 에서도 "무엇을 그렇게 읽었는지" 를 밝히는 데 쓴다.
    */
   readonly placeText?: string;
-  readonly needsLocation: boolean;
+  /** reject 사유. `off_topic` 이면 범위 밖, `too_vague` 면 조건을 못 잡았다. */
+  readonly reason?: AiSearchWarning;
+}
+
+export interface AiSearchResult {
+  /** 화면이 무엇을 할지. 위 AiSearchTool 주석 참고. */
+  readonly tool: AiSearchTool;
+  readonly params: AiSearchParams;
   readonly warnings: AiSearchWarning[];
   readonly explain: string;
   /**
@@ -101,6 +140,17 @@ export interface AiSearchResult {
   readonly provider: LlmProviderName;
   readonly model: string;
   readonly usage: AiSearchUsage;
+  /**
+   * 캐시에서 나온 답이면 true. **이때 `usage` 는 이 요청이 쓴 값이 아니다** — 처음 물었을 때
+   * 쓴 값이 그대로 실려 있어서, 구분이 없으면 토큰을 합산하는 쪽이 실제보다 크게 센다.
+   */
+  readonly cached: boolean;
+  /**
+   * **서버가 이 요청을 처리한 시간(ms).** 브라우저가 기다린 시간이 아니다(네트워크가 빠진다).
+   * 로그에 찍히는 값과 같아서, 사용자가 "느리다" 고 할 때 어느 구간인지 바로 가른다 —
+   * 여기가 작은데 느리면 네트워크·렌더 쪽이다.
+   */
+  readonly elapsedMs: number;
 }
 
 /** 모델이 낸 원시 JSON. 스키마로 강제되지만 신뢰하지 않고 다시 검증한다. */
@@ -116,10 +166,34 @@ interface RawFilter {
   baby?: unknown;
   name?: unknown;
   placeText?: unknown;
-  needsLocation?: unknown;
+  useMyLocation?: unknown;
   warnings?: unknown;
   explain?: unknown;
 }
+
+/**
+ * 응답 캐시 수명(24시간).
+ *
+ * 길게 잡는 이유는 **답이 잘 안 변하기 때문**이다 — "천식 소아과" 가 어떤 진료과 코드로
+ * 옮겨지는지는 시간이 지난다고 달라지지 않는다. 바뀌는 계기는 프롬프트 수정인데, 그건
+ * 키에 섞인 프롬프트 해시가 알아서 갈라 준다.
+ *
+ * 그래도 무한이 아닌 것은 코드표(진료과목·평가항목)가 늘 수 있어서다. 새 코드가 들어오면
+ * 프롬프트를 같이 고치는 게 정상이지만, 안 고쳐도 하루 뒤에는 다시 물어보게 된다.
+ */
+const ANSWER_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 캐시에 담기는 **AiSearchResult 의 모양** 버전. 필드를 더하거나 이름을 바꾸면 올린다.
+ *
+ * 프롬프트 해시로는 이걸 못 막는다 — 프롬프트를 그대로 두고 코드만 고치는 경우가 있고,
+ * 그때 옛 모양이 담긴 Redis 값이 새 코드로 흘러들면 `undefined` 를 필드처럼 읽는다.
+ * 배포 직후 하루 동안만 나타나는 버그라 재현도 어렵다.
+ *
+ *   v1  filter/placeText/regionCd/useMyLocation 을 평평하게 두던 시절
+ *   v2  tool + params 로 갈라낸 지금
+ */
+const CACHE_SHAPE_VERSION = 2;
 
 const VALID_TIERS = new Set<string>([
   ...HOSPITAL_TIERS.map((t) => t.code),
@@ -160,21 +234,153 @@ export class HealthcareAiSearchService {
     private readonly prompts: SvcPromptRepository,
     private readonly codes: HealthcareCodeCache,
     private readonly asmCodes: HiraAsmCodeCache,
+    private readonly regions: RegionCache,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  async extractFilter(
-    question: string,
-    options: { provider?: LlmProviderName; model?: string } = {},
-  ): Promise<AiSearchResult> {
+  /**
+   * 응답 캐시 키. `aiSearch:<프롬프트해시>:<질문해시>`
+   *
+   * **질문 원문을 키에 넣지 않는다.** 건강 관련 질문이 Redis 키에 평문으로 쌓이면
+   * `KEYS *` 한 번에 다 보인다(좌표를 URL·로그에 안 싣는 것과 같은 이유). 해시라 길이도 고정된다.
+   *
+   * **CRC32 같은 체크섬은 못 쓴다.** 32비트는 6만여 개에서 충돌이 시작되는데, 충돌하면
+   * A 가 물은 답이 B 에게 간다 — 남의 검색 조건이 내 화면에 뜨는 것이라 그냥 버그가 아니다.
+   * sha256 을 128비트로 잘라 쓴다(충돌하려면 2⁶⁴ 개가 필요하다).
+   *
+   * 프롬프트 해시는 **파일을 읽을 때 한 번** 계산해 둔 값이다(SvcPrompt.hash) — 8천 토큰을
+   * 요청마다 해싱하지 않는다. 프롬프트가 바뀌면 키 공간이 통째로 갈려 옛 답이 안 나온다.
+   */
+  private cacheKey(question: string, promptHash: string): string {
+    const q = createHash('sha256')
+      .update(normalizeQuestion(question))
+      .digest('hex')
+      .slice(0, 32);
+    return `${CachePrefix.aiSearch}:v${CACHE_SHAPE_VERSION}:${promptHash}:${q}`;
+  }
+
+  /**
+   * 모델이 읽어낸 것 + 서버가 아는 것 → **무엇을 할지**.
+   *
+   * **모델이 툴을 고르지 않는 이유**는 판단 재료의 절반이 서버에만 있어서다 —
+   * "강남역" 이 시군구로 풀리는지, 모델이 낸 코드가 코드표에 있는지는 모델이 모른다.
+   * 모델은 질문을 읽고, 서버는 그걸 실행 가능한 지시로 옮긴다.
+   *
+   * 순서가 곧 우선순위다. 위에서 걸리면 아래는 안 본다:
+   *   1. 범위 밖         → reject     (조건이 있어도 버린다)
+   *   2. 장소를 말했다   → 풀렸으면 search_hospitals, 못 풀었으면 ask_location
+   *   3. 내 위치         → search_nearby
+   *   4. 조건만 있다     → search_hospitals (전국)
+   *   5. 아무것도 없다   → reject
+   */
+  private decide(input: {
+    offTopic: boolean;
+    filter: AiSearchFilter;
+    placeText?: string;
+    useMyLocation: boolean;
+    warnings: AiSearchWarning[];
+  }): { tool: AiSearchTool; params: AiSearchParams } {
+    const { offTopic, filter, placeText, useMyLocation, warnings } = input;
+
+    // 범위 밖이면 **조건을 통째로 버린다.** 모델이 off_topic 을 달면서 조건도 같이 채워
+    // 보내는 경우가 있는데(인젝션으로 유도되면 특히), 그대로 흘리면 화면이 엉뚱한 검색을 돈다.
+    if (offTopic) {
+      return {
+        tool: 'reject',
+        params: { filter: emptyFilter(), reason: 'off_topic' },
+      };
+    }
+
+    if (placeText) {
+      const regionCd = this.resolveRegion(placeText);
+      return regionCd
+        ? { tool: 'search_hospitals', params: { filter, regionCd, placeText } }
+        : // 역 이름·읍면동은 아직 못 푼다. 그대로 전국 검색을 돌리면 사용자는 자기가 말한
+          // 동네가 반영된 줄 아니, 지역을 되묻고 조건은 들고 간다.
+          { tool: 'ask_location', params: { filter, placeText } };
+    }
+
+    if (useMyLocation) {
+      return { tool: 'search_nearby', params: { filter } };
+    }
+
+    // 지역도 위치도 없지만 조건은 있다 — 전국에서 찾는다.
+    if (hasAnyCondition(filter)) {
+      return { tool: 'search_hospitals', params: { filter } };
+    }
+
+    // 조건도 지역도 위치도 없다. 모델이 사유를 달았으면 그걸 살리고, 아니면 too_vague 다.
+    return {
+      tool: 'reject',
+      params: {
+        filter: emptyFilter(),
+        reason: warnings.find((w) => w !== 'off_topic') ?? 'too_vague',
+      },
+    };
+  }
+
+  /**
+   * `placeText` → 시군구 코드(없으면 시도 코드). 검색의 `region` 파라미터가 된다.
+   *
+   * **지오코딩이 아니라 이름 매칭이다.** "하남에서 찾아줘" 가 원하는 것은 하남시 안의
+   * 목록이지 어느 점에서 가까운 순이 아니라, 좌표까지 갈 이유가 없다.
+   *
+   * 시도를 먼저 잡고 그 안에서 시군구를 찾는다 — "중구" 는 서울·부산·대구에 다 있어서
+   * 시도 없이는 고를 수가 없다. 시도까지만 나오면 시도 코드로 만족한다(서버가 그 시도의
+   * 시군구 전체로 넓혀 준다).
+   *
+   * **애매하면 포기한다.** 후보가 둘 이상이면 undefined 를 돌려주고, 화면이 placeText 로
+   * 지역 선택을 띄운다 — 찍어서 엉뚱한 동네를 보여주는 것보다 한 번 묻는 게 낫다.
+   */
+  private resolveRegion(placeText: string): string | undefined {
+    // "경기도 하남시" 처럼 붙여 쓰든 띄어 쓰든 같게 보려고 공백을 없앤다.
+    const text = placeText.replace(/\s+/g, '');
+
+    const hit = (entries: RegionEntry[]): RegionEntry[] =>
+      entries.filter((r) => aliases(r).some((a) => text.includes(a)));
+
+    // 시도가 잡히면 시군구 후보를 그 안으로 좁힌다.
+    const sido = hit(this.regions.list({ level: 'sido' }))[0];
+    const sggus = hit(
+      this.regions.list({ level: 'sggu', parentCode: sido?.code }),
+    );
+
+    if (sggus.length === 1) {
+      return sggus[0].code;
+    }
+    // 시군구가 여럿이면 시도까지만 확정된 것이다. 시도조차 없으면 못 푼 것이고.
+    return sido?.code;
+  }
+
+  /**
+   * **업체도 모델도 인자로 받지 않는다.** 설정(`llm.provider`, `llm.<provider>.defaultModel`)이
+   * 정한다 — 호출자가 고르게 두면 호출자가 요금을 정하게 되는데, 이 메서드는 공개
+   * 엔드포인트가 부른다. 바꿔 볼 일이 있으면 설정을 고치고 재시작한다.
+   */
+  async extractFilter(question: string): Promise<AiSearchResult> {
     const prompt = this.prompts.get(PROMPT_NAME);
 
     const startedAt = Date.now();
 
+    /*
+      **같은 질문이면 부르지 않는다.** 업체의 프롬프트 캐시는 요금을 1/10 로 줄여 주지만
+      지연은 그대로다(8천 토큰을 매번 읽는다 — 실측 5.6초). 사용자가 체감하는 건 그쪽이라,
+      응답 자체를 담아 두면 두 번째부터는 수십 ms 다.
+
+      **모든 사용자가 나눠 쓴다.** "천식 소아과" 는 누가 물어도 같은 조건이 나오므로,
+      한 명이 물으면 나머지는 호출 없이 받는다.
+    */
+    const key = this.cacheKey(question, prompt.hash);
+    const cached = await this.tryGet(key);
+    if (cached) {
+      const elapsedMs = Date.now() - startedAt;
+      this.logger.log(`${PROMPT_NAME} cache hit ${elapsedMs}ms (${key})`);
+      return { ...cached, elapsedMs };
+    }
+
     // 1) 뼈대를 받는다. 업체 선택·모델 인스턴스·캐시 옵션·시스템 메시지가 채워져 온다.
     const call = this.llm.prepare({
       system: prompt.system,
-      provider: options.provider,
-      model: options.model,
       // 시스템 프롬프트가 매 요청 동일하다(코드표 + 규칙). 캐시가 걸리면 입력 요금이 1/10 이다.
       cacheSystem: true,
     });
@@ -196,7 +402,9 @@ export class HealthcareAiSearchService {
     // SDK 응답을 **우리 API 계약으로 옮긴다.** 중첩 경로(inputTokenDetails)와
     // undefined 는 SDK 사정이라 여기서 흡수한다 — 클라이언트가 그걸 알 이유가 없다.
     const provider = call.provider;
-    const model = response.response.modelId ?? options.model ?? '';
+    // **응답이 밝힌 모델이다** — 요청에 쓴 이름이 아니다. 별칭을 보내면 업체가 구체 버전으로
+    // 풀어서 알려주므로, 실제로 무엇이 답했는지는 이쪽만 안다.
+    const model = response.response.modelId ?? '';
     const usage: AiSearchUsage = {
       inputTokens: response.usage.inputTokens ?? 0,
       outputTokens: response.usage.outputTokens ?? 0,
@@ -266,17 +474,63 @@ export class HealthcareAiSearchService {
       this.logger.warn(`off-topic question rejected: ${forLog(question)}`);
     }
 
-    return {
-      filter: offTopic ? emptyFilter() : filter,
-      placeText: offTopic ? undefined : nonEmpty(raw.placeText),
-      needsLocation: !offTopic && raw.needsLocation === true,
+    const placeText = offTopic ? undefined : nonEmpty(raw.placeText);
+    // 장소를 말했으면 내 위치는 쓰지 않는다. 모델에도 그렇게 적어 뒀지만 여기서 한 번 더
+    // 못 박는다 — 둘 다 켜져 오면 화면이 어느 쪽을 따를지 알 수 없다.
+    const useMyLocation = !offTopic && !placeText && raw.useMyLocation === true;
+
+    const { tool, params } = this.decide({
+      offTopic,
+      filter,
+      placeText,
+      useMyLocation,
+      warnings,
+    });
+
+    const result: AiSearchResult = {
+      tool,
+      params,
       warnings,
       explain: sanitizeExplain(raw.explain),
       dropped,
       provider,
       model,
       usage,
+      cached: false,
+      elapsedMs: Date.now() - startedAt,
     };
+
+    /*
+      **떨어뜨린 코드가 있으면 담지 않는다.** dropped 는 프롬프트와 코드표가 어긋났다는
+      신호라, 그 상태의 답을 하루 동안 돌려주면 고친 뒤에도 옛 결함이 계속 나온다.
+      (프롬프트를 고치면 해시가 갈려 자동으로 무효화되지만, 코드표만 고친 경우는 안 갈린다)
+    */
+    if (dropped.length === 0) {
+      await this.trySet(key, result);
+    }
+    return result;
+  }
+
+  /** 캐시 조회(best-effort). Redis 가 죽어도 AI 호출로 살아난다. */
+  private async tryGet(key: string): Promise<AiSearchResult | undefined> {
+    try {
+      const hit = await this.cache.get<AiSearchResult>(key);
+      // 캐시에서 온 것임을 표시해 둔다 — usage 는 이 요청이 쓴 값이 아니라 처음 물었을 때
+      // 쓴 값이라, 구분이 없으면 토큰을 합산하는 쪽이 실제보다 크게 센다.
+      // elapsedMs 는 부르는 쪽이 이번 요청 기준으로 다시 채운다(담긴 값은 처음 것이다).
+      return hit ? { ...hit, cached: true } : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** 캐시 저장(best-effort). 실패해도 응답은 이미 만들어졌다. */
+  private async trySet(key: string, value: AiSearchResult): Promise<void> {
+    try {
+      await this.cache.set(key, value, ANSWER_CACHE_TTL_MS);
+    } catch {
+      // 저장 실패는 무시한다.
+    }
   }
 
   /** healthcare_code 에 있는 코드만 통과시킨다. 없는 건 dropped 로 뺀다. */
@@ -332,9 +586,64 @@ function toStringArray(raw: unknown): string[] {
   return [...seen];
 }
 
+/**
+ * 지역 하나를 부르는 이름들. `resolveRegion` 이 이 중 하나라도 걸리면 그 지역으로 본다.
+ *
+ * **꼬리(시·군·구)를 뗀 형태를 같이 넣는 게 핵심이다.** 사람들은 "강남구" 라고 안 하고
+ * "서울 강남" 이라고 쓴다 — 정식 명칭만 보면 그게 안 걸려서 시도까지만 잡히고 만다.
+ *
+ * 한 글자로 줄어드는 것은 뺀다. "중구" → "중" 은 아무 문장에나 들어 있어서, 그걸로
+ * 매칭하면 지역과 상관없는 질문이 엉뚱한 구로 걸린다.
+ */
+function aliases(region: RegionEntry): string[] {
+  const names = [region.nm, region.shortNm].filter((n): n is string => !!n);
+  const stems = names
+    .map((n) => n.replace(/\s+/g, ''))
+    .flatMap((n) => {
+      const stem = n.replace(/[시군구]$/, '');
+      return stem.length >= 2 && stem !== n ? [n, stem] : [n];
+    });
+  return [...new Set(stems)];
+}
+
+/**
+ * 캐시 키를 만들기 전 질문을 다듬는다. **여기서 같아지는 질문은 같은 답을 받는다.**
+ *
+ * 하는 일은 표기 차이를 지우는 것까지다:
+ *   유니코드 정규화(NFKC)  전각 "ＡＢ" 와 반각 "AB" 를 같게 본다
+ *   공백 정리              "천식  소아과" · "천식\n소아과" → "천식 소아과"
+ *   소문자                 "ENT" · "ent" (한글은 영향이 없다)
+ *
+ * **어순은 건드리지 않는다.** "천식 소아과" 와 "소아과 천식" 을 같게 보고 싶은 유혹이 있지만,
+ * 단어를 정렬해 버리면 "주사 말고 약" 과 "약 말고 주사" 도 같아진다 — 뜻이 정반대인 질문이
+ * 한 칸을 나눠 쓰게 된다. 캐시가 틀린 답을 주는 것보다 덜 맞는 게 낫다.
+ */
+function normalizeQuestion(question: string): string {
+  return question.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 /** 스키마가 null 을 허용하는 자리. 빈 문자열도 없는 것으로 본다. */
 function nonEmpty(raw: unknown): string | undefined {
   return typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : undefined;
+}
+
+/**
+ * 조건이 하나라도 잡혔나. **지역·위치는 안 센다** — 그건 filter 밖에 있고, 여기서는
+ * "전국에서라도 걸러낼 게 있나" 만 묻는다(decide 가 지역·위치를 먼저 처리한 뒤 부른다).
+ */
+function hasAnyCondition(filter: AiSearchFilter): boolean {
+  return (
+    filter.subjectCds.length > 0 ||
+    filter.specialistCds.length > 0 ||
+    filter.asmItemCds.length > 0 ||
+    filter.specialtyCds.length > 0 ||
+    filter.equipmentCds.length > 0 ||
+    filter.classCds.length > 0 ||
+    filter.tiers.length > 0 ||
+    filter.emergency ||
+    filter.baby ||
+    !!filter.name
+  );
 }
 
 /** 아무 조건도 없는 필터. 범위 밖 질문의 응답이다. */

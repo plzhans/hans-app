@@ -1,23 +1,28 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsIn,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
 import type {
   AiSearchFilter,
+  AiSearchParams,
   AiSearchResult,
+  AiSearchWarning,
+  AiSearchTool,
   LlmProviderName,
   AiSearchUsage,
 } from '@hansapp/application';
+
+/** 화면이 실행할 일. 닫힌 집합이라 모르는 이름은 오지 않는다. */
+const TOOLS = [
+  'search_hospitals',
+  'search_nearby',
+  'ask_location',
+  'reject',
+] as const;
 
 /** 질문 길이 상한. 이 API 는 검색어를 받는 자리라 문단이 들어올 이유가 없다. */
 export const MAX_QUESTION_LENGTH = 300;
 
 /** 고를 수 있는 프로바이더. 설정에 없는 걸 고르면 호출 시점에 실패한다. */
-const PROVIDERS = ['claude', 'openai', 'local'] as const;
+const PROVIDERS = ['anthropic', 'openai', 'local'] as const;
 
 export class AiSearchRequestDto {
   @ApiProperty({
@@ -29,27 +34,6 @@ export class AiSearchRequestDto {
   @MinLength(2)
   @MaxLength(MAX_QUESTION_LENGTH)
   readonly q!: string;
-
-  @ApiPropertyOptional({
-    description:
-      '어느 업체로 보낼지. 비우면 서버 설정의 기본값(llm.provider).\n' +
-      '`local` 은 OpenAI 호환 엔드포인트(ollama·vLLM 등)를 뜻한다.',
-    enum: PROVIDERS,
-  })
-  @IsOptional()
-  @IsIn(PROVIDERS)
-  readonly provider?: LlmProviderName;
-
-  @ApiPropertyOptional({
-    description:
-      '모델 이름. 비우면 프로바이더별 설정의 기본값. ' +
-      '비교 실험용이라 운영 클라이언트는 보통 비운다.',
-    example: 'claude-opus-5',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  readonly model?: string;
 }
 
 class AiSearchFilterDto implements AiSearchFilter {
@@ -102,28 +86,61 @@ class AiSearchUsageDto implements AiSearchUsage {
   readonly cacheWriteTokens?: number;
 }
 
-/**
- * AI 검색 응답. **병원 목록이 아니라 검색 조건이다.**
- *
- * 화면은 이 filter 를 사용자에게 칩으로 보여주고(고칠 수 있게), 그대로
- * `GET /healthcare/hospitals` 에 실어 실제 목록을 받는다. 그렇게 나눈 이유는
- * HealthcareAiSearchService 주석 참고.
- */
-export class AiSearchResponseDto {
+class AiSearchParamsDto implements AiSearchParams {
   @ApiProperty({ type: AiSearchFilterDto })
   readonly filter!: AiSearchFilterDto;
 
   @ApiPropertyOptional({
     description:
-      '사용자가 쓴 지역 표현 원문(예: "강남역 근처"). **코드가 아니다** — ' +
-      '역·동 해석은 아직 서버가 하지 않는다. 화면이 지역 선택을 유도하는 데 쓴다.',
+      '시군구 코드(없으면 시도 코드). 검색의 `region` 파라미터다. ' +
+      '**`search_hospitals` 에서만 채워진다.**',
+    example: '41450',
+  })
+  readonly regionCd?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '사용자가 쓴 지역 표현 원문(예: "강남역"). **코드가 아니다** — ' +
+      '`ask_location` 이 되물을 때 화면에 그대로 보여준다.',
   })
   readonly placeText?: string;
 
-  @ApiProperty({
-    description: '지역을 특정할 수 없어 되물어야 하면 true',
+  @ApiPropertyOptional({
+    description:
+      '`reject` 사유. `off_topic`(범위 밖) 또는 `too_vague`(조건 못 잡음).',
   })
-  readonly needsLocation!: boolean;
+  readonly reason?: AiSearchWarning;
+}
+
+/**
+ * AI 검색 응답. **병원 목록이 아니라 "무엇을 할지" 다.**
+ *
+ * 화면은 `tool` 로 갈리고 `params` 를 그대로 실어 기존 API 를 부른다 —
+ * 조건 조합을 화면이 추론하지 않는다(그러다 "조건은 비었는데 할 일은 있는" 경우를 놓쳤다).
+ *
+ * ```
+ *   search_hospitals  params.filter (+regionCd) 로 GET /healthcare/hospitals
+ *   search_nearby     측위한 뒤 같은 조회에 sort=distance·origin 을 얹는다
+ *   ask_location      지역을 되묻는다. params.filter 는 들고 있다가 나중에 쓴다
+ *   reject            검색하지 않는다. explain 을 보여준다
+ * ```
+ *
+ * 툴이 늘어도 모르는 이름은 화면이 조용히 넘기면 되므로 옛 클라이언트가 안 깨진다.
+ */
+export class AiSearchResponseDto {
+  @ApiProperty({
+    enum: TOOLS,
+    description:
+      '화면이 실행할 일.\n' +
+      '- `search_hospitals` 조건(+지역)으로 조회\n' +
+      '- `search_nearby` 현재 위치 기준 거리순 조회(측위는 화면 몫)\n' +
+      '- `ask_location` 지역을 되물어야 함(장소를 말했는데 코드로 못 옮김)\n' +
+      '- `reject` 검색하지 않음',
+  })
+  readonly tool!: AiSearchTool;
+
+  @ApiProperty({ type: AiSearchParamsDto })
+  readonly params!: AiSearchParamsDto;
 
   @ApiProperty({
     type: [String],
@@ -157,18 +174,34 @@ export class AiSearchResponseDto {
   @ApiProperty({ description: '실제로 답한 모델' })
   readonly model!: string;
 
+  @ApiProperty({
+    description:
+      '캐시된 답이면 true. 이때 `usage` 는 **처음 물었을 때** 쓴 토큰이라 ' +
+      '이 요청의 비용이 아니다(이 요청은 LLM 을 부르지 않았다).',
+  })
+  readonly cached!: boolean;
+
+  @ApiProperty({
+    description:
+      '서버가 이 요청을 처리한 시간(ms). **브라우저가 기다린 시간이 아니다**(네트워크 제외). ' +
+      '캐시 히트면 한 자릿수까지 떨어진다.',
+    example: 1840,
+  })
+  readonly elapsedMs!: number;
+
   @ApiProperty({ type: AiSearchUsageDto })
   readonly usage!: AiSearchUsageDto;
 
   constructor(result: AiSearchResult) {
-    this.filter = result.filter;
-    this.placeText = result.placeText;
-    this.needsLocation = result.needsLocation;
+    this.tool = result.tool;
+    this.params = result.params;
     this.warnings = result.warnings;
     this.explain = result.explain;
     this.dropped = result.dropped;
     this.provider = result.provider;
     this.model = result.model;
+    this.cached = result.cached;
+    this.elapsedMs = result.elapsedMs;
     this.usage = result.usage;
   }
 }

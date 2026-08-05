@@ -5,6 +5,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   APICallError,
   Output,
+  RetryError,
   generateText,
   jsonSchema,
   type GenerateTextResult,
@@ -17,27 +18,25 @@ import {
   type LlmProviderName,
 } from './llm.config';
 import {
+  LlmConfigError,
   LlmError,
+  LlmInvalidCallError,
   type LlmCall,
   type LlmJsonSchema,
   type LlmPrepareInput,
   type LlmProviderOptions,
 } from './llm.types';
 
-/**
- * JSON Schema → SDK 출력 사양. **호출부가 `ai` 를 직접 import 하지 않게 하려고 둔다** —
- * 스키마를 파일에서 읽어 그대로 넘기는 게 전부인데, 그것 때문에 도메인이 SDK 를 물면
- * 이 패키지를 만든 의미가 없다.
- */
+/** JSON Schema → SDK 출력 사양. 호출부가 `ai` 를 직접 import 하지 않게 하려고 둔다. */
 export function jsonOutput(spec: LlmJsonSchema): Output.Output {
   return Output.object({ name: spec.name, schema: jsonSchema(spec.schema) });
 }
 
-/** 오류 본문을 예외에 실을 때 자르는 길이. 전문을 남기면 로그가 프롬프트로 덮인다. */
+/** 오류 본문을 예외에 실을 때 자르는 길이. */
 const MAX_ERROR_BODY = 500;
 
 /**
- * LLM 호출 대행자. **두 단계로 나뉜다.**
+ * LLM 호출 대행자. 두 단계로 나뉜다.
  *
  * ```
  *   prepare()  설정 + 업체 사정  →  호출 뼈대(LlmCall)
@@ -45,45 +44,37 @@ const MAX_ERROR_BODY = 500;
  *   chat()     받은 그대로 발송 + 예외 변환 + 미지정 기본값
  * ```
  *
- * 나눈 이유는 **업체 사정과 대화 내용이 서로 다른 곳에 있기 때문**이다.
- * 어느 클라이언트를 쓸지·캐시를 어디 걸지는 설정을 아는 이 계층이 알고,
- * 무엇을 물을지는 도메인이 안다. 한 함수로 합치면 둘 중 하나가 반대편으로 새어 나간다.
+ * 나눈 이유는 **업체 사정과 대화 내용이 서로 다른 곳에 있기 때문**이다. 어느 클라이언트를
+ * 쓸지·캐시를 어디 걸지는 설정을 아는 이 계층이 알고, 무엇을 물을지는 도메인이 안다.
  *
- * [프로바이더를 인터페이스로 안 나눈 이유]
- * **AI SDK 자체가 이미 프로바이더 추상화다.** 그 위에 우리 인터페이스를 또 얹으면 같은 일을
- * 두 번 하게 된다 — 실제로 그렇게 짰다가 걷어냈다. 여기 남은 일은 "설정 → 모델 인스턴스"
- * 뿐이고 프로바이더당 10줄이라, switch 가 파일 세 개보다 읽기 쉽다.
+ * 프로바이더를 인터페이스로 나누지 않는다 — AI SDK 자체가 이미 프로바이더 추상화라
+ * 그 위에 한 겹 더 얹으면 같은 일을 두 번 한다.
  *
- * [한 방 호출이 구조로 보장된다]
- * `tools` 도 `stopWhen` 도 넘길 자리가 LlmCall 에 없다. generateText 는 기본이 단일 생성이라
- * 도구가 없으면 루프 자체가 성립하지 않는다 — 왕복은 항상 1회다.
- * 도구 루프가 필요해지면 그때 chat 옆에 다른 메서드를 만든다(이건 건드리지 않는다).
+ * **왕복은 항상 1회다.** `tools` 도 `stopWhen` 도 LlmCall 에 넘길 자리가 없어서 루프가
+ * 구조적으로 성립하지 않는다. 도구 루프가 필요해지면 별도 메서드를 만든다.
  */
 @Injectable()
 export class LlmService {
   constructor(@Inject(LLM_CONFIG) private readonly config: LlmConfig) {}
 
   /**
-   * 호출 뼈대를 만든다. **업체마다 다른 것을 여기서 다 흡수한다** — 어느 SDK 클라이언트를
-   * 쓸지, 어떤 설정이 필수인지, 업체 고유 옵션이 무엇인지.
+   * 호출 뼈대를 만든다. 업체마다 다른 것(클라이언트·필수 설정·고유 옵션)을 여기서 흡수한다.
+   * 돌려준 `messages` 에는 시스템 메시지 하나가 들어 있으니, 호출부는 사용자 turn 을 붙이고
+   * `output` 을 채워 chat 으로 넘기면 된다.
    *
-   * 돌려준 객체의 `messages` 에는 **시스템 메시지 하나가 들어 있다.** 호출부는 뒤에
-   * 사용자 turn 을 붙이고 `output` 을 채운 다음 chat 으로 넘기면 된다.
-   *
-   * **설정이 모자라면 여기서 던진다** — 부팅이 아니라 호출 시점이다(키가 없다고 서버가
-   * 못 뜨면 안 된다). 모델 인스턴스를 매번 만드는 것은 상태 없는 팩토리라 비용이 없어서다.
+   * 설정이 모자라면 여기서 던진다 — 부팅이 아니라 호출 시점이다(키가 없다고 서버가
+   * 못 뜨면 안 된다).
    */
   prepare(input: LlmPrepareInput): LlmCall {
-    const provider = input.provider ?? this.config.provider;
+    const provider = input.provider ?? this.config.defaultProvider;
     const resolved = this.resolve(provider, input);
 
     return {
       provider,
       model: resolved.model,
       providerOptions: resolved.providerOptions,
-      // **시스템 프롬프트가 최상위 system 이 아니라 messages[0] 인 이유**는 캐시다.
-      // 최상위 system 은 문자열이라 providerOptions 를 붙일 자리가 없고, Anthropic 의
-      // cache_control 은 메시지 파트에만 걸린다. chat 이 allowSystemInMessages 를 켠다.
+      // 시스템 프롬프트를 최상위 system 이 아니라 messages[0] 에 두는 것은 캐시 때문이다.
+      // 최상위 system 은 문자열이라 providerOptions 를 붙일 자리가 없다.
       messages: [
         {
           role: 'system',
@@ -97,56 +88,64 @@ export class LlmService {
   }
 
   /**
-   * 준비된 호출을 **그대로 보낸다.** 메시지를 만지지 않는다 — 조립은 prepare 와 호출부가 끝냈다.
-   *
-   * 여기서 하는 일은 셋뿐이다:
-   *   · 상한값이 **비어 있을 때만** 설정값으로 채운다(호출부가 정했으면 그 값이 이긴다)
-   *   · SDK 예외를 LlmError 로 옮긴다
-   *   · 반환은 SDK 결과 그대로. 우리 모양으로 옮겨 담지 않는다
+   * 준비된 호출을 그대로 보낸다. 메시지는 만지지 않는다 — 조립은 prepare 와 호출부가 끝냈다.
+   * 여기서 하는 일은 사전 검사, 미지정 상한값 채우기, 예외 변환뿐이다.
    */
   async chat(
     call: LlmCall,
-    // 제네릭 셋: 도구 없음(Record<string, never>) · 런타임 컨텍스트 없음 · 출력 사양.
-    // 도구 자리가 비어 있는 것이 "루프가 안 돈다" 는 타입 수준의 증거다.
+    // 제네릭의 도구 자리가 비어 있는 것이 "루프가 안 돈다" 는 타입 수준의 증거다.
   ): Promise<GenerateTextResult<Record<string, never>, never, Output.Output>> {
+    assertCallable(call);
     try {
       return await generateText({
         model: call.model,
-        // prepare 가 system 을 messages[0] 에 넣었다. 이 플래그가 없으면 SDK 가 거절한다.
-        allowSystemInMessages: true,
+        // 메시지를 보고 정한다 — 항상 켜 두면 진짜 실수까지 통과한다.
+        allowSystemInMessages: call.messages.some((m) => m.role === 'system'),
         messages: call.messages,
         ...(call.output ? { output: call.output } : {}),
         providerOptions: call.providerOptions,
         maxOutputTokens: call.maxOutputTokens ?? this.config.maxTokens,
-        // SDK 는 4xx 를 재시도하지 않는다(429·5xx 만). 기본 2회면 충분하다.
+        // SDK 는 4xx 를 재시도하지 않는다(429·5xx 만).
         maxRetries: call.maxRetries ?? 2,
         timeout: call.timeout ?? this.config.timeoutSec * 1000,
       });
     } catch (cause) {
-      throw toLlmError(cause, call.provider);
+      throw toLlmError(cause, call.provider, modelIdOf(call));
     }
   }
 
   /** 업체별로 갈리는 것만 고른다. prepare 가 이걸 LlmCall 로 조립한다. */
   private resolve(provider: LlmProviderName, input: LlmPrepareInput) {
     switch (provider) {
-      case 'claude': {
-        const endpoint = this.config.claude;
-        const apiKey = required(endpoint.apiKey, 'llm.claude.apiKey', provider);
+      case 'anthropic': {
+        const endpoint = this.config.anthropic;
         const model = required(
-          input.model ?? endpoint.model,
-          'llm.claude.model',
+          input.model ?? endpoint.defaultModel,
+          'llm.anthropic.defaultModel',
           provider,
         );
+        if (!endpoint.apiKey && !endpoint.authToken) {
+          throw new LlmConfigError(
+            'llm.anthropic.apiKey (or llm.anthropic.authToken for local use) is not configured',
+            provider,
+          );
+        }
+        // apiKey(`x-api-key`)가 authToken(구독 OAuth)을 이긴다 — 로컬 셸에 토큰이 남아
+        // 있어도 설정에 키를 넣으면 그쪽으로 돌아가야 환경마다 흔들리지 않는다.
+        const credentials = endpoint.apiKey
+          ? { apiKey: endpoint.apiKey }
+          : {
+              authToken: endpoint.authToken,
+              // 이 베타 헤더가 없으면 OAuth 토큰을 /v1/messages 가 거절한다.
+              headers: { 'anthropic-beta': 'oauth-2025-04-20' },
+            };
         return {
-          model: createAnthropic({ apiKey, baseURL: v1(endpoint) })(model),
-          // **사고를 끄지 않고 effort 를 낮춘다.** Claude Opus 5 에서 thinking:disabled 는
-          // 도구 호출이 평문으로 새거나 <thinking> 태그가 응답에 섞이는 알려진 실패 모드가
-          // 있다. effort:low 로도 비용·지연 절감은 충분하다.
-          providerOptions: {
-            anthropic: { effort: this.config.effort },
-          } as LlmProviderOptions,
-          // 안 붙어도 에러가 없다. 요금만 10배 나온다(usage 의 cacheReadTokens 로 확인할 것).
+          model: createAnthropic({ ...credentials, baseURL: v1(endpoint) })(
+            model,
+          ),
+          // 최상위 업체 옵션은 쓰지 않는다(effort 는 설정에서 걷어냈다 — llm.config 주석).
+          providerOptions: undefined,
+          // 안 붙어도 에러는 없다. 요금만 10배 나온다(usage.cacheReadTokens 로 확인).
           systemOptions: input.cacheSystem
             ? ({
                 anthropic: { cacheControl: { type: 'ephemeral' } },
@@ -159,12 +158,11 @@ export class LlmService {
         const endpoint = this.config.openai;
         const apiKey = required(endpoint.apiKey, 'llm.openai.apiKey', provider);
         const model = required(
-          input.model ?? endpoint.model,
-          'llm.openai.model',
+          input.model ?? endpoint.defaultModel,
+          'llm.openai.defaultModel',
           provider,
         );
-        // 업체 고유 옵션이 없다 — **프롬프트 캐시는 OpenAI 가 자동이다.** 쓰기에 추가 요금이
-        // 없어서 옵트인으로 둘 이유가 없기 때문이다(Anthropic 은 1.25배라 우리가 정한다).
+        // 고유 옵션이 없다 — 프롬프트 캐시가 자동이라 옵트인할 것이 없다.
         return {
           model: createOpenAI({ apiKey, baseURL: v1(endpoint) })(model),
           providerOptions: undefined,
@@ -175,21 +173,19 @@ export class LlmService {
       case 'local': {
         const endpoint = this.config.local;
         const model = required(
-          input.model ?? endpoint.model,
-          'llm.local.model',
+          input.model ?? endpoint.defaultModel,
+          'llm.local.defaultModel',
           provider,
         );
-        // **본가 클라이언트(createOpenAI)를 쓰면 안 된다.** 그쪽은 OpenAI 만 아는 파라미터를
-        // 보내는데 로컬 런타임이 그걸 거절한다. openai-compatible 은 규격 최소집합만 가정한다.
+        // 본가 클라이언트(createOpenAI)는 OpenAI 만 아는 파라미터를 보내서 로컬 런타임이
+        // 거절한다. openai-compatible 은 규격 최소집합만 가정한다.
         return {
           model: createOpenAICompatible({
             name: provider,
-            // 로컬 엔드포인트는 대개 인증이 없다. 없으면 아예 넘기지 않는다.
+            // 로컬 엔드포인트는 대개 인증이 없다.
             ...(endpoint.apiKey ? { apiKey: endpoint.apiKey } : {}),
             baseURL: v1(endpoint),
-            // **명시하지 않으면 구조화 출력이 꺼진 채로 돈다**(SDK 기본값). 켜도 실제 지원
-            // 여부는 모델마다 달라서, 안 되는 모델이면 스키마가 무시된 자유 텍스트가 온다 —
-            // 그건 chat 의 스키마 검증에서 LlmError 로 드러난다.
+            // 명시하지 않으면 구조화 출력이 꺼진 채로 돈다(SDK 기본값).
             supportsStructuredOutputs: true,
           })(model),
           providerOptions: undefined,
@@ -200,7 +196,55 @@ export class LlmService {
   }
 }
 
-/** 설정의 baseUrl 은 호스트까지다(llm.config 주석 참고). 버전 경로는 여기서 붙인다. */
+/**
+ * 보내기 전에 호출이 성립하는지 본다. 전부 부르는 쪽의 조립 누락이다.
+ *
+ * 여기서 막지 않으면 업체가 400 을 주는데, 그건 status 가 붙어 와서 로그만 보면 업체
+ * 탓처럼 보인다. `output` 은 없어도 되므로(자유 텍스트) 검사하지 않는다.
+ */
+function assertCallable(call: LlmCall): void {
+  const bad = (what: string): never => {
+    throw new LlmInvalidCallError(
+      `llm call is not ready: ${what}`,
+      call.provider,
+    );
+  };
+
+  if (!call.model) {
+    bad('model is missing (prepare 를 거치지 않았다)');
+  }
+  if (!Array.isArray(call.messages) || call.messages.length === 0) {
+    bad('messages is empty');
+  }
+  // prepare 는 시스템 메시지까지만 채운다 — 사용자 turn 누락이 가장 흔하다.
+  if (!call.messages.some((m) => m.role === 'user')) {
+    bad('no user message (prepare 결과에 사용자 turn 을 붙이지 않았다)');
+  }
+  for (const [i, m] of call.messages.entries()) {
+    if (typeof m.content === 'string' && m.content.trim().length === 0) {
+      bad(`messages[${i}] (${m.role}) has empty content`);
+    }
+  }
+  // 0·음수는 무제한이 아니라 잘못된 값이다. undefined 면 chat 이 설정값을 채운다.
+  if (call.maxOutputTokens !== undefined && call.maxOutputTokens <= 0) {
+    bad(`maxOutputTokens must be positive (got ${call.maxOutputTokens})`);
+  }
+}
+
+/** 실패 로그에 실을 모델 이름. 성공 응답과 달리 실패에는 modelId 가 없어서 필요하다. */
+function modelIdOf(call: LlmCall): string | undefined {
+  const model: unknown = call.model;
+  if (typeof model === 'string') {
+    return model;
+  }
+  if (model && typeof model === 'object' && 'modelId' in model) {
+    const { modelId } = model as { modelId?: unknown };
+    return typeof modelId === 'string' ? modelId : undefined;
+  }
+  return undefined;
+}
+
+/** 설정의 baseUrl 은 호스트까지다. 버전 경로는 여기서 붙인다. */
 function v1(endpoint: LlmEndpointConfig): string {
   return `${endpoint.baseUrl.replace(/\/+$/, '')}/v1`;
 }
@@ -212,33 +256,55 @@ function required(
   provider: LlmProviderName,
 ): string {
   if (!value) {
-    throw new LlmError(`${key} is not configured`, provider);
+    throw new LlmConfigError(`${key} is not configured`, provider);
   }
   return value;
 }
 
 /**
- * AI SDK 예외를 LlmError 로 옮긴다. **status 를 살려 두는 게 목적이다** —
- * 상위(컨트롤러)가 429 만 그대로 흘리고 나머지는 5xx 로 바꾸기 때문이다.
+ * AI SDK 예외를 LlmError 로 옮긴다. **status 를 살려 두는 게 목적이다** — 상위(컨트롤러)가
+ * 429 만 그대로 흘리고 나머지는 5xx 로 바꾼다.
  *
- * 스키마 검증 실패·JSON 파싱 실패도 여기로 온다(NoObjectGeneratedError 계열).
- * 그건 status 가 없어 타임아웃과 같은 자리에 떨어지는데, 어차피 둘 다 우리 잘못이 아니고
- * 사용자에게는 "잠시 뒤 다시" 가 맞는 답이라 구분하지 않는다.
+ * 스키마 검증 실패도 여기로 온다(NoObjectGeneratedError 계열). status 가 없어 타임아웃과
+ * 같은 자리에 떨어지지만, 사용자에게는 둘 다 "잠시 뒤 다시" 라 구분하지 않는다.
  */
-function toLlmError(cause: unknown, provider: LlmProviderName): LlmError {
+function toLlmError(
+  cause: unknown,
+  provider: LlmProviderName,
+  /** 전선에서 모델을 못 건졌을 때 쓸 값(우리가 넘긴 것). */
+  fallbackModel: string | undefined,
+): LlmError {
   if (cause instanceof LlmError) {
     return cause;
   }
-  if (APICallError.isInstance(cause)) {
+
+  // 재시도를 다 쓰면 RetryError 로 감싸여 오는데, 그 껍데기에는 status 도 본문도 없다.
+  // 벗기지 않으면 401 이든 400 이든 로그가 똑같이 생긴다.
+  const actual = RetryError.isInstance(cause) ? cause.lastError : cause;
+
+  if (APICallError.isInstance(actual)) {
     return new LlmError(
-      `${provider} returned ${cause.statusCode ?? 'an error'}`,
+      `${provider} returned ${actual.statusCode ?? 'an error'}`,
       provider,
-      cause.statusCode,
-      cause.responseBody?.slice(0, MAX_ERROR_BODY),
+      // 전선에 나간 body 가 우선이다 — 별칭이 풀렸다면 그 어긋남까지 드러난다.
+      modelInBody(actual.requestBodyValues) ?? fallbackModel,
+      actual.statusCode,
+      actual.responseBody?.slice(0, MAX_ERROR_BODY),
     );
   }
+  // 발송 전이나 네트워크 단에서 깨진 경우. 전선 기록이 없다.
   return new LlmError(
-    `${provider} request failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+    `${provider} request failed: ${actual instanceof Error ? actual.message : String(actual)}`,
     provider,
+    fallbackModel,
   );
+}
+
+/** APICallError 가 들고 있는 요청 body 에서 model 만 꺼낸다. 모양을 신뢰하지 않는다. */
+function modelInBody(body: unknown): string | undefined {
+  if (body && typeof body === 'object' && 'model' in body) {
+    const { model } = body as { model?: unknown };
+    return typeof model === 'string' ? model : undefined;
+  }
+  return undefined;
 }

@@ -17,7 +17,10 @@ import { Button } from '@/shared/ui/Button';
 import { MyLocationButton } from '@/shared/components/MyLocationButton';
 import { LangLink } from '@/shared/i18n/LangLink';
 import { useLangPath } from '@/shared/i18n/routing';
-import { useHospitalSearch, type HospitalSearchParams } from '@/features/clinic/api';
+import {
+  useHospitalSearch,
+  type HospitalSearchParams,
+} from '@/features/clinic/api';
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
 import { cn } from '@/shared/lib/utils';
 

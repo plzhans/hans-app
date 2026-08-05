@@ -276,7 +276,7 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap');
   // 접속 대상·활성 provider 요약(시크릿 마스킹, 한 줄씩). listen 앞에 둬 포트 충돌 등으로 못 떠도 설정은 보이게 한다.
-  logConfigSummary(appConfig, (l) => logger.log(l), { oauth: true });
+  logConfigSummary(appConfig, (l) => logger.log(l), { oauth: true, llm: true });
   // Sentry 가 켜졌는지도 같이 남긴다. 조용히 꺼져 있는 게 최악이다.
   logger.log(sentryStatusLine);
 

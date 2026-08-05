@@ -14,31 +14,6 @@ elasticsearch:
   # 남의 인덱스를 건드리지 않으려면 자기 접두사를 준다.
   indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:local}
 
-# AI 검색(자연어 → 검색 조건). **비어 있어도 서버는 정상 부팅한다** —
-# 키가 없으면 /healthcare/ai-search 만 503 이 된다.
-llm:
-  # claude | openai | local. local 은 OpenAI 호환 엔드포인트(ollama·vLLM·LM Studio).
-  provider: claude
-  timeoutSec: 30
-  # 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
-  maxTokens: 2048
-  # Claude 사고 깊이(low|medium|high|xhigh|max). 코드 추출은 어려운 작업이 아니다.
-  effort: low
-  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
-  promptDir: data/healthcare/svc-prompts
-  claude:
-    apiKey: ${ANTHROPIC_API_KEY}
-    baseUrl: https://api.anthropic.com
-    model: claude-opus-5
-  openai:
-    apiKey: ${OPENAI_API_KEY}
-    baseUrl: https://api.openai.com
-    # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
-    model: ${OPENAI_MODEL}
-  local:
-    baseUrl: ${LLM_LOCAL_BASE_URL:http://127.0.0.1:11434}
-    model: ${LLM_LOCAL_MODEL}
-
 cache:
   memoryMaxEntries: 10000
   memoryTtlSec: 300
@@ -86,3 +61,28 @@ molit:
 
 juso:
   serviceKey: ${KRGO_JUSO_SERVICE_KEY}
+
+llm:
+  # anthropic | openai | local. local 은 OpenAI 호환 엔드포인트(ollama·vLLM·LM Studio).
+  defaultProvider: anthropic
+  timeoutSec: 30
+  # 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
+  maxTokens: 2048
+  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
+  promptDir: data/healthcare/svc-prompts
+  # 업체 이름으로 둔다(모델 이름 claude 가 아니라). openai 와 같은 층위여야 읽을 때
+  # 헷갈리지 않고, 한 업체가 모델을 여럿 내도 이 키는 그대로다.
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+    # 구독 토큰. **로컬 전용** — 개인 구독이라 사용자 트래픽을 태우면 안 된다.
+    #   claude setup-token 생성
+    # 키와 토큰이 둘 다 있으면 키가 이긴다.
+    authToken: ${ANTHROPIC_AUTH_TOKEN}
+    # 기본값은 여기(코드 아님). **날짜 없는 별칭**이어야 한다 — 스냅샷 ID 는 은퇴하고,
+    # 그날 설정을 안 건드린 배포가 조용히 404 를 맞는다. 응답이 실제 버전을 알려준다.
+    # haiku 인 이유: 구독 토큰으로 opus·sonnet 은 429 고, 질문 → 코드 추출엔 이걸로 충분하다.
+    defaultModel: ${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+    # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
+    defaultModel: ${OPENAI_DEFAULT_MODEL}

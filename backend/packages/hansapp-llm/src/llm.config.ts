@@ -4,98 +4,102 @@ import type { ConfigSource } from '@hansapp/common';
 export const LLM_CONFIG = Symbol('LLM_CONFIG');
 
 /**
- * 어느 업체의 API 를 부를지. **모델 이름으로 유추하지 않는다** — 로컬에 올린 모델이
- * `claude-3-...` 라는 이름을 달고 있을 수도 있고, 같은 모델을 다른 게이트웨이로 부를 수도 있다.
- * 어디로 보낼지는 설정이 명시한다.
+ * 어느 업체의 API 를 부를지. 모델 이름으로 유추하지 않고 설정이 명시한다.
  *
- * `local` 은 **OpenAI 호환 엔드포인트**를 뜻한다(ollama·vLLM·LM Studio 가 모두 이걸 낸다).
- * 그래서 openai 와 같은 프로바이더 구현을 쓰고, baseUrl 과 인증만 다르다.
+ * `local` 은 OpenAI 호환 엔드포인트를 뜻한다(ollama·vLLM·LM Studio).
  */
-export type LlmProviderName = 'claude' | 'openai' | 'local';
+export type LlmProviderName = 'anthropic' | 'openai' | 'local';
 
 /** 프로바이더 하나의 접속 정보. */
 export interface LlmEndpointConfig {
   /** API 키. local 은 대개 필요 없다. */
   readonly apiKey?: string;
   /**
-   * 스킴+호스트까지. **버전 경로는 붙이지 않는다** — `/v1/messages` 든
-   * `/v1/chat/completions` 든 프로바이더 구현이 자기 경로를 안다.
-   * 그래야 게이트웨이를 갈아끼울 때 호스트만 바꾸면 된다.
+   * 구독 계정의 OAuth 토큰(Anthropic 전용). `claude setup-token` 으로 발급한다.
+   *
+   * **로컬 전용이다** — 개인 구독에 달린 토큰이라 서비스 트래픽을 태울 자리가 아니다.
+   * apiKey 와 둘 다 있으면 apiKey 가 이긴다.
+   */
+  readonly authToken?: string;
+  /**
+   * 스킴+호스트까지. 버전 경로(`/v1`)는 LlmService 가 붙인다.
+   *
+   * **기본값이 코드에 있다** — 게이트웨이를 끼우거나 로컬 런타임을 다른 포트에 올린 게
+   * 아니면 적을 이유가 없다. defaultModel 과 달리 박아 둬도 되는 것은, 업체 주소는
+   * 은퇴하지도 않고 틀려도 요금이 아니라 접속 실패로 즉시 드러나기 때문이다.
    */
   readonly baseUrl: string;
   /**
-   * 기본 모델. 요청이 모델을 지정하지 않으면 이 값을 쓴다.
+   * 이 프로바이더로 부를 모델. `prepare()` 의 인자가 없으면 이 값을 쓴다.
    *
-   * **openai·local 은 기본값이 없다.** 모델 이름은 계정·설치본마다 다르고, 없는 이름을
-   * 코드에 박아두면 호출 시점에야 404 로 드러난다. 설정에 없으면 그 프로바이더를 못 쓴다.
+   * 업체 API 는 `model` 이 필수라 **비면 400 이다** — 생략했을 때 알아서 골라 주는 기본
+   * 모델은 없다(모델이 곧 가격이라 업체가 대신 정하지 않는다).
+   *
+   * **기본값은 코드가 아니라 yaml 이 갖는다**(`${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}`).
+   * 그래야 "왜 이 모델로 나가지" 의 답이 설정 파일에 있다. 거기까지 비면 `prepare()` 가
+   * `LlmConfigError` 로 막는다 — 잘못된 모델로 나가느니 안 나가는 게 낫다.
+   *
+   * 설정에 적는 값은 **날짜 없는 별칭**이어야 한다. 스냅샷 ID 는 은퇴하고, 그날 아무도
+   * 설정을 안 건드린 배포가 조용히 404 를 맞는다.
    */
-  readonly model?: string;
+  readonly defaultModel?: string;
 }
 
 /**
- * LLM 설정. **값이 없으면 AI 기능만 꺼지고 부팅은 정상이다** — 슬랙 알림과 같은 태도다.
- * 병원 검색 본체는 LLM 없이 돌아야 하므로, 여기서 아무것도 검증하지 않는다.
- * 실제 실패는 호출 시점에 난다(LlmService 가 설정을 확인하고 던진다).
+ * LLM 설정. **값이 없어도 부팅은 정상이다** — 병원 검색 본체는 LLM 없이 돌아야 하므로
+ * 여기서 검증하지 않는다. 실패는 호출 시점에 LlmService 가 낸다.
  */
 export interface LlmConfig {
-  /** 요청이 프로바이더를 지정하지 않았을 때 쓸 기본값. */
-  readonly provider: LlmProviderName;
-  /** 한 번의 호출을 기다리는 최대 시간(초). 초과하면 끊는다. */
+  /** prepare() 가 프로바이더를 지정받지 않으면 이 값을 쓴다. */
+  readonly defaultProvider: LlmProviderName;
+  /** 한 번의 호출을 기다리는 최대 시간(초). */
   readonly timeoutSec: number;
-  /**
-   * 응답 최대 토큰. 이 API 는 필터 JSON 만 받으므로 크게 잡을 이유가 없다.
-   * 넘치면 잘린 JSON 이 오고 파싱이 실패한다 — 그건 조용한 오답보다 낫다.
-   */
+  /** 응답 최대 토큰. 넘치면 잘린 JSON 이 와서 호출이 실패한다. */
   readonly maxTokens: number;
+  /*
+    사고 깊이(effort)는 여기 없다. **작업의 성질이지 환경의 성질이 아니라서다** —
+    dev 는 얕게, prod 는 깊게 생각할 이유가 없고 그러면 dev 테스트가 prod 를 대변하지도
+    못한다. 게다가 모델과 짝이라(안 받는 모델에 실으면 400) 설정에서 둘이 떨어져 있으면
+    모델만 바꿨다가 깨진다.
+
+    필요해지면 LlmPrepareInput 으로 받는다 — 무엇을 얼마나 생각시킬지는 무엇을 묻는지
+    아는 호출부가 정한다.
+  */
   /**
-   * Claude 의 사고 깊이(low|medium|high|xhigh|max). 코드 추출은 어려운 작업이 아니라
-   * 기본을 낮게 잡는다. 정확도가 아쉬우면 설정만 올리면 된다.
-   * 다른 프로바이더는 이 값을 무시한다.
-   */
-  readonly effort: string;
-  /**
-   * 서비스 프롬프트 파일이 있는 디렉터리. 상대경로면 cwd·워크스페이스 루트 순으로 푼다.
-   *
-   * 설정으로 뺀 것은 **리빌드 없이 프롬프트만 고쳐 재적용**하려는 것이다(ES 스키마의
-   * schemaDir 과 같은 결). 배포 경로의 편집 가능한 자리를 가리키면 파일만 고치고
-   * 재시작하면 된다 — 프롬프트가 코드에 안 박혀 있으므로.
+   * 서비스 프롬프트 파일 디렉터리. 상대경로면 cwd·워크스페이스 루트 순으로 푼다.
+   * 설정으로 뺀 것은 리빌드 없이 프롬프트만 고쳐 재시작하기 위해서다.
    */
   readonly promptDir: string;
-  readonly claude: LlmEndpointConfig;
+  /** 키는 업체 이름이다(모델 이름 claude 가 아니라). */
+  readonly anthropic: LlmEndpointConfig;
   readonly openai: LlmEndpointConfig;
   readonly local: LlmEndpointConfig;
 }
 
 export function buildLlmConfig(cfg: ConfigSource): LlmConfig {
+  const endpoint = (
+    name: LlmProviderName,
+    fallbackBaseUrl: string,
+  ): LlmEndpointConfig =>
+    Object.freeze({
+      apiKey: cfg.getStringOrDefault(`llm.${name}.apiKey`) || undefined,
+      authToken: cfg.getStringOrDefault(`llm.${name}.authToken`) || undefined,
+      baseUrl: cfg.getStringOrDefault(`llm.${name}.baseUrl`) || fallbackBaseUrl,
+      // 기본값은 yaml 이 갖는다(LlmEndpointConfig.defaultModel 주석).
+      defaultModel:
+        cfg.getStringOrDefault(`llm.${name}.defaultModel`) || undefined,
+    });
+
   return Object.freeze({
-    provider: (cfg.getStringOrDefault('llm.provider') ||
-      'claude') as LlmProviderName,
+    defaultProvider: (cfg.getStringOrDefault('llm.defaultProvider') ||
+      'anthropic') as LlmProviderName,
     timeoutSec: cfg.getNumberOrDefault('llm.timeoutSec', 30),
     maxTokens: cfg.getNumberOrDefault('llm.maxTokens', 2048),
-    effort: cfg.getStringOrDefault('llm.effort') || 'low',
     promptDir:
       cfg.getStringOrDefault('llm.promptDir') || 'data/healthcare/svc-prompts',
-    claude: Object.freeze({
-      apiKey: cfg.getStringOrDefault('llm.claude.apiKey') || undefined,
-      baseUrl:
-        cfg.getStringOrDefault('llm.claude.baseUrl') ||
-        'https://api.anthropic.com',
-      model: cfg.getStringOrDefault('llm.claude.model') || 'claude-opus-5',
-    }),
-    openai: Object.freeze({
-      apiKey: cfg.getStringOrDefault('llm.openai.apiKey') || undefined,
-      baseUrl:
-        cfg.getStringOrDefault('llm.openai.baseUrl') ||
-        'https://api.openai.com',
-      // 기본값 없음 — 위 LlmEndpointConfig.model 주석 참고.
-      model: cfg.getStringOrDefault('llm.openai.model') || undefined,
-    }),
-    local: Object.freeze({
-      apiKey: cfg.getStringOrDefault('llm.local.apiKey') || undefined,
-      baseUrl:
-        // ollama 기본 포트. vLLM·LM Studio 도 같은 OpenAI 호환 경로를 낸다.
-        cfg.getStringOrDefault('llm.local.baseUrl') || 'http://127.0.0.1:11434',
-      model: cfg.getStringOrDefault('llm.local.model') || undefined,
-    }),
+    anthropic: endpoint('anthropic', 'https://api.anthropic.com'),
+    openai: endpoint('openai', 'https://api.openai.com'),
+    // ollama 기본 포트. vLLM·LM Studio 도 같은 경로를 낸다.
+    local: endpoint('local', 'http://127.0.0.1:11434'),
   });
 }

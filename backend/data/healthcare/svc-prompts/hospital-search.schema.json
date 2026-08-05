@@ -16,19 +16,23 @@
       "baby",
       "name",
       "placeText",
-      "needsLocation",
+      "useMyLocation",
       "warnings",
       "explain"
     ],
     "properties": {
       "subjectCds": {
         "type": "array",
-        "items": { "type": "string" },
+        "items": {
+          "type": "string"
+        },
         "description": "진료과목 코드. 신고 기준이라 전문의 보유와는 다르다. 최대 5개."
       },
       "specialistCds": {
         "type": "array",
-        "items": { "type": "string" },
+        "items": {
+          "type": "string"
+        },
         "description": "그 과목 전문의를 실제로 보유한 병원만 거는 진료과목 코드. 사용자가 전문의를 원할 때만."
       },
       "asmItemCds": {
@@ -64,17 +68,23 @@
       },
       "specialtyCds": {
         "type": "array",
-        "items": { "type": "string" },
+        "items": {
+          "type": "string"
+        },
         "description": "보건복지부 지정 전문병원 분야 코드."
       },
       "equipmentCds": {
         "type": "array",
-        "items": { "type": "string" },
+        "items": {
+          "type": "string"
+        },
         "description": "보유장비 코드. 사용자가 특정 장비를 언급했을 때만."
       },
       "classCds": {
         "type": "array",
-        "items": { "type": "string" },
+        "items": {
+          "type": "string"
+        },
         "description": "종별 코드. 계열(치과·한방)을 특정할 때만 쓴다. 등급으로 충분하면 비운다."
       },
       "tiers": {
@@ -101,9 +111,9 @@
         "type": ["string", "null"],
         "description": "사용자가 쓴 지역 표현 원문. 코드로 옮기지 말 것. 없으면 null."
       },
-      "needsLocation": {
+      "useMyLocation": {
         "type": "boolean",
-        "description": "지역을 특정할 수 없어 되물어야 하면 true."
+        "description": "사용자 현재 위치를 기준으로 찾아야 하면 true. placeText 가 있으면 항상 false."
       },
       "warnings": {
         "type": "array",

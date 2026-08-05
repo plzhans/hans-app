@@ -4,7 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
 import type { ConfigSource } from '@hansapp/common';
 import { ApplicationModule } from '@hansapp/application';
-import { McpModule } from '@hansapp/mcp';
+import { HealthcareMcpServer } from '@hansapp/mcp';
 import {
   AuthModule,
   AuthGuard,
@@ -63,9 +63,6 @@ export class AppModule {
         // DSN 이 없어 init 을 건너뛴 경우에도 안전하다(전부 no-op).
         SentryModule.forRoot(),
         ApplicationModule.forRoot(config),
-        // MCP 도구 서버. 설정을 안 받는다 — 도구가 부르는 서비스는 ApplicationModule 이
-        // 이미 챙겼고, 여기서는 그걸 도구로 노출만 한다(그래서 위에 와야 한다).
-        McpModule,
         AuthModule.forRoot(config),
         // 전역 rate limit. 라이브러리 기본 저장소는 인메모리(인스턴스별) 다 —
         // 단일 인스턴스면 그대로 충분하고, 수평 확장 시 @nest-lab/throttler-storage-redis 로 교체한다.
@@ -114,6 +111,11 @@ export class AppModule {
         { provide: APP_GUARD, useExisting: AuthGuard },
         BusinessService,
         AddressService,
+        // MCP 도구 서버. **모듈이 아니라 여기 프로바이더로 둔다** — 도구가 부르는 서비스
+        // (HealthcareHospitalService 등)는 위에서 import 한 ApplicationModule 이 export 하는데,
+        // 별도 모듈로 감싸면 그쪽에서 ApplicationModule.forRoot 를 또 불러야 하고 그러면
+        // Prisma 풀·코드 캐시가 두 벌 뜬다. 도구 정의 자체는 @hansapp/mcp 가 소유한다.
+        HealthcareMcpServer,
         // 외부 API 클라이언트. **이 서버에서 외부(국세청·도로명주소)를 직접 호출하는 소수의 API 용이다.**
         // 나머지 API 는 로컬 DB 미러를 읽는다.
         //

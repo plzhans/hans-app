@@ -253,3 +253,26 @@ apps-batch:
     dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
     # 성능 트레이스 표본 비율(0=끔, 1=전부). 개발은 트래픽이 적어 전부 본다.
     tracesSampleRate: 1.0
+
+llm:
+  # anthropic | openai | local. local 은 OpenAI 호환 엔드포인트(ollama·vLLM·LM Studio).
+  defaultProvider: anthropic
+  timeoutSec: 30
+  # 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
+  maxTokens: 2048
+  # Claude 사고 깊이(low|medium|high|xhigh|max). 코드 추출은 어려운 작업이 아니다.
+  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
+  promptDir: data/healthcare/svc-prompts
+  # 업체 이름으로 둔다(모델 이름 claude 가 아니라). openai 와 같은 층위여야 읽을 때
+  # 헷갈리지 않고, 한 업체가 모델을 여럿 내도 이 키는 그대로다.
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+    # 구독 토큰. **로컬 전용** — 개인 구독이라 사용자 트래픽을 태우면 안 된다.
+    #   claude setup-token 생성
+    # 키와 토큰이 둘 다 있으면 키가 이긴다.
+    authToken: ${ANTHROPIC_AUTH_TOKEN}
+    defaultModel: ${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+    # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
+    defaultModel: ${OPENAI_DEFAULT_MODEL}

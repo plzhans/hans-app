@@ -4,10 +4,17 @@
     "tagline": "전국 병원을 쉽고 빠르게"
   },
   "footer": {
+    "liability": "MediFinder는 의료기관 정보를 제공하는 검색 서비스로 진료·예약·거래의 당사자가 아니며, 의료기관이 제공한 정보와 진료에 관한 책임은 각 의료기관에 있습니다.",
     "disclaimer": "MediFinder는 건강보험심사평가원·국립중앙의료원이 공개한 공공데이터를 정리해 보여주는 의료기관 정보 검색 서비스입니다. 진료·예약의 당사자가 아니며, 의료행위에 관한 책임은 각 의료기관에 있습니다.",
     "accuracy": "진료과목·진료시간·비급여 진료비 등은 원본 데이터를 그대로 옮긴 것이라 실제와 다를 수 있습니다. 방문 전 해당 의료기관에 확인해 주세요.",
     "dataSource": "출처: 건강보험심사평가원, 국립중앙의료원 공공데이터",
     "operator": "개인이 운영하는 서비스입니다."
+  },
+  "legal": {
+    "terms": "이용약관",
+    "locationTerms": "위치기반서비스 이용약관",
+    "privacy": "개인정보처리방침",
+    "englishOnly": "이 문서는 한국어와 영어로만 제공됩니다. 영어본을 표시합니다."
   },
   "nav": {
     "home": "홈",
@@ -46,7 +53,8 @@
         "subtitle": "적정성평가 1등급 · 신생아 중증"
       }
     },
-    "advancedSearch": "상세검색"
+    "advancedSearch": "상세검색",
+    "aiSearch": "AI에게 문의하기"
   },
   "common": {
     "loading": "불러오는 중…",
@@ -73,7 +81,8 @@
       "clear": "{{name}} 해제",
       "granted": "위치 정보가 허용되어 있습니다. 해제는 브라우저 설정에서 할 수 있습니다."
     },
-    "all": "전체"
+    "all": "전체",
+    "close": "닫기"
   },
   "search": {
     "tabs": {
@@ -284,5 +293,59 @@
     "collapse": "작게 보기",
     "recenter": "병원 위치로",
     "switchLabel": "다른 지도로 보기"
+  },
+  "aiSearch": {
+    "title": "AI에게 문의하기",
+    "subtitle": "찾는 병원을 말로 설명해 보세요",
+    "placeholder": "어떤 병원을 찾으세요?",
+    "send": "보내기",
+    "thinking": "AI 가 분석 중입니다…",
+    "intro": "증상이나 상황을 편하게 적어 주세요. 검색 조건으로 바꿔 드릴게요.",
+    "examples": [
+      "소아 천식 진료하는 병원",
+      "밤에 아이 볼 수 있는 병원",
+      "무릎이 아픈데 어디로 가야 해"
+    ],
+    "goSearch": "이 조건으로 검색",
+    "pickRegion": "검색 화면에서 지역 고르기",
+    "previewLoading": "병원을 찾는 중…",
+    "previewEmpty": "조건에 맞는 병원을 찾지 못했어요. 조건을 줄여 다시 물어봐 주세요.",
+    "previewCount": "{{total}}곳 중 {{shown}}곳 미리보기",
+    "myLocationBasis": "{{place}} 기준으로 가까운 순으로 찾아드릴게요.",
+    "myLocationGeneric": "현재 위치를 기준으로 가까운 순으로 찾아드릴게요.",
+    "myLocationLocating": "현재 위치를 확인하는 중…",
+    "myLocationAsk": "내 위치로 찾기",
+    "myLocationDenied": "위치 권한이 꺼져 있어요. 검색 화면에서 지역을 골라 주세요.",
+    "openConfirm": "'{{name}}' 상세로 이동할까요?",
+    "openConfirmYes": "이동",
+    "openConfirmNo": "취소",
+    "noExplain": "조건을 잡지 못했어요. 다시 물어봐 주세요.",
+    "placeUnresolved": "'{{place}}' 는 아직 지역으로 못 옮겨요. 검색 화면에서 지역을 골라 주세요.",
+    "error": "지금은 답할 수 없어요. 잠시 뒤 다시 시도해 주세요.",
+    "disclaimer": "AI가 정리한 검색 조건입니다. 진단이나 치료 안내가 아니며, 정확한 것은 의료진에게 확인하세요.",
+    "analyzedBy": "{{provider}} 분석 결과",
+    "metaToggle": "응답 정보",
+    "chips": {
+      "subject": "진료과 {{count}}",
+      "specialist": "전문의 {{count}}",
+      "assessment": "평가우수 {{count}}",
+      "specialty": "전문병원 {{count}}",
+      "equipment": "장비 {{count}}",
+      "tier": "병원등급 {{count}}",
+      "emergency": "응급실",
+      "baby": "달빛어린이"
+    },
+    "warnings": {
+      "off_topic": "병원 찾기와 관련된 질문만 도와드릴 수 있어요.",
+      "emergency_suspected": "응급 상황일 수 있습니다. 지체 말고 119에 연락하거나 가까운 응급실로 가세요.",
+      "medical_caution": "요청하신 조건이 일반적인 의학 권고와는 다를 수 있어요.",
+      "unsupported_inverse": "일부 조건은 반대 방향으로는 검색할 수 없어 빠졌습니다.",
+      "tertiary_referral": "상급종합병원은 진료의뢰서가 없으면 진료비를 전액 부담합니다.",
+      "too_vague": "조금 더 구체적으로 알려주시면 더 잘 찾을 수 있어요."
+    },
+    "retry": "다시 시도",
+    "fullscreen": "전체화면",
+    "exitFullscreen": "전체화면 해제",
+    "launcher": "AI 문의"
   }
 }

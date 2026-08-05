@@ -10,10 +10,10 @@ import type { ConfigSource } from './config-source';
 export function logConfigSummary(
   cfg: ConfigSource,
   log: (line: string) => void,
-  opts: { oauth?: boolean } = {},
+  opts: { oauth?: boolean; llm?: boolean } = {},
 ): void {
   const endpoint = (raw: string): string => {
-    if (!raw) return '(미설정)';
+    if (!raw) return '(empty)';
     try {
       const u = new URL(raw);
       return `${u.host}${u.pathname}`;
@@ -22,7 +22,20 @@ export function logConfigSummary(
     }
   };
   const mask = (raw: string): string =>
-    raw ? `${raw.slice(0, 5)}*****` : '(미설정)';
+    raw ? `${raw.slice(0, 5)}*****` : '(empty)';
+  /**
+   * **뒤** 5글자만 남긴다. 다른 마스킹(mask)이 앞을 남기는 것과 반대인데, 이 값들은 접두사가
+   * 고정이라 앞을 보여 줘 봐야 아무것도 구별되지 않기 때문이다 — `sk-ant-api03-`(API 키)와
+   * `sk-ant-oat01-`(구독 토큰)은 그 자체가 종류 표시일 뿐이고, 종류는 이미 줄 이름
+   * (`anthropic.apiKey` / `anthropic.authToken`)이 말하고 있다.
+   *
+   * 알고 싶은 것은 **키를 두 개 갖고 있을 때 그중 어느 쪽이 물려 있나**이고, 그건 꼬리에서만
+   * 갈린다. 짧은 값은 통째로 가린다 — 5글자가 전체의 큰 몫이면 노출이 된다.
+   */
+  const maskKey = (raw: string): string => {
+    if (!raw) return '(empty)';
+    return raw.length > 20 ? `*****${raw.slice(-5)}` : '*****';
+  };
   const s = (path: string): string => cfg.getStringOrDefault(path);
   // 요약도 앱이 실제로 쓰는 형태(자격증명 인코딩 후)를 보여줘야 한다. 원문을 그대로 파싱하면
   // 비밀번호의 `#` 하나에 (missing) 이 찍혀 "설정이 빠졌다" 로 오독하게 된다.
@@ -43,11 +56,39 @@ export function logConfigSummary(
     `Config Mail : ${mailHost ? `${s('mail.provider') || 'smtp'} (${mailHost})` : 'inactive — host missing'}`,
   );
   if (opts.oauth) {
-    const idOr = (raw: string): string => raw || '(미설정)';
+    const idOr = (raw: string): string => raw || '(empty)';
     log(`Config OAuth google : ${idOr(s('google.clientId'))}`);
     log(`Config OAuth naver  : ${idOr(s('naver.clientId'))}`);
     log(`Config OAuth kakao  : ${idOr(s('kakao.clientId'))}`);
     log(`Config OAuth line   : ${idOr(s('line.clientId'))}`);
+  }
+  if (opts.llm) {
+    /*
+      **자격증명이 둘이라 어느 쪽으로 나가는지를 찍는다.** apiKey(배포)와
+      authToken(로컬 구독)이 동시에 있을 수 있고 그때는 키가 이기는데, 값만 나열하면
+      "둘 다 있음" 까지만 보이고 정작 무엇으로 호출하는지는 안 보인다.
+
+      로컬에서 구독으로 돌리려고 토큰을 넣었는데 셸에 API 키가 남아 있어 조용히 과금되는
+      상황이 이 한 줄로 드러난다.
+    */
+    const provider = s('llm.defaultProvider') || 'anthropic';
+    const apiKey = s('llm.anthropic.apiKey');
+    const authToken = s('llm.anthropic.authToken');
+    const inUse = apiKey ? 'apiKey' : authToken ? 'authToken' : null;
+
+    log(
+      `Config LLM : ${provider} / ${s('llm.anthropic.defaultModel') || '(empty)'}`,
+    );
+    const tag = (name: string): string => (inUse === name ? '  (Actived)' : '');
+    log(`Config LLM anthropic.apiKey    : ${maskKey(apiKey)}${tag('apiKey')}`);
+    log(
+      `Config LLM anthropic.authToken : ${maskKey(authToken)}${tag('authToken')}`,
+    );
+    if (!inUse) {
+      // 여기서 부팅을 막지는 않는다(AI 만 꺼지고 병원 검색은 돌아야 한다). 대신 조용히
+      // 넘어가지 않는다 — 요청이 와서 503 이 날 때까지 모르면 원인을 찾는 데만 시간이 든다.
+      log('Config LLM : ⚠️ 자격증명 없음 — AI 검색은 503 을 낸다');
+    }
   }
   log(`Config KRDATA : ${mask(s('krdata.serviceKey'))}`);
   log(`Config JUSO   : ${mask(s('juso.serviceKey'))}`);

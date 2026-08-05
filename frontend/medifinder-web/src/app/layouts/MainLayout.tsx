@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Header } from '@/shared/components/layout/Header';
 import { Footer } from '@/shared/components/layout/Footer';
+import { AiSearchLauncher } from '@/features/ai-search/components/AiSearchLauncher';
 
 /**
  * 목록 계열(첫 화면·검색)의 껍데기.
@@ -18,6 +19,13 @@ export function MainLayout() {
         <Outlet />
       </main>
       <Footer />
+
+      {/*
+        AI 문의. **여기(목록 계열)에만 둔다** — 상세는 하단 전화 바가 `fixed bottom-0` 로
+        같은 자리를 쓰고, 그걸 가리면서까지 얹을 만한 기능이 아니다.
+        "못 찾겠다" 가 생기는 것도 홈·검색이지 병원을 이미 고른 상세가 아니다.
+      */}
+      <AiSearchLauncher />
     </div>
   );
 }

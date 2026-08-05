@@ -9,7 +9,12 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { HealthcareAiSearchService, LlmError } from '@hansapp/application';
+import {
+  HealthcareAiSearchService,
+  LlmConfigError,
+  LlmError,
+  LlmInvalidCallError,
+} from '@hansapp/application';
 
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
@@ -40,21 +45,23 @@ export class HealthcareAiSearchController {
   @Post()
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @ApiOperation({
-    summary: '자연어 질문 → 검색 조건',
+    summary: '자연어 질문 → 실행할 툴',
     description:
-      '질문을 병원 검색 필터로 옮긴다. **검색 결과가 아니라 조건**을 돌려준다 — ' +
-      '받은 filter 를 `GET /healthcare/hospitals` 에 그대로 실어 목록을 받는다.\n\n' +
-      '`needsLocation` 이 true 면 지역을 되묻고, `warnings` 는 배너로 띄운다.\n' +
+      '질문을 **화면이 실행할 지시**로 옮긴다. 검색 결과가 아니다 — ' +
+      '`tool` 로 갈리고 `params` 를 그대로 실어 기존 조회 API 를 부른다.\n\n' +
+      '- `search_hospitals` `params.filter`(+`regionCd`)로 `GET /healthcare/hospitals`\n' +
+      '- `search_nearby` 측위한 뒤 같은 조회에 `sort=distance`·좌표를 얹는다\n' +
+      '- `ask_location` 지역을 되묻는다(장소를 말했는데 코드로 못 옮김). 조건은 살아 있다\n' +
+      '- `reject` 검색하지 않는다. `explain` 을 보여준다\n\n' +
+      '**좌표는 주지도 받지도 않는다** — 측위는 화면 몫이고 서버는 쓸지 말지만 정한다.\n' +
       '진단·치료 조언은 하지 않는다(병원을 고르는 조건만 만든다).',
   })
   async search(
     @Body() request: AiSearchRequestDto,
   ): Promise<AiSearchResponseDto> {
     try {
-      const result = await this.service.extractFilter(request.q, {
-        provider: request.provider,
-        model: request.model,
-      });
+      // 모델은 넘기지 않는다 — 설정이 정한다(AiSearchRequestDto 주석 참고).
+      const result = await this.service.extractFilter(request.q);
       return new AiSearchResponseDto(result);
     } catch (cause) {
       throw this.toHttpException(cause);
@@ -75,11 +82,26 @@ export class HealthcareAiSearchController {
       return new ServiceUnavailableException('AI search is not available');
     }
 
+    // **어느 모델로 부르다 실패했는지가 로그에 있어야 한다.** provider 만으로는 부족하다 —
+    // 같은 anthropic 이라도 모델마다 되는 것과 안 되는 것이 다르다. 없으면 "무엇을 불렀나"
+    // 부터 추측해야 하고, 그 추측이 틀리면 엉뚱한 데를 고치게 된다.
     this.logger.error(
-      `llm call failed (provider=${cause.provider} status=${cause.status ?? '-'}): ` +
+      `llm call failed (provider=${cause.provider} ` +
+        `requestModel=${cause.requestModel ?? '-'} status=${cause.status ?? '-'}): ` +
         `${cause.message}${cause.body ? ` body=${cause.body}` : ''}`,
     );
 
+    // **보내기 전에 실패한 것들을 먼저 걸러낸다.** 둘 다 status 가 없어서(왕복을 안 했으니)
+    // 아래 타임아웃 분기에 그대로 떨어졌었다 — 키가 없는데 "잠시 뒤 다시" 라고 안내하면
+    // 사람이 고치기 전에는 영원히 안 되는 일을 기다리게 된다.
+    if (cause instanceof LlmConfigError) {
+      return new ServiceUnavailableException('AI search is not configured');
+    }
+    // 조립이 덜 된 호출 = 우리 코드 버그다. 밖으로는 같은 503 이지만 로그에 이름이 남아
+    // "설정을 고쳐야 하나" 를 헷갈리지 않는다.
+    if (cause instanceof LlmInvalidCallError) {
+      return new ServiceUnavailableException('AI search failed');
+    }
     if (cause.status === undefined) {
       // 타임아웃·네트워크 실패. 잠시 뒤 다시 하면 될 수 있다.
       return new GatewayTimeoutException('AI provider did not respond in time');

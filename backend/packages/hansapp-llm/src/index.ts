@@ -8,7 +8,7 @@ export type {
 export { LlmService, jsonOutput } from './llm.service';
 export { SvcPromptRepository } from './svc-prompt.repository';
 export type { SvcPrompt } from './svc-prompt.repository';
-export { LlmError } from './llm.types';
+export { LlmConfigError, LlmError, LlmInvalidCallError } from './llm.types';
 export type {
   LlmCall,
   LlmJsonSchema,
