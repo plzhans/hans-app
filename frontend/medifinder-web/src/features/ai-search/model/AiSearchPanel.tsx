@@ -2,11 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import { AiSearchChat } from '../components/AiSearchChat';
+import { loadTurns, saveTurns, type Turn } from './chatStorage';
 
 interface AiSearchPanel {
   open: () => void;
@@ -23,16 +25,23 @@ interface AiSearchPanel {
 const PanelContext = createContext<AiSearchPanel | undefined>(undefined);
 
 /**
- * 채팅창의 주인. **레이아웃이 한 번만 감싼다.**
+ * 채팅창의 주인. **라우터 최상단이 한 번만 감싼다.**
  *
- * 창 자체를 여기서 그린다 — 여는 버튼들은 `open()` 만 부르면 되고, 어디에 있든 상관없다.
+ * 창과 대화를 여기서 들고 있다 — 레이아웃 안에 두면 화면을 옮길 때마다 언마운트돼
+ * 묻던 것이 사라진다. 병원 상세를 열어 보고 돌아오는 건 이 기능에서 가장 흔한 동작이다.
  *
- * **닫히면 컴포넌트째 사라진다**(조건부 렌더). 대화 기록이 같이 비워지는데, 다시 열었을 때
- * 지난 대화가 남아 있으면 "이어서 묻는 것" 처럼 보이지만 서버는 대화를 기억하지 않는다 —
- * 보이는 것과 실제가 어긋나느니 새로 시작하는 게 낫다.
+ * **대화는 sessionStorage 로도 남는다**(chatStorage 주석 참고) — 새로고침을 견디되
+ * 탭을 닫으면 사라진다. 건강 질문이 공용 PC 에 영구히 남으면 안 되기 때문이다.
  */
 export function AiSearchProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  // 첫 렌더에 한 번만 읽는다. 함수형 초기값이라 이후 렌더에서는 저장소를 안 친다.
+  const [turns, setTurns] = useState<Turn[]>(loadTurns);
+
+  // 대화가 바뀔 때마다 담는다. 저장 실패는 chatStorage 가 삼킨다.
+  useEffect(() => {
+    saveTurns(turns);
+  }, [turns]);
 
   // 값이 매 렌더 새로 만들어지면 컨텍스트를 읽는 쪽이 전부 다시 그려진다.
   const panel = useMemo<AiSearchPanel>(
@@ -44,7 +53,19 @@ export function AiSearchProvider({ children }: { children: ReactNode }) {
   return (
     <PanelContext.Provider value={panel}>
       {children}
-      {open && <AiSearchChat onClose={close} />}
+      {/*
+        **닫아도 대화는 안 지운다.** 예전엔 닫으면 컴포넌트째 사라지며 기록도 같이
+        비워졌는데, 실수로 닫았을 때 되돌릴 길이 없었다. 지우는 것은 사용자가
+        "대화 지우기" 로 명시적으로 정한다.
+      */}
+      {open && (
+        <AiSearchChat
+          turns={turns}
+          setTurns={setTurns}
+          onClear={() => setTurns([])}
+          onClose={close}
+        />
+      )}
     </PanelContext.Provider>
   );
 }

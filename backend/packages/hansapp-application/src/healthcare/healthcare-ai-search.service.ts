@@ -410,31 +410,6 @@ export class HealthcareAiSearchService {
       return { ...cached, elapsedMs };
     }
 
-    /*
-      **하루 총량을 여기서 센다 — 캐시 미스 뒤다.**
-
-      캐시 히트는 외부 호출이 아니라 요금이 0 이라, 그걸 몫에서 깎으면 "같은 질문을 반복하면
-      한도가 준다" 는 이상한 규칙이 된다. 실제로 나가는 호출만 센다.
-
-      rate limit(IP 당 분당) 이 못 막는 것을 막는 자리다 — 그쪽은 한 명이 얼마나 빨리
-      부르는지를 묶을 뿐이라, IP 를 돌리면 총액이 그대로 늘어난다.
-    */
-    const { scope, limit } = caller.userId
-      ? {
-          scope: `ai-search:user:${caller.userId}`,
-          limit: this.llmConfig.userDailyLimit,
-        }
-      : {
-          // 로그인 전이면 **어느 앱에서 왔나**(숫자 appId)로 센다. 인증이 필수라 여기까지
-          // 왔다면 값이 있다 — 없으면 셀 대상이 불분명하므로 한 통(unknown)으로 묶는다.
-          scope: `ai-search:client:${caller.clientId ?? 'unknown'}`,
-          limit: this.llmConfig.clientDailyLimit,
-        };
-
-    if (!(await this.quota.take(scope, limit))) {
-      throw new AiSearchQuotaError(scope, limit);
-    }
-
     // 1) 뼈대를 받는다. 업체 선택·모델 인스턴스·캐시 옵션·시스템 메시지가 채워져 온다.
     const call = this.llm.prepare({
       system: prompt.system,
@@ -452,6 +427,37 @@ export class HealthcareAiSearchService {
       content: `<user_question>\n${sanitizeQuestion(question)}\n</user_question>`,
     });
     call.output = jsonOutput(prompt.schema);
+
+    /*
+      **여기서 센다 — 발송 직전이다.**
+
+      앞뒤로 한 칸씩 밀면 둘 다 틀린다:
+        너무 앞(prepare 전)  키가 없어 prepare 가 터져도 카운터가 깎인다. 설정이 틀린 배포가
+                             하루치를 태우고 나면 "설정 안 됨" 이 "오늘은 안 됨" 으로 바뀌어
+                             진짜 원인을 가린다 — 나간 게 없는데 센 것이다.
+        너무 뒤(chat 후)     실패한 호출이 안 세어진다. 그런데 실패해도 요금은 나갔을 수 있고,
+                             무엇보다 실패가 공짜 재시도가 되어 상한이 뚫린다.
+
+      **캐시 히트도 세지 않는다**(위에서 이미 반환했다). 외부 호출이 없으니 요금이 0 이고,
+      깎으면 "같은 질문을 반복하면 한도가 준다" 는 이상한 규칙이 된다.
+
+      prepare 는 로컬 계산뿐이라(모델 인스턴스 생성) 그 뒤가 곧 발송 직전이다.
+    */
+    const { scope, limit } = caller.userId
+      ? {
+          scope: `ai-search:user:${caller.userId}`,
+          limit: this.llmConfig.userDailyLimit,
+        }
+      : {
+          // 로그인 전이면 **어느 앱에서 왔나**(숫자 appId)로 센다. 인증이 필수라 여기까지
+          // 왔다면 값이 있다 — 없으면 셀 대상이 불분명하므로 한 통(unknown)으로 묶는다.
+          scope: `ai-search:client:${caller.clientId ?? 'unknown'}`,
+          limit: this.llmConfig.clientDailyLimit,
+        };
+
+    if (!(await this.quota.take(scope, limit))) {
+      throw new AiSearchQuotaError(scope, limit);
+    }
 
     // 3) 발송. 상한값을 안 채웠으므로 설정값(llm.maxTokens·llm.timeoutSec)이 적용된다.
     const response = await this.llm.chat(call);

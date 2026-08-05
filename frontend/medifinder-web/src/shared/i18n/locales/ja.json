@@ -346,6 +346,7 @@
     "retry": "再試行",
     "fullscreen": "全画面",
     "exitFullscreen": "全画面を解除",
+    "clear": "会話を消す",
     "launcher": "AIに相談"
   }
 }

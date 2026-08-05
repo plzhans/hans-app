@@ -346,6 +346,7 @@
     "retry": "다시 시도",
     "fullscreen": "전체화면",
     "exitFullscreen": "전체화면 해제",
+    "clear": "대화 지우기",
     "launcher": "AI 문의"
   }
 }

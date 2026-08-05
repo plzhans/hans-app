@@ -1,4 +1,12 @@
-import { Fragment, type FormEvent, useEffect, useRef, useState } from 'react';
+import {
+  Fragment,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -16,6 +24,7 @@ import {
   RotateCcw,
   Siren,
   Sparkles,
+  Trash2,
   X,
 } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
@@ -26,6 +35,7 @@ import { cn } from '@/shared/lib/utils';
 import { useHospitalSearch, type Hospital } from '@/features/clinic/api';
 import { usePanelSize } from '../model/usePanelSize';
 import { useMyPlace, type MyPlace } from '../model/useMyPlace';
+import type { Turn } from '../model/chatStorage';
 import {
   paramsToQuery,
   toSearchParams,
@@ -37,20 +47,6 @@ import {
 
 /** 질문 길이 상한. 서버(MAX_QUESTION_LENGTH)와 같은 값이라 넘기기 전에 여기서 막는다. */
 const MAX_LENGTH = 300;
-
-/**
- * 화면에 띄우는 대화 한 줄.
- *
- * **서버는 대화를 기억하지 않는다**(요청 하나가 자족적이다). 여기 쌓이는 것은 순전히
- * 사용자가 방금 뭘 물었는지 보여주기 위한 화면 상태다 — 새로고침하면 사라져도 맞다.
- */
-type Turn =
-  | { role: 'user'; id: number; text: string }
-  // 요청을 **보낸** 시각(epoch ms). 응답이 온 시각이 아니다 — 사용자가 "언제 물었나" 를
-  // 찾는 자리라 그쪽이 맞고, 소요 시간(elapsedMs)과 더하면 도착 시각도 나온다.
-  | { role: 'assistant'; id: number; result: AiSearchResponse; at: number }
-  // 실패한 turn 은 **질문을 들고 있는다** — 다시 시도 버튼이 같은 것을 재발송한다.
-  | { role: 'error'; id: number; question: string };
 
 /**
  * 마지막 답변이 밝힌 업체. 아직 답이 없으면 undefined 다.
@@ -106,15 +102,27 @@ const WARNING_STYLE: Partial<
  * 이력 관리를 들고 오는데 여기서는 셋 다 안 쓰고, 대신 자기 CSS 테마가 따라와 디자인 토큰과
  * 충돌한다. 껍데기(모달)만 Radix Dialog 로 맡긴다 — 그건 직접 만들면 반드시 빠뜨리는 것들이다.
  */
-export function AiSearchChat({ onClose }: { onClose: () => void }) {
+export function AiSearchChat({
+  turns,
+  setTurns,
+  onClear,
+  onClose,
+}: {
+  /** 대화. **위(Provider)가 들고 있다** — 화면을 옮기거나 창을 닫아도 안 사라진다. */
+  turns: Turn[];
+  setTurns: Dispatch<SetStateAction<Turn[]>>;
+  onClear: () => void;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const path = useLangPath();
   const [question, setQuestion] = useState('');
-  const [turns, setTurns] = useState<Turn[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
   const { size, resizing, onPointerDown, reset } = usePanelSize();
-  const nextId = useRef(0);
+  // 저장된 대화를 이어받을 수 있으므로 **마지막 id 다음부터** 센다. 0 부터 시작하면
+  // 새로고침 뒤 첫 질문이 기존 turn 과 key 가 겹쳐 React 가 엉뚱한 것을 다시 쓴다.
+  const nextId = useRef(Math.max(0, ...turns.map((turn) => turn.id + 1)));
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -293,6 +301,24 @@ export function AiSearchChat({ onClose }: { onClose: () => void }) {
                 {t('aiSearch.subtitle')}
               </p>
             </div>
+            {/*
+              대화 지우기. **대화가 있을 때만 보인다** — 빈 화면에 지울 것도 없는 버튼이
+              떠 있으면 자리만 차지한다.
+
+              닫기와 나란히 두지 않고 왼쪽에 떼어 둔 이유는, 닫기는 되돌릴 수 있지만
+              (대화가 남아 있다) 이건 못 되돌리기 때문이다. 손가락이 미끄러질 자리를 벌린다.
+            */}
+            {turns.length > 0 && (
+              <button
+                type="button"
+                onClick={onClear}
+                aria-label={t('aiSearch.clear')}
+                title={t('aiSearch.clear')}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-subtle transition-transform duration-100 ease-native active:scale-90"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
             {/*
               전체화면 토글. 세밀한 크기 조절은 모서리 드래그가 맡고, 이 버튼은 **한 번에
               화면을 꽉 채우는** 별개의 동작이다 — 긴 대화를 훑을 때 조금씩 끌 이유가 없다.

@@ -346,6 +346,7 @@
     "retry": "Try again",
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit fullscreen",
+    "clear": "Clear chat",
     "launcher": "Ask AI"
   }
 }
