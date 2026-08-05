@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.4.0...release-frontend/v0.5.0) (2026-08-05)
+
+
+### 기능
+
+* medifinder 앱 스타일 개편 + 거리·지도 영역 검색 ([75fcbc9](https://github.com/plzhans/hans-app/commit/75fcbc97f2b039155a179ff4cb45dd42058843c5))
+* medifinder 화면을 앱 스타일로 개편 ([f9dfa20](https://github.com/plzhans/hans-app/commit/f9dfa201d78e59e98389c079f583ae364189c455))
+* **search:** 가까운 순 정렬 ([4b19740](https://github.com/plzhans/hans-app/commit/4b1974068c2d95503e7cef569c4f8e7fa6a7c3c0))
+* **search:** 지도 영역 검색(bbox) ([cf14d82](https://github.com/plzhans/hans-app/commit/cf14d826174257a5ca7ae9a125a09d5a12355e04))
+* 검색에 지도 보기 추가 ([cb6462d](https://github.com/plzhans/hans-app/commit/cb6462d0973f02d86026a56e7a38e9911cabc9e6))
+* 내 위치를 지역 채우기와 공유 스위치로 나눈다 ([3753f90](https://github.com/plzhans/hans-app/commit/3753f905814bda404e9077ed4fc901c902cb0289))
+
+
+### 버그 수정
+
+* **search:** 조회 실패 시 빈 결과 문구가 함께 뜨던 것 ([4a42385](https://github.com/plzhans/hans-app/commit/4a42385be6856bc532c5e70fe0bfa0c71290ba63))
+* 검색 필터 안의 어긋난 표현을 맞춘다 ([d358a33](https://github.com/plzhans/hans-app/commit/d358a33b7f7e269691d1ba95fa49009fff84045a))
+
+
+### 구조 변경
+
+* 검색 화면을 상태·조건·결과로 나눈다 ([ab116a7](https://github.com/plzhans/hans-app/commit/ab116a7efdaf14274d7f25b40313e1fe618423e5))
+
 ## [0.4.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.3.1...release-frontend/v0.4.0) (2026-08-04)
 
 
