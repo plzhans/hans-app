@@ -5,11 +5,25 @@ import {
   HttpException,
   Logger,
   Post,
+  Req,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
+
+import type { RequestWithId } from '../common/request-id.middleware';
+
+/**
+ * 가드가 요청에 얹어 둔 신원. **둘 중 하나만 채워진다** —
+ * access token 이면 user, 클라이언트 앱·서비스 키면 apiAccess 다.
+ */
+type AuthedRequest = Request & {
+  user?: { userId?: number };
+  apiAccess?: { appId: number; keyId?: number };
+};
 import {
+  AiSearchQuotaError,
   HealthcareAiSearchService,
   LlmConfigError,
   LlmError,
@@ -58,10 +72,40 @@ export class HealthcareAiSearchController {
   })
   async search(
     @Body() request: AiSearchRequestDto,
+    @Req() req: Request,
   ): Promise<AiSearchResponseDto> {
     try {
-      // 모델은 넘기지 않는다 — 설정이 정한다(AiSearchRequestDto 주석 참고).
-      const result = await this.service.extractFilter(request.q);
+      /*
+        업체·모델은 안 넘긴다(설정이 정한다). 넘기는 것은 **누가 물었나** 뿐이고,
+        그건 하루 몫을 누구 통에서 깎을지 정하는 데만 쓴다.
+
+        가드가 둘 중 하나를 채워 놓는다:
+          user      access token 으로 사람이 식별됐다 (로그인 붙은 뒤)
+          apiAccess 클라이언트 앱·서비스 키로 들어왔다 (지금은 이쪽뿐이다)
+
+        **숫자 id(appId)로 센다. clientId 문자열은 쓰지 않는다** — 그건 추측 불가한 40자라
+        사실상 자격증명이고, Redis 키에 평문으로 두면 KEYS 한 번에 다 보인다(질문을 해시로
+        넣은 것과 같은 이유). appId 는 짧고 비밀도 아니다.
+
+        서비스 키는 같은 앱 안에서 keyId 로 한 번 더 갈린다 — 서버 대 서버 호출을 앱과 같은
+        통에 담으면 한쪽이 다른 쪽 몫을 먹는다.
+      */
+      const authed = req as AuthedRequest;
+      const userId = authed.user?.userId;
+      const access = authed.apiAccess;
+      const clientId = access
+        ? access.keyId
+          ? `${access.appId}:key:${access.keyId}`
+          : String(access.appId)
+        : undefined;
+
+      // 추적 id 는 미들웨어가 이미 붙여 놨다(요청 헤더를 다시 읽지 않는다).
+      const { requestId } = req as RequestWithId;
+      const result = await this.service.extractFilter(request.q, {
+        userId,
+        clientId,
+        requestId,
+      });
       return new AiSearchResponseDto(result);
     } catch (cause) {
       throw this.toHttpException(cause);
@@ -76,6 +120,17 @@ export class HealthcareAiSearchController {
    * 429 만 그대로 넘긴다(클라이언트가 물러설 수 있는 유일한 신호다).
    */
   private toHttpException(cause: unknown): HttpException {
+    /*
+      **하루 몫 소진.** 클라이언트 잘못이 아니라 429(너무 자주 불렀다)가 아니고, 잠시 뒤
+      다시 해도 안 되니 504 도 아니다. 오늘이 지나야 풀리는 상태라 503 이 맞다.
+      로그인 전에는 남이 다 썼어도 여기로 오므로, 메시지도 "네가 많이 썼다" 로 쓰지 않는다.
+    */
+    if (cause instanceof AiSearchQuotaError) {
+      this.logger.error(cause.message);
+      return new ServiceUnavailableException(
+        'AI search is unavailable for today',
+      );
+    }
     if (!(cause instanceof LlmError)) {
       // 프롬프트 파일 없음 등. 그대로 올려 500 이 되게 두되 원인은 남긴다.
       this.logger.error(`ai search failed: ${String(cause)}`);

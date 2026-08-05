@@ -28,6 +28,7 @@ import { appConfig } from './boot-config';
 import { buildInfo } from './build-info';
 import { initRefreshCookie } from './auth/refresh-cookie';
 import { HttpErrorFilter } from './common/http-error.filter';
+import { requestIdMiddleware } from './common/request-id.middleware';
 import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
 import { createSwaggerAccessMiddleware } from './common/swagger-access.middleware';
 import {
@@ -163,6 +164,10 @@ async function bootstrap() {
   if (trustProxy !== undefined) {
     app.set('trust proxy', trustProxy);
   }
+
+  // 추적 id. **가장 앞에 세운다** — 뒤에 오는 모든 것(로그·오류 필터·Sentry)이 이 값을
+  // 쓸 수 있어야 하고, 인증에서 튕긴 요청도 추적되어야 하므로 가드보다도 앞이다.
+  app.use(requestIdMiddleware);
 
   // refresh token 은 httpOnly 쿠키로 오간다. 쿠키 파싱을 켠다(/oauth/token refresh grant 가 읽음).
   app.use(cookieParser());

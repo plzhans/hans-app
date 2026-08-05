@@ -46,7 +46,9 @@ const MAX_LENGTH = 300;
  */
 type Turn =
   | { role: 'user'; id: number; text: string }
-  | { role: 'assistant'; id: number; result: AiSearchResponse }
+  // 요청을 **보낸** 시각(epoch ms). 응답이 온 시각이 아니다 — 사용자가 "언제 물었나" 를
+  // 찾는 자리라 그쪽이 맞고, 소요 시간(elapsedMs)과 더하면 도착 시각도 나온다.
+  | { role: 'assistant'; id: number; result: AiSearchResponse; at: number }
   // 실패한 turn 은 **질문을 들고 있는다** — 다시 시도 버튼이 같은 것을 재발송한다.
   | { role: 'error'; id: number; question: string };
 
@@ -148,6 +150,7 @@ export function AiSearchChat({ onClose }: { onClose: () => void }) {
     sendingRef.current = true;
 
     const id = nextId.current++;
+    const at = Date.now();
     setTurns((prev) => [...prev, { role: 'user', id, text: q }]);
     setQuestion('');
 
@@ -155,7 +158,7 @@ export function AiSearchChat({ onClose }: { onClose: () => void }) {
       onSuccess: (result) =>
         setTurns((prev) => [
           ...prev,
-          { role: 'assistant', id: nextId.current++, result },
+          { role: 'assistant', id: nextId.current++, result, at },
         ]),
       // 실패를 조용히 넘기지 않는다 — 사용자는 자기가 뭘 잘못했는지 모른 채 기다리게 된다.
       onError: () =>
@@ -327,6 +330,7 @@ export function AiSearchChat({ onClose }: { onClose: () => void }) {
                     {turn.role === 'assistant' && (
                       <AssistantBubble
                         result={turn.result}
+                        at={turn.at}
                         place={place}
                         onSearch={() => goSearch(turn.result)}
                       />
@@ -488,10 +492,12 @@ function UserBubble({ text }: { text: string }) {
  */
 function AssistantBubble({
   result,
+  at,
   place,
   onSearch,
 }: {
   result: AiSearchResponse;
+  at: number;
   place: MyPlace;
   onSearch: () => void;
 }) {
@@ -517,7 +523,7 @@ function AssistantBubble({
         <p className="min-w-0 flex-1 text-[0.82rem] leading-relaxed text-ink">
           {result.explain || t('aiSearch.noExplain')}
         </p>
-        <AnswerMeta result={result} />
+        <AnswerMeta result={result} at={at} />
       </div>
 
       {result.warnings.map((warning) => (
@@ -597,7 +603,18 @@ function AssistantBubble({
  * cacheLocal 이 HIT 면 아래 토큰 값들은 **처음 물었을 때** 쓴 값이다 — 이번 요청은
  * 한 톨도 안 썼다. 그 구분이 없으면 합산하는 쪽이 실제보다 크게 센다.
  */
-function AnswerMeta({ result }: { result: AiSearchResponse }) {
+/** `HH:MM:SS`. 날짜는 안 적는다 — 대화가 새로고침이면 사라지므로 늘 오늘이다. */
+function clockTime(epochMs: number): string {
+  return new Date(epochMs).toLocaleTimeString(undefined, { hour12: false });
+}
+
+function AnswerMeta({
+  result,
+  at,
+}: {
+  result: AiSearchResponse;
+  at: number;
+}) {
   const { t } = useTranslation();
   const { usage } = result;
   const n = (value: number | undefined) => (value ?? 0).toLocaleString();
@@ -611,6 +628,9 @@ function AnswerMeta({ result }: { result: AiSearchResponse }) {
   */
   const rows: { label: string; value: string; strong?: boolean }[] = [
     { label: 'model', value: result.model },
+    // 브라우저 시각이다(서버 시각이 아니라) — 사용자가 자기 화면의 다른 기록과 맞춰 보는 자리다.
+    { label: 'requestedAt', value: clockTime(at) },
+    { label: 'respondedAt', value: clockTime(at + result.elapsedMs) },
     { label: 'elapsed', value: `${n(result.elapsedMs)} ms` },
     {
       label: 'cacheLocal',
@@ -909,7 +929,7 @@ function PreviewCard({ hospital }: { hospital: Hospital }) {
 }
 
 /** 잡힌 조건. 서버가 준 코드를 그대로 쓰지 않고 **사람이 읽는 이름**으로 바꿔 보여준다. */
-function ConditionChips({ filter }: { filter: AiSearchResponse['filter'] }) {
+function ConditionChips({ filter }: { filter: AiSearchFilter }) {
   const { t } = useTranslation();
 
   /*

@@ -5,12 +5,15 @@ import type { Cache } from 'cache-manager';
 import { HOSPITAL_TIERS, INPATIENT_TIERS } from '@hansapp/data/seed';
 
 import {
+  LLM_CONFIG,
   LlmService,
   SvcPromptRepository,
   jsonOutput,
+  type LlmConfig,
   type LlmProviderName,
 } from '@hansapp/llm';
 import { CachePrefix } from '../common/cache-keys';
+import { DailyQuotaService } from '../common/daily-quota.service';
 import { RegionCache, type RegionEntry } from '../region/region.cache';
 import { HealthcareCodeCache } from './healthcare-code.cache';
 import { HiraAsmCodeCache } from './hira-asm-code.cache';
@@ -153,6 +156,20 @@ export interface AiSearchResult {
   readonly elapsedMs: number;
 }
 
+/**
+ * 하루 몫을 다 썼다. **클라이언트 잘못이 아니다** — 로그인 전에는 모두가 한 통을 나눠 쓰므로,
+ * 남이 다 썼어도 여기로 온다. 그래서 "잠시 뒤 다시" 가 아니라 "오늘은 안 된다" 로 안내한다.
+ */
+export class AiSearchQuotaError extends Error {
+  constructor(
+    readonly scope: string,
+    readonly limit: number,
+  ) {
+    super(`daily quota exhausted: ${scope} (limit ${limit})`);
+    this.name = 'AiSearchQuotaError';
+  }
+}
+
 /** 모델이 낸 원시 JSON. 스키마로 강제되지만 신뢰하지 않고 다시 검증한다. */
 interface RawFilter {
   subjectCds?: unknown;
@@ -236,6 +253,9 @@ export class HealthcareAiSearchService {
     private readonly asmCodes: HiraAsmCodeCache,
     private readonly regions: RegionCache,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly quota: DailyQuotaService,
+    // 한도 값만 본다. 실행은 LlmService 가 하고 이쪽은 "누가 얼마나 쓸 수 있나" 만 정한다.
+    @Inject(LLM_CONFIG) private readonly llmConfig: LlmConfig,
   ) {}
 
   /**
@@ -357,7 +377,17 @@ export class HealthcareAiSearchService {
    * 정한다 — 호출자가 고르게 두면 호출자가 요금을 정하게 되는데, 이 메서드는 공개
    * 엔드포인트가 부른다. 바꿔 볼 일이 있으면 설정을 고치고 재시작한다.
    */
-  async extractFilter(question: string): Promise<AiSearchResult> {
+  async extractFilter(
+    question: string,
+    /**
+     * 누가 물었나. 하루 몫을 **누구 통에서 깎을지** 정하는 데만 쓴다.
+     *   userId 있음   그 사람 몫 (로그인 붙은 뒤)
+     *   없음          그 앱 몫 (숫자 appId) — 로그인 전 사용자들이 나눠 쓴다
+     *
+     * `requestId` 는 추적용이다. **로그에만 쓴다** — 판단에 끼어들지 않는다.
+     */
+    caller: { userId?: number; clientId?: string; requestId?: string } = {},
+  ): Promise<AiSearchResult> {
     const prompt = this.prompts.get(PROMPT_NAME);
 
     const startedAt = Date.now();
@@ -374,8 +404,35 @@ export class HealthcareAiSearchService {
     const cached = await this.tryGet(key);
     if (cached) {
       const elapsedMs = Date.now() - startedAt;
-      this.logger.log(`${PROMPT_NAME} cache hit ${elapsedMs}ms (${key})`);
+      this.logger.log(
+        `${tag(caller.requestId)}${PROMPT_NAME} cache hit ${elapsedMs}ms (${key})`,
+      );
       return { ...cached, elapsedMs };
+    }
+
+    /*
+      **하루 총량을 여기서 센다 — 캐시 미스 뒤다.**
+
+      캐시 히트는 외부 호출이 아니라 요금이 0 이라, 그걸 몫에서 깎으면 "같은 질문을 반복하면
+      한도가 준다" 는 이상한 규칙이 된다. 실제로 나가는 호출만 센다.
+
+      rate limit(IP 당 분당) 이 못 막는 것을 막는 자리다 — 그쪽은 한 명이 얼마나 빨리
+      부르는지를 묶을 뿐이라, IP 를 돌리면 총액이 그대로 늘어난다.
+    */
+    const { scope, limit } = caller.userId
+      ? {
+          scope: `ai-search:user:${caller.userId}`,
+          limit: this.llmConfig.userDailyLimit,
+        }
+      : {
+          // 로그인 전이면 **어느 앱에서 왔나**(숫자 appId)로 센다. 인증이 필수라 여기까지
+          // 왔다면 값이 있다 — 없으면 셀 대상이 불분명하므로 한 통(unknown)으로 묶는다.
+          scope: `ai-search:client:${caller.clientId ?? 'unknown'}`,
+          limit: this.llmConfig.clientDailyLimit,
+        };
+
+    if (!(await this.quota.take(scope, limit))) {
+      throw new AiSearchQuotaError(scope, limit);
     }
 
     // 1) 뼈대를 받는다. 업체 선택·모델 인스턴스·캐시 옵션·시스템 메시지가 채워져 온다.
@@ -415,10 +472,19 @@ export class HealthcareAiSearchService {
     // 사용량·지연을 남긴다. **LlmService 가 아니라 여기서 남기는 이유**는 어느 프롬프트로
     // 무엇을 물었는지가 여기에만 있어서다 — 대행자의 로그는 "누가 왜" 를 못 적는다.
     // cacheRead 가 계속 0 이면 시스템 프롬프트가 요청마다 달라졌다는 뜻이다.
+    /*
+      **업체의 요청 id 를 같이 남긴다.** 나중에 "이 호출이 왜 이랬나" 를 업체에 물어볼 때
+      찾을 수 있는 값은 그쪽 id 뿐이다 — 우리 id 는 그들 시스템에 없다.
+      반대로 우리 id 를 업체에 보내는 건 의미가 없어서 안 보낸다(색인되지 않는다).
+    */
+    const upstreamId = response.response.headers?.['request-id'];
+
     this.logger.log(
-      `${PROMPT_NAME} ${provider}/${model} ${Date.now() - startedAt}ms ` +
+      `${tag(caller.requestId)}${PROMPT_NAME} ${provider}/${model} ` +
+        `${Date.now() - startedAt}ms ` +
         `in=${usage.inputTokens} out=${usage.outputTokens} ` +
-        `cacheRead=${usage.cacheReadTokens ?? 0} cacheWrite=${usage.cacheWriteTokens ?? 0}`,
+        `cacheRead=${usage.cacheReadTokens ?? 0} cacheWrite=${usage.cacheWriteTokens ?? 0}` +
+        (upstreamId ? ` upstream=${upstreamId}` : ''),
     );
 
     // SDK 가 스키마 검증까지 끝낸 값이다(실패하면 chat 이 던진다).
@@ -625,6 +691,11 @@ function normalizeQuestion(question: string): string {
 /** 스키마가 null 을 허용하는 자리. 빈 문자열도 없는 것으로 본다. */
 function nonEmpty(raw: unknown): string | undefined {
   return typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : undefined;
+}
+
+/** 로그 앞머리. 추적 id 가 없으면(내부 호출 등) 아무것도 안 붙인다. */
+function tag(requestId?: string): string {
+  return requestId ? `[${requestId}] ` : '';
 }
 
 /**

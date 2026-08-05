@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
-import { AiSearchChat } from './AiSearchChat';
+import { useAiSearchPanel } from '../model/AiSearchPanel';
 
 /** 화면 아래에서 띄우는 기본 간격(px). 세이프에어리어는 여기에 더해진다. */
 const BOTTOM_GAP = 16;
@@ -67,19 +67,22 @@ function useFooterOffset(): number {
  */
 export function AiSearchLauncher() {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const panel = useAiSearchPanel();
   const lift = useFooterOffset();
 
   return (
     <>
       {/*
-        **패널이 열려 있으면 버튼을 감춘다.** 둘 다 오른쪽 아래라 그대로 두면 버튼이 패널
-        위에 얹히거나 패널 그림자에 반쯤 묻힌다. 닫는 길은 패널 안의 X 와 Esc 다.
+        **창을 여기서 그리지 않는다.** 여는 곳이 둘(이 버튼과 홈 검색창 아래)이라
+        창은 AiSearchProvider 가 하나만 들고 있고, 여기서는 열어 달라고만 한다.
+
+        **열려 있으면 버튼을 감춘다.** 둘 다 오른쪽 아래라 그대로 두면 버튼이 패널 위에
+        얹히거나 패널 그림자에 반쯤 묻힌다. 닫는 길은 패널 안의 X 와 Esc 다.
       */}
-      {!open && (
+      {!panel.isOpen && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={panel.open}
           aria-label={t('aiSearch.title')}
           /*
             bottom 을 클래스가 아니라 인라인으로 잡는 이유는 푸터 오프셋이 실시간 픽셀이라서다.
@@ -108,8 +111,6 @@ export function AiSearchLauncher() {
           </span>
         </button>
       )}
-
-      {open && <AiSearchChat onClose={() => setOpen(false)} />}
     </>
   );
 }

@@ -63,7 +63,10 @@ export type {
 } from './healthcare/healthcare-meta.service';
 
 // 자연어 질문 → 검색 조건. 검색은 하지 않는다(조건만 낸다).
-export { HealthcareAiSearchService } from './healthcare/healthcare-ai-search.service';
+export {
+  HealthcareAiSearchService,
+  AiSearchQuotaError,
+} from './healthcare/healthcare-ai-search.service';
 export type {
   AiSearchFilter,
   AiSearchParams,

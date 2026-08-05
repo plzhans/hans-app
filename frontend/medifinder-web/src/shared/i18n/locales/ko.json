@@ -295,7 +295,7 @@
     "switchLabel": "다른 지도로 보기"
   },
   "aiSearch": {
-    "title": "AI에게 문의하기",
+    "title": "AI Assistant",
     "subtitle": "찾는 병원을 말로 설명해 보세요",
     "placeholder": "어떤 병원을 찾으세요?",
     "send": "보내기",

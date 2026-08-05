@@ -295,7 +295,7 @@
     "switchLabel": "查看其他地图"
   },
   "aiSearch": {
-    "title": "咨询 AI",
+    "title": "AI Assistant",
     "subtitle": "用您的话描述想找的医院",
     "placeholder": "您需要什么样的医院？",
     "send": "发送",

@@ -11,12 +11,14 @@ import {
   Search,
   Siren,
   SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { Input } from '@/shared/ui/Input';
 import { Button } from '@/shared/ui/Button';
 import { MyLocationButton } from '@/shared/components/MyLocationButton';
 import { LangLink } from '@/shared/i18n/LangLink';
 import { useLangPath } from '@/shared/i18n/routing';
+import { useAiSearchPanel } from '@/features/ai-search/model/AiSearchPanel';
 import {
   useHospitalSearch,
   type HospitalSearchParams,
@@ -97,6 +99,8 @@ export default function Home() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const path = useLangPath();
+  // 채팅창은 MainLayout 의 Provider 가 들고 있다. 여기서는 열어 달라고만 한다.
+  const panel = useAiSearchPanel();
   const [keyword, setKeyword] = useState('');
 
   function onSubmit(e: FormEvent) {
@@ -199,6 +203,20 @@ export default function Home() {
             더 좁혀 찾고 싶으면 그 자리에서 바로 넘어간다.
           */}
           <div className="flex flex-wrap items-center gap-2">
+            {/*
+              AI 문의. **검색 상자 바로 아래**가 제자리다 — "뭐라고 쳐야 하지" 가 생기는
+              곳이 검색창이고, 그때 눈이 가 있는 자리가 여기다. 오른쪽 아래 FAB 과 같은
+              창을 열지만 그건 스크롤을 내린 뒤에야 눈에 들어온다.
+            */}
+            <button
+              type="button"
+              onClick={panel.open}
+              className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[0.72rem] font-bold text-brand-strong transition-colors active:bg-brand-tint/70"
+            >
+              <Sparkles className="h-3 w-3" />
+              {t('home.aiSearch')}
+            </button>
+
             {/* 상세검색으로 바로. advanced=1 이면 검색 화면이 조건을 펼친 채로 연다. */}
             <LangLink
               to="/search?advanced=1"

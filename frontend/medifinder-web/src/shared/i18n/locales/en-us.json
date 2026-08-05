@@ -295,7 +295,7 @@
     "switchLabel": "View another map"
   },
   "aiSearch": {
-    "title": "Ask AI",
+    "title": "AI Assistant",
     "subtitle": "Describe the hospital you are looking for",
     "placeholder": "What kind of hospital do you need?",
     "send": "Send",

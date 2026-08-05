@@ -50,6 +50,7 @@ import { HiraAsmCodeCache } from './healthcare/hira-asm-code.cache';
 import { RegionService } from './region/region.service';
 import { RegionCache } from './region/region.cache';
 import { HealthcareAiSearchService } from './healthcare/healthcare-ai-search.service';
+import { DailyQuotaService } from './common/daily-quota.service';
 
 /**
  * 응용 계층의 DI 진입점. 제공하는 서비스를 여기서 export 하고,
@@ -146,6 +147,8 @@ export class ApplicationModule {
         // 자연어 질문 → 검색 조건. LLM 호출 자체는 LlmModule 이 맡고(업체 무관),
         // 여기서는 병원 도메인 지식(코드표 검증·범위 판정)만 얹는다.
         HealthcareAiSearchService,
+        // 하루 총량 계수기. rate limit 이 못 막는 "총액" 을 묶는다.
+        { provide: DailyQuotaService, useValue: new DailyQuotaService(source) },
       ],
       exports: [
         HiraHospitalService,

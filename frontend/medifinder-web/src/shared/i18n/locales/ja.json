@@ -295,7 +295,7 @@
     "switchLabel": "他の地図で見る"
   },
   "aiSearch": {
-    "title": "AIに相談",
+    "title": "AI Assistant",
     "subtitle": "探している病院を言葉で説明してください",
     "placeholder": "どんな病院をお探しですか？",
     "send": "送信",
