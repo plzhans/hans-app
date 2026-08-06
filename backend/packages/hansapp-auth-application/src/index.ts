@@ -4,6 +4,7 @@ export { AuthModule } from './auth-application.module';
 // 서비스
 export { AuthService } from './auth.service';
 export { ConsentService } from './consent.service';
+export { SessionTrimService } from './session-trim.service';
 export type { ConsentInput, ConsentMeta } from './consent.service';
 export type { AuthResult, RequestMeta } from './auth.service';
 export { OAuthTokenService } from './oauth-token.service';

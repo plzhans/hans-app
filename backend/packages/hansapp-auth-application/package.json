@@ -15,6 +15,7 @@
   "dependencies": {
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",
+    "@hansapp/event-consumer": "workspace:*",
     "@hansapp/event-contract": "workspace:*",
     "@hansapp/event-publisher": "workspace:*",
     "@nestjs/cache-manager": "^3.1.3",

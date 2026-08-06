@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { EventPublisherModule } from '@hansapp/event-publisher';
+import { EventConsumerModule } from '@hansapp/event-consumer';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
@@ -37,7 +38,7 @@ import { NmcHospitalController } from './datagokr/nmc/nmc-hospital.controller';
 import { HealthcareHospitalController } from './healthcare/hospital.controller';
 import { HealthcareMetaController } from './healthcare/meta.controller';
 import { HealthcareAiSearchController } from './healthcare/ai-search.controller';
-import { AiQuotaController } from './ai/quota.controller';
+import { AiCapabilitiesController } from './ai/capabilities.controller';
 import { HealthcareMcpController } from './mcp/healthcare-mcp.controller';
 import { TransportController } from './transport/transport.controller';
 import { RegionController } from './region/region.controller';
@@ -66,6 +67,15 @@ export class AppModule {
         SentryModule.forRoot(),
         // 도메인 이벤트 발행(전역). 로그인 뒤에 붙는 일들이 응답 경로 밖에서 돌게 한다.
         EventPublisherModule.forRoot(config),
+        /*
+          **지금은 API 가 소비도 한다.** 처리기는 AuthModule 이 갖고 있고, 이 모듈이 워커를
+          띄운다. 나중에 전용 소비 서버로 옮기려면 그 서버가 이 둘(AuthModule·EventConsumerModule)
+          을 등록하고 여기서는 이 줄만 지우면 된다.
+
+          **두 프로세스가 동시에 소비하면 안 된다.** 큐가 하나라 잡이 어느 워커로 갈지
+          정할 수 없다 — 옮길 때는 겹치지 않게 한쪽을 먼저 내린다.
+        */
+        EventConsumerModule.forRoot(config),
         ApplicationModule.forRoot(config),
         AuthModule.forRoot(config),
         // 전역 rate limit. 라이브러리 기본 저장소는 인메모리(인스턴스별) 다 —
@@ -96,7 +106,7 @@ export class AppModule {
         HealthcareHospitalController,
         HealthcareMetaController,
         HealthcareAiSearchController,
-        AiQuotaController,
+        AiCapabilitiesController,
         HealthcareMcpController,
         TransportController,
         RegionController,

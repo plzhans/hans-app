@@ -107,6 +107,14 @@ export interface AuthConfig {
   /** 탈퇴 기록 보존일수. 이후 배치가 정리하며 이메일 재사용을 푼다. 기본 30일 */
   readonly withdrawalRetentionDays: number;
 
+  /**
+   * 한 사용자가 동시에 유지할 수 있는 로그인 세션 수. 기본 10.
+   *
+   * 넘치면 오래된 것부터 지운다 — 브라우저를 바꿔 가며 로그인하다 보면 세션 행이 계속
+   * 쌓이는데, 만료 정리만으로는 만료 전까지 그대로 남는다. 0 이하면 상한을 두지 않는다.
+   */
+  readonly maxSessionsPerUser: number;
+
   /** API 접근 캐시(서비스 키·클라이언트) TTL 설정. */
   readonly accessCache: AccessCacheConfig;
 

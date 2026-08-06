@@ -61,6 +61,34 @@ export class TokenSessionRepository {
       .then((r) => r.count);
   }
 
+  /**
+   * 이 회원의 세션을 최근 `keep` 개만 남기고 지운다.
+   *
+   * **목록을 앱으로 가져오지 않는다.** 남길 경계(keep 번째로 최근인 세션의 시각)만 한 줄로
+   * 찾고, 그보다 오래된 것을 지운다. (user_id) 인덱스가 있어 그 계정의 행만 본다.
+   *
+   * 기준이 updatedAt 인 이유는 rotate 마다 갱신되기 때문이다 — 계속 쓰는 기기는 오래
+   * 로그인했어도 남고, 만든 뒤 방치된 세션이 먼저 밀린다.
+   *
+   * @returns 지운 세션 수.
+   */
+  async trimToLimit(userId: number, keep: number): Promise<number> {
+    const boundary = await this.prisma.userTokenSession.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      skip: keep - 1,
+      take: 1,
+      select: { updatedAt: true },
+    });
+    // 아직 상한을 넘지 않았다. 지울 것이 없다.
+    if (boundary.length === 0) return 0;
+
+    const { count } = await this.prisma.userTokenSession.deleteMany({
+      where: { userId, updatedAt: { lt: boundary[0].updatedAt } },
+    });
+    return count;
+  }
+
   delete(sessionId: string): Promise<void> {
     return this.prisma.userTokenSession
       .deleteMany({ where: { sessionId } })
