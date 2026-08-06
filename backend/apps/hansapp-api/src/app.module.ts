@@ -65,7 +65,7 @@ export class AppModule {
         // DSN 이 없어 init 을 건너뛴 경우에도 안전하다(전부 no-op).
         SentryModule.forRoot(),
         // 도메인 이벤트 발행(전역). 로그인 뒤에 붙는 일들이 응답 경로 밖에서 돌게 한다.
-        EventPublisherModule,
+        EventPublisherModule.forRoot(config),
         ApplicationModule.forRoot(config),
         AuthModule.forRoot(config),
         // 전역 rate limit. 라이브러리 기본 저장소는 인메모리(인스턴스별) 다 —

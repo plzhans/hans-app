@@ -1,0 +1,18 @@
+{
+  "name": "@hansapp/event-contract",
+  "version": "0.0.1",
+  "private": true,
+  "description": "도메인 이벤트의 이름과 내용. 발행자와 소비자가 유일하게 공유하는 것",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

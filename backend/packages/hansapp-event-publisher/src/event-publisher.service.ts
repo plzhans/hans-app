@@ -1,35 +1,40 @@
-import { Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-
-import type { DomainEventName, DomainEventPayloads } from './events';
+import { Injectable, Logger } from '@nestjs/common';
+import type { Queue } from 'bullmq';
+import type {
+  DomainEventName,
+  DomainEventPayloads,
+} from '@hansapp/event-contract';
 
 /**
  * 도메인 이벤트 발행기.
  *
- * **쓰는 쪽은 무엇으로 전달되는지 모른다.** 지금은 같은 프로세스 안에서 리스너를 부르지만,
- * 나중에 큐(BullMQ 등)로 바뀌어도 발행부는 그대로다 — 그것이 이 계층을 따로 둔 이유다.
+ * **쓰는 쪽은 무엇으로 전달되는지 모른다.** 지금은 Redis 큐(BullMQ)에 넣지만, 발행부는
+ * `publish(이름, 내용)` 만 안다 — 소비자가 같은 프로세스에 있든 다른 서버에 있든 그대로다.
  *
- * **기다리지 않는다.** `publish` 는 값을 돌려주지 않고 리스너의 완료도 기다리지 않는다.
- * 로그인 응답 같은 사람이 기다리는 경로에서 부르기 때문이다 — 후속 처리가 느리다고 응답이
- * 늦어지면 안 된다. 리스너가 던진 오류도 여기서 삼킨다(리스너가 자기 오류를 로그로 남긴다).
+ * **기다리지 않는다.** 로그인 응답처럼 사람이 기다리는 경로에서 부르기 때문에, 큐에 넣는
+ * 것조차 await 하지 않는다. 후속 처리가 느리다고 응답이 늦어지면 안 된다.
  *
- * **그래서 전달이 보장되지 않는다.** 프로세스가 죽으면 처리되지 않은 이벤트는 사라진다.
- * 잃으면 안 되는 일(결제 등)에는 이대로 쓰면 안 되고, 같은 트랜잭션에 이벤트를 적어 두는
- * 아웃박스가 필요하다. 지금 담는 것은 "나중에 해도 되고, 놓쳐도 다음에 만회되는" 일뿐이다.
+ * **큐가 없으면 조용히 버린다.** Redis 를 설정하지 않은 환경(로컬 일부)에서도 서버는 떠야
+ * 하고, 로그인 같은 본업이 그것 때문에 실패해서는 안 된다. 대신 경고를 남긴다 —
+ * 조용히 사라지는 것과 조용한 줄도 모르는 것은 다르다.
  */
 @Injectable()
 export class EventPublisher {
-  constructor(private readonly emitter: EventEmitter2) {}
+  private readonly logger = new Logger(EventPublisher.name);
+
+  constructor(private readonly queue: Queue | null) {}
 
   publish<N extends DomainEventName>(
     name: N,
     payload: DomainEventPayloads[N],
   ): void {
-    /*
-      emit 은 리스너를 **같은 틱에서** 부른다. 리스너가 async 면 첫 await 지점까지만 동기로
-      돌고 나머지는 뒤로 넘어가므로, 리스너 쪽에서 곧바로 await 하는 것으로 응답 경로를 비운다.
-      (emitAsync 는 반대로 끝까지 기다린다 — 여기서는 쓰지 않는다.)
-    */
-    this.emitter.emit(name, payload);
+    if (!this.queue) {
+      this.logger.warn(`큐가 없어 이벤트를 버린다 — ${name}`);
+      return;
+    }
+    void this.queue.add(name, payload).catch((error: unknown) => {
+      // 발행 실패가 본업(로그인·가입)을 무너뜨리면 안 된다. 남기고 넘어간다.
+      this.logger.error(`이벤트 발행 실패 — ${name}`, error);
+    });
   }
 }

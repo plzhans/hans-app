@@ -30,7 +30,6 @@ import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
 import { UserConsentRepository } from './repository/user-consent.repository';
 import { ConsentService } from './consent.service';
-import { SessionTrimListener } from './session-trim.listener';
 import { TokenSessionRepository } from './repository/token-session.repository';
 import { AuthCodeRepository } from './repository/auth-code.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
@@ -104,8 +103,6 @@ export class AuthModule {
         TokenService,
         // 로그인 완결(세션 발급 + 로그). 모든 로그인 경로가 지난다.
         LoginService,
-        // 로그인 이벤트를 받아 세션 상한을 지킨다. 응답 경로 밖이다.
-        SessionTrimListener,
         AuthService,
         ConsentService,
         OAuthTokenService,

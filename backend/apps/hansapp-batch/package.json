@@ -13,6 +13,8 @@
     "@hansapp/admin-application": "workspace:*",
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",
+    "@hansapp/event-consumer": "workspace:*",
+    "@hansapp/event-contract": "workspace:*",
     "@nestjs/common": "^11.1.27",
     "@nestjs/core": "^11.1.27",
     "@nestjs/schedule": "^6.0.1",

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ActionResult, AuthProvider, User, UserAction } from '@hansapp/data';
-import { DomainEvent, EventPublisher } from '@hansapp/event-publisher';
+import { DomainEvent } from '@hansapp/event-contract';
+import { EventPublisher } from '@hansapp/event-publisher';
 
 import { ActionLogService } from './log/action-log.service';
 import { AuthTokens, TokenService } from './token/token.service';
