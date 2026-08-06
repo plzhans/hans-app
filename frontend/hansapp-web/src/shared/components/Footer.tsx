@@ -1,5 +1,7 @@
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CONTACT_EMAIL } from '@/shared/config/contact';
+import { APP_ENV, APP_RELEASE } from '@/shared/config/env';
 
 /**
  * 하단 고지.
@@ -62,10 +64,61 @@ export function Footer() {
               </a>
             </span>
           </p>
-          <p>© {'2026'} plzhans.com</p>
+          <Copyright />
         </div>
       </div>
     </footer>
+  );
+}
+
+/** 연속 클릭으로 인정할 간격. 이보다 뜸하면 처음부터 다시 센다. */
+const REVEAL_CLICK_GAP_MS = 1500;
+/** 몇 번 눌러야 열리나. */
+const REVEAL_CLICKS = 5;
+
+/**
+ * 저작권 표시. **다섯 번 연달아 누르면 산출물 버전이 나온다.**
+ *
+ * 버전을 늘 띄워 두지 않는 건, 사용자에게는 아무 의미가 없는데 화면만 어수선해지기
+ * 때문이다. 그렇다고 볼 방법이 없으면 "지금 배포된 게 뭔지"를 확인하려고 매번
+ * 개발자도구를 열어야 한다 — 아는 사람만 여는 자리를 하나 둔다.
+ *
+ * 버튼으로 만들지 않는다. role 을 붙이는 순간 스크린 리더와 키보드 탭 순서에
+ * "누를 수 있는 것"으로 드러나서, 숨겨 둔 의미가 없어진다.
+ */
+function Copyright() {
+  const [shown, setShown] = useState(false);
+  const clicks = useRef(0);
+  const lastClickAt = useRef(0);
+
+  function handleClick() {
+    const now = Date.now();
+    clicks.current =
+      now - lastClickAt.current > REVEAL_CLICK_GAP_MS ? 1 : clicks.current + 1;
+    lastClickAt.current = now;
+
+    if (clicks.current >= REVEAL_CLICKS) {
+      clicks.current = 0;
+      // 다시 다섯 번 누르면 닫힌다. 한 번 연 걸 되돌릴 방법이 새로고침뿐이면 곤란하다.
+      setShown((prev) => !prev);
+    }
+  }
+
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      {/*
+        다섯 번 누르는 동안 글자가 블록으로 잡히면 지저분하다 — select-none 으로 막고,
+        커서도 그대로 둬서 누를 수 있는 자리처럼 보이지 않게 한다.
+      */}
+      <span onClick={handleClick} className="cursor-default select-none">
+        © {'2026'} plzhans.com
+      </span>
+      {shown && (
+        <span className="font-mono text-gray-500">
+          v{APP_RELEASE} · {APP_ENV}
+        </span>
+      )}
+    </p>
   );
 }
 
