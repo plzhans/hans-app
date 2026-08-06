@@ -4,9 +4,10 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { getMyConsents, type ConsentRecord } from '@/shared/api/auth';
 import { Button } from '@/shared/ui/Button';
 import { AuthCard } from '../components/AuthCard';
+import { WithdrawSection } from '../components/WithdrawSection';
 
 /**
- * 마이페이지. 지금은 **열람**만 한다(정정·기기 관리·탈퇴는 다음 단계).
+ * 마이페이지. 지금은 **열람과 탈퇴**를 한다(정정·기기 관리는 다음 단계).
  *
  * **개인정보처리방침 제10조가 약속한 것을 이행하는 자리다.** 방침에 "회원은 계정 설정에서
  * 직접 열람·정정할 수 있다" 고 적어 둔 이상, 그 화면이 없으면 문서가 앞서 나간 상태가 된다.
@@ -74,6 +75,9 @@ export default function Home() {
           로그아웃
         </Button>
       </div>
+
+      {/* 탈퇴는 접힌 채로 맨 아래. 계정을 보러 온 사람에게 먼저 보일 버튼이 아니다. */}
+      <WithdrawSection />
     </AuthCard>
   );
 }

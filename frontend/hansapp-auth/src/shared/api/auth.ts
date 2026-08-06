@@ -145,6 +145,16 @@ export function getMe(): Promise<Me> {
   return apiFetch('/auth/me', {}, { auth: true });
 }
 
+/**
+ * 회원 탈퇴. 계정이 탈퇴 상태로 바뀌고 모든 세션이 폐기된다.
+ *
+ * 서버가 refresh 쿠키도 지우지만, **이 오리진의 저장소는 우리가 치워야 한다** —
+ * 호출부에서 이어서 signOut 을 부른다(authStore 가 토큰·프로필 캐시를 지우고 다른 탭에 알린다).
+ */
+export function withdraw(): Promise<void> {
+  return apiFetch('/auth/withdraw', { method: 'POST' }, { auth: true });
+}
+
 /** 내 동의 기록. 마이페이지의 열람 항목이다. */
 export function getMyConsents(): Promise<ConsentRecord[]> {
   return apiFetch('/auth/me/consents', {}, { auth: true });
