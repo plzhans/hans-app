@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AUTH_WEB_URL } from '@/shared/config/env';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { startLogout } from '@/shared/auth/login';
@@ -10,8 +11,13 @@ import { startLogout } from '@/shared/auth/login';
  * 이메일은 남이 보는 화면에 상시 띄울 값이 아니고(어깨너머로 읽힌다), 로그아웃은 자주 쓰지도
  * 않으면서 가장 누르기 쉬운 자리를 차지한다. 이름만 두고 접으면 둘 다 해결된다.
  *
+ * 로그인해야 보이는 것은 전부 여기로 모은다(마이페이지·앱 관리·로그아웃). 헤더에 흩어 두면
+ * 로그인 여부에 따라 메뉴 개수가 들쭉날쭉해 폭이 흔들리고, 어느 것이 계정에 딸린 것인지도
+ * 안 보인다. 반대로 Blog·Docs 처럼 **누구나 보는 링크는 헤더에 그대로 둔다.**
+ *
  * 마이페이지는 **인증웹(auth.plzhans.com/me)에 있다.** 계정은 여러 서비스가 함께 쓰는
  * HansApp 계정이라, 계정을 보고 고치는 자리도 서비스마다 두지 않고 한 곳에 모은다.
+ * 앱 관리는 포털 자신의 화면이라 라우터 링크(Link)이고, 마이페이지만 바깥 주소(a)다.
  */
 export function UserMenu() {
   const me = useAuthStore((s) => s.me);
@@ -76,6 +82,15 @@ export function UserMenu() {
               마이페이지
             </a>
           )}
+
+          <Link
+            to="/apps"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2.5 text-sm text-gray-700 transition hover:bg-gray-50"
+          >
+            앱 관리
+          </Link>
           <button
             type="button"
             role="menuitem"

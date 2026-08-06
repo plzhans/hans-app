@@ -42,16 +42,8 @@ export function Gnb() {
             // 레이아웃 밀림을 막으려 버튼 크기의 스켈레톤을 자리만 잡아 둔다.
             <div className="h-8 w-20 animate-pulse rounded-lg bg-gray-100" />
           ) : status === 'authenticated' ? (
-            <>
-              <Link
-                to="/apps"
-                className="text-sm font-semibold text-gray-700 transition hover:text-primary"
-              >
-                앱 관리
-              </Link>
-              {/* 이름만 보이고 누르면 마이페이지·로그아웃이 펼쳐진다. UserMenu 주석 참고. */}
-              <UserMenu />
-            </>
+            /* 이름만 보이고 누르면 앱 관리·마이페이지·로그아웃이 펼쳐진다. UserMenu 주석 참고. */
+            <UserMenu />
           ) : (
             <button
               type="button"
