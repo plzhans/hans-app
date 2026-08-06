@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react';
+import { loadErrorKey } from '@/shared/api/errorMessage';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -251,7 +252,7 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
   const { t } = useTranslation();
   const { icon: Icon, iconBox } = section;
 
-  const { data, isPending } = useHospitalSearch({
+  const { data, error, isPending, isError } = useHospitalSearch({
     page: 1,
     size: FEATURED_SIZE,
     ...section.params,
@@ -259,9 +260,12 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
 
   const hospitals = data?.items ?? [];
 
-  // 로딩이 끝났는데 한 곳도 없는 상태. 섹션을 지우면(스켈레톤 → 사라짐) 깜빡여 이상하니,
-  // 자리는 유지하고 "없음"을 그린다. 이럴 땐 갈 곳이 없어 "더보기"도 숨긴다.
-  const isEmpty = !isPending && hospitals.length === 0;
+  /*
+    **못 불러온 것과 없는 것은 다르다.** 조회가 실패해도 목록은 0 건이라, 구분하지 않으면
+    "표시할 병원이 없어요" 가 뜬다 — 사용자는 그 지역에 병원이 없다고 읽는다.
+    검색 결과 화면(SearchResults)은 이미 갈라 놓았는데 여기만 빠져 있었다.
+  */
+  const isEmpty = !isPending && !isError && hospitals.length === 0;
 
   return (
     <section className="mt-6 px-1 first:mt-0">
@@ -284,7 +288,7 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
             </p>
           </div>
         </div>
-        {!isEmpty && (
+        {!isEmpty && !isError && (
           <LangLink
             to={section.to}
             className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-surface px-2.5 py-1 text-[0.72rem] font-bold text-ink-muted no-underline shadow-card transition-transform duration-100 ease-native active:scale-95"
@@ -295,7 +299,12 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
         )}
       </div>
 
-      {isEmpty ? (
+      {isError ? (
+        // 실패 사유마다 사용자가 할 일이 다르다 — loadErrorKey 주석 참고.
+        <p className="rounded-tile border border-line-subtle bg-surface px-4 py-6 text-center text-sm text-danger shadow-card">
+          {t(loadErrorKey(error))}
+        </p>
+      ) : isEmpty ? (
         <p className="rounded-tile border border-line-subtle bg-surface px-4 py-6 text-center text-sm text-ink-subtle shadow-card">
           {t('home.sections.empty')}
         </p>

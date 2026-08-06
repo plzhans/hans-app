@@ -3,7 +3,9 @@ import {
   type Dispatch,
   type FormEvent,
   type SetStateAction,
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -195,7 +197,7 @@ function QuotaRow({
       <span
         // 굵게 하지 않는다. 입력 상자 안에 같이 있어서 굵히면 입력칸보다 먼저 눈에 든다 —
         // 색만 기본색으로 두면 안 흐리면서도 주인공 자리를 안 뺏는다.
-        className="shrink-0 text-[0.72rem] tabular-nums text-ink"
+        className="shrink-0 text-[0.8rem] tabular-nums text-ink"
         /*
           줄인 숫자 뒤에 정확한 값을 남기고, **이 숫자가 누구 것인지도 여기서 말한다** —
           라벨은 자리가 좁아 두 낱말뿐이라 "모두가 합쳐 쓴 양" 이라는 설명이 안 들어간다.
@@ -372,11 +374,81 @@ export function AiSearchChat({
     비동기로 도착해 말풍선이 다시 길어지는데, 그때는 이미 스크롤이 끝난 뒤라 방금 받은
     답이 화면 밖에 남는다. 그래서 **내용 높이가 변할 때마다** 따라간다.
 
+    같은 이유로 **창을 닫았다 열 때도** 필요하다. 닫으면 이 컴포넌트가 통째로 사라져
+    스크롤이 0 에서 다시 시작하는데, 열리는 동안 높이가 여러 번 바뀐다 — 슬라이드업
+    애니메이션, 뒤늦게 도착하는 미리보기 카드, 한 프레임 뒤에 확정되는 입력칸 높이.
+    "몇 밀리초 동안" 같은 시간으로 맞추면 그중 하나만 늦어도 어긋난다.
+
     **사용자가 위로 올려 읽고 있으면 놓아준다.** 지난 답을 훑는 중에 새 내용이 도착했다고
     끌어내리면 읽던 자리를 뺏는 것이다. 바닥 근처(40px)에 있을 때만 붙잡는다.
   */
   const contentRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
+  /*
+    **우리가 굴린 스크롤은 안 듣는다.**
+
+    scrollTop 을 우리가 써도 브라우저는 똑같이 scroll 이벤트를 쏘고, 부드러운 스크롤은
+    한 번이 아니라 여러 번 나뉘어 온다. 그 초반에는 바닥까지 아직 멀어서 "사용자가 위를
+    보고 있다" 로 잘못 읽히고, 그러면 **스스로 붙잡기를 풀어** 뒤에 자란 내용을 놓친다.
+
+    시간(몇 ms 동안 무시)이 아니라 플래그인 것은, 얼마나 걸릴지 모르기 때문이다 —
+    쓰기 직전에 켜고 **실제로 멈출 때까지** 든다.
+  */
+  const selfScrolling = useRef(false);
+
+  /**
+   * 바닥으로 보낸다. 우리가 쓰는 것이므로 onScroll 이 무시하도록 표시해 둔다.
+   *
+   * **부드럽게 굴리지 않는다.** 여기서 바닥은 **움직이는 목표**다 — 병원 미리보기가
+   * 비동기로 도착해 말풍선이 계속 길어진다. 굴러가는 애니메이션은 시작할 때의 바닥을
+   * 향해 가므로, 가는 도중에 내용이 자라면 도착지가 더 이상 바닥이 아니다. 그 사이
+   * ResizeObserver 가 새 바닥으로 다시 보내도 진행 중이던 애니메이션과 서로를 덮어쓴다.
+   *
+   * 창을 닫았다 열 때가 그 최악의 경우였다: 스크롤은 0 에서 출발하고 미리보기는 아직
+   * 로딩 중이라, 짧은 내용의 바닥(≈맨 위)까지만 굴러간 채로 끝났다.
+   *
+   * 한 프레임에 끝내면 이 싸움이 없다. 채팅에서 스크롤이 튀는 것은 원래 자연스럽고,
+   * 애니메이션은 여기서 값을 못 한다.
+   */
+  const pinToBottom = useCallback(() => {
+    const view = scrollRef.current;
+    if (!view) {
+      return;
+    }
+    selfScrolling.current = true;
+    view.scrollTop = view.scrollHeight;
+    // 우리가 쓴 값이 만든 scroll 이벤트가 지나간 다음에 표시를 끈다.
+    requestAnimationFrame(() => {
+      selfScrolling.current = false;
+    });
+  }, []);
+
+  /*
+    **첫 그림 전에 바닥으로 보낸다**(useLayoutEffect). useEffect 로 하면 위에서 시작한
+    화면이 한 번 보이고 나서 내려가 깜빡인다.
+
+    이때 재는 높이는 최종값이 아닐 수 있지만 상관없다 — 아래 ResizeObserver 가 내용이
+    자랄 때마다 다시 붙인다. 여기서는 "위에서 시작하지 않는다" 만 보장하면 된다.
+  */
+  useLayoutEffect(() => {
+    pinToBottom();
+
+    // TODO(임시): 스크롤이 왜 맨 위로 가는지 확인용. 원인 잡으면 지운다.
+    const view = scrollRef.current;
+    const log = (tag: string) =>
+      console.log('[chat-scroll]', tag, {
+        view: !!view,
+        top: view?.scrollTop,
+        height: view?.scrollHeight,
+        client: view?.clientHeight,
+        stick: stickRef.current,
+      });
+    log('mount');
+    const timers = [0, 100, 400, 1000, 2000].map((ms) =>
+      setTimeout(() => log(`+${ms}ms`), ms),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [pinToBottom]);
 
   useEffect(() => {
     const view = scrollRef.current;
@@ -386,21 +458,24 @@ export function AiSearchChat({
     }
     const observer = new ResizeObserver(() => {
       if (stickRef.current) {
-        view.scrollTop = view.scrollHeight;
+        pinToBottom();
       }
     });
     observer.observe(content);
     return () => observer.disconnect();
-  }, []);
+  }, [pinToBottom]);
 
-  // 새 turn 은 사용자가 방금 보낸 것이다. 어디를 보고 있었든 다시 붙잡는다.
+  /*
+    새 turn 은 사용자가 방금 보낸 것이다. 어디를 보고 있었든 다시 붙잡는다.
+
+    **열 때도 여기를 그대로 탄다.** 창을 닫으면 이 컴포넌트가 사라져 다시 열 때가 곧
+    첫 렌더인데, 그때도 하고 싶은 일은 똑같다(마지막 답을 보여준다). 열 때만 따로
+    처리하려다 오히려 어긋났었다.
+  */
   useEffect(() => {
     stickRef.current = true;
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: 'smooth',
-    });
-  }, [turns]);
+    pinToBottom();
+  }, [turns, pinToBottom]);
 
   function ask(e: FormEvent) {
     e.preventDefault();
@@ -516,15 +591,21 @@ export function AiSearchChat({
         */}
         <Dialog.Content
           aria-describedby={undefined}
-          // 열릴 때 포커스를 입력칸에 준다. 기본값은 첫 포커스 가능 요소(닫기 버튼)라
-          // 열자마자 바로 칠 수 없다.
-          onOpenAutoFocus={(e) => {
-            e.preventDefault();
-            inputRef.current?.focus();
-          }}
           // 뒤 화면을 쓰는 것이 이 패널의 목적이다. 바깥을 눌렀다고 닫으면 안 된다.
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
+          /*
+            열릴 때 포커스를 입력칸에 준다. 기본값은 첫 초점 대상(닫기 버튼)이라 열자마자
+            바로 칠 수 없다.
+
+            **`preventScroll` 을 켠다.** 포커스는 그 요소를 화면 안으로 끌어오는데
+            (브라우저 기본 동작), 그 과정에서 조상 스크롤 컨테이너들이 함께 움직인다 —
+            우리가 방금 바닥으로 맞춰 둔 대화 영역을 되돌려 놓을 수 있다.
+          */
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            inputRef.current?.focus({ preventScroll: true });
+          }}
           style={
             fullscreen ? undefined : { width: size.width, height: size.height }
           }
@@ -532,8 +613,13 @@ export function AiSearchChat({
             'fixed bottom-3 right-3 z-50 flex animate-slide-up flex-col overflow-hidden rounded-card border border-line-subtle bg-surface shadow-pop sm:bottom-5 sm:right-5',
             // 모바일 기본값. sm 이상에서는 위 style 의 픽셀 값이 이긴다(sm:w-auto 로 풀어 준다).
             'h-[75dvh] w-[calc(100vw-1.5rem)] sm:h-auto sm:w-auto',
+            /*
+              전체화면은 **화면을 다 쓴다.** 여백을 두면 남은 테두리가 뒤 화면을 살짝
+              보여주는데, 그 틈이 "닫으려면 여길 눌러야 하나" 로 읽혀 오히려 애매해진다.
+              떠 있는 창이 아니라 화면 하나가 되는 것이므로 둥근 모서리·그림자도 뗀다.
+            */
             fullscreen &&
-              '!inset-3 !h-auto !w-auto sm:!inset-5 sm:!bottom-5 sm:!right-5',
+              '!inset-0 !h-auto !w-auto !rounded-none !border-0 !shadow-none',
             // 드래그 중에는 전환을 끈다 — 켜 두면 커서를 따라오는 게 한 박자 늦어 미끄러진다.
             !resizing && 'transition-[width,height] duration-150 ease-native',
           )}
@@ -572,11 +658,11 @@ export function AiSearchChat({
               <Sparkles className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <Dialog.Title className="flex items-center gap-1.5 text-[0.92rem] font-extrabold tracking-tight text-ink">
+              <Dialog.Title className="flex items-center gap-1.5 text-[1rem] font-extrabold tracking-tight text-ink">
                 {t('aiSearch.title')}
                 <BetaTag />
               </Dialog.Title>
-              <p className="truncate text-[0.72rem] text-ink-subtle">
+              <p className="truncate text-[0.8rem] text-ink-subtle">
                 {t('aiSearch.subtitle')}
               </p>
             </div>
@@ -607,14 +693,14 @@ export function AiSearchChat({
                     collisionPadding={12}
                     className="z-50 w-max max-w-[16rem] rounded-card border border-line-subtle bg-surface p-3 shadow-raised"
                   >
-                    <p className="text-[0.76rem] leading-relaxed text-ink">
+                    <p className="text-[0.84rem] leading-relaxed text-ink">
                       {t('aiSearch.newChatConfirm')}
                     </p>
                     <div className="mt-2.5 flex justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={() => setConfirmClear(false)}
-                        className="h-8 rounded-field px-3 text-[0.76rem] font-bold text-ink-muted ring-1 ring-inset ring-line active:bg-surface-subtle"
+                        className="h-8 rounded-field px-3 text-[0.84rem] font-bold text-ink-muted ring-1 ring-inset ring-line active:bg-surface-subtle"
                       >
                         {t('aiSearch.newChatCancel')}
                       </button>
@@ -624,7 +710,7 @@ export function AiSearchChat({
                           onClear();
                           setConfirmClear(false);
                         }}
-                        className="h-8 rounded-field bg-brand px-3 text-[0.76rem] font-bold text-white active:bg-brand-strong"
+                        className="h-8 rounded-field bg-brand px-3 text-[0.84rem] font-bold text-white active:bg-brand-strong"
                       >
                         {t('aiSearch.newChat')}
                       </button>
@@ -662,24 +748,27 @@ export function AiSearchChat({
           {/*
             보관 안내. **헤더 아래에 고정한다** — 대화가 길어져도 "이게 어디 남나" 는 계속
             유효한 정보라, 첫 화면에만 두면 스크롤과 함께 사라진다.
+
+            **상자를 씌우지 않는다.** 둥근 모서리에 회색 배경을 주니 AI 말풍선과 생김새가
+            똑같아져서, 대화가 시작되면 이 안내가 첫 번째 답변처럼 읽혔다. 말풍선이
+            "주고받는 말" 을 뜻하는 자리라면 이건 그 바깥의 설명이라 모양이 달라야 한다.
+
+            대신 아래에 선을 하나 그어 대화 영역과 끊는다 — 배경을 안 쓰고도 층이 갈린다.
           */}
-          {/*
-            **좌우로 붙이지 않는다.** 배경이 창 끝까지 닿으면 머리말이 아니라 경계선처럼
-            읽혀서 패널이 두 동강 난 것처럼 보인다. 여백을 두고 모서리를 둥글리면
-            "안에 놓인 쪽지" 로 읽힌다.
-          */}
-          <div className="px-4 pt-3">
-            <div className="flex items-start gap-2 rounded-card bg-surface-subtle px-3 py-2">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-muted" />
-              <p className="text-[0.72rem] leading-relaxed text-ink">
-                {t('aiSearch.storageNote')}
-              </p>
-            </div>
+          <div className="flex items-start gap-2 border-b border-line-subtle px-4 py-2.5">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-muted" />
+            <p className="text-[0.78rem] leading-relaxed text-ink-muted">
+              {t('aiSearch.storageNote')}
+            </p>
           </div>
 
           <div
             ref={scrollRef}
             onScroll={(e) => {
+              // 우리가 쓴 스크롤이면 사용자의 뜻이 아니다.
+              if (selfScrolling.current) {
+                return;
+              }
               const el = e.currentTarget;
               // 바닥에서 40px 안쪽이면 "따라가는 중" 으로 본다.
               stickRef.current =
@@ -712,7 +801,7 @@ export function AiSearchChat({
             )}
 
             {isPending && (
-              <div className="mt-3 flex items-center gap-2 text-[0.78rem] text-ink-subtle">
+              <div className="mt-3 flex items-center gap-2 text-[0.86rem] text-ink-subtle">
                 <Spinner className="h-3.5 w-3.5" />
                 {t('aiSearch.thinking')}
               </div>
@@ -775,9 +864,9 @@ export function AiSearchChat({
                   계속 자라게 두면 대화 영역을 밀어내 방금 받은 답이 화면 밖으로 나간다 —
                   패널 높이가 400~600px 이라 입력칸이 절반을 먹으면 쓸 수가 없다.
 
-                  15.5rem = 10줄 × 22.75px(text-sm × leading-relaxed) + 위아래 여백 20px.
+                  16rem = 10줄 × 24.7px(0.95rem × leading-relaxed) + 위아래 여백 14px.
                 */
-                className="block max-h-[15.5rem] w-full resize-none bg-transparent px-3.5 pb-1 pt-2.5 text-sm leading-relaxed text-ink outline-none placeholder:text-ink-subtle disabled:text-ink-subtle"
+                className="block max-h-[16rem] w-full resize-none bg-transparent px-3.5 pb-1 pt-2.5 text-[0.95rem] leading-relaxed text-ink outline-none placeholder:text-ink-subtle disabled:text-ink-subtle"
               />
               {/*
                 **컨트롤 줄.** 사용량은 왼쪽, 모델과 보내기는 오른쪽이다 — 읽는 순서가
@@ -787,7 +876,7 @@ export function AiSearchChat({
                 {quotaPending ? (
                   <QuotaSkeleton />
                 ) : quotaFailed ? (
-                  <p className="min-w-0 text-[0.72rem] font-bold text-danger">
+                  <p className="min-w-0 text-[0.8rem] font-bold text-danger">
                     {t('aiSearch.quotaUnavailable')}
                   </p>
                 ) : quota ? (
@@ -826,7 +915,7 @@ export function AiSearchChat({
               읽혀야 하는 문장을 배경으로 만든다 — 의료 맥락에서 그건 위험을 낮추는 게
               아니라 낮춘 것처럼 보이게만 한다.
             */}
-            <p className="mt-2 text-center text-[0.72rem] leading-relaxed text-ink">
+            <p className="mt-2 text-center text-[0.8rem] leading-relaxed text-ink">
               {t('aiSearch.disclaimer')}
             </p>
           </form>
@@ -840,7 +929,7 @@ export function AiSearchChat({
 /** beta 꼬리표. 이 기능이 아직 실험 중이라는 것을 제목 옆에서 계속 말해 준다. */
 function BetaTag() {
   return (
-    <span className="rounded-full bg-brand-tint px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-brand">
+    <span className="rounded-full bg-brand-tint px-1.5 py-0.5 text-[0.68rem] font-bold uppercase tracking-wide text-brand">
       beta
     </span>
   );
@@ -866,7 +955,7 @@ function EmptyState({
 
   return (
     <div className="py-2">
-      <p className="text-[0.82rem] leading-relaxed text-ink-muted">
+      <p className="text-[0.9rem] leading-relaxed text-ink-muted">
         {t('aiSearch.intro')}
       </p>
       {/*
@@ -880,7 +969,7 @@ function EmptyState({
               type="button"
               onClick={() => onAsk(example)}
               disabled={disabled}
-              className="w-full rounded-full bg-brand-tint px-3 py-2 text-center text-[0.8rem] font-bold text-brand transition-transform duration-100 ease-native active:scale-[0.98] disabled:bg-surface-subtle disabled:text-ink-subtle"
+              className="w-full rounded-full bg-brand-tint px-3 py-2 text-center text-[0.88rem] font-bold text-brand transition-transform duration-100 ease-native active:scale-[0.98] disabled:bg-surface-subtle disabled:text-ink-subtle"
             >
               {example}
             </button>
@@ -895,7 +984,7 @@ function EmptyState({
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-card bg-brand px-3.5 py-2 text-[0.82rem] leading-relaxed text-white">
+      <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-card bg-brand px-3.5 py-2 text-[0.9rem] leading-relaxed text-white">
         {text}
       </p>
     </div>
@@ -941,7 +1030,7 @@ function AssistantBubble({
         늘 같은 자리에 있고, 답변이 쌓여도 눈으로 찾을 필요가 없다.
       */}
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 text-[0.82rem] leading-relaxed text-ink">
+        <p className="min-w-0 flex-1 text-[0.9rem] leading-relaxed text-ink">
           {result.explain || t('aiSearch.noExplain')}
         </p>
         <CopyButton text={copyTextOf(result, preview.data?.items ?? [], t)} />
@@ -974,7 +1063,7 @@ function AssistantBubble({
               type="button"
               variant="secondary"
               onClick={onSearch}
-              className="h-8 gap-1 px-3 text-[0.76rem]"
+              className="h-8 gap-1 px-3 text-[0.84rem]"
             >
               {t('aiSearch.goSearch')}
               <ArrowRight className="h-3 w-3" />
@@ -991,7 +1080,7 @@ function AssistantBubble({
       {tool === 'ask_location' && (
         <>
           <ConditionList result={result} />
-          <p className="mt-2 text-[0.72rem] text-ink-subtle">
+          <p className="mt-2 text-[0.8rem] text-ink-subtle">
             {t('aiSearch.placeUnresolved', { place: params.placeText ?? '' })}
           </p>
           <div className="mt-2.5">
@@ -999,7 +1088,7 @@ function AssistantBubble({
               type="button"
               variant="secondary"
               onClick={onSearch}
-              className="h-8 gap-1 px-3 text-[0.76rem]"
+              className="h-8 gap-1 px-3 text-[0.84rem]"
             >
               {t('aiSearch.pickRegion')}
               <ArrowRight className="h-3 w-3" />
@@ -1014,14 +1103,14 @@ function AssistantBubble({
       */}
       {tool === 'answer_medical' && params.answer && (
         <div className="mt-2.5 rounded-card bg-surface px-3 py-2.5">
-          <p className="whitespace-pre-line text-[0.8rem] leading-relaxed text-ink">
+          <p className="whitespace-pre-line text-[0.88rem] leading-relaxed text-ink">
             {params.answer}
           </p>
           {/*
             **매번 붙인다.** 일반 정보이지 개인 진단이 아니라는 걸 답 바로 옆에서 말해야
             한다 — 한 번만 보여주면 스크롤에 묻히고, 정작 판단하는 순간에는 안 보인다.
           */}
-          <p className="mt-2 border-t border-line-subtle pt-2 text-[0.72rem] leading-relaxed text-ink">
+          <p className="mt-2 border-t border-line-subtle pt-2 text-[0.8rem] leading-relaxed text-ink">
             {t('aiSearch.answerDisclaimer')}
           </p>
         </div>
@@ -1041,7 +1130,7 @@ function AssistantBubble({
             "건강에 대한 질문이네요" 같은 되짚기도 뺐다. 바로 위 explain 이 이미
             "팔 통증의 원인을 물으셨네요" 라고 말해서 같은 말이 두 번 나온다.
           */}
-          <p className="text-[0.76rem] leading-relaxed text-brand-strong">
+          <p className="text-[0.84rem] leading-relaxed text-brand-strong">
             {t('aiSearch.medicalUpsell')}
           </p>
         </div>
@@ -1060,7 +1149,7 @@ function AssistantBubble({
       */}
       {result.credits > 0 && (
         <div
-          className="mt-2 select-none text-[0.6rem] tabular-nums text-ink-subtle"
+          className="mt-2 select-none text-[0.68rem] tabular-nums text-ink-subtle"
           title={`${t('aiSearch.creditsLabel')} ${result.credits.toLocaleString()}`}
         >
           {compact(result.credits)}
@@ -1107,7 +1196,7 @@ function ModelPicker() {
 
   return (
     <Popover.Root>
-      <Popover.Trigger className="flex items-center gap-1 rounded-full px-2 py-1 text-[0.7rem] font-bold text-ink-muted transition-colors active:bg-surface-subtle data-[state=open]:bg-surface-subtle">
+      <Popover.Trigger className="flex items-center gap-1 rounded-full px-2 py-1 text-[0.78rem] font-bold text-ink-muted transition-colors active:bg-surface-subtle data-[state=open]:bg-surface-subtle">
         <Sparkles className="h-3 w-3 shrink-0 text-brand" />
         <span>Anthropic / {current.label}</span>
         <ChevronDown className="h-3 w-3 shrink-0" />
@@ -1127,7 +1216,7 @@ function ModelPicker() {
               disabled={model.locked}
               onClick={() => setSelected(model.id)}
               className={cn(
-                'flex w-full items-center gap-2 rounded-field px-2.5 py-2 text-left text-[0.76rem]',
+                'flex w-full items-center gap-2 rounded-field px-2.5 py-2 text-left text-[0.84rem]',
                 model.locked
                   ? 'cursor-not-allowed text-ink-subtle'
                   : 'font-bold text-ink active:bg-surface-subtle',
@@ -1144,13 +1233,13 @@ function ModelPicker() {
               </span>
               <span className="flex-1">{model.label}</span>
               {model.locked && (
-                <span className="shrink-0 rounded-full bg-surface-subtle px-1.5 py-0.5 text-[0.62rem] font-bold text-ink-muted">
+                <span className="shrink-0 rounded-full bg-surface-subtle px-1.5 py-0.5 text-[0.7rem] font-bold text-ink-muted">
                   {t('aiSearch.modelLocked')}
                 </span>
               )}
             </button>
           ))}
-          <p className="px-2.5 pb-1.5 pt-1 text-[0.66rem] leading-relaxed text-ink-subtle">
+          <p className="px-2.5 pb-1.5 pt-1 text-[0.74rem] leading-relaxed text-ink-subtle">
             {t('aiSearch.modelLockedHint')}
           </p>
         </Popover.Content>
@@ -1256,7 +1345,7 @@ interface MetaRow {
  */
 function MetaRows({ rows, muted }: { rows: MetaRow[]; muted?: boolean }) {
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[0.68rem]">
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[0.76rem]">
       {rows.map((row) => (
         <Fragment key={row.label}>
           <dt className="text-ink-subtle">{row.label}</dt>
@@ -1394,7 +1483,7 @@ function MyLocationNote({ place }: { place: MyPlace }) {
     if (granted && !coords && !locating) locate();
   }, [granted, coords, locating, locate]);
 
-  const line = 'mt-2 text-[0.72rem] text-ink-subtle';
+  const line = 'mt-2 text-[0.8rem] text-ink-subtle';
 
   if (denied) {
     return <p className={line}>{t('aiSearch.myLocationDenied')}</p>;
@@ -1422,7 +1511,7 @@ function MyLocationNote({ place }: { place: MyPlace }) {
     <button
       type="button"
       onClick={locate}
-      className="mt-2 inline-flex items-center gap-1 rounded-field px-2 py-1 text-[0.72rem] font-bold text-brand ring-1 ring-inset ring-brand/30 active:bg-brand-tint"
+      className="mt-2 inline-flex items-center gap-1 rounded-field px-2 py-1 text-[0.8rem] font-bold text-brand ring-1 ring-inset ring-brand/30 active:bg-brand-tint"
     >
       <LocateFixed className="h-3 w-3" />
       {t('aiSearch.myLocationAsk')}
@@ -1482,7 +1571,7 @@ function ResultPreview({
 
   if (isLoading) {
     return (
-      <div className="mt-3 flex items-center gap-2 text-[0.72rem] text-ink-subtle">
+      <div className="mt-3 flex items-center gap-2 text-[0.8rem] text-ink-subtle">
         <Spinner className="h-3 w-3" />
         {t('aiSearch.previewLoading')}
       </div>
@@ -1493,7 +1582,7 @@ function ResultPreview({
   const items = data.items ?? [];
   if (items.length === 0) {
     return (
-      <p className="mt-3 text-[0.72rem] text-ink-subtle">
+      <p className="mt-3 text-[0.8rem] text-ink-subtle">
         {t('aiSearch.previewEmpty')}
       </p>
     );
@@ -1506,7 +1595,7 @@ function ResultPreview({
         깔면 나머지가 어디 갔는지 알 수 없다 — 이게 목록이 아니라 맛보기라는 걸 숫자로 말한다.
         천 단위 구분은 로케일에 맡긴다(1200 → 1,200).
       */}
-      <p className="mb-1.5 text-[0.72rem] font-bold text-ink-muted">
+      <p className="mb-1.5 text-[0.8rem] font-bold text-ink-muted">
         {t('aiSearch.previewCount', {
           total: data.totalCount.toLocaleString(),
           shown: items.length,
@@ -1542,24 +1631,24 @@ function PreviewCard({ hospital }: { hospital: Hospital }) {
   const badges = (
     <div className="flex flex-wrap items-center gap-1">
       {hospital.tier && hospital.tier.code !== 'TIER1' && (
-        <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[0.64rem] font-extrabold text-brand-strong">
+        <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[0.72rem] font-extrabold text-brand-strong">
           {hospital.tier.name}
         </span>
       )}
       {hospital.specialty && (
-        <span className="rounded-full bg-ok-tint px-2 py-0.5 text-[0.64rem] font-extrabold text-ok">
+        <span className="rounded-full bg-ok-tint px-2 py-0.5 text-[0.72rem] font-extrabold text-ok">
           {hospital.specialty.name
             ? `${hospital.specialty.name} ${t('clinic.specialtyHospital')}`
             : t('clinic.specialtyHospital')}
         </span>
       )}
       {hospital.emergency && (
-        <span className="inline-flex items-center gap-0.5 rounded-full bg-danger-tint px-2 py-0.5 text-[0.64rem] font-extrabold text-danger">
+        <span className="inline-flex items-center gap-0.5 rounded-full bg-danger-tint px-2 py-0.5 text-[0.72rem] font-extrabold text-danger">
           <Ambulance className="h-2.5 w-2.5" /> {t('clinic.badge.emergency')}
         </span>
       )}
       {hospital.baby && (
-        <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.5 text-[0.64rem] font-extrabold text-amber-600">
+        <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.5 text-[0.72rem] font-extrabold text-amber-600">
           <Baby className="h-2.5 w-2.5" /> {t('clinic.badge.baby')}
         </span>
       )}
@@ -1573,7 +1662,7 @@ function PreviewCard({ hospital }: { hospital: Hospital }) {
   if (confirming) {
     return (
       <div className="rounded-card border border-brand/40 bg-brand-tint/30 px-3 py-2.5">
-        <p className="truncate text-[0.76rem] text-ink">
+        <p className="truncate text-[0.84rem] text-ink">
           {t('aiSearch.openConfirm', { name: hospital.name })}
         </p>
         <div className="mt-2 flex gap-1.5">
@@ -1583,7 +1672,7 @@ function PreviewCard({ hospital }: { hospital: Hospital }) {
           */}
           <LangLink
             to={`/hospitals/${hospital.id}`}
-            className="flex h-8 flex-1 items-center justify-center gap-1 rounded-field bg-brand text-[0.76rem] font-bold text-white active:bg-brand-strong"
+            className="flex h-8 flex-1 items-center justify-center gap-1 rounded-field bg-brand text-[0.84rem] font-bold text-white active:bg-brand-strong"
           >
             {t('aiSearch.openConfirmYes')}
             <ArrowRight className="h-3 w-3" />
@@ -1591,7 +1680,7 @@ function PreviewCard({ hospital }: { hospital: Hospital }) {
           <button
             type="button"
             onClick={() => setConfirming(false)}
-            className="h-8 rounded-field px-3 text-[0.76rem] font-bold text-ink-muted ring-1 ring-inset ring-line active:bg-surface"
+            className="h-8 rounded-field px-3 text-[0.84rem] font-bold text-ink-muted ring-1 ring-inset ring-line active:bg-surface"
           >
             {t('aiSearch.openConfirmNo')}
           </button>
@@ -1608,13 +1697,13 @@ function PreviewCard({ hospital }: { hospital: Hospital }) {
     >
       {badges}
       <div className="mt-1 flex items-start justify-between gap-2">
-        <span className="min-w-0 flex-1 truncate text-[0.82rem] font-extrabold tracking-tight text-ink">
+        <span className="min-w-0 flex-1 truncate text-[0.9rem] font-extrabold tracking-tight text-ink">
           {hospital.name}
         </span>
         <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-subtle" />
       </div>
       {where && (
-        <p className="mt-0.5 truncate text-[0.7rem] text-ink-subtle">{where}</p>
+        <p className="mt-0.5 truncate text-[0.78rem] text-ink-subtle">{where}</p>
       )}
     </button>
   );
@@ -1655,7 +1744,7 @@ function ConditionList({ result }: { result: AiSearchResponse }) {
   }
 
   return (
-    <dl className="mt-2.5 space-y-1 text-[0.74rem] leading-relaxed">
+    <dl className="mt-2.5 space-y-1 text-[0.82rem] leading-relaxed">
       {rows.map((row) => (
         // **앞말과 값을 한 줄에 흘린다.** 줄을 나누면 조건 하나가 두 줄을 먹어서,
         // 네댓 개만 잡혀도 말풍선이 표처럼 길어진다.
@@ -1677,7 +1766,7 @@ function ConditionList({ result }: { result: AiSearchResponse }) {
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <li className="rounded-full bg-surface px-2.5 py-1 text-[0.72rem] font-bold text-ink-muted ring-1 ring-inset ring-line-subtle">
+    <li className="rounded-full bg-surface px-2.5 py-1 text-[0.8rem] font-bold text-ink-muted ring-1 ring-inset ring-line-subtle">
       {children}
     </li>
   );
@@ -1692,7 +1781,7 @@ function WarningBanner({ warning }: { warning: AiSearchWarning }) {
   return (
     <div
       className={cn(
-        'mt-2.5 flex items-start gap-2 rounded-tile px-2.5 py-2 text-[0.74rem] leading-relaxed',
+        'mt-2.5 flex items-start gap-2 rounded-tile px-2.5 py-2 text-[0.82rem] leading-relaxed',
         box,
       )}
     >
@@ -1710,7 +1799,7 @@ function ErrorBubble({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="max-w-[92%] rounded-card border border-line-subtle bg-surface-subtle px-3.5 py-3">
-      <p className="text-[0.82rem] leading-relaxed text-ink-muted">
+      <p className="text-[0.9rem] leading-relaxed text-ink-muted">
         {t('aiSearch.error')}
       </p>
       <Button

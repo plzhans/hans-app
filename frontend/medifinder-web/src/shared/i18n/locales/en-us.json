@@ -59,6 +59,12 @@
   "common": {
     "loading": "Loading…",
     "loadError": "Failed to load.",
+    "error": {
+      "offline": "Connection problem. Check your network and try again.",
+      "unauthorized": "Can't reach the service right now. Please try again shortly.",
+      "tooManyRequests": "Too many requests. Please try again shortly.",
+      "server": "The server is having trouble. Please try again shortly."
+    },
     "language": "Language",
     "days": {
       "1": "Mon",
@@ -321,7 +327,7 @@
     "openConfirmYes": "Open",
     "openConfirmNo": "Cancel",
     "noExplain": "Could not work out any filters. Please try asking again.",
-    "medicalUpsell": "For now I can only help you find hospitals. After launch, add tokens to get answers to questions like this.",
+    "medicalUpsell": "We are in [Beta], so we can only help you find hospitals for now. Once we launch, you will be able to top up tokens and ask questions like this.",
     "answerDisclaimer": "General medical information, not a diagnosis. See a doctor about your symptoms.",
     "placeUnresolved": "Couldn't map '{{place}}' to a region yet. Pick one on the search screen.",
     "error": "Cannot answer right now. Please try again shortly.",

@@ -59,6 +59,12 @@
   "common": {
     "loading": "加载中…",
     "loadError": "加载失败。",
+    "error": {
+      "offline": "连接出现问题，请检查网络后重试。",
+      "unauthorized": "暂时无法连接服务，请稍后重试。",
+      "tooManyRequests": "请求过多，已暂时停止，请稍后重试。",
+      "server": "服务器出现问题，请稍后重试。"
+    },
     "language": "语言",
     "days": {
       "1": "一",
@@ -321,7 +327,7 @@
     "openConfirmYes": "打开",
     "openConfirmNo": "取消",
     "noExplain": "未能确定条件，请重新提问。",
-    "medicalUpsell": "目前仅支持查找医院。正式上线后充值代币，即可获得此类问题的解答。",
+    "medicalUpsell": "目前处于 [Beta] 阶段，暂时只能帮您查找医院。正式上线后充值代币即可获得此类问题的解答。",
     "answerDisclaimer": "这是一般医学信息，并非诊断。如有症状请到医疗机构就诊。",
     "placeUnresolved": "暂时无法把「{{place}}」对应到地区。请在搜索页选择地区。",
     "error": "暂时无法回答，请稍后再试。",

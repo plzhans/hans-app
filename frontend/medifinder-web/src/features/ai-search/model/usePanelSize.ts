@@ -1,4 +1,11 @@
-import { useCallback, useRef, useState, type PointerEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+  type PointerEvent,
+} from 'react';
 
 /**
  * 패널 크기. 픽셀로 든다 — 드래그로 자유롭게 조절하는 값이라 단계(sm/lg)로는 표현이 안 된다.
@@ -76,8 +83,30 @@ export type ResizeEdge = 'left' | 'top' | 'corner';
  * 안 묶으면 빨리 끌었을 때 중간에 놓친 것처럼 멈춘다.
  */
 export function usePanelSize() {
-  const [size, setSize] = useState<PanelSize>(() => clamp(read()));
+  /*
+    **저장된 값은 자르지 않고 그대로 든다.** 여기 담긴 것은 사용자가 원한 크기이고,
+    화면에 맞춰 자르는 것은 그릴 때 한다(아래 effective).
+
+    자른 값을 담아 버리면 창을 줄였다가 되돌렸을 때 원래 크기로 못 돌아간다 —
+    한 번 작아진 채로 굳는다.
+  */
+  const [size, setSize] = useState<PanelSize>(read);
   const [resizing, setResizing] = useState(false);
+  /*
+    창 크기가 바뀌면 다시 그린다. **안 하면 브라우저를 줄여도 패널은 그대로**라
+    화면 밖으로 삐져나가고, 새로고침해야 맞는다(clamp 가 첫 렌더에만 돌기 때문).
+
+    담아 둘 값이 없어서 상태가 아니라 카운터다 — 자르는 데 필요한 것은 그 시점의
+    window 크기이고 그건 clamp 가 직접 읽는다.
+  */
+  const [, redraw] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    window.addEventListener('resize', redraw);
+    return () => window.removeEventListener('resize', redraw);
+  }, []);
+
+  /** 실제로 그릴 크기. 원한 크기를 지금 화면에 맞춰 자른 값이다. */
+  const effective = clamp(size);
   /** 드래그 시작 시점의 포인터 위치와 크기. 매 move 마다 이 기준으로 다시 계산한다. */
   const origin = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
@@ -88,12 +117,14 @@ export function usePanelSize() {
       origin.current = {
         x: e.clientX,
         y: e.clientY,
-        width: size.width,
-        height: size.height,
+        width: effective.width,
+        height: effective.height,
       };
       setResizing(true);
 
       const move = (moveEvent: PointerEvent<HTMLElement>) => {
+        // 끄는 동안에는 잘라서 담는다. 화면 밖까지 끌어 놓고 손을 떼면 그 값이
+        // "원한 크기" 로 남아, 창을 키울 때마다 따라 커진다.
         const next = clamp({
           width:
             edge === 'top'
@@ -124,15 +155,14 @@ export function usePanelSize() {
       target.addEventListener('pointerup', onUp);
       target.addEventListener('pointercancel', onUp);
     },
-    [size.width, size.height],
+    [effective.width, effective.height],
   );
 
   /** 기본 크기로 되돌린다. 손잡이 더블클릭에 붙인다 — 잘못 끌어 이상해졌을 때의 탈출구다. */
   const reset = useCallback(() => {
-    const next = clamp(DEFAULT_SIZE);
-    setSize(next);
-    write(next);
+    setSize(DEFAULT_SIZE);
+    write(DEFAULT_SIZE);
   }, []);
 
-  return { size, resizing, onPointerDown, reset };
+  return { size: effective, resizing, onPointerDown, reset };
 }
