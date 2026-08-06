@@ -1,0 +1,22 @@
+{
+  "name": "@hansapp/event-publisher",
+  "version": "0.0.1",
+  "private": true,
+  "description": "도메인 이벤트 발행. 쓰는 쪽은 전달 수단(인프로세스/큐)을 모른다",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/event-emitter": "^3.0.1"
+  }
+}

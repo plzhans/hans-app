@@ -53,6 +53,15 @@ export interface AuthTokens {
    * 켜면 만료 시각이 박힌 영속 쿠키, 끄면 브라우저를 닫을 때 사라지는 세션 쿠키다.
    */
   readonly persistent: boolean;
+
+  /**
+   * 이번 로그인의 세션 식별자.
+   *
+   * **응답으로 나가지 않는다** — respondTokens 가 담을 필드를 명시적으로 고른다.
+   * 로그인 이벤트를 발행할 때 "이번에 만든 세션" 을 가리키는 데 쓴다(비밀값도 아니다 —
+   * access token 에 sid 로 이미 들어 있다).
+   */
+  readonly sessionId: string;
 }
 
 /** 소비된 인가코드의 내용. clientId 가 null 이면 1st-party(hansapp-web) 발급이다. */
@@ -230,6 +239,7 @@ export class TokenService {
       refreshToken: session.refreshToken,
       refreshExpiresAt: session.expiresAt,
       persistent: session.persistent,
+      sessionId: session.sessionId,
     };
   }
 

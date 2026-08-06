@@ -1,4 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { EventPublisherModule } from '@hansapp/event-publisher';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
@@ -63,6 +64,8 @@ export class AppModule {
         // Sentry.init 은 instrument.ts 가 이미 끝냈다 — 이 모듈은 "Nest 쪽 배선" 만 한다.
         // DSN 이 없어 init 을 건너뛴 경우에도 안전하다(전부 no-op).
         SentryModule.forRoot(),
+        // 도메인 이벤트 발행(전역). 로그인 뒤에 붙는 일들이 응답 경로 밖에서 돌게 한다.
+        EventPublisherModule,
         ApplicationModule.forRoot(config),
         AuthModule.forRoot(config),
         // 전역 rate limit. 라이브러리 기본 저장소는 인메모리(인스턴스별) 다 —
