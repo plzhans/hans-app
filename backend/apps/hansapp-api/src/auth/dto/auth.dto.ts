@@ -90,6 +90,17 @@ export class LoginRequestDto {
 }
 
 /** 비밀번호 변경 요청(로그인 상태) */
+/** 표시 이름 변경 요청. 빈 문자열이면 이름을 지운다. */
+export class UpdateProfileRequestDto {
+  @ApiProperty({
+    description: '표시 이름(빈 문자열이면 삭제)',
+    example: '홍길동',
+  })
+  @IsString()
+  @MaxLength(100)
+  readonly name!: string;
+}
+
 export class ChangePasswordRequestDto {
   @ApiProperty({ description: '현재 비밀번호' })
   @IsString()
@@ -262,6 +273,12 @@ export class MeResponseDto {
     example: '2026-08-06T02:10:00.000Z',
   })
   readonly createdAt!: string;
+
+  @ApiProperty({
+    description:
+      '비밀번호가 설정돼 있는가. 소셜로만 가입한 계정은 false 라 비밀번호 변경을 띄우지 않는다.',
+  })
+  readonly hasPassword!: boolean;
 
   @ApiProperty({
     description: '연동된 소셜 제공자 목록',

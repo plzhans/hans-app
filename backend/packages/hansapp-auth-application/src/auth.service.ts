@@ -279,6 +279,23 @@ export class AuthService {
     return user;
   }
 
+  /**
+   * 표시 이름을 바꾼다. **개인정보처리방침 제10조의 "정정" 을 이행하는 자리다.**
+   *
+   * 이름은 우리가 검증할 수 있는 값이 아니라(본인확인이 없다) 형식만 본다. 지우고 싶으면
+   * 빈 문자열을 보내면 되고, 그때는 null 로 남긴다 — 빈 문자열과 "없음" 을 DB 에서 갈라 두면
+   * 화면마다 둘 다 처리해야 한다.
+   *
+   * **행동 로그를 남기지 않는다.** UserAction 에 맞는 값이 없고(로그인·비밀번호·탈퇴 등
+   * 계정 보안 사건만 남긴다), 표시 이름 변경은 거기 낄 성질이 아니다. 남길 이유가 생기면
+   * 그때 enum 을 늘린다.
+   */
+  async updateName(userId: number, name: string): Promise<User> {
+    await this.getProfile(userId);
+    const trimmed = name.trim();
+    return this.users.updateName(userId, trimmed || null);
+  }
+
   // ---- 내부 헬퍼 ----
 
   /** 이메일이 신규 가입 가능한지 검증한다(활성 계정·탈퇴 재가입 제한 모두 확인). */

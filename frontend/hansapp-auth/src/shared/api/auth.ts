@@ -21,6 +21,8 @@ export interface Me {
   role: string;
   joinType: string;
   createdAt: string;
+  /** 비밀번호가 설정돼 있는가. 소셜로만 가입했으면 false — 비밀번호 변경을 띄우지 않는다. */
+  hasPassword: boolean;
   /** 연동된 소셜 제공자(GOOGLE·NAVER·KAKAO·LINE). 이메일만으로 가입했으면 빈 배열. */
   linkedProviders: string[];
 }
@@ -143,6 +145,27 @@ export function socialRegister(
 
 export function getMe(): Promise<Me> {
   return apiFetch('/auth/me', {}, { auth: true });
+}
+
+/** 표시 이름 변경. 빈 문자열을 보내면 이름을 지운다. */
+export function updateMyName(name: string): Promise<void> {
+  return apiFetch(
+    '/auth/me',
+    { method: 'PATCH', body: JSON.stringify({ name }) },
+    { auth: true },
+  );
+}
+
+/** 비밀번호 변경. 현재 비밀번호를 함께 보낸다. */
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  return apiFetch(
+    '/auth/password/change',
+    { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) },
+    { auth: true },
+  );
 }
 
 /**

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   HttpCode,
   Post,
   Req,
@@ -35,6 +36,7 @@ import {
   LoginRequestDto,
   ConsentRecordDto,
   MeResponseDto,
+  UpdateProfileRequestDto,
   PasswordResetConfirmDto,
   PasswordResetRequestDto,
   SignupCodeRequestDto,
@@ -140,9 +142,25 @@ export class AuthController {
       name: u.name,
       role: u.role,
       joinType: u.joinType,
+      hasPassword: !!u.password,
       createdAt: u.createdAt.toISOString(),
       linkedProviders: linked,
     };
+  }
+
+  @Patch('me')
+  @Auth(AuthType.Jwt)
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '내 정보 수정',
+    description:
+      '표시 이름을 바꾼다. 개인정보처리방침 제10조의 정정 요구에 응하는 자리다.',
+  })
+  async updateMe(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateProfileRequestDto,
+  ): Promise<void> {
+    await this.authService.updateName(user.userId, dto.name);
   }
 
   @Get('me/consents')
