@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsBoolean,
   IsEmail,
   IsIn,
   IsNotEmptyObject,
@@ -22,14 +21,6 @@ import {
  * 서버의 현재 판과 다르면 거절한다(ConsentService 주석 참고).
  */
 export class ConsentDto {
-  @ApiProperty({
-    description:
-      '만 14세 이상이라는 이용자의 자기 선언. 본인확인이 없어 나이를 검증하지는 않는다.',
-    example: true,
-  })
-  @IsBoolean()
-  readonly age!: boolean;
-
   @ApiProperty({
     description: '동의한 이용약관의 판(시행일)',
     example: '2026-08-06',

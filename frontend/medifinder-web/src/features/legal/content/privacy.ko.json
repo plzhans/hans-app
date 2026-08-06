@@ -110,7 +110,7 @@
             "rows": [
               [
                 "Oracle Corporation (Oracle Cloud Infrastructure)",
-                "서비스 서버 운영"
+                "서비스 서버와 데이터베이스 운영"
               ],
               [
                 "Cloudflare, Inc.",
@@ -156,6 +156,13 @@
               "이용 목적 및 보유 기간"
             ],
             "rows": [
+              [
+                "Oracle Corporation (Oracle Cloud Infrastructure)",
+                "일본",
+                "서비스를 이용하는 동안 네트워크를 통한 전송",
+                "이 방침에 적은 처리 항목 전부",
+                "서버와 데이터베이스 운영 / 제3조의 보유 기간과 같음"
+              ],
               [
                 "Cloudflare, Inc.",
                 "미국 등 (전 세계 네트워크)",

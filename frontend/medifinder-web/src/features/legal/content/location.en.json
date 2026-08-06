@@ -69,8 +69,8 @@
       "heading": "Article 8 (Retention and Destruction of Personal Location Data)",
       "blocks": [
         "(1) The Operator destroys personal location data immediately after search results are computed and does not retain it separately.",
-        "(2) Under Article 16(2) of the Location Information Act, the Operator automatically records and preserves data confirming the use and provision of location information, for a retention period of 6 months.",
-        "(3) The records in paragraph (2) concern the fact of use rather than the location data itself, and are destroyed by unrecoverable means once the retention period expires."
+        "(2) The Operator maintains no separate system for storing personal location data. Coordinates remain in memory only while a search request is being processed, and disappear with it.",
+        "(3) The fact that a search request was made remains in the server access log, which is destroyed once the period set out in Article 3 of the Privacy Policy has passed."
       ]
     },
     {

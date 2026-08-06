@@ -110,7 +110,7 @@
             "rows": [
               [
                 "Oracle Corporation (Oracle Cloud Infrastructure)",
-                "Operation of service servers"
+                "Operation of service servers and databases"
               ],
               [
                 "Cloudflare, Inc.",
@@ -156,6 +156,13 @@
               "Purpose and retention"
             ],
             "rows": [
+              [
+                "Oracle Corporation (Oracle Cloud Infrastructure)",
+                "Japan",
+                "Transmitted over the network throughout use of the Service",
+                "All items listed in this policy",
+                "Operation of servers and databases / same retention as Article 3"
+              ],
               [
                 "Cloudflare, Inc.",
                 "United States and others (global network)",

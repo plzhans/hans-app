@@ -46,7 +46,6 @@ export function requestSignupCode(email: string): Promise<void> {
  * 없다. 값은 @hansapp/legal 문서의 `version` 에서 온다.
  */
 export interface ConsentPayload {
-  age: boolean;
   termsVersion: string;
   privacyVersion: string;
 }

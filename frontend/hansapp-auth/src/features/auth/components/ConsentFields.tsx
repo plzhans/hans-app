@@ -15,8 +15,13 @@ import type { ConsentPayload } from '@/shared/api/auth';
  * 평범한 useState 다. 한쪽에 맞추면 다른 쪽이 그 라이브러리를 끌어 쓰거나 같은 UI 를 한 벌 더
  * 만들게 되는데, 동의 화면이 두 벌로 갈라지는 건 약관이 두 벌로 갈라지는 것 다음으로 나쁘다.
  *
- * 셋 다 필수라 "선택 동의" 가 없다. 마케팅 수신 같은 선택 항목이 생기면 그때 필수/선택을
+ * 둘 다 필수라 "선택 동의" 가 없다. 마케팅 수신 같은 선택 항목이 생기면 그때 필수/선택을
  * 눈에 보이게 갈라야 한다 — 섞어 두면 필수 동의가 강요된 것으로 읽힌다.
+ *
+ * **나이 확인 체크는 두지 않는다.** 본인확인이 없어 어차피 검증이 안 되고, 자기 선언을 한 줄
+ * 더 받는 것으로 얻는 것이 없다. "만 14세 미만은 가입할 수 없다" 는 규칙은 이용약관과
+ * 개인정보처리방침에 남아 있고, 약관에 동의하는 것으로 그 조건에 동의한 것이 된다 —
+ * 대부분의 서비스가 쓰는 방식이다.
  *
  * **문서는 이 화면 위에 레이어로 띄운다.** 새 창으로 보내면 다 채운 폼을 두고 나가는 셈이라
  * 사용자가 입력이 남아 있을지 확신하지 못한다. 조문은 `@hansapp/legal` 에서 오고, 포털의 문서
@@ -31,20 +36,18 @@ import type { ConsentPayload } from '@/shared/api/auth';
  * 동의를 받았다는 입증 책임이 처리자에게 있어서, 화면의 체크박스는 그 기록을 만드는 입구일 뿐이다.
  */
 export interface ConsentState {
-  age: boolean;
   terms: boolean;
   privacy: boolean;
 }
 
 export const EMPTY_CONSENT: ConsentState = {
-  age: false,
   terms: false,
   privacy: false,
 };
 
 /** 셋 다 필수다. 하나라도 비면 가입을 진행하지 않는다. */
 export function isConsented(c: ConsentState): boolean {
-  return c.age && c.terms && c.privacy;
+  return c.terms && c.privacy;
 }
 
 export const CONSENT_REQUIRED_MESSAGE = '필수 항목에 모두 동의해야 가입할 수 있습니다.';
@@ -55,9 +58,8 @@ export const CONSENT_REQUIRED_MESSAGE = '필수 항목에 모두 동의해야 �
  * **판은 화면이 실제로 보여준 문서에서 꺼낸다** — 상수로 박아 두면 문서를 개정했을 때 화면과
  * 기록이 어긋난다. 여기서 doc 을 읽으므로 JSON 만 고치면 따라온다.
  */
-export function toConsentPayload(c: ConsentState): ConsentPayload {
+export function toConsentPayload(_c: ConsentState): ConsentPayload {
   return {
-    age: c.age,
     termsVersion: accountTermsDoc.version,
     privacyVersion: privacyDoc.version,
   };
@@ -80,11 +82,6 @@ export function ConsentFields({
   return (
     <div className="rounded-lg border border-gray-200 p-3">
       <div className="space-y-2">
-        <Check
-          checked={value.age}
-          onChange={set('age')}
-          label="만 14세 이상입니다."
-        />
         <Check
           checked={value.terms}
           onChange={set('terms')}

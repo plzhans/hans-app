@@ -6,8 +6,6 @@ import { UserConsentRepository } from './repository/user-consent.repository';
 
 /** 가입 요청이 실어 보내는 동의. 판(version)은 화면이 실제로 보여준 문서의 시행일이다. */
 export interface ConsentInput {
-  /** 만 14세 이상이라는 자기 선언. 본인확인이 없으므로 나이를 검증하지는 못한다. */
-  readonly age: boolean;
   /** 동의한 이용약관의 판(예: '2026-08-06'). */
   readonly termsVersion: string;
   /** 동의한 개인정보처리방침의 판. */
@@ -25,6 +23,11 @@ export interface ConsentMeta {
  *
  * **클릭 자체는 검증할 수 없다.** 사람이 체크박스를 눌렀다는 것을 증명하는 수단은 없다.
  * 서버가 할 수 있는 일은 셋뿐이고, 이 클래스가 그 셋을 맡는다.
+ *
+ * 나이 확인은 받지 않는다 — 본인확인이 없어 검증이 안 되고, 자기 선언을 한 줄 더 받아도 얻는
+ * 것이 없다. "만 14세 미만은 가입할 수 없다" 는 규칙은 약관·방침에 남아 있고, 약관에 동의하는
+ * 것으로 그 조건에 동의한 것이 된다. (`ConsentType.AGE_14` 은 쓰지 않지만 enum 에 남겨 둔다 —
+ * 지우려면 마이그레이션이 하나 더 필요한데 얻는 것이 없다.)
  *
  *   1. **요구한다** — 동의 없이 온 요청을 거절한다. 화면에서만 막으면 API 를 직접 부르는
  *      경로가 남는데, 그러면 "우리가 동의를 안 받고 가입시킨" 계정이 생긴다.
@@ -54,9 +57,6 @@ export class ConsentService {
   assertValid(input: ConsentInput | undefined): asserts input is ConsentInput {
     if (!input) {
       throw new BadRequestException('Consent is required.');
-    }
-    if (!input.age) {
-      throw new BadRequestException('Age confirmation is required.');
     }
     const { terms, privacy } = this.config.consentVersions;
     if (input.termsVersion !== terms || input.privacyVersion !== privacy) {
@@ -96,8 +96,6 @@ export class ConsentService {
         ip,
         userAgent,
       },
-      // 연령 확인은 문서가 아니라 자기 선언이라 판이 없다.
-      { userId, type: ConsentType.AGE_14, version: '-', ip, userAgent },
     ]);
   }
 }
