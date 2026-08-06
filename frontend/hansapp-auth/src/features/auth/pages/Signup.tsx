@@ -8,9 +8,15 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { AuthCard } from '../components/AuthCard';
-import { ConsentFields, type ConsentForm } from '../components/ConsentFields';
+import {
+  ConsentFields,
+  CONSENT_REQUIRED_MESSAGE,
+  EMPTY_CONSENT,
+  isConsented,
+  type ConsentState,
+} from '../components/ConsentFields';
 
-interface Form extends ConsentForm {
+interface Form {
   email: string;
   password: string;
   passwordConfirm: string;
@@ -51,6 +57,8 @@ export default function Signup() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [consent, setConsent] = useState<ConsentState>(EMPTY_CONSENT);
+  const [consentError, setConsentError] = useState<string | null>(null);
 
   const {
     register,
@@ -61,6 +69,13 @@ export default function Signup() {
 
   // 1단계: 입력값 검증 후 코드 발송, 코드 입력 단계로.
   const onRequest = handleSubmit(async (values) => {
+    // **계정이 만들어지기 전에 막는다.** 이 단계는 코드를 보낼 뿐이지만, 코드까지 갔다가
+    // 되돌리면 이미 메일이 나간 뒤라 여기서 세우는 편이 낫다.
+    if (!isConsented(consent)) {
+      setConsentError(CONSENT_REQUIRED_MESSAGE);
+      return;
+    }
+    setConsentError(null);
     setServerError(null);
     try {
       await requestSignupCode(values.email);
@@ -207,7 +222,14 @@ export default function Signup() {
           만들지 않지만, 여기서 막는 편이 낫다 — 코드 단계까지 갔다가 되돌리면 이미 메일이
           나간 뒤다.
         */}
-        <ConsentFields register={register} errors={errors} />
+        <ConsentFields
+          value={consent}
+          onChange={(next) => {
+            setConsent(next);
+            if (consentError) setConsentError(null);
+          }}
+          error={consentError ?? undefined}
+        />
         {serverError && (
           <p className="whitespace-pre-line text-sm text-red-500">
             {serverError}
