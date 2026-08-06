@@ -24,7 +24,7 @@ import {
 } from '@hansapp/application';
 
 import { AppModule } from './app.module';
-import { appConfig } from './boot-config';
+import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initRefreshCookie } from './auth/refresh-cookie';
 import { HttpErrorFilter } from './common/http-error.filter';
@@ -41,7 +41,7 @@ import {
 // Sentry.init 이 DSN·환경·버전을 먼저 알아야 해서 모든 import 보다 앞서 돌아야 하기 때문이다.
 
 // 요청마다 도는 유틸(refresh-cookie)이 쓸 값을 부팅 시점에 한 번 읽어 고정한다.
-initRefreshCookie(appConfig);
+initRefreshCookie(appConfig, appEnv);
 
 /**
  * Express 'trust proxy' 설정을 env 에서 파싱한다.

@@ -42,14 +42,39 @@ let clientIpHeader: string | undefined;
 export let REFRESH_COOKIE = REFRESH_COOKIE_BASE;
 export let SESSION_HINT_COOKIE = SESSION_HINT_COOKIE_BASE;
 
+/**
+ * 쿠키 이름 접두사를 정한다. **설정이 비면 환경 이름에서 유도한다.**
+ *
+ * 접두사가 필요한 이유는 쿠키 Domain 이 `plzhans.com` 까지 올라가서다 — develop 과 운영이
+ * 같은 도메인을 공유하므로 이름까지 같으면 한쪽에 로그인할 때마다 다른 쪽 세션 토큰을
+ * 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
+ *
+ * 그래서 환경마다 달라야 하는데, 설정 파일에 손으로 적다 보니 **local 만 빠져 있었다.**
+ * 백엔드는 접두사 없이 심고 프론트는 `local.` 을 찾아서, 로그인은 됐는데 화면은 로그아웃으로
+ * 보였다. 규칙으로 유도하면 그런 어긋남이 생기지 않는다.
+ *
+ * **production 만 접두사가 없다.** 운영이 이름의 기준이고 나머지 환경이 거기서 갈라지는
+ * 구조다 — 배포된 프론트들이 `hansapp.session` 을 찾고 있어서, 여기서 `production.` 을 붙이면
+ * 그 이름을 여섯 군데(앱 2개 × 환경 3개) 함께 바꿔야 하고 운영 세션이 한 번 끊긴다.
+ *
+ * 프론트는 지금처럼 env 파일에 이름을 그대로 적는다. 여기 규칙과 그쪽 값이 어긋나면 로그인은
+ * 되는데 화면만 로그아웃으로 보이므로(이번에 난 사고가 그것이다), 규칙을 바꿀 때는 프론트의
+ * `VITE_SESSION_HINT_COOKIE_NAME` 여섯 줄을 반드시 같이 본다.
+ */
+function resolveCookiePrefix(cfg: ConfigSource, env: string): string {
+  const configured = cfg.getStringOrDefault('auth.cookiePrefix');
+  if (configured) return configured;
+  return env === 'production' ? '' : `${env.toLowerCase()}.`;
+}
+
 /** 부팅 시점에 설정에서 값을 한 번 읽어 고정한다(main 부트스트랩에서 호출). */
-export function initRefreshCookie(cfg: ConfigSource): void {
+export function initRefreshCookie(cfg: ConfigSource, env: string): void {
   secure = cfg.getBoolOrDefault('auth.cookieSecure', false);
   cookieDomain = cfg.getStringOrDefault('auth.rootDomain') || undefined;
   clientIpHeader =
     cfg.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
 
-  const prefix = cfg.getStringOrDefault('auth.cookiePrefix') || '';
+  const prefix = resolveCookiePrefix(cfg, env);
   REFRESH_COOKIE = prefix + REFRESH_COOKIE_BASE;
   SESSION_HINT_COOKIE = prefix + SESSION_HINT_COOKIE_BASE;
 }
