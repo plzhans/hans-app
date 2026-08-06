@@ -14,6 +14,8 @@ import { trackPageView } from '@/shared/analytics/gtag';
 import Dashboard from '@/features/home/pages/Dashboard';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
+import Terms from '@/features/legal/pages/Terms';
+import Privacy from '@/features/legal/pages/Privacy';
 
 /**
  * 로그인 필요 구간. 미인증이면 **인증웹(fe/hans-auth)으로 리다이렉트**한다.
@@ -80,6 +82,12 @@ export default function App() {
       <Routes>
         {/* 공개 대시보드 */}
         <Route path="/" element={<Dashboard />} />
+        {/*
+          계정 약관·방침. **반드시 공개 라우트다** — 가입 화면(인증웹)이 동의를 받기 전에
+          링크하는 곳이라, 로그인을 요구하면 가입하려는 사람이 열 수 없다.
+        */}
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         {/* 앱 관리(로그인 필요) */}
         <Route
           path="/apps"
