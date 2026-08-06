@@ -5,7 +5,6 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -375,41 +374,24 @@ export function AiSearchChat({
     답이 화면 밖에 남는다. 그래서 **내용 높이가 변할 때마다** 따라간다.
 
     같은 이유로 **창을 닫았다 열 때도** 필요하다. 닫으면 이 컴포넌트가 통째로 사라져
-    스크롤이 0 에서 다시 시작하는데, 열리는 동안 높이가 여러 번 바뀐다 — 슬라이드업
-    애니메이션, 뒤늦게 도착하는 미리보기 카드, 한 프레임 뒤에 확정되는 입력칸 높이.
-    "몇 밀리초 동안" 같은 시간으로 맞추면 그중 하나만 늦어도 어긋난다.
+    스크롤이 0 에서 다시 시작한다.
+
+    **자리를 잡는 일을 effect 가 아니라 ref 콜백에서 한다.** 이 패널은 Radix 의 Portal
+    안에 있어서, 우리 effect(useEffect·useLayoutEffect 둘 다)가 도는 시점에는 대화 영역이
+    아직 DOM 에 안 붙어 있다 — scrollRef.current 가 null 이라 무엇을 하든 그냥 지나간다.
+    ref 콜백은 **노드가 실제로 붙는 순간**에 불리므로 그 문제가 없다.
 
     **사용자가 위로 올려 읽고 있으면 놓아준다.** 지난 답을 훑는 중에 새 내용이 도착했다고
     끌어내리면 읽던 자리를 뺏는 것이다. 바닥 근처(40px)에 있을 때만 붙잡는다.
   */
-  const contentRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   /*
-    **우리가 굴린 스크롤은 안 듣는다.**
-
-    scrollTop 을 우리가 써도 브라우저는 똑같이 scroll 이벤트를 쏘고, 부드러운 스크롤은
-    한 번이 아니라 여러 번 나뉘어 온다. 그 초반에는 바닥까지 아직 멀어서 "사용자가 위를
-    보고 있다" 로 잘못 읽히고, 그러면 **스스로 붙잡기를 풀어** 뒤에 자란 내용을 놓친다.
-
-    시간(몇 ms 동안 무시)이 아니라 플래그인 것은, 얼마나 걸릴지 모르기 때문이다 —
-    쓰기 직전에 켜고 **실제로 멈출 때까지** 든다.
+    **우리가 쓴 스크롤은 안 듣는다.** scrollTop 을 우리가 써도 브라우저는 똑같이 scroll
+    이벤트를 쏘는데, 그걸 사용자의 뜻으로 읽으면 스스로 붙잡기를 풀어 버린다.
   */
   const selfScrolling = useRef(false);
 
-  /**
-   * 바닥으로 보낸다. 우리가 쓰는 것이므로 onScroll 이 무시하도록 표시해 둔다.
-   *
-   * **부드럽게 굴리지 않는다.** 여기서 바닥은 **움직이는 목표**다 — 병원 미리보기가
-   * 비동기로 도착해 말풍선이 계속 길어진다. 굴러가는 애니메이션은 시작할 때의 바닥을
-   * 향해 가므로, 가는 도중에 내용이 자라면 도착지가 더 이상 바닥이 아니다. 그 사이
-   * ResizeObserver 가 새 바닥으로 다시 보내도 진행 중이던 애니메이션과 서로를 덮어쓴다.
-   *
-   * 창을 닫았다 열 때가 그 최악의 경우였다: 스크롤은 0 에서 출발하고 미리보기는 아직
-   * 로딩 중이라, 짧은 내용의 바닥(≈맨 위)까지만 굴러간 채로 끝났다.
-   *
-   * 한 프레임에 끝내면 이 싸움이 없다. 채팅에서 스크롤이 튀는 것은 원래 자연스럽고,
-   * 애니메이션은 여기서 값을 못 한다.
-   */
+  /** 바닥으로 보낸다. 한 프레임에 끝낸다 — 부드럽게 굴리면 가는 도중에 내용이 자라 목표가 어긋난다. */
   const pinToBottom = useCallback(() => {
     const view = scrollRef.current;
     if (!view) {
@@ -417,61 +399,45 @@ export function AiSearchChat({
     }
     selfScrolling.current = true;
     view.scrollTop = view.scrollHeight;
-    // 우리가 쓴 값이 만든 scroll 이벤트가 지나간 다음에 표시를 끈다.
     requestAnimationFrame(() => {
       selfScrolling.current = false;
     });
   }, []);
 
-  /*
-    **첫 그림 전에 바닥으로 보낸다**(useLayoutEffect). useEffect 로 하면 위에서 시작한
-    화면이 한 번 보이고 나서 내려가 깜빡인다.
-
-    이때 재는 높이는 최종값이 아닐 수 있지만 상관없다 — 아래 ResizeObserver 가 내용이
-    자랄 때마다 다시 붙인다. 여기서는 "위에서 시작하지 않는다" 만 보장하면 된다.
-  */
-  useLayoutEffect(() => {
-    pinToBottom();
-
-    // TODO(임시): 스크롤이 왜 맨 위로 가는지 확인용. 원인 잡으면 지운다.
-    const view = scrollRef.current;
-    const log = (tag: string) =>
-      console.log('[chat-scroll]', tag, {
-        view: !!view,
-        top: view?.scrollTop,
-        height: view?.scrollHeight,
-        client: view?.clientHeight,
-        stick: stickRef.current,
-      });
-    log('mount');
-    const timers = [0, 100, 400, 1000, 2000].map((ms) =>
-      setTimeout(() => log(`+${ms}ms`), ms),
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [pinToBottom]);
-
-  useEffect(() => {
-    const view = scrollRef.current;
-    const content = contentRef.current;
-    if (!view || !content) {
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      if (stickRef.current) {
+  /** 대화 영역이 붙는 순간 바닥으로 보낸다. 창을 열 때 마지막 답이 보이는 이유다. */
+  const attachScroll = useCallback(
+    (node: HTMLDivElement | null) => {
+      scrollRef.current = node;
+      if (node) {
         pinToBottom();
       }
-    });
-    observer.observe(content);
-    return () => observer.disconnect();
-  }, [pinToBottom]);
+    },
+    [pinToBottom],
+  );
 
   /*
-    새 turn 은 사용자가 방금 보낸 것이다. 어디를 보고 있었든 다시 붙잡는다.
-
-    **열 때도 여기를 그대로 탄다.** 창을 닫으면 이 컴포넌트가 사라져 다시 열 때가 곧
-    첫 렌더인데, 그때도 하고 싶은 일은 똑같다(마지막 답을 보여준다). 열 때만 따로
-    처리하려다 오히려 어긋났었다.
+    내용 높이를 지켜본다. **여기도 ref 콜백이다** — effect 로 붙이면 위와 같은 이유로
+    관찰 대상이 아직 없어 아무것도 안 본다.
   */
+  const observerRef = useRef<ResizeObserver>(undefined);
+  const attachContent = useCallback(
+    (node: HTMLDivElement | null) => {
+      observerRef.current?.disconnect();
+      if (!node) {
+        observerRef.current = undefined;
+        return;
+      }
+      observerRef.current = new ResizeObserver(() => {
+        if (stickRef.current) {
+          pinToBottom();
+        }
+      });
+      observerRef.current.observe(node);
+    },
+    [pinToBottom],
+  );
+
+  // 새 turn 은 사용자가 방금 보낸 것이다. 어디를 보고 있었든 다시 붙잡는다.
   useEffect(() => {
     stickRef.current = true;
     pinToBottom();
@@ -763,7 +729,7 @@ export function AiSearchChat({
           </div>
 
           <div
-            ref={scrollRef}
+            ref={attachScroll}
             onScroll={(e) => {
               // 우리가 쓴 스크롤이면 사용자의 뜻이 아니다.
               if (selfScrolling.current) {
@@ -776,7 +742,7 @@ export function AiSearchChat({
             }}
             className="flex-1 overflow-y-auto px-4 pb-4 pt-3"
           >
-            <div ref={contentRef}>
+            <div ref={attachContent}>
             {turns.length === 0 ? (
               <EmptyState onAsk={send} disabled={blocked} />
             ) : (
@@ -1489,11 +1455,13 @@ function MyLocationNote({ place }: { place: MyPlace }) {
     return <p className={line}>{t('aiSearch.myLocationDenied')}</p>;
   }
   if (locating) {
+    // **p 가 아니라 div 다.** Spinner 가 div 를 내놓는데 p 안에는 블록 요소를 못 넣는다
+    // (브라우저가 p 를 강제로 닫아 버려 마크업이 어긋난다).
     return (
-      <p className={cn(line, 'flex items-center gap-1.5')}>
+      <div className={cn(line, 'flex items-center gap-1.5')}>
         <Spinner className="h-3 w-3" />
         {t('aiSearch.myLocationLocating')}
-      </p>
+      </div>
     );
   }
   if (label) {
