@@ -112,7 +112,18 @@ export async function apiFetch<T>(
       const s = getSession();
       if (s) headers.set('Authorization', `Bearer ${s}`);
     }
-    return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+    /*
+      **credentials: 'include' 가 없으면 쿠키가 오가지 않는다.**
+
+      프론트와 API 는 오리진이 다르다(포트만 달라도 교차 오리진이다). 기본값 'same-origin'
+      이면 브라우저가 요청에 쿠키를 싣지도, 응답의 Set-Cookie 를 저장하지도 않는다.
+      로그인 자체는 인증웹이 하지만, 여기서도 쿠키가 필요한 호출(로그아웃 등)이 지난다.
+    */
+    return fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
   };
 
   let res = await doFetch();

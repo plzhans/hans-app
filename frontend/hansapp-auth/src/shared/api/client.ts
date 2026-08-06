@@ -109,7 +109,22 @@ export async function apiFetch<T>(
       const s = getSession();
       if (s) headers.set('Authorization', `Bearer ${s}`);
     }
-    return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+    /*
+      **credentials: 'include' 가 없으면 로그인 쿠키가 아예 저장되지 않는다.**
+
+      프론트와 API 는 오리진이 다르다(포트가 다르면 교차 오리진이다). 그 상태에서 기본값
+      'same-origin' 으로 두면 브라우저가 응답의 Set-Cookie 를 **버린다** — 로그인은 성공하고
+      본문의 토큰으로 화면도 로그인 상태가 되지만, refresh·힌트 쿠키가 안 남는다.
+      그래서 새로고침하는 순간 bootstrap 이 힌트를 못 찾고 익명으로 떨어졌다.
+
+      소셜 로그인은 fetch 가 아니라 브라우저 주소 이동(302)이라 이 영향을 받지 않았고,
+      그래서 "소셜은 되는데 이메일만 안 된다" 로 보였다.
+    */
+    return fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
   };
 
   let res = await doFetch();
