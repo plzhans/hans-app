@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/nestjs';
 
 import { BATCH_CONFIG, BatchConfig } from './batch.config';
 import { BatchService } from './batch.service';
+import { SessionCleanupService } from './session-cleanup.service';
 
 /**
  * 이 크론 잡의 이름. SchedulerRegistry 등록명과 Sentry 태그가 **같은 상수를 본다** —
@@ -15,6 +16,14 @@ import { BatchService } from './batch.service';
  * 소스가 늘어도 이름은 그대로 맞다.
  */
 const CRON_JOB_NAME = 'daily-sync';
+
+/**
+ * 만료 세션 정리 잡의 이름.
+ *
+ * **이름에 시간을 넣지 않는다.** 크론식은 설정으로 바뀌는 값이라, `nightly-…` 같은 이름은
+ * 주기를 한 번만 바꿔도 거짓이 된다. 이름은 **무엇을 하는지**만 말한다.
+ */
+const SESSION_CLEANUP_JOB_NAME = 'session-cleanup';
 
 /**
  * 크론 등록.
@@ -28,6 +37,7 @@ export class BatchScheduler {
 
   constructor(
     private readonly batch: BatchService,
+    private readonly sessionCleanup: SessionCleanupService,
     private readonly registry: SchedulerRegistry,
     @Inject(BATCH_CONFIG) private readonly config: BatchConfig,
   ) {}
@@ -46,6 +56,27 @@ export class BatchScheduler {
     this.registry.addCronJob(CRON_JOB_NAME, job);
     job.start();
 
-    this.logger.log(`크론 등록 — ${this.config.cron}`);
+    this.logger.log(`크론 등록 — ${CRON_JOB_NAME} ${this.config.cron}`);
+
+    /*
+      **적재와 별개 잡이다.** 공공데이터 적재는 외부 API 한도를 나눠 쓰며 단계가 이어지는
+      파이프라인이고, 세션 정리는 우리 DB 만 만지는 독립적인 일이다. 한 잡에 묶으면
+      적재가 길어지거나 실패할 때 정리까지 밀린다.
+    */
+    const cleanupJob = new CronJob(this.config.sessionCleanupCron, () => {
+      void this.sessionCleanup.run().catch((error: unknown) => {
+        this.logger.error('세션 정리 중 오류', error);
+        Sentry.captureException(error, {
+          tags: { job: SESSION_CLEANUP_JOB_NAME },
+        });
+      });
+    });
+
+    this.registry.addCronJob(SESSION_CLEANUP_JOB_NAME, cleanupJob);
+    cleanupJob.start();
+
+    this.logger.log(
+      `크론 등록 — ${SESSION_CLEANUP_JOB_NAME} ${this.config.sessionCleanupCron}`,
+    );
   }
 }
