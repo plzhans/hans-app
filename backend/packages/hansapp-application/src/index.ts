@@ -75,6 +75,7 @@ export type {
   AiSearchCondition,
   AiSearchConditionGroup,
   AiSearchDebug,
+  AiSearchHistoryTurn,
   AiSearchQuota,
   AiSearchAppQuota,
   AiSearchUserQuota,
