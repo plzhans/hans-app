@@ -85,7 +85,10 @@ auth:
   # 예: https://auth.plzhans.com/login
   # 인증웹(fe/hans-auth) 외부 주소. 자사 로그인 착지점(/me·/callback)과 discovery 의
   # authorization_endpoint(/login)가 모두 여기서 파생된다.
-  externalUrl: https://develop-auth.plzhans.com
+  # **로컬에서 이 설정으로 띄울 때 덮을 수 있어야 한다.** 소셜 로그인 착지점(/me·/callback)이
+  # 여기서 파생되므로, 리터럴로 두면 로컬 서버로 로그인해도 배포된 인증웹으로 날아간다.
+  # 값에는 라우터 프리픽스까지 포함한다(예: http://127.0.0.1:5274/auth).
+  externalUrl: ${AUTH_EXTERNAL_URL:https://develop-auth.plzhans.com}
   # 탈퇴 후 재가입 제한(쿨다운) 보존일. 이 기간엔 같은 이메일 재가입을 막는다.
   withdrawalRetentionDays: 30
   jwt:

@@ -46,7 +46,7 @@ auth:
   # develop-auth·api 는 develop.plzhans.com 의 서브도메인이 아니라 plzhans.com 의 형제라,
   # 쿠키 도메인을 양쪽 다 plzhans.com 까지 올려야 한다. 이름까지 같으면 한 환경에서
   # 로그인할 때마다 다른 환경의 세션 토큰을 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
-  cookiePrefix: ''
+  cookiePrefix: ${AUTH_COOKIE_PREFIX}
   rootDomain: plzhans.com
   # bcrypt 비용 계수. 저사양이면 10.
   bcryptRounds: ${AUTH_BCRYPT_ROUNDS:10}
