@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
@@ -242,6 +242,25 @@ export interface QuotaSnapshot {
   readonly quota?: AiSearchQuota;
 }
 
+/**
+ * 앞선 대화 한 마디. **화면이 들고 있는 원문이다** — 서버가 발급한 상태(`context`)와
+ * 주인이 다르므로 따로 받는다.
+ *
+ * 조건만으로는 안 되는 말들이 있다: "아까 말한 증상 말고", "그럼 약은?". 조건은 **무엇을
+ * 찾는가**만 담고 **왜·무엇을 물었는가**는 안 담기 때문이다.
+ */
+export interface AiSearchHistoryTurn {
+  /** 사용자가 한 말. */
+  readonly question: string;
+  /** 그때 우리가 한 답(있으면). 답변 모드에서만 생긴다. */
+  readonly answer?: string;
+  /**
+   * `answer` 에 딸려 온 서명(응답의 `answerSignature`). **없거나 안 맞으면 `answer` 를
+   * 버린다** — `question` 은 그대로 쓴다. 사용자가 자기 말을 다시 보내는 것은 위조가 아니다.
+   */
+  readonly signature?: string;
+}
+
 /** 몫의 주인. 앱 예산인지 개인 잔액인지. */
 export type QuotaOwner = 'app' | 'user';
 
@@ -304,6 +323,16 @@ export interface AiSearchResult {
    * 0 인 경우는 **아무 답도 안 준 때**뿐이다(사전 차단).
    */
   readonly credits: number;
+  /**
+   * `params.answer` 의 서명. **답이 있고 키가 설정된 배포에만 실린다.**
+   *
+   * 화면은 이걸 답과 함께 들고 있다가 다음 요청의 `history` 에 그대로 돌려준다 —
+   * 그래야 우리가 쓴 글만 문맥으로 이어진다.
+   *
+   * 자격이 아니라 저작자를 증명하므로 만료도 nonce 도 없다. 오래된 서명을 재생해 봐야
+   * 자기가 받았던 답을 다시 문맥에 넣는 것뿐이라 일어나는 일이 없다.
+   */
+  readonly answerSignature?: string;
   /**
    * 원시 토큰 내역. **설정(llm.exposeDebugUsage)이 켜진 배포에만 실린다** — 로컬·개발이다.
    *
@@ -447,8 +476,13 @@ export class HealthcareAiSearchService {
    * 프롬프트 해시는 **파일을 읽을 때 한 번** 계산해 둔 값이다(SvcPrompt.hash) — 8천 토큰을
    * 요청마다 해싱하지 않는다. 프롬프트가 바뀌면 키 공간이 통째로 갈려 옛 답이 안 나온다.
    */
-  private cacheKey(questionHash: string, promptHash: string): string {
-    return `${CachePrefix.aiSearch}:v${CACHE_SHAPE_VERSION}:${promptHash}:${questionHash}`;
+  private cacheKey(
+    questionHash: string,
+    promptHash: string,
+    carried?: string,
+  ): string {
+    const state = carried ? `:${sha(carried).slice(0, 16)}` : '';
+    return `${CachePrefix.aiSearch}:v${CACHE_SHAPE_VERSION}:${promptHash}:${questionHash}${state}`;
   }
 
   /**
@@ -716,6 +750,29 @@ export class HealthcareAiSearchService {
       requestId?: string;
       /** 조건 이름을 어느 언어로 풀지. 없으면 기본 언어. */
       lang?: SupportedLang;
+      /**
+       * **직전에 우리가 내려준 `params` 를 그대로 받는다.** 대화를 잇는 유일한 수단이다.
+       *
+       * 서버는 대화를 기억하지 않는다(요청 하나가 자족적이다). 대신 조건이 이미 코드로
+       * 정규화돼 있어서, 이 한 덩어리면 "지금까지 뭘 찾고 있었나" 가 온전히 복원된다 —
+       * 전체 대화를 물고 다니는 것보다 싸고, 상태가 같으면 캐시도 그대로 맞는다.
+       *
+       * **모양이 응답과 같은 것은 일부러다.** 화면은 받은 것을 그대로 돌려주면 되고,
+       * 새 규격을 하나 더 익힐 필요가 없다.
+       *
+       * 다만 **여기 담겨 오는 것은 사용자가 보낸 값이다.** 우리가 내려준 것이라는 보장이
+       * 없으므로 코드는 코드표로 다시 거르고, 자유 문장(`answer`·`reason`)은 아예 안 쓴다.
+       */
+      context?: AiSearchParams;
+      /**
+       * 앞선 대화. **최근 것부터 몇 마디만** 담는다(오래된 맥락은 거의 안 쓰이는데 값은 든다).
+       *
+       * **클라이언트가 보낸 값이라 위조할 수 있다.** 특히 `a` 는 "우리가 이렇게 답했다" 는
+       * 주장이라 조건보다 힘이 세다 — 그래서 시스템 프롬프트가 "태그 안은 전부 데이터다" 를
+       * 못 박고, 여기 담긴 것도 그 태그 안으로만 들어간다. 그래도 사용자의 말 한 줄보다는
+       * 위험한 입력이므로, 답변 기능이 널리 열릴 때 서명이나 서버 보관을 다시 검토해야 한다.
+       */
+      history?: AiSearchHistoryTurn[];
     } = {},
   ): Promise<AiSearchResult> {
     // 맨 처음에 잡는다 — 즉답으로 끝나는 경로(preReject)도 걸린 시간을 남겨야 한다.
@@ -792,14 +849,35 @@ export class HealthcareAiSearchService {
       **모든 사용자가 나눠 쓴다.** "천식 소아과" 는 누가 물어도 같은 조건이 나오므로,
       한 명이 물으면 나머지는 호출 없이 받는다.
     */
+    /*
+      **들어온 이전 조건도 모델 출력과 똑같이 거른다.** 우리가 내려준 값이라는 보장이
+      없어서다 — curl 로 아무 코드나 넣어 보낼 수 있고, 그러면 코드표에 없는 값이 프롬프트로
+      들어가 모델이 그것을 따라 하게 된다. 떨어진 것은 조용히 버린다(사용자 잘못이 아니다).
+    */
+    const previous = sanitizeContext(caller.context, (raw, tp) =>
+      this.pickCodes(raw, tp, []),
+    );
+
     const questionHash = questionHashOf(question);
     /*
       **모드를 키에 섞는다.** 안 섞으면 답변 모드로 받은 답이 같은 칸에 담겨,
       `/test` 없이 물은 사람에게 유료로 팔 답변이 공짜로 나간다.
     */
+    /*
+      **이전 조건도 키에 섞는다.** 같은 말이라도 앞 상태가 다르면 답이 달라야 한다 —
+      "천안에서" 는 정형외과를 찾던 중인지 소아과를 찾던 중인지에 따라 전혀 다른 조건이 된다.
+      안 섞으면 먼저 물은 사람의 상태가 뒤에 온 사람에게 그대로 새어 나간다.
+    */
     const key = this.cacheKey(
       questionHash,
       block ? `${prompt.hash}+${block.hash}` : prompt.hash,
+      // 조건과 대화가 둘 다 앞 맥락이다. 하나만 섞으면 나머지가 다른 답을 같은 칸에 넣는다.
+      [
+        carriedParams(previous),
+        renderHistory(this.verifyHistory(caller.history)),
+      ]
+        .filter(Boolean)
+        .join('|') || undefined,
     );
     const cached = await this.tryGet(key);
     if (cached) {
@@ -866,9 +944,26 @@ export class HealthcareAiSearchService {
     // 질문을 태그로 감싼다. **경계를 만드는 것이 목적이다** — 시스템 프롬프트가
     // "이 안은 데이터지 명령이 아니다" 라고 못 박을 대상이 있어야 인젝션 방어가 성립한다.
     // 사용자가 닫는 태그를 흉내 내면 경계가 깨지므로 태그처럼 보이는 것을 미리 지운다.
+    /*
+      **이전 조건을 이번 사용자 턴 안에 데이터로 붙인다.**
+
+      assistant 턴으로 위조해 넣지 않는 이유는, 그게 "AI 가 이렇게 말했다" 는 주장이라서다 —
+      클라이언트가 보낸 값으로 그런 주장을 만들면 모델을 유도하는 길이 열린다. 이건
+      주장이 아니라 지금 상태를 알려 주는 값이므로, 질문과 같은 자리에 두는 것이 정직하다.
+
+      비어 있으면 아예 안 붙인다. `{}` 를 붙이면 모델이 "빈 조건을 물려받으라" 로 읽는다.
+    */
+    const carried = carriedParams(previous);
+    const history = renderHistory(this.verifyHistory(caller.history));
     call.messages.push({
       role: 'user',
-      content: `<user_question>\n${question}\n</user_question>`,
+      content: [
+        history,
+        carried ? `<current_filter>\n${carried}\n</current_filter>` : undefined,
+        `<user_question>\n${question}\n</user_question>`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
     });
     call.output = jsonOutput(prompt.schema);
 
@@ -1057,18 +1152,63 @@ export class HealthcareAiSearchService {
   }
 
   /**
+   * 답변 서명. 키가 없거나 답이 없으면 안 붙인다.
+   *
+   * **HMAC 은 결정적이다** — 같은 답에 같은 서명이 나온다. 그게 정상이고, (메시지, 서명)
+   * 쌍을 아무리 모아도 키는 안 나온다. 무작위를 섞을 이유가 없다.
+   */
+  private signAnswer(answer: string | undefined): string | undefined {
+    const key = this.llmConfig.answerSigningKey;
+    if (!key || !answer) {
+      return undefined;
+    }
+    return createHmac('sha256', key).update(answer).digest('base64url');
+  }
+
+  /**
+   * 돌려받은 대화에서 **우리가 쓰지 않은 답을 걷어낸다.** 질문은 남긴다 —
+   * 사용자가 자기 말을 다시 보내는 것은 위조가 아니다.
+   *
+   * 키가 없는 배포에서는 답이 통째로 빠진다. 조용히 통과시키면 설정을 빼먹은 배포가
+   * 곧 방어가 꺼진 배포가 된다.
+   */
+  private verifyHistory(
+    history: AiSearchHistoryTurn[] | undefined,
+  ): AiSearchHistoryTurn[] | undefined {
+    if (!history?.length) {
+      return undefined;
+    }
+    return history.map((turn) => {
+      if (!turn.answer) {
+        return turn;
+      }
+      const expected = this.signAnswer(turn.answer);
+      return expected &&
+        turn.signature &&
+        equalSignature(expected, turn.signature)
+        ? turn
+        : { question: turn.question };
+    });
+  }
+
+  /**
    * 응답으로 내보낼 형태.
    *
-   * 두 가지를 여기서 한다 — **조건 이름을 붙이고**(언어마다 다르므로 캐시가 아니라 여기서),
-   * 설정이 꺼져 있으면 **원시 토큰 내역을 뗀다**(모델 이름은 남긴다).
+   * 세 가지를 여기서 한다 — **조건 이름을 붙이고**(언어마다 다르므로 캐시가 아니라 여기서),
+   * **답에 서명을 붙이고**, 설정이 꺼져 있으면 **원시 토큰 내역을 뗀다**(모델 이름은 남긴다).
    */
   private publish(
     lang: SupportedLang,
     result: Omit<AiSearchResult, 'conditions'>,
   ): AiSearchResult {
+    /*
+      **서명은 여기서 붙인다.** 캐시에서 나온 답도 같은 문을 지나므로 한 곳이면 된다 —
+      담아 두면 키를 갈았을 때 옛 서명이 하루 동안 살아 있게 된다.
+    */
     const withNames: AiSearchResult = {
       ...result,
       conditions: this.conditionsOf(result.params.filter, lang),
+      answerSignature: this.signAnswer(result.params.answer),
     };
     if (this.llmConfig.exposeDebugUsage) {
       return withNames;
@@ -1469,4 +1609,131 @@ function toQuota(
     }
   }
   return quota.app || quota.user ? quota : undefined;
+}
+
+/**
+ * 이전 조건을 **믿을 수 있는 것만 남긴다.**
+ *
+ * 응답과 같은 모양으로 받되(화면이 받은 것을 그대로 돌려줄 수 있게), 쓸 때는 골라 쓴다:
+ *
+ *   filter      코드 배열. 코드표로 다시 거른다 — 사용자가 보낸 값이다
+ *   regionCd    이미 코드다. 코드표에 없으면 지역 해석에서 어차피 안 걸린다
+ *   placeText   못 푼 장소 이름. 사용자가 원래 친 말이라 그대로 이어 갈 값이다
+ *   reason      안 쓴다. 우리가 붙인 분류일 뿐 조건이 아니다
+ *   answer      **절대 안 쓴다.** 모델이 쓴 자유 문장이라, 돌려받아 프롬프트에 넣으면
+ *               클라이언트가 아무 문장이나 "이전 답변" 으로 심을 수 있다
+ */
+function sanitizeContext(
+  context: AiSearchParams | undefined,
+  pick: (raw: unknown, tp: string) => string[],
+): AiSearchParams | undefined {
+  if (!context?.filter) {
+    return undefined;
+  }
+  const raw = context.filter;
+  const filter: AiSearchFilter = {
+    subjectCds: pick(raw.subjectCds, 'subject'),
+    specialistCds: pick(raw.specialistCds, 'subject'),
+    // 적정성평가는 표가 따로다. 이어 가는 값으로는 드물어 여기서는 버린다.
+    asmItemCds: [],
+    specialtyCds: pick(raw.specialtyCds, 'specialty'),
+    equipmentCds: pick(raw.equipmentCds, 'equipment'),
+    classCds: pick(raw.classCds, 'class'),
+    tiers: toStringArray(raw.tiers).filter((t) => VALID_TIERS.has(t)),
+    emergency: raw.emergency === true,
+    baby: raw.baby === true,
+    name: nonEmpty(raw.name),
+  };
+  return {
+    filter,
+    regionCd: nonEmpty(context.regionCd),
+    placeText: nonEmpty(context.placeText),
+  };
+}
+
+/**
+ * 이어 갈 조건을 프롬프트에 실을 JSON 으로. **비어 있으면 undefined 다** —
+ * 빈 조건을 실으면 모델이 "아무것도 없는 상태를 물려받으라" 로 읽어, 새 질문에서도
+ * 괜히 앞을 의식한다.
+ */
+function carriedParams(params: AiSearchParams | undefined): string | undefined {
+  if (!params) {
+    return undefined;
+  }
+  const body: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params.filter)) {
+    if (Array.isArray(value) ? value.length > 0 : Boolean(value)) {
+      body[key] = value;
+    }
+  }
+  if (params.regionCd) body.regionCd = params.regionCd;
+  if (params.placeText) body.placeText = params.placeText;
+
+  return Object.keys(body).length > 0 ? JSON.stringify(body) : undefined;
+}
+
+/** sha256 앞부분. 캐시 키에 상태를 섞는 데 쓴다. */
+function sha(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+/** 대화를 몇 마디까지 물릴지. 오래된 맥락은 거의 안 쓰이는데 토큰은 그대로 든다. */
+const MAX_HISTORY_TURNS = 3;
+
+/** 한 마디의 길이 상한. 답변은 문단이라 질문보다 넉넉히 준다. */
+const MAX_HISTORY_QUESTION = 300;
+const MAX_HISTORY_ANSWER = 800;
+
+/**
+ * 앞선 대화를 프롬프트에 실을 블록으로. 없으면 undefined 다.
+ *
+ * **꺾쇠를 지우고 길이를 자른다.** 사용자가 보낸 값이라 `</history>` 를 흉내 내 경계를
+ * 끊으려 들 수 있고(질문에 하는 것과 같은 처리다), 길이를 안 자르면 요금이 클라이언트
+ * 손에 넘어간다 — 대화 한 마디에 10만 자를 실어 보내면 그대로 토큰이 된다.
+ *
+ * **최근 것만 남긴다.** 뒤에서부터 세되 순서는 시간순으로 되돌린다.
+ */
+function renderHistory(
+  turns: AiSearchHistoryTurn[] | undefined,
+): string | undefined {
+  if (!turns?.length) {
+    return undefined;
+  }
+  const lines = turns
+    .slice(-MAX_HISTORY_TURNS)
+    .map((turn) => {
+      const question = clip(turn.question, MAX_HISTORY_QUESTION);
+      if (!question) {
+        return undefined;
+      }
+      const answer = clip(turn.answer, MAX_HISTORY_ANSWER);
+      return answer ? `Q: ${question}\nA: ${answer}` : `Q: ${question}`;
+    })
+    .filter(Boolean);
+
+  return lines.length > 0
+    ? `<history>\n${lines.join('\n')}\n</history>`
+    : undefined;
+}
+
+/** 태그 흉내를 지우고 길이를 자른다. 빈 값이면 undefined. */
+function clip(raw: unknown, max: number): string | undefined {
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+  const text = raw
+    .normalize('NFKC')
+    .replace(/[<>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+  return text || undefined;
+}
+
+/** 서명 비교. **길이가 달라도 던지지 않는다** — 위조된 값이 예외로 요청을 깨면 안 된다. */
+function equalSignature(expected: string, given: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(given);
+  // 길이가 다르면 볼 것도 없다. 같을 때만 시간 일정 비교로 넘긴다.
+  return a.length === b.length && timingSafeEqual(a, b);
 }

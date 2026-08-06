@@ -105,6 +105,10 @@ export class HealthcareAiSearchController {
         requestId,
         // 조건 이름을 사용자 언어로 풀어 오게 한다(코드는 언어가 없다).
         lang,
+        // 직전 조건. 화면이 받은 것을 그대로 돌려준다 — 대화를 잇는 유일한 수단이다.
+        context: request.context,
+        // 앞서 오간 말. 조건만으로 못 푸는 지시대명사("아까 그것")를 위해 받는다.
+        history: request.history,
       });
       return new AiSearchResponseDto(result);
     } catch (cause) {

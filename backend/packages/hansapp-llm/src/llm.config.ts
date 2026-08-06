@@ -119,6 +119,20 @@ export interface LlmConfig {
    * 아예 안 싣는다. 켜는 곳은 로컬·개발뿐이다.
    */
   readonly exposeDebugUsage: boolean;
+  /**
+   * 답변 서명 키(HMAC-SHA256). **비어 있으면 답변을 문맥으로 이어받지 않는다.**
+   *
+   * 대화를 이으려면 화면이 직전 답변을 돌려보내야 하는데, 그건 "우리가 이렇게 답했다" 는
+   * 주장이라 사용자 말보다 힘이 세다 — 아무 문장이나 심어 모델을 유도할 수 있다.
+   * 서명이 있으면 우리가 쓴 글만 통과한다.
+   *
+   * **키가 없으면 서명을 안 붙이고, 서명 없는 답변은 안 받는다.** 조용히 통과시키면
+   * 설정을 빼먹은 배포가 곧 방어가 꺼진 배포가 된다.
+   *
+   * 자격이 아니라 저작자를 증명하는 서명이라 만료도 nonce 도 없다 — 오래된 서명을
+   * 재생해 봐야 자기가 받았던 답을 다시 문맥에 넣는 것뿐이다.
+   */
+  readonly answerSigningKey: string;
   /*
     사고 깊이(effort)는 여기 없다. **작업의 성질이지 환경의 성질이 아니라서다** —
     dev 는 얕게, prod 는 깊게 생각할 이유가 없고 그러면 dev 테스트가 prod 를 대변하지도
@@ -169,6 +183,8 @@ export function buildLlmConfig(cfg: ConfigSource): LlmConfig {
     // **기본은 꺼짐이다.** 설정을 빠뜨린 환경에서 켜져 있는 것이 최악이다.
     allowTestCommand: cfg.getBoolOrDefault('llm.allowTestCommand', false),
     exposeDebugUsage: cfg.getBoolOrDefault('llm.exposeDebugUsage', false),
+    // 기본값을 두지 않는다. 코드에 박힌 키는 없는 것과 같다.
+    answerSigningKey: cfg.getStringOrDefault('llm.answerSigningKey') || '',
     promptDir:
       cfg.getStringOrDefault('llm.promptDir') || 'data/healthcare/svc-prompts',
     anthropic: endpoint('anthropic', 'https://api.anthropic.com'),

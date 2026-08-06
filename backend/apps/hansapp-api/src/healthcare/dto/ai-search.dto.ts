@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { QuotaDto } from '../../ai/dto/quota.dto';
 import type {
   AiSearchFilter,
@@ -8,6 +15,7 @@ import type {
   AiSearchCondition,
   AiSearchConditionGroup,
   AiSearchDebug,
+  AiSearchHistoryTurn,
   AiSearchResult,
   AiSearchWarning,
   AiSearchTool,
@@ -50,6 +58,55 @@ export class AiSearchRequestDto {
   @MinLength(2)
   @MaxLength(MAX_QUESTION_LENGTH)
   readonly q!: string;
+
+  @ApiPropertyOptional({
+    type: () => AiSearchParamsDto,
+    description:
+      '**직전 응답의 `params` 를 그대로 돌려보낸다.** 대화를 잇는 유일한 수단이다.\n\n' +
+      '서버는 대화를 기억하지 않는다(요청 하나가 자족적이다). 대신 조건이 이미 코드로 ' +
+      '정규화돼 있어서 이 한 덩어리면 "지금까지 뭘 찾고 있었나" 가 복원된다 — ' +
+      '전체 대화를 물고 다니는 것보다 싸고, 상태가 같으면 캐시도 그대로 맞는다.\n\n' +
+      '**모양이 응답과 같은 것은 일부러다** — 받은 것을 그대로 돌려주면 되고 새 규격을 ' +
+      '익힐 필요가 없다. 새 주제를 시작하려면 빼고 보내면 된다.\n\n' +
+      '`answer`·`reason` 은 보내도 무시한다(자유 문장이라 되먹이지 않는다). ' +
+      '`filter` 의 코드도 코드표로 다시 거른다.',
+  })
+  /*
+    **모양을 여기서 파고들지 않는다.** 안쪽 값의 뜻은 코드표를 아는 응용 계층만 판별할 수
+    있고(존재하는 진료과 코드인가), 그쪽은 모델 출력에도 같은 검증을 이미 돌린다.
+    여기서 데코레이터를 겹겹이 다는 것은 그 검증을 흉내만 내는 셈이다.
+  */
+  @IsOptional()
+  @IsObject()
+  readonly context?: AiSearchParams;
+
+  @ApiPropertyOptional({
+    description:
+      '앞서 오간 말. `[{ question, answer?, signature? }]`.\n\n' +
+      '`context` 와 **주인이 다르다** — 그쪽은 서버가 발급한 상태고 이쪽은 화면이 들고 있는 ' +
+      '대화 원문이다. 조건만으로는 "아까 말한 증상", "그럼 약은?" 처럼 앞을 가리키는 말을 ' +
+      '풀 수 없어서 따로 받는다.\n\n' +
+      '**`answer` 에는 응답의 `answerSignature` 를 `signature` 로 같이 실어야 한다.** ' +
+      '없거나 안 맞으면 그 턴의 `answer` 만 버리고 `question` 은 그대로 쓴다 — 답은 ' +
+      '"우리가 이렇게 답했다" 는 주장이라 아무 문장이나 심으면 모델을 유도할 수 있다. ' +
+      '자기가 한 말(`question`)을 다시 보내는 것은 위조가 아니라 검사하지 않는다.\n\n' +
+      '**최근 3마디만 쓴다.** 더 보내도 앞쪽부터 버린다. 한 마디의 길이도 자른다 ' +
+      '(질문 300자, 답 800자) — 안 자르면 요금이 부르는 쪽 손에 넘어간다.',
+    example: [
+      {
+        q: '무릎이 왜 아픈 거야?',
+        a: '무릎이 아픈 원인은…',
+        signature: 'X1c…',
+      },
+    ],
+  })
+  /*
+    안쪽 모양을 데코레이터로 파고들지 않는다. 문자열 두 개짜리라 검증할 뜻이 별로 없고,
+    길이·태그 흉내 자르기는 어차피 응용 계층이 한다(질문에 하는 처리와 같은 곳이다).
+  */
+  @IsOptional()
+  @IsArray()
+  readonly history?: AiSearchHistoryTurn[];
 }
 
 class AiSearchFilterDto implements AiSearchFilter {
@@ -272,6 +329,15 @@ export class AiSearchResponseDto {
   readonly quota?: QuotaDto;
 
   @ApiPropertyOptional({
+    description:
+      '`params.answer` 의 서명. **답이 있고 키가 설정된 배포에만 온다.**\n\n' +
+      '답과 함께 들고 있다가 다음 요청의 `history[].signature` 로 그대로 돌려준다 — ' +
+      '그래야 우리가 쓴 글만 문맥으로 이어진다.\n\n' +
+      '저작자를 증명할 뿐 자격을 담지 않으므로 만료도 nonce 도 없다.',
+  })
+  readonly answerSignature?: string;
+
+  @ApiPropertyOptional({
     type: AiSearchDebugDto,
     description:
       '원시 토큰 내역. **설정(llm.exposeDebugUsage)이 켜진 배포에만 온다** — 로컬·개발이다. ' +
@@ -290,6 +356,7 @@ export class AiSearchResponseDto {
     this.provider = result.provider;
     this.model = result.model;
     this.credits = result.credits;
+    this.answerSignature = result.answerSignature;
     this.elapsedMs = result.elapsedMs;
     this.quota = result.quota;
     this.debug = result.debug;
