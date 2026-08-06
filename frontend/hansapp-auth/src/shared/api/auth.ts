@@ -178,6 +178,31 @@ export function withdraw(): Promise<void> {
   return apiFetch('/auth/withdraw', { method: 'POST' }, { auth: true });
 }
 
+/** 로그인한 기기 한 대. 토큰 해시는 서버가 내보내지 않는다. */
+export interface Session {
+  sessionId: string;
+  userAgent?: string | null;
+  ip?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** 지금 보고 있는 이 기기인가. */
+  current: boolean;
+}
+
+/** 로그인한 기기 목록. 최근 활동 순. */
+export function getMySessions(): Promise<Session[]> {
+  return apiFetch('/auth/me/sessions', {}, { auth: true });
+}
+
+/** 기기 하나를 로그아웃시킨다. */
+export function revokeSession(sessionId: string): Promise<void> {
+  return apiFetch(
+    `/auth/me/sessions/${encodeURIComponent(sessionId)}`,
+    { method: 'DELETE' },
+    { auth: true },
+  );
+}
+
 /** 내 동의 기록. 마이페이지의 열람 항목이다. */
 export function getMyConsents(): Promise<ConsentRecord[]> {
   return apiFetch('/auth/me/consents', {}, { auth: true });

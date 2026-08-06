@@ -25,6 +25,7 @@ import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
 import { TokenSessionRepository } from './repository/token-session.repository';
+import type { UserTokenSession } from '@hansapp/data';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
 import { AuthTokens, TokenService } from './token/token.service';
 
@@ -321,6 +322,27 @@ export class AuthService {
     await this.getProfile(userId);
     const trimmed = name.trim();
     return this.users.updateName(userId, trimmed || null);
+  }
+
+  /**
+   * 로그인한 기기 목록. **계정 이용약관 제6조④가 약속한 것을 이행하는 자리다.**
+   *
+   * 개인정보처리방침 제1조에 "로그인 세션에 IP 와 기기 정보를 담는다" 고 적어 둔 이상,
+   * 본인이 그것을 보고 지울 수 있어야 한다.
+   */
+  listSessions(userId: number): Promise<UserTokenSession[]> {
+    return this.sessions.listActiveByUser(userId, new Date());
+  }
+
+  /**
+   * 기기 하나를 로그아웃시킨다. **내 세션만 지운다**(저장소가 userId 를 조건에 함께 넣는다).
+   * 남의 세션 식별자를 넣어도 아무 일이 일어나지 않는다.
+   */
+  async revokeSession(userId: number, sessionId: string): Promise<void> {
+    const removed = await this.sessions.deleteOwned(userId, sessionId);
+    if (!removed) {
+      throw new BadRequestException('Session not found.');
+    }
   }
 
   // ---- 내부 헬퍼 ----

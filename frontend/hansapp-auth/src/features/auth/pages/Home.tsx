@@ -5,10 +5,11 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { getMyConsents, type ConsentRecord } from '@/shared/api/auth';
 import { Button } from '@/shared/ui/Button';
 import { AuthCard } from '../components/AuthCard';
+import { SessionList } from '../components/SessionList';
 import { WithdrawSection } from '../components/WithdrawSection';
 
 /**
- * 마이페이지. 지금은 **열람·정정·탈퇴**를 한다(로그인 기기 관리는 다음 단계).
+ * 마이페이지. 열람·정정·기기 관리·탈퇴를 한다(소셜 연동 관리는 다음 단계).
  *
  * **개인정보처리방침 제10조가 약속한 것을 이행하는 자리다.** 방침에 "회원은 계정 설정에서
  * 직접 열람·정정할 수 있다" 고 적어 둔 이상, 그 화면이 없으면 문서가 앞서 나간 상태가 된다.
@@ -65,6 +66,8 @@ export default function Home() {
           </dl>
         </section>
       )}
+
+      <SessionList />
 
       <div className="mt-6 space-y-2">
         {/* 고치는 자리는 별도 화면이다. 여기는 읽는 화면이라 보내기만 한다. */}

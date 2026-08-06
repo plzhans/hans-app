@@ -295,6 +295,32 @@ export class MeResponseDto {
  * 실체가 이것이다 — 무엇에 언제 어느 판으로 동의했는지를 본인이 확인할 수 있어야 한다.
  * IP·기기는 돌려주지 않는다. 본인 것이라도 화면에 뿌릴 이유가 없고, 유출 시 손해만 는다.
  */
+/**
+ * 로그인한 기기 한 대.
+ *
+ * **토큰 해시는 내보내지 않는다.** 세션 식별자만 있으면 로그아웃시킬 수 있고, 해시는 화면이
+ * 쓸 일이 없다 — 응답에 실을 이유가 없는 값은 싣지 않는다.
+ */
+export class SessionDto {
+  @ApiProperty({ description: '세션 식별자. 개별 로그아웃에 쓴다.' })
+  readonly sessionId!: string;
+
+  @ApiPropertyOptional({ description: '접속 기기의 브라우저·운영체제 정보' })
+  readonly userAgent?: string | null;
+
+  @ApiPropertyOptional({ description: '접속 IP' })
+  readonly ip?: string | null;
+
+  @ApiProperty({ description: '로그인 시각' })
+  readonly createdAt!: string;
+
+  @ApiProperty({ description: '마지막 갱신 시각(최근 활동)' })
+  readonly updatedAt!: string;
+
+  @ApiProperty({ description: '지금 보고 있는 이 기기인가' })
+  readonly current!: boolean;
+}
+
 export class ConsentRecordDto {
   @ApiProperty({ description: '동의 항목', example: 'TERMS' })
   readonly type!: string;

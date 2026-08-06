@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Patch,
   HttpCode,
   Post,
@@ -36,6 +38,7 @@ import {
   LoginRequestDto,
   ConsentRecordDto,
   MeResponseDto,
+  SessionDto,
   UpdateProfileRequestDto,
   PasswordResetConfirmDto,
   PasswordResetRequestDto,
@@ -161,6 +164,42 @@ export class AuthController {
     @Body() dto: UpdateProfileRequestDto,
   ): Promise<void> {
     await this.authService.updateName(user.userId, dto.name);
+  }
+
+  @Get('me/sessions')
+  @Auth(AuthType.Jwt)
+  @ApiOperation({
+    summary: '로그인한 기기 목록',
+    description:
+      '살아 있는 세션을 최근 활동 순으로 돌려준다. 계정 이용약관 제6조④가 약속한 기능이다.',
+  })
+  @ApiOkResponse({ type: [SessionDto] })
+  async sessions(@CurrentUser() user: AuthUser): Promise<SessionDto[]> {
+    const rows = await this.authService.listSessions(user.userId);
+    return rows.map((r) => ({
+      sessionId: r.sessionId,
+      userAgent: r.userAgent,
+      ip: r.ip,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+      // access token 에 sid 가 실려 있어 지금 이 기기를 가릴 수 있다.
+      current: r.sessionId === user.sessionId,
+    }));
+  }
+
+  @Delete('me/sessions/:sessionId')
+  @Auth(AuthType.Jwt)
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '기기 로그아웃',
+    description:
+      '세션 하나를 폐기한다. 자기 세션만 지워진다(남의 식별자를 넣으면 404 성격의 오류).',
+  })
+  async revokeSession(
+    @CurrentUser() user: AuthUser,
+    @Param('sessionId') sessionId: string,
+  ): Promise<void> {
+    await this.authService.revokeSession(user.userId, sessionId);
   }
 
   @Get('me/consents')
