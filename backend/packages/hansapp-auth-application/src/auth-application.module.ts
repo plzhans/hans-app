@@ -94,7 +94,6 @@ export class AuthModule {
         UserRepository,
         UserOAuthRepository,
         UserConsentRepository,
-        ConsentService,
         TokenSessionRepository,
         AuthCodeRepository,
         WithdrawalRepository,
@@ -128,6 +127,9 @@ export class AuthModule {
         JwtKeyService,
         TokenService,
         AuthService,
+        // AuthController(AppModule 소속)가 주입받으므로 export 가 필요하다 —
+        // providers 에만 있으면 이 모듈 안에서만 보인다.
+        ConsentService,
         OAuthTokenService,
         ActionLogService,
         AuthGuard,
