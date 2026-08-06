@@ -36,6 +36,24 @@ API 사용법은 문서 사이트에서 안내합니다.
 
 ---
 
+## AI
+
+Hans API 는 **AI 답변용 API** 와 **MCP** 를 함께 제공합니다.
+
+| | |
+| --- | --- |
+| **AI 답변 API** | `POST /healthcare/ai-search` · `GET /ai/capabilities` |
+| **MCP 엔드포인트** | `POST /mcp/healthcare` — 서비스 키가 필요합니다 |
+
+**AI 답변 API** 는 자연어 질문을 받아 답과 검색 조건을 돌려줍니다.
+사용 예가 **MediFinder 의 AI 검색**입니다 — 말로 물으면 조건을 잡아 병원을 찾아 줍니다.
+
+![MediFinder AI 검색](docs/images/medifinder-ai-search.png)
+
+**MCP** 는 필요한 쪽에서 병원 도구를 직접 물려 쓸 수 있게 엔드포인트로 열어 두었습니다.
+
+---
+
 ## 저장소 구조
 
 ```
@@ -93,7 +111,8 @@ API 서버는 `api.plzhans.com` 으로 서비스합니다.
 
 > 문서 사이트 빌드는 **[frontend/hansapp-docs/README.md](frontend/hansapp-docs/README.md)** 를 참고하세요.
 
-**MediFinder** 는 Hans API 를 활용한 파생 서비스입니다 (병원 찾기, 한/영/일/중).
+**MediFinder** 는 Hans API 를 활용한 파생 서비스입니다
+(병원 찾기, 한/영/일/중, [AI 검색](#ai)).
 별도 저장소로 두는 것이 맞지만 초기 단계라 관리 편의상 함께 두고 있으며,
 추후 분리할 예정입니다.
 
