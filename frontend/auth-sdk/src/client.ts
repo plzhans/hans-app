@@ -81,11 +81,20 @@ export class HansAppAuthClient {
    * 콜백 페이지에서 호출한다. URL 의 code 를 토큰으로 교환·저장한다.
    * 신규 소셜(pending)·에러는 그대로 사유를 반환한다(SSO 소비앱은 가입 UI 를 안 그리므로).
    */
-  async handleCallback(search: string = window.location.search): Promise<CallbackResult> {
+  async handleCallback(
+    search: string = window.location.search,
+    /**
+     * fragment(#) 부분. **pending 티켓이 여기 온다** — 그 안에 이메일·이름이 들어 있어
+     * 쿼리에 실으면 서버 접속 로그와 Referer 에 남기 때문이다(인증 서버의 withOutcome 참고).
+     * fragment 는 서버로 전송되지 않는다.
+     */
+    hash: string = window.location.hash,
+  ): Promise<CallbackResult> {
     const params = new URLSearchParams(search);
+    const secret = new URLSearchParams(hash.replace(/^#/, ''));
     const error = params.get('error');
     if (error) return { ok: false, error };
-    if (params.get('pending')) return { ok: false, error: 'pending' };
+    if (secret.get('pending')) return { ok: false, error: 'pending' };
     const code = params.get('code');
     if (!code) return { ok: false, error: 'no_code' };
 
