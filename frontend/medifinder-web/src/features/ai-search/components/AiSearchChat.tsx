@@ -45,6 +45,17 @@ import {
   type AiSearchWarning,
 } from '../api';
 
+/**
+ * 내용만큼 칸을 키운다. **scrollHeight 를 읽기 전에 height 를 비우는 게 핵심이다** —
+ * 안 그러면 이미 커진 높이가 scrollHeight 의 하한이 되어 줄을 지워도 안 줄어든다.
+ *
+ * 최대 높이는 CSS(max-h)가 잡는다. 넘으면 칸 안에서 스크롤한다.
+ */
+function autoGrow(el: HTMLTextAreaElement): void {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 /** 질문 길이 상한. 서버(MAX_QUESTION_LENGTH)와 같은 값이라 넘기기 전에 여기서 막는다. */
 const MAX_LENGTH = 300;
 
@@ -124,7 +135,7 @@ export function AiSearchChat({
   // 새로고침 뒤 첫 질문이 기존 turn 과 key 가 겹쳐 React 가 엉뚱한 것을 다시 쓴다.
   const nextId = useRef(Math.max(0, ...turns.map((turn) => turn.id + 1)));
 
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   /** 발송 중 잠금. **상태가 아니라 ref 인 이유**는 ask() 주석 참고(렌더를 기다리면 늦다). */
   const sendingRef = useRef(false);
@@ -161,6 +172,10 @@ export function AiSearchChat({
     const at = Date.now();
     setTurns((prev) => [...prev, { role: 'user', id, text: q }]);
     setQuestion('');
+    // 비운 뒤 높이도 되돌린다. 안 그러면 세 줄짜리 질문을 보낸 뒤 빈 칸이 세 줄로 남는다.
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
 
     mutate(q, {
       onSuccess: (result) =>
@@ -410,15 +425,41 @@ export function AiSearchChat({
               세우면 그만큼 입력칸이 좁아져, 긴 질문을 칠 때 앞부분이 밀려 안 보인다.
             */}
             <div className="relative">
-              <input
+              {/*
+                **여러 줄을 받는다.** 증상을 설명하다 보면 줄을 나누고 싶어지는데, 한 줄
+                입력칸은 그걸 아예 막는다(브라우저가 Enter 를 전송으로만 쓴다).
+
+                Enter 는 보내기, Shift+Enter 는 줄바꿈이다 — 채팅 도구들이 공유하는 규칙이라
+                따로 배울 게 없다.
+
+                **한글 조합 중에는 보내지 않는다.** IME 로 "천식" 을 치는 중 마지막 글자를
+                확정하려고 누른 Enter 가 keydown 으로도 온다 — 그걸 전송으로 읽으면 "천시"
+                까지만 적힌 질문이 나간다. isComposing 이 그 구간을 알려 준다.
+              */}
+              <textarea
                 ref={inputRef}
+                rows={1}
                 value={question}
-                onChange={(e) =>
-                  setQuestion(e.target.value.slice(0, MAX_LENGTH))
-                }
+                onChange={(e) => {
+                  setQuestion(e.target.value.slice(0, MAX_LENGTH));
+                  autoGrow(e.currentTarget);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing)
+                    return;
+                  e.preventDefault();
+                  send(question.trim());
+                }}
                 placeholder={t('aiSearch.placeholder')}
                 aria-label={t('aiSearch.placeholder')}
-                className="h-11 w-full rounded-field bg-surface px-3.5 pr-11 text-sm text-ink outline-none ring-1 ring-inset ring-line placeholder:text-ink-subtle focus:ring-2 focus:ring-brand"
+                /*
+                  **10줄까지 자라고 거기서 멈춘다**(넘으면 칸 안에서 스크롤).
+                  계속 자라게 두면 대화 영역을 밀어내 방금 받은 답이 화면 밖으로 나간다 —
+                  패널 높이가 400~600px 이라 입력칸이 절반을 먹으면 쓸 수가 없다.
+
+                  15.5rem = 10줄 × 22.75px(text-sm × leading-relaxed) + 위아래 여백 20px.
+                */
+                className="block max-h-[15.5rem] w-full resize-none rounded-field bg-surface py-2.5 pl-3.5 pr-11 text-sm leading-relaxed text-ink outline-none ring-1 ring-inset ring-line placeholder:text-ink-subtle focus:ring-2 focus:ring-brand"
               />
               <button
                 type="submit"
@@ -426,7 +467,8 @@ export function AiSearchChat({
                 aria-label={t(
                   isPending ? 'aiSearch.thinking' : 'aiSearch.send',
                 )}
-                className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-brand text-white transition-transform duration-100 ease-native active:scale-90 disabled:bg-surface-subtle disabled:text-ink-subtle"
+                // 칸이 여러 줄로 자라면 세로 가운데가 아니라 **아래에 붙어 있어야** 한다.
+                className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white transition-transform duration-100 ease-native active:scale-90 disabled:bg-surface-subtle disabled:text-ink-subtle"
               >
                 {/*
                   대기 중에는 버튼 자리에 스피너를 둔다. 회색으로 죽어 있기만 하면 "왜 안 눌리지"

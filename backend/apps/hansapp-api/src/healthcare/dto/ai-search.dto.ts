@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsString, MaxLength, MinLength } from 'class-validator';
 import type {
   AiSearchFilter,
@@ -30,6 +31,16 @@ export class AiSearchRequestDto {
     example: '천식치료 소아과 병원 추천해줘',
     maxLength: MAX_QUESTION_LENGTH,
   })
+  /*
+    **검증 전에 다듬는다.** @Transform 은 plainToInstance 단계라 아래 검증자보다 먼저 돈다 —
+    순서가 반대면 공백만 든 `"  "` 가 MinLength(2) 를 통과해 빈 질문이 LLM 으로 나간다
+    (토큰과 하루 몫을 쓰고 아무 답도 못 얻는다).
+
+    브라우저는 보내기 전에 이미 trim 하지만 curl 은 안 한다. 경계에서 막는 게 맞다.
+  */
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(2)
   @MaxLength(MAX_QUESTION_LENGTH)

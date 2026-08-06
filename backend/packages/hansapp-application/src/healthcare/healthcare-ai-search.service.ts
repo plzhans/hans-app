@@ -376,7 +376,7 @@ export class HealthcareAiSearchService {
    * 엔드포인트가 부른다. 바꿔 볼 일이 있으면 설정을 고치고 재시작한다.
    */
   async extractFilter(
-    question: string,
+    rawQuestion: string,
     /**
      * 누가 물었나. 하루 몫을 **누구 통에서 깎을지** 정하는 데만 쓴다.
      *   userId 있음   그 사람 몫 (로그인 붙은 뒤)
@@ -391,6 +391,12 @@ export class HealthcareAiSearchService {
       requestId?: string;
     } = {},
   ): Promise<AiSearchResult> {
+    /*
+      **들어온 문자열은 여기서 한 번만 다듬는다.** 아래로는 이 값만 흐르므로 발송·해시·
+      로그 어디서도 원문을 다시 만지지 않는다 — 세 군데가 각자 다듬던 시절에는 "무엇이
+      정본인가" 가 흐렸고, 실제로 해시한 문자열과 발송한 문자열이 어긋나 있었다.
+    */
+    const question = cleanQuestion(rawQuestion);
     const prompt = this.prompts.get(PROMPT_NAME);
 
     const startedAt = Date.now();
@@ -449,7 +455,7 @@ export class HealthcareAiSearchService {
     // 사용자가 닫는 태그를 흉내 내면 경계가 깨지므로 태그처럼 보이는 것을 미리 지운다.
     call.messages.push({
       role: 'user',
-      content: `<user_question>\n${sanitizeQuestion(question)}\n</user_question>`,
+      content: `<user_question>\n${question}\n</user_question>`,
     });
     call.output = jsonOutput(prompt.schema);
 
@@ -724,19 +730,43 @@ function aliases(region: RegionEntry): string[] {
 }
 
 /**
- * 캐시 키를 만들기 전 질문을 다듬는다. **여기서 같아지는 질문은 같은 답을 받는다.**
+ * 들어온 질문을 **한 번에 정본으로 만든다.** 이 함수를 지난 값만 아래로 흐른다.
  *
- * 하는 일은 표기 차이를 지우는 것까지다:
- *   유니코드 정규화(NFKC)  전각 "ＡＢ" 와 반각 "AB" 를 같게 본다
- *   공백 정리              "천식  소아과" · "천식\n소아과" → "천식 소아과"
- *   소문자                 "ENT" · "ent" (한글은 영향이 없다)
+ * 하는 일:
+ *   NFKC 정규화     전각 "ＡＢ" 와 반각 "AB" 를 같게 본다
+ *   꺾쇠 제거       `</user_question>` 흉내로 프롬프트 경계를 끊는 것을 막는다.
+ *                   병원 검색어에 꺾쇠가 들어갈 일이 없어 통째로 없앤다
+ *   가로 공백 합침  스페이스·탭 연속을 한 칸으로
+ *   빈 줄 접기      줄바꿈 3개 이상 → 2개
+ *   앞뒤 정리       trim
  *
- * **어순은 건드리지 않는다.** "천식 소아과" 와 "소아과 천식" 을 같게 보고 싶은 유혹이 있지만,
- * 단어를 정렬해 버리면 "주사 말고 약" 과 "약 말고 주사" 도 같아진다 — 뜻이 정반대인 질문이
- * 한 칸을 나눠 쓰게 된다. 캐시가 틀린 답을 주는 것보다 덜 맞는 게 낫다.
+ * **줄바꿈은 살린다.** 입력칸이 여러 줄을 받으므로(Shift+Enter) 사용자가 나눈 문단은
+ * 그 자체로 뜻이다 — "증상 / 원하는 조건" 처럼 끊어 적은 걸 한 줄로 뭉개면 오히려 읽기
+ * 어려워진다.
+ *
+ * 대신 **빈 줄이 여러 개 이어지는 것은 접는다.** 그건 사람이 쓰는 모양이 아니라, 태그 안에
+ * 새 절이 시작된 것처럼 보이게 만드는 수단이다(`### 시스템 지시` 같은 위장). 문단 하나를
+ * 나누는 데는 빈 줄 한 개면 족하다.
+ *
+ * **소문자로 만들지 않는다.** 그건 "같은 질문인가" 를 볼 때만 필요한 것이라 해시 쪽에
+ * 둔다 — 모델이 읽는 글을 굳이 뭉갤 이유가 없다.
+ *
+ * **어순은 건드리지 않는다.** "천식 소아과" 와 "소아과 천식" 을 같게 보고 싶은 유혹이
+ * 있지만, 단어를 정렬하면 "주사 말고 약" 과 "약 말고 주사" 도 같아진다 — 뜻이 정반대인
+ * 질문이 캐시 한 칸을 나눠 쓰게 된다. 덜 맞는 게 틀린 답보다 낫다.
  */
-function normalizeQuestion(question: string): string {
-  return question.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+function cleanQuestion(raw: string): string {
+  return (
+    raw
+      .normalize('NFKC')
+      .replace(/[<>]/g, ' ')
+      // 줄바꿈을 남겨야 하므로 가로 공백만 골라 합친다(\s 는 \n 까지 먹는다).
+      .replace(/[^\S\n]+/g, ' ')
+      // 줄 끝에 남은 공백은 지운다. 안 지우면 "천식 \n" 처럼 티 안 나는 차이가 해시를 가른다.
+      .replace(/ *\n */g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
 }
 
 /**
@@ -744,8 +774,10 @@ function normalizeQuestion(question: string): string {
  * 원문은 복원할 수 없으면서 "같은 질문인가" 는 판별된다.
  */
 function questionHashOf(question: string): string {
+  // cleanQuestion 이 이미 지나간 값이다. 대소문자만 더 지운다 — "ENT" 와 "ent" 는 같은
+  // 질문이지만, 발송하는 문자열까지 소문자로 만들 이유는 없다(모델이 읽는 글이다).
   return createHash('sha256')
-    .update(normalizeQuestion(question))
+    .update(question.toLowerCase())
     .digest('hex')
     .slice(0, 32);
 }
@@ -792,15 +824,6 @@ function emptyFilter(): AiSearchFilter {
     emergency: false,
     baby: false,
   };
-}
-
-/**
- * 질문에서 **태그처럼 보이는 것을 지운다.** 사용자가 `</user_question>` 을 흉내 내면
- * 프롬프트가 만든 경계가 그 자리에서 끊기고, 뒤에 붙인 문장이 지시로 읽힐 수 있다.
- * 병원 검색어에 꺾쇠가 들어갈 일이 없으므로 통째로 없앤다.
- */
-function sanitizeQuestion(question: string): string {
-  return question.replace(/[<>]/g, ' ').trim();
 }
 
 /**
