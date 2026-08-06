@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { emailSignup, requestSignupCode } from '@/shared/api/auth';
-import { errorMessage } from '@/shared/api/errorMessage';
-import { goAfterLogin, readAfterLoginParams } from '@/shared/auth/afterLogin';
-import { useAuthStore } from '@/shared/auth/authStore';
-import { Button } from '@/shared/ui/Button';
-import { TextField } from '@/shared/ui/TextField';
-import { AuthCard } from '../components/AuthCard';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { emailSignup, requestSignupCode } from "@/shared/api/auth";
+import { errorMessage } from "@/shared/api/errorMessage";
+import { goAfterLogin, readAfterLoginParams } from "@/shared/auth/afterLogin";
+import { useAuthStore } from "@/shared/auth/authStore";
+import { Button } from "@/shared/ui/Button";
+import { TextField } from "@/shared/ui/TextField";
+import { AuthCard } from "../components/AuthCard";
 import {
   ConsentFields,
   CONSENT_REQUIRED_MESSAGE,
@@ -15,7 +15,7 @@ import {
   isConsented,
   toConsentPayload,
   type ConsentState,
-} from '../components/ConsentFields';
+} from "../components/ConsentFields";
 
 interface Form {
   email: string;
@@ -34,9 +34,9 @@ function relayLink(
 ): string {
   if (!returnTo) return path;
   const params = new URLSearchParams({ redirect_uri: returnTo });
-  if (clientId) params.set('client_id', clientId);
-  if (codeChallenge) params.set('code_challenge', codeChallenge);
-  if (clientState) params.set('state', clientState);
+  if (clientId) params.set("client_id", clientId);
+  if (codeChallenge) params.set("code_challenge", codeChallenge);
+  if (clientState) params.set("state", clientState);
   return `${path}?${params.toString()}`;
 }
 
@@ -52,9 +52,9 @@ export default function Signup() {
   const { returnTo, clientId, codeChallenge, clientState } = after;
   const authenticate = useAuthStore((s) => s.authenticate);
 
-  const [step, setStep] = useState<'form' | 'code'>('form');
+  const [step, setStep] = useState<"form" | "code">("form");
   const [account, setAccount] = useState<Form | null>(null);
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -81,9 +81,9 @@ export default function Signup() {
     try {
       await requestSignupCode(values.email);
       setAccount(values);
-      setStep('code');
+      setStep("code");
     } catch (e) {
-      setServerError(errorMessage(e, '인증 코드 발송에 실패했습니다.'));
+      setServerError(errorMessage(e, "인증 코드 발송에 실패했습니다."));
     }
   });
 
@@ -91,7 +91,7 @@ export default function Signup() {
   const onConfirm = async () => {
     if (!account) return;
     if (!code.trim()) {
-      setCodeError('인증 코드를 입력하세요.');
+      setCodeError("인증 코드를 입력하세요.");
       return;
     }
     setCodeError(null);
@@ -108,9 +108,9 @@ export default function Signup() {
       await authenticate(tokens);
       // 로그인과 같은 규칙으로 복귀한다(외부 SSO → 자사 return → /me).
       // 예전엔 SSO 갈래만 있어서, 포털에서 가입하러 온 사용자가 제자리로 못 돌아갔다.
-      if (!(await goAfterLogin(after))) navigate('/me', { replace: true });
+      if (!(await goAfterLogin(after))) navigate("/me", { replace: true });
     } catch (e) {
-      setServerError(errorMessage(e, '회원가입에 실패했습니다.'));
+      setServerError(errorMessage(e, "회원가입에 실패했습니다."));
     } finally {
       setSubmitting(false);
     }
@@ -122,11 +122,11 @@ export default function Signup() {
     try {
       await requestSignupCode(account.email);
     } catch (e) {
-      setServerError(errorMessage(e, '인증 코드 재발송에 실패했습니다.'));
+      setServerError(errorMessage(e, "인증 코드 재발송에 실패했습니다."));
     }
   };
 
-  if (step === 'code' && account) {
+  if (step === "code" && account) {
     return (
       <AuthCard
         title="이메일 인증"
@@ -157,8 +157,8 @@ export default function Signup() {
           <button
             type="button"
             onClick={() => {
-              setStep('form');
-              setCode('');
+              setStep("form");
+              setCode("");
               setCodeError(null);
               setServerError(null);
             }}
@@ -166,7 +166,11 @@ export default function Signup() {
           >
             이메일 다시 입력
           </button>
-          <button type="button" onClick={resendCode} className="hover:underline">
+          <button
+            type="button"
+            onClick={resendCode}
+            className="hover:underline"
+          >
             코드 재발송
           </button>
         </div>
@@ -176,14 +180,14 @@ export default function Signup() {
 
   return (
     <AuthCard title="회원가입" subtitle="이메일로 HansApp 계정 만들기">
-      <form onSubmit={onRequest} className="space-y-3">
+      <form key="request" onSubmit={onRequest} className="space-y-3">
         <TextField
           label="이메일"
           type="email"
           autoComplete="email"
           placeholder="you@example.com"
           error={errors.email?.message}
-          {...register('email', { required: '이메일을 입력하세요.' })}
+          {...register("email", { required: "이메일을 입력하세요." })}
         />
         <TextField
           label="비밀번호"
@@ -191,11 +195,11 @@ export default function Signup() {
           autoComplete="new-password"
           placeholder="8자 이상"
           error={errors.password?.message}
-          {...register('password', {
-            required: '비밀번호를 입력하세요.',
+          {...register("password", {
+            required: "비밀번호를 입력하세요.",
             minLength: {
               value: 8,
-              message: '비밀번호는 8자 이상이어야 합니다.',
+              message: "비밀번호는 8자 이상이어야 합니다.",
             },
           })}
         />
@@ -205,10 +209,10 @@ export default function Signup() {
           autoComplete="new-password"
           placeholder="비밀번호를 한 번 더 입력하세요"
           error={errors.passwordConfirm?.message}
-          {...register('passwordConfirm', {
-            required: '비밀번호를 한 번 더 입력하세요.',
+          {...register("passwordConfirm", {
+            required: "비밀번호를 한 번 더 입력하세요.",
             validate: (v) =>
-              v === getValues('password') || '비밀번호가 일치하지 않습니다.',
+              v === getValues("password") || "비밀번호가 일치하지 않습니다.",
           })}
         />
         <TextField
@@ -217,7 +221,7 @@ export default function Signup() {
           autoComplete="name"
           placeholder="홍길동"
           error={errors.name?.message}
-          {...register('name', { required: '이름을 입력하세요.' })}
+          {...register("name", { required: "이름을 입력하세요." })}
         />
         {/*
           동의는 **계정이 만들어지기 전**에 받아야 한다. 이 폼은 코드를 보낼 뿐 아직 계정을
@@ -243,9 +247,15 @@ export default function Signup() {
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-500">
-        이미 계정이 있으신가요?{' '}
+        이미 계정이 있으신가요?{" "}
         <Link
-          to={relayLink('/login', returnTo, clientId, codeChallenge, clientState)}
+          to={relayLink(
+            "/login",
+            returnTo,
+            clientId,
+            codeChallenge,
+            clientState,
+          )}
           className="font-semibold text-primary hover:underline"
         >
           로그인
