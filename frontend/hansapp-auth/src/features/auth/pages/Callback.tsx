@@ -84,12 +84,31 @@ export default function Callback() {
     ran.current = true;
 
     const params = new URLSearchParams(window.location.search);
+    /*
+      **개인정보는 fragment 로 온다**(백엔드 withOutcome 참고). fragment 는 서버로 전송되지
+      않아 접속 로그·Referer·오류 추적에 남지 않는다. 여기 담기는 것은 이메일과, 프로필이
+      들어 있는 pending 티켓이다.
+    */
+    const secret = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const error = params.get('error');
     const code = params.get('code');
-    const pending = params.get('pending');
+    const pending = secret.get('pending');
     const emailRequired = params.get('email_required') === '1';
     const codeRequired = params.get('code_required') === '1';
-    const prefillEmail = params.get('email') ?? '';
+    const prefillEmail = secret.get('email') ?? '';
+
+    /*
+      읽었으면 주소창에서 지운다. fragment 는 서버로 안 가지만 **브라우저 히스토리와 공유한
+      링크에는 남는다** — 가입 화면을 띄워 둔 채 주소를 복사해 보내는 일이 실제로 있다.
+      replaceState 라 뒤로가기 기록이 늘지 않는다.
+    */
+    if (window.location.hash) {
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + window.location.search,
+      );
+    }
 
     const finish = async (
       promise: Promise<Parameters<typeof authenticate>[0]>,

@@ -234,7 +234,18 @@ export class SocialController {
     return this.withOutcome(url, outcome).toString();
   }
 
-  /** 결과를 쿼리로 실어 준다. 자사 착지점과 외부 복귀가 같은 규칙을 쓴다. */
+  /**
+   * 결과를 URL 에 실어 준다. 자사 착지점과 외부 복귀가 같은 규칙을 쓴다.
+   *
+   * **개인정보를 담은 값은 fragment(#) 로 보낸다.** fragment 는 브라우저가 서버로 보내지
+   * 않으므로 접속 로그·Referer 헤더·오류 추적에 남지 않는다. 여기 해당하는 것은 둘이다 —
+   * 이메일 평문, 그리고 프로필(이메일·이름)이 담긴 pending 티켓(JWT 는 서명일 뿐 암호화가
+   * 아니라 누구나 디코드해 읽는다).
+   *
+   * **code 와 state 는 쿼리에 그대로 둔다.** 외부 앱이 읽는 OAuth 규약(RFC 6749 §4.1.2)이라
+   * 옮기면 그 앱들의 SDK 가 깨진다. 30초 1회용이라 남아도 재사용 가치가 없기도 하다.
+   * email_required·code_required·linked·error 도 개인정보가 아니라 쿼리에 둔다.
+   */
   private withOutcome(url: URL, outcome: CallbackOutcome): URL {
     switch (outcome.kind) {
       // 세션은 쿠키로 이미 전달됐다. URL 에 실을 것이 없다 —
@@ -244,18 +255,20 @@ export class SocialController {
       case 'code':
         url.searchParams.set('code', outcome.code);
         break;
-      case 'pending':
-        url.searchParams.set('pending', outcome.ticket);
+      case 'pending': {
+        const secret = new URLSearchParams({ pending: outcome.ticket });
+        if (outcome.email) {
+          secret.set('email', outcome.email);
+        }
+        url.hash = secret.toString();
         if (outcome.emailRequired) {
           url.searchParams.set('email_required', '1');
         }
         if (outcome.codeRequired) {
           url.searchParams.set('code_required', '1');
         }
-        if (outcome.email) {
-          url.searchParams.set('email', outcome.email);
-        }
         break;
+      }
       case 'linked':
         url.searchParams.set('linked', '1');
         break;
