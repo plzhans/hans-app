@@ -44,7 +44,7 @@ export function LegalModal({
   return (
     // 바깥을 눌러도 닫힌다. 문서 안을 누른 것까지 닫히지 않게 본문에서 전파를 멈춘다.
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 sm:items-center sm:p-4"
       onClick={onClose}
       role="presentation"
     >
@@ -54,10 +54,15 @@ export function LegalModal({
         aria-label={doc.title}
         onClick={(e) => e.stopPropagation()}
         /*
-          좁은 화면에서는 바닥에서 올라오는 시트, 넓은 화면에서는 가운데 상자.
-          가입은 대부분 휴대폰에서 하고, 시트가 그 손 위치에 맞는다.
+          **좁은 화면에서는 화면을 통째로 쓴다.** 처음엔 바닥에서 올라오는 시트로 뒀는데,
+          약관은 스크롤이 긴 글이라 시트가 늘 최대 높이까지 차서 위쪽에 어중간한 여백만
+          남았다 — 배경이 보이는 것도 아니고 시트가 낮은 것도 아닌 어정쩡한 모양이다.
+          읽는 화면이라 전체를 주는 편이 낫다.
+
+          넓은 화면은 그대로 가운데 상자다. 거기서는 뒤 배경이 보이는 것이 "잠깐 열어 본 것"
+          이라는 신호가 된다.
         */
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[80vh] sm:rounded-2xl"
+        className="flex h-full w-full flex-col overflow-hidden bg-white shadow-xl sm:h-auto sm:max-h-[80vh] sm:max-w-2xl sm:rounded-2xl"
       >
         {/* 제목 줄은 고정하고 본문만 스크롤한다 — 긴 문서에서 닫기 버튼을 찾아 올라가지 않게. */}
         <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3">
@@ -72,8 +77,23 @@ export function LegalModal({
           </button>
         </div>
 
-        <div className="overflow-y-auto overscroll-contain">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           <LegalDocumentView doc={doc} />
+        </div>
+
+        {/*
+          바닥에도 닫기를 둔다. 휴대폰에서 상단 닫기는 엄지가 닿지 않는 자리고, 다 읽고 나면
+          시선이 이미 아래에 있다. 세이프에어리어(홈 인디케이터) 위로 버튼이 걸리지 않게
+          아래를 더 띄운다 — 넓은 화면에서는 그 값이 0 이라 sm:pb-3 으로 되돌린다.
+        */}
+        <div className="shrink-0 border-t border-gray-200 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-lg bg-gray-100 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+          >
+            닫기
+          </button>
         </div>
       </div>
     </div>
