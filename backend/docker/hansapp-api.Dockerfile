@@ -13,10 +13,22 @@
 #   │   ├── dist/               main.js · build-info.json
 #   │   ├── node_modules/
 #   │   └── package.json
+#   ├── data/               ← 서비스 프롬프트. **환경과 무관해서 구워 넣는다**
+#   │   └── healthcare/svc-prompts/
 #   └── config/             ← **이미지엔 비어 있다.** 배포가 아래를 마운트한다
 #       ├── config.yaml         환경별 yaml
 #       ├── .env                환경별 env (APP_ENV 가 여기 들어 있다)
 #       └── secrets/            jwt 키 · TLS 인증서
+#
+# [프롬프트를 이미지에 굽는 이유]
+# config/ 와 달리 환경마다 다르지 않고 비밀도 아니다 — 코드와 같이 버전이 매겨지는
+# 산출물이라, 뜨는 순간 그 커밋의 프롬프트가 같이 있어야 한다. 마운트로 빼면 서버의
+# 파일과 이미지의 코드가 따로 움직인다.
+#
+# **pnpm deploy 산출물에는 안 담긴다.** 그것은 앱 패키지와 의존성만 추리는데 이 파일들은
+# 워크스페이스 루트의 data/ 에 있다. 그래서 최종 스테이지가 컨텍스트에서 직접 복사한다.
+# 경로는 config.<환경>.yaml 의 llm.promptDir(기본 data/healthcare/svc-prompts)과 짝이다 —
+# 앱이 cwd(/app) 기준으로 찾으므로 WORKDIR 바로 밑이어야 한다.
 #
 # [이미지에 환경이 없다]
 # 컨테이너에는 환경이 하나뿐이라, 자기가 develop 인지 production 인지 파일 구조로 알
@@ -193,9 +205,11 @@ CMD ["node", "hansapp-api/dist/main.js"]
 # ─────────────────────────────────────────────────────────────────────────────
 FROM runtime-base AS prebuilt
 COPY out/hansapp-api ./hansapp-api/
+COPY data/healthcare/svc-prompts ./data/healthcare/svc-prompts/
 
 # ─────────────────────────────────────────────────────────────────────────────
 # with-build — 도커 안에서 빌드부터 한다 (로컬 · 기본 타깃)
 # ─────────────────────────────────────────────────────────────────────────────
 FROM runtime-base AS with-build
 COPY --from=builder /out ./hansapp-api/
+COPY --from=builder /build/data/healthcare/svc-prompts ./data/healthcare/svc-prompts/
