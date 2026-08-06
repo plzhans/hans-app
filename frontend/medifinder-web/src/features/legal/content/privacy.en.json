@@ -198,7 +198,8 @@
             "2. Blocking the location permission in the site settings of the browser",
             "3. In the app, revoking the location permission under the operating system settings for app permissions"
           ]
-        }
+        },
+        "(7) Searches are processed by the HansApp API (api.plzhans.com), which the Operator also runs. The domain differs, but it is the same Operator’s server and does not constitute provision to a third party."
       ]
     },
     {

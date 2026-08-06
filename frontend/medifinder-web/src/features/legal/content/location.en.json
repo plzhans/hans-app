@@ -61,7 +61,8 @@
       "blocks": [
         "(1) Coordinates obtained are rounded to a grid of roughly 1 km before being sent with the search request. Precise coordinates never leave the User's device.",
         "(2) Transmitted coordinates are used only to compute search results and are not stored in any database.",
-        "(3) Coordinates are not placed in the address bar or in shared links."
+        "(3) Coordinates are not placed in the address bar or in shared links.",
+        "(4) Coordinates are sent to and processed by the HansApp API (api.plzhans.com), which the Operator also runs. The domain differs, but it is the same Operator’s server and does not constitute provision to a third party."
       ]
     },
     {
@@ -156,7 +157,9 @@
     },
     {
       "heading": "Addendum",
-      "blocks": ["These Terms take effect on August 5, 2026."]
+      "blocks": [
+        "These Terms take effect on August 5, 2026."
+      ]
     }
   ]
 }
