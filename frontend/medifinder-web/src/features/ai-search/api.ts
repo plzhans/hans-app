@@ -214,22 +214,40 @@ export interface AiSearchHistoryTurn {
 }
 
 /**
- * 지금 사용량. **채팅창을 열 때 한 번만** 부른다.
+ * 고를 수 있는 모델 하나. **`locked` 는 아직 못 고른다는 뜻이다**(요금제가 안 열렸다).
+ * 잠기지 않은 것이 서버가 실제로 부르는 모델이다.
+ */
+export interface AiModelChoice {
+  id: string;
+  locked: boolean;
+}
+
+/** 지금 무엇을 얼마나 할 수 있나. 채팅창을 열 때 한 번 받는다. */
+export interface AiCapabilities {
+  quota?: AiSearchQuota;
+  models: AiModelChoice[];
+}
+
+/**
+ * 지금 할 수 있는 것. **채팅창을 열 때 한 번만** 부른다.
  *
- * 첫 질문을 하기 전에도 얼마나 남았는지는 보여야 하는데, 답변에 실려 오는 `quota` 는
- * 물어봐야 생긴다. 그 빈자리만 메우는 용도다.
+ * 첫 질문을 하기 전에도 얼마나 남았는지·무엇으로 보내지는지는 보여야 하는데, 답변에
+ * 실려 오는 값은 물어봐야 생긴다. 그 빈자리만 메우는 용도다.
  *
  * **다시 부르지 않는다**(staleTime 무한, 포커스·재접속 갱신 끔). 값이 바뀌는 계기는
  * 이 사람이 질문하는 순간뿐이고 그때는 답변이 새 값을 싣고 온다 — 폴링하면 안 바뀐 값을
  * 계속 받으면서 Redis 만 친다.
  *
- * 실패해도 조용하다. 사용량 표시가 없을 뿐이라 채팅은 그대로 된다.
+ * **모델 목록도 여기서 온다.** 같은 때에 같은 이유로 필요한 값이라(창을 열 때 한 번,
+ * 바뀌는 계기도 설정·요금제로 같다) 왕복을 두 번 할 이유가 없다.
+ *
+ * 실패하면 사용량과 모델이 둘 다 없다 — 질문을 막는 쪽으로 다룬다(호출부 참고).
  */
-export function useAiSearchQuota() {
-  return useQuery<{ quota?: AiSearchQuota }>({
-    queryKey: ['ai', 'quota'],
+export function useAiCapabilities() {
+  return useQuery<AiCapabilities>({
+    queryKey: ['ai', 'capabilities'],
     // **`/healthcare` 아래가 아니다** — 재는 대상은 병원이 아니라 부른 사람이다.
-    queryFn: () => reactFetch('/ai/quota'),
+    queryFn: () => reactFetch('/ai/capabilities'),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

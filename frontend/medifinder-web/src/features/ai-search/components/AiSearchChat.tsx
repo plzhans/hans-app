@@ -47,7 +47,8 @@ import {
   paramsToQuery,
   toSearchParams,
   useAiSearch,
-  useAiSearchQuota,
+  useAiCapabilities,
+  type AiModelChoice,
   type AiSearchHistoryTurn,
   type AiSearchParams,
   type AiSearchQuota,
@@ -573,7 +574,7 @@ export function AiSearchChat({
     남은 몫. **답변이 있으면 그쪽이 최신이다** — 응답마다 새 값이 실려 온다.
     아직 아무것도 안 물었을 때만 열면서 받아 온 값을 쓴다(그때는 실려 올 답변이 없다).
   */
-  const fetched = useAiSearchQuota();
+  const fetched = useAiCapabilities();
   const quota = lastQuota(turns) ?? fetched.data?.quota;
   /*
     **사용량을 못 읽으면 질문도 못 한다.** 서버가 계수기를 못 읽으면 요청을 fail-closed 로
@@ -923,7 +924,7 @@ export function AiSearchChat({
                   <span />
                 )}
                 <div className="flex shrink-0 items-center gap-1">
-                  <ModelPicker />
+                  <ModelPicker models={fetched.data?.models ?? []} />
                   <button
                     type="submit"
                     disabled={!question.trim() || isPending || blocked}
@@ -1207,36 +1208,41 @@ function AssistantBubble({
  * `locked` 는 "유료가 열리면 쓸 수 있다" 는 예고다. 목록에서 아예 빼면 그런 게 있다는 걸
  * 알 길이 없어서, 잠긴 채로 보여 준다.
  */
-const MODELS = [
-  { id: 'haiku', label: 'Haiku', locked: false },
-  { id: 'opus', label: 'Opus', locked: true },
-] as const;
-
-/**
- * 모델 고르개. 잠긴 항목은 눌러도 안 바뀌고 자물쇠와 안내만 보여 준다.
- *
- * 선택 상태를 위(Provider)로 안 올린 이유는 **아직 아무 데도 안 쓰이기 때문**이다 —
- * 요청에 싣기 시작하면 그때 올린다.
- */
 /**
  * 모델 고르개. 입력칸 위 정보 줄의 오른쪽에 선다 — 바로 아래 보내기 버튼과 같은 쪽이라
  * "무엇으로 보내지" 가 궁금해지는 자리다.
  *
- * **지금은 고를 게 하나뿐이다.** Opus 는 잠겨 있고, 고른 값은 서버로 안 간다 — 서버가
- * 설정대로 부르므로 여기 표시가 실제와 어긋나면 안 된다. 그래서 켤 수 있는 것과 실제로
- * 도는 것이 같은 하나(Haiku)로 맞춰 뒀다. 유료가 열리면 그때 요청에 싣는다(그 전에
- * 실으면 아무 효과 없이 요금만 남의 손에 넘어간다).
+ * **목록을 여기서 들지 않는다.** 서버가 `/ai/capabilities` 로 내려준 것을 그대로 그린다 —
+ * 화면이 들고 있으면 설정이 바뀌는 순간 조용히 거짓말이 된다("Haiku 로 보냅니다" 라고
+ * 적혀 있는데 서버는 다른 것을 부르는 식). 무엇이 잠겼는지도 서버가 정한다.
+ *
+ * **고른 값은 아직 서버로 안 간다.** 잠기지 않은 것이 서버가 실제로 부르는 하나뿐이라
+ * 보내 봐야 같은 값이다. 유료가 열려 둘 이상이 풀리면 그때 요청에 싣는다.
+ *
+ * 이름은 `i` 패널의 `model` 과 같은 규칙으로 뽑는다 — 고른 것과 실제로 답한 것을
+ * 나란히 놓고 볼 자리라, 표기가 다르면 같은 모델인지 매번 따져 봐야 한다.
  */
-function ModelPicker() {
+function ModelPicker({ models }: { models: AiModelChoice[] }) {
   const { t } = useTranslation();
-  const [selected, setSelected] = useState<string>(MODELS[0].id);
-  const current = MODELS.find((m) => m.id === selected) ?? MODELS[0];
+  const [selected, setSelected] = useState<string>();
+  // **잠기지 않은 첫 번째가 기본이다** — 그게 서버가 실제로 부르는 모델이다.
+  const fallback = models.find((model) => !model.locked) ?? models[0];
+  const current = models.find((model) => model.id === selected) ?? fallback;
+
+  // 아직 목록을 못 받았으면 그릴 것이 없다. 빈 이름을 그리면 고장으로 보인다.
+  if (!current) {
+    return null;
+  }
 
   return (
     <Popover.Root>
       <Popover.Trigger className="flex items-center gap-1 rounded-full px-2 py-1 text-[0.78rem] font-bold text-ink-muted transition-colors active:bg-surface-subtle data-[state=open]:bg-surface-subtle">
         <Sparkles className="h-3 w-3 shrink-0 text-brand" />
-        <span>Anthropic / {current.label}</span>
+        {/*
+          업체 이름을 따로 안 붙인다. "Claude" 가 이미 어디 것인지 말하므로
+          "Anthropic / Claude Haiku 4.5" 는 같은 말을 두 번 하는 셈이다.
+        */}
+        <span>{modelLabel(current.id)}</span>
         <ChevronDown className="h-3 w-3 shrink-0" />
       </Popover.Trigger>
       <Popover.Portal>
@@ -1247,7 +1253,7 @@ function ModelPicker() {
           collisionPadding={12}
           className="z-50 w-max min-w-[11rem] rounded-card border border-line-subtle bg-surface p-1 shadow-raised"
         >
-          {MODELS.map((model) => (
+          {models.map((model) => (
             <button
               key={model.id}
               type="button"
@@ -1264,12 +1270,12 @@ function ModelPicker() {
                 {model.locked ? (
                   <Lock className="h-3 w-3" />
                 ) : (
-                  selected === model.id && (
+                  current.id === model.id && (
                     <Check className="h-3.5 w-3.5 text-brand" />
                   )
                 )}
               </span>
-              <span className="flex-1">{model.label}</span>
+              <span className="flex-1">{modelLabel(model.id)}</span>
               {model.locked && (
                 <span className="shrink-0 rounded-full bg-surface-subtle px-1.5 py-0.5 text-[0.7rem] font-bold text-ink-muted">
                   {t('aiSearch.modelLocked')}
@@ -1374,6 +1380,44 @@ interface MetaRow {
   label: string;
   value: string;
   strong?: boolean;
+  /** 줄에 마우스를 올렸을 때 보일 원본 값. 줄여 적은 값의 정본이다. */
+  title?: string;
+}
+
+/**
+ * 모델 id 를 **업체가 쓰는 표기**로. `claude-haiku-4-5-20251001` → `Claude Haiku 4.5`.
+ *
+ * 응답에 오는 것은 API 가 쓰는 식별자라 날짜까지 붙는다. 사람이 읽는 자리에서는
+ * 업체 문서·요금표에 적힌 이름과 같아야 "지금 뭘 쓰고 있나" 를 바로 맞춰 볼 수 있다.
+ *
+ * **표를 두지 않고 id 에서 뽑는다.** 새 모델이 나올 때마다 표를 고치는 것을 잊으면
+ * 화면이 조용히 옛 이름을 보여준다. 뽑아 쓰면 모르는 모델도 그대로 읽힌다.
+ *
+ * 세대 표기 순서가 바뀌어도 견딘다 — `claude-3-5-sonnet` 도 `claude-haiku-4-5` 도
+ * 글자 토큰을 이름으로, 숫자 토큰을 판번호로 본다.
+ */
+function modelLabel(id: string): string {
+  /*
+    **Claude 것만 손댄다.** 다른 업체의 이름 규칙은 우리가 모른다 — 억지로 맞추면
+    `gpt-4o` 가 `Claude Gpt` 가 된다. 모르는 것은 원본 그대로가 맞다.
+  */
+  if (!id.startsWith('claude-')) {
+    return id;
+  }
+  const parts = id
+    .replace(/^claude-/, '')
+    // 끝의 배포일(20251001)은 사람에게 필요한 정보가 아니다.
+    .replace(/-\d{8}$/, '')
+    .split('-');
+
+  const name = parts.find((part) => /^[a-z]+$/i.test(part));
+  const version = parts.filter((part) => /^\d+$/.test(part));
+  if (!name) {
+    // 모르는 모양이면 손대지 않는다. 틀린 이름보다 원본이 낫다.
+    return id;
+  }
+  const title = name.charAt(0).toUpperCase() + name.slice(1);
+  return `Claude ${title}${version.length ? ` ${version.join('.')}` : ''}`;
 }
 
 /**
@@ -1388,6 +1432,7 @@ function MetaRows({ rows, muted }: { rows: MetaRow[]; muted?: boolean }) {
         <Fragment key={row.label}>
           <dt className="text-ink-subtle">{row.label}</dt>
           <dd
+            title={row.title}
             className={cn(
               'tabular-nums',
               muted ? 'text-ink-muted' : 'text-ink-body',
@@ -1440,7 +1485,8 @@ function AnswerMeta({
     번역이 필요한 것은 버튼의 aria-label 뿐이다. 그건 스크린리더가 읽는 진짜 문장이다.
   */
   const rows: MetaRow[] = [
-    { label: 'model', value: result.model },
+    // 업체가 쓰는 표기로 되돌려 적는다. 원본 id 는 title 에 남긴다(로그와 맞춰 볼 값이다).
+    { label: 'model', value: modelLabel(result.model), title: result.model },
     // **사용자가 실제로 쓴 양이다.** 원시 토큰이 아니라 환산된 통합 토큰이라, 아래
     // 디버깅 칸의 input/output 과 더해도 이 값이 안 나온다 — 그래서 칸을 나눠 둔다.
     { label: 'credits', value: n(result.credits), strong: true },
