@@ -25,6 +25,7 @@ import { WithdrawalRepository } from '../repository/withdrawal.repository';
 import { AuthTokens, TokenService } from '../token/token.service';
 import { EmailVerificationService } from '../mail/email-verification.service';
 import { SocialTicketService } from './social-ticket.service';
+import { ConsentService, type ConsentInput } from '../consent.service';
 import { SocialProfile } from './social.types';
 
 /** 콜백 처리 결과. 컨트롤러가 프론트 리다이렉트 URL 로 변환한다. */
@@ -79,6 +80,7 @@ function normalizeEmail(email: string): string {
 @Injectable()
 export class SocialService {
   constructor(
+    private readonly consent: ConsentService,
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
@@ -226,9 +228,17 @@ export class SocialService {
    * 통과 못 하면 계정을 만들지 않는다(미검증 계정·스쿼팅 방지). 성공하면 emailVerified=true 로 만든다.
    */
   async register(
-    input: { ticket: string; email?: string | null; code?: string | null },
+    input: {
+      ticket: string;
+      email?: string | null;
+      code?: string | null;
+      consent: ConsentInput;
+    },
     meta: RequestMeta,
   ): Promise<AuthResult> {
+    // **계정을 만들기 전에 막는다.** 이메일 가입과 같은 규칙이다.
+    this.consent.assertValid(input.consent);
+
     const payload = this.tickets.verifyRegister(input.ticket);
 
     // 이미 연동됐다면(콜백 후 지연 등) 중복 가입을 막는다.
@@ -280,6 +290,8 @@ export class SocialService {
       providerId: payload.providerId,
       email: payload.email,
     });
+
+    await this.consent.record(user.id, input.consent, meta);
 
     await this.log.record({
       userId: user.id,

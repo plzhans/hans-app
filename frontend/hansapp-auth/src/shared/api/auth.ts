@@ -38,15 +38,29 @@ export function requestSignupCode(email: string): Promise<void> {
 }
 
 /** 이메일 가입 확정. 메일로 받은 코드를 함께 보내 검증된 계정을 만든다. */
+/**
+ * 가입 동의. **서버가 없으면 거절한다** — 화면에서만 막으면 API 를 직접 부르는 경로가 남는다.
+ *
+ * 판(version)은 화면이 실제로 보여준 문서의 것이다. 서버가 자기 현재 판과 대조해 다르면
+ * 거절하므로, 옛 번들을 든 브라우저가 옛 조문을 보여주고 새 판에 동의한 것으로 기록되는 일이
+ * 없다. 값은 @hansapp/legal 문서의 `version` 에서 온다.
+ */
+export interface ConsentPayload {
+  age: boolean;
+  termsVersion: string;
+  privacyVersion: string;
+}
+
 export function emailSignup(
   email: string,
   password: string,
   name: string,
   code: string,
+  consent: ConsentPayload,
 ): Promise<TokenResponse> {
   return apiFetch('/auth/signup', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name, code }),
+    body: JSON.stringify({ email, password, name, code, consent }),
   });
 }
 
@@ -105,12 +119,13 @@ export function socialRegisterRequestCode(
 /** 소셜 신규 가입 확정(pending 티켓 + 필요 시 이메일·인증 코드). */
 export function socialRegister(
   ticket: string,
+  consent: ConsentPayload,
   email?: string,
   code?: string,
 ): Promise<TokenResponse> {
   return apiFetch('/auth/social/register', {
     method: 'POST',
-    body: JSON.stringify({ ticket, email, code }),
+    body: JSON.stringify({ ticket, email, code, consent }),
   });
 }
 

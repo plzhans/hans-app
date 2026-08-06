@@ -1,12 +1,51 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
+  IsNotEmptyObject,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+
+/**
+ * 가입 동의. **가입 요청에 반드시 실린다** — 없으면 서버가 거절한다.
+ *
+ * 화면에서만 막으면 API 를 직접 부르는 경로가 남고, 그러면 "우리가 동의를 안 받고 만든" 계정이
+ * 생긴다. 동의를 받았다는 입증 책임이 처리자에게 있어서 그 계정은 나중에 설명할 방법이 없다.
+ *
+ * 판(version)을 함께 받는 이유는 화면이 실제로 보여준 조문을 기록하기 위해서다 —
+ * 서버의 현재 판과 다르면 거절한다(ConsentService 주석 참고).
+ */
+export class ConsentDto {
+  @ApiProperty({
+    description:
+      '만 14세 이상이라는 이용자의 자기 선언. 본인확인이 없어 나이를 검증하지는 않는다.',
+    example: true,
+  })
+  @IsBoolean()
+  readonly age!: boolean;
+
+  @ApiProperty({
+    description: '동의한 이용약관의 판(시행일)',
+    example: '2026-08-06',
+  })
+  @IsString()
+  @MaxLength(20)
+  readonly termsVersion!: string;
+
+  @ApiProperty({
+    description: '동의한 개인정보처리방침의 판(시행일)',
+    example: '2026-08-06',
+  })
+  @IsString()
+  @MaxLength(20)
+  readonly privacyVersion!: string;
+}
 
 /** 가입 인증 코드 발송 요청(계정 생성 전) */
 export class SignupCodeRequestDto {
@@ -40,6 +79,12 @@ export class SignupRequestDto {
   @MinLength(4)
   @MaxLength(12)
   readonly code!: string;
+
+  @ApiProperty({ description: '약관·개인정보·연령 동의', type: ConsentDto })
+  @IsNotEmptyObject()
+  @ValidateNested()
+  @Type(() => ConsentDto)
+  readonly consent!: ConsentDto;
 }
 
 /** 이메일 로그인 요청 */

@@ -17,6 +17,7 @@ import {
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
 import { EmailVerificationService } from './mail/email-verification.service';
+import { ConsentService, type ConsentInput } from './consent.service';
 import { ActionLogService } from './log/action-log.service';
 import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
@@ -44,6 +45,7 @@ export interface AuthResult {
 @Injectable()
 export class AuthService {
   constructor(
+    private readonly consent: ConsentService,
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
@@ -83,9 +85,13 @@ export class AuthService {
       password: string;
       name?: string | null;
       code: string;
+      consent: ConsentInput;
     },
     meta: RequestMeta,
   ): Promise<AuthResult> {
+    // **계정을 만들기 전에 막는다.** 통과 못 하면 아무것도 생기지 않는다.
+    this.consent.assertValid(input.consent);
+
     const email = normalizeEmail(input.email);
     await this.assertEmailAvailable(email);
 
@@ -105,6 +111,8 @@ export class AuthService {
       name: input.name ?? null,
       joinType: AuthProvider.EMAIL,
     });
+
+    await this.consent.record(user.id, input.consent, meta);
 
     await this.log.record({
       userId: user.id,

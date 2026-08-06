@@ -30,6 +30,16 @@ export interface LegalSection {
 
 export interface LegalDoc {
   title: string;
+  /**
+   * 문서의 판. 시행일을 `YYYY-MM-DD` 로 적는다.
+   *
+   * **화면 표시용이 아니다** — 가입 동의를 서버에 보낼 때 "화면이 보여준 판" 으로 함께 실린다.
+   * 서버는 자기가 아는 현재 판과 대조해 다르면 거절한다(옛 번들을 든 브라우저가 옛 조문을
+   * 보여주고 새 판에 동의한 것으로 기록되는 어긋남을 막는다).
+   *
+   * 개정하면 이 값과 `effective`, 부칙, 그리고 **백엔드의 auth.consent.* 기본값**을 함께 고친다.
+   */
+  version: string;
   /** "시행일: 2026년 8월 5일" — 개정 이력을 따지는 기준이라 본문 맨 위에 둔다. */
   effective: string;
   /** 조문 앞의 총칙 성격 문단. */

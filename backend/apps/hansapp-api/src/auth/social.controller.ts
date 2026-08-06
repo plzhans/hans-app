@@ -99,7 +99,12 @@ export class SocialController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
     const result = await this.social.register(
-      { ticket: dto.ticket, email: dto.email, code: dto.code },
+      {
+        ticket: dto.ticket,
+        email: dto.email,
+        code: dto.code,
+        consent: dto.consent,
+      },
       requestMeta(req),
     );
     return respondTokens(res, result.tokens);

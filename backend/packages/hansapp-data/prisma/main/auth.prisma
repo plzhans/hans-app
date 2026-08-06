@@ -40,6 +40,7 @@ model User {
   withdrawnAt DateTime? @map("withdrawn_at")
 
   oauths         UserOAuth[]
+  consents       UserConsent[]
   sessions       UserTokenSession[]
   authCodes      UserAuthCode[]
   appMemberships AppMember[]
@@ -178,6 +179,39 @@ model UserAuthCode {
   @@map("user_auth_code")
 }
 
+/// 가입 시 받은 동의의 기록.
+///
+/// **동의를 받았다는 입증 책임이 처리자에게 있다.** 화면에 체크박스를 두는 것만으로는
+/// 나중에 아무것도 보여줄 수 없어서, 무엇에 · 언제 · 어느 판에 동의했는지를 남긴다.
+///
+/// 판(version)을 함께 남기는 이유는 개정 때문이다. 약관을 고치면 이용자에게 불리한 변경은
+/// 재동의를 받아야 하는데, 이 값이 있어야 **"현재 판보다 낮은 사람에게만"** 다시 물을 수 있다.
+/// 전원에게 다시 받으면 이미 동의한 사람까지 붙잡게 된다.
+model UserConsent {
+  id Int @id @default(autoincrement())
+
+  userId Int @map("user_id")
+
+  /// 무엇에 대한 동의인가
+  type ConsentType
+
+  /// 동의한 문서의 판. 문서의 시행일을 그대로 쓴다(예: 2026-08-06).
+  /// 연령 확인처럼 문서가 없는 항목은 '-' 를 넣는다.
+  version String @db.VarChar(20)
+
+  agreedAt DateTime @default(now()) @map("agreed_at")
+
+  /// 동의 시점의 접속 정보. 다툼이 생겼을 때 그 기록을 특정하는 근거다.
+  ip        String? @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(255)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, type])
+  @@map("user_consent")
+}
+
 /// 탈퇴 기록. 개인정보 최소 항목만 보관하며, 가입 중복 체크가 이 표도 조회한다.
 /// purgeAt 이 지나면 배치가 정리한다(그 시점에 User 하드삭제도 함께 수행) → 이메일 재사용 가능.
 model UserWithdrawal {
@@ -232,6 +266,14 @@ enum AuthProvider {
 }
 
 /// 외부 소셜 provider(EMAIL 제외). UserOAuth.provider 에 쓴다.
+/// 동의 항목. AGE_14 는 문서가 아니라 이용자의 자기 선언이다
+/// (본인확인을 하지 않으므로 나이를 검증하지는 못한다 — 개인정보처리방침 제12조).
+enum ConsentType {
+  TERMS
+  PRIVACY
+  AGE_14
+}
+
 enum OAuthProvider {
   GOOGLE
   NAVER

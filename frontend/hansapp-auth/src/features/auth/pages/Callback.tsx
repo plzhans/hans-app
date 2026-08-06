@@ -18,6 +18,7 @@ import {
   CONSENT_REQUIRED_MESSAGE,
   EMPTY_CONSENT,
   isConsented,
+  toConsentPayload,
   type ConsentState,
 } from '../components/ConsentFields';
 
@@ -183,6 +184,7 @@ export default function Callback() {
     try {
       const tokens = await socialRegister(
         ticketRef.current,
+        toConsentPayload(consent),
         email.trim() || undefined,
         // 코드 인증이 필요 없는 provider(구글)는 코드를 보내지 않는다.
         codeNeeded ? code.trim() : undefined,

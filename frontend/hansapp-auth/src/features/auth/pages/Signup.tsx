@@ -13,6 +13,7 @@ import {
   CONSENT_REQUIRED_MESSAGE,
   EMPTY_CONSENT,
   isConsented,
+  toConsentPayload,
   type ConsentState,
 } from '../components/ConsentFields';
 
@@ -102,6 +103,7 @@ export default function Signup() {
         account.password,
         account.name,
         code.trim(),
+        toConsentPayload(consent),
       );
       await authenticate(tokens);
       // 로그인과 같은 규칙으로 복귀한다(외부 SSO → 자사 return → /me).

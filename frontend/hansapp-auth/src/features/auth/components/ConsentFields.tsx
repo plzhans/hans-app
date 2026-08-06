@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { accountTermsDoc, privacyDoc, type LegalDoc } from '@hansapp/legal';
 import { LegalModal } from './LegalModal';
+import type { ConsentPayload } from '@/shared/api/auth';
 
 /**
  * 가입 동의 항목. **계정을 만들기 직전 화면에 붙인다.**
@@ -25,8 +26,9 @@ import { LegalModal } from './LegalModal';
  * 문서여야 한다. 특정 서비스(medifinder 등)의 약관을 띄우면 "다른 서비스의 약관에 동의하고
  * 가입" 하는 모양이 된다.
  *
- * ⚠ **화면만으로는 부족하다.** 서버가 동의 여부를 받아 거절하고, 언제 어느 버전에 동의했는지
- * 기록해야 한다 — 동의를 받았다는 입증 책임이 처리자에게 있다. 그 부분은 아직 없다.
+ * **화면만으로는 부족하다.** API 를 직접 부르는 경로가 남기 때문에 서버도 같은 것을 요구한다 —
+ * 동의 없이 온 요청은 거절되고, 통과한 요청은 `user_consent` 에 기록된다(누가·언제·어느 판에).
+ * 동의를 받았다는 입증 책임이 처리자에게 있어서, 화면의 체크박스는 그 기록을 만드는 입구일 뿐이다.
  */
 export interface ConsentState {
   age: boolean;
@@ -46,6 +48,20 @@ export function isConsented(c: ConsentState): boolean {
 }
 
 export const CONSENT_REQUIRED_MESSAGE = '필수 항목에 모두 동의해야 가입할 수 있습니다.';
+
+/**
+ * 서버로 보낼 모양으로 바꾼다.
+ *
+ * **판은 화면이 실제로 보여준 문서에서 꺼낸다** — 상수로 박아 두면 문서를 개정했을 때 화면과
+ * 기록이 어긋난다. 여기서 doc 을 읽으므로 JSON 만 고치면 따라온다.
+ */
+export function toConsentPayload(c: ConsentState): ConsentPayload {
+  return {
+    age: c.age,
+    termsVersion: accountTermsDoc.version,
+    privacyVersion: privacyDoc.version,
+  };
+}
 
 export function ConsentFields({
   value,

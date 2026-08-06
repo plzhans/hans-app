@@ -28,6 +28,8 @@ import { AuthGuard } from './guard/auth.guard';
 import { FirstPartyGuard } from './guard/first-party.guard';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
+import { UserConsentRepository } from './repository/user-consent.repository';
+import { ConsentService } from './consent.service';
 import { TokenSessionRepository } from './repository/token-session.repository';
 import { AuthCodeRepository } from './repository/auth-code.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
@@ -91,6 +93,8 @@ export class AuthModule {
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         UserRepository,
         UserOAuthRepository,
+        UserConsentRepository,
+        ConsentService,
         TokenSessionRepository,
         AuthCodeRepository,
         WithdrawalRepository,
@@ -101,6 +105,7 @@ export class AuthModule {
         // 로그인 완결(세션 발급 + 로그). 모든 로그인 경로가 지난다.
         LoginService,
         AuthService,
+        ConsentService,
         OAuthTokenService,
         AuthGuard,
         FirstPartyGuard,
