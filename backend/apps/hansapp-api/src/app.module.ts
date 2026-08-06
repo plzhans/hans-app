@@ -36,6 +36,7 @@ import { NmcHospitalController } from './datagokr/nmc/nmc-hospital.controller';
 import { HealthcareHospitalController } from './healthcare/hospital.controller';
 import { HealthcareMetaController } from './healthcare/meta.controller';
 import { HealthcareAiSearchController } from './healthcare/ai-search.controller';
+import { AiQuotaController } from './ai/quota.controller';
 import { HealthcareMcpController } from './mcp/healthcare-mcp.controller';
 import { TransportController } from './transport/transport.controller';
 import { RegionController } from './region/region.controller';
@@ -92,6 +93,7 @@ export class AppModule {
         HealthcareHospitalController,
         HealthcareMetaController,
         HealthcareAiSearchController,
+        AiQuotaController,
         HealthcareMcpController,
         TransportController,
         RegionController,

@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { HOSPITAL_TIERS, INPATIENT_TIERS } from '@hansapp/data/seed';
+import { FALLBACK_LANG, type SupportedLang } from '@hansapp/common';
 
 import {
   LLM_CONFIG,
@@ -14,8 +15,14 @@ import {
 } from '@hansapp/llm';
 import { CachePrefix } from '../common/cache-keys';
 import { LlmUsageService } from '../common/llm-usage.service';
-import { DailyQuotaService } from '../common/daily-quota.service';
+import {
+  UsageQuotaService,
+  type QuotaBucket,
+  type QuotaState,
+  type QuotaWindow,
+} from '../common/usage-quota.service';
 import { RegionCache, type RegionEntry } from '../region/region.cache';
+import { pickName } from './code-name';
 import { HealthcareCodeCache } from './healthcare-code.cache';
 import { HiraAsmCodeCache } from './hira-asm-code.cache';
 
@@ -155,6 +162,105 @@ export interface AiSearchParams {
   readonly answer?: string;
 }
 
+/** 통 하나의 상태. **어느 통인지는 담긴 필드 이름이 말한다.** */
+export interface AiSearchQuotaWindow {
+  /** 지금까지 쓴 통합 토큰. */
+  readonly used: number;
+  readonly limit: number;
+}
+
+/**
+ * 앱 몫. **우리 예산이다** — 이 앱에 이번 달 얼마까지 쓸 것인가.
+ *
+ * 월이 진짜 한도이고 일은 그게 첫날에 다 타 버리지 않게 하는 둑이다.
+ * **먼저 차는 쪽이 막는다.**
+ */
+export interface AiSearchAppQuota {
+  readonly daily?: AiSearchQuotaWindow;
+  readonly monthly?: AiSearchQuotaWindow;
+}
+
+/** 개인 몫. 충전해서 쓰는 잔액이라 **리셋되지 않고, 하루·월로 나누지도 않는다.** */
+export interface AiSearchUserQuota {
+  readonly balance?: AiSearchQuotaWindow;
+}
+
+/**
+ * 지금 쓰는 몫. **둘 다 내려준다 — 화면이 골라 쓴다.**
+ *
+ * 실제로 깎이는 것은 신원의 것 하나다(로그인했으면 개인 잔액, 아니면 앱 예산).
+ * 그래도 둘 다 싣는 것은, 안 깎는 쪽도 얼마나 남았는지는 알아야 해서다.
+ *
+ * **없는 쪽은 안 걸렸다는 뜻이다.** 지금은 로그인이 없어 `user` 가 늘 비어 있다.
+ */
+export interface AiSearchQuota {
+  readonly app?: AiSearchAppQuota;
+  readonly user?: AiSearchUserQuota;
+}
+
+/**
+ * 잡힌 조건 한 묶음. **코드가 아니라 이름으로 온다.**
+ *
+ * 화면이 코드표를 또 부르지 않게 서버가 붙여 준다 — 코드표는 부팅 때 메모리에 올라와
+ * 있어서(HealthcareCodeCache) 추가 조회가 없다. 화면에서 부르면 채팅을 열 때마다
+ * 요청이 나가고, 그러면서도 결국 같은 값이 나온다.
+ */
+export interface AiSearchCondition {
+  /** 묶음 이름. 화면이 이 값으로 "진료과"/"장비" 같은 앞말을 고른다. */
+  readonly group: AiSearchConditionGroup;
+  /** 사람이 읽는 이름들. 요청 언어(Accept-Language)로 온다. */
+  readonly names: string[];
+}
+
+export type AiSearchConditionGroup =
+  'subject' | 'specialist' | 'assessment' | 'specialty' | 'equipment' | 'class';
+
+/** 확인용 원시값. 사용자에게 보일 것이 아니다 — AiSearchResult.debug 주석 참고. */
+export interface AiSearchDebug {
+  /**
+   * 우리 Redis 캐시에서 나온 답인가. **사용자가 알 필요 없다** — 값은 히트든 아니든
+   * 같고(같은 질문이면 같은 값이다), 왜 어떤 때는 빠른지는 우리 사정이다.
+   *
+   * 확인용으로는 중요하다: 계속 MISS 면 캐시 키가 매번 갈리고 있다는 뜻이다.
+   */
+  readonly cached: boolean;
+  /** **cached 가 true 면 이 값은 처음 물었을 때 쓴 양이다** — 이번 요청 것이 아니다. */
+  readonly usage: AiSearchUsage;
+}
+
+/**
+ * 사용량 한 장. **`available` 이 값의 유무와 다른 것을 말한다.**
+ *
+ *   available: true,  quota 있음    한도가 걸려 있고 이만큼 썼다
+ *   available: true,  quota 없음    걸린 한도가 없다(한도 0, 또는 Redis 를 안 쓰는 구성)
+ *   available: false               **모른다** — 계수기를 못 읽었다
+ *
+ * 셋을 뭉치면 한도 없이 도는 배포와 계수기가 죽은 배포가 화면에서 똑같아진다.
+ */
+export interface QuotaSnapshot {
+  readonly available: boolean;
+  readonly quota?: AiSearchQuota;
+}
+
+/** 몫의 주인. 앱 예산인지 개인 잔액인지. */
+export type QuotaOwner = 'app' | 'user';
+
+/** 깎을 통 한 벌. 신원마다 몇 벌이 걸리는지가 다르다. */
+interface QuotaTarget {
+  readonly owner: QuotaOwner;
+  readonly scope: string;
+  readonly buckets: QuotaBucket[];
+}
+
+/**
+ * 몫을 고르는 데 필요한 신원. **둘 중 하나만 채워진다** —
+ * 로그인했으면 userId, 아니면 어느 앱에서 왔나(appId).
+ */
+export interface QuotaCaller {
+  readonly userId?: number;
+  readonly appId?: number;
+}
+
 export interface AiSearchResult {
   /** 화면이 무엇을 할지. 위 AiSearchTool 주석 참고. */
   readonly tool: AiSearchTool;
@@ -167,32 +273,72 @@ export interface AiSearchResult {
    * 문제인지 알 수 있다. 비어 있는 게 정상이다.
    */
   readonly dropped: string[];
-  readonly provider: LlmProviderName;
-  readonly model: string;
-  readonly usage: AiSearchUsage;
   /**
-   * 캐시에서 나온 답이면 true. **이때 `usage` 는 이 요청이 쓴 값이 아니다** — 처음 물었을 때
-   * 쓴 값이 그대로 실려 있어서, 구분이 없으면 토큰을 합산하는 쪽이 실제보다 크게 센다.
+   * 잡힌 조건을 **사람이 읽는 이름으로** 푼 것. `params.filter` 의 코드와 같은 내용이다.
+   *
+   * **캐시에 담기지 않는다** — 언어마다 다른 값이라 담으면 한국어 답이 영어 사용자에게
+   * 그대로 나가거나, 캐시를 언어 수만큼 쪼개야 한다. 코드만 담고 나갈 때 푼다.
+   *
+   * 등급·응급실 같은 고정값은 여기 없다. 코드표가 없는 값이라 화면이 자기 문구를 쓴다.
    */
-  readonly cached: boolean;
+  readonly conditions: AiSearchCondition[];
+  readonly provider: LlmProviderName;
+  /**
+   * 실제로 답한 모델. **응답이 밝힌 이름이다** — 별칭을 보내면 업체가 구체 버전으로 풀어 준다.
+   *
+   * 공개해도 되는 이유는 **토큰 수가 안 나가기 때문**이다. 모델을 알면 단가는 알 수 있지만
+   * 곱할 수량이 없어 요금이 역산되지 않는다. 둘이 같이 나가면 그때는 계산이 된다.
+   */
+  readonly model: string;
+  /**
+   * **이 요청이 쓴 통합 토큰.** 사용자에게 보이는 유일한 사용량 숫자다.
+   *
+   * 원시 토큰 수가 아니라 환산값이다 — 출력이 입력보다 5배 비싸고 모델마다 단가가 달라서,
+   * 세는 단위를 하나로 접지 않으면 같은 숫자가 자리마다 다른 돈을 뜻하게 된다.
+   * 한도(`quota`)도 같은 단위라 두 숫자를 그대로 견줄 수 있다.
+   *
+   * **캐시에서 나온 답도 같은 값을 문다.** 같은 질문이면 언제 묻든 같은 값이어야 하고,
+   * 공짜로 주면 처음 물은 사람만 내는 구조가 된다. 우리가 앤트로픽에 안 낸 몫은
+   * 캐시를 유지한 대가다.
+   *
+   * 0 인 경우는 **아무 답도 안 준 때**뿐이다(사전 차단).
+   */
+  readonly credits: number;
+  /**
+   * 원시 토큰 내역. **설정(llm.exposeDebugUsage)이 켜진 배포에만 실린다** — 로컬·개발이다.
+   *
+   * 모델 이름과 달리 **이쪽은 곱할 수량이라** 나가면 단가와 맞물려 요금이 그대로 역산된다.
+   * 화면에서 감추는 걸로는 안 감춰지므로(응답 JSON 에 그대로 있다) 아예 안 싣는다.
+   */
+  readonly debug?: AiSearchDebug;
   /**
    * **서버가 이 요청을 처리한 시간(ms).** 브라우저가 기다린 시간이 아니다(네트워크가 빠진다).
    * 로그에 찍히는 값과 같아서, 사용자가 "느리다" 고 할 때 어느 구간인지 바로 가른다 —
    * 여기가 작은데 느리면 네트워크·렌더 쪽이다.
    */
   readonly elapsedMs: number;
+  /**
+   * 쓴 몫. **못 셌으면 비어 있다**(Redis 미설정·읽기 실패, 또는 한도 없음).
+   * 화면은 없으면 아무것도 안 그린다 — 0/0 을 그리면 다 쓴 것처럼 보인다.
+   */
+  readonly quota?: AiSearchQuota;
 }
 
 /**
- * 하루 몫을 다 썼다. **클라이언트 잘못이 아니다** — 로그인 전에는 모두가 한 통을 나눠 쓰므로,
+ * 몫을 다 썼다. **클라이언트 잘못이 아니다** — 로그인 전에는 모두가 한 통을 나눠 쓰므로,
  * 남이 다 썼어도 여기로 온다. 그래서 "잠시 뒤 다시" 가 아니라 "오늘은 안 된다" 로 안내한다.
+ *
+ * **어느 통이 찼는지를 들고 있는다**(`window`). 안내가 갈려야 하기 때문이다 — 하루치가
+ * 찼으면 내일 풀리지만, 월치가 찼으면 다음 달까지다.
  */
 export class AiSearchQuotaError extends Error {
   constructor(
-    readonly scope: string,
-    readonly limit: number,
+    /** 어느 쪽 몫이 찼는지. 앱 예산이면 사용자 잘못이 아니다. */
+    readonly owner?: QuotaOwner,
+    /** 못 읽어서 막은 경우(fail-closed)에는 비어 있다. */
+    readonly window?: QuotaWindow,
   ) {
-    super(`daily quota exhausted: ${scope} (limit ${limit})`);
+    super(`quota exhausted: ${owner ?? 'unknown'} ${window ?? 'unknown'}`);
     this.name = 'AiSearchQuotaError';
   }
 }
@@ -282,7 +428,7 @@ export class HealthcareAiSearchService {
     private readonly asmCodes: HiraAsmCodeCache,
     private readonly regions: RegionCache,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
-    private readonly quota: DailyQuotaService,
+    private readonly quota: UsageQuotaService,
     // 한도 값만 본다. 실행은 LlmService 가 하고 이쪽은 "누가 얼마나 쓸 수 있나" 만 정한다.
     @Inject(LLM_CONFIG) private readonly llmConfig: LlmConfig,
     private readonly usage: LlmUsageService,
@@ -395,6 +541,128 @@ export class HealthcareAiSearchService {
   }
 
   /**
+   * 지금 사용량. **아무것도 깎지 않는다.**
+   *
+   * 화면이 채팅창을 열 때 한 번 부른다 — 첫 질문을 하기 전에도 얼마나 남았는지는 보여야
+   * 하는데, 답변에 실려 오는 값은 물어봐야 생긴다.
+   *
+   * **주기적으로 부르라고 만든 것이 아니다.** 값이 바뀌는 계기는 이 사람이 질문하는
+   * 순간뿐이고 그때는 답변이 새 값을 싣고 온다. 폴링하면 아무것도 안 바뀐 값을 계속
+   * 받으면서 Redis 만 친다.
+   *
+   * 못 셌으면 undefined 다(Redis 미설정·읽기 실패, 한도 없음). **여기서는 막지 않는다** —
+   * 표시용이라 없으면 안 보여주면 그만이고, 실제 차단은 질문할 때 fail-closed 로 걸린다.
+   */
+  async getQuota(caller: QuotaCaller): Promise<QuotaSnapshot> {
+    return this.readQuota(this.quotaTargets(caller));
+  }
+
+  /**
+   * 누구 몫에서 깎을지. **신원이 통을 고른다** — 부르는 쪽이 고르지 않는다.
+   *
+   * **여기서 나오는 것은 "보여줄 통" 전부다.** 실제로 깎는 것은 그중 일부다(chargeTargets).
+   */
+  private quotaTargets(caller: QuotaCaller): QuotaTarget[] {
+    const targets: QuotaTarget[] = [
+      {
+        owner: 'app',
+        // 같은 앱이면 브라우저든 서버 키든 한 통이다 — 정산 주체가 앱이라
+        // 부르는 경로가 달라도 몫은 하나다.
+        scope: `ai-search:app:${caller.appId ?? 'unknown'}`,
+        buckets: [
+          { window: 'day', limit: this.llmConfig.appDailyTokens },
+          { window: 'month', limit: this.llmConfig.appMonthlyTokens },
+        ],
+      },
+    ];
+    if (caller.userId) {
+      targets.push({
+        owner: 'user',
+        scope: `ai-search:user:${caller.userId}`,
+        buckets: [{ window: 'balance', limit: this.llmConfig.userTokens }],
+      });
+    }
+    return targets;
+  }
+
+  /**
+   * 모든 통을 읽어 응답 모양으로 묶는다. 깎지 않는다.
+   *
+   * **하나라도 못 읽으면 `available: false` 다.** 값이 없는 것과 모르는 것은 다르다 —
+   * 한도 없이 도는 배포(로컬)와 계수기가 죽은 배포를 같게 다루면, 화면이 어느 쪽인지
+   * 모른 채 "한도 없음" 으로 그린다.
+   */
+  private async readQuota(targets: QuotaTarget[]): Promise<QuotaSnapshot> {
+    const read = await Promise.all(
+      targets.map(async (target) => ({
+        owner: target.owner,
+        states: await this.quota.peek(target.scope, target.buckets),
+      })),
+    );
+    if (read.some((r) => r.states === undefined)) {
+      return { available: false };
+    }
+    return {
+      available: true,
+      quota: toQuota(read as { owner: QuotaOwner; states: QuotaState[] }[]),
+    };
+  }
+
+  /**
+   * 실제로 깎을 통. **신원의 것 하나만 깎는다** — 로그인했으면 개인 잔액, 아니면 앱 예산.
+   *
+   * 로그인한 사람도 앱 예산을 같이 깎아야 하지 않나 싶지만(우리가 업체에 내는 돈은
+   * 그대로다) 그러면 **돈 낸 사람이 무료 사용자들 때문에 막힌다.** 어느 쪽이 맞는지는
+   * 요금제가 정해져야 답이 나오는 문제라, 로그인이 붙을 때 같이 정한다.
+   *
+   * 지금은 로그인이 없어 늘 앱 하나다.
+   */
+  private chargeTargets(targets: QuotaTarget[]): QuotaTarget[] {
+    const owned = targets.find((t) => t.owner === 'user');
+    return owned ? [owned] : targets;
+  }
+
+  /**
+   * 깎을 통에 자리가 있는지 본다. **하나라도 차 있으면 막는다.**
+   * 어느 통이 막았는지를 돌려준다 — 안내 문구가 갈려야 한다.
+   */
+  private async reserveQuota(
+    targets: QuotaTarget[],
+  ): Promise<{ allowed: boolean; owner?: QuotaOwner; window?: QuotaWindow }> {
+    for (const target of this.chargeTargets(targets)) {
+      const room = await this.quota.reserve(target.scope, target.buckets);
+      if (!room.allowed) {
+        return { allowed: false, owner: target.owner, window: room.blocked };
+      }
+    }
+    return { allowed: true };
+  }
+
+  /**
+   * 쓴 만큼 더하고 결과를 응답 모양으로 묶는다.
+   *
+   * **깎는 통과 보여주는 통이 다르다.** 깎는 것은 신원의 것 하나뿐이지만, 화면에는
+   * 걸려 있는 통을 다 보여줘야 한다 — 안 깎는 쪽도 "얼마나 남았나" 는 알아야 한다.
+   */
+  private async chargeQuota(
+    targets: QuotaTarget[],
+    amount: number,
+  ): Promise<AiSearchQuota | undefined> {
+    const charged = new Set(this.chargeTargets(targets));
+    const states = await Promise.all(
+      targets.map(async (target) => ({
+        owner: target.owner,
+        // 안 깎는 쪽은 읽기만 한다. 못 읽었으면 그 통은 빼고 보낸다 —
+        // 여기까지 온 요청은 이미 답이 나갔으므로, 표시가 하나 빈다고 막을 일이 아니다.
+        states: charged.has(target)
+          ? await this.quota.add(target.scope, amount, target.buckets)
+          : ((await this.quota.peek(target.scope, target.buckets)) ?? []),
+      })),
+    );
+    return toQuota(states);
+  }
+
+  /**
    * `placeText` → 시군구 코드(없으면 시도 코드). 검색의 `region` 파라미터가 된다.
    *
    * **지오코딩이 아니라 이름 매칭이다.** "하남에서 찾아줘" 가 원하는 것은 하남시 안의
@@ -446,10 +714,28 @@ export class HealthcareAiSearchService {
       /** 어느 앱에서 왔나. **하루 몫도 사용 기록도 이 값으로 묶인다.** */
       appId?: number;
       requestId?: string;
+      /** 조건 이름을 어느 언어로 풀지. 없으면 기본 언어. */
+      lang?: SupportedLang;
     } = {},
   ): Promise<AiSearchResult> {
     // 맨 처음에 잡는다 — 즉답으로 끝나는 경로(preReject)도 걸린 시간을 남겨야 한다.
     const startedAt = Date.now();
+    const lang = caller.lang ?? FALLBACK_LANG;
+
+    /*
+      **누구 몫인지 먼저 정한다.** 아래 세 갈래가 전부 이 값을 쓴다 —
+      사전 차단만 깎지 않고 읽기만 하고(peek), 캐시 히트도 실제 호출도 받아 간다.
+
+      통 개수가 갈리는 이유:
+        app   우리 예산이다. 월 한도가 진짜 예산이고, 일 한도는 그게 첫날에 다 타 버리지
+              않게 하는 둑이라 **둘을 겹쳐 건다.** 먼저 차는 쪽이 막는다.
+        user  사용자가 충전해 자기 것을 쓰는 자리다. 언제 얼마나 쓸지는 그 사람이 정할
+              일이라 **나눌 이유가 없다** — 잔액 하나뿐이고 리셋도 없다.
+    */
+    const targets = this.quotaTargets(caller);
+    /** 아무 답도 안 준 경로(사전 차단)에서 현재 사용량만 읽어 붙인다. */
+    /** 아무 답도 안 준 경로(사전 차단)에서 현재 사용량만 읽어 붙인다. */
+    const peekQuota = async () => (await this.readQuota(targets)).quota;
 
     /*
       **들어온 문자열은 여기서 한 번만 다듬는다.** 아래로는 이 값만 흐르므로 발송·해시·
@@ -476,7 +762,7 @@ export class HealthcareAiSearchService {
       this.logger.log(
         `${tag(caller.requestId)}${PROMPT_NAME} pre-rejected (${Date.now() - startedAt}ms)`,
       );
-      return {
+      return this.publish(lang, {
         tool: 'reject',
         // explain 은 비워 둔다 — 화면이 자기 문구를 쓴다(백엔드가 한국어를 쓰지 않는다).
         params: { filter: emptyFilter(), reason: 'too_vague' },
@@ -484,11 +770,14 @@ export class HealthcareAiSearchService {
         explain: '',
         dropped: [],
         provider: this.llmConfig.defaultProvider,
+        // 부른 적이 없으니 답한 모델도 없다.
         model: '',
-        usage: { inputTokens: 0, outputTokens: 0 },
-        cached: false,
+        // 외부 호출이 없었다. 쓴 것도 없다.
+        credits: 0,
         elapsedMs: Date.now() - startedAt,
-      };
+        quota: await peekQuota(),
+        debug: { cached: false, usage: { inputTokens: 0, outputTokens: 0 } },
+      });
     }
 
     const prompt = this.prompts.get(PROMPT_NAME);
@@ -539,7 +828,28 @@ export class HealthcareAiSearchService {
         cached: true,
         elapsedMs,
       });
-      return { ...cached, elapsedMs };
+      /*
+        **캐시 히트도 똑같이 받는다.** 담긴 credits 를 그대로 물린다.
+
+        공짜로 주면 **처음 물은 사람만 내고 뒤에 온 사람은 안 내는** 구조가 된다 —
+        첫 질문자가 나머지를 보조하는 꼴이라 불공평하고, 같은 질문이 언제 묻느냐에 따라
+        값이 달라져 설명도 안 된다. 같은 질문이면 같은 값인 편이 낫다.
+
+        앤트로픽에 낼 돈이 없다고 우리가 쓴 것이 없는 것은 아니다 — Redis·서버·대역폭은
+        그대로 들어간다. 안 나간 만큼은 캐시를 유지한 대가로 우리가 갖는다.
+
+        **모자라면 여기서도 막는다.** 값을 물리기로 한 이상 한도 밖이면 못 준다 —
+        안 그러면 한도를 다 쓴 뒤에도 캐시에 있는 답은 계속 나간다.
+      */
+      const room = await this.reserveQuota(targets);
+      if (!room.allowed) {
+        throw new AiSearchQuotaError(room.owner, room.window);
+      }
+      return this.publish(lang, {
+        ...cached,
+        elapsedMs,
+        quota: await this.chargeQuota(targets, cached.credits),
+      });
     }
 
     // 1) 뼈대를 받는다. 업체 선택·모델 인스턴스·캐시 옵션·시스템 메시지가 채워져 온다.
@@ -563,35 +873,27 @@ export class HealthcareAiSearchService {
     call.output = jsonOutput(prompt.schema);
 
     /*
-      **여기서 센다 — 발송 직전이다.**
+      **여기서는 자리가 남았는지만 본다 — 깎지는 않는다.**
 
-      앞뒤로 한 칸씩 밀면 둘 다 틀린다:
-        너무 앞(prepare 전)  키가 없어 prepare 가 터져도 카운터가 깎인다. 설정이 틀린 배포가
-                             하루치를 태우고 나면 "설정 안 됨" 이 "오늘은 안 됨" 으로 바뀌어
-                             진짜 원인을 가린다 — 나간 게 없는데 센 것이다.
-        너무 뒤(chat 후)     실패한 호출이 안 세어진다. 그런데 실패해도 요금은 나갔을 수 있고,
-                             무엇보다 실패가 공짜 재시도가 되어 상한이 뚫린다.
+      세는 단위가 토큰이라 호출 전에는 얼마나 쓸지 모른다. 그래서 두 번에 나눈다:
+      발송 직전에 "남았나" 를 묻고, 응답이 온 뒤에 실제로 쓴 만큼 더한다.
 
-      **캐시 히트도 세지 않는다**(위에서 이미 반환했다). 외부 호출이 없으니 요금이 0 이고,
-      깎으면 "같은 질문을 반복하면 한도가 준다" 는 이상한 규칙이 된다.
+      그래서 **마지막 한 번은 한도를 넘길 수 있다.** 남은 양이 100 인데 8천짜리 호출이
+      들어가면 그대로 나간다. 상한은 요금이 무한정 새는 걸 막는 안전망이지 정확한
+      계량기가 아니라 그 정도는 받아들인다 — 정확히 맞추려면 최대치를 미리 잡아 뒀다가
+      실제값으로 되돌려야 하는데, 그러면 상한 근처에서 멀쩡한 요청이 자꾸 거절된다.
 
-      prepare 는 로컬 계산뿐이라(모델 인스턴스 생성) 그 뒤가 곧 발송 직전이다.
+      확인이 앞뒤로 밀리면 둘 다 틀린다:
+        너무 앞(prepare 전)  설정이 틀려 prepare 가 터지는 배포에서도 "오늘은 안 됨" 으로
+                             보이기 시작한다 — 나간 게 없는데 막힌 것이다.
+        너무 뒤(chat 후)     이미 나간 호출을 두고 묻는 꼴이라 막을 것이 없다.
+
+      **캐시 히트는 위에서 이미 받아 갔다.** 거기는 쓸 양을 알고 있어서(담긴 credits)
+      확인과 차감을 한 번에 한다 — 여기처럼 두 박자로 나눌 이유가 없다.
     */
-    const { scope, limit } = caller.userId
-      ? {
-          scope: `ai-search:user:${caller.userId}`,
-          limit: this.llmConfig.userDailyLimit,
-        }
-      : {
-          // 로그인 전이면 **어느 앱에서 왔나**로 센다. 같은 앱이면 브라우저든 서버 키든
-          // 한 통이다 — 정산 주체가 앱이라 부르는 경로가 달라도 몫은 하나다.
-          // 인증이 필수라 여기까지 왔다면 값이 있다. 없으면 한 통(unknown)으로 묶는다.
-          scope: `ai-search:app:${caller.appId ?? 'unknown'}`,
-          limit: this.llmConfig.appDailyLimit,
-        };
-
-    if (!(await this.quota.take(scope, limit))) {
-      throw new AiSearchQuotaError(scope, limit);
+    const room = await this.reserveQuota(targets);
+    if (!room.allowed) {
+      throw new AiSearchQuotaError(room.owner, room.window);
     }
 
     // 3) 발송. 상한값을 안 채웠으므로 설정값(llm.maxTokens·llm.timeoutSec)이 적용된다.
@@ -609,6 +911,15 @@ export class HealthcareAiSearchService {
       cacheReadTokens: response.usage.inputTokenDetails?.cacheReadTokens,
       cacheWriteTokens: response.usage.inputTokenDetails?.cacheWriteTokens,
     };
+
+    /*
+      **쓴 만큼 더한다.** 캐시로 읽힌 토큰도 그대로 센다 — 사용자가 보는 숫자는 우리
+      원가가 아니라 "이 질문이 얼마나 큰 일이었나" 여야 하고, 캐시가 먹었는지 아닌지는
+      우리 쪽 사정이라 같은 질문이 날마다 다른 값으로 세어지면 설명할 수가 없다.
+      (원가 분석은 llm_usage 에 항목별로 다 남으니 그쪽에서 한다.)
+    */
+    const credits = creditsOf(usage);
+    const quota = await this.chargeQuota(targets, credits);
 
     // 사용량·지연을 남긴다. **LlmService 가 아니라 여기서 남기는 이유**는 어느 프롬프트로
     // 무엇을 물었는지가 여기에만 있어서다 — 대행자의 로그는 "누가 왜" 를 못 적는다.
@@ -715,7 +1026,7 @@ export class HealthcareAiSearchService {
       warnings,
     });
 
-    const result: AiSearchResult = {
+    const result: Omit<AiSearchResult, 'conditions'> = {
       tool,
       params,
       warnings,
@@ -723,9 +1034,10 @@ export class HealthcareAiSearchService {
       dropped,
       provider,
       model,
-      usage,
-      cached: false,
+      credits,
       elapsedMs: Date.now() - startedAt,
+      quota,
+      debug: { cached: false, usage },
     };
 
     /*
@@ -736,24 +1048,97 @@ export class HealthcareAiSearchService {
     if (dropped.length === 0) {
       await this.trySet(key, result);
     }
-    return result;
+    /*
+      **캐시에는 원시값째 담고, 내보낼 때만 뺀다.** 서버 안쪽에서는 그 값이 계속 쓰인다 —
+      캐시 히트도 `llm_usage` 에 "어느 모델의 답이 재사용됐나" 를 남겨야 하는데, 담을 때
+      빼 버리면 그 기록에서 모델이 사라진다. 나가면 안 되는 것은 응답이지 캐시가 아니다.
+    */
+    return this.publish(lang, result);
+  }
+
+  /**
+   * 응답으로 내보낼 형태.
+   *
+   * 두 가지를 여기서 한다 — **조건 이름을 붙이고**(언어마다 다르므로 캐시가 아니라 여기서),
+   * 설정이 꺼져 있으면 **원시 토큰 내역을 뗀다**(모델 이름은 남긴다).
+   */
+  private publish(
+    lang: SupportedLang,
+    result: Omit<AiSearchResult, 'conditions'>,
+  ): AiSearchResult {
+    const withNames: AiSearchResult = {
+      ...result,
+      conditions: this.conditionsOf(result.params.filter, lang),
+    };
+    if (this.llmConfig.exposeDebugUsage) {
+      return withNames;
+    }
+    // 키를 통째로 없앤다 — undefined 로 두면 직렬화에서 빠지긴 하지만, 남겨 둘 이유가 없다.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { debug, ...rest } = withNames;
+    return rest;
+  }
+
+  /**
+   * 코드 → 이름. **모르는 코드는 조용히 뺀다** — 검증(pickCodes)을 통과한 코드만 들어오므로
+   * 여기서 못 찾는다면 코드표가 그새 바뀐 것이고, 그 한 줄 때문에 답 전체를 버릴 이유는 없다.
+   * 비는 묶음도 뺀다(화면이 "진료과:" 만 그리는 일이 없게).
+   */
+  private conditionsOf(
+    filter: AiSearchFilter,
+    lang: SupportedLang,
+  ): AiSearchCondition[] {
+    const byCode = (tp: string, cds: string[]): string[] =>
+      cds.map((cd) => this.codes.name(tp, cd, lang)).filter(isNonEmpty);
+
+    const groups: AiSearchCondition[] = [
+      { group: 'subject', names: byCode('subject', filter.subjectCds) },
+      // 전문의도 진료과 코드표를 쓴다(같은 표, 다른 뜻 — "그 과 전문의가 있나").
+      { group: 'specialist', names: byCode('subject', filter.specialistCds) },
+      {
+        group: 'assessment',
+        names: filter.asmItemCds
+          .map((cd) => this.asmCodes.get(cd))
+          .filter(isDefined)
+          .map((item) => pickName(item.name, lang)),
+      },
+      { group: 'specialty', names: byCode('specialty', filter.specialtyCds) },
+      { group: 'equipment', names: byCode('equipment', filter.equipmentCds) },
+      { group: 'class', names: byCode('class', filter.classCds) },
+    ];
+    return groups.filter((g) => g.names.length > 0);
   }
 
   /** 캐시 조회(best-effort). Redis 가 죽어도 AI 호출로 살아난다. */
-  private async tryGet(key: string): Promise<AiSearchResult | undefined> {
+  private async tryGet(
+    key: string,
+  ): Promise<Omit<AiSearchResult, 'conditions'> | undefined> {
     try {
-      const hit = await this.cache.get<AiSearchResult>(key);
-      // 캐시에서 온 것임을 표시해 둔다 — usage 는 이 요청이 쓴 값이 아니라 처음 물었을 때
-      // 쓴 값이라, 구분이 없으면 토큰을 합산하는 쪽이 실제보다 크게 센다.
-      // elapsedMs 는 부르는 쪽이 이번 요청 기준으로 다시 채운다(담긴 값은 처음 것이다).
-      return hit ? { ...hit, cached: true } : undefined;
+      const hit = await this.cache.get<Omit<AiSearchResult, 'conditions'>>(key);
+      /*
+        캐시에서 온 것임을 표시해 둔다 — `debug.usage` 는 이 요청이 쓴 값이 아니라 처음
+        물었을 때 쓴 값이라, 구분이 없으면 원시 토큰을 합산하는 쪽이 실제보다 크게 센다.
+        credits·elapsedMs 는 부르는 쪽이 이번 요청 기준으로 다시 채운다.
+
+        debug 가 없는 항목은 이 필드가 생기기 전에 담긴 것이다. 하루면 다 빠지므로
+        표시만 못 할 뿐 답 자체는 그대로 쓴다.
+      */
+      if (!hit) {
+        return undefined;
+      }
+      return hit.debug
+        ? { ...hit, debug: { ...hit.debug, cached: true } }
+        : hit;
     } catch {
       return undefined;
     }
   }
 
   /** 캐시 저장(best-effort). 실패해도 응답은 이미 만들어졌다. */
-  private async trySet(key: string, value: AiSearchResult): Promise<void> {
+  private async trySet(
+    key: string,
+    value: Omit<AiSearchResult, 'conditions'>,
+  ): Promise<void> {
     try {
       await this.cache.set(key, value, ANSWER_CACHE_TTL_MS);
     } catch {
@@ -1023,4 +1408,65 @@ function forLog(question: string): string {
     .replace(CONTROL_CHARS, ' ')
     .replace(/\s+/g, ' ')
     .slice(0, 200);
+}
+
+/**
+ * 출력 토큰 가중치. **Anthropic 은 어느 모델이든 출력이 입력의 5배다** — Haiku($1/$5),
+ * Sonnet($3/$15), Opus 가 모두 같은 비율이라 모델과 무관하게 하나로 둔다.
+ */
+const OUTPUT_WEIGHT = 5;
+
+/**
+ * 원시 사용량을 **사용자에게 청구할 통합 토큰**으로 접는다.
+ *
+ * **캐시 적중을 값에 반영하지 않는다.** 캐시가 살아 있으면 우리 원가는 1/10 이지만,
+ * 그건 우리 인프라 사정이다 — 같은 질문이 캐시 상태에 따라 7배씩 다르게 깎이면
+ * 사용자에게 설명할 수가 없다. 아낀 만큼은 우리 마진으로 둔다.
+ *
+ * 반대로 **모델 단가는 반영해야 한다**(아직 하나뿐이라 배수가 없다). 단가표가 붙으면
+ * 여기에 모델 배수가 곱해진다 — 그 표는 별도 작업이라 지금은 기준 모델 1 로 둔다.
+ */
+function creditsOf(usage: AiSearchUsage): number {
+  return Math.round(usage.inputTokens + usage.outputTokens * OUTPUT_WEIGHT);
+}
+
+/** 값이 있고 빈 문자열이 아닌가. 코드표에서 못 찾은 이름을 걸러 내는 데 쓴다. */
+function isNonEmpty(value: string | undefined): value is string {
+  return !!value;
+}
+
+function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
+
+/**
+ * 계수기가 준 통 상태를 **이름 있는 필드로** 옮긴다. 계수기 안쪽은 통을 배열로 다루는
+ * 편이 낫지만(개수가 신원마다 다르다) 밖으로 나가는 계약은 이름이 있어야 한다.
+ *
+ * 하나도 못 읽었으면 undefined 다 — 화면이 아무것도 안 그리게 한다
+ * (0/0 은 다 쓴 것처럼 보인다).
+ */
+function toQuota(
+  read: { owner: QuotaOwner; states: QuotaState[] }[],
+): AiSearchQuota | undefined {
+  const at = (
+    states: QuotaState[],
+    window: QuotaWindow,
+  ): AiSearchQuotaWindow | undefined => {
+    const state = states.find((s) => s.window === window);
+    return state ? { used: state.used, limit: state.limit } : undefined;
+  };
+
+  const quota: { app?: AiSearchAppQuota; user?: AiSearchUserQuota } = {};
+  for (const { owner, states } of read) {
+    if (states.length === 0) {
+      continue;
+    }
+    if (owner === 'app') {
+      quota.app = { daily: at(states, 'day'), monthly: at(states, 'month') };
+    } else {
+      quota.user = { balance: at(states, 'balance') };
+    }
+  }
+  return quota.app || quota.user ? quota : undefined;
 }

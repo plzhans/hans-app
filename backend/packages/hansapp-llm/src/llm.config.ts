@@ -57,7 +57,15 @@ export interface LlmConfig {
   /** 응답 최대 토큰. 넘치면 잘린 JSON 이 와서 호출이 실패한다. */
   readonly maxTokens: number;
   /**
-   * **앱 하나가 하루에 쓸 수 있는 호출 수.** 0 이하면 제한 없음.
+   * **앱 하나가 하루에 쓸 수 있는 토큰 수**(입력+출력). 0 이하면 제한 없음.
+   *
+   * **호출 수가 아니라 토큰인 이유**는 호출 하나의 크기가 제각각이어서다. 짧은 질문과
+   * 긴 대화가 같은 1 회로 세어지면 상한이 요금과 안 맞고, 나중에 "충전한 만큼 쓴다" 로
+   * 갈 때 단위를 갈아엎어야 한다. 요금이 붙는 단위로 처음부터 세는 편이 낫다.
+   *
+   * **월 한도와 같이 건다.** 진짜 예산은 월이고(appMonthlyTokens) 이 값은 그것이 하루
+   * 만에 타 버리지 않게 막는 둑이다 — 월만 걸면 첫날에 바닥나고, 일만 걸면 매일 꽉
+   * 채워 쓸 때 월 예산을 넘긴다. 둘 중 먼저 차는 쪽이 막는다.
    *
    * IP 당 rate limit 이 못 막는 것을 막는다 — 그쪽은 한 명이 얼마나 빨리 부르는지를 묶을
    * 뿐이라 IP 를 돌리면 총액이 그대로 늘어난다. 브라우저는 CORS 로 막혀도 curl 은 안 막힌다.
@@ -66,17 +74,31 @@ export interface LlmConfig {
    * 우리 웹앱은 돈다. 같은 앱 안에서는 브라우저든 서버 키든 한 통을 쓴다(정산 주체가 앱이다).
    *
    * 로그인 전 사용자는 같은 앱을 쓰므로 한 통을 나눠 쓰게 된다 — 로그인이 붙으면
-   * 그 사람 몫(userDailyLimit)으로 옮겨 간다.
+   * 그 사람 몫(userDailyTokens)으로 옮겨 간다.
    *
    * **이 값을 LlmService 가 보지 않는다.** 대행자는 실행만 하고, 누가 얼마나 쓸 수 있는지는
    * 부르는 계층이 정한다 — 같은 LLM 을 다른 기능이 쓰기 시작하면 몫도 기능마다 다르다.
    */
-  readonly appDailyLimit: number;
+  readonly appDailyTokens: number;
   /**
-   * 사람 한 명의 하루 호출 수. **로그인이 붙어야 의미가 있다** — 그전까지는 식별할 주체가
-   * 없어 appDailyLimit 만 걸린다. 0 이하면 제한 없음.
+   * **앱 하나가 한 달에 쓸 수 있는 토큰 수.** 0 이하면 제한 없음.
+   *
+   * 우리가 실제로 감당하기로 한 예산이 이쪽이다 — 하루 한도는 이걸 고르게 쓰게 만드는
+   * 장치일 뿐이다. 달(KST)이 바뀌면 저절로 리셋된다.
    */
-  readonly userDailyLimit: number;
+  readonly appMonthlyTokens: number;
+  /**
+   * 사람 한 명이 쓸 수 있는 토큰 수. **로그인이 붙어야 의미가 있다** — 그전까지는 식별할
+   * 주체가 없어 앱 몫만 걸린다. 0 이하면 제한 없음.
+   *
+   * **여기는 월·일을 안 나눈다.** 앱 몫은 우리 예산이라 고르게 쓰이도록 나눠 잠가야 하지만,
+   * 이건 사용자가 충전해서 자기 것을 쓰는 자리다 — 언제 얼마나 쓸지는 그 사람이 정한다.
+   * 그래서 리셋도 없다(`balance` 창).
+   *
+   * 설정값인 것은 **로그인·결제가 붙기 전까지의 임시**다. 붙으면 사람마다 다른 값이라
+   * DB 에서 온다.
+   */
+  readonly userTokens: number;
   /**
    * 질문 끝의 `/test` 를 **답변 모드 전환으로 받아들일지.** 기본은 꺼짐이다.
    *
@@ -86,6 +108,17 @@ export interface LlmConfig {
    * 로그인·토큰 잔액이 생기면 이 스위치는 사라지고, 그 자리를 사용자 잔액이 대신한다.
    */
   readonly allowTestCommand: boolean;
+  /**
+   * 응답에 **원시 사용량(모델 이름·토큰 내역)을 실을지.** 기본은 꺼짐이다.
+   *
+   * 사용자에게 파는 단위는 환산된 크레딧 하나뿐이고, 어느 모델로 몇 토큰을 썼는지는
+   * 우리 원가 구조다 — 드러나면 요금을 역산할 수 있고, 모델을 바꾸는 것만으로
+   * "왜 비싸졌냐" 가 된다.
+   *
+   * **화면에서 감추는 것으로는 안 감춰진다**(응답 JSON 에 그대로 있다). 그래서 여기서
+   * 아예 안 싣는다. 켜는 곳은 로컬·개발뿐이다.
+   */
+  readonly exposeDebugUsage: boolean;
   /*
     사고 깊이(effort)는 여기 없다. **작업의 성질이지 환경의 성질이 아니라서다** —
     dev 는 얕게, prod 는 깊게 생각할 이유가 없고 그러면 dev 테스트가 prod 를 대변하지도
@@ -125,11 +158,17 @@ export function buildLlmConfig(cfg: ConfigSource): LlmConfig {
       'anthropic') as LlmProviderName,
     timeoutSec: cfg.getNumberOrDefault('llm.timeoutSec', 30),
     maxTokens: cfg.getNumberOrDefault('llm.maxTokens', 2048),
-    appDailyLimit: cfg.getNumberOrDefault('llm.appDailyLimit', 2000),
-    // 로그인이 없으니 기본은 꺼 둔다. 붙으면 설정으로 켠다.
-    userDailyLimit: cfg.getNumberOrDefault('llm.userDailyLimit', 0),
+    // 한 번 물으면 1만 토큰 안팎이다 — 하루 200 번, 한 달 2,000 번쯤 되는 상한이다.
+    appDailyTokens: cfg.getNumberOrDefault('llm.appDailyTokens', 2_000_000),
+    appMonthlyTokens: cfg.getNumberOrDefault(
+      'llm.appMonthlyTokens',
+      20_000_000,
+    ),
+    // 로그인이 없으니 기본은 꺼 둔다. 붙으면 DB 에서 온다.
+    userTokens: cfg.getNumberOrDefault('llm.userTokens', 0),
     // **기본은 꺼짐이다.** 설정을 빠뜨린 환경에서 켜져 있는 것이 최악이다.
     allowTestCommand: cfg.getBoolOrDefault('llm.allowTestCommand', false),
+    exposeDebugUsage: cfg.getBoolOrDefault('llm.exposeDebugUsage', false),
     promptDir:
       cfg.getStringOrDefault('llm.promptDir') || 'data/healthcare/svc-prompts',
     anthropic: endpoint('anthropic', 'https://api.anthropic.com'),

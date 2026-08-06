@@ -32,6 +32,8 @@ import {
 
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
+import type { SupportedLang } from '@hansapp/common';
+import { Lang } from '../common/lang.decorator';
 import { AiSearchRequestDto, AiSearchResponseDto } from './dto/ai-search.dto';
 
 /**
@@ -73,6 +75,7 @@ export class HealthcareAiSearchController {
   async search(
     @Body() request: AiSearchRequestDto,
     @Req() req: Request,
+    @Lang() lang: SupportedLang,
   ): Promise<AiSearchResponseDto> {
     try {
       /*
@@ -100,6 +103,8 @@ export class HealthcareAiSearchController {
         userId,
         appId,
         requestId,
+        // 조건 이름을 사용자 언어로 풀어 오게 한다(코드는 언어가 없다).
+        lang,
       });
       return new AiSearchResponseDto(result);
     } catch (cause) {
@@ -116,14 +121,18 @@ export class HealthcareAiSearchController {
    */
   private toHttpException(cause: unknown): HttpException {
     /*
-      **하루 몫 소진.** 클라이언트 잘못이 아니라 429(너무 자주 불렀다)가 아니고, 잠시 뒤
-      다시 해도 안 되니 504 도 아니다. 오늘이 지나야 풀리는 상태라 503 이 맞다.
+      **몫 소진.** 클라이언트 잘못이 아니라 429(너무 자주 불렀다)가 아니고, 잠시 뒤 다시
+      해도 안 되니 504 도 아니다. 창이 바뀌어야 풀리는 상태라 503 이 맞다.
       로그인 전에는 남이 다 썼어도 여기로 오므로, 메시지도 "네가 많이 썼다" 로 쓰지 않는다.
+
+      **어느 쪽 몫이 찼는지에 따라 말이 다르다** — 앱 하루치는 내일 풀리지만 월치는 다음
+      달까지고, 개인 잔액은 시간이 지나도 안 풀린다(충전해야 한다).
     */
     if (cause instanceof AiSearchQuotaError) {
       this.logger.error(cause.message);
       return new ServiceUnavailableException(
-        'AI search is unavailable for today',
+        QUOTA_MESSAGE[`${cause.owner ?? ''}:${cause.window ?? ''}`] ??
+          QUOTA_MESSAGE[''],
       );
     }
     if (!(cause instanceof LlmError)) {
@@ -162,3 +171,17 @@ export class HealthcareAiSearchController {
     return new ServiceUnavailableException('AI provider request failed');
   }
 }
+
+/**
+ * 몫이 찼을 때의 안내. **언제 다시 되는지가 창마다 다르다.**
+ * 빈 키는 계수기를 못 읽어 막은 경우(fail-closed)다 — 우리 쪽 문제라 기간을 말하지 않는다.
+ */
+const QUOTA_MESSAGE: Record<string, string> = {
+  // 앱 예산. **사용자 잘못이 아니다** — 남이 다 썼어도 여기로 온다.
+  'app:day': 'AI search is unavailable for today',
+  'app:month': 'AI search is unavailable for this month',
+  // 개인 잔액. 시간이 지나도 안 풀린다(충전해야 한다).
+  'user:balance': 'Not enough tokens remaining',
+  // 계수기를 못 읽어 막은 경우(fail-closed). 우리 쪽 문제라 기간을 말하지 않는다.
+  '': 'AI search is not available',
+};

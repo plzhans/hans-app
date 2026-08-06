@@ -1,9 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsString, MaxLength, MinLength } from 'class-validator';
+import { QuotaDto } from '../../ai/dto/quota.dto';
 import type {
   AiSearchFilter,
   AiSearchParams,
+  AiSearchCondition,
+  AiSearchConditionGroup,
+  AiSearchDebug,
   AiSearchResult,
   AiSearchWarning,
   AiSearchTool,
@@ -98,6 +102,44 @@ class AiSearchUsageDto implements AiSearchUsage {
   readonly cacheWriteTokens?: number;
 }
 
+/** 잡힌 조건 한 묶음. **코드가 아니라 이름이다.** */
+class AiSearchConditionDto implements AiSearchCondition {
+  @ApiProperty({
+    enum: [
+      'subject',
+      'specialist',
+      'assessment',
+      'specialty',
+      'equipment',
+      'class',
+    ],
+    description:
+      '묶음 이름. 화면이 이 값으로 "진료과"/"장비" 같은 앞말을 고른다.',
+  })
+  readonly group!: AiSearchConditionGroup;
+
+  @ApiProperty({
+    type: [String],
+    description: '사람이 읽는 이름들. **요청 언어**(Accept-Language)로 온다.',
+    example: ['내과', '가정의학과'],
+  })
+  readonly names!: string[];
+}
+
+/** 확인용 원시값. **사용자에게 보일 것이 아니다.** */
+class AiSearchDebugDto implements AiSearchDebug {
+  @ApiProperty({
+    description:
+      '우리 Redis 캐시에서 나온 답인가. 계속 false 면 캐시 키가 매번 갈리고 있다는 뜻이다. ' +
+      '**true 면 아래 `usage` 는 처음 물었을 때 쓴 양이다**(이 요청은 LLM 을 안 불렀다). ' +
+      '`credits` 는 히트든 아니든 같다 — 값은 우리 원가가 아니라 질문 하나의 값이다.',
+  })
+  readonly cached!: boolean;
+
+  @ApiProperty({ type: AiSearchUsageDto })
+  readonly usage!: AiSearchUsageDto;
+}
+
 class AiSearchParamsDto implements AiSearchParams {
   @ApiProperty({ type: AiSearchFilterDto })
   readonly filter!: AiSearchFilterDto;
@@ -181,18 +223,37 @@ export class AiSearchResponseDto {
   })
   readonly dropped!: string[];
 
+  @ApiProperty({
+    type: [AiSearchConditionDto],
+    description:
+      '잡힌 조건을 **사람이 읽는 이름으로** 푼 것. `params.filter` 의 코드와 같은 내용이다. ' +
+      '화면이 코드표를 또 부르지 않게 서버가 붙인다. ' +
+      '등급·응급실 같은 고정값은 여기 없다 — 코드표가 없는 값이라 화면이 자기 문구를 쓴다.',
+  })
+  readonly conditions!: AiSearchConditionDto[];
+
   @ApiProperty({ enum: PROVIDERS })
   readonly provider!: LlmProviderName;
 
-  @ApiProperty({ description: '실제로 답한 모델' })
+  @ApiProperty({
+    description:
+      '실제로 답한 모델. **요청에 실은 이름이 아니다** — 별칭을 보내면 ' +
+      '업체가 구체 버전으로 풀어 준다. 모델만으로는 요금이 역산되지 않는다 ' +
+      '(곱할 수량인 토큰 수가 `debug` 에 있고 운영에서는 안 나간다).',
+  })
   readonly model!: string;
 
   @ApiProperty({
     description:
-      '캐시된 답이면 true. 이때 `usage` 는 **처음 물었을 때** 쓴 토큰이라 ' +
-      '이 요청의 비용이 아니다(이 요청은 LLM 을 부르지 않았다).',
+      '이 요청이 쓴 **통합 토큰**. 사용자에게 보이는 유일한 사용량 숫자다. ' +
+      '원시 토큰 수가 아니라 환산값이다 — 출력이 입력보다 비싸고 모델마다 단가가 달라서, ' +
+      '단위를 하나로 접지 않으면 같은 숫자가 자리마다 다른 돈을 뜻한다. ' +
+      '`quota` 와 같은 단위라 그대로 견줄 수 있다. ' +
+      '**캐시에서 나온 답도 같은 값을 문다** — 같은 질문이면 언제 묻든 같은 값이어야 한다. ' +
+      '0 인 경우는 아무 답도 안 준 때뿐이다(사전 차단).',
+    example: 9387,
   })
-  readonly cached!: boolean;
+  readonly credits!: number;
 
   @ApiProperty({
     description:
@@ -202,8 +263,22 @@ export class AiSearchResponseDto {
   })
   readonly elapsedMs!: number;
 
-  @ApiProperty({ type: AiSearchUsageDto })
-  readonly usage!: AiSearchUsageDto;
+  @ApiPropertyOptional({
+    type: QuotaDto,
+    description:
+      '쓴 몫. **못 셌으면 없다**(Redis 미설정·읽기 실패, 또는 한도 없음) — ' +
+      '화면은 없으면 아무것도 안 그린다(0/0 은 다 쓴 것처럼 보인다).',
+  })
+  readonly quota?: QuotaDto;
+
+  @ApiPropertyOptional({
+    type: AiSearchDebugDto,
+    description:
+      '원시 토큰 내역. **설정(llm.exposeDebugUsage)이 켜진 배포에만 온다** — 로컬·개발이다. ' +
+      '모델 이름과 달리 이쪽은 곱할 수량이라, 나가면 단가와 맞물려 요금이 역산된다. ' +
+      '화면에서 감추는 걸로는 안 감춰지므로(응답 JSON) 서버가 아예 안 싣는다.',
+  })
+  readonly debug?: AiSearchDebugDto;
 
   constructor(result: AiSearchResult) {
     this.tool = result.tool;
@@ -211,10 +286,12 @@ export class AiSearchResponseDto {
     this.warnings = result.warnings;
     this.explain = result.explain;
     this.dropped = result.dropped;
+    this.conditions = result.conditions;
     this.provider = result.provider;
     this.model = result.model;
-    this.cached = result.cached;
+    this.credits = result.credits;
     this.elapsedMs = result.elapsedMs;
-    this.usage = result.usage;
+    this.quota = result.quota;
+    this.debug = result.debug;
   }
 }
