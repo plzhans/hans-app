@@ -14,6 +14,50 @@ const TEMPLATE_BASE: Record<EmailVerifyPurpose, string> = {
 };
 
 type Locale = 'ko' | 'en' | 'ja' | 'zh';
+
+/**
+ * 소셜 전용 계정에 비밀번호 재설정을 요청했을 때 보내는 안내.
+ *
+ * **화면은 이 사실을 알려 주지 않는다.** 알려 주면 "이 주소가 가입돼 있고 구글 계정이다" 까지
+ * 공격자에게 새어 나간다(계정 열거). 대신 받은 편지함을 가진 **진짜 주인에게만** 알린다 —
+ * 큰 서비스들이 쓰는 방식이다.
+ */
+const SOCIAL_NOTICE: Record<
+  Locale,
+  {
+    subject: (appName: string) => string;
+    text: (appName: string, providers: string) => string;
+  }
+> = {
+  ko: {
+    subject: (n) => `[${n}] 비밀번호 재설정 안내`,
+    text: (n, p) =>
+      `${n} 계정은 ${p} 로 가입한 계정이라 비밀번호가 없습니다.\n\n로그인 화면에서 ${p} 버튼으로 로그인해 주세요.\n본인이 요청하지 않았다면 이 메일을 무시하세요.`,
+  },
+  en: {
+    subject: (n) => `[${n}] About your password reset request`,
+    text: (n, p) =>
+      `Your ${n} account was created with ${p}, so it has no password.\n\nPlease sign in with the ${p} button on the sign-in page.\nIf you didn't request this, ignore this email.`,
+  },
+  ja: {
+    subject: (n) => `[${n}] パスワード再設定について`,
+    text: (n, p) =>
+      `${n} のアカウントは ${p} で作成されたため、パスワードがありません。\n\nログイン画面の ${p} ボタンからログインしてください。\n心当たりがない場合は、このメールを無視してください。`,
+  },
+  zh: {
+    subject: (n) => `[${n}] 关于密码重置请求`,
+    text: (n, p) =>
+      `您的 ${n} 账号通过 ${p} 创建，因此没有密码。\n\n请在登录页面使用 ${p} 按钮登录。\n若非本人操作，请忽略此邮件。`,
+  },
+};
+
+/** 화면에 보여줄 제공자 이름. 모르는 값은 그대로 쓴다. */
+const PROVIDER_LABEL: Record<string, string> = {
+  GOOGLE: 'Google',
+  NAVER: '네이버',
+  KAKAO: '카카오',
+  LINE: 'LINE',
+};
 const DEFAULT_LOCALE: Locale = 'ko';
 
 /** 제목·플레인텍스트(언어별). HTML 본문은 별도 템플릿 파일이 담당한다. */
@@ -127,6 +171,41 @@ export class MailService {
     const text = strings.text(input.code, expiresMinutes);
 
     await this.send({ to: input.to, subject, html, text });
+  }
+
+  /**
+   * 소셜 전용 계정에 "비밀번호가 없다" 고 알린다. 코드가 아니라 안내만 보낸다.
+   *
+   * HTML 템플릿은 한국어본만 있고 나머지 로케일은 render 가 ko 로 폴백한다 — 제목과
+   * 플레인텍스트는 4개 언어를 갖추므로, 미리보기와 텍스트 전용 클라이언트에서는 제 언어로 읽힌다.
+   * 자주 나갈 메일이 아니라 여기까지만 맞춰 둔다.
+   */
+  async sendSocialOnlyNotice(input: {
+    to: string;
+    /** 연동된 제공자(GOOGLE·NAVER·KAKAO·LINE). 여러 개면 모두 안내한다. */
+    providers: string[];
+    locale?: string;
+    userNameGreeting?: string;
+  }): Promise<void> {
+    const locale = this.resolveLocale(input.locale);
+    const strings = SOCIAL_NOTICE[locale];
+    const providers =
+      input.providers.map((p) => PROVIDER_LABEL[p] ?? p).join(', ') || 'social';
+
+    const html = this.render('social-login-notice', locale, {
+      appName: this.config.appName,
+      appUrl: this.config.appUrl,
+      providers,
+      userNameGreeting: input.userNameGreeting ?? '',
+      year: new Date().getFullYear().toString(),
+    });
+
+    await this.send({
+      to: input.to,
+      subject: strings.subject(this.config.appName),
+      html,
+      text: strings.text(this.config.appName, providers),
+    });
   }
 
   /** 지원 로케일이면 그대로, 아니면 기본(ko). */
