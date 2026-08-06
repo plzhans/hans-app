@@ -31,6 +31,46 @@ const TRACES_SAMPLE_RATE =
 /** Sentry 가 설정돼 켜졌는지. */
 export const sentryEnabled = Boolean(DSN);
 
+
+/**
+ * 좌표를 담은 쿼리 파라미터. **URL 어디에 있든 Sentry 로 나가기 전에 지운다.**
+ *
+ * 검색 요청이 `?lat=&lon=` 으로 나가는데, Sentry 는 fetch 스팬과 breadcrumb 에 **URL 을
+ * 통째로** 싣는다. 운영은 트레이스를 10% 표집하므로 그대로 두면 그 비율만큼 좌표가 Sentry 에
+ * 쌓인다 — 개인정보처리방침에 "검색 결과를 계산하는 데에만 쓰고 저장하지 않는다" 고 적어 둔
+ * 것과 어긋난다.
+ *
+ * 1km 격자로 뭉갠 값이라 위험이 크지는 않지만, **적어 둔 것과 하는 일을 맞추는 쪽이** 낫다.
+ * 지도 영역(bbox)도 결국 화면에 띄운 위치라 같이 지운다.
+ */
+const GEO_PARAMS = ['lat', 'lon', 'minLat', 'minLon', 'maxLat', 'maxLon'];
+
+/**
+ * URL 문자열에서 좌표 파라미터의 값을 지운다. URL 이 아니면 그대로 돌려준다.
+ *
+ * 값만 `redacted` 로 바꾸고 키는 남긴다(대괄호를 쓰면 퍼센트 인코딩돼 읽기 나쁘다) — 어떤 요청이었는지는 알아야 디버깅이 된다.
+ * 상대 경로도 들어오므로 기준 origin 을 붙여 파싱하고, 원래 모양에 맞춰 돌려준다.
+ */
+function scrubGeo(value: string): string {
+  if (!value.includes('=')) return value;
+  try {
+    const absolute = /^https?:\/\//.test(value);
+    const url = new URL(value, absolute ? undefined : window.location.origin);
+    let touched = false;
+    for (const key of GEO_PARAMS) {
+      if (url.searchParams.has(key)) {
+        url.searchParams.set(key, 'redacted');
+        touched = true;
+      }
+    }
+    if (!touched) return value;
+    return absolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    // URL 로 못 읽는 문자열(스팬 설명이 "GET /x" 처럼 오는 경우 등)은 건드리지 않는다.
+    return value;
+  }
+}
+
 if (DSN) {
   Sentry.init({
     dsn: DSN,
@@ -51,5 +91,35 @@ if (DSN) {
       }),
     ],
     tracesSampleRate: TRACES_SAMPLE_RATE,
+
+    /*
+      좌표가 실려 나가는 자리는 셋이다 — 트랜잭션의 스팬(fetch), breadcrumb, 그리고 오류
+      이벤트의 request.url. 세 곳을 각각 막는다. 한 곳만 막으면 나머지로 그대로 나간다.
+    */
+    beforeSendTransaction(event) {
+      for (const span of event.spans ?? []) {
+        if (typeof span.description === 'string') {
+          span.description = scrubGeo(span.description);
+        }
+        const url = span.data?.['http.url'];
+        if (typeof url === 'string') {
+          span.data['http.url'] = scrubGeo(url);
+        }
+      }
+      return event;
+    },
+    beforeSend(event) {
+      if (typeof event.request?.url === 'string') {
+        event.request.url = scrubGeo(event.request.url);
+      }
+      return event;
+    },
+    beforeBreadcrumb(breadcrumb) {
+      const url = breadcrumb.data?.url;
+      if (typeof url === 'string') {
+        breadcrumb.data!.url = scrubGeo(url);
+      }
+      return breadcrumb;
+    },
   });
 }
