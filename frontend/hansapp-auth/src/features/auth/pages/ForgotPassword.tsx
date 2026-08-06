@@ -120,6 +120,8 @@ export default function ForgotPassword() {
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
+            // 단계가 바뀌면 form 이 key 로 새로 마운트되므로 여기 커서가 들어온다.
+            autoFocus
             placeholder="메일로 받은 6자리 코드"
             error={confirmForm.formState.errors.code?.message}
             {...confirmForm.register("code", {
@@ -192,6 +194,8 @@ export default function ForgotPassword() {
           label="이메일"
           type="email"
           autoComplete="email"
+          // 이 화면에 온 사람이 할 일은 이메일을 치는 것 하나뿐이다. 커서를 찾아 누르게 두지 않는다.
+          autoFocus
           placeholder="you@example.com"
           error={reqForm.formState.errors.email?.message}
           {...reqForm.register("email", { required: "이메일을 입력하세요." })}
