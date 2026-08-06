@@ -48,6 +48,8 @@ import {
   toSearchParams,
   useAiSearch,
   useAiSearchQuota,
+  type AiSearchHistoryTurn,
+  type AiSearchParams,
   type AiSearchQuota,
   type AiSearchQuotaWindow,
   type AiSearchResponse,
@@ -75,6 +77,68 @@ function autoGrow(el: HTMLTextAreaElement): void {
 
 /** 질문 길이 상한. 서버(MAX_QUESTION_LENGTH)와 같은 값이라 넘기기 전에 여기서 막는다. */
 const MAX_LENGTH = 300;
+
+/**
+ * 앞서 오간 말. **사용자 질문과 그때의 답을 짝지어** 보낸다.
+ *
+ * 조건(`context`)이 담지 못하는 것을 담는다 — 조건은 "무엇을 찾는가" 만 알고 "무엇을
+ * 물었는가" 는 모른다. "아까 말한 증상", "그럼 약은?" 같은 말이 그래서 안 풀린다.
+ *
+ * **답이 없는 턴도 질문은 보낸다.** 검색으로 끝난 턴에는 `answer` 가 없지만, 사용자가
+ * 무엇을 물었는지는 그대로 맥락이다.
+ *
+ * 답에는 **서명을 붙여** 보낸다. 서버가 자기가 쓴 글인지 확인하는 유일한 수단이라,
+ * 빠지면 그 턴의 답이 조용히 무시된다.
+ *
+ * 몇 마디까지 쓸지는 서버가 정한다(지금은 최근 3마디). 여기서 미리 자르지 않는 것은
+ * 그 수가 프롬프트 사정이라 화면이 따라다니며 맞출 값이 아니어서다.
+ */
+function historyOf(turns: Turn[]): AiSearchHistoryTurn[] {
+  const history: AiSearchHistoryTurn[] = [];
+  for (const turn of turns) {
+    if (turn.role === 'user') {
+      history.push({ question: turn.text });
+    } else if (turn.role === 'assistant') {
+      // 방금 담은 질문에 답을 붙인다. 실패한 턴 뒤에는 붙일 질문이 없을 수 있다.
+      const last = history[history.length - 1];
+      if (last && !last.answer && turn.result.params.answer) {
+        last.answer = turn.result.params.answer;
+        // **서명을 같이 보낸다.** 없으면 서버가 답을 버린다 — 우리가 쓴 글인지
+        // 확인할 길이 없어서다(클라이언트가 보낸 값은 무엇이든 위조일 수 있다).
+        last.signature = turn.result.answerSignature;
+      }
+    }
+  }
+  return history;
+}
+
+/**
+ * 이어 갈 조건. **조건을 실제로 잡은 마지막 답변**의 것이다.
+ *
+ * 매번 전체 상태를 주고받으므로 이 하나면 된다 — 2턴의 조건은 1턴을 물려받아 합쳐진
+ * 결과라, 앞의 것을 따로 들고 다닐 이유가 없다.
+ *
+ * **거절 턴은 건너뛰고 더 뒤를 본다.** 의학 질문("왜 아픈 거야")이나 범위 밖 질문은
+ * 곁길이지 초기화가 아니다 — 거기서 멈추면 소아과를 찾던 중에 한 번 딴 얘기를 했다고
+ * 조건이 통째로 날아간다. 초기화는 사용자가 "대화 지우기" 로 명시적으로 한다.
+ */
+function lastParams(turns: Turn[]): AiSearchParams | undefined {
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    const turn = turns[i];
+    if (turn.role === 'assistant' && turn.result.tool !== 'reject') {
+      /*
+        **글은 떼고 조건만 보낸다.** 서버는 `answer`·`reason` 을 읽지 않는다 — 답변 원문은
+        서명이 붙은 `history` 로만 받기로 했다. 그대로 돌려주면 같은 답이 한 요청에 두 번
+        실려 업로드가 배로 늘고, 읽는 사람은 "이건 왜 여기 또 있지" 를 따져 봐야 한다.
+      */
+      const { answer, reason, ...state } = turn.result.params;
+      void answer;
+      void reason;
+      return state;
+    }
+  }
+  return undefined;
+}
 
 /**
  * 가장 최근에 받은 몫. **매 응답이 최신값을 싣고 온다** — 따로 조회하지 않는다.
@@ -470,7 +534,15 @@ export function AiSearchChat({
     setTurns((prev) => [...prev, { role: 'user', id, text: q }]);
     setQuestion('');
 
-    mutate(q, {
+    /*
+      **직전 조건을 함께 보낸다.** 서버는 대화를 기억하지 않으므로, 이어 가려면 화면이
+      상태를 들고 있어야 한다 — "천안에서" 한마디는 앞에 무엇을 찾고 있었는지 없이는
+      아무 뜻도 없다.
+
+      **거절당한 답의 조건은 안 보낸다.** 그건 조건이 아니라 "못 했다" 는 표시라,
+      물려주면 다음 질문이 빈 상태를 이어받은 것처럼 굴게 된다.
+    */
+    mutate({ q, context: lastParams(turns), history: historyOf(turns) }, {
       onSuccess: (result) =>
         setTurns((prev) => [
           ...prev,

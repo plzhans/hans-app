@@ -123,6 +123,11 @@ export interface AiSearchResponse {
    */
   conditions: AiSearchCondition[];
   provider: string;
+  /**
+   * `params.answer` 의 서명. **답이 있을 때만 온다.**
+   * 다음 요청의 `history[].signature` 로 그대로 돌려줘야 답이 문맥으로 이어진다.
+   */
+  answerSignature?: string;
   /** 실제로 답한 모델. 공개값이다 — 곱할 수량(토큰 수)이 안 나가서 요금이 역산되지 않는다. */
   model: string;
   /**
@@ -169,14 +174,43 @@ export interface AiSearchResponse {
  * 캐시 히트가 아니고, 요청 하나가 곧 외부 LLM 요금이라 조용히 재요청되면 곤란하다.
  */
 export function useAiSearch() {
-  return useMutation<AiSearchResponse, Error, string>({
-    mutationFn: (q: string) =>
+  return useMutation<AiSearchResponse, Error, AiSearchAsk>({
+    mutationFn: ({ q, context, history }: AiSearchAsk) =>
       reactFetch<AiSearchResponse>('/healthcare/ai-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q }),
+        body: JSON.stringify({ q, context, history }),
       }),
   });
+}
+
+/**
+ * 한 번의 물음. `context` 는 **직전 응답의 `params` 를 그대로** 넣는다.
+ *
+ * 서버는 대화를 기억하지 않으므로 이어 가려면 화면이 상태를 들고 다녀야 한다. 받은 것을
+ * 그대로 돌려주면 되고, 새 주제를 시작하려면 빼고 보내면 된다.
+ */
+export interface AiSearchAsk {
+  q: string;
+  context?: AiSearchParams;
+  history?: AiSearchHistoryTurn[];
+}
+
+/**
+ * 앞서 오간 말 한 마디. **`context` 와 주인이 다르다** — 그쪽은 서버가 발급한 상태고
+ * 이쪽은 화면이 들고 있는 대화 원문이다.
+ *
+ * 조건만으로는 "아까 말한 증상", "그럼 약은?" 처럼 앞을 가리키는 말을 못 푼다.
+ * 서버는 최근 3마디만 쓰고 길이도 자른다.
+ */
+export interface AiSearchHistoryTurn {
+  question: string;
+  answer?: string;
+  /**
+   * `answer` 에 딸린 서명(응답의 `answerSignature`). **답을 보낼 거면 반드시 같이 보낸다** —
+   * 없거나 안 맞으면 서버가 그 턴의 `answer` 만 버린다(질문은 그대로 쓴다).
+   */
+  signature?: string;
 }
 
 /**

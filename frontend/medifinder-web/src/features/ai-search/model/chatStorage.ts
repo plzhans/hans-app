@@ -32,7 +32,7 @@ export type Turn =
   **응답 모양을 바꿀 때마다 올린다.** 읽는 쪽에 방어 코드를 늘리는 것보다 싸다 —
   대화는 새로고침만 견디면 되는 물건이라 버려도 잃는 것이 거의 없다.
 */
-const KEY = 'ai-search:turns:v4';
+const KEY = 'ai-search:turns:v5';
 
 /**
  * 담아 둘 turn 수. 넘으면 **오래된 것부터 버린다.**
