@@ -12,6 +12,7 @@ export { LlmConfigError, LlmError, LlmInvalidCallError } from './llm.types';
 export type {
   LlmCall,
   LlmJsonSchema,
+  LlmModelChoice,
   LlmPrepareInput,
   LlmProviderOptions,
 } from './llm.types';

@@ -9,6 +9,17 @@ import type { LlmProviderName } from './llm.config';
 export type LlmProviderOptions = Record<string, { [key: string]: JSONValue }>;
 
 /**
+ * 화면에 보여 줄 모델 하나.
+ *
+ * `locked` 는 **아직 못 고른다**는 뜻이다(요금제가 안 열렸다). 목록에 남겨 두는 것은
+ * 곧 열릴 것을 미리 알리기 위해서고, 골라도 요청에는 안 실린다.
+ */
+export interface LlmModelChoice {
+  readonly id: string;
+  readonly locked: boolean;
+}
+
+/**
  * 구조화 출력 스키마. 주면 응답이 스키마를 따르는 JSON 으로 강제된다.
  * 업체마다 부르는 이름이 달라도 넘기는 것은 같은 JSON Schema 라 하나로 받는다.
  */

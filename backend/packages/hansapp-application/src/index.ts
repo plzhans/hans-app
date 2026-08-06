@@ -1,4 +1,6 @@
 export { ApplicationModule } from './application.module';
+export { AiModelService } from './common/ai-model.service';
+export type { LlmModelChoice } from '@hansapp/llm';
 
 export {
   DEFAULT_PAGE,

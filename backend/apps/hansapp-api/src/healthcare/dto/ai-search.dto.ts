@@ -8,7 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { QuotaDto } from '../../ai/dto/quota.dto';
+import { QuotaDto } from '../../ai/dto/capabilities.dto';
 import type {
   AiSearchFilter,
   AiSearchParams,

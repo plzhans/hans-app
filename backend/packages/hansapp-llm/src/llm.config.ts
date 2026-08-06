@@ -43,6 +43,14 @@ export interface LlmEndpointConfig {
    * 설정을 안 건드린 배포가 조용히 404 를 맞는다.
    */
   readonly defaultModel?: string;
+  /**
+   * **아직 못 여는 모델들.** 화면에 자물쇠와 함께 보인다.
+   *
+   * 고를 수 있는 모델은 `defaultModel` 하나뿐이다 — 서버가 그것으로 부르기 때문이다.
+   * 여기 적는 것은 "곧 열릴 것" 을 미리 보여 주기 위한 목록이고, 골라도 안 나간다.
+   * 유료가 열리면 이 목록에서 하나씩 옮겨 온다.
+   */
+  readonly lockedModels: readonly string[];
 }
 
 /**
@@ -165,6 +173,7 @@ export function buildLlmConfig(cfg: ConfigSource): LlmConfig {
       // 기본값은 yaml 이 갖는다(LlmEndpointConfig.defaultModel 주석).
       defaultModel:
         cfg.getStringOrDefault(`llm.${name}.defaultModel`) || undefined,
+      lockedModels: cfg.getStringArray(`llm.${name}.lockedModels`),
     });
 
   return Object.freeze({

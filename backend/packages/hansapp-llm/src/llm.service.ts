@@ -22,6 +22,7 @@ import {
   LlmError,
   LlmInvalidCallError,
   type LlmCall,
+  type LlmModelChoice,
   type LlmJsonSchema,
   type LlmPrepareInput,
   type LlmProviderOptions,
@@ -65,6 +66,26 @@ export class LlmService {
    * 설정이 모자라면 여기서 던진다 — 부팅이 아니라 호출 시점이다(키가 없다고 서버가
    * 못 뜨면 안 된다).
    */
+  /**
+   * 화면에 보여 줄 모델 목록. **고를 수 있는 것은 서버가 실제로 부르는 하나뿐이다.**
+   *
+   * 목록을 화면이 들고 있으면 설정이 바뀌는 순간 조용히 거짓말이 된다 — "Haiku 로
+   * 보냅니다" 라고 적혀 있는데 서버는 다른 것을 부르는 식이다. 여기서 내려보내면
+   * 그 어긋남이 구조적으로 불가능해진다.
+   *
+   * 잠긴 것들은 "곧 열린다" 를 미리 보여 주는 목록이다(llm.<provider>.lockedModels).
+   * 골라도 요청에 안 실린다 — 유료가 열릴 때 하나씩 옮겨 온다.
+   */
+  listModels(): LlmModelChoice[] {
+    const endpoint = this.config[this.config.defaultProvider];
+    const available = endpoint.defaultModel;
+    return [
+      // 설정에 기본 모델이 없으면 고를 것이 없다. 빈 이름을 그리게 두지 않는다.
+      ...(available ? [{ id: available, locked: false }] : []),
+      ...endpoint.lockedModels.map((id) => ({ id, locked: true })),
+    ];
+  }
+
   prepare(input: LlmPrepareInput): LlmCall {
     const provider = input.provider ?? this.config.defaultProvider;
     const resolved = this.resolve(provider, input);

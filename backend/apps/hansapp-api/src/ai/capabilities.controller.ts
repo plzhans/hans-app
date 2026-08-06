@@ -7,11 +7,14 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
-import { HealthcareAiSearchService } from '@hansapp/application';
+import {
+  AiModelService,
+  HealthcareAiSearchService,
+} from '@hansapp/application';
 
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
-import { QuotaResponseDto } from './dto/quota.dto';
+import { CapabilitiesResponseDto } from './dto/capabilities.dto';
 
 /**
  * 가드가 요청에 얹어 둔 신원. **둘 중 하나만 채워진다** —
@@ -23,7 +26,7 @@ type AuthedRequest = Request & {
 };
 
 /**
- * AI 사용량.
+ * AI 로 지금 무엇을 할 수 있나.
  *
  * **`/healthcare` 아래가 아니다.** 지금 이 몫을 쓰는 곳이 병원 검색뿐이라 거기 두고
  * 싶어지지만, 재는 대상은 병원이 아니라 **부른 사람**이다 — 같은 잔액을 다른 기능이
@@ -43,16 +46,21 @@ type AuthedRequest = Request & {
 @ApiTags('ai')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
 @Controller('ai')
-export class AiQuotaController {
-  constructor(private readonly aiSearch: HealthcareAiSearchService) {}
+export class AiCapabilitiesController {
+  constructor(
+    private readonly aiSearch: HealthcareAiSearchService,
+    private readonly models: AiModelService,
+  ) {}
 
-  @Get('quota')
+  @Get('capabilities')
   @ApiOperation({
-    summary: '내 사용량',
+    summary: '지금 할 수 있는 것 (사용량 · 모델)',
     description:
-      '지금까지 쓴 몫. **아무것도 깎지 않는다.**\n\n' +
+      '지금까지 쓴 몫과 고를 수 있는 모델. **아무것도 깎지 않는다.**\n\n' +
       '화면이 채팅창을 **열 때 한 번** 부르는 용도다 — 첫 질문을 하기 전에도 얼마나 ' +
-      '남았는지는 보여야 하는데, 답변에 실려 오는 `quota` 는 물어봐야 생긴다.\n\n' +
+      '남았는지, 무엇으로 보내지는지는 보여야 하는데, 답변에 실려 오는 값은 물어봐야 생긴다.\n\n' +
+      '둘을 한 응답에 담는 것은 **같은 때에 같은 이유로 필요하기 때문**이다 — ' +
+      '창을 열 때 한 번 보고, 바뀌는 계기도 같다(설정·요금제). 나누면 왕복만 두 번이 된다.\n\n' +
       '**주기적으로 부르지 마라.** 값이 바뀌는 계기는 이 사람이 질문하는 순간뿐이고 ' +
       '그때는 답변이 새 값을 싣고 온다. 폴링하면 안 바뀐 값을 계속 받는다.\n\n' +
       '**누구 몫인지는 자격증명이 정한다** — access token 이면 그 사람 잔액, ' +
@@ -61,7 +69,7 @@ export class AiQuotaController {
       '"걸린 한도가 없다"(한도 0, 또는 Redis 를 안 쓰는 구성)이고, 503 은 "모른다" 다. ' +
       '모르는 상태에서는 질문도 막히므로(fail-closed) 화면은 AI 기능을 꺼야 한다.',
   })
-  async quota(@Req() req: Request): Promise<QuotaResponseDto> {
+  async capabilities(@Req() req: Request): Promise<CapabilitiesResponseDto> {
     const authed = req as AuthedRequest;
     /*
       **AI 검색 서비스에서 읽는다.** 계수기의 scope 가 기능별로 갈려 있어서
@@ -83,6 +91,16 @@ export class AiQuotaController {
     if (!snapshot.available) {
       throw new ServiceUnavailableException('Usage counter is unavailable');
     }
-    return new QuotaResponseDto(snapshot.quota);
+    /*
+      **모델 목록도 서버가 정한다.** 화면이 들고 있으면 설정이 바뀌는 순간 거짓말이 된다 —
+      "Haiku 로 보냅니다" 라고 적혀 있는데 서버는 다른 것을 부르는 식이다.
+
+      **자격은 신원이 정한다.** 클라이언트 키만으로 온 요청은 서버가 실제로 부르는 하나만
+      열린다. 로그인한 사람은 다 열린다 — 지금은 결제가 없어 로그인 여부로 대신 본다.
+    */
+    return new CapabilitiesResponseDto(
+      snapshot.quota,
+      this.models.list(Boolean(authed.user?.userId)),
+    );
   }
 }

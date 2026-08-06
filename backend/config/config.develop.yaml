@@ -282,6 +282,9 @@ llm:
     # 키와 토큰이 둘 다 있으면 키가 이긴다.
     authToken: ${ANTHROPIC_AUTH_TOKEN}
     defaultModel: ${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}
+    # 아직 못 고르는 모델. 화면에 자물쇠와 함께 보인다 — "곧 열린다" 를 미리 알리는 목록이고,
+    # 골라도 요청에는 안 실린다. 유료가 열리면 하나씩 defaultModel 쪽으로 옮겨 온다.
+    lockedModels: [claude-opus-5]
   openai:
     apiKey: ${OPENAI_API_KEY}
     # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.

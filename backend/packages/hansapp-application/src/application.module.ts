@@ -50,6 +50,7 @@ import { HiraAsmCodeCache } from './healthcare/hira-asm-code.cache';
 import { RegionService } from './region/region.service';
 import { RegionCache } from './region/region.cache';
 import { HealthcareAiSearchService } from './healthcare/healthcare-ai-search.service';
+import { AiModelService } from './common/ai-model.service';
 import { UsageQuotaService } from './common/usage-quota.service';
 import { LlmUsageService } from './common/llm-usage.service';
 
@@ -149,6 +150,7 @@ export class ApplicationModule {
         // 여기서는 병원 도메인 지식(코드표 검증·범위 판정)만 얹는다.
         HealthcareAiSearchService,
         // 하루 총량 계수기. rate limit 이 못 막는 "총액" 을 묶는다.
+        AiModelService,
         { provide: UsageQuotaService, useValue: new UsageQuotaService(source) },
         // LLM 사용량 기록(로그 DB). 정산과 추적에 쓴다.
         LlmUsageService,
@@ -170,6 +172,7 @@ export class ApplicationModule {
         HealthcareNonPaymentService,
         HealthcareMetaService,
         HealthcareAiSearchService,
+        AiModelService,
         RegionService,
         // 작업 큐. 서버가 넣고 배치(CLI)가 꺼낸다 — MQ 대체품이다.
         JobQueueService,

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type {
+  LlmModelChoice,
   AiSearchAppQuota,
   AiSearchQuota,
   AiSearchQuotaWindow,
@@ -76,13 +77,32 @@ export class QuotaDto implements AiSearchQuota {
 }
 
 /**
- * `GET /ai/quota` 응답.
+ * 고를 수 있는 모델 하나.
+ *
+ * **`locked` 는 아직 못 고른다는 뜻이다**(요금제가 안 열렸다). 목록에 남겨 두는 것은
+ * 곧 열릴 것을 미리 알리기 위해서고, 골라도 요청에는 안 실린다.
+ *
+ * 잠기지 않은 것은 **서버가 실제로 부르는 모델**이다 — 화면 표시가 실제와 어긋날 수 없다.
+ */
+export class ModelChoiceDto implements LlmModelChoice {
+  @ApiProperty({
+    description: '업체가 쓰는 모델 id. 화면에 보일 이름은 여기서 뽑는다.',
+    example: 'claude-haiku-4-5',
+  })
+  readonly id!: string;
+
+  @ApiProperty({ description: '아직 못 고른다(자물쇠 표시).' })
+  readonly locked!: boolean;
+}
+
+/**
+ * `GET /ai/capabilities` 응답.
  *
  * **감싸서 보낸다.** 몫은 못 셀 수 있는데(Redis 미설정·읽기 실패, 한도 없음) 벗겨서
  * 보내면 그 경우에 빈 몸통이 되어, 받는 쪽이 "없다" 와 "응답이 깨졌다" 를 구분 못 한다.
  * 질문 응답(`AiSearchResponseDto.quota`)과 같은 모양이라 화면도 한 갈래로 다룬다.
  */
-export class QuotaResponseDto {
+export class CapabilitiesResponseDto {
   @ApiPropertyOptional({
     type: QuotaDto,
     description:
@@ -91,7 +111,16 @@ export class QuotaResponseDto {
   })
   readonly quota?: QuotaDto;
 
-  constructor(quota?: AiSearchQuota) {
+  @ApiProperty({
+    type: [ModelChoiceDto],
+    description:
+      '고를 수 있는 모델. **잠기지 않은 것이 서버가 실제로 부르는 모델이다** — ' +
+      '화면이 목록을 들고 있으면 설정이 바뀌는 순간 조용히 거짓말이 된다.',
+  })
+  readonly models!: ModelChoiceDto[];
+
+  constructor(quota: AiSearchQuota | undefined, models: LlmModelChoice[]) {
     this.quota = quota;
+    this.models = models;
   }
 }
