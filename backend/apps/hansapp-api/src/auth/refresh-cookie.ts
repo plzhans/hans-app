@@ -79,10 +79,21 @@ export function initRefreshCookie(cfg: ConfigSource, env: string): void {
   SESSION_HINT_COOKIE = prefix + SESSION_HINT_COOKIE_BASE;
 }
 
+/**
+ * refresh 쿠키를 심는다.
+ *
+ * **persistent 가 만료를 정한다.** 켜면 만료 시각이 박힌 영속 쿠키라 브라우저를 닫아도 남고,
+ * 끄면 `expires` 를 아예 주지 않아 세션 쿠키가 된다 — 브라우저를 닫을 때 사라진다.
+ * 서버 세션은 어느 쪽이든 TTL 까지 살아 있다(쿠키만 사라질 뿐이다).
+ *
+ * **탭 사이 공유는 둘 다 된다.** 세션 쿠키도 같은 브라우저의 모든 탭이 함께 본다 —
+ * 탭마다 갈리는 건 sessionStorage 이지 쿠키가 아니다.
+ */
 export function setRefreshCookie(
   res: Response,
   token: string,
   expiresAt: Date,
+  persistent: boolean,
 ): void {
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
@@ -98,7 +109,8 @@ export function setRefreshCookie(
     sameSite: 'lax',
     path: REFRESH_PATH,
     domain: cookieDomain,
-    expires: expiresAt,
+    // 세션 쿠키로 만들려면 expires 를 **주지 않아야** 한다(undefined 로도 안 된다).
+    ...(persistent ? { expires: expiresAt } : {}),
   });
 }
 
@@ -110,7 +122,11 @@ export function clearRefreshCookie(res: Response): void {
 }
 
 /** 로그인 힌트 쿠키(읽을 수 있는 flag)를 refresh 쿠키와 같은 수명·도메인으로 세팅한다. */
-function setSessionHint(res: Response, expiresAt: Date): void {
+function setSessionHint(
+  res: Response,
+  expiresAt: Date,
+  persistent: boolean,
+): void {
   res.cookie(SESSION_HINT_COOKIE, '1', {
     httpOnly: false, // 프론트 JS 가 읽어 refresh 호출 여부를 판단한다
     secure,
@@ -119,7 +135,8 @@ function setSessionHint(res: Response, expiresAt: Date): void {
     sameSite: 'lax',
     path: '/',
     domain: cookieDomain,
-    expires: expiresAt,
+    // refresh 쿠키와 항상 같이 살고 같이 죽는다 — 수명 조건도 같아야 한다.
+    ...(persistent ? { expires: expiresAt } : {}),
   });
 }
 
@@ -138,8 +155,13 @@ export function readRefreshCookie(req: Request): string | undefined {
  * 도착한 앱이 이 쿠키로 /oauth/token 을 한 번 불러 채운다(hansapp-web 의 authStore.bootstrap).
  */
 export function setLoginCookies(res: Response, tokens: AuthTokens): void {
-  setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt);
-  setSessionHint(res, tokens.refreshExpiresAt);
+  setRefreshCookie(
+    res,
+    tokens.refreshToken,
+    tokens.refreshExpiresAt,
+    tokens.persistent,
+  );
+  setSessionHint(res, tokens.refreshExpiresAt, tokens.persistent);
 }
 
 /**

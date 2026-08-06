@@ -37,10 +37,20 @@ export interface ConsentRecord {
   agreedAt: string;
 }
 
-export function emailLogin(email: string, password: string): Promise<TokenResponse> {
+/**
+ * 이메일 로그인.
+ *
+ * `rememberMe` 는 **쿠키의 수명**을 정한다 — 켜면 브라우저를 닫아도 남고, 끄면 닫을 때
+ * 사라진다. 탭 사이 공유는 어느 쪽이든 되므로(쿠키는 탭을 가리지 않는다) 이 값과 무관하다.
+ */
+export function emailLogin(
+  email: string,
+  password: string,
+  rememberMe: boolean,
+): Promise<TokenResponse> {
   return apiFetch('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, rememberMe }),
   });
 }
 

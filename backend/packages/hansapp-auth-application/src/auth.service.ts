@@ -128,13 +128,23 @@ export class AuthService {
       ...meta,
     });
 
-    const tokens = await this.issueLoginTokens(user, meta, AuthProvider.EMAIL);
+    /*
+      가입 직후 로그인은 **유지하지 않는다**(세션 쿠키). 가입 화면에는 "로그인 상태 유지"
+      체크가 없어서 이용자가 고른 적이 없는데, 고르지 않은 것을 켠 것으로 볼 이유가 없다.
+      로그인 화면에서 체크를 안 했을 때와 같은 결과가 된다.
+    */
+    const tokens = await this.issueLoginTokens(
+      user,
+      meta,
+      AuthProvider.EMAIL,
+      false,
+    );
     return { user, tokens };
   }
 
   /** 이메일 로그인. 소셜 전용 계정(비밀번호 없음)은 이메일 로그인이 불가하다. */
   async login(
-    input: { email: string; password: string },
+    input: { email: string; password: string; rememberMe?: boolean },
     meta: RequestMeta,
   ): Promise<AuthResult> {
     const email = normalizeEmail(input.email);
@@ -156,7 +166,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    const tokens = await this.issueLoginTokens(user, meta, AuthProvider.EMAIL);
+    const tokens = await this.issueLoginTokens(
+      user,
+      meta,
+      AuthProvider.EMAIL,
+      // 체크를 안 했으면 세션 쿠키다 — 브라우저를 닫을 때 사라진다.
+      input.rememberMe ?? false,
+    );
     return { user, tokens };
   }
 
@@ -385,8 +401,9 @@ export class AuthService {
     user: User,
     meta: RequestMeta,
     provider: AuthProvider,
+    persistent = true,
   ): Promise<AuthTokens> {
-    return this.loginService.complete(user, provider, meta);
+    return this.loginService.complete(user, provider, meta, persistent);
   }
 
   private hashPassword(plain: string): Promise<string> {

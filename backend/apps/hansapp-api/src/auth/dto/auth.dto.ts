@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
   IsNotEmptyObject,
@@ -87,6 +88,15 @@ export class LoginRequestDto {
   @ApiProperty({ description: '비밀번호', example: 'p@ssw0rd!' })
   @IsString()
   readonly password!: string;
+
+  @ApiPropertyOptional({
+    description:
+      '로그인 상태 유지. 켜면 브라우저를 닫아도 로그인이 남고, 끄면(기본) 닫을 때 사라진다.',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly rememberMe?: boolean;
 }
 
 /** 비밀번호 변경 요청(로그인 상태) */

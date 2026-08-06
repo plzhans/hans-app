@@ -31,6 +31,8 @@ export interface IssuedSession {
   readonly sessionId: string;
   readonly refreshToken: string;
   readonly expiresAt: Date;
+  /** "로그인 상태 유지" 선택. 쿠키를 영속으로 심을지 정한다. */
+  readonly persistent: boolean;
 }
 
 /** refresh 검증·rotate 결과. */
@@ -46,6 +48,11 @@ export interface AuthTokens {
   readonly expiresIn: number;
   readonly refreshToken: string;
   readonly refreshExpiresAt: Date;
+  /**
+   * "로그인 상태 유지" 선택. **쿠키를 심는 쪽(respondTokens)이 이 값으로 만료를 정한다.**
+   * 켜면 만료 시각이 박힌 영속 쿠키, 끄면 브라우저를 닫을 때 사라지는 세션 쿠키다.
+   */
+  readonly persistent: boolean;
 }
 
 /** 소비된 인가코드의 내용. clientId 가 null 이면 1st-party(hansapp-web) 발급이다. */
@@ -117,6 +124,7 @@ export class TokenService {
   async createSession(
     userId: number,
     meta: { userAgent?: string | null; ip?: string | null },
+    persistent = true,
   ): Promise<IssuedSession> {
     const sessionId = randomToken(18);
     const secret = randomToken(24);
@@ -130,6 +138,7 @@ export class TokenService {
       userAgent: meta.userAgent ?? null,
       ip: meta.ip ?? null,
       expiresAt,
+      persistent,
     });
     // 발급 확인용 로그. ip 는 resolveClientIp 로 통일된 값이라, CDN/프록시 뒤에서 진짜 클라 IP 가
     // 제대로 잡히는지 이 로그로 검증할 수 있다.
@@ -142,6 +151,7 @@ export class TokenService {
         REFRESH_PREFIX +
         composeSignedToken(sessionId, secret, this.refreshTagKey),
       expiresAt,
+      persistent,
     };
   }
 
@@ -191,6 +201,8 @@ export class TokenService {
         REFRESH_PREFIX +
         composeSignedToken(session.sessionId, newSecret, this.refreshTagKey),
       expiresAt,
+      // 갱신해도 처음 선택을 그대로 이어 간다(요청만 보고는 알 수 없다).
+      persistent: session.persistent,
     };
   }
 
@@ -199,8 +211,9 @@ export class TokenService {
     userId: number,
     role: UserRole,
     meta: { userAgent?: string | null; ip?: string | null },
+    persistent = true,
   ): Promise<AuthTokens> {
-    const session = await this.createSession(userId, meta);
+    const session = await this.createSession(userId, meta, persistent);
     return this.buildTokens(userId, role, session);
   }
 
@@ -216,6 +229,7 @@ export class TokenService {
       expiresIn: this.config.accessTokenTtlSec,
       refreshToken: session.refreshToken,
       refreshExpiresAt: session.expiresAt,
+      persistent: session.persistent,
     };
   }
 

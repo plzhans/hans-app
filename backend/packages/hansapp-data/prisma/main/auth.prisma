@@ -122,6 +122,15 @@ model UserTokenSession {
 
   /// 만료 시각. rotate 마다 갱신(연장)된다.
   expiresAt DateTime @map("expires_at")
+
+  /// 로그인할 때 "로그인 상태 유지" 를 켰나.
+  ///
+  /// **쿠키를 영속으로 심을지 세션 쿠키로 심을지를 정한다.** 켜면 만료 시각이 박힌 쿠키라
+  /// 브라우저를 닫아도 남고, 끄면 세션 쿠키라 브라우저를 닫을 때 사라진다.
+  ///
+  /// 갱신(rotate) 때 쿠키를 다시 심는데, 그 시점에는 요청만 보고 원래 선택을 알 수 없다 —
+  /// 브라우저는 쿠키가 영속이었는지 알려 주지 않는다. 그래서 세션에 적어 둔다.
+  persistent Boolean @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
