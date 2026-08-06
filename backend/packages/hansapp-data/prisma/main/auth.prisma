@@ -173,6 +173,14 @@ model UserAuthCode {
   /// nullable 인 건 기존 행 때문이다. 새로 발급되는 코드에는 항상 채워진다.
   provider AuthProvider? @map("provider")
 
+  /// 시작 화면에서 고른 "로그인 상태 유지".
+  ///
+  /// 세션은 콜백이 아니라 **교환(/oauth/token) 시점**에 만들어지는데, 그 요청에는 사용자의
+  /// 선택이 없다(다른 요청이고, 화면도 이미 떠났다). 코드가 유일한 운반 수단이라 여기 싣는다.
+  ///
+  /// 기본이 true 인 건 이 컬럼이 생기기 전 행 때문이다. 새로 발급되는 코드에는 항상 채워진다.
+  persistent Boolean @default(true)
+
   /// SHA-256(secret) hex 64자
   secretHash String @map("secret_hash") @db.Char(64)
 

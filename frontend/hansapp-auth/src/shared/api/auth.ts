@@ -213,6 +213,14 @@ export function revokeSession(sessionId: string): Promise<void> {
   );
 }
 
+/**
+ * 모든 기기에서 로그아웃. **지금 이 기기도 포함된다** — 호출한 쪽도 로그아웃 처리해야 한다.
+ * 서버가 refresh·힌트 쿠키까지 지우지만, 이 오리진의 저장소는 signOut 이 치운다.
+ */
+export function revokeAllSessions(): Promise<void> {
+  return apiFetch('/auth/me/sessions', { method: 'DELETE' }, { auth: true });
+}
+
 /** 내 동의 기록. 마이페이지의 열람 항목이다. */
 export function getMyConsents(): Promise<ConsentRecord[]> {
   return apiFetch('/auth/me/consents', {}, { auth: true });
@@ -294,6 +302,12 @@ export function socialLoginUrl(
   clientState?: string,
   // 1st-party 복귀 URL. returnTo 미지정(자체 로그인)일 때 콜백에 ret= 로 실린다.
   appReturn?: string,
+  /**
+   * "로그인 상태 유지" 체크 여부. **여기서 안 보내면 체크박스가 거짓말이 된다** —
+   * provider 로 떠나는 순간 이 화면의 상태는 사라지고, 서버는 콜백에서 물어볼 데가 없다.
+   * 서버가 서명 state 에 실어 콜백까지 나른다.
+   */
+  remember?: boolean,
 ): string {
   // **자사는 그 앱으로 직행한다.** 백엔드가 콜백에서 쿠키를 심고 여기로 보내므로
   // 인증웹을 한 번 더 거칠 이유가 없다(코드 교환이 없다).
@@ -310,5 +324,7 @@ export function socialLoginUrl(
     params.set('code_challenge', codeChallenge);
     params.set('code_challenge_method', 'S256');
   }
+  // 켤 때만 보낸다. 서버도 값이 없으면 꺼진 것으로 보므로 기본이 양쪽에서 같다.
+  if (remember) params.set('remember', '1');
   return `${API_BASE_URL}/auth/${provider}?${params.toString()}`;
 }

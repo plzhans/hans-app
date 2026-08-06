@@ -124,6 +124,8 @@ export class OAuthController {
       dto.redirectUri,
       dto.clientId,
       dto.codeChallenge,
+      // 옮겨 가는 앱이 **지금 세션과 같은 수명**을 갖게 한다. 로그인할 때 한 선택이다.
+      user.sessionId,
     );
     return { code };
   }

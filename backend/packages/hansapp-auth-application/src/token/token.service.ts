@@ -72,6 +72,8 @@ export interface ConsumedAuthCode {
   readonly codeChallenge: string | null;
   /** 이번 로그인에 쓴 수단. 로그인 로그에 그대로 쓴다(가입 방식이 아니다). */
   readonly provider: AuthProvider | null;
+  /** 시작 화면에서 고른 "로그인 상태 유지". 이 값으로 세션과 쿠키의 수명이 갈린다. */
+  readonly persistent: boolean;
 }
 
 /**
@@ -292,6 +294,7 @@ export class TokenService {
     clientId: string | null = null,
     codeChallenge: string | null = null,
     provider: AuthProvider | null = null,
+    persistent = false,
   ): Promise<string> {
     const sid = randomToken(12);
     const secret = randomToken(24);
@@ -301,6 +304,7 @@ export class TokenService {
       clientId,
       codeChallenge,
       provider,
+      persistent,
       secretHash: sha256hex(secret),
       expiresAt: new Date(Date.now() + this.config.authCodeTtlSec * 1000),
     });
@@ -345,6 +349,7 @@ export class TokenService {
       clientId: row.clientId,
       codeChallenge: row.codeChallenge,
       provider: row.provider,
+      persistent: row.persistent,
     };
   }
 }

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getMySessions, revokeSession, type Session } from '@/shared/api/auth';
+import {
+  getMySessions,
+  revokeAllSessions,
+  revokeSession,
+  type Session,
+} from '@/shared/api/auth';
 import { errorMessage } from '@/shared/api/errorMessage';
+import { useAuthStore } from '@/shared/auth/authStore';
 
 /**
  * 로그인한 기기 목록. **계정 이용약관 제6조④가 약속한 것을 이행하는 자리다.**
@@ -12,9 +18,17 @@ import { errorMessage } from '@/shared/api/errorMessage';
  * "기기 관리" 가 아니라 그냥 로그아웃이다. 그 버튼은 따로 있다.
  */
 export function SessionList() {
+  const signOut = useAuthStore((s) => s.signOut);
   const [sessions, setSessions] = useState<Session[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  /**
+   * "모든 기기에서 로그아웃" 재확인 단계인가.
+   *
+   * 되돌릴 수 없고 **자기 자신도 끊기는** 동작이라 한 번 더 묻는다. 탈퇴처럼 접어 두지는
+   * 않는다 — 계정을 도용당한 사람이 급히 찾는 버튼이라 눈에 보여야 한다.
+   */
+  const [confirmingAll, setConfirmingAll] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -40,6 +54,24 @@ export function SessionList() {
       setError(errorMessage(e, '로그아웃시키지 못했습니다.'));
     } finally {
       setBusy(null);
+    }
+  };
+
+  const revokeAll = async () => {
+    setError(null);
+    setBusy('all');
+    try {
+      await revokeAllSessions();
+      /*
+        서버가 세션을 다 폐기하고 쿠키도 지웠지만 **이 오리진의 저장소는 남아 있다**.
+        signOut 이 토큰·프로필 캐시를 치우고 다른 탭에도 알리면, 라우터가 비로그인
+        상태를 보고 로그인 화면으로 내려놓는다. 탈퇴와 같은 마무리다.
+      */
+      await signOut();
+    } catch (e) {
+      setError(errorMessage(e, '모든 기기에서 로그아웃하지 못했습니다.'));
+      setBusy(null);
+      setConfirmingAll(false);
     }
   };
 
@@ -87,6 +119,44 @@ export function SessionList() {
           </li>
         ))}
       </ul>
+
+      {/*
+        **하나씩 끊는 것으로 안 되는 경우가 있다.** 목록을 보는 사이에 새 세션이 생기면
+        무엇을 놓쳤는지 알 수 없다. 의심스러우면 다 지우고 다시 로그인하는 편이 확실하다.
+      */}
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+        {confirmingAll ? (
+          <>
+            <span className="mr-auto text-xs text-gray-500">
+              지금 이 기기도 로그아웃됩니다. 계속할까요?
+            </span>
+            <button
+              type="button"
+              disabled={busy === 'all'}
+              onClick={() => setConfirmingAll(false)}
+              className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              disabled={busy === 'all'}
+              onClick={() => void revokeAll()}
+              className="rounded-lg bg-red-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-red-600 disabled:opacity-50"
+            >
+              {busy === 'all' ? '처리 중…' : '모두 로그아웃'}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingAll(true)}
+            className="text-xs font-semibold text-gray-500 underline transition hover:text-red-500"
+          >
+            모든 기기에서 로그아웃
+          </button>
+        )}
+      </div>
     </section>
   );
 }

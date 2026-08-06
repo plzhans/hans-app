@@ -361,6 +361,28 @@ export class AuthService {
     }
   }
 
+  /**
+   * 모든 기기에서 로그아웃. **지금 이 기기까지 포함해 전부 지운다.**
+   *
+   * 계정이 도용됐다고 의심할 때 누르는 버튼이다. 목록에서 하나씩 끊는 것으로는 그 사이에
+   * 새로 만들어진 세션을 놓칠 수 있고, 무엇을 놓쳤는지도 알 수 없다 — 다 지우고 다시
+   * 로그인하는 편이 확실하다.
+   *
+   * **지금 이 기기를 빼지 않는 이유.** 버튼에 "모든" 이라고 쓰여 있으면 정말 모두여야 한다.
+   * 하나를 남기면 "왜 아직 로그인돼 있지" 를 사용자가 다시 의심하게 된다. 비밀번호를
+   * 바꾸라는 안내가 그다음에 오는데, 그 흐름도 어차피 재로그인에서 시작한다.
+   */
+  async revokeAllSessions(userId: number, meta: RequestMeta): Promise<number> {
+    const removed = await this.sessions.deleteAllByUser(userId);
+    await this.log.record({
+      userId,
+      action: UserAction.LOGOUT,
+      result: ActionResult.SUCCESS,
+      ...meta,
+    });
+    return removed;
+  }
+
   // ---- 내부 헬퍼 ----
 
   /**

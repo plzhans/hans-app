@@ -44,8 +44,12 @@ export default function Login() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<Form>();
+  // 소셜 버튼도 같은 체크박스를 따른다. RHF 입력은 비제어라 watch 로 현재 값을 읽어야
+  // 방금 켠 선택이 반영된다 — 안 읽으면 소셜만 늘 유지되어 체크박스가 거짓말을 한다.
+  const rememberMe = watch('rememberMe', false);
 
   const onSubmit = handleSubmit(async ({ email, password, rememberMe }) => {
     setServerError(null);
@@ -125,6 +129,7 @@ export default function Login() {
         codeChallenge={codeChallenge}
         clientState={clientState}
         appReturn={appReturn}
+        remember={rememberMe}
       />
 
       <p className="mt-6 text-center text-sm text-gray-500">

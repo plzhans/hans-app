@@ -59,6 +59,13 @@ export class SocialTicketService {
      */
     flowId?: string;
     nonce?: string;
+    /**
+     * "로그인 상태 유지" 선택. **화면에서 여기까지 실어 나르지 않으면 체크박스가 거짓말을 한다.**
+     *
+     * 소셜은 provider 를 들렀다 오는 사이 원래 요청이 끊긴다 — 선택을 붙잡아 둘 곳이
+     * state 뿐이다. 서명돼 있으니 돌아오는 길에 바뀌지도 않는다.
+     */
+    persistent?: boolean;
   }): string {
     return this.jwt.sign(
       {
@@ -71,6 +78,7 @@ export class SocialTicketService {
         client_state: payload.clientState,
         flow_id: payload.flowId,
         nonce: payload.nonce,
+        persistent: payload.persistent,
       },
       // 흐름 쿠키와 **같은 값**이어야 한다. 한쪽만 살아 있으면 정상 로그인이 거부된다.
       { expiresIn: this.config.socialFlowTtlSec },
@@ -86,6 +94,7 @@ export class SocialTicketService {
     clientState?: string;
     flowId?: string;
     nonce?: string;
+    persistent?: boolean;
   } {
     const p = this.verify<{
       token_use: string;
@@ -97,6 +106,7 @@ export class SocialTicketService {
       client_state?: string;
       flow_id?: string;
       nonce?: string;
+      persistent?: boolean;
     }>(token, 'oauth_state');
     return {
       intent: p.intent,
@@ -107,6 +117,7 @@ export class SocialTicketService {
       clientState: p.client_state,
       flowId: p.flow_id,
       nonce: p.nonce,
+      persistent: p.persistent,
     };
   }
 
@@ -133,6 +144,8 @@ export class SocialTicketService {
     email: string | null;
     name: string | null;
     emailVerified: boolean;
+    /** 시작 화면에서 고른 "로그인 상태 유지". 가입을 마치고 바로 로그인시킬 때 쓴다. */
+    persistent?: boolean;
   }): string {
     return this.jwt.sign(
       {
@@ -142,6 +155,7 @@ export class SocialTicketService {
         email: payload.email,
         name: payload.name,
         email_verified: payload.emailVerified,
+        persistent: payload.persistent,
       },
       { expiresIn: 900 },
     );
@@ -153,6 +167,7 @@ export class SocialTicketService {
     email: string | null;
     name: string | null;
     emailVerified: boolean;
+    persistent?: boolean;
   } {
     const p = this.verify<{
       token_use: string;
@@ -161,6 +176,7 @@ export class SocialTicketService {
       email: string | null;
       name: string | null;
       email_verified: boolean;
+      persistent?: boolean;
     }>(token, 'oauth_register');
     return {
       provider: p.provider,
@@ -168,6 +184,7 @@ export class SocialTicketService {
       email: p.email,
       name: p.name,
       emailVerified: p.email_verified,
+      persistent: p.persistent,
     };
   }
 

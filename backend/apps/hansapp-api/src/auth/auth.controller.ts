@@ -202,6 +202,25 @@ export class AuthController {
     await this.authService.revokeSession(user.userId, sessionId);
   }
 
+  @Delete('me/sessions')
+  @Auth(AuthType.Jwt)
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '모든 기기에서 로그아웃',
+    description:
+      '이 계정의 세션을 전부 폐기한다. 지금 이 기기도 포함되므로 호출한 쪽도 로그아웃된다.',
+  })
+  async revokeAllSessions(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.authService.revokeAllSessions(user.userId, requestMeta(req));
+    // **쿠키도 같이 지운다.** 세션 행만 지우면 브라우저에는 죽은 refresh 쿠키가 남고,
+    // 프론트는 힌트 쿠키를 보고 로그인 상태로 착각해 refresh 를 부르다 401 을 맞는다.
+    clearRefreshCookie(res);
+  }
+
   @Get('me/consents')
   @Auth(AuthType.Jwt)
   @ApiOperation({
