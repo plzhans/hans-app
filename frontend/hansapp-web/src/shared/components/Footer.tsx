@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { CONTACT_EMAIL } from '@/shared/config/contact';
 
 /**
  * 하단 고지.
@@ -43,8 +44,24 @@ export function Footer() {
           </nav>
         </div>
 
+        {/*
+          문의는 **운영 주체 옆에** 둔다. 약관 링크 줄에 섞으면 읽는 문서들 사이에 눌러서
+          메일이 열리는 것이 하나 끼어 성격이 어긋난다 — 여기는 "누가 운영하고 어디로
+          연락하나" 한 묶음이다.
+        */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-gray-100 pt-4">
-          <p>개인이 운영하는 서비스입니다.</p>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>개인이 운영하는 서비스입니다.</span>
+            <span>
+              문의:{' '}
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="text-gray-500 hover:text-gray-900"
+              >
+                {CONTACT_EMAIL}
+              </a>
+            </span>
+          </p>
           <p>© {'2026'} plzhans.com</p>
         </div>
       </div>

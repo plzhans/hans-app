@@ -215,15 +215,24 @@ en:
 - 지금: "회원가입 절차가 없고 만 14세 미만 아동을 대상으로 개인정보를 수집하지 않습니다."
 - 바꿀 것(ko):
 
-  > 서비스는 만 14세 미만 아동의 회원가입을 받지 않습니다. 회원가입 시 만 14세 이상임을
-  > 확인하며, 만 14세 미만임이 확인된 계정은 지체 없이 삭제합니다.
+  > ① 서비스는 만 14세 미만 아동의 회원가입을 받지 않습니다.
+  > ② 운영자는 본인확인 절차를 두지 않으므로 이용자의 나이를 직접 확인하지 못합니다.
+  > 회원가입 시 이용자가 만 14세 이상임을 스스로 확인하여 동의하도록 하고 있습니다.
+  > ③ 만 14세 미만 아동이 가입한 사실을 알게 된 경우 지체 없이 해당 계정과 그 개인정보를
+  > 삭제합니다.
 
 - en:
 
-  > The Service does not accept sign-ups from children under the age of 14. Age is confirmed at
-  > sign-up, and any account found to belong to a child under 14 is deleted without delay.
+  > (1) The Service does not accept sign-ups from children under the age of 14.
+  > (2) The Operator does not run identity verification and therefore cannot directly confirm a
+  > user's age. At sign-up, users are asked to confirm for themselves that they are 14 or older.
+  > (3) If the Operator learns that a child under 14 has signed up, the account and its personal
+  > information are deleted without delay.
 
-⚠ 이 문장을 쓰려면 **가입 화면에 연령 확인이 실제로 있어야 한다.** 없으면 쓰지 말 것.
+**"확인합니다" 로 쓰지 말 것.** 우리가 검증한다는 뜻이 되는데 실제로는 이용자의 자기 선언을
+믿는 것뿐이다. 본인인증도 없고, 소셜 로그인에서 생년월일을 요청하지도 않는다(요청하면 동의
+항목이 늘고 제공자 심사도 무거워진다). 자기 선언은 법이 허용하는 방식이지만, 하지 않는 일을
+한다고 적으면 그 문장 자체가 거짓이 된다.
 
 ---
 

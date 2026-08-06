@@ -176,6 +176,13 @@
                 "Transmitted over the network when Google Maps is displayed",
                 "IP address, request details",
                 "Map display / per the provider's own policy"
+              ],
+              [
+                "jsDelivr",
+                "Poland and others (global CDN network)",
+                "Transmitted over the network when a page is loaded",
+                "IP address, request details",
+                "Delivery of web fonts / per the provider's own policy"
               ]
             ]
           }
