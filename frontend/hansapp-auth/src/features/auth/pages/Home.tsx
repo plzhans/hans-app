@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PORTAL_WEB_URL } from '@/shared/config/env';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { getMyConsents, type ConsentRecord } from '@/shared/api/auth';
 import { Button } from '@/shared/ui/Button';
 import { AuthCard } from '../components/AuthCard';
-import { ProfileSection } from '../components/ProfileSection';
 import { WithdrawSection } from '../components/WithdrawSection';
 
 /**
@@ -18,6 +18,7 @@ import { WithdrawSection } from '../components/WithdrawSection';
  * 정보주체가 확인할 수 있어야 한다.
  */
 export default function Home() {
+  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const signOut = useAuthStore((s) => s.signOut);
   const [consents, setConsents] = useState<ConsentRecord[] | null>(null);
@@ -65,12 +66,11 @@ export default function Home() {
         </section>
       )}
 
-      {/* 정정. 접힌 채로 두고 누르면 펼쳐진다 — 평소엔 읽는 화면이다. */}
-      <div className="mt-4">
-        <ProfileSection />
-      </div>
-
       <div className="mt-6 space-y-2">
+        {/* 고치는 자리는 별도 화면이다. 여기는 읽는 화면이라 보내기만 한다. */}
+        <Button variant="outline" onClick={() => navigate('/me/edit')}>
+          정보 수정
+        </Button>
         {/* 미설정(로컬에서 포털을 안 띄운 경우)이면 죽은 버튼을 만들지 않고 감춘다. */}
         {PORTAL_WEB_URL && (
           <Button onClick={() => (window.location.href = PORTAL_WEB_URL)}>
