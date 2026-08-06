@@ -329,16 +329,6 @@
     "modelLocked": "Paid",
     "modelLockedHint": "Choose a stronger model once you upgrade.",
     "metaToggle": "Response details",
-    "chips": {
-      "subject": "{{count}} specialty",
-      "specialist": "{{count}} specialist",
-      "assessment": "{{count}} rated",
-      "specialty": "{{count}} certified",
-      "equipment": "{{count}} equipment",
-      "tier": "{{count}} level",
-      "emergency": "Emergency room",
-      "baby": "Night pediatrics"
-    },
     "warnings": {
       "off_topic": "I can only help with finding hospitals.",
       "emergency_suspected": "This may be an emergency. Call 119 or go to the nearest emergency room right away.",
@@ -353,6 +343,23 @@
     "newChat": "New chat",
     "newChatConfirm": "Clear this conversation and start over? This cannot be undone.",
     "newChatCancel": "Cancel",
-    "launcher": "Ask AI"
+    "launcher": "Ask AI",
+    "creditsLabel": "Tokens used",
+    "copy": "Copy",
+    "copied": "Copied",
+    "conditions": {
+      "subject": "Specialty",
+      "specialist": "Specialist",
+      "assessment": "Top-rated",
+      "specialty": "Certified",
+      "equipment": "Equipment",
+      "class": "Type",
+      "tier": "{{count}} tier(s)",
+      "emergency": "ER",
+      "baby": "Night pediatrics"
+    },
+    "quotaUnavailable": "Usage is unavailable",
+    "quotaUnavailableHint": "Please reopen in a moment",
+    "quotaToggle": "Show other limits"
   }
 }

@@ -329,16 +329,6 @@
     "modelLocked": "付费",
     "modelLockedHint": "成为付费会员后可选择更强的模型。",
     "metaToggle": "响应信息",
-    "chips": {
-      "subject": "科室 {{count}}",
-      "specialist": "专科医师 {{count}}",
-      "assessment": "评价优秀 {{count}}",
-      "specialty": "专科医院 {{count}}",
-      "equipment": "设备 {{count}}",
-      "tier": "医院等级 {{count}}",
-      "emergency": "急诊",
-      "baby": "夜间儿科"
-    },
     "warnings": {
       "off_topic": "我只能帮您查找医院相关的问题。",
       "emergency_suspected": "可能是紧急情况，请立即拨打 119 或前往最近的急诊科。",
@@ -353,6 +343,23 @@
     "newChat": "新对话",
     "newChatConfirm": "清空当前对话并重新开始？此操作无法撤销。",
     "newChatCancel": "取消",
-    "launcher": "咨询 AI"
+    "launcher": "咨询 AI",
+    "creditsLabel": "已用代币",
+    "copy": "复制",
+    "copied": "已复制",
+    "conditions": {
+      "subject": "科室",
+      "specialist": "专科医生",
+      "assessment": "评价优秀",
+      "specialty": "专科医院",
+      "equipment": "设备",
+      "class": "类别",
+      "tier": "医院等级 {{count}}",
+      "emergency": "急诊",
+      "baby": "夜间儿科"
+    },
+    "quotaUnavailable": "无法确认使用量",
+    "quotaUnavailableHint": "请稍后重新打开",
+    "quotaToggle": "查看其他限额"
   }
 }

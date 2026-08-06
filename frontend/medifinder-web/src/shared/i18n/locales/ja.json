@@ -329,16 +329,6 @@
     "modelLocked": "有料",
     "modelLockedHint": "有料会員になるとより高性能なモデルを選べます。",
     "metaToggle": "応答情報",
-    "chips": {
-      "subject": "診療科 {{count}}",
-      "specialist": "専門医 {{count}}",
-      "assessment": "評価優秀 {{count}}",
-      "specialty": "専門病院 {{count}}",
-      "equipment": "設備 {{count}}",
-      "tier": "病院区分 {{count}}",
-      "emergency": "救急外来",
-      "baby": "夜間小児"
-    },
     "warnings": {
       "off_topic": "病院探しに関するご質問のみお手伝いできます。",
       "emergency_suspected": "緊急の可能性があります。すぐに119へ連絡するか、最寄りの救急外来へ向かってください。",
@@ -353,6 +343,23 @@
     "newChat": "新しい会話",
     "newChatConfirm": "今の会話を消して新しく始めますか？元に戻せません。",
     "newChatCancel": "キャンセル",
-    "launcher": "AIに相談"
+    "launcher": "AIに相談",
+    "creditsLabel": "使用トークン",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "conditions": {
+      "subject": "診療科",
+      "specialist": "専門医",
+      "assessment": "評価優秀",
+      "specialty": "専門病院",
+      "equipment": "設備",
+      "class": "種別",
+      "tier": "病院等級 {{count}}",
+      "emergency": "救急",
+      "baby": "夜間小児"
+    },
+    "quotaUnavailable": "使用量を確認できません",
+    "quotaUnavailableHint": "しばらくしてから開き直してください",
+    "quotaToggle": "他の上限を表示"
   }
 }

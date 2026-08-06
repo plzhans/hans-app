@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { reactFetch } from '@/shared/api/mutator';
 
 /**
@@ -68,6 +68,46 @@ export interface AiSearchParams {
   answer?: string;
 }
 
+/** 통 하나의 상태. **어느 통인지는 담긴 필드 이름이 말한다.** */
+export interface AiSearchQuotaWindow {
+  /** 지금까지 쓴 통합 토큰. */
+  used: number;
+  limit: number;
+}
+
+/**
+ * 지금 쓰는 몫. **둘 다 온다 — 화면이 골라 쓴다.**
+ *
+ * 실제로 깎이는 것은 신원의 것 하나다(로그인했으면 `user`, 아니면 `app`).
+ * 그래도 둘 다 오는 것은, 안 깎는 쪽도 얼마나 남았는지는 알아야 해서다.
+ *
+ * **없는 쪽은 안 걸렸다는 뜻이다.** 지금은 로그인이 없어 `user` 가 늘 비어 있다.
+ */
+export interface AiSearchQuota {
+  /** 앱 예산. 월이 진짜 한도이고 일은 그게 첫날에 다 타지 않게 하는 둑이다. */
+  app?: {
+    daily?: AiSearchQuotaWindow;
+    monthly?: AiSearchQuotaWindow;
+  };
+  /** 개인 충전 잔액. 리셋되지 않는다. */
+  user?: {
+    balance?: AiSearchQuotaWindow;
+  };
+}
+
+/** 잡힌 조건 한 묶음. **코드가 아니라 이름으로 온다**(서버가 코드표를 보고 붙인다). */
+export interface AiSearchCondition {
+  group:
+    | 'subject'
+    | 'specialist'
+    | 'assessment'
+    | 'specialty'
+    | 'equipment'
+    | 'class';
+  /** 사람이 읽는 이름들. 요청 언어(Accept-Language)로 온다. */
+  names: string[];
+}
+
 export interface AiSearchResponse {
   /** 무엇을 할지. 화면은 이것으로 갈린다. */
   tool: AiSearchTool;
@@ -77,19 +117,47 @@ export interface AiSearchResponse {
   explain: string;
   /** 검증에서 떨어진 코드. 비어 있는 게 정상이라 화면에는 안 쓴다(디버깅용). */
   dropped: string[];
+  /**
+   * 잡힌 조건을 **이름으로** 푼 것. `params.filter` 의 코드와 같은 내용이다.
+   * 등급·응급실 같은 고정값은 여기 없다 — 코드표가 없는 값이라 화면이 자기 문구를 쓴다.
+   */
+  conditions: AiSearchCondition[];
   provider: string;
+  /** 실제로 답한 모델. 공개값이다 — 곱할 수량(토큰 수)이 안 나가서 요금이 역산되지 않는다. */
   model: string;
   /**
-   * 캐시된 답이면 true. 이때 `usage` 는 **처음 물었을 때** 쓴 토큰이라 이 요청의 비용이 아니다.
+   * 이 요청이 쓴 **통합 토큰**. 사용자에게 보이는 유일한 사용량 숫자다.
+   *
+   * 원시 토큰 수가 아니라 환산값이다 — 출력이 입력보다 비싸고 모델마다 단가가 달라서,
+   * 단위를 하나로 접지 않으면 같은 숫자가 자리마다 다른 돈을 뜻한다. `quota` 와 같은
+   * 단위라 그대로 견줄 수 있다.
+   *
+   * **캐시된 답도 같은 값이다** — 같은 질문이면 언제 묻든 같은 값이어야 한다.
+   * 0 인 경우는 아무 답도 못 받은 때뿐이다(사전 차단).
    */
-  cached: boolean;
+  credits: number;
   /** 서버가 이 요청을 처리한 시간(ms). 브라우저가 기다린 시간이 아니다(네트워크 제외). */
   elapsedMs: number;
-  usage: {
-    inputTokens: number;
-    outputTokens: number;
-    cacheReadTokens?: number;
-    cacheWriteTokens?: number;
+  /** 쓴 몫. **못 셌으면 없다** — 없으면 화면은 아무것도 안 그린다. */
+  quota?: AiSearchQuota;
+  /**
+   * 원시 토큰 내역. **로컬·개발에서만 온다**(서버 설정으로 끊는다).
+   *
+   * 모델 이름과 달리 이쪽은 곱할 수량이라 운영에서는 응답에 아예 없다. 화면은 있으면
+   * 보여주고 없으면 그 칸을 통째로 빼면 된다 — 없는 게 정상이다.
+   */
+  debug?: {
+    /**
+     * 우리 Redis 캐시에서 나온 답인가. true 면 아래 `usage` 는 처음 물었을 때 쓴 양이다.
+     * **`credits` 는 히트든 아니든 같다** — 값은 우리 원가가 아니라 질문 하나의 값이다.
+     */
+    cached: boolean;
+    usage: {
+      inputTokens: number;
+      outputTokens: number;
+      cacheReadTokens?: number;
+      cacheWriteTokens?: number;
+    };
   };
 }
 
@@ -108,6 +176,30 @@ export function useAiSearch() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ q }),
       }),
+  });
+}
+
+/**
+ * 지금 사용량. **채팅창을 열 때 한 번만** 부른다.
+ *
+ * 첫 질문을 하기 전에도 얼마나 남았는지는 보여야 하는데, 답변에 실려 오는 `quota` 는
+ * 물어봐야 생긴다. 그 빈자리만 메우는 용도다.
+ *
+ * **다시 부르지 않는다**(staleTime 무한, 포커스·재접속 갱신 끔). 값이 바뀌는 계기는
+ * 이 사람이 질문하는 순간뿐이고 그때는 답변이 새 값을 싣고 온다 — 폴링하면 안 바뀐 값을
+ * 계속 받으면서 Redis 만 친다.
+ *
+ * 실패해도 조용하다. 사용량 표시가 없을 뿐이라 채팅은 그대로 된다.
+ */
+export function useAiSearchQuota() {
+  return useQuery<{ quota?: AiSearchQuota }>({
+    queryKey: ['ai', 'quota'],
+    // **`/healthcare` 아래가 아니다** — 재는 대상은 병원이 아니라 부른 사람이다.
+    queryFn: () => reactFetch('/ai/quota'),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 }
 

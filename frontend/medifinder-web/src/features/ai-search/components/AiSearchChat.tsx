@@ -19,6 +19,8 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
+  Copy,
   LocateFixed,
   Lock,
   Info,
@@ -30,6 +32,7 @@ import {
   MessageSquarePlus,
   X,
 } from 'lucide-react';
+import type { TFunction } from 'i18next';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import { useLangPath } from '@/shared/i18n/routing';
@@ -43,7 +46,9 @@ import {
   paramsToQuery,
   toSearchParams,
   useAiSearch,
-  type AiSearchFilter,
+  useAiSearchQuota,
+  type AiSearchQuota,
+  type AiSearchQuotaWindow,
   type AiSearchResponse,
   type AiSearchWarning,
 } from '../api';
@@ -52,15 +57,236 @@ import {
  * 내용만큼 칸을 키운다. **scrollHeight 를 읽기 전에 height 를 비우는 게 핵심이다** —
  * 안 그러면 이미 커진 높이가 scrollHeight 의 하한이 되어 줄을 지워도 안 줄어든다.
  *
- * 최대 높이는 CSS(max-h)가 잡는다. 넘으면 칸 안에서 스크롤한다.
+ * 최대 높이는 CSS(max-h)가 잡는다.
+ *
+ * **스크롤은 한도에 닿았을 때만 켠다.** 늘 auto 로 두면 줄이 늘어날 때마다 스크롤바가
+ * 깜빡인다 — 줄높이가 22.75px 처럼 소수라 `height = scrollHeight` 로 맞춰도 브라우저가
+ * 반올림하면서 1px 이 남고, 그 1px 에 스크롤바가 났다가 다음 렌더에 사라진다.
+ * 그리고 스크롤바가 뜨는 순간 칸이 좁아져 글이 다시 접히므로 높이가 또 바뀐다(요동).
  */
 function autoGrow(el: HTMLTextAreaElement): void {
   el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
+  const full = el.scrollHeight;
+  el.style.height = `${full}px`;
+  // 실제로 잘렸을 때만(브라우저가 max-height 로 깎았을 때) 스크롤을 준다.
+  el.style.overflowY = el.clientHeight < full ? 'auto' : 'hidden';
 }
 
 /** 질문 길이 상한. 서버(MAX_QUESTION_LENGTH)와 같은 값이라 넘기기 전에 여기서 막는다. */
 const MAX_LENGTH = 300;
+
+/**
+ * 가장 최근에 받은 몫. **매 응답이 최신값을 싣고 온다** — 따로 조회하지 않는다.
+ * 아직 아무것도 안 물었으면 undefined 다(그때는 보여줄 것이 없다).
+ */
+function lastQuota(turns: Turn[]): AiSearchQuota | undefined {
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    const turn = turns[i];
+    // 모양을 확인하고 쓴다. 저장된 대화는 예전 판일 수 있고, 판 올리기를 잊어도
+    // 화면이 터지지는 않아야 한다 — 사용량 표시 하나 때문에 채팅을 못 쓰면 손해다.
+    const quota = turn.role === 'assistant' ? turn.result.quota : undefined;
+    if (quota?.app || quota?.user) {
+      return quota;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * 남은 몫 표시. 숫자와 막대를 같이 둔다 — 숫자는 정확하고, 막대는 **한눈에 얼마나 남았나**를
+ * 말한다. 둘 중 하나만 두면 "1,847,000/2,000,000" 이 많은 건지 적은 건지 세어 봐야 안다.
+ *
+ * **통이 여러 개여도 하나만 그린다.** 앱 몫은 일·월 두 통이 걸려 있는데 둘 다 그리면
+ * 입력창 옆이 계기판이 된다 — 정작 알고 싶은 건 "지금 막히나" 라서 **가장 많이 찬 통**을
+ * 고른다. 그게 실제로 먼저 막는 통이다.
+ *
+ * 다 써 갈수록 색이 바뀐다(80% 주의, 100% 위험) — 숫자를 읽지 않아도 눈에 걸려야 한다.
+ */
+/**
+ * 사용량 자리를 미리 잡아 둔다. **빈칸으로 두지 않는 이유**는 값이 도착하는 순간 줄이
+ * 생기면서 입력칸이 아래로 밀리기 때문이다 — 채팅창을 열자마자 눈이 가 있는 자리라
+ * 그 흔들림이 크게 보인다. 접힌 상태가 한 줄이므로 여기도 한 줄이다.
+ */
+function QuotaSkeleton() {
+  return (
+    <div
+      className="h-3 w-32 animate-pulse rounded-full bg-line"
+      aria-hidden
+    />
+  );
+}
+
+/**
+ * 사용량. **늘 한 줄이다** — 나머지 한도는 화살표를 누르면 **레이어로** 뜬다.
+ *
+ * 제자리에서 펼치지 않는 이유는 이 줄 바로 아래가 입력칸이어서다. 줄이 늘면 입력칸이
+ * 밀려 내려가고, 닫을 때 다시 올라온다 — 잠깐 확인하고 마는 물건이 손대는 자리를
+ * 흔드는 셈이다(`i` 패널을 말풍선 밖에 띄우는 것과 같은 이유).
+ *
+ * 로그인 전에는 한도가 둘(오늘·이번 달)인데, 평소에 궁금한 것은 **먼저 막는 쪽 하나**이고
+ * 나머지는 "왜 막혔지" 를 따질 때만 본다. 로그인 후에는 잔액 하나뿐이라 화살표가 안 나온다.
+ */
+function QuotaBar({ quota }: { quota: AiSearchQuota }) {
+  const { t } = useTranslation();
+  const [first, ...rest] = shownWindows(quota);
+  if (!first) {
+    return null;
+  }
+
+  if (rest.length === 0) {
+    return <QuotaRow label={first.label} window={first.window} />;
+  }
+
+  return (
+    <Popover.Root>
+      {/*
+        **줄 전체를 기준점으로 삼는다**(Anchor). 버튼만 기준이면 16px 짜리 화살표의 왼쪽
+        끝에 레이어가 맞춰져 대각선 위로 튀어나온 것처럼 보인다 — 누른 것은 화살표지만
+        정렬은 이 줄에 맞아야 두 줄이 위아래로 쌓인 것으로 읽힌다.
+      */}
+      <Popover.Anchor className="flex min-w-0 items-center gap-1">
+        <QuotaRow label={first.label} window={first.window} />
+        <Popover.Trigger
+          aria-label={t('aiSearch.quotaToggle')}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors active:bg-line data-[state=open]:bg-brand data-[state=open]:text-white"
+        >
+          {/* 레이어가 늘 위로 열리므로 화살표도 위를 가리킨다. */}
+          <ChevronUp className="h-3.5 w-3.5" />
+        </Popover.Trigger>
+      </Popover.Anchor>
+      <Popover.Portal>
+        {/* **위로 띄운다.** 아래는 입력칸이라 그쪽으로 열면 손대는 자리를 덮는다. */}
+        <Popover.Content
+          side="top"
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className="z-50 w-max rounded-card border border-line-subtle bg-surface p-2.5 shadow-raised"
+        >
+          <div className="flex flex-col gap-1">
+            {rest.map(({ label, window }) => (
+              <QuotaRow key={label.text} label={label} window={window} />
+            ))}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+/**
+ * 통 하나. 숫자와 막대를 같이 둔다 — 숫자는 정확하고, 막대는 **한눈에 얼마나 남았나**를
+ * 말한다. 둘 중 하나만 두면 "1,847,000/2,000,000" 이 많은 건지 적은 건지 세어 봐야 안다.
+ *
+ * 다 써 갈수록 색이 바뀐다(80% 주의, 100% 위험) — 숫자를 읽지 않아도 눈에 걸려야 한다.
+ */
+function QuotaRow({
+  label,
+  window,
+}: {
+  label: QuotaLabel;
+  window: AiSearchQuotaWindow;
+}) {
+  const ratio = Math.min(1, window.used / window.limit);
+  const pct = Math.round(ratio * 100);
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        // 굵게 하지 않는다. 입력 상자 안에 같이 있어서 굵히면 입력칸보다 먼저 눈에 든다 —
+        // 색만 기본색으로 두면 안 흐리면서도 주인공 자리를 안 뺏는다.
+        className="shrink-0 text-[0.72rem] tabular-nums text-ink"
+        /*
+          줄인 숫자 뒤에 정확한 값을 남기고, **이 숫자가 누구 것인지도 여기서 말한다** —
+          라벨은 자리가 좁아 두 낱말뿐이라 "모두가 합쳐 쓴 양" 이라는 설명이 안 들어간다.
+        */
+        title={`${label.hint}\n${window.used.toLocaleString()} / ${window.limit.toLocaleString()}`}
+      >
+        {label.text} {compact(window.used)}/{compact(window.limit)}
+      </span>
+      {/*
+        role=progressbar 로 둔다. 시각적 막대만 두면 스크린리더에는 아무것도 안 읽힌다 —
+        옆 숫자가 있으니 중복이지만, 값이 바뀌었다는 것은 이쪽만 알린다.
+      */}
+      <div
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label.hint}
+        className="h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-line"
+      >
+        <div
+          className={cn(
+            'h-full rounded-full transition-[width] duration-300',
+            ratio >= 1 ? 'bg-danger' : ratio >= 0.8 ? 'bg-amber-500' : 'bg-brand',
+          )}
+          style={{ width: `${Math.max(pct, 2)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 통 이름과 툴팁. **번역하지 않는다** — `i` 패널의 라벨과 같은 규칙이다.
+ *
+ * 낱말을 네 언어로 옮기면 폭이 제각각이라 옆의 숫자와 막대가 언어마다 다른 자리에 선다.
+ * 자리가 좁아 한두 글자 차이가 그대로 어긋남이 되는데, 정작 이 자리에서 읽어야 하는 것은
+ * 낱말이 아니라 **숫자와 막대**다.
+ *
+ * **앱 몫을 `Shared` 라고 쓴다.** 로그인 전에는 이 숫자가 내가 쓴 양이 아니라 **모두가
+ * 합쳐 쓴 양**이다 — 한 번밖에 안 물었는데 값이 크고, 가만히 있어도 늘어난다.
+ * `Today` 라고만 적으면 그게 내 사용량으로 읽히고, 나아가 로그인한 줄로도 읽힌다.
+ *
+ * 어느 창인지(Today/Month)도 같이 적는다. 창이 바뀌면 값이 리셋되므로, 그것 없이는
+ * 숫자가 왜 갑자기 줄었는지 설명이 안 된다.
+ */
+const WINDOW_LABEL = {
+  daily: { text: 'Today Shared', hint: 'Shared across all users · today' },
+  monthly: { text: 'Month Shared', hint: 'Shared across all users · this month' },
+  balance: { text: 'Balance', hint: 'Your remaining tokens' },
+} as const;
+
+type QuotaLabel = (typeof WINDOW_LABEL)[keyof typeof WINDOW_LABEL];
+
+/**
+ * 보여줄 통들. **깎이는 쪽만 그린다** — 응답은 앱 예산과 개인 잔액을 둘 다 싣지만,
+ * 사용자가 알고 싶은 것은 "내가 지금 뭘 쓰고 있나" 다. 로그인했으면 개인 잔액이 그것이고,
+ * 아니면 앱 예산이다(안 깎이는 쪽을 그리면 숫자가 안 움직여서 고장처럼 보인다).
+ *
+ * **순서가 곧 우선순위다.** 앞의 것이 접힌 상태에서 보이는 줄이고 나머지는 화살표 뒤에
+ * 숨는다 — 로그인 전이면 오늘이 먼저다(자정마다 걸리는 쪽이라 평소에 궁금한 것이 이쪽이고,
+ * 이번 달은 "왜 막혔지" 를 따질 때만 본다).
+ */
+function shownWindows(
+  quota: AiSearchQuota,
+): { label: QuotaLabel; window: AiSearchQuotaWindow }[] {
+  const candidates = quota.user
+    ? ([['balance', quota.user.balance]] as const)
+    : ([
+        ['daily', quota.app?.daily],
+        ['monthly', quota.app?.monthly],
+      ] as const);
+
+  return candidates
+    .filter(([, window]) => window && window.limit > 0)
+    .map(([key, window]) => ({
+      label: WINDOW_LABEL[key],
+      window: window as AiSearchQuotaWindow,
+    }));
+}
+
+/** 큰 수를 짧게. 1,847,000 → 1.8M. 정확한 값은 title 에 남긴다. */
+function compact(n: number): string {
+  if (n >= 1_000_000) {
+    return `${(n / 1_000_000).toFixed(n < 10_000_000 ? 1 : 0)}M`;
+  }
+  if (n >= 1_000) {
+    return `${(n / 1_000).toFixed(n < 10_000 ? 1 : 0)}k`;
+  }
+  return String(n);
+}
 
 /**
  * 경고별 아이콘과 색. emergency 만 붉게 세운다 — 나머지는 안내지 경고가 아니다.
@@ -191,8 +417,11 @@ export function AiSearchChat({
 
       **버튼의 disabled 만으로는 부족하다.** 입력칸에서 Enter 를 치면 비활성 제출 버튼과
       무관하게 form 의 onSubmit 이 그대로 불린다.
+
+      **사용량을 못 읽었으면 여기서도 막는다.** 입력칸만 잠그면 빈 화면의 예시 질문 버튼이
+      그대로 살아 있어 그쪽으로 빠져나간다 — 보내는 길이 둘이라 문지기도 둘일 수는 없다.
     */
-    if (!q || sendingRef.current) return;
+    if (!q || sendingRef.current || blocked) return;
     sendingRef.current = true;
 
     const id = nextId.current++;
@@ -226,6 +455,24 @@ export function AiSearchChat({
    * 측위도 세 번 하고, 권한 창도 그만큼 뜬다. 여기서 한 번 잡아 모든 말풍선이 나눠 쓴다.
    */
   const place = useMyPlace();
+
+  /*
+    남은 몫. **답변이 있으면 그쪽이 최신이다** — 응답마다 새 값이 실려 온다.
+    아직 아무것도 안 물었을 때만 열면서 받아 온 값을 쓴다(그때는 실려 올 답변이 없다).
+  */
+  const fetched = useAiSearchQuota();
+  const quota = lastQuota(turns) ?? fetched.data?.quota;
+  /*
+    **사용량을 못 읽으면 질문도 못 한다.** 서버가 계수기를 못 읽으면 요청을 fail-closed 로
+    막으므로(한도가 사라진 채 요금이 새는 것보다 낫다), 여기서 입력을 열어 두면 사용자는
+    질문을 다 치고 나서야 막힌 걸 안다.
+
+    **불러오는 중과 실패를 나눠 다룬다.** 둘 다 "아직 못 쓴다" 지만, 잠깐 기다리면 되는
+    것과 지금은 안 되는 것은 사용자가 할 일이 다르다.
+  */
+  const quotaPending = fetched.isPending;
+  const quotaFailed = fetched.isError;
+  const blocked = quotaPending || quotaFailed;
 
   /** 조건을 들고 기존 검색 화면으로. 레이어는 닫는다 — 뒤에 결과가 깔리므로 남길 이유가 없다. */
   function goSearch(result: AiSearchResponse) {
@@ -282,7 +529,7 @@ export function AiSearchChat({
             fullscreen ? undefined : { width: size.width, height: size.height }
           }
           className={cn(
-            'fixed bottom-3 right-3 z-50 flex animate-slide-up flex-col overflow-hidden rounded-card border border-line-subtle bg-surface shadow-raised sm:bottom-5 sm:right-5',
+            'fixed bottom-3 right-3 z-50 flex animate-slide-up flex-col overflow-hidden rounded-card border border-line-subtle bg-surface shadow-pop sm:bottom-5 sm:right-5',
             // 모바일 기본값. sm 이상에서는 위 style 의 픽셀 값이 이긴다(sm:w-auto 로 풀어 준다).
             'h-[75dvh] w-[calc(100vw-1.5rem)] sm:h-auto sm:w-auto',
             fullscreen &&
@@ -442,7 +689,7 @@ export function AiSearchChat({
           >
             <div ref={contentRef}>
             {turns.length === 0 ? (
-              <EmptyState onAsk={send} />
+              <EmptyState onAsk={send} disabled={blocked} />
             ) : (
               <ul className="flex flex-col gap-3">
                 {turns.map((turn) => (
@@ -474,8 +721,8 @@ export function AiSearchChat({
           </div>
 
           {/*
-          입력. **세이프에어리어를 더한다** — 아이폰에서 홈 인디케이터 위로 입력칸이 걸린다.
-        */}
+            입력. **세이프에어리어를 더한다** — 아이폰에서 홈 인디케이터 위로 걸린다.
+          */}
           <form
             onSubmit={ask}
             className="border-t border-line-subtle bg-surface px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3"
@@ -484,7 +731,14 @@ export function AiSearchChat({
               보내기 버튼을 **칸 안에** 넣는다. 패널 폭이 400px 밖에 안 되는데 버튼을 밖에
               세우면 그만큼 입력칸이 좁아져, 긴 질문을 칠 때 앞부분이 밀려 안 보인다.
             */}
-            <div className="relative">
+            {/*
+              **입력칸과 컨트롤이 한 상자다.** 테두리도 배경도 하나라, 사용량·모델·보내기가
+              "입력에 딸린 것" 으로 읽힌다 — 따로 띄워 두면 각자 다른 기능처럼 보인다.
+
+              테두리는 바깥 상자가 갖고 textarea 는 투명하다. 초점 표시(ring)도 상자에
+              걸어서(focus-within) 칸 안을 눌렀을 때 상자 전체가 살아난다.
+            */}
+            <div className="rounded-field bg-surface ring-1 ring-inset ring-line transition-shadow focus-within:ring-2 focus-within:ring-brand">
               {/*
                 **여러 줄을 받는다.** 증상을 설명하다 보면 줄을 나누고 싶어지는데, 한 줄
                 입력칸은 그걸 아예 막는다(브라우저가 Enter 를 전송으로만 쓴다).
@@ -509,7 +763,12 @@ export function AiSearchChat({
                   e.preventDefault();
                   send(question.trim());
                 }}
-                placeholder={t('aiSearch.placeholder')}
+                disabled={blocked}
+                placeholder={t(
+                  quotaFailed
+                    ? 'aiSearch.quotaUnavailableHint'
+                    : 'aiSearch.placeholder',
+                )}
                 aria-label={t('aiSearch.placeholder')}
                 /*
                   **10줄까지 자라고 거기서 멈춘다**(넘으면 칸 안에서 스크롤).
@@ -518,41 +777,47 @@ export function AiSearchChat({
 
                   15.5rem = 10줄 × 22.75px(text-sm × leading-relaxed) + 위아래 여백 20px.
                 */
-                className="block max-h-[15.5rem] w-full resize-none rounded-field bg-surface py-2.5 pl-3.5 pr-11 text-sm leading-relaxed text-ink outline-none ring-1 ring-inset ring-line placeholder:text-ink-subtle focus:ring-2 focus:ring-brand"
+                className="block max-h-[15.5rem] w-full resize-none bg-transparent px-3.5 pb-1 pt-2.5 text-sm leading-relaxed text-ink outline-none placeholder:text-ink-subtle disabled:text-ink-subtle"
               />
-              <button
-                type="submit"
-                disabled={!question.trim() || isPending}
-                aria-label={t(
-                  isPending ? 'aiSearch.thinking' : 'aiSearch.send',
+              {/*
+                **컨트롤 줄.** 사용량은 왼쪽, 모델과 보내기는 오른쪽이다 — 읽는 순서가
+                왼쪽부터라 "얼마나 남았나" 가 먼저 오고, 손이 가는 것들은 한쪽에 모인다.
+              */}
+              <div className="flex items-center justify-between gap-1.5 px-2 pb-2">
+                {quotaPending ? (
+                  <QuotaSkeleton />
+                ) : quotaFailed ? (
+                  <p className="min-w-0 text-[0.72rem] font-bold text-danger">
+                    {t('aiSearch.quotaUnavailable')}
+                  </p>
+                ) : quota ? (
+                  <QuotaBar quota={quota} />
+                ) : (
+                  <span />
                 )}
-                // 칸이 여러 줄로 자라면 세로 가운데가 아니라 **아래에 붙어 있어야** 한다.
-                className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white transition-transform duration-100 ease-native active:scale-90 disabled:bg-surface-subtle disabled:text-ink-subtle"
-              >
+                <div className="flex shrink-0 items-center gap-1">
+                  <ModelPicker />
+                  <button
+                    type="submit"
+                    disabled={!question.trim() || isPending || blocked}
+                    aria-label={t(
+                      isPending ? 'aiSearch.thinking' : 'aiSearch.send',
+                    )}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white transition-transform duration-100 ease-native active:scale-90 disabled:bg-surface-subtle disabled:text-ink-subtle"
+                  >
                 {/*
                   대기 중에는 버튼 자리에 스피너를 둔다. 회색으로 죽어 있기만 하면 "왜 안 눌리지"
                   가 되는데, 아래 대화 영역의 "정리하는 중…" 은 스크롤 위치에 따라 안 보일 수 있다.
                 */}
-                {isPending ? (
-                  <Spinner className="h-4 w-4 border-white/40 border-t-white" />
-                ) : (
-                  <ArrowRight className="h-4 w-4" />
-                )}
-              </button>
+                    {isPending ? (
+                      <Spinner className="h-4 w-4 border-white/40 border-t-white" />
+                    ) : (
+                      <ArrowRight className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
-            {/*
-              모델 고르개. **오른쪽 아래**다 — 보내기 버튼과 같은 쪽이라, 보내기 직전에
-              "무엇으로 보내지" 가 궁금해지는 자리다.
-
-              **지금은 고를 게 하나뿐이다.** Opus 는 잠겨 있고, 고른 값은 서버로 안 간다 —
-              서버가 설정대로 부르므로 여기 표시가 실제와 어긋나면 안 된다. 그래서 켤 수 있는
-              것과 실제로 도는 것이 같은 하나(Haiku)로 맞춰 뒀다. 유료가 열리면 그때 요청에
-              싣는다(그 전에 실으면 아무 효과 없이 요금만 남의 손에 넘어간다).
-            */}
-            <div className="mt-2 flex justify-end">
-              <ModelPicker />
-            </div>
-
             {/*
               면책. **입력칸 바로 아래**다 — 보내기 직전에 읽히는 자리라야 의미가 있다.
               푸터에 있는 고지와 겹치지만, 여기서는 "AI 가 답한다" 는 맥락이 더해진다.
@@ -565,6 +830,7 @@ export function AiSearchChat({
               {t('aiSearch.disclaimer')}
             </p>
           </form>
+
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -587,7 +853,14 @@ function BetaTag() {
  * 물어봐 주는 게 목적은 아니라고 봤다. 그런데 눌러 놓고 다시 보내기를 눌러야 하는 건
  * 버튼을 두 번 누르는 일일 뿐이고, 예시를 누르는 사람은 이미 그걸 묻겠다고 정한 것이다.
  */
-function EmptyState({ onAsk }: { onAsk: (q: string) => void }) {
+function EmptyState({
+  onAsk,
+  disabled,
+}: {
+  onAsk: (q: string) => void;
+  /** 사용량을 못 읽어 질문 자체가 막힌 상태. 눌러도 아무 일 없으면 고장으로 보인다. */
+  disabled?: boolean;
+}) {
   const { t } = useTranslation();
   const examples = t('aiSearch.examples', { returnObjects: true }) as string[];
 
@@ -606,7 +879,8 @@ function EmptyState({ onAsk }: { onAsk: (q: string) => void }) {
             <button
               type="button"
               onClick={() => onAsk(example)}
-              className="w-full rounded-full bg-brand-tint px-3 py-2 text-center text-[0.8rem] font-bold text-brand transition-transform duration-100 ease-native active:scale-[0.98]"
+              disabled={disabled}
+              className="w-full rounded-full bg-brand-tint px-3 py-2 text-center text-[0.8rem] font-bold text-brand transition-transform duration-100 ease-native active:scale-[0.98] disabled:bg-surface-subtle disabled:text-ink-subtle"
             >
               {example}
             </button>
@@ -647,6 +921,8 @@ function AssistantBubble({
   onSearch: () => void;
 }) {
   const { t } = useTranslation();
+  // 카드에도 쓰고 복사에도 쓴다. 훅이라 조건 없이 부른다(검색이 아니면 안 그릴 뿐이다).
+  const preview = usePreview(result, place);
 
   /*
     **툴 하나로 갈린다.** 예전엔 조건 개수를 세어 "검색할 만한가" 를 화면이 추론했는데,
@@ -668,6 +944,7 @@ function AssistantBubble({
         <p className="min-w-0 flex-1 text-[0.82rem] leading-relaxed text-ink">
           {result.explain || t('aiSearch.noExplain')}
         </p>
+        <CopyButton text={copyTextOf(result, preview.data?.items ?? [], t)} />
         <AnswerMeta result={result} at={at} />
       </div>
 
@@ -677,8 +954,8 @@ function AssistantBubble({
 
       {searchable && (
         <>
-          <ConditionChips filter={params.filter} />
-          <ResultPreview result={result} place={place} />
+          <ConditionList result={result} />
+          <ResultPreview preview={preview} />
           {/*
             거리순으로 갈 거라면 미리 말해 준다 — 검색으로 넘어가자마자 브라우저 권한 창이
             뜨는데, 예고 없이 뜨면 사용자가 무엇 때문인지 모른 채 거절한다.
@@ -713,7 +990,7 @@ function AssistantBubble({
       */}
       {tool === 'ask_location' && (
         <>
-          <ConditionChips filter={params.filter} />
+          <ConditionList result={result} />
           <p className="mt-2 text-[0.72rem] text-ink-subtle">
             {t('aiSearch.placeUnresolved', { place: params.placeText ?? '' })}
           </p>
@@ -769,6 +1046,26 @@ function AssistantBubble({
           </p>
         </div>
       )}
+
+      {/*
+        **쓴 양을 맨 밑 왼쪽에 흘려 둔다.** 답변마다 붙지만 주인공이 아니라서 가장 옅은
+        색에 가장 작은 글자다 — 찾으면 보이고 안 찾으면 안 걸리는 정도가 맞다.
+
+        **본문 흐름 밖으로 뺀 이유는 복사 때문이다.** 설명 문장 옆에 인라인으로 두면
+        답변을 긁을 때 숫자가 딸려 붙는다. 줄을 따로 쓰고 select-none 을 걸면 드래그가
+        지나가도 선택에 안 들어간다.
+
+        0 이면 아예 안 그린다(사전 차단 — 답을 안 준 경우다). "0" 을 적어 두면 뭔가
+        잘못된 것처럼 보인다.
+      */}
+      {result.credits > 0 && (
+        <div
+          className="mt-2 select-none text-[0.6rem] tabular-nums text-ink-subtle"
+          title={`${t('aiSearch.creditsLabel')} ${result.credits.toLocaleString()}`}
+        >
+          {compact(result.credits)}
+        </div>
+      )}
     </div>
   );
 }
@@ -793,6 +1090,15 @@ const MODELS = [
  *
  * 선택 상태를 위(Provider)로 안 올린 이유는 **아직 아무 데도 안 쓰이기 때문**이다 —
  * 요청에 싣기 시작하면 그때 올린다.
+ */
+/**
+ * 모델 고르개. 입력칸 위 정보 줄의 오른쪽에 선다 — 바로 아래 보내기 버튼과 같은 쪽이라
+ * "무엇으로 보내지" 가 궁금해지는 자리다.
+ *
+ * **지금은 고를 게 하나뿐이다.** Opus 는 잠겨 있고, 고른 값은 서버로 안 간다 — 서버가
+ * 설정대로 부르므로 여기 표시가 실제와 어긋나면 안 된다. 그래서 켤 수 있는 것과 실제로
+ * 도는 것이 같은 하나(Haiku)로 맞춰 뒀다. 유료가 열리면 그때 요청에 싣는다(그 전에
+ * 실으면 아무 효과 없이 요금만 남의 손에 넘어간다).
  */
 function ModelPicker() {
   const { t } = useTranslation();
@@ -853,8 +1159,131 @@ function ModelPicker() {
   );
 }
 
+/** `HH:MM:SS`. 날짜는 안 적는다 — 대화가 새로고침이면 사라지므로 늘 오늘이다. */
+function clockTime(epochMs: number): string {
+  return new Date(epochMs).toLocaleTimeString(undefined, { hour12: false });
+}
+
+/**
+ * 말풍선을 글로 옮긴다. **화면에 보이는 순서 그대로** 이어 붙인다 — 붙여 넣은 쪽에서
+ * 원문과 대조할 사람이라, 순서가 다르면 같은 내용인지 확인하는 데 시간이 든다.
+ *
+ * 병원 목록까지 넣는다. 조건만 옮겨 봐야 **그래서 뭐가 나왔는지**가 빠져서, 남에게
+ * 보낼 때 정작 필요한 부분이 없다.
+ */
+function copyTextOf(
+  result: AiSearchResponse,
+  hospitals: Hospital[],
+  t: TFunction,
+): string {
+  const parts: string[] = [result.explain, result.params.answer ?? ''];
+
+  const conditions = result.conditions.map(
+    (c) => `${t(`aiSearch.conditions.${c.group}`)}: ${c.names.join(', ')}`,
+  );
+  parts.push(conditions.join('\n'));
+
+  // 주소를 같이 적는다 — 이름만으로는 같은 상호가 여럿이라 어디인지 못 찾는다.
+  parts.push(
+    hospitals
+      .map((h) => {
+        const where = h.location.address;
+        return `- ${h.name}${where ? ` (${where})` : ''}`;
+      })
+      .join('\n'),
+  );
+
+  return parts.filter((part) => part.trim()).join('\n\n');
+}
+
+/**
+ * 말풍선 복사. **답변이 길어서 있는 물건이다** — 의학 답변은 여러 문단이라 드래그로
+ * 긁으면 위아래 말풍선까지 딸려 온다.
+ *
+ * 누른 뒤 잠깐 체크로 바뀐다. 클립보드는 성공해도 화면이 안 변해서, 표시가 없으면
+ * 눌린 건지 몰라 두세 번 누르게 된다.
+ */
+function CopyButton({ text }: { text: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  // 언마운트 뒤에 setState 가 돌지 않도록 타이머를 들고 있는다(대화 지우기로 사라진다).
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  if (!text) {
+    return null;
+  }
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // http 로 열었거나(보안 컨텍스트 아님) 사용자가 권한을 막은 경우. 조용히 넘긴다 —
+      // 복사가 안 됐다고 경고창을 띄울 만한 일이 아니고, 체크 표시가 안 뜨는 것으로 드러난다.
+      return;
+    }
+    setCopied(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void copy()}
+      aria-label={t(copied ? 'aiSearch.copied' : 'aiSearch.copy')}
+      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-subtle transition-colors active:bg-surface"
+    >
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-brand" />
+      ) : (
+        <Copy className="h-3.5 w-3.5" />
+      )}
+    </button>
+  );
+}
+
+interface MetaRow {
+  label: string;
+  value: string;
+  strong?: boolean;
+}
+
+/**
+ * 라벨-값 표. **라벨과 값을 붙여 놓는다** — 양끝 정렬로 두면 패널 폭만큼 사이가 벌어져
+ * 어느 값이 어느 라벨의 것인지 눈으로 이어 붙여야 한다. `auto 1fr` 그리드라 라벨 열은
+ * 가장 긴 라벨 폭이고 값은 그 바로 옆에 선다.
+ */
+function MetaRows({ rows, muted }: { rows: MetaRow[]; muted?: boolean }) {
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[0.68rem]">
+      {rows.map((row) => (
+        <Fragment key={row.label}>
+          <dt className="text-ink-subtle">{row.label}</dt>
+          <dd
+            className={cn(
+              'tabular-nums',
+              muted ? 'text-ink-muted' : 'text-ink-body',
+              row.strong && 'font-extrabold text-ink',
+            )}
+          >
+            {row.value}
+          </dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+
 /**
  * 답변 하나의 계측값. `i` 를 눌러야 나온다 — 평소엔 아무도 안 궁금해하는 숫자다.
+ *
+ * **두 칸으로 나뉜다.** 위는 사용자에게 청구된 값(`credits`)이고, 선 아래는 우리 원가
+ * 내역이다. 둘은 단위가 달라서 — credits 는 출력을 더 무겁게 쳐서 접은 환산값이라
+ * input+output 과 안 맞는다 — 섞어 두면 "왜 합이 안 맞나" 가 된다.
+ *
+ * **아래 칸은 로컬·개발에만 있다.** 토큰 수는 단가에 곱할 수량이라 운영 응답에는
+ * `debug` 자체가 없다. 모델 이름은 곱할 것이 없어 위 칸에 그대로 둔다.
  *
  * **캐시가 두 겹이라 나눠 적는다.** 이름이 둘 다 "캐시" 라 뭉뚱그리면 어느 쪽이 먹었는지
  * 알 수 없는데, 둘은 아끼는 것이 다르다:
@@ -862,14 +1291,10 @@ function ModelPicker() {
  *   cacheLocal   우리 Redis. 같은 질문이면 **LLM 을 아예 안 부른다**(요금 0, 수 ms)
  *   업체 캐시     Anthropic 프롬프트 캐시. 부르긴 하되 **입력 요금이 1/10** (지연은 그대로)
  *
- * cacheLocal 이 HIT 면 아래 토큰 값들은 **처음 물었을 때** 쓴 값이다 — 이번 요청은
- * 한 톨도 안 썼다. 그 구분이 없으면 합산하는 쪽이 실제보다 크게 센다.
+ * cacheLocal 이 HIT 면 같은 칸의 토큰 값들은 **처음 물었을 때** 쓴 값이다 — 이번 요청은
+ * 업체를 안 불렀다. 그래도 위 칸의 `credits` 는 평소와 같다(질문 하나의 값이지 우리
+ * 원가가 아니다). 그래서 cacheLocal 도 아래 칸에 있다.
  */
-/** `HH:MM:SS`. 날짜는 안 적는다 — 대화가 새로고침이면 사라지므로 늘 오늘이다. */
-function clockTime(epochMs: number): string {
-  return new Date(epochMs).toLocaleTimeString(undefined, { hour12: false });
-}
-
 function AnswerMeta({
   result,
   at,
@@ -878,31 +1303,37 @@ function AnswerMeta({
   at: number;
 }) {
   const { t } = useTranslation();
-  const { usage } = result;
   const n = (value: number | undefined) => (value ?? 0).toLocaleString();
 
   /*
-    **라벨은 번역하지 않는다.** 개발자가 확인하려고 여는 패널이고, 여기 적히는 이름을
-    응답 JSON 의 필드명과 같게 두면 화면에서 본 값을 그대로 찾을 수 있다 —
-    "캐시 읽기" 가 `cacheReadTokens` 라는 걸 매번 머리로 옮길 이유가 없다.
+    **라벨은 번역하지 않는다.** 확인하려고 여는 패널이고, 여기 적히는 이름을 응답 JSON 의
+    필드명과 같게 두면 화면에서 본 값을 그대로 찾을 수 있다 — "캐시 읽기" 가
+    `cacheReadTokens` 라는 걸 매번 머리로 옮길 이유가 없다.
 
     번역이 필요한 것은 버튼의 aria-label 뿐이다. 그건 스크린리더가 읽는 진짜 문장이다.
   */
-  const rows: { label: string; value: string; strong?: boolean }[] = [
+  const rows: MetaRow[] = [
     { label: 'model', value: result.model },
+    // **사용자가 실제로 쓴 양이다.** 원시 토큰이 아니라 환산된 통합 토큰이라, 아래
+    // 디버깅 칸의 input/output 과 더해도 이 값이 안 나온다 — 그래서 칸을 나눠 둔다.
+    { label: 'credits', value: n(result.credits), strong: true },
     // 브라우저 시각이다(서버 시각이 아니라) — 사용자가 자기 화면의 다른 기록과 맞춰 보는 자리다.
     { label: 'requestedAt', value: clockTime(at) },
     { label: 'respondedAt', value: clockTime(at + result.elapsedMs) },
     { label: 'elapsed', value: `${n(result.elapsedMs)} ms` },
-    {
-      label: 'cacheLocal',
-      value: result.cached ? 'HIT' : 'MISS',
-      strong: true,
-    },
-    { label: 'input', value: n(usage.inputTokens) },
-    { label: 'output', value: n(usage.outputTokens) },
-    { label: 'cacheRead', value: n(usage.cacheReadTokens) },
-    { label: 'cacheWrite', value: n(usage.cacheWriteTokens) },
+  ];
+
+  /*
+    **원시 토큰 내역은 로컬·개발에서만 온다.** 운영 응답에는 `debug` 자체가 없다 —
+    모델 이름과 달리 이쪽은 곱할 수량이라 단가와 맞물리면 요금이 역산되기 때문이다.
+    그래서 여기서는 "있으면 그린다" 로 족하다. 없는 게 정상이다.
+  */
+  const debugRows: MetaRow[] | undefined = result.debug && [
+    { label: 'cacheLocal', value: result.debug.cached ? 'HIT' : 'MISS' },
+    { label: 'input', value: n(result.debug.usage.inputTokens) },
+    { label: 'output', value: n(result.debug.usage.outputTokens) },
+    { label: 'cacheRead', value: n(result.debug.usage.cacheReadTokens) },
+    { label: 'cacheWrite', value: n(result.debug.usage.cacheWriteTokens) },
   ];
 
   return (
@@ -927,26 +1358,17 @@ function AnswerMeta({
           collisionPadding={12}
           className="z-50 w-max rounded-card border border-line-subtle bg-surface p-2.5 shadow-raised"
         >
+          <MetaRows rows={rows} />
           {/*
-            **라벨과 값을 붙여 놓는다.** 양끝 정렬(justify-between)로 두면 패널 폭만큼 사이가
-            벌어져 어느 값이 어느 라벨의 것인지 눈으로 이어 붙여야 한다.
-            `auto 1fr` 그리드라 라벨 열은 가장 긴 라벨 폭이고, 값은 그 바로 옆에 선다.
+            **디버깅 값은 선 아래로 내린다.** 위 칸은 사용자에게 청구된 값이고 아래는
+            우리 원가 내역이라, 섞어 두면 `credits` 와 `input`/`output` 이 같은 층으로
+            읽혀 "왜 안 맞나" 가 된다. 운영에서는 이 칸이 통째로 없다.
           */}
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[0.68rem]">
-            {rows.map((row) => (
-              <Fragment key={row.label}>
-                <dt className="text-ink-subtle">{row.label}</dt>
-                <dd
-                  className={cn(
-                    'tabular-nums text-ink-body',
-                    row.strong && 'font-extrabold text-ink',
-                  )}
-                >
-                  {row.value}
-                </dd>
-              </Fragment>
-            ))}
-          </dl>
+          {debugRows && (
+            <div className="mt-2 border-t border-line-subtle pt-2">
+              <MetaRows rows={debugRows} muted />
+            </div>
+          )}
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -1025,15 +1447,14 @@ const PREVIEW_SIZE = 3;
  * 미리보기가 안 뜨는 것이 흐름을 막지 않는다 — 여기에 오류 배너까지 띄우면 정작
  * 성공한 AI 응답이 실패처럼 보인다.
  */
-function ResultPreview({
-  result,
-  place,
-}: {
-  result: AiSearchResponse;
-  place: MyPlace;
-}) {
-  const { t } = useTranslation();
-
+/**
+ * 미리보기 질의. **말풍선이 들고 있다** — 카드를 그리는 데도 쓰고 복사에도 쓴다.
+ *
+ * 예전엔 ResultPreview 안에 있었는데, 그러면 복사 버튼이 병원 목록을 볼 수 없다.
+ * 같은 키로 두 번 부르면 React Query 가 합쳐 주긴 하지만 키를 만드는 규칙이 두 군데로
+ * 갈려서, 한쪽만 고치면 조용히 다른 목록을 복사하게 된다.
+ */
+function usePreview(result: AiSearchResponse, place: MyPlace) {
   /*
     **좌표가 있으면 거리순으로 맞춘다.** 검색으로 넘어가면 `sort=distance` 로 가는데
     미리보기만 기본 정렬이면, 여기서 본 3곳과 넘어가서 보는 첫 3곳이 완전히 달라진다 —
@@ -1043,12 +1464,21 @@ function ResultPreview({
   */
   const nearby = result.tool === 'search_nearby' && place.coords;
 
-  const { data, isLoading, isError } = useHospitalSearch({
+  return useHospitalSearch({
     page: 1,
     size: PREVIEW_SIZE,
     ...paramsToQuery(result.params),
     ...(nearby ? { sort: 'distance' as const, origin: place.coords } : {}),
   });
+}
+
+function ResultPreview({
+  preview,
+}: {
+  preview: ReturnType<typeof usePreview>;
+}) {
+  const { t } = useTranslation();
+  const { data, isLoading, isError } = preview;
 
   if (isLoading) {
     return (
@@ -1190,41 +1620,58 @@ function PreviewCard({ hospital }: { hospital: Hospital }) {
   );
 }
 
-/** 잡힌 조건. 서버가 준 코드를 그대로 쓰지 않고 **사람이 읽는 이름**으로 바꿔 보여준다. */
-function ConditionChips({ filter }: { filter: AiSearchFilter }) {
+/**
+ * 잡힌 조건. **"AI 가 내 말을 이렇게 알아들었구나" 를 확인하는 자리**라, 개수가 아니라
+ * 이름을 적는다 — "진료과 3" 은 3개라는 뜻인지 3번 코드라는 뜻인지도 안 읽히고,
+ * 정작 알고 싶은 *무슨* 진료과인지에 답하지 않는다.
+ *
+ * 이름은 서버가 붙여 준다(`result.conditions`). 코드표를 여기서 또 부르면 채팅을 열
+ * 때마다 요청이 나가고, 그러면서도 결국 같은 값이 나온다.
+ *
+ * 등급·응급실·병원명은 코드표가 없어서 여기서 만든다.
+ */
+function ConditionList({ result }: { result: AiSearchResponse }) {
   const { t } = useTranslation();
+  const { filter } = result.params;
 
-  /*
-    코드 → 이름 변환은 아직 안 한다. 메타 API(진료과목·평가항목)를 여기서 또 부르면
-    레이어를 열 때마다 요청이 나가고, 캐시를 태워도 첫 열림이 느려진다.
-    지금은 **몇 개의 조건이 잡혔는지**만 보여주고, 정확한 이름은 검색 화면의 필터 칩이 맡는다.
-  */
-  const groups: { key: string; count: number }[] = [
-    { key: 'subject', count: filter.subjectCds.length },
-    { key: 'specialist', count: filter.specialistCds.length },
-    { key: 'assessment', count: filter.asmItemCds.length },
-    { key: 'specialty', count: filter.specialtyCds.length },
-    { key: 'equipment', count: filter.equipmentCds.length },
-    { key: 'tier', count: filter.tiers.length },
-  ].filter((g) => g.count > 0);
+  const rows = result.conditions.map((c) => ({
+    key: c.group,
+    label: t(`aiSearch.conditions.${c.group}`),
+    value: c.names.join(', '),
+  }));
 
+  // 코드표에 없는 값들. 서버가 이름을 못 붙이므로 화면이 자기 문구를 쓴다.
   const flags = [
-    filter.emergency ? 'emergency' : null,
-    filter.baby ? 'baby' : null,
+    filter.tiers.length > 0
+      ? t('aiSearch.conditions.tier', { count: filter.tiers.length })
+      : null,
+    filter.emergency ? t('aiSearch.conditions.emergency') : null,
+    filter.baby ? t('aiSearch.conditions.baby') : null,
+    filter.name,
   ].filter(Boolean) as string[];
 
+  if (rows.length === 0 && flags.length === 0) {
+    return null;
+  }
+
   return (
-    <ul className="mt-2.5 flex flex-wrap gap-1.5">
-      {groups.map((group) => (
-        <Chip key={group.key}>
-          {t(`aiSearch.chips.${group.key}`, { count: group.count })}
-        </Chip>
+    <dl className="mt-2.5 space-y-1 text-[0.74rem] leading-relaxed">
+      {rows.map((row) => (
+        // **앞말과 값을 한 줄에 흘린다.** 줄을 나누면 조건 하나가 두 줄을 먹어서,
+        // 네댓 개만 잡혀도 말풍선이 표처럼 길어진다.
+        <div key={row.key} className="flex gap-1.5">
+          <dt className="shrink-0 font-bold text-ink-muted">{row.label}</dt>
+          <dd className="min-w-0 text-ink">{row.value}</dd>
+        </div>
       ))}
-      {flags.map((flag) => (
-        <Chip key={flag}>{t(`aiSearch.chips.${flag}`)}</Chip>
-      ))}
-      {filter.name && <Chip>{filter.name}</Chip>}
-    </ul>
+      {flags.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5 pt-0.5">
+          {flags.map((flag) => (
+            <Chip key={flag}>{flag}</Chip>
+          ))}
+        </ul>
+      )}
+    </dl>
   );
 }
 
