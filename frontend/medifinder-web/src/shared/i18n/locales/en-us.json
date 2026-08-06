@@ -306,6 +306,7 @@
       "Hospital open at night for children",
       "My knee hurts — which specialty should I see"
     ],
+    "storageNote": "This conversation stays in this browser tab only. It disappears when you close the tab.",
     "goSearch": "Search with these filters",
     "pickRegion": "Pick a region on the search screen",
     "previewLoading": "Finding hospitals…",
@@ -320,10 +321,13 @@
     "openConfirmYes": "Open",
     "openConfirmNo": "Cancel",
     "noExplain": "Could not work out any filters. Please try asking again.",
+    "medicalUpsell": "For now I can only help you find hospitals. After launch, add tokens to get answers to questions like this.",
+    "answerDisclaimer": "General medical information, not a diagnosis. See a doctor about your symptoms.",
     "placeUnresolved": "Couldn't map '{{place}}' to a region yet. Pick one on the search screen.",
     "error": "Cannot answer right now. Please try again shortly.",
     "disclaimer": "These filters were produced by AI. This is not medical advice — please confirm with a clinician.",
-    "analyzedBy": "Analyzed with {{provider}}",
+    "modelLocked": "Paid",
+    "modelLockedHint": "Choose a stronger model once you upgrade.",
     "metaToggle": "Response details",
     "chips": {
       "subject": "{{count}} specialty",
@@ -346,7 +350,9 @@
     "retry": "Try again",
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit fullscreen",
-    "clear": "Clear chat",
+    "newChat": "New chat",
+    "newChatConfirm": "Clear this conversation and start over? This cannot be undone.",
+    "newChatCancel": "Cancel",
     "launcher": "Ask AI"
   }
 }

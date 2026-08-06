@@ -77,6 +77,15 @@ export interface LlmConfig {
    * 없어 appDailyLimit 만 걸린다. 0 이하면 제한 없음.
    */
   readonly userDailyLimit: number;
+  /**
+   * 질문 끝의 `/test` 를 **답변 모드 전환으로 받아들일지.** 기본은 꺼짐이다.
+   *
+   * 로그인이 붙기 전까지 "유료 사용자" 를 흉내 내는 임시 수단이라, 켜져 있으면 **누구나**
+   * 유료로 팔 답변을 공짜로 받는다 — 운영에서는 반드시 꺼져 있어야 한다.
+   *
+   * 로그인·토큰 잔액이 생기면 이 스위치는 사라지고, 그 자리를 사용자 잔액이 대신한다.
+   */
+  readonly allowTestCommand: boolean;
   /*
     사고 깊이(effort)는 여기 없다. **작업의 성질이지 환경의 성질이 아니라서다** —
     dev 는 얕게, prod 는 깊게 생각할 이유가 없고 그러면 dev 테스트가 prod 를 대변하지도
@@ -119,6 +128,8 @@ export function buildLlmConfig(cfg: ConfigSource): LlmConfig {
     appDailyLimit: cfg.getNumberOrDefault('llm.appDailyLimit', 2000),
     // 로그인이 없으니 기본은 꺼 둔다. 붙으면 설정으로 켠다.
     userDailyLimit: cfg.getNumberOrDefault('llm.userDailyLimit', 0),
+    // **기본은 꺼짐이다.** 설정을 빠뜨린 환경에서 켜져 있는 것이 최악이다.
+    allowTestCommand: cfg.getBoolOrDefault('llm.allowTestCommand', false),
     promptDir:
       cfg.getStringOrDefault('llm.promptDir') || 'data/healthcare/svc-prompts',
     anthropic: endpoint('anthropic', 'https://api.anthropic.com'),

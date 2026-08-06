@@ -16,15 +16,18 @@ import {
   Ambulance,
   ArrowRight,
   Baby,
+  Check,
+  ChevronDown,
   ChevronRight,
   LocateFixed,
+  Lock,
   Info,
   Maximize2,
   Minimize2,
   RotateCcw,
   Siren,
   Sparkles,
-  Trash2,
+  MessageSquarePlus,
   X,
 } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
@@ -58,25 +61,6 @@ function autoGrow(el: HTMLTextAreaElement): void {
 
 /** 질문 길이 상한. 서버(MAX_QUESTION_LENGTH)와 같은 값이라 넘기기 전에 여기서 막는다. */
 const MAX_LENGTH = 300;
-
-/**
- * 마지막 답변이 밝힌 업체. 아직 답이 없으면 undefined 다.
- *
- * **모델 이름은 여기 없다** — 하단은 늘 보이는 줄이라 `claude-haiku-4-5-20251001` 같은
- * 식별자가 상시 떠 있으면 읽을 것도 없이 자리만 차지한다. 모델은 말풍선의 i 에서 본다.
- *
- * 첫 글자만 올린다(anthropic → Anthropic).
- */
-function lastProvider(turns: Turn[]): string | undefined {
-  for (let i = turns.length - 1; i >= 0; i -= 1) {
-    const turn = turns[i];
-    if (turn.role === 'assistant') {
-      const { provider } = turn.result;
-      return provider.charAt(0).toUpperCase() + provider.slice(1);
-    }
-  }
-  return undefined;
-}
 
 /**
  * 경고별 아이콘과 색. emergency 만 붉게 세운다 — 나머지는 안내지 경고가 아니다.
@@ -130,6 +114,7 @@ export function AiSearchChat({
   const path = useLangPath();
   const [question, setQuestion] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const { size, resizing, onPointerDown, reset } = usePanelSize();
   // 저장된 대화를 이어받을 수 있으므로 **마지막 id 다음부터** 센다. 0 부터 시작하면
   // 새로고침 뒤 첫 질문이 기존 turn 과 key 가 겹쳐 React 가 엉뚱한 것을 다시 쓴다.
@@ -141,8 +126,50 @@ export function AiSearchChat({
   const sendingRef = useRef(false);
   const { mutate, isPending } = useAiSearch();
 
-  // 새 turn 이 쌓이면 맨 아래로. 답이 화면 밖에서 조용히 추가되면 아무 일도 안 한 것처럼 보인다.
+  /*
+    입력칸 높이를 내용에 맞춘다. **마운트 때도 돈다** — rows={1} 이 잡는 기본 높이가 실제
+    내용 높이보다 미세하게 작아(줄높이 22.75px 가 소수점이라) 첫 화면부터 스크롤바가 났다.
+
+    onChange 가 아니라 question 을 따라가는 이유는 **손으로 친 것 말고도 바뀌기 때문**이다 —
+    보내고 나서 비우는 것, 예시를 눌러 채우는 것이 전부 여기로 모인다.
+  */
   useEffect(() => {
+    if (inputRef.current) {
+      autoGrow(inputRef.current);
+    }
+  }, [question]);
+
+  /*
+    **맨 아래에 붙어 있게 한다.**
+
+    turn 이 쌓일 때 한 번 내리는 것으로는 부족했다 — 답변이 온 뒤에 병원 미리보기가
+    비동기로 도착해 말풍선이 다시 길어지는데, 그때는 이미 스크롤이 끝난 뒤라 방금 받은
+    답이 화면 밖에 남는다. 그래서 **내용 높이가 변할 때마다** 따라간다.
+
+    **사용자가 위로 올려 읽고 있으면 놓아준다.** 지난 답을 훑는 중에 새 내용이 도착했다고
+    끌어내리면 읽던 자리를 뺏는 것이다. 바닥 근처(40px)에 있을 때만 붙잡는다.
+  */
+  const contentRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
+
+  useEffect(() => {
+    const view = scrollRef.current;
+    const content = contentRef.current;
+    if (!view || !content) {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (stickRef.current) {
+        view.scrollTop = view.scrollHeight;
+      }
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
+
+  // 새 turn 은 사용자가 방금 보낸 것이다. 어디를 보고 있었든 다시 붙잡는다.
+  useEffect(() => {
+    stickRef.current = true;
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: 'smooth',
@@ -172,10 +199,6 @@ export function AiSearchChat({
     const at = Date.now();
     setTurns((prev) => [...prev, { role: 'user', id, text: q }]);
     setQuestion('');
-    // 비운 뒤 높이도 되돌린다. 안 그러면 세 줄짜리 질문을 보낸 뒤 빈 칸이 세 줄로 남는다.
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-    }
 
     mutate(q, {
       onSuccess: (result) =>
@@ -197,12 +220,6 @@ export function AiSearchChat({
       },
     });
   }
-
-  /**
-   * 입력칸 위에 표시할 "누가 답했나". **마지막 응답 기준**이다 — 설정을 바꿔 업체가
-   * 갈리면 그때부터 새 값이 보여야 하므로 첫 응답에 고정하지 않는다.
-   */
-  const provider = lastProvider(turns);
 
   /**
    * 내 위치. **패널에 하나만 둔다** — 답변 말풍선마다 훅을 돌리면 "근처" 질문을 세 번 했을 때
@@ -317,22 +334,57 @@ export function AiSearchChat({
               </p>
             </div>
             {/*
-              대화 지우기. **대화가 있을 때만 보인다** — 빈 화면에 지울 것도 없는 버튼이
+              새 대화. **대화가 있을 때만 보인다** — 빈 화면에 비울 것도 없는 버튼이
               떠 있으면 자리만 차지한다.
 
-              닫기와 나란히 두지 않고 왼쪽에 떼어 둔 이유는, 닫기는 되돌릴 수 있지만
-              (대화가 남아 있다) 이건 못 되돌리기 때문이다. 손가락이 미끄러질 자리를 벌린다.
+              쓰레기통이 아니라 **말풍선+** 이다. 하는 일이 "지운다" 보다 "새로 시작한다" 에
+              가깝고, 쓰레기통은 무언가를 잃는다는 신호라 누르기 전에 망설이게 만든다.
+
+              **누르면 한 번 묻는다.** 되돌릴 수 없는데 닫기(되돌릴 수 있다) 바로 옆이라,
+              손가락이 미끄러지면 대화가 통째로 날아간다.
             */}
             {turns.length > 0 && (
-              <button
-                type="button"
-                onClick={onClear}
-                aria-label={t('aiSearch.clear')}
-                title={t('aiSearch.clear')}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-subtle transition-transform duration-100 ease-native active:scale-90"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <Popover.Root open={confirmClear} onOpenChange={setConfirmClear}>
+                <Popover.Trigger
+                  aria-label={t('aiSearch.newChat')}
+                  title={t('aiSearch.newChat')}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-subtle transition-transform duration-100 ease-native active:scale-90 data-[state=open]:text-brand"
+                >
+                  <MessageSquarePlus className="h-4 w-4" />
+                </Popover.Trigger>
+                <Popover.Portal>
+                  <Popover.Content
+                    side="bottom"
+                    align="end"
+                    sideOffset={6}
+                    collisionPadding={12}
+                    className="z-50 w-max max-w-[16rem] rounded-card border border-line-subtle bg-surface p-3 shadow-raised"
+                  >
+                    <p className="text-[0.76rem] leading-relaxed text-ink">
+                      {t('aiSearch.newChatConfirm')}
+                    </p>
+                    <div className="mt-2.5 flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClear(false)}
+                        className="h-8 rounded-field px-3 text-[0.76rem] font-bold text-ink-muted ring-1 ring-inset ring-line active:bg-surface-subtle"
+                      >
+                        {t('aiSearch.newChatCancel')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClear();
+                          setConfirmClear(false);
+                        }}
+                        className="h-8 rounded-field bg-brand px-3 text-[0.76rem] font-bold text-white active:bg-brand-strong"
+                      >
+                        {t('aiSearch.newChat')}
+                      </button>
+                    </div>
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
             )}
             {/*
               전체화면 토글. 세밀한 크기 조절은 모서리 드래그가 맡고, 이 버튼은 **한 번에
@@ -360,7 +412,35 @@ export function AiSearchChat({
             </Dialog.Close>
           </header>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+          {/*
+            보관 안내. **헤더 아래에 고정한다** — 대화가 길어져도 "이게 어디 남나" 는 계속
+            유효한 정보라, 첫 화면에만 두면 스크롤과 함께 사라진다.
+          */}
+          {/*
+            **좌우로 붙이지 않는다.** 배경이 창 끝까지 닿으면 머리말이 아니라 경계선처럼
+            읽혀서 패널이 두 동강 난 것처럼 보인다. 여백을 두고 모서리를 둥글리면
+            "안에 놓인 쪽지" 로 읽힌다.
+          */}
+          <div className="px-4 pt-3">
+            <div className="flex items-start gap-2 rounded-card bg-surface-subtle px-3 py-2">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-muted" />
+              <p className="text-[0.72rem] leading-relaxed text-ink">
+                {t('aiSearch.storageNote')}
+              </p>
+            </div>
+          </div>
+
+          <div
+            ref={scrollRef}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              // 바닥에서 40px 안쪽이면 "따라가는 중" 으로 본다.
+              stickRef.current =
+                el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+            }}
+            className="flex-1 overflow-y-auto px-4 pb-4 pt-3"
+          >
+            <div ref={contentRef}>
             {turns.length === 0 ? (
               <EmptyState onAsk={send} />
             ) : (
@@ -390,6 +470,7 @@ export function AiSearchChat({
                 {t('aiSearch.thinking')}
               </div>
             )}
+            </div>
           </div>
 
           {/*
@@ -399,27 +480,6 @@ export function AiSearchChat({
             onSubmit={ask}
             className="border-t border-line-subtle bg-surface px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3"
           >
-            {/*
-              무엇이 답했는지. **마지막 응답 기준**이라 아직 아무것도 안 물었으면 안 나온다.
-
-              말풍선마다 붙이지 않고 여기 한 줄로 모은 이유는, 대화가 쌓여도 같은 값이
-              반복되기 때문이다 — 답변마다 모델 이름이 따라붙으면 정작 읽어야 할 explain 이
-              묻힌다. 입력칸 위는 "지금 무엇과 이야기하고 있나" 가 궁금해지는 자리다.
-            */}
-            {provider && (
-              <div className="mb-2 flex items-center justify-center gap-1.5 rounded-full bg-brand-tint px-3 py-1">
-                <Sparkles className="h-3 w-3 shrink-0 text-brand" />
-                {/*
-                  캐시 여부는 여기 안 적는다. 늘 보이는 줄이라 "저장된 답" 같은 꼬리표가
-                  붙으면 답의 품질이 다른 것처럼 읽히는데, 실제로는 같은 답이다.
-                  궁금한 사람은 말풍선의 i 에서 cacheLocal 을 본다.
-                */}
-                <span className="truncate text-[0.68rem] font-extrabold text-brand-strong">
-                  {t('aiSearch.analyzedBy', { provider })}
-                </span>
-              </div>
-            )}
-
             {/*
               보내기 버튼을 **칸 안에** 넣는다. 패널 폭이 400px 밖에 안 되는데 버튼을 밖에
               세우면 그만큼 입력칸이 좁아져, 긴 질문을 칠 때 앞부분이 밀려 안 보인다.
@@ -440,10 +500,9 @@ export function AiSearchChat({
                 ref={inputRef}
                 rows={1}
                 value={question}
-                onChange={(e) => {
-                  setQuestion(e.target.value.slice(0, MAX_LENGTH));
-                  autoGrow(e.currentTarget);
-                }}
+                onChange={(e) =>
+                  setQuestion(e.target.value.slice(0, MAX_LENGTH))
+                }
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing)
                     return;
@@ -482,10 +541,27 @@ export function AiSearchChat({
               </button>
             </div>
             {/*
-            면책. **입력칸 바로 아래**다 — 보내기 직전에 읽히는 자리라야 의미가 있다.
-            푸터에 있는 고지와 겹치지만, 여기서는 "AI 가 답한다" 는 맥락이 더해진다.
-          */}
-            <p className="mt-2 text-center text-[0.66rem] leading-relaxed text-ink-subtle">
+              모델 고르개. **오른쪽 아래**다 — 보내기 버튼과 같은 쪽이라, 보내기 직전에
+              "무엇으로 보내지" 가 궁금해지는 자리다.
+
+              **지금은 고를 게 하나뿐이다.** Opus 는 잠겨 있고, 고른 값은 서버로 안 간다 —
+              서버가 설정대로 부르므로 여기 표시가 실제와 어긋나면 안 된다. 그래서 켤 수 있는
+              것과 실제로 도는 것이 같은 하나(Haiku)로 맞춰 뒀다. 유료가 열리면 그때 요청에
+              싣는다(그 전에 실으면 아무 효과 없이 요금만 남의 손에 넘어간다).
+            */}
+            <div className="mt-2 flex justify-end">
+              <ModelPicker />
+            </div>
+
+            {/*
+              면책. **입력칸 바로 아래**다 — 보내기 직전에 읽히는 자리라야 의미가 있다.
+              푸터에 있는 고지와 겹치지만, 여기서는 "AI 가 답한다" 는 맥락이 더해진다.
+
+              **본문색으로 둔다.** 흐린 회색은 "안 읽어도 되는 것" 이라는 표시라, 정작
+              읽혀야 하는 문장을 배경으로 만든다 — 의료 맥락에서 그건 위험을 낮추는 게
+              아니라 낮춘 것처럼 보이게만 한다.
+            */}
+            <p className="mt-2 text-center text-[0.72rem] leading-relaxed text-ink">
               {t('aiSearch.disclaimer')}
             </p>
           </form>
@@ -537,6 +613,7 @@ function EmptyState({ onAsk }: { onAsk: (q: string) => void }) {
           </li>
         ))}
       </ul>
+
     </div>
   );
 }
@@ -654,8 +731,125 @@ function AssistantBubble({
         </>
       )}
 
-      {/* reject 는 explain 한 문장이 전부다. 조건도 버튼도 붙일 게 없다. */}
+      {/*
+        답변. **문단을 살려 그린다** — 서버가 줄바꿈을 남겨 보내므로 whitespace-pre-line 이
+        없으면 여러 문장이 한 덩어리로 붙는다.
+      */}
+      {tool === 'answer_medical' && params.answer && (
+        <div className="mt-2.5 rounded-card bg-surface px-3 py-2.5">
+          <p className="whitespace-pre-line text-[0.8rem] leading-relaxed text-ink">
+            {params.answer}
+          </p>
+          {/*
+            **매번 붙인다.** 일반 정보이지 개인 진단이 아니라는 걸 답 바로 옆에서 말해야
+            한다 — 한 번만 보여주면 스크롤에 묻히고, 정작 판단하는 순간에는 안 보인다.
+          */}
+          <p className="mt-2 border-t border-line-subtle pt-2 text-[0.72rem] leading-relaxed text-ink">
+            {t('aiSearch.answerDisclaimer')}
+          </p>
+        </div>
+      )}
+
+      {/*
+        **건강 질문은 그냥 거절과 다르게 잇는다.** 지금 답할 수 없는 건 같지만,
+        이건 "나중에 답할 수 있는 질문" 이라 갈 곳이 있다 — 그냥 범위 밖은 이어질 데가 없어
+        explain 한 문장으로 끝난다.
+      */}
+      {tool === 'reject' && params.reason === 'medical_question' && (
+        <div className="mt-2.5 rounded-card bg-brand-tint px-3 py-2.5">
+          {/*
+            **버튼은 없다.** 정식 서비스 전이라 보낼 데가 없다 — 유도해 놓고 갈 데가
+            없는 것이 안내가 없는 것보다 나쁘다. 충전 화면이 생기면 그때 붙인다.
+
+            "건강에 대한 질문이네요" 같은 되짚기도 뺐다. 바로 위 explain 이 이미
+            "팔 통증의 원인을 물으셨네요" 라고 말해서 같은 말이 두 번 나온다.
+          */}
+          <p className="text-[0.76rem] leading-relaxed text-brand-strong">
+            {t('aiSearch.medicalUpsell')}
+          </p>
+        </div>
+      )}
     </div>
+  );
+}
+
+/**
+ * 고를 수 있는 모델. **표시용이다 — 서버로 안 간다.**
+ *
+ * 서버는 설정(`llm.anthropic.defaultModel`)대로 부르므로, 여기서 고른 값을 요청에 실으면
+ * 아무 효과가 없다. 그래서 지금은 **켤 수 있는 것과 실제로 도는 것을 하나로 맞춰** 뒀다 —
+ * 표시가 실제와 어긋나는 것이 고를 수 없는 것보다 나쁘다.
+ *
+ * `locked` 는 "유료가 열리면 쓸 수 있다" 는 예고다. 목록에서 아예 빼면 그런 게 있다는 걸
+ * 알 길이 없어서, 잠긴 채로 보여 준다.
+ */
+const MODELS = [
+  { id: 'haiku', label: 'Haiku', locked: false },
+  { id: 'opus', label: 'Opus', locked: true },
+] as const;
+
+/**
+ * 모델 고르개. 잠긴 항목은 눌러도 안 바뀌고 자물쇠와 안내만 보여 준다.
+ *
+ * 선택 상태를 위(Provider)로 안 올린 이유는 **아직 아무 데도 안 쓰이기 때문**이다 —
+ * 요청에 싣기 시작하면 그때 올린다.
+ */
+function ModelPicker() {
+  const { t } = useTranslation();
+  const [selected, setSelected] = useState<string>(MODELS[0].id);
+  const current = MODELS.find((m) => m.id === selected) ?? MODELS[0];
+
+  return (
+    <Popover.Root>
+      <Popover.Trigger className="flex items-center gap-1 rounded-full px-2 py-1 text-[0.7rem] font-bold text-ink-muted transition-colors active:bg-surface-subtle data-[state=open]:bg-surface-subtle">
+        <Sparkles className="h-3 w-3 shrink-0 text-brand" />
+        <span>Anthropic / {current.label}</span>
+        <ChevronDown className="h-3 w-3 shrink-0" />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          side="top"
+          align="end"
+          sideOffset={6}
+          collisionPadding={12}
+          className="z-50 w-max min-w-[11rem] rounded-card border border-line-subtle bg-surface p-1 shadow-raised"
+        >
+          {MODELS.map((model) => (
+            <button
+              key={model.id}
+              type="button"
+              disabled={model.locked}
+              onClick={() => setSelected(model.id)}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-field px-2.5 py-2 text-left text-[0.76rem]',
+                model.locked
+                  ? 'cursor-not-allowed text-ink-subtle'
+                  : 'font-bold text-ink active:bg-surface-subtle',
+              )}
+            >
+              <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+                {model.locked ? (
+                  <Lock className="h-3 w-3" />
+                ) : (
+                  selected === model.id && (
+                    <Check className="h-3.5 w-3.5 text-brand" />
+                  )
+                )}
+              </span>
+              <span className="flex-1">{model.label}</span>
+              {model.locked && (
+                <span className="shrink-0 rounded-full bg-surface-subtle px-1.5 py-0.5 text-[0.62rem] font-bold text-ink-muted">
+                  {t('aiSearch.modelLocked')}
+                </span>
+              )}
+            </button>
+          ))}
+          <p className="px-2.5 pb-1.5 pt-1 text-[0.66rem] leading-relaxed text-ink-subtle">
+            {t('aiSearch.modelLockedHint')}
+          </p>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 

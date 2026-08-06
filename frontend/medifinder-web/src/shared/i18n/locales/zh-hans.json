@@ -306,6 +306,7 @@
       "夜间可以看儿童的医院",
       "膝盖疼应该看哪个科"
     ],
+    "storageNote": "对话仅保存在当前浏览器标签页中，关闭标签页后即消失。",
     "goSearch": "按此条件搜索",
     "pickRegion": "在搜索页选择地区",
     "previewLoading": "正在查找医院…",
@@ -320,10 +321,13 @@
     "openConfirmYes": "打开",
     "openConfirmNo": "取消",
     "noExplain": "未能确定条件，请重新提问。",
+    "medicalUpsell": "目前仅支持查找医院。正式上线后充值代币，即可获得此类问题的解答。",
+    "answerDisclaimer": "这是一般医学信息，并非诊断。如有症状请到医疗机构就诊。",
     "placeUnresolved": "暂时无法把「{{place}}」对应到地区。请在搜索页选择地区。",
     "error": "暂时无法回答，请稍后再试。",
     "disclaimer": "以上为 AI 整理的检索条件，并非诊断或治疗建议，请以医务人员的说明为准。",
-    "analyzedBy": "由 {{provider}} 分析",
+    "modelLocked": "付费",
+    "modelLockedHint": "成为付费会员后可选择更强的模型。",
     "metaToggle": "响应信息",
     "chips": {
       "subject": "科室 {{count}}",
@@ -346,7 +350,9 @@
     "retry": "重试",
     "fullscreen": "全屏",
     "exitFullscreen": "退出全屏",
-    "clear": "清除对话",
+    "newChat": "新对话",
+    "newChatConfirm": "清空当前对话并重新开始？此操作无法撤销。",
+    "newChatCancel": "取消",
     "launcher": "咨询 AI"
   }
 }

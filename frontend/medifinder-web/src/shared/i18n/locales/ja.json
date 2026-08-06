@@ -306,6 +306,7 @@
       "夜間に子どもを診てもらえる病院",
       "膝が痛いのですが何科に行けばいい"
     ],
+    "storageNote": "会話はこのブラウザタブにのみ残ります。タブを閉じると消えます。",
     "goSearch": "この条件で検索",
     "pickRegion": "検索画面で地域を選ぶ",
     "previewLoading": "病院を検索中…",
@@ -320,10 +321,13 @@
     "openConfirmYes": "開く",
     "openConfirmNo": "キャンセル",
     "noExplain": "条件を特定できませんでした。もう一度お尋ねください。",
+    "medicalUpsell": "今は病院探しのみお手伝いできます。正式サービス後にトークンをチャージすると、こうしたご質問にもお答えします。",
+    "answerDisclaimer": "一般的な医学情報であり診断ではありません。症状がある場合は医療機関でご確認ください。",
     "placeUnresolved": "「{{place}}」はまだ地域に変換できません。検索画面で地域を選んでください。",
     "error": "現在お答えできません。しばらくしてからお試しください。",
     "disclaimer": "AIが整理した検索条件です。診断や治療の案内ではありません。詳しくは医療機関にご確認ください。",
-    "analyzedBy": "{{provider}} の分析結果",
+    "modelLocked": "有料",
+    "modelLockedHint": "有料会員になるとより高性能なモデルを選べます。",
     "metaToggle": "応答情報",
     "chips": {
       "subject": "診療科 {{count}}",
@@ -346,7 +350,9 @@
     "retry": "再試行",
     "fullscreen": "全画面",
     "exitFullscreen": "全画面を解除",
-    "clear": "会話を消す",
+    "newChat": "新しい会話",
+    "newChatConfirm": "今の会話を消して新しく始めますか？元に戻せません。",
+    "newChatCancel": "キャンセル",
     "launcher": "AIに相談"
   }
 }

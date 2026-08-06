@@ -14,6 +14,8 @@ import { reactFetch } from '@/shared/api/mutator';
 /** 화면이 배너로 띄우는 신호. 서버 스키마의 enum 과 같은 목록이다. */
 export type AiSearchWarning =
   | 'off_topic'
+  /** 건강 질문. 지금은 답하지 않지만 **나중에 답할 수 있는 것**이라 따로 다룬다. */
+  | 'medical_question'
   | 'emergency_suspected'
   | 'medical_caution'
   | 'unsupported_inverse'
@@ -48,6 +50,8 @@ export type AiSearchTool =
   | 'search_nearby'
   /** 지역을 되물어야 한다. 장소를 말했는데 코드로 못 옮겼다(역 이름·읍면동). */
   | 'ask_location'
+  /** 건강 질문에 답한다. `params.answer` 에 본문이 있다(답변 모드에서만). */
+  | 'answer_medical'
   /** 검색하지 않는다. 범위 밖이거나 조건을 하나도 못 잡았다. */
   | 'reject';
 
@@ -60,6 +64,8 @@ export interface AiSearchParams {
   placeText?: string;
   /** `reject` 사유. */
   reason?: AiSearchWarning;
+  /** `answer_medical` 의 본문. */
+  answer?: string;
 }
 
 export interface AiSearchResponse {

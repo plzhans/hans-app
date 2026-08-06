@@ -306,6 +306,7 @@
       "밤에 아이 볼 수 있는 병원",
       "무릎이 아픈데 어디로 가야 해"
     ],
+    "storageNote": "대화는 이 브라우저 탭에만 남아요. 탭을 닫으면 사라집니다.",
     "goSearch": "이 조건으로 검색",
     "pickRegion": "검색 화면에서 지역 고르기",
     "previewLoading": "병원을 찾는 중…",
@@ -320,10 +321,13 @@
     "openConfirmYes": "이동",
     "openConfirmNo": "취소",
     "noExplain": "조건을 잡지 못했어요. 다시 물어봐 주세요.",
+    "medicalUpsell": "지금은 병원 찾기만 도와드릴 수 있어요. 정식 서비스 후 토큰을 충전하시면 이런 질문에도 답해 드릴게요.",
+    "answerDisclaimer": "일반적인 의학 정보이며 진단이 아닙니다. 증상이 있다면 의료기관에서 확인하세요.",
     "placeUnresolved": "'{{place}}' 는 아직 지역으로 못 옮겨요. 검색 화면에서 지역을 골라 주세요.",
     "error": "지금은 답할 수 없어요. 잠시 뒤 다시 시도해 주세요.",
     "disclaimer": "AI가 정리한 검색 조건입니다. 진단이나 치료 안내가 아니며, 정확한 것은 의료진에게 확인하세요.",
-    "analyzedBy": "{{provider}} 분석 결과",
+    "modelLocked": "유료",
+    "modelLockedHint": "유료 회원이 되면 더 좋은 모델을 고를 수 있어요.",
     "metaToggle": "응답 정보",
     "chips": {
       "subject": "진료과 {{count}}",
@@ -346,7 +350,9 @@
     "retry": "다시 시도",
     "fullscreen": "전체화면",
     "exitFullscreen": "전체화면 해제",
-    "clear": "대화 지우기",
+    "newChat": "새 대화",
+    "newChatConfirm": "지금 대화를 비우고 새로 시작할까요? 되돌릴 수 없어요.",
+    "newChatCancel": "취소",
     "launcher": "AI 문의"
   }
 }

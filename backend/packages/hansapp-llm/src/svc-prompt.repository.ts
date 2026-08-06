@@ -38,6 +38,7 @@ export interface SvcPrompt {
 export class SvcPromptRepository {
   private readonly logger = new Logger(SvcPromptRepository.name);
   private readonly cache = new Map<string, SvcPrompt>();
+  private readonly blocks = new Map<string, { text: string; hash: string }>();
   private readonly dir: string;
 
   constructor(@Inject(LLM_CONFIG) config: LlmConfig) {
@@ -48,7 +49,35 @@ export class SvcPromptRepository {
   /** 캐시를 비운다. 파일을 고친 뒤 재부팅 없이 반영할 때. */
   reload(): void {
     this.cache.clear();
+    this.blocks.clear();
     this.logger.log('svc prompt cache cleared');
+  }
+
+  /**
+   * 시스템 프롬프트 조각 하나만 읽는다(`<name>.system.md`). 스키마가 없는 덧붙임 블록용이다.
+   *
+   * **해시를 같이 준다.** 이 블록이 답을 바꾸므로, 캐시 키에 섞지 않으면 블록을 붙인 결과와
+   * 안 붙인 결과가 같은 칸을 쓰게 된다.
+   */
+  getBlock(name: string): { text: string; hash: string } {
+    const cached = this.blocks.get(name);
+    if (cached) {
+      return cached;
+    }
+    const path = join(this.dir, `${name}.system.md`);
+    let text: string;
+    try {
+      text = readFileSync(path, 'utf8');
+    } catch (cause) {
+      throw new Error(`prompt block "${name}" not found: ${String(cause)}`);
+    }
+    const loaded = {
+      text,
+      hash: createHash('sha256').update(text).digest('hex').slice(0, 16),
+    };
+    this.blocks.set(name, loaded);
+    this.logger.log(`loaded svc prompt block: ${name} #${loaded.hash}`);
+    return loaded;
   }
 
   get(name: string): SvcPrompt {

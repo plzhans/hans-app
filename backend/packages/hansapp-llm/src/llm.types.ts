@@ -26,6 +26,17 @@ export interface LlmJsonSchema {
 export interface LlmPrepareInput {
   /** 시스템 프롬프트. prepare 가 messages[0] 으로 넣어 준다. */
   readonly system: string;
+  /**
+   * 시스템 프롬프트 **뒤에 덧붙일 블록.** 캐시를 걸지 않는다.
+   *
+   * **요청마다 달라지는 지시를 여기 둔다.** system 은 캐시되는 앞부분이라 한 글자만 달라져도
+   * 캐시가 통째로 갈리는데, 그러면 부류마다(예: 무료·유료) 8천 토큰짜리 프롬프트가 따로
+   * 캐시돼 쓰기 값이 배로 든다. 공통을 앞에 두고 갈리는 것만 뒤에 붙이면 캐시는 하나다.
+   *
+   * 사용자 turn 이 아니라 **시스템 자리**인 이유는, 이건 지시이지 대화 내용이 아니어서다 —
+   * 질문 옆에 두면 사용자가 흉내 내기 쉬워진다.
+   */
+  readonly appendSystem?: string;
   /** 없으면 설정의 기본값(llm.provider). */
   readonly provider?: LlmProviderName;
   /** 없으면 프로바이더별 설정의 defaultModel. */

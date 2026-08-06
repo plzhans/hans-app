@@ -16,6 +16,7 @@ const TOOLS = [
   'search_hospitals',
   'search_nearby',
   'ask_location',
+  'answer_medical',
   'reject',
 ] as const;
 
@@ -157,6 +158,7 @@ export class AiSearchResponseDto {
     type: [String],
     description:
       '화면이 배너로 띄울 신호.\n' +
+      '- `medical_question` 건강 질문이라 지금은 답하지 않는다(가입·충전 안내로 잇는다)\n' +
       '- `emergency_suspected` 응급 징후. 119·응급실 안내를 띄운다\n' +
       '- `medical_caution` 요구가 의학 권고와 반대다\n' +
       '- `unsupported_inverse` 표현할 수 없는 반대 조건이라 빠졌다\n' +

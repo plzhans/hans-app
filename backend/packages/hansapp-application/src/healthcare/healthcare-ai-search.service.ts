@@ -22,6 +22,22 @@ import { HiraAsmCodeCache } from './hira-asm-code.cache';
 /** 프롬프트 파일 이름. `<이 값>.system.md` · `<이 값>.schema.json` 을 읽는다. */
 const PROMPT_NAME = 'hospital-search';
 
+/** 답변 모드일 때 시스템 프롬프트 뒤에 덧붙이는 블록(캐시 안 걸림). */
+const ANSWER_BLOCK = 'answer-mode';
+
+/**
+ * 답변 모드로 들어가는 말머리. **로그인이 붙기 전까지의 임시 수단이다** —
+ * 잔액이 생기면 이 문자열은 사라지고 사용자 잔액이 그 자리를 대신한다.
+ *
+ * 설정(`llm.allowTestCommand`)이 꺼져 있으면 모드로 안 들어간다. 다만 **문자열은 그때도
+ * 떼어낸다** — 명령이지 질문의 일부가 아니라서, 붙은 채로 모델에 보내면 질문이 달라지고
+ * 캐시 키도 갈린다.
+ */
+const TEST_COMMAND = '/test';
+
+/** 답변 본문 상한. explain 보다 길지만, 모델에게도 4문장을 넘기지 말라고 적어 뒀다. */
+const MAX_ANSWER_LENGTH = 600;
+
 /**
  * 진료과목 최대 개수. 프롬프트에도 같은 제한을 적어 두지만 **여기서 한 번 더 자른다** —
  * 모델이 헷갈리면 관련 과를 열 개씩 늘어놓는데, 그러면 필터가 아무것도 안 거른 것과 같아진다.
@@ -53,6 +69,12 @@ const CONTROL_CHARS = /[\u0000-\u001F\u007F]+/g;
 /** 화면이 배너로 띄우는 신호. 스키마의 enum 과 같은 목록이다. */
 export type AiSearchWarning =
   | 'off_topic'
+  /**
+   * 병원을 찾는 건 아니지만 **건강·질환에 관한 물음**. 지금은 답하지 않지만
+   * "나중에 답할 수 있는 질문" 이라 off_topic 과 나눠 둔다 — 화면이 가입·충전을
+   * 안내하는 근거다(그냥 범위 밖이면 안내할 것이 없다).
+   */
+  | 'medical_question'
   | 'emergency_suspected'
   | 'medical_caution'
   | 'unsupported_inverse'
@@ -108,6 +130,8 @@ export type AiSearchTool =
   | 'search_nearby'
   /** 지역을 되물어야 한다. 사용자가 장소를 말했는데 코드로 못 옮겼다(역 이름·읍면동). */
   | 'ask_location'
+  /** 건강 질문에 답한다. **답변 모드에서만 나온다** — params.answer 에 본문이 있다. */
+  | 'answer_medical'
   /** 검색하지 않는다. 범위 밖이거나 조건을 하나도 못 잡았다. */
   | 'reject';
 
@@ -127,6 +151,8 @@ export interface AiSearchParams {
   readonly placeText?: string;
   /** reject 사유. `off_topic` 이면 범위 밖, `too_vague` 면 조건을 못 잡았다. */
   readonly reason?: AiSearchWarning;
+  /** `answer_medical` 의 본문. 다른 툴에서는 비어 있다. */
+  readonly answer?: string;
 }
 
 export interface AiSearchResult {
@@ -187,6 +213,7 @@ interface RawFilter {
   useMyLocation?: unknown;
   warnings?: unknown;
   explain?: unknown;
+  answer?: unknown;
 }
 
 /**
@@ -220,6 +247,7 @@ const VALID_TIERS = new Set<string>([
 
 const VALID_WARNINGS = new Set<string>([
   'off_topic',
+  'medical_question',
   'emergency_suspected',
   'medical_caution',
   'unsupported_inverse',
@@ -292,21 +320,50 @@ export class HealthcareAiSearchService {
    *   5. 아무것도 없다   → reject
    */
   private decide(input: {
+    answerMode: boolean;
+    rawAnswer: unknown;
     offTopic: boolean;
     filter: AiSearchFilter;
     placeText?: string;
     useMyLocation: boolean;
     warnings: AiSearchWarning[];
   }): { tool: AiSearchTool; params: AiSearchParams } {
-    const { offTopic, filter, placeText, useMyLocation, warnings } = input;
+    const {
+      answerMode,
+      rawAnswer,
+      offTopic,
+      filter,
+      placeText,
+      useMyLocation,
+      warnings,
+    } = input;
 
-    // 범위 밖이면 **조건을 통째로 버린다.** 모델이 off_topic 을 달면서 조건도 같이 채워
-    // 보내는 경우가 있는데(인젝션으로 유도되면 특히), 그대로 흘리면 화면이 엉뚱한 검색을 돈다.
+    /*
+      **검색하지 않는 두 경우를 먼저 걸러낸다.** 둘 다 조건을 통째로 버린다 — 모델이
+      off_topic 을 달면서 조건도 같이 채워 보내는 경우가 있는데(인젝션으로 유도되면 특히),
+      그대로 흘리면 화면이 엉뚱한 검색을 돈다.
+
+      **사유는 나눠서 넘긴다.** 화면이 할 말이 다르기 때문이다 —
+      의학 질문은 "가입하면 답할 수 있다" 로 이어지지만, 그냥 범위 밖은 이어질 데가 없다.
+    */
     if (offTopic) {
       return {
         tool: 'reject',
         params: { filter: emptyFilter(), reason: 'off_topic' },
       };
+    }
+    if (warnings.includes('medical_question')) {
+      // 답변 모드라도 **모델이 답을 안 냈으면 거절로 떨어뜨린다.** 빈 답변 상자를 그리는
+      // 것보다 "지금은 안 된다" 가 낫다.
+      const answer = answerMode
+        ? sanitizeAnswer(rawAnswer, MAX_ANSWER_LENGTH)
+        : undefined;
+      return answer
+        ? { tool: 'answer_medical', params: { filter: emptyFilter(), answer } }
+        : {
+            tool: 'reject',
+            params: { filter: emptyFilter(), reason: 'medical_question' },
+          };
     }
 
     if (placeText) {
@@ -391,15 +448,52 @@ export class HealthcareAiSearchService {
       requestId?: string;
     } = {},
   ): Promise<AiSearchResult> {
+    // 맨 처음에 잡는다 — 즉답으로 끝나는 경로(preReject)도 걸린 시간을 남겨야 한다.
+    const startedAt = Date.now();
+
     /*
       **들어온 문자열은 여기서 한 번만 다듬는다.** 아래로는 이 값만 흐르므로 발송·해시·
       로그 어디서도 원문을 다시 만지지 않는다 — 세 군데가 각자 다듬던 시절에는 "무엇이
       정본인가" 가 흐렸고, 실제로 해시한 문자열과 발송한 문자열이 어긋나 있었다.
     */
-    const question = cleanQuestion(rawQuestion);
-    const prompt = this.prompts.get(PROMPT_NAME);
+    const cleaned = cleanQuestion(rawQuestion);
+    /*
+      **말머리를 먼저 떼어낸다.** 설정이 꺼져 있어도 떼는 것은 같다 — `/test` 는 명령이지
+      질문의 일부가 아니라서, 붙은 채로 두면 모델이 읽는 문장도 캐시 키도 달라진다.
+      달라지는 건 **모드로 들어가느냐** 뿐이다.
+    */
+    const asked = cleaned.endsWith(TEST_COMMAND);
+    const question = asked
+      ? cleaned.slice(0, -TEST_COMMAND.length).trim()
+      : cleaned;
+    const answerMode = asked && this.llmConfig.allowTestCommand;
 
-    const startedAt = Date.now();
+    /*
+      **부를 필요가 없는 질문은 여기서 끝낸다.** 캐시·쿼터보다도 앞이다 —
+      캐시에 담을 것도 없고(즉답이다), 하루 몫을 깎을 이유도 없다(호출이 없다).
+    */
+    if (preReject(question)) {
+      this.logger.log(
+        `${tag(caller.requestId)}${PROMPT_NAME} pre-rejected (${Date.now() - startedAt}ms)`,
+      );
+      return {
+        tool: 'reject',
+        // explain 은 비워 둔다 — 화면이 자기 문구를 쓴다(백엔드가 한국어를 쓰지 않는다).
+        params: { filter: emptyFilter(), reason: 'too_vague' },
+        warnings: ['too_vague'],
+        explain: '',
+        dropped: [],
+        provider: this.llmConfig.defaultProvider,
+        model: '',
+        usage: { inputTokens: 0, outputTokens: 0 },
+        cached: false,
+        elapsedMs: Date.now() - startedAt,
+      };
+    }
+
+    const prompt = this.prompts.get(PROMPT_NAME);
+    // 답변 모드일 때만 읽는다. 안 쓰는 파일을 매번 여는 이유가 없다.
+    const block = answerMode ? this.prompts.getBlock(ANSWER_BLOCK) : undefined;
 
     /*
       **같은 질문이면 부르지 않는다.** 업체의 프롬프트 캐시는 요금을 1/10 로 줄여 주지만
@@ -410,7 +504,14 @@ export class HealthcareAiSearchService {
       한 명이 물으면 나머지는 호출 없이 받는다.
     */
     const questionHash = questionHashOf(question);
-    const key = this.cacheKey(questionHash, prompt.hash);
+    /*
+      **모드를 키에 섞는다.** 안 섞으면 답변 모드로 받은 답이 같은 칸에 담겨,
+      `/test` 없이 물은 사람에게 유료로 팔 답변이 공짜로 나간다.
+    */
+    const key = this.cacheKey(
+      questionHash,
+      block ? `${prompt.hash}+${block.hash}` : prompt.hash,
+    );
     const cached = await this.tryGet(key);
     if (cached) {
       const elapsedMs = Date.now() - startedAt;
@@ -444,6 +545,8 @@ export class HealthcareAiSearchService {
     // 1) 뼈대를 받는다. 업체 선택·모델 인스턴스·캐시 옵션·시스템 메시지가 채워져 온다.
     const call = this.llm.prepare({
       system: prompt.system,
+      // 캐시되는 앞부분은 그대로 두고 뒤에만 붙인다 — 두 모드가 같은 캐시를 나눠 쓴다.
+      appendSystem: block?.text,
       // 시스템 프롬프트가 매 요청 동일하다(코드표 + 규칙). 캐시가 걸리면 입력 요금이 1/10 이다.
       cacheSystem: true,
     });
@@ -603,6 +706,8 @@ export class HealthcareAiSearchService {
     const useMyLocation = !offTopic && !placeText && raw.useMyLocation === true;
 
     const { tool, params } = this.decide({
+      answerMode,
+      rawAnswer: raw.answer,
       offTopic,
       filter,
       placeText,
@@ -730,6 +835,39 @@ function aliases(region: RegionEntry): string[] {
 }
 
 /**
+ * **부르지 않고 끝낼 수 있는 질문인가.** 걸리면 LLM 을 아예 안 탄다(요금 0, 즉답).
+ *
+ * 여기 넣을 자격은 하나다 — **틀릴 일이 거의 없어야 한다.** 애매한 것을 걸러내는 건
+ * 모델이 할 일이고(그래서 `too_vague` 가 있다), 여기는 "이건 질문이 아니다" 가 명백한
+ * 것만 잡는다. 정상 질문을 하나라도 막으면 아낀 요금보다 잃는 게 크다.
+ *
+ * 걸린 것은 조용히 `too_vague` 로 돌려준다 — 400 을 주면 사용자는 자기가 뭘 잘못했는지
+ * 모른 채 오류 화면을 보게 되는데, 그냥 "이렇게 물어봐 주세요" 가 맞는 답이다.
+ */
+function preReject(question: string): boolean {
+  // 자모만. "ㅇㅇ" "ㅋㅋㅋ" "ㅎㅇ" — 완성된 글자가 하나도 없다.
+  if (/^[\u3131-\u318E\s]+$/.test(question)) return true;
+
+  // 숫자·구분자만. 전화번호를 그대로 붙여 넣는 경우가 여기 걸린다("010-1234-5678").
+  if (/^[\d\s.,\-+()]+$/.test(question)) return true;
+
+  // 글자도 숫자도 하나 없음. "!!!" "..." "???" 이모지만.
+  if (/^[^\p{L}\p{N}]+$/u.test(question)) return true;
+
+  // 같은 글자만 반복. "ㅋㅋㅋㅋ" 는 위에서 잡히지만 "aaaa" "ㅁㅁㅁ" 는 여기다.
+  // **전체가 한 글자일 때만** 이다 — "아파요ㅠㅠㅠ" 처럼 뒤에 붙는 건 정상 질문이다.
+  if (/^(.)\1+$/u.test(question)) return true;
+
+  // 링크만. 우리는 URL 로 병원을 찾지 않는다.
+  if (/^(https?:\/\/|www\.)\S+$/i.test(question)) return true;
+
+  // 다듬고 나니 글자가 한 자뿐. DTO 의 MinLength 는 다듬기 전 길이를 본다.
+  if (question.replace(/[^\p{L}\p{N}]/gu, '').length < 2) return true;
+
+  return false;
+}
+
+/**
  * 들어온 질문을 **한 번에 정본으로 만든다.** 이 함수를 지난 값만 아래로 흐른다.
  *
  * 하는 일:
@@ -832,6 +970,34 @@ function emptyFilter(): AiSearchFilter {
  * 프롬프트로도 URL 을 금지하지만 프롬프트는 뚫릴 수 있다. 화면에 피싱 링크가 그려지는
  * 것은 코드로 막는다 — 프롬프트는 품질을 위한 것이고, 이 함수가 안전장치다.
  */
+/**
+ * 답변 본문을 다듬는다. **explain 과 같은 규칙에 길이만 다르다.**
+ *
+ * URL·연락처를 지우는 이유가 여기서 더 무겁다 — explain 은 조건 설명이라 링크가 낄 일이
+ * 애초에 없지만, 답변은 모델이 "자세한 건 여기서" 를 붙이고 싶어 하는 자리다. 그게 나가면
+ * 우리가 검증하지 않은 곳으로 사람을 보내는 것이 된다.
+ *
+ * 비면 undefined 다 — 부르는 쪽이 그걸 보고 거절로 떨어뜨린다.
+ */
+function sanitizeAnswer(raw: unknown, max: number): string | undefined {
+  const text = nonEmpty(raw);
+  if (!text) {
+    return undefined;
+  }
+  const clean = text
+    .replace(EXPLAIN_FORBIDDEN, '')
+    // 줄바꿈만 남기고 나머지 제어문자를 지운다. CONTROL_CHARS 를 그대로 쓰면 \n 까지
+    // 먹어서(그 범위 안이다) 문단이 사라진다 — 답변은 문단이 뜻인 자리라 다르게 다룬다.
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0009\u000B-\u001F\u007F]+/g, ' ')
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, max);
+  return clean || undefined;
+}
+
 function sanitizeExplain(raw: unknown): string {
   const text = nonEmpty(raw);
   if (!text) {

@@ -75,6 +75,9 @@ export class LlmService {
       providerOptions: resolved.providerOptions,
       // 시스템 프롬프트를 최상위 system 이 아니라 messages[0] 에 두는 것은 캐시 때문이다.
       // 최상위 system 은 문자열이라 providerOptions 를 붙일 자리가 없다.
+      //
+      // **appendSystem 은 두 번째 시스템 메시지로 나간다.** 업체가 시스템을 블록 배열로
+      // 받으므로 앞 블록에만 캐시가 걸리고, 뒤 블록은 요청마다 달라도 캐시를 안 깬다.
       messages: [
         {
           role: 'system',
@@ -83,6 +86,9 @@ export class LlmService {
             ? { providerOptions: resolved.systemOptions }
             : {}),
         },
+        ...(input.appendSystem
+          ? [{ role: 'system' as const, content: input.appendSystem }]
+          : []),
       ],
     };
   }
