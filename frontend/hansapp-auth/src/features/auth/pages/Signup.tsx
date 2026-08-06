@@ -8,8 +8,9 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { AuthCard } from '../components/AuthCard';
+import { ConsentFields, type ConsentForm } from '../components/ConsentFields';
 
-interface Form {
+interface Form extends ConsentForm {
   email: string;
   password: string;
   passwordConfirm: string;
@@ -201,6 +202,12 @@ export default function Signup() {
           error={errors.name?.message}
           {...register('name', { required: '이름을 입력하세요.' })}
         />
+        {/*
+          동의는 **계정이 만들어지기 전**에 받아야 한다. 이 폼은 코드를 보낼 뿐 아직 계정을
+          만들지 않지만, 여기서 막는 편이 낫다 — 코드 단계까지 갔다가 되돌리면 이미 메일이
+          나간 뒤다.
+        */}
+        <ConsentFields register={register} errors={errors} />
         {serverError && (
           <p className="whitespace-pre-line text-sm text-red-500">
             {serverError}

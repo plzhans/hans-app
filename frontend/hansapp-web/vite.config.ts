@@ -27,6 +27,16 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: { '@': path.resolve(__dirname, './src') },
+
+      /**
+       * React 를 **한 벌만** 번들한다.
+       *
+       * @hansapp/legal 이 `link:` 로 붙어 있고 타입용으로 자기 node_modules 에 react 를 갖는다.
+       * 그대로 두면 패키지의 JSX 가 그쪽 react 를, 앱이 자기 react 를 잡아 두 벌이 실린다 —
+       * 훅을 쓰지 않는 컴포넌트라 지금은 조용하지만, 번들이 커지고 나중에 훅이 들어가는 순간
+       * "Invalid hook call" 로 터진다.
+       */
+      dedupe: ['react', 'react-dom'],
     },
     server: {
       // 127.0.0.1 로 고정한다(localhost 로 새지 않게). API 가 127.0.0.1:3000 이라, 쿠키(호스트 기준)가

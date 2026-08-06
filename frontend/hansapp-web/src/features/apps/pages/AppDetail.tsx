@@ -38,6 +38,7 @@ import {
 } from '@/shared/api/apps';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { Gnb } from '@/shared/components/Gnb';
+import { Footer } from '@/shared/components/Footer';
 import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { Modal } from '@/shared/ui/Modal';
@@ -62,9 +63,9 @@ export default function AppDetail() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ['app', appId] });
 
   return (
-    <div className="min-h-full">
+    <div className="flex min-h-full flex-col">
       <Gnb />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="flex-1 mx-auto max-w-3xl px-4 py-8">
         <Link
           to="/apps"
           className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
@@ -90,6 +91,7 @@ export default function AppDetail() {
           </>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

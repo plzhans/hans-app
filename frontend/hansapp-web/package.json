@@ -13,6 +13,7 @@
     "preview": "vite preview --port 5274 --strictPort"
   },
   "dependencies": {
+    "@hansapp/legal": "link:../legal",
     "@sentry/react": "^10.68.0",
     "@tanstack/react-query": "^5.62.0",
     "clsx": "^2.1.1",

@@ -1,4 +1,4 @@
-import type { LegalBlock, LegalDoc } from '../content';
+import type { LegalBlock, LegalDoc } from './types';
 
 /**
  * 약관·방침 한 벌을 그린다. 계정 약관과 개인정보처리방침이 같은 껍데기를 쓴다.
