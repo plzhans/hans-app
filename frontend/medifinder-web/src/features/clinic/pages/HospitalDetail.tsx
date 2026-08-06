@@ -412,14 +412,19 @@ export default function HospitalDetailPage() {
   /**
    * 화면에 **실제로 붙어 있는** 바의 높이. 스파이 판정선과 앵커 여백이 이 값에 걸려 있다.
    *
-   * 둘 다 **좁은 화면에서만** 붙는다(넓은 화면은 lg:static). 그래서 높이를 그냥 더하면
+   * 탭 바는 **좁은 화면에서만** 붙는다(넓은 화면은 lg:static). 그래서 높이를 그냥 더하면
    * 넓은 화면에서 100px 가까이 헛되이 비우게 되어, 탭을 눌렀을 때 카드가 화면 위쪽에
    * 붕 뜬 자리에 멈춘다. **붙어 있는 것만 센다** — 화면 폭을 코드에서 다시 판정하지 않고
    * 계산된 position 을 직접 읽는 편이 어긋날 여지가 없다.
+   *
+   * fixed 도 센다. 넓은 화면의 앱바가 그렇다(floating) — 자리는 안 차지하지만 스크롤한
+   * 뒤에는 화면 맨 위를 그만큼 덮으므로, 빼면 앵커로 뛴 카드의 머리가 바 뒤로 들어간다.
    */
   const stickyHeight = () => {
-    const stuck = (el: HTMLElement | null) =>
-      el && getComputedStyle(el).position === 'sticky' ? el.offsetHeight : 0;
+    const stuck = (el: HTMLElement | null) => {
+      const position = el && getComputedStyle(el).position;
+      return position === 'sticky' || position === 'fixed' ? el!.offsetHeight : 0;
+    };
     return stuck(navRef.current) + stuck(tabsRef.current);
   };
 
@@ -634,6 +639,7 @@ export default function HospitalDetailPage() {
         barRef={navRef}
         title={hospital.name}
         solid={nameScrolledPast}
+        floating
         onBack={goBack}
         backLabel={t('clinic.backToSearch')}
         actions={
