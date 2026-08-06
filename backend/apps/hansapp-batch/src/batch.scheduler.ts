@@ -5,7 +5,7 @@ import * as Sentry from '@sentry/nestjs';
 
 import { BATCH_CONFIG, BatchConfig } from './batch.config';
 import { BatchService } from './batch.service';
-import { SessionCleanupService } from './session-cleanup.service';
+import { AuthCleanupService } from './auth-cleanup.service';
 
 /**
  * 이 크론 잡의 이름. SchedulerRegistry 등록명과 Sentry 태그가 **같은 상수를 본다** —
@@ -18,12 +18,15 @@ import { SessionCleanupService } from './session-cleanup.service';
 const CRON_JOB_NAME = 'daily-sync';
 
 /**
- * 만료 세션 정리 잡의 이름.
+ * 인증 부산물 정리 잡의 이름.
  *
  * **이름에 시간을 넣지 않는다.** 크론식은 설정으로 바뀌는 값이라, `nightly-…` 같은 이름은
  * 주기를 한 번만 바꿔도 거짓이 된다. 이름은 **무엇을 하는지**만 말한다.
+ *
+ * `session-` 이 아니라 `auth-` 인 이유는 세션 말고도 인가코드·이메일 인증 코드를 함께
+ * 쓸기 때문이다(AuthCleanupService 참고).
  */
-const SESSION_CLEANUP_JOB_NAME = 'session-cleanup';
+const AUTH_CLEANUP_JOB_NAME = 'auth-cleanup';
 
 /**
  * 크론 등록.
@@ -37,7 +40,7 @@ export class BatchScheduler {
 
   constructor(
     private readonly batch: BatchService,
-    private readonly sessionCleanup: SessionCleanupService,
+    private readonly authCleanup: AuthCleanupService,
     private readonly registry: SchedulerRegistry,
     @Inject(BATCH_CONFIG) private readonly config: BatchConfig,
   ) {}
@@ -63,20 +66,21 @@ export class BatchScheduler {
       파이프라인이고, 세션 정리는 우리 DB 만 만지는 독립적인 일이다. 한 잡에 묶으면
       적재가 길어지거나 실패할 때 정리까지 밀린다.
     */
-    const cleanupJob = new CronJob(this.config.sessionCleanupCron, () => {
-      void this.sessionCleanup.run().catch((error: unknown) => {
-        this.logger.error('세션 정리 중 오류', error);
+    const cleanupJob = new CronJob(this.config.authCleanupCron, () => {
+      void this.authCleanup.run().catch((error: unknown) => {
+        // 테이블별 실패는 서비스가 이미 삼킨다. 여기까지 오면 잡 자체의 버그다.
+        this.logger.error('인증 정리 중 처리되지 않은 오류', error);
         Sentry.captureException(error, {
-          tags: { job: SESSION_CLEANUP_JOB_NAME },
+          tags: { job: AUTH_CLEANUP_JOB_NAME },
         });
       });
     });
 
-    this.registry.addCronJob(SESSION_CLEANUP_JOB_NAME, cleanupJob);
+    this.registry.addCronJob(AUTH_CLEANUP_JOB_NAME, cleanupJob);
     cleanupJob.start();
 
     this.logger.log(
-      `크론 등록 — ${SESSION_CLEANUP_JOB_NAME} ${this.config.sessionCleanupCron}`,
+      `크론 등록 — ${AUTH_CLEANUP_JOB_NAME} ${this.config.authCleanupCron}`,
     );
   }
 }

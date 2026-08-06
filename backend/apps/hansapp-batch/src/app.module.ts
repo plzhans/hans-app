@@ -8,7 +8,7 @@ import type { ConfigSource } from '@hansapp/common';
 import { BATCH_CONFIG, buildBatchConfig } from './batch.config';
 import { BatchScheduler } from './batch.scheduler';
 import { BatchService } from './batch.service';
-import { SessionCleanupService } from './session-cleanup.service';
+import { AuthCleanupService } from './auth-cleanup.service';
 
 /**
  * 배치의 루트 모듈.
@@ -27,14 +27,14 @@ export class AppModule {
         SentryModule.forRoot(),
         ScheduleModule.forRoot(),
         AdminApplicationModule.forRoot(source),
-        // 세션 정리 잡이 Prisma 를 직접 쓴다. AdminApplicationModule 도 DataModule 을 쓰지만
+        // 인증 정리 잡이 Prisma 를 직접 쓴다. AdminApplicationModule 도 DataModule 을 쓰지만
         // 그 모듈 안에서만 보이므로(export 하지 않는다) 여기서 따로 받는다.
         DataModule.forRoot(source),
       ],
       providers: [
         { provide: BATCH_CONFIG, useValue: buildBatchConfig(source) },
         BatchService,
-        SessionCleanupService,
+        AuthCleanupService,
         BatchScheduler,
       ],
     };
