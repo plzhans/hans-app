@@ -8,7 +8,7 @@ import {
 } from '@/shared/api/auth';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { GoogleIcon, KakaoIcon, LineIcon, NaverIcon } from './socialIcons';
+import { SocialBadge } from './socialIcons';
 
 /**
  * 화면에 세울 제공자 목록. **연동되지 않은 것도 보여준다** — 무엇을 더 붙일 수 있는지가
@@ -19,12 +19,11 @@ const PROVIDERS: {
   /** 서버가 쓰는 값(GOOGLE·KAKAO…). me.linkedProviders 와 대조한다. */
   code: string;
   label: string;
-  icon: React.ReactNode;
 }[] = [
-  { key: 'google', code: 'GOOGLE', label: '구글', icon: <GoogleIcon /> },
-  { key: 'kakao', code: 'KAKAO', label: '카카오', icon: <KakaoIcon /> },
-  { key: 'naver', code: 'NAVER', label: '네이버', icon: <NaverIcon /> },
-  { key: 'line', code: 'LINE', label: '라인', icon: <LineIcon /> },
+  { key: 'google', code: 'GOOGLE', label: '구글' },
+  { key: 'kakao', code: 'KAKAO', label: '카카오' },
+  { key: 'naver', code: 'NAVER', label: '네이버' },
+  { key: 'line', code: 'LINE', label: '라인' },
 ];
 
 /**
@@ -132,7 +131,7 @@ export function SocialLinkSection() {
           const blocked = on && isLastMethod;
           return (
             <li key={p.key} className="flex items-center gap-3 p-3">
-              <span className="shrink-0">{p.icon}</span>
+              <SocialBadge provider={p.key} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-gray-900">{p.label}</p>
                 <p className="mt-0.5 truncate text-xs text-gray-500">
