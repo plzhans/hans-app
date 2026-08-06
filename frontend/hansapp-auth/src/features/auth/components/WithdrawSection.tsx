@@ -7,9 +7,14 @@ import { Button } from '@/shared/ui/Button';
 /**
  * 회원 탈퇴. **개인정보처리방침 제10조가 약속한 "삭제" 를 이행하는 자리다.**
  *
- * [접어 둔다]
- * 마이페이지에 처음부터 펼쳐 두지 않는다. 계정을 보러 온 사람에게 탈퇴 버튼이 먼저 보이면
- * 잘못 누를 여지만 생긴다. 한 번 열어야 내용이 나오고, 거기서 다시 눌러야 실행된다.
+ * [세 걸음을 거친다]
+ * 되돌릴 수 없는 동작이라 한 번의 실수로 끝나면 안 된다.
+ *   1. 접힌 "회원 탈퇴" 를 펼친다 — 계정을 보러 온 사람에게 먼저 보일 버튼이 아니다
+ *   2. 무슨 일이 생기는지 읽고 동의에 체크한다
+ *   3. [탈퇴하기] 를 누르면 **그 자리에서 한 번 더 묻는다**
+ *
+ * 체크박스만으로 끝내지 않는 이유는, 체크는 한 번 켜 두면 그대로 남기 때문이다.
+ * 되돌릴 수 없는 동작은 누르는 그 순간에 물어야 한다.
  *
  * [무슨 일이 생기는지 먼저 적는다]
  * 문구는 지어내지 않고 **HansApp 계정 이용약관 제11조와 개인정보처리방침 제3조에 적힌 그대로**다.
@@ -23,8 +28,23 @@ export function WithdrawSection() {
   const signOut = useAuthStore((s) => s.signOut);
   const [open, setOpen] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  /**
+   * 마지막 재확인 단계인가.
+   *
+   * **체크박스만으로는 부족하다.** 체크는 "내용을 읽었다" 는 표시라 한 번 켜 두면 그대로
+   * 남는데, 되돌릴 수 없는 동작은 **누르는 그 순간에** 한 번 더 물어야 한다.
+   * 여기서 묻는 것이 마지막이다.
+   */
+  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setOpen(false);
+    setAgreed(false);
+    setConfirming(false);
+    setError(null);
+  };
 
   const onWithdraw = async () => {
     setError(null);
@@ -39,6 +59,8 @@ export function WithdrawSection() {
       await signOut();
     } catch (e) {
       setError(errorMessage(e, '탈퇴 처리에 실패했습니다.'));
+      // 실패하면 재확인을 접는다 — 다시 하려면 한 번 더 물어야 한다.
+      setConfirming(false);
       setBusy(false);
     }
   };
@@ -85,28 +107,40 @@ export function WithdrawSection() {
 
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
-      <div className="mt-4 flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setOpen(false);
-            setAgreed(false);
-            setError(null);
-          }}
-        >
-          취소
-        </Button>
-        {/* 동의 전에는 누를 수 없다. 되돌릴 수 없는 동작이라 한 단계 더 세운다. */}
-        <Button
-          type="button"
-          loading={busy}
-          disabled={!agreed}
-          onClick={() => void onWithdraw()}
-        >
-          탈퇴하기
-        </Button>
-      </div>
+      {confirming ? (
+        <div className="mt-4 rounded-lg border border-red-300 bg-white p-3">
+          <p className="text-xs font-bold text-red-700">
+            정말 탈퇴하시겠습니까? 이 동작은 되돌릴 수 없습니다.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setConfirming(false)}
+            >
+              아니요
+            </Button>
+            <Button type="button" loading={busy} onClick={() => void onWithdraw()}>
+              네, 탈퇴합니다
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 flex gap-2">
+          <Button type="button" variant="outline" onClick={reset}>
+            취소
+          </Button>
+          {/* 동의 전에는 누를 수 없다. 여기서 바로 탈퇴하지 않고 재확인으로 넘어간다. */}
+          <Button
+            type="button"
+            disabled={!agreed}
+            onClick={() => setConfirming(true)}
+          >
+            탈퇴하기
+          </Button>
+        </div>
+      )}
     </section>
   );
 }
