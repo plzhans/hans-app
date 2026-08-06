@@ -42,22 +42,58 @@ let clientIpHeader: string | undefined;
 export let REFRESH_COOKIE = REFRESH_COOKIE_BASE;
 export let SESSION_HINT_COOKIE = SESSION_HINT_COOKIE_BASE;
 
+/**
+ * 쿠키 이름 접두사를 정한다. **설정이 비면 환경 이름에서 유도한다.**
+ *
+ * 접두사가 필요한 이유는 쿠키 Domain 이 `plzhans.com` 까지 올라가서다 — develop 과 운영이
+ * 같은 도메인을 공유하므로 이름까지 같으면 한쪽에 로그인할 때마다 다른 쪽 세션 토큰을
+ * 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
+ *
+ * 그래서 환경마다 달라야 하는데, 설정 파일에 손으로 적다 보니 **local 만 빠져 있었다.**
+ * 백엔드는 접두사 없이 심고 프론트는 `local.` 을 찾아서, 로그인은 됐는데 화면은 로그아웃으로
+ * 보였다. 규칙으로 유도하면 그런 어긋남이 생기지 않는다.
+ *
+ * **production 만 접두사가 없다.** 운영이 이름의 기준이고 나머지 환경이 거기서 갈라지는
+ * 구조다 — 배포된 프론트들이 `hansapp.session` 을 찾고 있어서, 여기서 `production.` 을 붙이면
+ * 그 이름을 여섯 군데(앱 2개 × 환경 3개) 함께 바꿔야 하고 운영 세션이 한 번 끊긴다.
+ *
+ * 프론트는 지금처럼 env 파일에 이름을 그대로 적는다. 여기 규칙과 그쪽 값이 어긋나면 로그인은
+ * 되는데 화면만 로그아웃으로 보이므로(이번에 난 사고가 그것이다), 규칙을 바꿀 때는 프론트의
+ * `VITE_SESSION_HINT_COOKIE_NAME` 여섯 줄을 반드시 같이 본다.
+ */
+function resolveCookiePrefix(cfg: ConfigSource, env: string): string {
+  const configured = cfg.getStringOrDefault('auth.cookiePrefix');
+  if (configured) return configured;
+  return env === 'production' ? '' : `${env.toLowerCase()}.`;
+}
+
 /** 부팅 시점에 설정에서 값을 한 번 읽어 고정한다(main 부트스트랩에서 호출). */
-export function initRefreshCookie(cfg: ConfigSource): void {
+export function initRefreshCookie(cfg: ConfigSource, env: string): void {
   secure = cfg.getBoolOrDefault('auth.cookieSecure', false);
   cookieDomain = cfg.getStringOrDefault('auth.rootDomain') || undefined;
   clientIpHeader =
     cfg.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
 
-  const prefix = cfg.getStringOrDefault('auth.cookiePrefix') || '';
+  const prefix = resolveCookiePrefix(cfg, env);
   REFRESH_COOKIE = prefix + REFRESH_COOKIE_BASE;
   SESSION_HINT_COOKIE = prefix + SESSION_HINT_COOKIE_BASE;
 }
 
+/**
+ * refresh 쿠키를 심는다.
+ *
+ * **persistent 가 만료를 정한다.** 켜면 만료 시각이 박힌 영속 쿠키라 브라우저를 닫아도 남고,
+ * 끄면 `expires` 를 아예 주지 않아 세션 쿠키가 된다 — 브라우저를 닫을 때 사라진다.
+ * 서버 세션은 어느 쪽이든 TTL 까지 살아 있다(쿠키만 사라질 뿐이다).
+ *
+ * **탭 사이 공유는 둘 다 된다.** 세션 쿠키도 같은 브라우저의 모든 탭이 함께 본다 —
+ * 탭마다 갈리는 건 sessionStorage 이지 쿠키가 아니다.
+ */
 export function setRefreshCookie(
   res: Response,
   token: string,
   expiresAt: Date,
+  persistent: boolean,
 ): void {
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
@@ -73,7 +109,8 @@ export function setRefreshCookie(
     sameSite: 'lax',
     path: REFRESH_PATH,
     domain: cookieDomain,
-    expires: expiresAt,
+    // 세션 쿠키로 만들려면 expires 를 **주지 않아야** 한다(undefined 로도 안 된다).
+    ...(persistent ? { expires: expiresAt } : {}),
   });
 }
 
@@ -85,7 +122,11 @@ export function clearRefreshCookie(res: Response): void {
 }
 
 /** 로그인 힌트 쿠키(읽을 수 있는 flag)를 refresh 쿠키와 같은 수명·도메인으로 세팅한다. */
-function setSessionHint(res: Response, expiresAt: Date): void {
+function setSessionHint(
+  res: Response,
+  expiresAt: Date,
+  persistent: boolean,
+): void {
   res.cookie(SESSION_HINT_COOKIE, '1', {
     httpOnly: false, // 프론트 JS 가 읽어 refresh 호출 여부를 판단한다
     secure,
@@ -94,7 +135,8 @@ function setSessionHint(res: Response, expiresAt: Date): void {
     sameSite: 'lax',
     path: '/',
     domain: cookieDomain,
-    expires: expiresAt,
+    // refresh 쿠키와 항상 같이 살고 같이 죽는다 — 수명 조건도 같아야 한다.
+    ...(persistent ? { expires: expiresAt } : {}),
   });
 }
 
@@ -113,8 +155,13 @@ export function readRefreshCookie(req: Request): string | undefined {
  * 도착한 앱이 이 쿠키로 /oauth/token 을 한 번 불러 채운다(hansapp-web 의 authStore.bootstrap).
  */
 export function setLoginCookies(res: Response, tokens: AuthTokens): void {
-  setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt);
-  setSessionHint(res, tokens.refreshExpiresAt);
+  setRefreshCookie(
+    res,
+    tokens.refreshToken,
+    tokens.refreshExpiresAt,
+    tokens.persistent,
+  );
+  setSessionHint(res, tokens.refreshExpiresAt, tokens.persistent);
 }
 
 /**

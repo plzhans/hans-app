@@ -13,6 +13,7 @@ import { MainLayout } from './layouts/MainLayout';
 import { DetailLayout } from './layouts/DetailLayout';
 import { LangLayout } from './LangLayout';
 import { Spinner } from '@/shared/ui/Spinner';
+import { AiSearchProvider } from '@/features/ai-search/model/AiSearchPanel';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/shared/i18n';
 import { stripLang } from '@/shared/i18n/routing';
 
@@ -22,6 +23,9 @@ const HospitalDetail = lazy(() => import('@/features/clinic/pages/HospitalDetail
 const HospitalNonPayment = lazy(
   () => import('@/features/clinic/pages/HospitalNonPayment'),
 );
+const Terms = lazy(() => import('@/features/legal/pages/Terms'));
+const LocationTerms = lazy(() => import('@/features/legal/pages/LocationTerms'));
+const Privacy = lazy(() => import('@/features/legal/pages/Privacy'));
 const NotFound = lazy(() => import('@/features/home/pages/NotFound'));
 
 function PageLoader() {
@@ -34,12 +38,20 @@ function PageLoader() {
 
 function Root() {
   return (
-    <>
+    /*
+      AI 문의 채팅창은 **라우터 최상단에서 산다.** 레이아웃 안에 두면 화면을 옮길 때마다
+      언마운트돼 묻던 것이 사라진다 — 병원 상세를 열어 보고 돌아오는 건 이 기능에서
+      가장 흔한 동작이라, 그때 대화가 날아가면 다시 물어야 한다.
+
+      여는 버튼(FAB)은 여전히 MainLayout 에만 있다. 상세에는 하단 전화 바가 그 자리를
+      쓰기 때문인데, 그건 **여는 자리**의 문제이지 **떠 있는 창**의 문제가 아니다.
+    */
+    <AiSearchProvider>
       <ScrollRestoration />
       <Suspense fallback={<PageLoader />}>
         <Outlet />
       </Suspense>
-    </>
+    </AiSearchProvider>
   );
 }
 
@@ -68,6 +80,10 @@ const pages: RouteObject[] = [
     children: [
       { index: true, element: <Home /> },
       { path: 'search', element: <Search /> },
+      // 약관·방침은 푸터에서만 들어오는 읽기 화면이라 목록 껍데기를 그대로 쓴다.
+      { path: 'terms', element: <Terms /> },
+      { path: 'terms/location', element: <LocationTerms /> },
+      { path: 'privacy', element: <Privacy /> },
       { path: '*', element: <NotFound /> },
     ],
   },

@@ -1,0 +1,25 @@
+{
+  "name": "@hansapp/event-consumer",
+  "version": "0.0.1",
+  "private": true,
+  "description": "도메인 이벤트 소비. 등록한 프로세스가 워커가 된다",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hansapp/common": "workspace:*",
+    "@hansapp/event-contract": "workspace:*",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
+    "bullmq": "^5.34.0"
+  }
+}

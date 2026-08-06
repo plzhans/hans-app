@@ -1,0 +1,145 @@
+{
+  "name": "hospital_search_filter",
+  "description": "자연어 질문에서 뽑아낸 병원 검색 조건. 이 구조 그대로 /healthcare/hospitals 검색에 넘어간다.",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "subjectCds",
+      "specialistCds",
+      "asmItemCds",
+      "specialtyCds",
+      "equipmentCds",
+      "classCds",
+      "tiers",
+      "emergency",
+      "baby",
+      "name",
+      "placeText",
+      "useMyLocation",
+      "warnings",
+      "explain",
+      "answer"
+    ],
+    "properties": {
+      "subjectCds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "진료과목 코드. 신고 기준이라 전문의 보유와는 다르다. 최대 5개."
+      },
+      "specialistCds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "그 과목 전문의를 실제로 보유한 병원만 거는 진료과목 코드. 사용자가 전문의를 원할 때만."
+      },
+      "asmItemCds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "01",
+            "03",
+            "04",
+            "05",
+            "06",
+            "07",
+            "08",
+            "09",
+            "10",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "20",
+            "21",
+            "22",
+            "23",
+            "24"
+          ]
+        },
+        "description": "심평원 적정성평가 항목 코드. 넣으면 그 항목 1등급(우수) 병원만 걸린다. 항목마다 1등급의 뜻이 다르니 시스템 프롬프트의 표를 확인할 것."
+      },
+      "specialtyCds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "보건복지부 지정 전문병원 분야 코드."
+      },
+      "equipmentCds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "보유장비 코드. 사용자가 특정 장비를 언급했을 때만."
+      },
+      "classCds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "종별 코드. 계열(치과·한방)을 특정할 때만 쓴다. 등급으로 충분하면 비운다."
+      },
+      "tiers": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["TIER1", "TIER2", "TIER3", "NURSING", "MENTAL"]
+        },
+        "description": "병원 등급. 비우면 요양병원·정신병원이 제외된다."
+      },
+      "emergency": {
+        "type": "boolean",
+        "description": "응급실 운영 병원만."
+      },
+      "baby": {
+        "type": "boolean",
+        "description": "달빛어린이병원(야간·휴일 소아 진료)만."
+      },
+      "name": {
+        "type": ["string", "null"],
+        "description": "병원 이름. 사용자가 특정 병원을 지목했을 때만. 아니면 null."
+      },
+      "placeText": {
+        "type": ["string", "null"],
+        "description": "사용자가 쓴 지역 표현 원문. 코드로 옮기지 말 것. 없으면 null."
+      },
+      "useMyLocation": {
+        "type": "boolean",
+        "description": "사용자 현재 위치를 기준으로 찾아야 하면 true. placeText 가 있으면 항상 false."
+      },
+      "warnings": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "off_topic",
+            "medical_question",
+            "emergency_suspected",
+            "medical_caution",
+            "unsupported_inverse",
+            "tertiary_referral",
+            "too_vague"
+          ]
+        },
+        "description": "화면이 안내 배너로 띄울 신호. 없으면 빈 배열. off_topic·medical_question 이면 나머지 필드는 전부 비어 있다."
+      },
+      "explain": {
+        "type": "string",
+        "description": "사용자가 조건이 맞게 잡혔는지 확인할 수 있는 한 문장. 필터 이름을 나열하지 않는다."
+      },
+      "answer": {
+        "type": ["string", "null"],
+        "description": "건강 질문에 대한 답변. **답변 모드일 때만 채운다** — 아니면 반드시 null. 4문장 이내."
+      }
+    }
+  }
+}

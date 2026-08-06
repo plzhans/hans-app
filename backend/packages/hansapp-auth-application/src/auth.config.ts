@@ -47,6 +47,12 @@ export interface AccessCacheConfig {
  * JWT_SECRET 은 필수다(없으면 부팅 거부). 나머지 만료·보존 값은 기본값을 둔다.
  * 소셜 provider 설정은 별도(OAuthProviderConfig)로 분리한다 — 키가 없어도 이메일 인증은 떠야 하므로.
  */
+/** 약관·방침의 현재 판. 문서의 시행일 문자열을 그대로 쓴다(예: '2026-08-06'). */
+export interface ConsentVersions {
+  readonly terms: string;
+  readonly privacy: string;
+}
+
 export interface AuthConfig {
   /**
    * 대칭 서명 비밀키. 소셜 티켓(HS256)·메일 OTP pepper·토큰 HMAC 태그에 쓴다.
@@ -101,6 +107,14 @@ export interface AuthConfig {
   /** 탈퇴 기록 보존일수. 이후 배치가 정리하며 이메일 재사용을 푼다. 기본 30일 */
   readonly withdrawalRetentionDays: number;
 
+  /**
+   * 한 사용자가 동시에 유지할 수 있는 로그인 세션 수. 기본 10.
+   *
+   * 넘치면 오래된 것부터 지운다 — 브라우저를 바꿔 가며 로그인하다 보면 세션 행이 계속
+   * 쌓이는데, 만료 정리만으로는 만료 전까지 그대로 남는다. 0 이하면 상한을 두지 않는다.
+   */
+  readonly maxSessionsPerUser: number;
+
   /** API 접근 캐시(서비스 키·클라이언트) TTL 설정. */
   readonly accessCache: AccessCacheConfig;
 
@@ -131,6 +145,18 @@ export interface AuthConfig {
 
   /** bcrypt 코스트(라운드). 기본 10 */
   readonly bcryptRounds: number;
+
+  /**
+   * 지금 유효한 약관·방침의 판(시행일). 가입 요청이 보낸 판과 이 값이 다르면 거절한다.
+   *
+   * **왜 대조하나.** 배포 직후에는 브라우저가 옛 번들을 들고 있을 수 있다. 그 화면에 뜬 것은
+   * 옛 조문인데 서버가 새 판에 동의한 것으로 기록하면, 기록과 실제로 읽은 글이 어긋난다.
+   * 그럴 바에는 거절하고 새로고침을 시키는 편이 낫다.
+   *
+   * **값은 문서의 시행일과 같아야 한다** — frontend/legal 의 각 JSON `version` 필드.
+   * 약관을 개정하면 그 파일과 이 기본값(또는 config 의 auth.consent.*)을 함께 고친다.
+   */
+  readonly consentVersions: ConsentVersions;
 
   /** 소셜 로그인 설정. provider 별 키는 있는 것만 담긴다(없으면 그 provider 는 비활성). */
   readonly oauth: OAuthConfig;
@@ -245,6 +271,20 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     cookieSecure: source.getBoolOrDefault('auth.cookieSecure', false),
     socialFlowTtlSec: source.getNumberOrDefault('auth.socialFlowTtlSec', 600),
     bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds', 10),
+    maxSessionsPerUser: source.getNumberOrDefault(
+      'auth.maxSessionsPerUser',
+      10,
+    ),
+    consentVersions: Object.freeze({
+      terms: source.getStringOrDefault(
+        'auth.consent.termsVersion',
+        '2026-08-06',
+      ),
+      privacy: source.getStringOrDefault(
+        'auth.consent.privacyVersion',
+        '2026-08-06',
+      ),
+    }),
     oauth: Object.freeze({
       google: readProviderCredentials(
         source,

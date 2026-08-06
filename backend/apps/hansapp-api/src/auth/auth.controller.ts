@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
+  Patch,
   HttpCode,
   Post,
   Req,
@@ -19,9 +22,11 @@ import {
   Auth,
   AuthService,
   AuthType,
+  ConsentService,
   CurrentUser,
   FirstPartyOnly,
   Public,
+  SocialService,
 } from '@hansapp/auth-application';
 import type { AuthResult, AuthUser } from '@hansapp/auth-application';
 import type { SupportedLang } from '@hansapp/common';
@@ -31,7 +36,10 @@ import { Lang } from '../common/lang.decorator';
 import {
   ChangePasswordRequestDto,
   LoginRequestDto,
+  ConsentRecordDto,
   MeResponseDto,
+  SessionDto,
+  UpdateProfileRequestDto,
   PasswordResetConfirmDto,
   PasswordResetRequestDto,
   SignupCodeRequestDto,
@@ -53,7 +61,11 @@ import {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly socialService: SocialService,
+    private readonly consentService: ConsentService,
+  ) {}
 
   @Post('signup/request-code')
   @Public()
@@ -122,7 +134,10 @@ export class AuthController {
   })
   @ApiOkResponse({ type: MeResponseDto })
   async me(@CurrentUser() user: AuthUser): Promise<MeResponseDto> {
-    const u = await this.authService.getProfile(user.userId);
+    const [u, linked] = await Promise.all([
+      this.authService.getProfile(user.userId),
+      this.socialService.listLinked(user.userId),
+    ]);
     return {
       id: u.id,
       email: u.email,
@@ -130,7 +145,97 @@ export class AuthController {
       name: u.name,
       role: u.role,
       joinType: u.joinType,
+      hasPassword: !!u.password,
+      createdAt: u.createdAt.toISOString(),
+      linkedProviders: linked,
     };
+  }
+
+  @Patch('me')
+  @Auth(AuthType.Jwt)
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '내 정보 수정',
+    description:
+      '표시 이름을 바꾼다. 개인정보처리방침 제10조의 정정 요구에 응하는 자리다.',
+  })
+  async updateMe(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateProfileRequestDto,
+  ): Promise<void> {
+    await this.authService.updateName(user.userId, dto.name);
+  }
+
+  @Get('me/sessions')
+  @Auth(AuthType.Jwt)
+  @ApiOperation({
+    summary: '로그인한 기기 목록',
+    description:
+      '살아 있는 세션을 최근 활동 순으로 돌려준다. 계정 이용약관 제6조④가 약속한 기능이다.',
+  })
+  @ApiOkResponse({ type: [SessionDto] })
+  async sessions(@CurrentUser() user: AuthUser): Promise<SessionDto[]> {
+    const rows = await this.authService.listSessions(user.userId);
+    return rows.map((r) => ({
+      sessionId: r.sessionId,
+      userAgent: r.userAgent,
+      ip: r.ip,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+      // access token 에 sid 가 실려 있어 지금 이 기기를 가릴 수 있다.
+      current: r.sessionId === user.sessionId,
+    }));
+  }
+
+  @Delete('me/sessions/:sessionId')
+  @Auth(AuthType.Jwt)
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '기기 로그아웃',
+    description:
+      '세션 하나를 폐기한다. 자기 세션만 지워진다(남의 식별자를 넣으면 404 성격의 오류).',
+  })
+  async revokeSession(
+    @CurrentUser() user: AuthUser,
+    @Param('sessionId') sessionId: string,
+  ): Promise<void> {
+    await this.authService.revokeSession(user.userId, sessionId);
+  }
+
+  @Delete('me/sessions')
+  @Auth(AuthType.Jwt)
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '모든 기기에서 로그아웃',
+    description:
+      '이 계정의 세션을 전부 폐기한다. 지금 이 기기도 포함되므로 호출한 쪽도 로그아웃된다.',
+  })
+  async revokeAllSessions(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.authService.revokeAllSessions(user.userId, requestMeta(req));
+    // **쿠키도 같이 지운다.** 세션 행만 지우면 브라우저에는 죽은 refresh 쿠키가 남고,
+    // 프론트는 힌트 쿠키를 보고 로그인 상태로 착각해 refresh 를 부르다 401 을 맞는다.
+    clearRefreshCookie(res);
+  }
+
+  @Get('me/consents')
+  @Auth(AuthType.Jwt)
+  @ApiOperation({
+    summary: '내 동의 기록',
+    description:
+      '가입 시 무엇에 언제 어느 판으로 동의했는지 돌려준다. 개인정보처리방침 제10조의 열람 요구에 응하는 자리다.',
+  })
+  @ApiOkResponse({ type: [ConsentRecordDto] })
+  async consents(@CurrentUser() user: AuthUser): Promise<ConsentRecordDto[]> {
+    const rows = await this.consentService.listByUser(user.userId);
+    return rows.map((r) => ({
+      type: r.type,
+      version: r.version,
+      agreedAt: r.agreedAt.toISOString(),
+    }));
   }
 
   @Post('withdraw')

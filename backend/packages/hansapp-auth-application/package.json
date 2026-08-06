@@ -15,6 +15,9 @@
   "dependencies": {
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",
+    "@hansapp/event-consumer": "workspace:*",
+    "@hansapp/event-contract": "workspace:*",
+    "@hansapp/event-publisher": "workspace:*",
     "@nestjs/cache-manager": "^3.1.3",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
@@ -23,14 +26,14 @@
     "@nestjs/swagger": "^11.4.5",
     "bcryptjs": "^3.0.2",
     "cache-manager": "^7.2.9",
+    "nodemailer": "^6.9.16",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "passport-kakao": "^1.0.1",
     "passport-line-auth": "^0.2.9",
     "passport-naver-v2": "^2.0.8",
-    "reflect-metadata": "^0.2.2",
-    "nodemailer": "^6.9.16"
+    "reflect-metadata": "^0.2.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && mkdir -p dist/mail/templates && cp src/mail/templates/*.html dist/mail/templates/"

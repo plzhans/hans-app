@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Header } from '@/shared/components/layout/Header';
 import { Footer } from '@/shared/components/layout/Footer';
+import { AiSearchLauncher } from '@/features/ai-search/components/AiSearchLauncher';
 
 /**
  * 목록 계열(첫 화면·검색)의 껍데기.
@@ -18,6 +19,13 @@ export function MainLayout() {
         <Outlet />
       </main>
       <Footer />
+
+      {/*
+        AI 문의를 **여는 버튼**만 여기 둔다 — 상세는 하단 전화 바가 `fixed bottom-0` 로
+        같은 자리를 쓰고, 그걸 가리면서까지 얹을 만한 기능이 아니다.
+        떠 있는 창 자체는 라우터 최상단(App 의 Root)이 들고 있어서 화면을 옮겨도 안 닫힌다.
+      */}
+      <AiSearchLauncher />
     </div>
   );
 }

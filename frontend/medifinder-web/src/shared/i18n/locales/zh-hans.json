@@ -3,6 +3,19 @@
     "name": "MediFinder",
     "tagline": "轻松快速查找全国医院"
   },
+  "footer": {
+    "liability": "MediFinder 是提供医疗机构信息的检索服务，并非诊疗、预约或交易的当事方；医疗机构所提供信息及诊疗的相关责任，由各医疗机构承担。",
+    "disclaimer": "MediFinder 是整理并展示韩国健康保险审查评价院、国立中央医疗院公开数据的医疗机构检索服务。我们并非诊疗或预约的当事方，医疗行为的相关责任由各医疗机构承担。",
+    "accuracy": "诊疗科目、门诊时间、非医保诊疗费等均照原始数据呈现，可能与实际情况不符。就诊前请向相关医疗机构确认。",
+    "dataSource": "来源：健康保险审查评价院、国立中央医疗院公开数据",
+    "operator": "本服务由个人运营。"
+  },
+  "legal": {
+    "terms": "服务条款",
+    "locationTerms": "基于位置服务条款",
+    "privacy": "隐私政策",
+    "englishOnly": "本文件仅提供韩语和英语版本，当前显示英语版本。"
+  },
   "nav": {
     "home": "首页",
     "search": "医院搜索"
@@ -40,11 +53,18 @@
         "subtitle": "适当性评价1级 · 新生儿重症"
       }
     },
-    "advancedSearch": "高级搜索"
+    "advancedSearch": "高级搜索",
+    "aiSearch": "咨询 AI"
   },
   "common": {
     "loading": "加载中…",
     "loadError": "加载失败。",
+    "error": {
+      "offline": "连接出现问题，请检查网络后重试。",
+      "unauthorized": "暂时无法连接服务，请稍后重试。",
+      "tooManyRequests": "请求过多，已暂时停止，请稍后重试。",
+      "server": "服务器出现问题，请稍后重试。"
+    },
     "language": "语言",
     "days": {
       "1": "一",
@@ -67,7 +87,8 @@
       "clear": "取消 {{name}}",
       "granted": "已允许访问位置信息。可在浏览器设置中取消。"
     },
-    "all": "全部"
+    "all": "全部",
+    "close": "关闭"
   },
   "search": {
     "tabs": {
@@ -278,5 +299,73 @@
     "collapse": "缩小",
     "recenter": "前往医院位置",
     "switchLabel": "查看其他地图"
+  },
+  "aiSearch": {
+    "title": "AI Assistant",
+    "subtitle": "用您的话描述想找的医院",
+    "placeholder": "您需要什么样的医院？",
+    "send": "发送",
+    "thinking": "AI 正在分析…",
+    "intro": "请随意描述症状或情况，我们会转换为检索条件。",
+    "examples": [
+      "能看儿童哮喘的医院",
+      "夜间可以看儿童的医院",
+      "膝盖疼应该看哪个科"
+    ],
+    "storageNote": "对话仅保存在当前浏览器标签页中，关闭标签页后即消失。",
+    "goSearch": "按此条件搜索",
+    "pickRegion": "在搜索页选择地区",
+    "previewLoading": "正在查找医院…",
+    "previewEmpty": "没有找到符合条件的医院。请减少条件后再问。",
+    "previewCount": "{{total}} 家中的 {{shown}} 家",
+    "myLocationBasis": "将以 {{place}} 为基准按距离排序。",
+    "myLocationGeneric": "将以您当前位置为基准按距离排序。",
+    "myLocationLocating": "正在确认当前位置…",
+    "myLocationAsk": "用我的位置查找",
+    "myLocationDenied": "位置权限已关闭。请在搜索页选择地区。",
+    "openConfirm": "要打开「{{name}}」的详情吗？",
+    "openConfirmYes": "打开",
+    "openConfirmNo": "取消",
+    "noExplain": "未能确定条件，请重新提问。",
+    "medicalUpsell": "目前处于 [Beta] 阶段，暂时只能帮您查找医院。正式上线后充值代币即可获得此类问题的解答。",
+    "answerDisclaimer": "这是一般医学信息，并非诊断。如有症状请到医疗机构就诊。",
+    "placeUnresolved": "暂时无法把「{{place}}」对应到地区。请在搜索页选择地区。",
+    "error": "暂时无法回答，请稍后再试。",
+    "disclaimer": "以上为 AI 整理的检索条件，并非诊断或治疗建议，请以医务人员的说明为准。",
+    "modelLocked": "付费",
+    "modelLockedHint": "成为付费会员后可选择更强的模型。",
+    "metaToggle": "响应信息",
+    "warnings": {
+      "off_topic": "我只能帮您查找医院相关的问题。",
+      "emergency_suspected": "可能是紧急情况，请立即拨打 119 或前往最近的急诊科。",
+      "medical_caution": "您要求的条件可能与一般医学建议不同。",
+      "unsupported_inverse": "部分条件无法反向检索，已被排除。",
+      "tertiary_referral": "三级综合医院没有转诊单需自费全部诊疗费用。",
+      "too_vague": "再具体一些，我们能找得更准。"
+    },
+    "retry": "重试",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "newChat": "新对话",
+    "newChatConfirm": "清空当前对话并重新开始？此操作无法撤销。",
+    "newChatCancel": "取消",
+    "launcher": "咨询 AI",
+    "creditsLabel": "已用代币",
+    "copy": "复制",
+    "copied": "已复制",
+    "conditions": {
+      "subject": "科室",
+      "specialist": "专科医生",
+      "assessment": "评价优秀",
+      "specialty": "专科医院",
+      "equipment": "设备",
+      "class": "类别",
+      "tier": "医院等级 {{count}}",
+      "emergency": "急诊",
+      "baby": "夜间儿科"
+    },
+    "quotaUnavailable": "无法确认使用量",
+    "quotaUnavailableHint": "请稍后重新打开",
+    "quotaToggle": "查看其他限额"
   }
 }

@@ -48,6 +48,7 @@ export function SocialButtons({
   codeChallenge,
   clientState,
   appReturn,
+  remember,
 }: {
   returnTo?: string;
   clientId?: string;
@@ -57,6 +58,11 @@ export function SocialButtons({
   clientState?: string;
   /** 1st-party 복귀 URL(자사 앱). 콜백 URL 에 ret= 로 실려 서명 state 로 왕복한다. */
   appReturn?: string;
+  /**
+   * "로그인 상태 유지" 체크 여부. **누를 때의 값이어야 한다** — 체크박스를 만지고 바로
+   * 소셜을 누르는 흐름이라, 렌더 시점에 굳은 값이면 방금 한 선택이 반영되지 않는다.
+   */
+  remember?: boolean;
 }) {
   /**
    * 소셜 시작 URL 로 이동한다.
@@ -79,6 +85,7 @@ export function SocialButtons({
       challenge,
       clientState,
       appReturn,
+      remember,
     );
   };
 

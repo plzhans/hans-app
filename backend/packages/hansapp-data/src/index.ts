@@ -36,6 +36,7 @@ export type {
   // 인증(auth.prisma) 도메인 모델
   User,
   UserOAuth,
+  UserConsent,
   UserTokenSession,
   UserAuthCode,
   UserWithdrawal,
@@ -59,6 +60,7 @@ export {
   AppClientType,
   AuthProvider,
   OAuthProvider,
+  ConsentType,
   EmailVerifyPurpose,
 } from '../generated/main';
 

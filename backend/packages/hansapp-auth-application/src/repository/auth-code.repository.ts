@@ -17,6 +17,8 @@ export class AuthCodeRepository {
     codeChallenge: string | null;
     /** 이번 로그인에 쓴 수단. 교환 시점에는 알 수 없어 여기에 실어 나른다. */
     provider: AuthProvider | null;
+    /** "로그인 상태 유지". 교환 시점에는 알 수 없어 여기에 실어 나른다. */
+    persistent: boolean;
     secretHash: string;
     expiresAt: Date;
   }): Promise<UserAuthCode> {

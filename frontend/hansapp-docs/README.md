@@ -25,7 +25,7 @@ pnpm --filter hansapp-api openapi:gen -- --out /path/to/spec.json
 
 ```bash
 pnpm install       # (최초 1회, esbuild 빌드 승인은 pnpm-workspace.yaml 에 설정됨)
-pnpm docs:dev      # 로컬 개발 서버 (http://localhost:5173)
+pnpm docs:dev      # 로컬 개발 서버 (http://127.0.0.1:5173)
 pnpm docs:build    # 정적 사이트 빌드 → .vitepress/dist (이미 있는 스펙을 그대로 사용)
 pnpm docs:preview  # 빌드 결과 미리보기
 

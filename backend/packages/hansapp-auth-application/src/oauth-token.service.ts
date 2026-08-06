@@ -20,6 +20,7 @@ import { RequestMeta } from './auth.service';
 import { ActionLogService } from './log/action-log.service';
 import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
+import { TokenSessionRepository } from './repository/token-session.repository';
 import { AuthTokens, TokenService } from './token/token.service';
 
 /**
@@ -36,6 +37,7 @@ export class OAuthTokenService {
     private readonly log: ActionLogService,
     private readonly login: LoginService,
     private readonly access: AccessCache,
+    private readonly sessions: TokenSessionRepository,
   ) {}
 
   /**
@@ -47,6 +49,12 @@ export class OAuthTokenService {
     returnTo: string,
     clientId?: string,
     codeChallenge?: string,
+    /**
+     * 이 릴레이를 요청한 **지금 세션**의 식별자. 그 세션의 "로그인 상태 유지" 를 그대로
+     * 물려준다 — 한 번 한 선택이 옮겨 가는 앱마다 달라지면 체크박스의 뜻이 흐려진다.
+     * 없으면(못 찾으면) 유지하지 않는 쪽으로 떨어진다.
+     */
+    sessionId?: string,
   ): Promise<string> {
     // PKCE 는 **모든 인가코드에 필수**다. 선택으로 두면 공격자가 challenge 를 빼고 요청해
     // 검증을 건너뛸 수 있다(downgrade). 예외를 두지 않아야 그 경로가 안 생긴다.
@@ -72,14 +80,38 @@ export class OAuthTokenService {
           'redirect_uri is not a registered redirect URI.',
         );
       }
-      return this.tokens.issueAuthCode(userId, client.clientId, challenge);
+      return this.tokens.issueAuthCode(
+        userId,
+        client.clientId,
+        challenge,
+        null,
+        await this.isPersistentSession(sessionId),
+      );
     }
 
     // 1st-party(hansapp-web): 자기 자신은 클라이언트로 등록하지 않으므로 서비스 루트 도메인으로 판별한다.
     if (!isFirstPartyOrigin(origin, this.config.rootDomain)) {
       throw new BadRequestException('redirect_uri not allowed.');
     }
-    return this.tokens.issueAuthCode(userId, null, challenge);
+    return this.tokens.issueAuthCode(
+      userId,
+      null,
+      challenge,
+      null,
+      await this.isPersistentSession(sessionId),
+    );
+  }
+
+  /**
+   * 지금 세션이 "로그인 상태 유지" 로 만들어졌나.
+   *
+   * **모르면 유지하지 않는다.** 세션을 못 찾는 경우(방금 폐기됨 등)에 유지 쪽으로 기울면,
+   * 사용자가 끄고 로그인했는데 옮겨 간 앱에서만 남는 일이 생긴다 — 안전한 쪽으로 떨어뜨린다.
+   */
+  private async isPersistentSession(sessionId?: string): Promise<boolean> {
+    if (!sessionId) return false;
+    const session = await this.sessions.findById(sessionId);
+    return session?.persistent ?? false;
   }
 
   /**
@@ -140,7 +172,7 @@ export class OAuthTokenService {
     requestOrigin?: string,
     codeVerifier?: string,
   ): Promise<AuthTokens> {
-    const { userId, clientId, codeChallenge, provider } =
+    const { userId, clientId, codeChallenge, provider, persistent } =
       await this.tokens.consumeAuthCode(code);
     assertCodeVerifier(codeChallenge, codeVerifier);
     await this.assertExchangeOrigin(clientId, requestOrigin);
@@ -150,7 +182,14 @@ export class OAuthTokenService {
     }
     // **가입 방식(joinType)이 아니라 이번에 쓴 수단을 남긴다.** 콜백이 코드에 실어 보낸다.
     // 이메일 로그인처럼 코드에 provider 가 없는 경로(1st-party 릴레이)는 joinType 으로 떨어진다.
-    return this.login.complete(user, provider ?? user.joinType, meta);
+    // **"로그인 상태 유지" 는 코드에서 온다.** 이 요청은 그 앱의 서버 대 서버 교환이라
+    // 사용자의 선택을 물어볼 화면이 없다 — 콜백이 코드에 실어 보낸 값을 그대로 쓴다.
+    return this.login.complete(
+      user,
+      provider ?? user.joinType,
+      meta,
+      persistent,
+    );
   }
 
   /** grant_type=refresh_token. rotate 후 새 access/refresh 발급(refresh 는 로그 대상 아님 — 폭증 방지). */

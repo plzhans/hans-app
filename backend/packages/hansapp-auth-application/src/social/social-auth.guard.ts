@@ -150,6 +150,12 @@ export class SocialAuthGuard implements CanActivate {
     if (clientState && clientState.length > 512) {
       throw new BadRequestException('client_state is too long (max 512).');
     }
+    // **"로그인 상태 유지" 는 여기서만 받을 수 있다.** provider 로 떠나면 원래 요청이 끊기고,
+    // 돌아오는 콜백에는 우리 쿼리가 하나도 남지 않는다 — 지금 state 에 실어야 콜백까지 간다.
+    //
+    // 기본은 꺼짐이다. 값이 없으면 안 켠 것으로 본다 — 화면과 같은 기준이어야 하고,
+    // 공용 PC 에서 실수로 남는 쪽보다 원하는 사람이 한 번 더 누르는 쪽이 낫다.
+    const persistent = req.query.remember === '1';
     // **흐름을 이 브라우저에 묶는다.** nonce 를 쿠키로도 심어 콜백에서 대조한다.
     const { flowId, nonce } = this.issueFlowNonce(context);
     return this.tickets.signState({
@@ -160,6 +166,7 @@ export class SocialAuthGuard implements CanActivate {
       clientState,
       flowId,
       nonce,
+      persistent,
     });
   }
 

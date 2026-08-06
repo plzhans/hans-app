@@ -21,6 +21,7 @@
     "@capacitor/geolocation": "^8.2.0",
     "@capacitor/preferences": "^8.0.1",
     "@hansapp/auth-sdk": "link:../auth-sdk",
+    "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-popover": "^1.1.19",
     "@radix-ui/react-select": "^2.3.3",
     "@sentry/react": "^10.68.0",

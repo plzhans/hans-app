@@ -1,8 +1,10 @@
 # hansapp develop 환경 설정.
 #
 # yaml = 구조·기본값의 단일 원천. `${VAR}` 자리표시자는 .env(→process.env) 값으로 치환된다.
-# `${VAR:-기본값}` 은 env 가 미설정/빈값이면 기본값을 쓴다. **비밀값은 여기 박지 않고 env 로만 주입.**
-# (미설정과 빈값은 동일 취급 — `${VAR}` 는 둘 다 빈 문자열로 치환된다.)
+# `${VAR:기본값}` 은 env 에 **키가 없을 때만** 기본값을 쓴다(Spring 과 같다. bash 의 `:-` 가 아니다).
+# **빈값은 어엿한 값이다** — `VAR=` 로 두면 빈 문자열이 그대로 들어온다(TLS 를 끄는 방법이 이것이다).
+# 그래서 기본값을 원하면 .env 에서 그 줄을 지워야 한다. 비워 두는 것으로는 안 된다.
+# **비밀값은 여기 박지 않고 env 로만 주입.**
 
 # ── DB (Prisma) ───────────────────────────────────────────────────────────────
 # 실제 연결값은 .env. **주의: Prisma migrate 는 yaml 이 아니라 스키마의 env("...") 로 env 를 직접 읽는다**
@@ -25,7 +27,7 @@ elasticsearch:
   # 인덱스 이름 접두사(develop-healthcare_hospital). 한 클러스터를 여러 환경이 나눠 쓰는
   # 유일한 격리 단위다. **환경 이름과 분리**돼 있어 같은 develop 안에서도 접두사만 따로
   # 돌릴 수 있다(새 매핑을 나란히 올려 비교할 때). 미설정이면 환경 이름을 쓴다.
-  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:-develop}
+  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:develop}
 
 # 서버 기동·종료 슬랙 알림. **셋 다 비면 알림만 꺼지고 서버는 정상으로 뜬다** — 부가 기능이라
 # 없다고 부팅을 막지 않는다.
@@ -59,31 +61,34 @@ auth:
   # 서비스 루트 도메인(앞 점 없이). **SSO 쿠키 Domain + 1st-party 판단이 여기서 파생된다.**
   # *.plzhans.com 을 자사로 인정하고, hans-auth 로그인을 콘솔이 리다이렉트 없이 쿠키로 인지하게 한다.
   # **로컬 API(127.0.0.1)에선 설정 금지**(IP 는 쿠키 Domain 불가 → 미설정 시 host-only + 루프백 폴백).
-  rootDomain: ${AUTH_ROOT_DOMAIN:-plzhans.com}
+  rootDomain: ${AUTH_ROOT_DOMAIN:plzhans.com}
   # 소셜 로그인 흐름(state·흐름 쿠키)의 유효시간(초). **둘이 같은 값을 쓴다.**
   # provider 화면에서 계정을 고르고 동의하는 시간이라 너무 짧으면 정상 로그인이 실패한다.
-  socialFlowTtlSec: ${AUTH_SOCIAL_FLOW_TTL_SEC:-600}
+  socialFlowTtlSec: ${AUTH_SOCIAL_FLOW_TTL_SEC:600}
   # 쿠키에 Secure 를 붙일지. HTTPS 로 서비스하면 켠다.
   #
   # **sameSite 와는 별개다** — 그쪽은 lax 로 고정돼 있다(refresh-cookie.ts).
   # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
   # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
-  cookieSecure: ${AUTH_COOKIE_SECURE:-true}
+  cookieSecure: ${AUTH_COOKIE_SECURE:true}
   # 쿠키 이름 접두사. **환경마다 달라야 한다.**
   # develop-auth·api 는 develop.plzhans.com 의 서브도메인이 아니라 plzhans.com 의 형제라,
   # 쿠키 도메인을 양쪽 다 plzhans.com 까지 올려야 한다. 이름까지 같으면 한 환경에서
   # 로그인할 때마다 다른 환경의 세션 토큰을 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
-  cookiePrefix: 'develop.'
+  cookiePrefix: ${AUTH_COOKIE_PREFIX}
   # bcrypt 비용 계수. 비밀번호 해싱을 의도적으로 느리게 해 brute-force 를 막는다.
   # 1 늘 때마다 연산량(=CPU)이 2배. 10=일반 기본, 12=더 안전. 저사양 서버면 10 권장.
-  bcryptRounds: ${AUTH_BCRYPT_ROUNDS:-10}
+  bcryptRounds: ${AUTH_BCRYPT_ROUNDS:10}
   # OAuth2 authorization_endpoint = **프론트(hans-auth 로그인 UI)의 로그인 URL**.
   # 백엔드가 "남(프론트)의 주소"라 스스로 못 알아 설정으로 주입. discovery(.well-known)에 실려
   # 외부 클라(medifinder)가 "로그인하러 어디로 보낼지" 참조한다. 미설정이면 discovery 에서 뺀다(optional).
   # 예: https://auth.plzhans.com/login
   # 인증웹(fe/hans-auth) 외부 주소. 자사 로그인 착지점(/me·/callback)과 discovery 의
   # authorization_endpoint(/login)가 모두 여기서 파생된다.
-  externalUrl: https://develop-auth.plzhans.com
+  # **로컬에서 이 설정으로 띄울 때 덮을 수 있어야 한다.** 소셜 로그인 착지점(/me·/callback)이
+  # 여기서 파생되므로, 리터럴로 두면 로컬 서버로 로그인해도 배포된 인증웹으로 날아간다.
+  # 값에는 라우터 프리픽스까지 포함한다(예: http://127.0.0.1:5274/auth).
+  externalUrl: ${AUTH_EXTERNAL_URL:https://develop-auth.plzhans.com}
   # 탈퇴 후 재가입 제한(쿨다운) 보존일. 이 기간엔 같은 이메일 재가입을 막는다.
   withdrawalRetentionDays: 30
   jwt:
@@ -108,15 +113,15 @@ auth:
     #authCodeExpiresIn: 5m
   otp:
     # 이메일 인증코드 자릿수.
-    codeLength: ${AUTH_OTP_CODE_LENGTH:-6}
+    codeLength: ${AUTH_OTP_CODE_LENGTH:6}
     # 코드 유효시간(초, 10분).
-    ttlSec: ${AUTH_OTP_TTL_SEC:-600}
+    ttlSec: ${AUTH_OTP_TTL_SEC:600}
     # 코드 검증 최대 시도 횟수(초과 시 무효화 — brute-force 방지).
-    maxAttempts: ${AUTH_OTP_MAX_ATTEMPTS:-5}
+    maxAttempts: ${AUTH_OTP_MAX_ATTEMPTS:5}
     # 재발송 쿨다운(초). 연타 발송 방지.
-    resendCooldownSec: ${AUTH_OTP_RESEND_COOLDOWN_SEC:-60}
+    resendCooldownSec: ${AUTH_OTP_RESEND_COOLDOWN_SEC:60}
     # 시간당 최대 발송 수(스팸·발송비용 방지).
-    maxSendsPerHour: ${AUTH_OTP_MAX_SENDS_PER_HOUR:-5}
+    maxSendsPerHour: ${AUTH_OTP_MAX_SENDS_PER_HOUR:5}
     # 코드 해시용 pepper(시크릿). DB 엔 코드 원문이 아니라 해시만 저장한다.
     hashSecret: ${AUTH_JWT_SECRET}
 
@@ -141,8 +146,8 @@ apps-api:
     # Cloudflare Origin CA 로 발급한 develop-api.plzhans.com 인증서(2041-07 만료).
     # 경로가 상대경로인 이유: 컨테이너 WORKDIR 이 /app 이고 compose 가 config/develop 을
     # 그 아래로 마운트한다. 로컬에서 돌릴 때도 backend/ 기준이라 같은 경로가 맞는다.
-    sslCertificate: ${SSL_CERTIFICATE:-config/develop/ssl/fullchain.pem}
-    sslCertificateKey: ${SSL_CERTIFICATE_KEY:-config/develop/ssl/privkey.pem}
+    sslCertificate: ${SSL_CERTIFICATE:config/develop/ssl/fullchain.pem}
+    sslCertificateKey: ${SSL_CERTIFICATE_KEY:config/develop/ssl/privkey.pem}
   proxy:
     # Express 'trust proxy'. 프록시(nginx/LB/CDN) 뒤에서 진짜 클라 IP 를 인식하게 한다(rate limit 정확도).
     # 값: 홉 수(1) / 신뢰 IP·CIDR(콤마) / true|false. 위조 XFF 로 IP 한도 우회를 막으려 명시로만 켠다.
@@ -156,9 +161,9 @@ apps-api:
   # environment(local|develop|production)·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts.
   # **dsn 이 비면 Sentry 를 아예 켜지 않는다**(서버는 그대로 뜬다).
   sentry:
-    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:기본값} 의 기본값으로 되돌아간다)
     # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:-true}
+    enabled: ${SENTRY_ENABLED:true}
     dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
     # 성능 트레이스 표본 비율(0=끔, 1=전부). 개발은 트래픽이 적어 전부 본다.
     tracesSampleRate: 1.0
@@ -183,8 +188,8 @@ mail:
     # host 가 있어야 실제 발송. 없으면 콘솔 로깅으로 대체(로컬 개발).
     host: ${MAIL_SMTP_HOST}
     # 587=STARTTLS(secure=false), 465=암묵적 TLS(secure=true).
-    port: ${MAIL_SMTP_PORT:-587}
-    secure: ${MAIL_SMTP_SECURE:-false}
+    port: ${MAIL_SMTP_PORT:587}
+    secure: ${MAIL_SMTP_SECURE:false}
     user: ${MAIL_SMTP_USER}
     password: ${MAIL_SMTP_PASSWORD}
 
@@ -238,16 +243,52 @@ apps-batch:
   # 앱 이름. 로그·에러 보고 등에 쓰인다.
   name: hansapp-batch
   # 실행 스케줄(cron). 기본 매일 04:00.
-  cron: ${BATCH_CRON:-0 4 * * *}
+  cron: ${BATCH_CRON:0 4 * * *}
   # 실행당 최대 외부 API 호출 수(0=무제한). 비용·레이트 보호용.
-  maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
+  maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:0}
   # 에러 추적(Sentry). **apps-api 와 별도 프로젝트다**(DSN 이 다르다) — 이슈 스트림과 알림 규칙을
   # 나누려는 것이다. 배치는 "한 번 실패해도 즉시 알림", API 는 "임계치 초과 시 알림" 으로 성격이 다르다.
   # DSN 은 비밀이 아니다(전송 전용 공개값 — apps-api.sentry 주석 참고). 비우면 Sentry 를 켜지 않는다.
   sentry:
-    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:기본값} 의 기본값으로 되돌아간다)
     # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:-true}
+    enabled: ${SENTRY_ENABLED:true}
     dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
     # 성능 트레이스 표본 비율(0=끔, 1=전부). 개발은 트래픽이 적어 전부 본다.
     tracesSampleRate: 1.0
+
+llm:
+  # anthropic | openai | local. local 은 OpenAI 호환 엔드포인트(ollama·vLLM·LM Studio).
+  defaultProvider: anthropic
+  timeoutSec: 30
+  # 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
+  maxTokens: 2048
+  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
+  promptDir: data/healthcare/svc-prompts
+  # 질문 끝의 `/test` 를 답변 모드로 받는다. **로그인이 붙기 전까지의 임시 수단**이라
+  # 켜져 있으면 누구나 유료로 팔 답변을 공짜로 받는다 — 운영은 반드시 꺼 둔다.
+  allowTestCommand: ${LLM_ALLOW_TEST_COMMAND:true}
+  # 응답에 원시 사용량(모델 이름·토큰 내역)을 실는다. **확인용**이다.
+  # 사용자에게 파는 단위는 환산 크레딧 하나뿐이고, 어느 모델로 몇 토큰 썼는지가 드러나면
+  # 요금이 역산된다 — 화면에서 감추는 것으로는 안 감춰지므로(응답 JSON) 여기서 끊는다.
+  exposeDebugUsage: ${LLM_EXPOSE_DEBUG_USAGE:true}
+  # 답변 서명 키(HMAC-SHA256). **비어 있으면 답변을 문맥으로 이어받지 않는다.**
+  # 화면이 돌려보내는 직전 답변은 "우리가 이렇게 답했다" 는 주장이라, 서명이 없으면
+  # 아무 문장이나 심어 모델을 유도할 수 있다. 없으면 서명도 안 붙이고 받지도 않는다.
+  answerSigningKey: ${LLM_ANSWER_SIGNING_KEY}
+  # 업체 이름으로 둔다(모델 이름 claude 가 아니라). openai 와 같은 층위여야 읽을 때
+  # 헷갈리지 않고, 한 업체가 모델을 여럿 내도 이 키는 그대로다.
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+    # 구독 토큰. **로컬 전용** — 개인 구독이라 사용자 트래픽을 태우면 안 된다.
+    #   claude setup-token 생성
+    # 키와 토큰이 둘 다 있으면 키가 이긴다.
+    authToken: ${ANTHROPIC_AUTH_TOKEN}
+    defaultModel: ${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}
+    # 아직 못 고르는 모델. 화면에 자물쇠와 함께 보인다 — "곧 열린다" 를 미리 알리는 목록이고,
+    # 골라도 요청에는 안 실린다. 유료가 열리면 하나씩 defaultModel 쪽으로 옮겨 온다.
+    lockedModels: [claude-opus-5]
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+    # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
+    defaultModel: ${OPENAI_DEFAULT_MODEL}

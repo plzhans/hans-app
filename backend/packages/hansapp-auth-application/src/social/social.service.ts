@@ -25,6 +25,7 @@ import { WithdrawalRepository } from '../repository/withdrawal.repository';
 import { AuthTokens, TokenService } from '../token/token.service';
 import { EmailVerificationService } from '../mail/email-verification.service';
 import { SocialTicketService } from './social-ticket.service';
+import { ConsentService, type ConsentInput } from '../consent.service';
 import { SocialProfile } from './social.types';
 
 /** 콜백 처리 결과. 컨트롤러가 프론트 리다이렉트 URL 로 변환한다. */
@@ -79,6 +80,7 @@ function normalizeEmail(email: string): string {
 @Injectable()
 export class SocialService {
   constructor(
+    private readonly consent: ConsentService,
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
@@ -117,6 +119,8 @@ export class SocialService {
       userId?: number;
       clientId?: string;
       codeChallenge?: string;
+      /** 시작 화면의 "로그인 상태 유지". 세 갈래(session·code·pending) 모두 이 값을 따라간다. */
+      persistent?: boolean;
     },
     profile: SocialProfile,
     existing: { userId: number } | null,
@@ -183,6 +187,8 @@ export class SocialService {
       email,
       name: profile.name,
       emailVerified: profile.emailVerified,
+      // 가입 화면에는 체크박스가 없다. 시작할 때 고른 값을 티켓에 실어 가입 직후 로그인까지 잇는다.
+      persistent: state.persistent,
     });
     // 구글처럼 provider 가 이메일을 검증한 경우만 코드 인증을 건너뛴다.
     return {
@@ -192,6 +198,12 @@ export class SocialService {
       codeRequired: !profile.emailVerified,
       email: email ?? undefined,
     };
+  }
+
+  /** 이 회원에 연동된 소셜 제공자 목록. 마이페이지의 열람에 쓴다. */
+  async listLinked(userId: number): Promise<OAuthProvider[]> {
+    const links = await this.oauths.listByUser(userId);
+    return links.map((l) => l.provider);
   }
 
   /**
@@ -226,9 +238,17 @@ export class SocialService {
    * 통과 못 하면 계정을 만들지 않는다(미검증 계정·스쿼팅 방지). 성공하면 emailVerified=true 로 만든다.
    */
   async register(
-    input: { ticket: string; email?: string | null; code?: string | null },
+    input: {
+      ticket: string;
+      email?: string | null;
+      code?: string | null;
+      consent: ConsentInput;
+    },
     meta: RequestMeta,
   ): Promise<AuthResult> {
+    // **계정을 만들기 전에 막는다.** 이메일 가입과 같은 규칙이다.
+    this.consent.assertValid(input.consent);
+
     const payload = this.tickets.verifyRegister(input.ticket);
 
     // 이미 연동됐다면(콜백 후 지연 등) 중복 가입을 막는다.
@@ -281,6 +301,8 @@ export class SocialService {
       email: payload.email,
     });
 
+    await this.consent.record(user.id, input.consent, meta);
+
     await this.log.record({
       userId: user.id,
       action: UserAction.SIGNUP,
@@ -292,6 +314,7 @@ export class SocialService {
       user,
       toJoinType(payload.provider),
       meta,
+      payload.persistent ?? false,
     );
     return { user, tokens };
   }
@@ -308,18 +331,22 @@ export class SocialService {
    */
   private async completeLogin(
     userId: number,
-    state: { clientId?: string; codeChallenge?: string },
+    state: { clientId?: string; codeChallenge?: string; persistent?: boolean },
     provider: AuthProvider,
     meta: RequestMeta,
   ): Promise<CallbackOutcome> {
     if (state.clientId) {
       // state 의 clientId 를 코드에 박는다. 이 값은 진입 시 가드가 정했고 서명으로 보호된다 —
       // 그래야 토큰 교환 때 "이 코드는 medifinder 것" 을 서버가 알 수 있다.
+      //
+      // "로그인 상태 유지" 도 같이 박는다. 세션은 콜백이 아니라 **교환 시점**에 만들어지는데,
+      // 그 요청에는 사용자의 선택이 없다 — 코드가 유일한 운반 수단이다.
       const code = await this.tokens.issueAuthCode(
         userId,
         state.clientId,
         state.codeChallenge ?? null,
         provider,
+        state.persistent ?? false,
       );
       return { kind: 'code', code };
     }
@@ -329,7 +356,12 @@ export class SocialService {
     }
     return {
       kind: 'session',
-      tokens: await this.login.complete(user, provider, meta),
+      tokens: await this.login.complete(
+        user,
+        provider,
+        meta,
+        state.persistent ?? false,
+      ),
     };
   }
 

@@ -13,6 +13,8 @@ import { SocialButtons } from '../components/SocialButtons';
 interface Form {
   email: string;
   password: string;
+  /** 로그인 상태 유지. 켜면 브라우저를 닫아도 로그인이 남는다. */
+  rememberMe: boolean;
 }
 
 /** SSO 릴레이 파라미터(return_to·client_id)를 보존해 링크를 만든다. 하나라도 빠지면 귀속이 끊긴다. */
@@ -42,13 +44,17 @@ export default function Login() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<Form>();
+  // 소셜 버튼도 같은 체크박스를 따른다. RHF 입력은 비제어라 watch 로 현재 값을 읽어야
+  // 방금 켠 선택이 반영된다 — 안 읽으면 소셜만 늘 유지되어 체크박스가 거짓말을 한다.
+  const rememberMe = watch('rememberMe', false);
 
-  const onSubmit = handleSubmit(async ({ email, password }) => {
+  const onSubmit = handleSubmit(async ({ email, password, rememberMe }) => {
     setServerError(null);
     try {
-      const tokens = await emailLogin(email, password);
+      const tokens = await emailLogin(email, password, rememberMe);
       await authenticate(tokens);
       // 복귀 규칙은 goAfterLogin 한 곳에 있다 — 이미 로그인한 채로 /login 에 온 경우
       // (App 의 GuestOnly)와 **같은 판정**이어야 해서 공유한다.
@@ -78,7 +84,19 @@ export default function Login() {
           error={errors.password?.message}
           {...register('password', { required: '비밀번호를 입력하세요.' })}
         />
-        <div className="text-right">
+        {/*
+          로그인 상태 유지. **기본은 꺼짐이다** — 공용 PC 에서 실수로 남는 쪽보다, 원하는
+          사람이 한 번 더 누르는 쪽이 낫다. 켜면 브라우저를 닫아도 로그인이 남는다.
+        */}
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 shrink-0 accent-primary"
+              {...register('rememberMe')}
+            />
+            <span>로그인 상태 유지</span>
+          </label>
           <Link
             to={relayLink(
               '/forgot-password',
@@ -87,7 +105,7 @@ export default function Login() {
               codeChallenge,
               clientState,
             )}
-            className="text-sm text-gray-500 hover:text-primary hover:underline"
+            className="shrink-0 text-sm text-gray-500 hover:text-primary hover:underline"
           >
             비밀번호를 잊으셨나요?
           </Link>
@@ -111,6 +129,7 @@ export default function Login() {
         codeChallenge={codeChallenge}
         clientState={clientState}
         appReturn={appReturn}
+        remember={rememberMe}
       />
 
       <p className="mt-6 text-center text-sm text-gray-500">

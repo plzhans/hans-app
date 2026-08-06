@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsEmail,
+  IsNotEmptyObject,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+
+import { ConsentDto } from './auth.dto';
 
 /** 소셜 pending 가입 확정 요청. provider 가 이메일을 안 줬으면 email 을 사용자가 입력한다. */
 export class SocialRegisterRequestDto {
@@ -21,6 +30,12 @@ export class SocialRegisterRequestDto {
   @IsOptional()
   @IsString()
   readonly code?: string;
+
+  @ApiProperty({ description: '약관·개인정보·연령 동의', type: ConsentDto })
+  @IsNotEmptyObject()
+  @ValidateNested()
+  @Type(() => ConsentDto)
+  readonly consent!: ConsentDto;
 }
 
 /** 소셜 가입 코드 발송 요청. provider 가 이메일을 안 준 경우 email 을 함께 보낸다. */

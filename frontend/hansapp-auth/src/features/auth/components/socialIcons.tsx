@@ -35,20 +35,66 @@ export function KakaoIcon() {
   );
 }
 
-/** 네이버 N. currentColor(흰색). */
+/**
+ * 네이버 N. currentColor(흰색).
+ *
+ * 글자가 상자를 꽉 채우는 것이 원래 로고지만, viewBox 에 여백을 조금 준다 — 원형 배지
+ * 안에서는 모서리가 잘려 보인다.
+ */
 export function NaverIcon() {
   return (
-    <svg className={cls} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <svg
+      className={cls}
+      viewBox="-3 -3 30 30"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <path d="M16.273 12.845 7.376 0H0v24h7.726V11.156L16.624 24H24V0h-7.727z" />
     </svg>
   );
 }
 
-/** LINE 말풍선. currentColor(흰색). */
+/**
+ * LINE 말풍선. currentColor(흰색).
+ *
+ * **글자(LINE)는 넣지 않는다.** 18px 에서 획이 뭉개져 얼룩처럼 보였다 — 알아볼 수 없는
+ * 글자보다 형태만 또렷한 말풍선이 낫다.
+ */
 export function LineIcon() {
   return (
     <svg className={cls} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 2C6.201 2 1.5 5.822 1.5 10.535c0 4.226 3.727 7.766 8.762 8.435.341.073.805.225.923.516.106.264.069.677.034.945l-.15.897c-.045.264-.211 1.036.909.564 1.12-.472 6.04-3.557 8.24-6.09 1.518-1.664 2.282-3.352 2.282-5.267C22.5 5.822 17.799 2 12 2Zm-4.62 6.87v3.99h1.36c.18 0 .33.15.33.33s-.15.33-.33.33H6.72c-.18 0-.33-.15-.33-.33V8.87c0-.18.15-.33.33-.33s.33.15.33.33h.33Zm2.34 0v4.32c0 .18-.15.33-.33.33s-.33-.15-.33-.33V8.87c0-.18.15-.33.33-.33s.33.15.33.33Zm4.62 0c0 .18-.15.33-.33.33h-1.36v.69h1.36c.18 0 .33.15.33.33s-.15.33-.33.33h-1.36v.69h1.36c.18 0 .33.15.33.33s-.15.33-.33.33h-1.69c-.18 0-.33-.15-.33-.33V8.87c0-.18.15-.33.33-.33h1.69c.18 0 .33.15.33.33Zm3.3 4.32c0 .142-.09.268-.225.313a.33.33 0 0 1-.105.017.33.33 0 0 1-.268-.135l-1.362-1.85v1.655c0 .18-.15.33-.33.33s-.33-.15-.33-.33V8.87c0-.142.09-.268.226-.313a.34.34 0 0 1 .372.119l1.362 1.85V8.87c0-.18.15-.33.33-.33s.33.15.33.33v4.32Z" />
+      <path d="M12 2.75c-5.376 0-9.75 3.53-9.75 7.87 0 3.888 3.468 7.145 8.153 7.762.317.068.75.209.859.48.098.246.064.63.031.879l-.138.83c-.042.246-.196.962.845.525 1.042-.437 5.62-3.31 7.666-5.667C21.077 13.88 21.75 12.31 21.75 10.62c0-4.34-4.374-7.87-9.75-7.87Z" />
     </svg>
+  );
+}
+
+/** 목록에서 쓰는 브랜드 배지의 색과 글리프. 버튼(SocialButtons)의 배색과 같게 둔다. */
+const BRAND = {
+  // 구글만 흰 바탕이라 테두리를 준다. 없으면 흰 배지가 흰 카드에 묻힌다.
+  google: { bg: '#FFFFFF', fg: '#000000', bordered: true, Icon: GoogleIcon },
+  kakao: { bg: '#FEE500', fg: '#191600', bordered: false, Icon: KakaoIcon },
+  naver: { bg: '#03C75A', fg: '#FFFFFF', bordered: false, Icon: NaverIcon },
+  line: { bg: '#06C755', fg: '#FFFFFF', bordered: false, Icon: LineIcon },
+} as const;
+
+/**
+ * 목록용 브랜드 배지.
+ *
+ * **아이콘만 놓으면 안 된다.** 위 글리프들은 브랜드 색 버튼 위에 얹히는 전제로 그려져 있어
+ * (네이버·라인은 흰색, 카카오는 검정) 회색 목록에 그대로 두면 넷 다 검은 실루엣이 된다.
+ * 색을 배지가 들고, 글리프는 그 위에서 currentColor 로 제 색을 찾는다.
+ */
+export function SocialBadge({ provider }: { provider: keyof typeof BRAND }) {
+  const { bg, fg, bordered, Icon } = BRAND[provider];
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+        bordered ? 'border border-gray-200' : ''
+      }`}
+      style={{ backgroundColor: bg, color: fg }}
+    >
+      <Icon />
+    </span>
   );
 }

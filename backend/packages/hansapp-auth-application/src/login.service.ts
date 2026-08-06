@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ActionResult, AuthProvider, User, UserAction } from '@hansapp/data';
+import { DomainEvent } from '@hansapp/event-contract';
+import { EventPublisher } from '@hansapp/event-publisher';
 
 import { ActionLogService } from './log/action-log.service';
 import { AuthTokens, TokenService } from './token/token.service';
@@ -19,6 +21,7 @@ import type { RequestMeta } from './auth.service';
 @Injectable()
 export class LoginService {
   constructor(
+    private readonly events: EventPublisher,
     private readonly tokens: TokenService,
     private readonly log: ActionLogService,
   ) {}
@@ -32,8 +35,15 @@ export class LoginService {
     user: Pick<User, 'id' | 'role'>,
     provider: AuthProvider,
     meta: RequestMeta,
+    /** "로그인 상태 유지". 기본은 유지 — 소셜·가입 등 선택을 받을 자리가 없는 경로가 그대로 쓴다. */
+    persistent = true,
   ): Promise<AuthTokens> {
-    const tokens = await this.tokens.issueLogin(user.id, user.role, meta);
+    const tokens = await this.tokens.issueLogin(
+      user.id,
+      user.role,
+      meta,
+      persistent,
+    );
     await this.log.record({
       userId: user.id,
       action: UserAction.LOGIN,
@@ -41,6 +51,17 @@ export class LoginService {
       provider,
       ...meta,
     });
+
+    /*
+      **로그인이 성립했다는 사실만 알린다.** 뒤이어 무엇을 할지(세션 정리·알림 등)는 받는
+      쪽이 정한다 — 여기에 후속 처리를 직접 적으면 하나 늘 때마다 로그인 경로가 길어지고,
+      그만큼 사용자가 기다린다. 발행은 기다리지 않는다(EventPublisher 주석 참고).
+    */
+    this.events.publish(DomainEvent.AuthLogin, {
+      userId: user.id,
+      sessionId: tokens.sessionId,
+    });
+
     return tokens;
   }
 }

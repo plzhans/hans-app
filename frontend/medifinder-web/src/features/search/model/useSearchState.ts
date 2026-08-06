@@ -480,6 +480,7 @@ export function useSearchState() {
 
   const {
     data,
+    error,
     isLoading,
     isError,
     isFetching,
@@ -658,6 +659,7 @@ export function useSearchState() {
     equipment,
     equipmentCds,
     equipments,
+    error,
     filterDrawer,
     focusResult,
     focusedId,

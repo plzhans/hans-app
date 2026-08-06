@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Gnb } from '@/shared/components/Gnb';
+import { Footer } from '@/shared/components/Footer';
 import { LINKS } from '@/shared/config/links';
 
 /** 직접 만든 서비스들. 포털웹의 주인공이라 맨 위에 카드로 크게 노출한다. */
@@ -54,10 +55,10 @@ const API_DOMAINS = [
  */
 export default function Dashboard() {
   return (
-    <div className="min-h-full">
+    <div className="flex min-h-full flex-col">
       <Gnb />
 
-      <main className="mx-auto max-w-5xl space-y-12 px-4 py-8">
+      <main className="flex-1 mx-auto max-w-5xl space-y-12 px-4 py-8">
         {/* 히어로 */}
         <section className="flex min-h-[200px] flex-col justify-center rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 p-8 text-white shadow-sm sm:p-10">
           <h1 className="text-2xl font-extrabold sm:text-4xl">HansApp</h1>
@@ -151,6 +152,7 @@ export default function Dashboard() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

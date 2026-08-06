@@ -47,6 +47,11 @@ export class UserRepository {
   }
 
   /** 등급 변경. 앱 생성 한도(APP_LIMIT_BY_TIER)를 정하는 값이라 운영자만 건드린다. */
+  /** 표시 이름 변경. 빈 값은 지우는 것으로 보고 null 을 넣는다. */
+  updateName(id: number, name: string | null): Promise<User> {
+    return this.prisma.user.update({ where: { id }, data: { name } });
+  }
+
   updateTier(id: number, tier: UserTier): Promise<User> {
     return this.prisma.user.update({ where: { id }, data: { tier } });
   }

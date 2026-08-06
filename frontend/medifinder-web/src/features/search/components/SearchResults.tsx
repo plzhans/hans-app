@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { loadErrorKey } from '@/shared/api/errorMessage';
 import {
   List as ListIcon,
   LocateFixed,
@@ -20,6 +21,7 @@ import type { SearchState } from '../model/useSearchState';
 export function SearchResults({ state }: { state: SearchState }) {
   const { t } = useTranslation();
   const {
+    error,
     focusResult,
     focusedId,
     isError,
@@ -210,8 +212,9 @@ export function SearchResults({ state }: { state: SearchState }) {
         <Spinner />
       </div>
     )}
+    {/* 실패 사유마다 사용자가 할 일이 다르다 — loadErrorKey 주석 참고. */}
     {isError && (
-      <p className="py-12 text-center text-danger">{t('common.loadError')}</p>
+      <p className="py-12 text-center text-danger">{t(loadErrorKey(error))}</p>
     )}
 
     {/*

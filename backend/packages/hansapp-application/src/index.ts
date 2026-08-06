@@ -1,4 +1,6 @@
 export { ApplicationModule } from './application.module';
+export { AiModelService } from './common/ai-model.service';
+export type { LlmModelChoice } from '@hansapp/llm';
 
 export {
   DEFAULT_PAGE,
@@ -61,6 +63,33 @@ export type {
   MetaCodeType,
   MetaSubwayStation,
 } from './healthcare/healthcare-meta.service';
+
+// 자연어 질문 → 검색 조건. 검색은 하지 않는다(조건만 낸다).
+export {
+  HealthcareAiSearchService,
+  AiSearchQuotaError,
+} from './healthcare/healthcare-ai-search.service';
+export type {
+  AiSearchFilter,
+  AiSearchParams,
+  AiSearchCondition,
+  AiSearchConditionGroup,
+  AiSearchDebug,
+  AiSearchQuota,
+  AiSearchAppQuota,
+  AiSearchUserQuota,
+  QuotaOwner,
+  QuotaSnapshot,
+  AiSearchQuotaWindow,
+  AiSearchResult,
+  AiSearchTool,
+  AiSearchWarning,
+  AiSearchUsage,
+} from './healthcare/healthcare-ai-search.service';
+// LLM 계층은 @hansapp/llm 이 소유한다. 컨트롤러가 예외를 상태코드로 옮기고 프로바이더
+// 이름을 검증하는 데 필요한 것만 여기서 재노출한다 — 서버가 패키지를 직접 물지 않게.
+export { LlmConfigError, LlmError, LlmInvalidCallError } from '@hansapp/llm';
+export type { LlmProviderName } from '@hansapp/llm';
 
 // 지역(주소)은 도메인 무관이라 healthcare 밑이 아니다. 병원·학교·약국이 같이 쓴다.
 export { RegionService } from './region/region.service';

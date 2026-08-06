@@ -20,12 +20,37 @@ export interface Me {
   name?: string | null;
   role: string;
   joinType: string;
+  createdAt: string;
+  /** 비밀번호가 설정돼 있는가. 소셜로만 가입했으면 false — 비밀번호 변경을 띄우지 않는다. */
+  hasPassword: boolean;
+  /** 연동된 소셜 제공자(GOOGLE·NAVER·KAKAO·LINE). 이메일만으로 가입했으면 빈 배열. */
+  linkedProviders: string[];
 }
 
-export function emailLogin(email: string, password: string): Promise<TokenResponse> {
+/**
+ * 동의 기록 한 줄. **본인 열람용**(개인정보처리방침 제10조).
+ * IP·기기는 서버가 돌려주지 않는다 — 본인 것이라도 화면에 뿌릴 이유가 없다.
+ */
+export interface ConsentRecord {
+  type: string;
+  version: string;
+  agreedAt: string;
+}
+
+/**
+ * 이메일 로그인.
+ *
+ * `rememberMe` 는 **쿠키의 수명**을 정한다 — 켜면 브라우저를 닫아도 남고, 끄면 닫을 때
+ * 사라진다. 탭 사이 공유는 어느 쪽이든 되므로(쿠키는 탭을 가리지 않는다) 이 값과 무관하다.
+ */
+export function emailLogin(
+  email: string,
+  password: string,
+  rememberMe: boolean,
+): Promise<TokenResponse> {
   return apiFetch('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, rememberMe }),
   });
 }
 
@@ -38,15 +63,28 @@ export function requestSignupCode(email: string): Promise<void> {
 }
 
 /** 이메일 가입 확정. 메일로 받은 코드를 함께 보내 검증된 계정을 만든다. */
+/**
+ * 가입 동의. **서버가 없으면 거절한다** — 화면에서만 막으면 API 를 직접 부르는 경로가 남는다.
+ *
+ * 판(version)은 화면이 실제로 보여준 문서의 것이다. 서버가 자기 현재 판과 대조해 다르면
+ * 거절하므로, 옛 번들을 든 브라우저가 옛 조문을 보여주고 새 판에 동의한 것으로 기록되는 일이
+ * 없다. 값은 @hansapp/legal 문서의 `version` 에서 온다.
+ */
+export interface ConsentPayload {
+  termsVersion: string;
+  privacyVersion: string;
+}
+
 export function emailSignup(
   email: string,
   password: string,
   name: string,
   code: string,
+  consent: ConsentPayload,
 ): Promise<TokenResponse> {
   return apiFetch('/auth/signup', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name, code }),
+    body: JSON.stringify({ email, password, name, code, consent }),
   });
 }
 
@@ -105,17 +143,118 @@ export function socialRegisterRequestCode(
 /** 소셜 신규 가입 확정(pending 티켓 + 필요 시 이메일·인증 코드). */
 export function socialRegister(
   ticket: string,
+  consent: ConsentPayload,
   email?: string,
   code?: string,
 ): Promise<TokenResponse> {
   return apiFetch('/auth/social/register', {
     method: 'POST',
-    body: JSON.stringify({ ticket, email, code }),
+    body: JSON.stringify({ ticket, email, code, consent }),
   });
 }
 
 export function getMe(): Promise<Me> {
   return apiFetch('/auth/me', {}, { auth: true });
+}
+
+/** 표시 이름 변경. 빈 문자열을 보내면 이름을 지운다. */
+export function updateMyName(name: string): Promise<void> {
+  return apiFetch(
+    '/auth/me',
+    { method: 'PATCH', body: JSON.stringify({ name }) },
+    { auth: true },
+  );
+}
+
+/** 비밀번호 변경. 현재 비밀번호를 함께 보낸다. */
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  return apiFetch(
+    '/auth/password/change',
+    { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) },
+    { auth: true },
+  );
+}
+
+/**
+ * 회원 탈퇴. 계정이 탈퇴 상태로 바뀌고 모든 세션이 폐기된다.
+ *
+ * 서버가 refresh 쿠키도 지우지만, **이 오리진의 저장소는 우리가 치워야 한다** —
+ * 호출부에서 이어서 signOut 을 부른다(authStore 가 토큰·프로필 캐시를 지우고 다른 탭에 알린다).
+ */
+export function withdraw(): Promise<void> {
+  return apiFetch('/auth/withdraw', { method: 'POST' }, { auth: true });
+}
+
+/** 로그인한 기기 한 대. 토큰 해시는 서버가 내보내지 않는다. */
+export interface Session {
+  sessionId: string;
+  userAgent?: string | null;
+  ip?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** 지금 보고 있는 이 기기인가. */
+  current: boolean;
+}
+
+/** 로그인한 기기 목록. 최근 활동 순. */
+export function getMySessions(): Promise<Session[]> {
+  return apiFetch('/auth/me/sessions', {}, { auth: true });
+}
+
+/** 기기 하나를 로그아웃시킨다. */
+export function revokeSession(sessionId: string): Promise<void> {
+  return apiFetch(
+    `/auth/me/sessions/${encodeURIComponent(sessionId)}`,
+    { method: 'DELETE' },
+    { auth: true },
+  );
+}
+
+/**
+ * 모든 기기에서 로그아웃. **지금 이 기기도 포함된다** — 호출한 쪽도 로그아웃 처리해야 한다.
+ * 서버가 refresh·힌트 쿠키까지 지우지만, 이 오리진의 저장소는 signOut 이 치운다.
+ */
+export function revokeAllSessions(): Promise<void> {
+  return apiFetch('/auth/me/sessions', { method: 'DELETE' }, { auth: true });
+}
+
+/**
+ * 소셜 연동 시작 토큰. 로그인 상태에서 받아 시작 URL 에 실어 보낸다.
+ *
+ * **로그인과 같은 진입점(GET /auth/:provider)을 쓴다.** 다른 점은 이 토큰뿐이다 —
+ * 서버가 토큰을 열어 "누구에게 붙일 연동인가" 를 알아내고, 서명 state 에 실어 콜백까지 나른다.
+ */
+export function prepareSocialLink(): Promise<{ linkToken: string }> {
+  return apiFetch(
+    '/auth/social/link/prepare',
+    { method: 'POST' },
+    { auth: true },
+  );
+}
+
+/**
+ * 연동 해제. **마지막 로그인 수단이면 서버가 거부한다**(비밀번호도 없고 연동 하나뿐인 경우).
+ * 화면에서도 미리 막지만, 판단의 정본은 서버다 — 다른 탭에서 먼저 지웠을 수 있다.
+ */
+export function unlinkSocial(provider: SocialProvider): Promise<void> {
+  return apiFetch(`/auth/${provider}/link`, { method: 'DELETE' }, { auth: true });
+}
+
+/** 연동 시작 URL(전체 페이지 리다이렉트). 끝나면 백엔드가 콜백에 linked=1 을 실어 돌려보낸다. */
+export function socialLinkUrl(
+  provider: SocialProvider,
+  linkToken: string,
+): string {
+  const params = new URLSearchParams({ link_token: linkToken });
+  return `${API_BASE_URL}/auth/${provider}?${params.toString()}`;
+}
+
+/** 내 동의 기록. 마이페이지의 열람 항목이다. */
+export function getMyConsents(): Promise<ConsentRecord[]> {
+  return apiFetch('/auth/me/consents', {}, { auth: true });
 }
 
 /**
@@ -194,6 +333,12 @@ export function socialLoginUrl(
   clientState?: string,
   // 1st-party 복귀 URL. returnTo 미지정(자체 로그인)일 때 콜백에 ret= 로 실린다.
   appReturn?: string,
+  /**
+   * "로그인 상태 유지" 체크 여부. **여기서 안 보내면 체크박스가 거짓말이 된다** —
+   * provider 로 떠나는 순간 이 화면의 상태는 사라지고, 서버는 콜백에서 물어볼 데가 없다.
+   * 서버가 서명 state 에 실어 콜백까지 나른다.
+   */
+  remember?: boolean,
 ): string {
   // **자사는 그 앱으로 직행한다.** 백엔드가 콜백에서 쿠키를 심고 여기로 보내므로
   // 인증웹을 한 번 더 거칠 이유가 없다(코드 교환이 없다).
@@ -210,5 +355,7 @@ export function socialLoginUrl(
     params.set('code_challenge', codeChallenge);
     params.set('code_challenge_method', 'S256');
   }
+  // 켤 때만 보낸다. 서버도 값이 없으면 꺼진 것으로 보므로 기본이 양쪽에서 같다.
+  if (remember) params.set('remember', '1');
   return `${API_BASE_URL}/auth/${provider}?${params.toString()}`;
 }

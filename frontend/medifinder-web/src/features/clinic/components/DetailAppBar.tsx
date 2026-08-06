@@ -16,11 +16,16 @@ import { useIsWide } from '@/shared/hooks/useIsWide';
  *
  * **전역 헤더(로고·검색·언어) 자리를 대신한다.** 헤더를 그대로 두고 그 아래 이 바를 또 얹으면
  * 고정 바가 두 겹이 되어, 390px 화면에서 본문이 그만큼 사라진다(DetailLayout 주석 참고).
+ *
+ * **넓은 화면에서는 첫 화면에 아예 없다**(floating). 좁은 화면은 히어로가 바 밑으로 파고들어
+ * 겹치지만 넓은 화면은 그러지 않아, 파란 표지 위에 뒤로가기만 놓인 흰 띠가 한 겹 얹혔다.
+ * 거기엔 브라우저 뒤로가기가 있으니 그 띠는 값을 못 한다 — 히어로가 지나갈 때 내려온다.
  */
 export function DetailAppBar({
   barRef,
   title,
   solid,
+  floating,
   onBack,
   backLabel,
   actions,
@@ -33,6 +38,17 @@ export function DetailAppBar({
   title: string;
   /** 히어로가 지나갔는가. 배경·글자색·제목이 한꺼번에 바뀐다(useScrolledPast). */
   solid: boolean;
+  /**
+   * **자리를 차지하지 않고 본문 위에 떠 있는가.** 아래 히어로가 있는 화면(상세)에서만 참이다.
+   *
+   * 좁은 화면에서는 어차피 히어로가 바 밑으로 파고들어(--hero-pull) 겹쳐 있지만, 넓은 화면은
+   * 그러지 않아 바가 제 자리를 차지한다 — 파란 표지 위에 흰 띠가 한 겹 얹혀, 아직 아무것도
+   * 안 내렸는데 뒤로가기만 덩그러니 놓인 흰 머리띠가 된다. 떠 있게 두면 그 띠가 사라지고,
+   * 히어로가 지나갈 때 비로소 내려온다(아래 `hidden`).
+   *
+   * 비급여는 히어로가 없어 이 바가 곧 페이지의 머리다 — 뜨면 탭 바가 그 밑으로 파고든다.
+   */
+  floating?: boolean;
   /** 뒤로가기. 링크가 아니라 동작이라 함수로 받는다(직전 기록으로 되돌아간다). */
   onBack: () => void;
   backLabel: string;
@@ -54,10 +70,26 @@ export function DetailAppBar({
       ref={barRef as React.Ref<HTMLElement>}
       className={cn(
         // 좁든 넓든 늘 붙어 있다. 아래 탭 바까지 한 덩어리라 스크롤 내내 위 영역이 유지된다.
-        'sticky top-0 z-40 pt-safe-top transition-colors duration-200 ease-native',
+        'sticky top-0 z-40 pt-safe-top transition-all duration-200 ease-native',
         flat
           ? 'bg-surface/90 shadow-nav backdrop-blur-xl'
           : 'bg-transparent shadow-none',
+
+        /*
+          넓은 화면에서 히어로 위에 뜬 바(floating). **자리를 비우고 본문 위로 올라간다** —
+          sticky 인 채로 두면 첫 화면에 3.25rem 짜리 흰 띠가 남는다.
+          `lg:` 로 적는 것은 좁은 화면이 지금 그대로여야 해서다(히어로가 이미 밑으로 파고든다).
+        */
+        floating && 'lg:fixed lg:inset-x-0',
+
+        /*
+          **첫 화면에서는 아예 없다.** 넓은 화면에는 브라우저 뒤로가기가 있어서, 아무것도
+          안 내린 상태의 뒤로가기 버튼은 표지를 덮을 값을 못 한다. 히어로가 지나가 이름을
+          들어야 할 때(solid) 위에서 내려온다 — 그때부터는 돌아갈 유일한 길이라서다.
+        */
+        floating &&
+          !solid &&
+          'lg:pointer-events-none lg:-translate-y-full lg:opacity-0',
       )}
     >
       {/*

@@ -36,6 +36,13 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: { '@': path.resolve(__dirname, './src') },
+
+      /**
+       * React 를 **한 벌만** 번들한다. @hansapp/legal 이 `link:` 로 붙어 있고 타입용으로 자기
+       * node_modules 에 react 를 갖는다 — 그대로 두면 두 벌이 실리고, 나중에 그 패키지에 훅이
+       * 들어가는 순간 "Invalid hook call" 로 터진다.
+       */
+      dedupe: ['react', 'react-dom'],
     },
     server: {
       // 127.0.0.1 로 고정(콘솔·API 와 동일 호스트 → 쿠키 공유). localhost 로 새면 오리진 불일치로 SSO 가 깨진다.

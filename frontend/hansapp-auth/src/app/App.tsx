@@ -21,6 +21,7 @@ import ForgotPassword from '@/features/auth/pages/ForgotPassword';
 import Callback from '@/features/auth/pages/Callback';
 import Logout from '@/features/auth/pages/Logout';
 import Home from '@/features/auth/pages/Home';
+import ProfileEdit from '@/features/auth/pages/ProfileEdit';
 
 /** 로컬 단일 오리진에선 /auth 프리픽스 아래로 마운트한다(VITE_ROUTER_BASE). 배포(서브도메인)는 루트. */
 // **?? 가 아니라 || 다.** .env 에 키만 적고 값을 비워 두는 일이 있는데(누수 방지),
@@ -167,6 +168,15 @@ export default function App() {
           element={
             <RequireAuth>
               <Home />
+            </RequireAuth>
+          }
+        />
+        {/* 정보 수정. 마이페이지는 읽는 화면이라 고치는 자리를 주소부터 나눈다. */}
+        <Route
+          path="/me/edit"
+          element={
+            <RequireAuth>
+              <ProfileEdit />
             </RequireAuth>
           }
         />

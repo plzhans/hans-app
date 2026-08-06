@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
@@ -17,11 +18,14 @@ import {
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
 import { EmailVerificationService } from './mail/email-verification.service';
+import { MailService } from './mail/mail.service';
+import { ConsentService, type ConsentInput } from './consent.service';
 import { ActionLogService } from './log/action-log.service';
 import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
 import { TokenSessionRepository } from './repository/token-session.repository';
+import type { UserTokenSession } from '@hansapp/data';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
 import { AuthTokens, TokenService } from './token/token.service';
 
@@ -43,10 +47,14 @@ export interface AuthResult {
  */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
+    private readonly consent: ConsentService,
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
+    private readonly mail: MailService,
     private readonly sessions: TokenSessionRepository,
     private readonly withdrawals: WithdrawalRepository,
     private readonly tokens: TokenService,
@@ -83,9 +91,13 @@ export class AuthService {
       password: string;
       name?: string | null;
       code: string;
+      consent: ConsentInput;
     },
     meta: RequestMeta,
   ): Promise<AuthResult> {
+    // **계정을 만들기 전에 막는다.** 통과 못 하면 아무것도 생기지 않는다.
+    this.consent.assertValid(input.consent);
+
     const email = normalizeEmail(input.email);
     await this.assertEmailAvailable(email);
 
@@ -106,6 +118,8 @@ export class AuthService {
       joinType: AuthProvider.EMAIL,
     });
 
+    await this.consent.record(user.id, input.consent, meta);
+
     await this.log.record({
       userId: user.id,
       action: UserAction.SIGNUP,
@@ -114,13 +128,23 @@ export class AuthService {
       ...meta,
     });
 
-    const tokens = await this.issueLoginTokens(user, meta, AuthProvider.EMAIL);
+    /*
+      가입 직후 로그인은 **유지하지 않는다**(세션 쿠키). 가입 화면에는 "로그인 상태 유지"
+      체크가 없어서 이용자가 고른 적이 없는데, 고르지 않은 것을 켠 것으로 볼 이유가 없다.
+      로그인 화면에서 체크를 안 했을 때와 같은 결과가 된다.
+    */
+    const tokens = await this.issueLoginTokens(
+      user,
+      meta,
+      AuthProvider.EMAIL,
+      false,
+    );
     return { user, tokens };
   }
 
   /** 이메일 로그인. 소셜 전용 계정(비밀번호 없음)은 이메일 로그인이 불가하다. */
   async login(
-    input: { email: string; password: string },
+    input: { email: string; password: string; rememberMe?: boolean },
     meta: RequestMeta,
   ): Promise<AuthResult> {
     const email = normalizeEmail(input.email);
@@ -142,7 +166,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    const tokens = await this.issueLoginTokens(user, meta, AuthProvider.EMAIL);
+    const tokens = await this.issueLoginTokens(
+      user,
+      meta,
+      AuthProvider.EMAIL,
+      // 체크를 안 했으면 세션 쿠키다 — 브라우저를 닫을 때 사라진다.
+      input.rememberMe ?? false,
+    );
     return { user, tokens };
   }
 
@@ -221,7 +251,29 @@ export class AuthService {
   async requestPasswordReset(emailRaw: string, locale?: string): Promise<void> {
     const email = normalizeEmail(emailRaw);
     const user = await this.users.findActiveByEmail(email);
-    if (!user || !user.password) {
+    if (!user) {
+      this.logSkippedReset(email, '가입된 계정 없음');
+      return;
+    }
+    if (!user.password) {
+      /*
+        **소셜로만 가입한 계정이다. 재설정할 비밀번호가 없다.**
+
+        화면에는 이 사실을 알려 주지 않는다 — 알려 주면 가입 여부와 어느 제공자인지까지
+        공격자에게 새어 나간다. 대신 **받은 편지함을 가진 진짜 주인에게** 메일로 알린다.
+        그러면 화면은 계속 같은 말을 하면서도 정작 도움이 필요한 사람은 길을 찾는다.
+      */
+      const links = await this.oauths.listByUser(user.id);
+      await this.mail.sendSocialOnlyNotice({
+        to: email,
+        providers: links.map((l) => l.provider),
+        locale,
+        userNameGreeting: user.name ? ` ${user.name}님` : '',
+      });
+      this.logSkippedReset(
+        email,
+        '비밀번호 없는 계정(소셜 전용) → 안내 메일 발송',
+      );
       return;
     }
     await this.emailVerification.issueAndSend(
@@ -271,7 +323,83 @@ export class AuthService {
     return user;
   }
 
+  /**
+   * 표시 이름을 바꾼다. **개인정보처리방침 제10조의 "정정" 을 이행하는 자리다.**
+   *
+   * 이름은 우리가 검증할 수 있는 값이 아니라(본인확인이 없다) 형식만 본다. 지우고 싶으면
+   * 빈 문자열을 보내면 되고, 그때는 null 로 남긴다 — 빈 문자열과 "없음" 을 DB 에서 갈라 두면
+   * 화면마다 둘 다 처리해야 한다.
+   *
+   * **행동 로그를 남기지 않는다.** UserAction 에 맞는 값이 없고(로그인·비밀번호·탈퇴 등
+   * 계정 보안 사건만 남긴다), 표시 이름 변경은 거기 낄 성질이 아니다. 남길 이유가 생기면
+   * 그때 enum 을 늘린다.
+   */
+  async updateName(userId: number, name: string): Promise<User> {
+    await this.getProfile(userId);
+    const trimmed = name.trim();
+    return this.users.updateName(userId, trimmed || null);
+  }
+
+  /**
+   * 로그인한 기기 목록. **계정 이용약관 제6조④가 약속한 것을 이행하는 자리다.**
+   *
+   * 개인정보처리방침 제1조에 "로그인 세션에 IP 와 기기 정보를 담는다" 고 적어 둔 이상,
+   * 본인이 그것을 보고 지울 수 있어야 한다.
+   */
+  listSessions(userId: number): Promise<UserTokenSession[]> {
+    return this.sessions.listActiveByUser(userId, new Date());
+  }
+
+  /**
+   * 기기 하나를 로그아웃시킨다. **내 세션만 지운다**(저장소가 userId 를 조건에 함께 넣는다).
+   * 남의 세션 식별자를 넣어도 아무 일이 일어나지 않는다.
+   */
+  async revokeSession(userId: number, sessionId: string): Promise<void> {
+    const removed = await this.sessions.deleteOwned(userId, sessionId);
+    if (!removed) {
+      throw new BadRequestException('Session not found.');
+    }
+  }
+
+  /**
+   * 모든 기기에서 로그아웃. **지금 이 기기까지 포함해 전부 지운다.**
+   *
+   * 계정이 도용됐다고 의심할 때 누르는 버튼이다. 목록에서 하나씩 끊는 것으로는 그 사이에
+   * 새로 만들어진 세션을 놓칠 수 있고, 무엇을 놓쳤는지도 알 수 없다 — 다 지우고 다시
+   * 로그인하는 편이 확실하다.
+   *
+   * **지금 이 기기를 빼지 않는 이유.** 버튼에 "모든" 이라고 쓰여 있으면 정말 모두여야 한다.
+   * 하나를 남기면 "왜 아직 로그인돼 있지" 를 사용자가 다시 의심하게 된다. 비밀번호를
+   * 바꾸라는 안내가 그다음에 오는데, 그 흐름도 어차피 재로그인에서 시작한다.
+   */
+  async revokeAllSessions(userId: number, meta: RequestMeta): Promise<number> {
+    const removed = await this.sessions.deleteAllByUser(userId);
+    await this.log.record({
+      userId,
+      action: UserAction.LOGOUT,
+      result: ActionResult.SUCCESS,
+      ...meta,
+    });
+    return removed;
+  }
+
   // ---- 내부 헬퍼 ----
+
+  /**
+   * 재설정 메일을 **왜 안 보냈는지** 남긴다. 운영에서는 아무것도 남기지 않는다.
+   *
+   * 이 흐름은 계정 열거를 막으려고 있는 계정이든 없는 계정이든 똑같이 202 를 준다. 화면도
+   * "메일을 보냈다" 로 같다 — 그래서 로컬에서 안 오는 이유를 찾을 방법이 없었다.
+   *
+   * **운영에서 찍으면 방어가 무너진다.** 응답으로는 숨겨 놓고 로그로 흘리면, 로그를 볼 수 있는
+   * 사람에게는 가입 여부가 그대로 드러난다. 그래서 production 에서는 한 줄도 남기지 않는다.
+   */
+  private logSkippedReset(email: string, reason: string): void {
+    if (process.env.APP_ENV === 'production') return;
+    this.logger.warn(
+      `[dev] 비밀번호 재설정 메일을 보내지 않았습니다 — ${reason}. to=${email}`,
+    );
+  }
 
   /** 이메일이 신규 가입 가능한지 검증한다(활성 계정·탈퇴 재가입 제한 모두 확인). */
   async assertEmailAvailable(email: string): Promise<void> {
@@ -295,8 +423,9 @@ export class AuthService {
     user: User,
     meta: RequestMeta,
     provider: AuthProvider,
+    persistent = true,
   ): Promise<AuthTokens> {
-    return this.loginService.complete(user, provider, meta);
+    return this.loginService.complete(user, provider, meta, persistent);
   }
 
   private hashPassword(plain: string): Promise<string> {

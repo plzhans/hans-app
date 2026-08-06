@@ -1,12 +1,43 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
+  IsNotEmptyObject,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+
+/**
+ * 가입 동의. **가입 요청에 반드시 실린다** — 없으면 서버가 거절한다.
+ *
+ * 화면에서만 막으면 API 를 직접 부르는 경로가 남고, 그러면 "우리가 동의를 안 받고 만든" 계정이
+ * 생긴다. 동의를 받았다는 입증 책임이 처리자에게 있어서 그 계정은 나중에 설명할 방법이 없다.
+ *
+ * 판(version)을 함께 받는 이유는 화면이 실제로 보여준 조문을 기록하기 위해서다 —
+ * 서버의 현재 판과 다르면 거절한다(ConsentService 주석 참고).
+ */
+export class ConsentDto {
+  @ApiProperty({
+    description: '동의한 이용약관의 판(시행일)',
+    example: '2026-08-06',
+  })
+  @IsString()
+  @MaxLength(20)
+  readonly termsVersion!: string;
+
+  @ApiProperty({
+    description: '동의한 개인정보처리방침의 판(시행일)',
+    example: '2026-08-06',
+  })
+  @IsString()
+  @MaxLength(20)
+  readonly privacyVersion!: string;
+}
 
 /** 가입 인증 코드 발송 요청(계정 생성 전) */
 export class SignupCodeRequestDto {
@@ -40,6 +71,12 @@ export class SignupRequestDto {
   @MinLength(4)
   @MaxLength(12)
   readonly code!: string;
+
+  @ApiProperty({ description: '약관·개인정보·연령 동의', type: ConsentDto })
+  @IsNotEmptyObject()
+  @ValidateNested()
+  @Type(() => ConsentDto)
+  readonly consent!: ConsentDto;
 }
 
 /** 이메일 로그인 요청 */
@@ -51,9 +88,29 @@ export class LoginRequestDto {
   @ApiProperty({ description: '비밀번호', example: 'p@ssw0rd!' })
   @IsString()
   readonly password!: string;
+
+  @ApiPropertyOptional({
+    description:
+      '로그인 상태 유지. 켜면 브라우저를 닫아도 로그인이 남고, 끄면(기본) 닫을 때 사라진다.',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly rememberMe?: boolean;
 }
 
 /** 비밀번호 변경 요청(로그인 상태) */
+/** 표시 이름 변경 요청. 빈 문자열이면 이름을 지운다. */
+export class UpdateProfileRequestDto {
+  @ApiProperty({
+    description: '표시 이름(빈 문자열이면 삭제)',
+    example: '홍길동',
+  })
+  @IsString()
+  @MaxLength(100)
+  readonly name!: string;
+}
+
 export class ChangePasswordRequestDto {
   @ApiProperty({ description: '현재 비밀번호' })
   @IsString()
@@ -220,4 +277,70 @@ export class MeResponseDto {
 
   @ApiProperty({ description: '최초 가입 수단', example: 'EMAIL' })
   readonly joinType!: string;
+
+  @ApiProperty({
+    description: '가입 일시',
+    example: '2026-08-06T02:10:00.000Z',
+  })
+  readonly createdAt!: string;
+
+  @ApiProperty({
+    description:
+      '비밀번호가 설정돼 있는가. 소셜로만 가입한 계정은 false 라 비밀번호 변경을 띄우지 않는다.',
+  })
+  readonly hasPassword!: boolean;
+
+  @ApiProperty({
+    description: '연동된 소셜 제공자 목록',
+    example: ['GOOGLE', 'KAKAO'],
+    type: [String],
+  })
+  readonly linkedProviders!: string[];
+}
+
+/**
+ * 동의 기록 한 줄.
+ *
+ * **이용자가 볼 수 있어야 기록이 의미를 가진다.** 개인정보처리방침 제10조가 약속한 "열람" 의
+ * 실체가 이것이다 — 무엇에 언제 어느 판으로 동의했는지를 본인이 확인할 수 있어야 한다.
+ * IP·기기는 돌려주지 않는다. 본인 것이라도 화면에 뿌릴 이유가 없고, 유출 시 손해만 는다.
+ */
+/**
+ * 로그인한 기기 한 대.
+ *
+ * **토큰 해시는 내보내지 않는다.** 세션 식별자만 있으면 로그아웃시킬 수 있고, 해시는 화면이
+ * 쓸 일이 없다 — 응답에 실을 이유가 없는 값은 싣지 않는다.
+ */
+export class SessionDto {
+  @ApiProperty({ description: '세션 식별자. 개별 로그아웃에 쓴다.' })
+  readonly sessionId!: string;
+
+  @ApiPropertyOptional({ description: '접속 기기의 브라우저·운영체제 정보' })
+  readonly userAgent?: string | null;
+
+  @ApiPropertyOptional({ description: '접속 IP' })
+  readonly ip?: string | null;
+
+  @ApiProperty({ description: '로그인 시각' })
+  readonly createdAt!: string;
+
+  @ApiProperty({ description: '마지막 갱신 시각(최근 활동)' })
+  readonly updatedAt!: string;
+
+  @ApiProperty({ description: '지금 보고 있는 이 기기인가' })
+  readonly current!: boolean;
+}
+
+export class ConsentRecordDto {
+  @ApiProperty({ description: '동의 항목', example: 'TERMS' })
+  readonly type!: string;
+
+  @ApiProperty({ description: '동의한 문서의 판', example: '2026-08-06' })
+  readonly version!: string;
+
+  @ApiProperty({
+    description: '동의 일시',
+    example: '2026-08-06T02:10:00.000Z',
+  })
+  readonly agreedAt!: string;
 }

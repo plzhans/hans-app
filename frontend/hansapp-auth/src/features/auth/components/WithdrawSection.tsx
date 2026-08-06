@@ -1,0 +1,146 @@
+import { useState } from 'react';
+import { withdraw } from '@/shared/api/auth';
+import { errorMessage } from '@/shared/api/errorMessage';
+import { useAuthStore } from '@/shared/auth/authStore';
+import { Button } from '@/shared/ui/Button';
+
+/**
+ * 회원 탈퇴. **개인정보처리방침 제10조가 약속한 "삭제" 를 이행하는 자리다.**
+ *
+ * [세 걸음을 거친다]
+ * 되돌릴 수 없는 동작이라 한 번의 실수로 끝나면 안 된다.
+ *   1. 접힌 "회원 탈퇴" 를 펼친다 — 계정을 보러 온 사람에게 먼저 보일 버튼이 아니다
+ *   2. 무슨 일이 생기는지 읽고 동의에 체크한다
+ *   3. [탈퇴하기] 를 누르면 **그 자리에서 한 번 더 묻는다**
+ *
+ * 체크박스만으로 끝내지 않는 이유는, 체크는 한 번 켜 두면 그대로 남기 때문이다.
+ * 되돌릴 수 없는 동작은 누르는 그 순간에 물어야 한다.
+ *
+ * [무슨 일이 생기는지 먼저 적는다]
+ * 문구는 지어내지 않고 **HansApp 계정 이용약관 제11조와 개인정보처리방침 제3조에 적힌 그대로**다.
+ * 화면이 문서보다 관대하게 말하면(예: "언제든 되돌릴 수 있다") 그 순간 문서가 거짓이 된다.
+ *
+ * [30일은 되돌리기 기간이 아니다]
+ * 탈퇴하면 계정은 바로 막힌다. 30일은 **같은 이메일로 곧바로 다시 가입하는 것을 막는 기간**이고,
+ * 그 기간이 지나면 남은 기록(이메일·이름)까지 지워진다. 복구 기간으로 오해하지 않게 적는다.
+ */
+export function WithdrawSection() {
+  const signOut = useAuthStore((s) => s.signOut);
+  const [open, setOpen] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  /**
+   * 마지막 재확인 단계인가.
+   *
+   * **체크박스만으로는 부족하다.** 체크는 "내용을 읽었다" 는 표시라 한 번 켜 두면 그대로
+   * 남는데, 되돌릴 수 없는 동작은 **누르는 그 순간에** 한 번 더 물어야 한다.
+   * 여기서 묻는 것이 마지막이다.
+   */
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setOpen(false);
+    setAgreed(false);
+    setConfirming(false);
+    setError(null);
+  };
+
+  const onWithdraw = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      await withdraw();
+      /*
+        서버가 세션을 폐기하고 쿠키를 지웠지만 **이 오리진의 저장소는 남아 있다**.
+        signOut 이 토큰·프로필 캐시를 치우고 다른 탭에도 알린다. 그러면 라우터가
+        비로그인 상태를 보고 로그인 화면으로 내려놓는다.
+      */
+      await signOut();
+    } catch (e) {
+      setError(errorMessage(e, '탈퇴 처리에 실패했습니다.'));
+      // 실패하면 재확인을 접는다 — 다시 하려면 한 번 더 물어야 한다.
+      setConfirming(false);
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-6 block w-full text-center text-xs text-gray-400 hover:text-gray-600 hover:underline"
+      >
+        회원 탈퇴
+      </button>
+    );
+  }
+
+  return (
+    <section className="mt-6 rounded-lg border border-red-200 bg-red-50/50 p-4">
+      <h2 className="text-sm font-bold text-gray-900">회원 탈퇴</h2>
+
+      <ul className="mt-2 space-y-1 pl-4 text-xs leading-relaxed text-gray-600">
+        <li className="-indent-4 pl-4">
+          · 이 계정으로 이용하던 <strong>모든 서비스를 더 이상 이용할 수 없습니다.</strong>
+        </li>
+        <li className="-indent-4 pl-4">
+          · 각 서비스에 남긴 자료의 처리는 그 서비스의 약관에서 정합니다.
+        </li>
+        <li className="-indent-4 pl-4">
+          · 같은 이메일로는 <strong>30일 동안 다시 가입할 수 없습니다.</strong> 그 기간이
+          지나면 남은 기록(이메일·이름)까지 완전히 삭제됩니다.
+        </li>
+        <li className="-indent-4 pl-4">· 탈퇴는 되돌릴 수 없습니다.</li>
+      </ul>
+
+      <label className="mt-3 flex items-start gap-2 text-xs text-gray-700">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-red-600"
+        />
+        <span>위 내용을 확인했으며 탈퇴에 동의합니다.</span>
+      </label>
+
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+
+      {confirming ? (
+        <div className="mt-4 rounded-lg border border-red-300 bg-white p-3">
+          <p className="text-xs font-bold text-red-700">
+            정말 탈퇴하시겠습니까? 이 동작은 되돌릴 수 없습니다.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setConfirming(false)}
+            >
+              아니요
+            </Button>
+            <Button type="button" loading={busy} onClick={() => void onWithdraw()}>
+              네, 탈퇴합니다
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 flex gap-2">
+          <Button type="button" variant="outline" onClick={reset}>
+            취소
+          </Button>
+          {/* 동의 전에는 누를 수 없다. 여기서 바로 탈퇴하지 않고 재확인으로 넘어간다. */}
+          <Button
+            type="button"
+            disabled={!agreed}
+            onClick={() => setConfirming(true)}
+          >
+            탈퇴하기
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}

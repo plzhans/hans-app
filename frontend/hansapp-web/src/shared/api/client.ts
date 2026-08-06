@@ -112,7 +112,18 @@ export async function apiFetch<T>(
       const s = getSession();
       if (s) headers.set('Authorization', `Bearer ${s}`);
     }
-    return fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+    /*
+      **credentials: 'include' 가 없으면 쿠키가 오가지 않는다.**
+
+      프론트와 API 는 오리진이 다르다(포트만 달라도 교차 오리진이다). 기본값 'same-origin'
+      이면 브라우저가 요청에 쿠키를 싣지도, 응답의 Set-Cookie 를 저장하지도 않는다.
+      로그인 자체는 인증웹이 하지만, 여기서도 쿠키가 필요한 호출(로그아웃 등)이 지난다.
+    */
+    return fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
   };
 
   let res = await doFetch();
@@ -130,6 +141,17 @@ export async function apiFetch<T>(
     throw new ApiError(res.status, body);
   }
 
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  /*
+    **상태 코드가 아니라 본문이 비었는지로 판단한다.**
+
+    204 만 걸러 냈더니 202 를 쓰는 라우트(가입 코드 발송·비밀번호 재설정 요청·소셜 코드
+    발송)에서 터졌다 — 본문 없이 202 를 주는데 res.json() 이 "Unexpected end of JSON input"
+    으로 죽었다. 성공 응답인데 화면에는 오류가 뜨는 종류라 원인을 찾기도 나쁘다.
+
+    상태 코드 목록을 늘리는 대신 실제로 온 것을 본다. 서버가 새 라우트를 무슨 코드로 주든
+    여기서 다시 깨지지 않는다.
+  */
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }

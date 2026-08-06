@@ -11,6 +11,14 @@ export interface BatchConfig {
   readonly cron: string;
 
   /**
+   * 인증 부산물(세션·인가코드·이메일 인증) 정리 크론식.
+   *
+   * 적재(cron)와 **따로 둔다.** 성격이 다른 일이라 주기도 시간대도 같이 갈 이유가 없고,
+   * 적재가 길어지거나 실패해도 정리는 제 시간에 돌아야 한다.
+   */
+  readonly authCleanupCron: string;
+
+  /**
    * 실행당 콜 상한. **일일 한도와는 다른 것이다.**
    *
    * 일일 한도(NMC API 별 1,000 / HIRA API 별 10,000)는 우리가 세지 않는다. 세면 반드시 어긋난다 —
@@ -30,6 +38,10 @@ export function buildBatchConfig(source: ConfigSource): BatchConfig {
   // 전부 비밀 아닌 값 → getX(config/config.<환경>.yaml 또는 환경변수 BATCH_CRON 등).
   return {
     cron: source.getStringOrDefault('apps-batch.cron', '0 4 * * *'),
+    authCleanupCron: source.getStringOrDefault(
+      'apps-batch.authCleanupCron',
+      '30 4 * * *',
+    ),
     maxCallsPerRun:
       source.getNumberOrDefault('apps-batch.maxCallsPerRun', 0) || undefined,
   };

@@ -31,5 +31,6 @@ allowBuilds:
   '@scarf/scarf': false
   '@swc/core': true
   esbuild: true
+  msgpackr-extract: false
   prisma: true
   unrs-resolver: true

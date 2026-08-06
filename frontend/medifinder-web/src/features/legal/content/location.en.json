@@ -1,0 +1,165 @@
+{
+  "title": "Location-Based Services Terms",
+  "effective": "Effective date: August 5, 2026",
+  "intro": [
+    "These Terms apply only to features that use location data. The Service as a whole is covered by the Terms of Service, and the handling of personal information by the Privacy Policy.",
+    "This is a translation of the Korean original. If the two versions differ, the Korean version prevails."
+  ],
+  "sections": [
+    {
+      "heading": "Article 1 (Purpose)",
+      "blocks": [
+        "These Terms define the rights, obligations, and responsibilities between the individual operator of MediFinder (the \"Operator\") and the subject of personal location data (the \"User\") with respect to the location-based services provided by the Operator."
+      ]
+    },
+    {
+      "heading": "Article 2 (Effect and Amendment of These Terms)",
+      "blocks": [
+        "(1) These Terms take effect when the User invokes a location feature within the Service and grants the location permission of their browser or operating system. The Service has no sign-up process, so there is no separate user registration.",
+        "(2) The Operator may amend these Terms to the extent permitted by applicable law, including the Act on the Protection and Use of Location Information (the \"Location Information Act\"), the Personal Information Protection Act, and the Act on the Regulation of Terms and Conditions.",
+        "(3) Amendments are announced within the Service at least 7 days before they take effect, stating the changes and the effective date. Where the change materially affects the rights of Users, notice is given at least 30 days in advance.",
+        "(4) A User who does not agree to an amendment may withdraw consent by ceasing to use location features or by revoking the location permission."
+      ]
+    },
+    {
+      "heading": "Article 3 (Rules Outside These Terms)",
+      "blocks": [
+        "Matters not provided for in these Terms are governed by the Location Information Act, the Personal Information Protection Act, the Act on Promotion of Information and Communications Network Utilization and Information Protection, and other applicable laws."
+      ]
+    },
+    {
+      "heading": "Article 4 (Scope of Location-Based Services)",
+      "blocks": [
+        "(1) The services the Operator provides using personal location data are:",
+        {
+          "list": [
+            "1. Nearby search — finding medical institutions close to the User's current location",
+            "2. Distance sorting — ordering search results by proximity to the current location",
+            "3. Automatic region selection — filling the search filters with the province and district corresponding to the current location"
+          ]
+        },
+        "(2) These features operate only when the User actively invokes them. The Operator does not check location in the background and does not record movement histories.",
+        "(3) Location-based services are provided free of charge. Data charges for wireless internet use are subject to the policy of the User's mobile carrier."
+      ]
+    },
+    {
+      "heading": "Article 5 (Change and Suspension of the Service)",
+      "blocks": [
+        "(1) The Operator may change or suspend location-based services in whole or in part where they cannot be maintained due to changes in policy, changes in applicable law, or technical circumstances.",
+        "(2) Any change or suspension is announced within the Service together with its reason and timing. Where urgent circumstances make advance notice impossible, notice is given afterwards."
+      ]
+    },
+    {
+      "heading": "Article 6 (Consent to Collection and Use of Personal Location Data)",
+      "blocks": [
+        "(1) The Operator collects and uses personal location data only where the User actively invokes a location feature and grants the location permission of their browser or operating system. That action and grant constitute consent under these Terms.",
+        "(2) The Operator does not use personal location data beyond the purposes stated in Article 4."
+      ]
+    },
+    {
+      "heading": "Article 7 (How Personal Location Data Is Handled)",
+      "blocks": [
+        "(1) Coordinates obtained are rounded to a grid of roughly 1 km before being sent with the search request. Precise coordinates never leave the User's device.",
+        "(2) Transmitted coordinates are used only to compute search results and are not stored in any database.",
+        "(3) Coordinates are not placed in the address bar or in shared links.",
+        "(4) Coordinates are sent to and processed by the HansApp API (api.plzhans.com), which the Operator also runs. The domain differs, but it is the same Operator’s server and does not constitute provision to a third party."
+      ]
+    },
+    {
+      "heading": "Article 8 (Retention and Destruction of Personal Location Data)",
+      "blocks": [
+        "(1) The Operator destroys personal location data immediately after search results are computed and does not retain it separately.",
+        "(2) The Operator maintains no separate system for storing personal location data. Coordinates remain in memory only while a search request is being processed, and disappear with it.",
+        "(3) The fact that a search request was made remains in the server access log, which is destroyed once the period set out in Article 3 of the Privacy Policy has passed."
+      ]
+    },
+    {
+      "heading": "Article 9 (Provision of Personal Location Data to Third Parties)",
+      "blocks": [
+        "(1) The Operator does not provide personal location data to third parties.",
+        "(2) Should such provision become necessary, the recipient and the purpose will be disclosed in advance and the User's consent obtained. In that case the User is notified immediately, on each occasion, of the recipient, the time, and the purpose of provision."
+      ]
+    },
+    {
+      "heading": "Article 10 (Rights of the Personal Location Data Subject)",
+      "blocks": [
+        "(1) Users may withhold consent to the use of personal location data in whole or in part.",
+        "(2) Users may withdraw consent at any time. On withdrawal the Operator destroys the personal location data and the related use-and-provision records without delay. Consent may be withdrawn by:",
+        {
+          "list": [
+            "1. Turning off location use within the Service",
+            "2. Blocking the location permission in the site settings of the browser",
+            "3. In the app, revoking the location permission under the operating system settings for app permissions"
+          ]
+        },
+        "(3) Users may request temporary suspension of the use of personal location data, and the Operator will not refuse. Because the Service checks location only when the User invokes it, simply not using location features suspends it immediately.",
+        "(4) Users may request access to or notification of the following records, and may request correction of any errors in them. The Operator will not refuse without justified cause.",
+        {
+          "list": [
+            "1. Records confirming the use and provision of the User's location information",
+            "2. The reason for and content of any provision of the User's personal location data to a third party under the Location Information Act or other law"
+          ]
+        },
+        "(5) These rights may be exercised via the contact in Article 16. Because the Service holds no information identifying users, a request must include details that allow the records to be identified (for example the time of use and the IP address)."
+      ]
+    },
+    {
+      "heading": "Article 11 (Protection of Children Under 14)",
+      "blocks": [
+        "The Operator does not provide location-based services aimed at children under the age of 14 and does not collect or use their personal location data."
+      ]
+    },
+    {
+      "heading": "Article 12 (Protection of Children Aged 8 or Under and Others)",
+      "blocks": [
+        "The Operator does not provide location-based services intended to protect the life or body of children aged 8 or under and other persons covered by Article 26 of the Location Information Act. Accordingly, no consent is obtained from their guardians and no such personal location data is processed separately."
+      ]
+    },
+    {
+      "heading": "Article 13 (Damages)",
+      "blocks": [
+        "A User who suffers damage from an act of the Operator in violation of Article 15 or Article 26 of the Location Information Act may claim damages from the Operator. The Operator cannot be relieved of liability unless it proves the absence of intent or negligence."
+      ]
+    },
+    {
+      "heading": "Article 14 (Disclaimer)",
+      "blocks": [
+        "(1) The Operator is not liable for damage suffered by a User where location-based services cannot be provided for any of the following reasons:",
+        {
+          "list": [
+            "1. Natural disaster or comparable force majeure",
+            "2. Failure arising from the User's own circumstances, such as their device, browser, or network conditions",
+            "3. Any other cause not involving the Operator's intent or negligence"
+          ]
+        },
+        "(2) The accuracy of location fixes varies considerably with the User's device and surroundings. The Operator does not warrant the accuracy of distances or ordering computed from location, and is not liable for damage arising from them."
+      ]
+    },
+    {
+      "heading": "Article 15 (Dispute Resolution)",
+      "blocks": [
+        "(1) The Operator will confer in good faith with Users to resolve disputes concerning location information.",
+        "(2) Where a dispute is not resolved by such conference, a User may apply to the Korea Communications Commission for adjudication under Article 28 of the Location Information Act, or to the Personal Information Dispute Mediation Committee under Article 43 of the Personal Information Protection Act."
+      ]
+    },
+    {
+      "heading": "Article 16 (Location Information Manager)",
+      "blocks": [
+        "(1) The Operator designates the following location information manager, responsible for managing and protecting location information and handling complaints from Users:",
+        {
+          "list": [
+            "Location information manager: the Operator of the Service",
+            "Contact: medifinder.help@gmail.com"
+          ]
+        },
+        "(2) As the Service is run by an individual, the location information manager is the Operator personally."
+      ]
+    },
+    {
+      "heading": "Addendum",
+      "blocks": [
+        "These Terms take effect on August 5, 2026."
+      ]
+    }
+  ]
+}

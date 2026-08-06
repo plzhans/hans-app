@@ -35,31 +35,70 @@ export function buildConfigTree(
 }
 
 /**
- * `${VAR}` / `${VAR:-기본값}` 자리표시자. VAR 는 대문자·숫자·밑줄. Spring `${...}` 과 같다.
+ * `${VAR}` / `${VAR:기본값}` 자리표시자. VAR 는 대문자·숫자·밑줄. **Spring `${...}` 과 같다** —
+ * 콜론은 이름과 기본값을 가르는 구분자일 뿐이고, bash 처럼 `:-` 와 `-` 로 의미가 갈리지 않는다.
+ *
  * yaml 이 구조의 단일 원천이고, env 값은 이 자리표시자로만 주입된다 — 그래서 시크릿 env 이름을
  * 바꾸거나 sops 를 다시 만들 필요가 없다(yaml 경로는 중첩, env 이름은 그대로).
  */
-const PLACEHOLDER = /\$\{([A-Z0-9_]+)(?::-([^}]*))?\}/g;
+const PLACEHOLDER = /\$\{([A-Z0-9_]+)(?::([^}]*))?\}/g;
 
-function interpolateString(raw: string, env: NodeJS.ProcessEnv): string {
+/**
+ * bash 습관으로 쓴 `${VAR:-기본값}`. 이 문법에서는 `-` 가 **기본값의 첫 글자로 먹혀** 조용히
+ * `-기본값` 이 된다 — 부팅은 되고 값만 틀리므로 한참 뒤에나 안다. 그래서 부팅을 막는다.
+ *
+ * 대가: 음수로 시작하는 기본값(`${N:-1}` 로 -1 을 주기)을 못 쓴다. 지금 설정엔 포트·TTL·횟수뿐이라
+ * 그런 값이 없고, 실수를 잡는 쪽이 훨씬 이득이라 감수한다. 필요해지면 그때 이스케이프를 만든다.
+ */
+const BASH_PLACEHOLDER = /\$\{[A-Z0-9_]+:-/;
+
+/**
+ * **기본값은 키가 없을 때만 쓴다. 빈 문자열은 어엿한 값이다**(Spring 이 null 만 보는 것과 같다).
+ *
+ * `.env` 의 `SSL_CERTIFICATE=` 는 '경로를 안 정했다' 가 아니라 '**끄겠다**' 는 뜻이다. 빈값을
+ * 미설정과 같이 보면 그 의사를 표현할 방법이 사라져 yaml 기본값이 되살아난다 — TLS 처럼
+ * 빈값에 의미가 걸린 설정이 조용히 켜진다.
+ *
+ * 그래서 기본값을 원하면 `.env` 에서 **줄을 지워야** 한다. 비워 두는 것으로는 안 된다.
+ *
+ * @param path 오류에 찍을 yaml 경로. 어느 줄을 고쳐야 하는지가 메시지에 있어야 한다.
+ */
+function interpolateString(
+  raw: string,
+  env: NodeJS.ProcessEnv,
+  path: string,
+): string {
+  if (BASH_PLACEHOLDER.test(raw)) {
+    throw new Error(
+      `설정 ${path} 에 bash 문법 \${VAR:-기본값} 이 있다: ${raw}\n` +
+        '이 프로젝트는 Spring 문법을 쓴다 — 콜론 하나로 붙일 것: ${VAR:기본값}. ' +
+        '(기본값은 env 에 키가 없을 때만 쓰인다. 빈값은 값으로 인정된다.)',
+    );
+  }
   return raw.replace(PLACEHOLDER, (_, name: string, fallback?: string) => {
     const value = env[name];
-    return value !== undefined && value !== '' ? value : (fallback ?? '');
+    return value !== undefined ? value : (fallback ?? '');
   });
 }
 
 /** 빌드 2단계: 트리의 모든 문자열 값에서 ${VAR} 를 process.env 로 치환한다(재귀). */
-function interpolate(node: unknown, env: NodeJS.ProcessEnv): unknown {
+function interpolate(
+  node: unknown,
+  env: NodeJS.ProcessEnv,
+  path = '',
+): unknown {
   if (typeof node === 'string') {
-    return interpolateString(node, env);
+    return interpolateString(node, env, path);
   }
+  const at = (key: string | number): string =>
+    path ? `${path}.${key}` : String(key);
   if (Array.isArray(node)) {
-    return node.map((item) => interpolate(item, env));
+    return node.map((item, index) => interpolate(item, env, at(index)));
   }
   if (node && typeof node === 'object') {
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(node)) {
-      out[key] = interpolate(value, env);
+      out[key] = interpolate(value, env, at(key));
     }
     return out;
   }

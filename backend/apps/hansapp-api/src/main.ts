@@ -24,10 +24,11 @@ import {
 } from '@hansapp/application';
 
 import { AppModule } from './app.module';
-import { appConfig } from './boot-config';
+import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initRefreshCookie } from './auth/refresh-cookie';
 import { HttpErrorFilter } from './common/http-error.filter';
+import { requestIdMiddleware } from './common/request-id.middleware';
 import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
 import { createSwaggerAccessMiddleware } from './common/swagger-access.middleware';
 import {
@@ -40,7 +41,7 @@ import {
 // Sentry.init 이 DSN·환경·버전을 먼저 알아야 해서 모든 import 보다 앞서 돌아야 하기 때문이다.
 
 // 요청마다 도는 유틸(refresh-cookie)이 쓸 값을 부팅 시점에 한 번 읽어 고정한다.
-initRefreshCookie(appConfig);
+initRefreshCookie(appConfig, appEnv);
 
 /**
  * Express 'trust proxy' 설정을 env 에서 파싱한다.
@@ -164,6 +165,10 @@ async function bootstrap() {
     app.set('trust proxy', trustProxy);
   }
 
+  // 추적 id. **가장 앞에 세운다** — 뒤에 오는 모든 것(로그·오류 필터·Sentry)이 이 값을
+  // 쓸 수 있어야 하고, 인증에서 튕긴 요청도 추적되어야 하므로 가드보다도 앞이다.
+  app.use(requestIdMiddleware);
+
   // refresh token 은 httpOnly 쿠키로 오간다. 쿠키 파싱을 켠다(/oauth/token refresh grant 가 읽음).
   app.use(cookieParser());
 
@@ -276,7 +281,7 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap');
   // 접속 대상·활성 provider 요약(시크릿 마스킹, 한 줄씩). listen 앞에 둬 포트 충돌 등으로 못 떠도 설정은 보이게 한다.
-  logConfigSummary(appConfig, (l) => logger.log(l), { oauth: true });
+  logConfigSummary(appConfig, (l) => logger.log(l), { oauth: true, llm: true });
   // Sentry 가 켜졌는지도 같이 남긴다. 조용히 꺼져 있는 게 최악이다.
   logger.log(sentryStatusLine);
 

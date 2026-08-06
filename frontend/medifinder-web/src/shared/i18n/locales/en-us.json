@@ -3,6 +3,19 @@
     "name": "MediFinder",
     "tagline": "Find hospitals across Korea, fast"
   },
+  "footer": {
+    "liability": "MediFinder is a search service for medical institution information. It is not a party to any treatment, appointment, or transaction, and responsibility for the information provided and for the care given rests with each medical institution.",
+    "disclaimer": "MediFinder is a search service that organizes and displays public data released by Korea's Health Insurance Review and Assessment Service (HIRA) and National Medical Center (NMC). We are not a party to any treatment or appointment, and responsibility for medical care rests with each medical institution.",
+    "accuracy": "Specialties, opening hours, and non-covered treatment costs are reproduced from the source data and may differ from what a hospital currently offers. Please confirm with the institution before visiting.",
+    "dataSource": "Source: public data from HIRA and the National Medical Center",
+    "operator": "Operated by an individual."
+  },
+  "legal": {
+    "terms": "Terms of Service",
+    "locationTerms": "Location-Based Services Terms",
+    "privacy": "Privacy Policy",
+    "englishOnly": "This document is available in Korean and English only."
+  },
   "nav": {
     "home": "Home",
     "search": "Search"
@@ -40,11 +53,18 @@
         "subtitle": "HIRA grade 1 · critical newborn care"
       }
     },
-    "advancedSearch": "Advanced search"
+    "advancedSearch": "Advanced search",
+    "aiSearch": "Ask AI"
   },
   "common": {
     "loading": "Loading…",
     "loadError": "Failed to load.",
+    "error": {
+      "offline": "Connection problem. Check your network and try again.",
+      "unauthorized": "Can't reach the service right now. Please try again shortly.",
+      "tooManyRequests": "Too many requests. Please try again shortly.",
+      "server": "The server is having trouble. Please try again shortly."
+    },
     "language": "Language",
     "days": {
       "1": "Mon",
@@ -67,7 +87,8 @@
       "clear": "Clear {{name}}",
       "granted": "Location access is allowed. You can revoke it in your browser settings."
     },
-    "all": "All"
+    "all": "All",
+    "close": "Close"
   },
   "search": {
     "tabs": {
@@ -278,5 +299,73 @@
     "collapse": "Collapse",
     "recenter": "Back to hospital",
     "switchLabel": "View another map"
+  },
+  "aiSearch": {
+    "title": "AI Assistant",
+    "subtitle": "Describe the hospital you are looking for",
+    "placeholder": "What kind of hospital do you need?",
+    "send": "Send",
+    "thinking": "AI is analyzing…",
+    "intro": "Describe your symptoms or situation. We will turn it into search filters.",
+    "examples": [
+      "Pediatrics that treats childhood asthma",
+      "Hospital open at night for children",
+      "My knee hurts — which specialty should I see"
+    ],
+    "storageNote": "This conversation stays in this browser tab only. It disappears when you close the tab.",
+    "goSearch": "Search with these filters",
+    "pickRegion": "Pick a region on the search screen",
+    "previewLoading": "Finding hospitals…",
+    "previewEmpty": "No hospitals matched. Try asking with fewer conditions.",
+    "previewCount": "Showing {{shown}} of {{total}}",
+    "myLocationBasis": "Sorted by distance from {{place}}.",
+    "myLocationGeneric": "Sorted by distance from your location.",
+    "myLocationLocating": "Checking your location…",
+    "myLocationAsk": "Use my location",
+    "myLocationDenied": "Location is blocked. Pick a region on the search screen.",
+    "openConfirm": "Open '{{name}}'?",
+    "openConfirmYes": "Open",
+    "openConfirmNo": "Cancel",
+    "noExplain": "Could not work out any filters. Please try asking again.",
+    "medicalUpsell": "We are in [Beta], so we can only help you find hospitals for now. Once we launch, you will be able to top up tokens and ask questions like this.",
+    "answerDisclaimer": "General medical information, not a diagnosis. See a doctor about your symptoms.",
+    "placeUnresolved": "Couldn't map '{{place}}' to a region yet. Pick one on the search screen.",
+    "error": "Cannot answer right now. Please try again shortly.",
+    "disclaimer": "These filters were produced by AI. This is not medical advice — please confirm with a clinician.",
+    "modelLocked": "Paid",
+    "modelLockedHint": "Choose a stronger model once you upgrade.",
+    "metaToggle": "Response details",
+    "warnings": {
+      "off_topic": "I can only help with finding hospitals.",
+      "emergency_suspected": "This may be an emergency. Call 119 or go to the nearest emergency room right away.",
+      "medical_caution": "What you asked for may differ from common medical guidance.",
+      "unsupported_inverse": "Some conditions cannot be searched in reverse and were left out.",
+      "tertiary_referral": "Tertiary hospitals charge the full fee without a referral letter.",
+      "too_vague": "A bit more detail would help us find better matches."
+    },
+    "retry": "Try again",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "newChat": "New chat",
+    "newChatConfirm": "Clear this conversation and start over? This cannot be undone.",
+    "newChatCancel": "Cancel",
+    "launcher": "Ask AI",
+    "creditsLabel": "Tokens used",
+    "copy": "Copy",
+    "copied": "Copied",
+    "conditions": {
+      "subject": "Specialty",
+      "specialist": "Specialist",
+      "assessment": "Top-rated",
+      "specialty": "Certified",
+      "equipment": "Equipment",
+      "class": "Type",
+      "tier": "{{count}} tier(s)",
+      "emergency": "ER",
+      "baby": "Night pediatrics"
+    },
+    "quotaUnavailable": "Usage is unavailable",
+    "quotaUnavailableHint": "Please reopen in a moment",
+    "quotaToggle": "Show other limits"
   }
 }

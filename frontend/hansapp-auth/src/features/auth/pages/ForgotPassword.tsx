@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Link, useSearchParams } from 'react-router-dom';
-import { requestPasswordReset, resetPassword } from '@/shared/api/auth';
-import { errorMessage } from '@/shared/api/errorMessage';
-import { Button } from '@/shared/ui/Button';
-import { TextField } from '@/shared/ui/TextField';
-import { AuthCard } from '../components/AuthCard';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useSearchParams } from "react-router-dom";
+import { requestPasswordReset, resetPassword } from "@/shared/api/auth";
+import { errorMessage } from "@/shared/api/errorMessage";
+import { Button } from "@/shared/ui/Button";
+import { TextField } from "@/shared/ui/TextField";
+import { AuthCard } from "../components/AuthCard";
 
 interface RequestForm {
   email: string;
@@ -27,9 +27,9 @@ function relayLink(
 ): string {
   if (!returnTo) return path;
   const params = new URLSearchParams({ return_to: returnTo });
-  if (clientId) params.set('client_id', clientId);
-  if (codeChallenge) params.set('code_challenge', codeChallenge);
-  if (clientState) params.set('state', clientState);
+  if (clientId) params.set("client_id", clientId);
+  if (codeChallenge) params.set("code_challenge", codeChallenge);
+  if (clientState) params.set("state", clientState);
   return `${path}?${params.toString()}`;
 }
 
@@ -40,20 +40,20 @@ function relayLink(
  */
 export default function ForgotPassword() {
   const [params] = useSearchParams();
-  const returnTo = params.get('return_to') ?? undefined;
-  const clientId = params.get('client_id') ?? undefined;
-  const codeChallenge = params.get('code_challenge') ?? undefined;
-  const clientState = params.get('state') ?? undefined;
+  const returnTo = params.get("return_to") ?? undefined;
+  const clientId = params.get("client_id") ?? undefined;
+  const codeChallenge = params.get("code_challenge") ?? undefined;
+  const clientState = params.get("state") ?? undefined;
   const loginLink = relayLink(
-    '/login',
+    "/login",
     returnTo,
     clientId,
     codeChallenge,
     clientState,
   );
 
-  const [step, setStep] = useState<'request' | 'confirm' | 'done'>('request');
-  const [email, setEmail] = useState('');
+  const [step, setStep] = useState<"request" | "confirm" | "done">("request");
+  const [email, setEmail] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
 
   const reqForm = useForm<RequestForm>();
@@ -64,9 +64,9 @@ export default function ForgotPassword() {
     try {
       await requestPasswordReset(inputEmail);
       setEmail(inputEmail);
-      setStep('confirm');
+      setStep("confirm");
     } catch (e) {
-      setServerError(errorMessage(e, '요청을 처리하지 못했습니다.'));
+      setServerError(errorMessage(e, "요청을 처리하지 못했습니다."));
     }
   });
 
@@ -74,9 +74,9 @@ export default function ForgotPassword() {
     setServerError(null);
     try {
       await resetPassword(email, code.trim(), password);
-      setStep('done');
+      setStep("done");
     } catch (e) {
-      setServerError(errorMessage(e, '비밀번호를 재설정하지 못했습니다.'));
+      setServerError(errorMessage(e, "비밀번호를 재설정하지 못했습니다."));
     }
   });
 
@@ -85,11 +85,11 @@ export default function ForgotPassword() {
     try {
       await requestPasswordReset(email);
     } catch (e) {
-      setServerError(errorMessage(e, '인증 코드 재발송에 실패했습니다.'));
+      setServerError(errorMessage(e, "인증 코드 재발송에 실패했습니다."));
     }
   };
 
-  if (step === 'done') {
+  if (step === "done") {
     return (
       <AuthCard
         title="비밀번호가 변경되었습니다"
@@ -102,22 +102,30 @@ export default function ForgotPassword() {
     );
   }
 
-  if (step === 'confirm') {
+  if (step === "confirm") {
     return (
       <AuthCard
         title="인증 코드 입력"
         subtitle={`${email} 로 보낸 코드를 입력하고 새 비밀번호를 설정하세요.`}
       >
-        <form onSubmit={onConfirm} className="space-y-3">
+        {/*
+          **key 를 준다.** 단계가 바뀌어도 React 는 같은 자리의 같은 태그(form>label>input)를
+          **재사용하며 속성만 갈아끼운다.** react-hook-form 이 등록한 입력은 비제어라 DOM 이
+          값을 그대로 들고 있어서, 앞 단계에 친 이메일이 다음 단계의 "인증 코드" 칸에 남았다.
+          key 가 다르면 그 자리를 버리고 새로 만든다.
+        */}
+        <form key="confirm" onSubmit={onConfirm} className="space-y-3">
           <TextField
             label="인증 코드"
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
+            // 단계가 바뀌면 form 이 key 로 새로 마운트되므로 여기 커서가 들어온다.
+            autoFocus
             placeholder="메일로 받은 6자리 코드"
             error={confirmForm.formState.errors.code?.message}
-            {...confirmForm.register('code', {
-              required: '인증 코드를 입력하세요.',
+            {...confirmForm.register("code", {
+              required: "인증 코드를 입력하세요.",
             })}
           />
           <TextField
@@ -126,11 +134,11 @@ export default function ForgotPassword() {
             autoComplete="new-password"
             placeholder="8자 이상"
             error={confirmForm.formState.errors.password?.message}
-            {...confirmForm.register('password', {
-              required: '새 비밀번호를 입력하세요.',
+            {...confirmForm.register("password", {
+              required: "새 비밀번호를 입력하세요.",
               minLength: {
                 value: 8,
-                message: '비밀번호는 8자 이상이어야 합니다.',
+                message: "비밀번호는 8자 이상이어야 합니다.",
               },
             })}
           />
@@ -140,11 +148,11 @@ export default function ForgotPassword() {
             autoComplete="new-password"
             placeholder="비밀번호를 한 번 더 입력하세요"
             error={confirmForm.formState.errors.passwordConfirm?.message}
-            {...confirmForm.register('passwordConfirm', {
-              required: '비밀번호를 한 번 더 입력하세요.',
+            {...confirmForm.register("passwordConfirm", {
+              required: "비밀번호를 한 번 더 입력하세요.",
               validate: (v) =>
-                v === confirmForm.getValues('password') ||
-                '비밀번호가 일치하지 않습니다.',
+                v === confirmForm.getValues("password") ||
+                "비밀번호가 일치하지 않습니다.",
             })}
           />
           {serverError && (
@@ -162,7 +170,7 @@ export default function ForgotPassword() {
             type="button"
             onClick={() => {
               setServerError(null);
-              setStep('request');
+              setStep("request");
             }}
             className="hover:underline"
           >
@@ -181,14 +189,16 @@ export default function ForgotPassword() {
       title="비밀번호 찾기"
       subtitle="가입한 이메일로 인증 코드를 보내드립니다."
     >
-      <form onSubmit={onRequest} className="space-y-3">
+      <form key="request" onSubmit={onRequest} className="space-y-3">
         <TextField
           label="이메일"
           type="email"
           autoComplete="email"
+          // 이 화면에 온 사람이 할 일은 이메일을 치는 것 하나뿐이다. 커서를 찾아 누르게 두지 않는다.
+          autoFocus
           placeholder="you@example.com"
           error={reqForm.formState.errors.email?.message}
-          {...reqForm.register('email', { required: '이메일을 입력하세요.' })}
+          {...reqForm.register("email", { required: "이메일을 입력하세요." })}
         />
         {serverError && (
           <p className="whitespace-pre-line text-sm text-red-500">
@@ -201,8 +211,11 @@ export default function ForgotPassword() {
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-500">
-        비밀번호가 기억나셨나요?{' '}
-        <Link to={loginLink} className="font-semibold text-primary hover:underline">
+        비밀번호가 기억나셨나요?{" "}
+        <Link
+          to={loginLink}
+          className="font-semibold text-primary hover:underline"
+        >
           로그인
         </Link>
       </p>

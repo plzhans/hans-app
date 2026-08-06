@@ -1,9 +1,12 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { EventPublisherModule } from '@hansapp/event-publisher';
+import { EventConsumerModule } from '@hansapp/event-consumer';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
 import type { ConfigSource } from '@hansapp/common';
 import { ApplicationModule } from '@hansapp/application';
+import { HealthcareMcpServer } from '@hansapp/mcp';
 import {
   AuthModule,
   AuthGuard,
@@ -34,6 +37,9 @@ import { NmcRegionController } from './datagokr/nmc/nmc-region.controller';
 import { NmcHospitalController } from './datagokr/nmc/nmc-hospital.controller';
 import { HealthcareHospitalController } from './healthcare/hospital.controller';
 import { HealthcareMetaController } from './healthcare/meta.controller';
+import { HealthcareAiSearchController } from './healthcare/ai-search.controller';
+import { AiCapabilitiesController } from './ai/capabilities.controller';
+import { HealthcareMcpController } from './mcp/healthcare-mcp.controller';
 import { TransportController } from './transport/transport.controller';
 import { RegionController } from './region/region.controller';
 
@@ -59,6 +65,17 @@ export class AppModule {
         // Sentry.init 은 instrument.ts 가 이미 끝냈다 — 이 모듈은 "Nest 쪽 배선" 만 한다.
         // DSN 이 없어 init 을 건너뛴 경우에도 안전하다(전부 no-op).
         SentryModule.forRoot(),
+        // 도메인 이벤트 발행(전역). 로그인 뒤에 붙는 일들이 응답 경로 밖에서 돌게 한다.
+        EventPublisherModule.forRoot(config),
+        /*
+          **지금은 API 가 소비도 한다.** 처리기는 AuthModule 이 갖고 있고, 이 모듈이 워커를
+          띄운다. 나중에 전용 소비 서버로 옮기려면 그 서버가 이 둘(AuthModule·EventConsumerModule)
+          을 등록하고 여기서는 이 줄만 지우면 된다.
+
+          **두 프로세스가 동시에 소비하면 안 된다.** 큐가 하나라 잡이 어느 워커로 갈지
+          정할 수 없다 — 옮길 때는 겹치지 않게 한쪽을 먼저 내린다.
+        */
+        EventConsumerModule.forRoot(config),
         ApplicationModule.forRoot(config),
         AuthModule.forRoot(config),
         // 전역 rate limit. 라이브러리 기본 저장소는 인메모리(인스턴스별) 다 —
@@ -88,6 +105,9 @@ export class AppModule {
         NmcBabyController,
         HealthcareHospitalController,
         HealthcareMetaController,
+        HealthcareAiSearchController,
+        AiCapabilitiesController,
+        HealthcareMcpController,
         TransportController,
         RegionController,
         BusinessController,
@@ -106,6 +126,11 @@ export class AppModule {
         { provide: APP_GUARD, useExisting: AuthGuard },
         BusinessService,
         AddressService,
+        // MCP 도구 서버. **모듈이 아니라 여기 프로바이더로 둔다** — 도구가 부르는 서비스
+        // (HealthcareHospitalService 등)는 위에서 import 한 ApplicationModule 이 export 하는데,
+        // 별도 모듈로 감싸면 그쪽에서 ApplicationModule.forRoot 를 또 불러야 하고 그러면
+        // Prisma 풀·코드 캐시가 두 벌 뜬다. 도구 정의 자체는 @hansapp/mcp 가 소유한다.
+        HealthcareMcpServer,
         // 외부 API 클라이언트. **이 서버에서 외부(국세청·도로명주소)를 직접 호출하는 소수의 API 용이다.**
         // 나머지 API 는 로컬 DB 미러를 읽는다.
         //

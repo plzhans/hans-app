@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { startLogin, startLogout } from '@/shared/auth/login';
+import { startLogin } from '@/shared/auth/login';
+import { UserMenu } from '@/shared/components/UserMenu';
 import { LINKS } from '@/shared/config/links';
 
 const MENU = [
@@ -12,7 +13,6 @@ const MENU = [
 /** 상단 글로벌 내비게이션. 서비스 바로가기 메뉴 + 로그인 상태별 버튼. */
 export function Gnb() {
   const status = useAuthStore((s) => s.status);
-  const me = useAuthStore((s) => s.me);
 
   return (
     <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur">
@@ -42,24 +42,8 @@ export function Gnb() {
             // 레이아웃 밀림을 막으려 버튼 크기의 스켈레톤을 자리만 잡아 둔다.
             <div className="h-8 w-20 animate-pulse rounded-lg bg-gray-100" />
           ) : status === 'authenticated' ? (
-            <>
-              <Link
-                to="/apps"
-                className="text-sm font-semibold text-gray-700 transition hover:text-primary"
-              >
-                앱 관리
-              </Link>
-              <span className="hidden text-sm text-gray-500 sm:inline">
-                {me?.email}
-              </span>
-              <button
-                type="button"
-                onClick={() => startLogout()}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                로그아웃
-              </button>
-            </>
+            /* 이름만 보이고 누르면 앱 관리·마이페이지·로그아웃이 펼쳐진다. UserMenu 주석 참고. */
+            <UserMenu />
           ) : (
             <button
               type="button"

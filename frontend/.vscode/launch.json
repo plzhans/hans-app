@@ -52,7 +52,7 @@
       "name": "fe: medifinder-web (chrome)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:5173",
+      "url": "http://127.0.0.1:5173",
       "webRoot": "${workspaceFolder}/medifinder-web/src",
       "sourceMapPathOverrides": {
         "webpack:///./src/*": "${workspaceFolder}/medifinder-web/src/*",

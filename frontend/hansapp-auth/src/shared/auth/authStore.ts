@@ -32,6 +32,13 @@ interface AuthState {
   signOut: () => Promise<void>;
   /** 다른 탭에서 온 인증 이벤트를 반영한다(App 이 구독해 연결). */
   syncFromOtherTab: (event: AuthEvent) => Promise<void>;
+  /**
+   * 서버에서 내 정보를 다시 읽어 캐시와 화면을 맞춘다.
+   *
+   * 정보를 고친 직후에 부른다 — 화면이 낙관적으로 값을 바꿔치기하면 서버가 다듬은 결과
+   * (예: 앞뒤 공백을 떼거나 빈 이름을 '없음' 으로 두는 것)와 어긋난다.
+   */
+  refreshMe: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -88,6 +95,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     saveMe(me);
     set({ status: 'authenticated', me });
     publishAuth('login');
+  },
+
+  refreshMe: async () => {
+    const me = await getMe();
+    saveMe(me);
+    set({ me });
   },
 
   signOut: async () => {

@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { createApp, listApps } from '@/shared/api/apps';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { Gnb } from '@/shared/components/Gnb';
+import { Footer } from '@/shared/components/Footer';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { latinRegister } from '@/shared/lib/latinInput';
@@ -78,9 +79,9 @@ export default function Apps() {
   });
 
   return (
-    <div className="min-h-full">
+    <div className="flex min-h-full flex-col">
       <Gnb />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="flex-1 mx-auto max-w-5xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">앱 관리</h1>
@@ -200,6 +201,7 @@ export default function Apps() {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

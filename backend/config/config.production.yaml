@@ -13,7 +13,7 @@ redis:
 
 elasticsearch:
   url: ${ELASTICSEARCH_URL}
-  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:-production}
+  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:production}
 
 # 서버 기동·종료 슬랙 알림. 비면 알림만 꺼지고 서버는 정상으로 뜬다.
 # botToken 이 있어야 종료 알림이 시작 알림의 스레드에 달린다(자세한 설명은 config.develop.yaml).
@@ -35,21 +35,21 @@ auth:
   # 운영 서비스 루트 도메인(앞 점 없이). SSO 쿠키 Domain + 1st-party 판단이 여기서 파생.
   # 소셜 로그인 흐름(state·흐름 쿠키)의 유효시간(초). **둘이 같은 값을 쓴다.**
   # provider 화면에서 계정을 고르고 동의하는 시간이라 너무 짧으면 정상 로그인이 실패한다.
-  socialFlowTtlSec: ${AUTH_SOCIAL_FLOW_TTL_SEC:-600}
+  socialFlowTtlSec: ${AUTH_SOCIAL_FLOW_TTL_SEC:600}
   # 쿠키에 Secure 를 붙일지. HTTPS 로 서비스하면 켠다.
   #
   # **sameSite 와는 별개다** — 그쪽은 lax 로 고정돼 있다(refresh-cookie.ts).
   # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
   # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
-  cookieSecure: ${AUTH_COOKIE_SECURE:-true}
+  cookieSecure: ${AUTH_COOKIE_SECURE:true}
   # 쿠키 이름 접두사. **환경마다 달라야 한다.**
   # develop-auth·api 는 develop.plzhans.com 의 서브도메인이 아니라 plzhans.com 의 형제라,
   # 쿠키 도메인을 양쪽 다 plzhans.com 까지 올려야 한다. 이름까지 같으면 한 환경에서
   # 로그인할 때마다 다른 환경의 세션 토큰을 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
-  cookiePrefix: ''
+  cookiePrefix: ${AUTH_COOKIE_PREFIX}
   rootDomain: plzhans.com
   # bcrypt 비용 계수. 저사양이면 10.
-  bcryptRounds: ${AUTH_BCRYPT_ROUNDS:-10}
+  bcryptRounds: ${AUTH_BCRYPT_ROUNDS:10}
   # OAuth2 authorization_endpoint = 프론트(hans-auth) 로그인 URL. discovery 에 실린다.
   # 인증웹(fe/hans-auth) 외부 주소. 자사 로그인 착지점(/me·/callback)과 discovery 의
   # authorization_endpoint(/login)가 모두 여기서 파생된다.
@@ -71,11 +71,11 @@ auth:
     #refreshTokenExpiresIn: 7d
     #authCodeExpiresIn: 5m
   otp:
-    codeLength: ${AUTH_OTP_CODE_LENGTH:-6}
-    ttlSec: ${AUTH_OTP_TTL_SEC:-600}
-    maxAttempts: ${AUTH_OTP_MAX_ATTEMPTS:-5}
-    resendCooldownSec: ${AUTH_OTP_RESEND_COOLDOWN_SEC:-60}
-    maxSendsPerHour: ${AUTH_OTP_MAX_SENDS_PER_HOUR:-5}
+    codeLength: ${AUTH_OTP_CODE_LENGTH:6}
+    ttlSec: ${AUTH_OTP_TTL_SEC:600}
+    maxAttempts: ${AUTH_OTP_MAX_ATTEMPTS:5}
+    resendCooldownSec: ${AUTH_OTP_RESEND_COOLDOWN_SEC:60}
+    maxSendsPerHour: ${AUTH_OTP_MAX_SENDS_PER_HOUR:5}
     # 코드 해시 pepper(시크릿).
     hashSecret: ${AUTH_JWT_SECRET}
 
@@ -99,15 +99,15 @@ apps-api:
     # Cloudflare Origin CA 로 발급한 api.plzhans.com 인증서(2041-07 만료).
     # 경로가 상대경로인 이유: 컨테이너 WORKDIR 이 /app 이고 compose 가 config/production 을
     # 그 아래로 마운트한다. 로컬에서 돌릴 때도 backend/ 기준이라 같은 경로가 맞는다.
-    sslCertificate: ${SSL_CERTIFICATE:-config/production/ssl/fullchain.pem}
-    sslCertificateKey: ${SSL_CERTIFICATE_KEY:-config/production/ssl/privkey.pem}
+    sslCertificate: ${SSL_CERTIFICATE:config/production/ssl/fullchain.pem}
+    sslCertificateKey: ${SSL_CERTIFICATE_KEY:config/production/ssl/privkey.pem}
   proxy:
     # **토폴로지 확정**: Cloudflare 가 바로 앞이고 그 사이에 다른 프록시가 없다. 홉이 하나라 1.
     # 위조 XFF 로 IP 한도를 우회하는 것을 막으려면 이 값이 실제 홉 수보다 크면 안 된다.
-    trust: ${TRUST_PROXY:-1}
+    trust: ${TRUST_PROXY:1}
     # Cloudflare 가 붙이는 진짜 클라이언트 IP. 이걸 안 쓰면 접속 IP 가 전부 CF 로 찍혀
     # rate limit 과 접근 로그가 무의미해진다.
-    clientIpHeader: ${CLIENT_IP_HEADER:-cf-connecting-ip}
+    clientIpHeader: ${CLIENT_IP_HEADER:cf-connecting-ip}
   # API 문서(/docs, /openapi.json) 노출.
   #
   # **운영도 켠다.** 대신 env_swagger_allowed_ip 에 등록된 IP 에서만 보인다 — 그 외에는 403.
@@ -118,14 +118,14 @@ apps-api:
   #
   # 목록이 비어 있으면 아무도 못 본다(fail-closed). 켠 직후 최소 한 건은 넣어야 한다.
   swagger:
-    enabled: ${SWAGGER_ENABLED:-true}
-    ipRestricted: ${SWAGGER_IP_RESTRICTED:-true}
+    enabled: ${SWAGGER_ENABLED:true}
+    ipRestricted: ${SWAGGER_IP_RESTRICTED:true}
   # 에러 추적(Sentry). DSN 은 비밀이 아니라 리터럴로 고정한다(전송 전용 공개 엔드포인트).
   # environment·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts. 비우면 Sentry 를 끈다.
   sentry:
-    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:기본값} 의 기본값으로 되돌아간다)
     # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:-true}
+    enabled: ${SENTRY_ENABLED:true}
     dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
     # 성능 트레이스 표본 비율. 운영은 요청량이 많아 10% 만 샘플링한다(쿼터·오버헤드).
     tracesSampleRate: 0.1
@@ -145,8 +145,8 @@ mail:
   provider: smtp
   smtp:
     host: ${MAIL_SMTP_HOST}
-    port: ${MAIL_SMTP_PORT:-587}
-    secure: ${MAIL_SMTP_SECURE:-false}
+    port: ${MAIL_SMTP_PORT:587}
+    secure: ${MAIL_SMTP_SECURE:false}
     user: ${MAIL_SMTP_USER}
     password: ${MAIL_SMTP_PASSWORD}
 
@@ -186,13 +186,49 @@ juso:
 apps-batch:
   # 앱 이름. 로그·에러 보고 등에 쓰인다.
   name: hansapp-batch
-  cron: ${BATCH_CRON:-0 4 * * *}
-  maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:-0}
+  cron: ${BATCH_CRON:0 4 * * *}
+  maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:0}
   # 에러 추적(Sentry). **apps-api 와 별도 프로젝트**(DSN 이 다르다) — 알림 규칙을 나눈다. 비면 끈다.
   sentry:
-    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:-기본값} 의 기본값으로 되돌아간다)
+    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:기본값} 의 기본값으로 되돌아간다)
     # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:-true}
+    enabled: ${SENTRY_ENABLED:true}
     dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
     # 배치는 요청 트레이스가 없다. 크론 실행 트레이스가 필요해지면 올린다.
     tracesSampleRate: 0
+
+llm:
+  # anthropic | openai | local. local 은 OpenAI 호환 엔드포인트(ollama·vLLM·LM Studio).
+  defaultProvider: anthropic
+  timeoutSec: 30
+  # 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
+  maxTokens: 2048
+  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
+  promptDir: data/healthcare/svc-prompts
+  # 질문 끝의 `/test` 를 답변 모드로 받는다. **로그인이 붙기 전까지의 임시 수단**이라
+  # 켜져 있으면 누구나 유료로 팔 답변을 공짜로 받는다 — 운영은 반드시 꺼 둔다.
+  allowTestCommand: ${LLM_ALLOW_TEST_COMMAND:false}
+  # 응답에 원시 사용량(모델 이름·토큰 내역)을 실는다. **운영은 꺼 둔다.**
+  # 사용자에게 파는 단위는 환산 크레딧 하나뿐이고, 어느 모델로 몇 토큰 썼는지가 드러나면
+  # 요금이 역산된다 — 화면에서 감추는 것으로는 안 감춰지므로(응답 JSON) 여기서 끊는다.
+  exposeDebugUsage: ${LLM_EXPOSE_DEBUG_USAGE:false}
+  # 답변 서명 키(HMAC-SHA256). **비어 있으면 답변을 문맥으로 이어받지 않는다.**
+  # 화면이 돌려보내는 직전 답변은 "우리가 이렇게 답했다" 는 주장이라, 서명이 없으면
+  # 아무 문장이나 심어 모델을 유도할 수 있다. 없으면 서명도 안 붙이고 받지도 않는다.
+  answerSigningKey: ${LLM_ANSWER_SIGNING_KEY}
+  # 업체 이름으로 둔다(모델 이름 claude 가 아니라). openai 와 같은 층위여야 읽을 때
+  # 헷갈리지 않고, 한 업체가 모델을 여럿 내도 이 키는 그대로다.
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+    # 구독 토큰. **로컬 전용** — 개인 구독이라 사용자 트래픽을 태우면 안 된다.
+    #   claude setup-token 생성
+    # 키와 토큰이 둘 다 있으면 키가 이긴다.
+    authToken: ${ANTHROPIC_AUTH_TOKEN}
+    defaultModel: ${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}
+    # 아직 못 고르는 모델. 화면에 자물쇠와 함께 보인다 — "곧 열린다" 를 미리 알리는 목록이고,
+    # 골라도 요청에는 안 실린다. 유료가 열리면 하나씩 defaultModel 쪽으로 옮겨 온다.
+    lockedModels: [claude-opus-5]
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+    # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
+    defaultModel: ${OPENAI_DEFAULT_MODEL}

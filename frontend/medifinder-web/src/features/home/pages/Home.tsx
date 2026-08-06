@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react';
+import { loadErrorKey } from '@/shared/api/errorMessage';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,13 +12,18 @@ import {
   Search,
   Siren,
   SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { Input } from '@/shared/ui/Input';
 import { Button } from '@/shared/ui/Button';
 import { MyLocationButton } from '@/shared/components/MyLocationButton';
 import { LangLink } from '@/shared/i18n/LangLink';
 import { useLangPath } from '@/shared/i18n/routing';
-import { useHospitalSearch, type HospitalSearchParams } from '@/features/clinic/api';
+import { useAiSearchPanel } from '@/features/ai-search/model/AiSearchPanel';
+import {
+  useHospitalSearch,
+  type HospitalSearchParams,
+} from '@/features/clinic/api';
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
 import { cn } from '@/shared/lib/utils';
 
@@ -94,6 +100,8 @@ export default function Home() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const path = useLangPath();
+  // 채팅창은 MainLayout 의 Provider 가 들고 있다. 여기서는 열어 달라고만 한다.
+  const panel = useAiSearchPanel();
   const [keyword, setKeyword] = useState('');
 
   function onSubmit(e: FormEvent) {
@@ -196,6 +204,20 @@ export default function Home() {
             더 좁혀 찾고 싶으면 그 자리에서 바로 넘어간다.
           */}
           <div className="flex flex-wrap items-center gap-2">
+            {/*
+              AI 문의. **검색 상자 바로 아래**가 제자리다 — "뭐라고 쳐야 하지" 가 생기는
+              곳이 검색창이고, 그때 눈이 가 있는 자리가 여기다. 오른쪽 아래 FAB 과 같은
+              창을 열지만 그건 스크롤을 내린 뒤에야 눈에 들어온다.
+            */}
+            <button
+              type="button"
+              onClick={panel.open}
+              className="inline-flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[0.72rem] font-bold text-brand-strong transition-colors active:bg-brand-tint/70"
+            >
+              <Sparkles className="h-3 w-3" />
+              {t('home.aiSearch')}
+            </button>
+
             {/* 상세검색으로 바로. advanced=1 이면 검색 화면이 조건을 펼친 채로 연다. */}
             <LangLink
               to="/search?advanced=1"
@@ -230,7 +252,7 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
   const { t } = useTranslation();
   const { icon: Icon, iconBox } = section;
 
-  const { data, isPending } = useHospitalSearch({
+  const { data, error, isPending, isError } = useHospitalSearch({
     page: 1,
     size: FEATURED_SIZE,
     ...section.params,
@@ -238,9 +260,12 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
 
   const hospitals = data?.items ?? [];
 
-  // 로딩이 끝났는데 한 곳도 없는 상태. 섹션을 지우면(스켈레톤 → 사라짐) 깜빡여 이상하니,
-  // 자리는 유지하고 "없음"을 그린다. 이럴 땐 갈 곳이 없어 "더보기"도 숨긴다.
-  const isEmpty = !isPending && hospitals.length === 0;
+  /*
+    **못 불러온 것과 없는 것은 다르다.** 조회가 실패해도 목록은 0 건이라, 구분하지 않으면
+    "표시할 병원이 없어요" 가 뜬다 — 사용자는 그 지역에 병원이 없다고 읽는다.
+    검색 결과 화면(SearchResults)은 이미 갈라 놓았는데 여기만 빠져 있었다.
+  */
+  const isEmpty = !isPending && !isError && hospitals.length === 0;
 
   return (
     <section className="mt-6 px-1 first:mt-0">
@@ -263,7 +288,7 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
             </p>
           </div>
         </div>
-        {!isEmpty && (
+        {!isEmpty && !isError && (
           <LangLink
             to={section.to}
             className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-surface px-2.5 py-1 text-[0.72rem] font-bold text-ink-muted no-underline shadow-card transition-transform duration-100 ease-native active:scale-95"
@@ -274,7 +299,12 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
         )}
       </div>
 
-      {isEmpty ? (
+      {isError ? (
+        // 실패 사유마다 사용자가 할 일이 다르다 — loadErrorKey 주석 참고.
+        <p className="rounded-tile border border-line-subtle bg-surface px-4 py-6 text-center text-sm text-danger shadow-card">
+          {t(loadErrorKey(error))}
+        </p>
+      ) : isEmpty ? (
         <p className="rounded-tile border border-line-subtle bg-surface px-4 py-6 text-center text-sm text-ink-subtle shadow-card">
           {t('home.sections.empty')}
         </p>
