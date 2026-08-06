@@ -6,10 +6,11 @@ import { getMyConsents, type ConsentRecord } from '@/shared/api/auth';
 import { Button } from '@/shared/ui/Button';
 import { AuthCard } from '../components/AuthCard';
 import { SessionList } from '../components/SessionList';
+import { SocialLinkSection } from '../components/SocialLinkSection';
 import { WithdrawSection } from '../components/WithdrawSection';
 
 /**
- * 마이페이지. 열람·정정·기기 관리·탈퇴를 한다(소셜 연동 관리는 다음 단계).
+ * 마이페이지. 열람·정정·기기 관리·소셜 연동·탈퇴를 한다.
  *
  * **개인정보처리방침 제10조가 약속한 것을 이행하는 자리다.** 방침에 "회원은 계정 설정에서
  * 직접 열람·정정할 수 있다" 고 적어 둔 이상, 그 화면이 없으면 문서가 앞서 나간 상태가 된다.
@@ -39,14 +40,6 @@ export default function Home() {
           <Row label="이름" value={me.name ?? '-'} />
           <Row label="가입일" value={formatDate(me.createdAt)} />
           <Row label="가입수단" value={providerLabel(me.joinType)} />
-          <Row
-            label="연동된 계정"
-            value={
-              me.linkedProviders.length
-                ? me.linkedProviders.map(providerLabel).join(', ')
-                : '없음'
-            }
-          />
           <Row label="이메일 인증" value={me.emailVerified ? '완료' : '미완료'} />
         </dl>
       )}
@@ -68,6 +61,8 @@ export default function Home() {
       )}
 
       <SessionList />
+
+      <SocialLinkSection />
 
       <div className="mt-6 space-y-2">
         {/* 고치는 자리는 별도 화면이다. 여기는 읽는 화면이라 보내기만 한다. */}

@@ -221,6 +221,37 @@ export function revokeAllSessions(): Promise<void> {
   return apiFetch('/auth/me/sessions', { method: 'DELETE' }, { auth: true });
 }
 
+/**
+ * 소셜 연동 시작 토큰. 로그인 상태에서 받아 시작 URL 에 실어 보낸다.
+ *
+ * **로그인과 같은 진입점(GET /auth/:provider)을 쓴다.** 다른 점은 이 토큰뿐이다 —
+ * 서버가 토큰을 열어 "누구에게 붙일 연동인가" 를 알아내고, 서명 state 에 실어 콜백까지 나른다.
+ */
+export function prepareSocialLink(): Promise<{ linkToken: string }> {
+  return apiFetch(
+    '/auth/social/link/prepare',
+    { method: 'POST' },
+    { auth: true },
+  );
+}
+
+/**
+ * 연동 해제. **마지막 로그인 수단이면 서버가 거부한다**(비밀번호도 없고 연동 하나뿐인 경우).
+ * 화면에서도 미리 막지만, 판단의 정본은 서버다 — 다른 탭에서 먼저 지웠을 수 있다.
+ */
+export function unlinkSocial(provider: SocialProvider): Promise<void> {
+  return apiFetch(`/auth/${provider}/link`, { method: 'DELETE' }, { auth: true });
+}
+
+/** 연동 시작 URL(전체 페이지 리다이렉트). 끝나면 백엔드가 콜백에 linked=1 을 실어 돌려보낸다. */
+export function socialLinkUrl(
+  provider: SocialProvider,
+  linkToken: string,
+): string {
+  const params = new URLSearchParams({ link_token: linkToken });
+  return `${API_BASE_URL}/auth/${provider}?${params.toString()}`;
+}
+
 /** 내 동의 기록. 마이페이지의 열람 항목이다. */
 export function getMyConsents(): Promise<ConsentRecord[]> {
   return apiFetch('/auth/me/consents', {}, { auth: true });

@@ -127,6 +127,15 @@ export default function Callback() {
       setMessage(ERROR_MESSAGES[error] ?? `로그인 실패: ${error}`);
       return;
     }
+    /*
+      **연동은 로그인이 아니다.** 세션은 이미 있고 늘어난 건 로그인 수단뿐이라, 여기서
+      토큰을 만지지 않고 마이페이지로 돌려보낸다. linked 를 달고 가는 이유는 그 화면이
+      프로필을 다시 읽어야 하기 때문이다 — 방금 붙인 연동은 캐시된 me 에 없다.
+    */
+    if (params.get('linked') === '1') {
+      navigate('/me?linked=1', { replace: true });
+      return;
+    }
     if (code) {
       // 이 브라우저가 시작한 흐름의 verifier 를 꺼낸다. 없으면 교환하지 않는다.
       const verifier = takeVerifier();
