@@ -74,6 +74,16 @@ export class ConsentService {
    * "가입이 안 된" 것으로 보게 되는데, 실제로 잃은 것은 우리 쪽 증빙이다. 대신 예외를
    * 그대로 올려 로그에 남도록 둔다(호출부가 감싸지 않는다).
    */
+  /**
+   * 이 회원의 동의 기록. **본인 열람용이다**(개인정보처리방침 제10조).
+   *
+   * IP·기기는 여기서 걸러 내지 않는다 — 걸러 내는 것은 응답을 만드는 쪽(컨트롤러)의 몫이고,
+   * 이 계층은 저장된 그대로를 돌려준다.
+   */
+  listByUser(userId: number) {
+    return this.consents.listByUser(userId);
+  }
+
   async record(
     userId: number,
     input: ConsentInput,

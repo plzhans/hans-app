@@ -196,6 +196,12 @@ export class SocialService {
     };
   }
 
+  /** 이 회원에 연동된 소셜 제공자 목록. 마이페이지의 열람에 쓴다. */
+  async listLinked(userId: number): Promise<OAuthProvider[]> {
+    const links = await this.oauths.listByUser(userId);
+    return links.map((l) => l.provider);
+  }
+
   /**
    * 소셜 가입 코드 발송. 티켓의 이메일(네이버·라인 등) 또는 사용자가 입력한 이메일(카카오 등)로
    * 인증 코드를 보낸다. provider 가 이미 검증한 이메일이면 코드가 필요 없다(호출하지 않는다).

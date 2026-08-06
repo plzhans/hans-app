@@ -256,4 +256,38 @@ export class MeResponseDto {
 
   @ApiProperty({ description: '최초 가입 수단', example: 'EMAIL' })
   readonly joinType!: string;
+
+  @ApiProperty({
+    description: '가입 일시',
+    example: '2026-08-06T02:10:00.000Z',
+  })
+  readonly createdAt!: string;
+
+  @ApiProperty({
+    description: '연동된 소셜 제공자 목록',
+    example: ['GOOGLE', 'KAKAO'],
+    type: [String],
+  })
+  readonly linkedProviders!: string[];
+}
+
+/**
+ * 동의 기록 한 줄.
+ *
+ * **이용자가 볼 수 있어야 기록이 의미를 가진다.** 개인정보처리방침 제10조가 약속한 "열람" 의
+ * 실체가 이것이다 — 무엇에 언제 어느 판으로 동의했는지를 본인이 확인할 수 있어야 한다.
+ * IP·기기는 돌려주지 않는다. 본인 것이라도 화면에 뿌릴 이유가 없고, 유출 시 손해만 는다.
+ */
+export class ConsentRecordDto {
+  @ApiProperty({ description: '동의 항목', example: 'TERMS' })
+  readonly type!: string;
+
+  @ApiProperty({ description: '동의한 문서의 판', example: '2026-08-06' })
+  readonly version!: string;
+
+  @ApiProperty({
+    description: '동의 일시',
+    example: '2026-08-06T02:10:00.000Z',
+  })
+  readonly agreedAt!: string;
 }

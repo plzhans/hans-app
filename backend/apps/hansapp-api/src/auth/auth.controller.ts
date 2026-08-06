@@ -19,9 +19,11 @@ import {
   Auth,
   AuthService,
   AuthType,
+  ConsentService,
   CurrentUser,
   FirstPartyOnly,
   Public,
+  SocialService,
 } from '@hansapp/auth-application';
 import type { AuthResult, AuthUser } from '@hansapp/auth-application';
 import type { SupportedLang } from '@hansapp/common';
@@ -31,6 +33,7 @@ import { Lang } from '../common/lang.decorator';
 import {
   ChangePasswordRequestDto,
   LoginRequestDto,
+  ConsentRecordDto,
   MeResponseDto,
   PasswordResetConfirmDto,
   PasswordResetRequestDto,
@@ -53,7 +56,11 @@ import {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly socialService: SocialService,
+    private readonly consentService: ConsentService,
+  ) {}
 
   @Post('signup/request-code')
   @Public()
@@ -122,7 +129,10 @@ export class AuthController {
   })
   @ApiOkResponse({ type: MeResponseDto })
   async me(@CurrentUser() user: AuthUser): Promise<MeResponseDto> {
-    const u = await this.authService.getProfile(user.userId);
+    const [u, linked] = await Promise.all([
+      this.authService.getProfile(user.userId),
+      this.socialService.listLinked(user.userId),
+    ]);
     return {
       id: u.id,
       email: u.email,
@@ -130,7 +140,26 @@ export class AuthController {
       name: u.name,
       role: u.role,
       joinType: u.joinType,
+      createdAt: u.createdAt.toISOString(),
+      linkedProviders: linked,
     };
+  }
+
+  @Get('me/consents')
+  @Auth(AuthType.Jwt)
+  @ApiOperation({
+    summary: '내 동의 기록',
+    description:
+      '가입 시 무엇에 언제 어느 판으로 동의했는지 돌려준다. 개인정보처리방침 제10조의 열람 요구에 응하는 자리다.',
+  })
+  @ApiOkResponse({ type: [ConsentRecordDto] })
+  async consents(@CurrentUser() user: AuthUser): Promise<ConsentRecordDto[]> {
+    const rows = await this.consentService.listByUser(user.userId);
+    return rows.map((r) => ({
+      type: r.type,
+      version: r.version,
+      agreedAt: r.agreedAt.toISOString(),
+    }));
   }
 
   @Post('withdraw')

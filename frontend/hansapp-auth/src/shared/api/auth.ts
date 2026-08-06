@@ -20,6 +20,19 @@ export interface Me {
   name?: string | null;
   role: string;
   joinType: string;
+  createdAt: string;
+  /** 연동된 소셜 제공자(GOOGLE·NAVER·KAKAO·LINE). 이메일만으로 가입했으면 빈 배열. */
+  linkedProviders: string[];
+}
+
+/**
+ * 동의 기록 한 줄. **본인 열람용**(개인정보처리방침 제10조).
+ * IP·기기는 서버가 돌려주지 않는다 — 본인 것이라도 화면에 뿌릴 이유가 없다.
+ */
+export interface ConsentRecord {
+  type: string;
+  version: string;
+  agreedAt: string;
 }
 
 export function emailLogin(email: string, password: string): Promise<TokenResponse> {
@@ -130,6 +143,11 @@ export function socialRegister(
 
 export function getMe(): Promise<Me> {
   return apiFetch('/auth/me', {}, { auth: true });
+}
+
+/** 내 동의 기록. 마이페이지의 열람 항목이다. */
+export function getMyConsents(): Promise<ConsentRecord[]> {
+  return apiFetch('/auth/me/consents', {}, { auth: true });
 }
 
 /**
