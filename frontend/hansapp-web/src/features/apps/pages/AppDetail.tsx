@@ -23,21 +23,31 @@ import {
   deleteApiKey,
   deleteApp,
   deleteClient,
+  createLlmKey,
+  deleteLlmKey,
   getApp,
+  listLlmKeys,
   regenerateApiKey,
   regenerateClientSecret,
   requestReview,
   updateApp,
   updateClient,
+  updateLlmKey,
   type ApiKeySummary,
   type AppClient,
   type AppClientType,
   type AppDetail as AppDetailT,
   type CreateClientInput,
+  type CreateLlmKeyInput,
   type CreatedApiKey,
   type CreatedClient,
+  type LlmKey,
+  type LlmKeyVerifyState,
+  type LlmProvider,
+  type UpdateLlmKeyInput,
 } from '@/shared/api/apps';
 import { errorMessage } from '@/shared/api/errorMessage';
+import { LLM_PROVIDER_KEYS_ENABLED } from '@/shared/config/env';
 import { Gnb } from '@/shared/components/Gnb';
 import { Footer } from '@/shared/components/Footer';
 import { Button } from '@/shared/ui/Button';
@@ -148,16 +158,10 @@ export default function AppDetail() {
                       />
                     </>
                   ) : (
-                    <ProviderKeySection />
+                    <ProviderKeySection appId={appId} />
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* 앱 삭제는 언제나 페이지 맨 아래다. 되돌릴 수 없는 동작이라 다른 카드 사이에
-                끼워 두면 스크롤 중에 눈에 먼저 들어온다. */}
-            <div className="mt-6">
-              <DangerZone appId={appId} appName={app.name} />
             </div>
           </>
         )}
@@ -541,8 +545,15 @@ function DeletedAppView({ app }: { app: AppDetailT }) {
   );
 }
 
-// ---- 기본 정보 (앱 이름 수정) ----
+// ---- 기본 정보 (정보 수정) ----
 
+/**
+ * 기본 정보. **읽기 전용으로만 있는다** — 수정은 별도 창에서 한다.
+ *
+ * 제자리에서 칸이 입력란으로 바뀌면 같은 자리가 볼 때와 고칠 때 다른 뜻을 갖게 되고,
+ * 항목이 늘수록 그 자리가 표였다 폼이었다 하며 줄이 밀린다. 창을 따로 열면 보는 화면은
+ * 늘 같은 모양이고, 고칠 항목이 늘어도 넓힐 곳이 정해져 있다.
+ */
 function BasicInfoSection({
   appId,
   app,
@@ -553,64 +564,26 @@ function BasicInfoSection({
   onChange: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(app.name);
-
-  const rename = useMutation({
-    mutationFn: (v: string) => updateApp(appId, { name: v }),
-    onSuccess: () => {
-      setEditing(false);
-      onChange();
-    },
-  });
-
-  const trimmed = name.trim();
-  const valid = APP_NAME_RE.test(trimmed);
-  const canSave = valid && trimmed !== app.name;
 
   return (
     <Card>
-      <SectionHead icon={<Info className="h-5 w-5" />} title="기본 정보" />
+      <SectionHead
+        icon={<Info className="h-5 w-5" />}
+        title="기본 정보"
+        /* 수정 진입은 제목 줄 오른쪽 끝. 무엇을 고치는지가 제목에 적혀 있다. */
+        right={
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-primary hover:text-primary"
+          >
+            정보 수정
+          </button>
+        }
+      />
       <div className="rounded-lg bg-gray-50 px-4 py-3">
         <Row label="앱 ID" value={String(app.id)} />
-        {editing ? (
-          <div className="py-1">
-            <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
-              <span className="text-sm text-gray-500">이름</span>
-              <input
-                autoFocus
-                value={name}
-                onChange={(e) =>
-                  setName(
-                    (e.nativeEvent as InputEvent).isComposing
-                      ? e.target.value
-                      : stripNonLatin(e.target.value),
-                  )
-                }
-                onCompositionEnd={(e) =>
-                  setName(stripNonLatin(e.currentTarget.value))
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && canSave) rename.mutate(trimmed);
-                  if (e.key === 'Escape') {
-                    setName(app.name);
-                    setEditing(false);
-                  }
-                }}
-                placeholder="my-service"
-                className="h-9 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-100"
-              />
-            </div>
-            <p
-              className={`mt-1.5 text-xs ${
-                trimmed.length > 0 && !valid ? 'text-red-500' : 'text-gray-400'
-              }`}
-            >
-              영어와 하이픈(-)만 사용할 수 있습니다.
-            </p>
-          </div>
-        ) : (
-          <Row label="이름" value={app.name} />
-        )}
+        <Row label="이름" value={app.name} />
         <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-3 py-1.5 text-sm">
           <span className="text-gray-500">상태</span>
           <StatusBadge status={app.status} reviewState={app.reviewState} />
@@ -618,45 +591,113 @@ function BasicInfoSection({
         <Row label="생성일" value={app.createdAt.slice(0, 10)} />
       </div>
 
-      {rename.isError && (
-        <p className="mt-2 text-sm text-red-500">
-          {errorMessage(rename.error, '이름 변경에 실패했습니다.')}
+      <div className="mt-4 flex">
+        <DeleteApp appId={appId} appName={app.name} />
+      </div>
+
+      {editing && (
+        <Modal onClose={() => setEditing(false)} title="정보 수정">
+          <AppInfoForm
+            appId={appId}
+            app={app}
+            onDone={() => {
+              setEditing(false);
+              onChange();
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </Modal>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * 기본 정보 수정 폼.
+ *
+ * **지금 고칠 수 있는 것은 이름뿐이다.** 상태·생성일은 서버가 정하는 값이라 여기 오지 않고,
+ * 심사 상태는 배너에서 따로 다룬다. 항목이 늘면 이 폼만 넓힌다.
+ */
+function AppInfoForm({
+  appId,
+  app,
+  onDone,
+  onCancel,
+}: {
+  appId: number;
+  app: AppDetailT;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(app.name);
+
+  const save = useMutation({
+    mutationFn: (v: string) => updateApp(appId, { name: v }),
+    onSuccess: onDone,
+  });
+
+  const trimmed = name.trim();
+  const valid = APP_NAME_RE.test(trimmed);
+  const canSave = valid && trimmed !== app.name;
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSave) save.mutate(trimmed);
+      }}
+    >
+      <TextField
+        label="앱 이름"
+        autoFocus
+        value={name}
+        /*
+          한글 조합 중에는 거르지 않는다 — 조합 중인 글자를 매 입력마다 지우면
+          두벌식 입력이 통째로 막힌다. 조합이 끝난 뒤(onCompositionEnd)에 한 번 거른다.
+        */
+        onChange={(e) =>
+          setName(
+            (e.nativeEvent as InputEvent).isComposing
+              ? e.target.value
+              : stripNonLatin(e.target.value),
+          )
+        }
+        onCompositionEnd={(e) => setName(stripNonLatin(e.currentTarget.value))}
+        placeholder="my-service"
+        hint="영어와 하이픈(-)만 사용할 수 있습니다."
+        error={
+          trimmed.length > 0 && !valid
+            ? '영어와 하이픈(-)만 사용할 수 있습니다.'
+            : undefined
+        }
+      />
+
+      {save.isError && (
+        <p className="text-sm text-red-500">
+          {errorMessage(save.error, '정보 수정에 실패했습니다.')}
         </p>
       )}
 
-      <div className="mt-4 flex gap-2">
-        {editing ? (
-          <>
-            <Button
-              className="w-auto"
-              loading={rename.isPending}
-              disabled={!canSave}
-              onClick={() => rename.mutate(trimmed)}
-            >
-              저장
-            </Button>
-            <Button
-              variant="outline"
-              className="w-auto"
-              onClick={() => {
-                setName(app.name);
-                setEditing(false);
-              }}
-            >
-              취소
-            </Button>
-          </>
-        ) : (
-          <Button
-            variant="outline"
-            className="w-auto"
-            onClick={() => setEditing(true)}
-          >
-            이름 수정
-          </Button>
-        )}
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          className="w-auto"
+          type="button"
+          onClick={onCancel}
+        >
+          취소
+        </Button>
+        <Button
+          className="w-auto"
+          type="submit"
+          loading={save.isPending}
+          disabled={!canSave}
+        >
+          저장
+        </Button>
       </div>
-    </Card>
+    </form>
   );
 }
 
@@ -1631,39 +1672,657 @@ function ClientForm({
   );
 }
 
-// ---- AI/LLM: 업체 API 키 ----
+// ---- AI/LLM: 업체 API 키(BYOK) ----
+
+/** 화면에 세울 업체 순서. 자주 쓰는 것부터. */
+const LLM_PROVIDERS: LlmProvider[] = [
+  'ANTHROPIC',
+  'OPENAI',
+  'GOOGLE',
+  'LOCAL',
+];
+
+const LLM_PROVIDER_LABEL: Record<LlmProvider, string> = {
+  ANTHROPIC: 'Anthropic',
+  OPENAI: 'OpenAI',
+  GOOGLE: 'Google',
+  LOCAL: '직접 띄운 서버',
+};
+
+const LLM_PROVIDER_DESC: Record<LlmProvider, string> = {
+  ANTHROPIC: 'console.anthropic.com 에서 발급',
+  OPENAI: 'platform.openai.com 에서 발급',
+  GOOGLE: 'aistudio.google.com 에서 발급',
+  LOCAL: 'Ollama·vLLM·LM Studio 등 OpenAI 호환 엔드포인트',
+};
 
 /**
- * 앱에 물릴 LLM 업체 키(OpenAI·Anthropic 등)를 등록하는 자리.
+ * 여러 개를 등록할 수 있는 업체.
  *
- * **아직 서버가 없다.** 자리와 설명만 먼저 세워 둔다 — 업체 키는 우리 서비스 키와 달리
- * 해시로 넣을 수 없고(우리가 대신 호출해야 하니 원문이 필요하다) 저장 방식부터
- * 정하고 붙여야 한다.
+ * **LOCAL 만 예외인 이유는 청구서다.** 호스팅 업체는 "지금 어느 키로 나갔나" 가 업체
+ * 청구서와 맞춰 볼 값이라 답이 하나여야 한다. 직접 띄운 서버는 청구서가 없고 기계마다
+ * 다른 모델을 올리는 것이 정상 사용이라, 여러 대를 붙여 두고 고르는 편이 맞다.
  */
-function ProviderKeySection() {
+const LLM_MULTI_PROVIDERS: LlmProvider[] = ['LOCAL'];
+
+const LLM_COLUMNS =
+  'grid-cols-[130px_minmax(0,1fr)_120px_minmax(0,1.2fr)_100px] gap-3 px-4';
+
+/** 판정 배지. 등록 직후에는 늘 '미확인' 이다 — 서버가 등록할 때 업체에 물어보지 않는다. */
+function VerifyBadge({ state }: { state: LlmKeyVerifyState }) {
+  const style: Record<LlmKeyVerifyState, string> = {
+    UNVERIFIED: 'bg-gray-100 text-gray-500',
+    VALID: 'bg-emerald-50 text-emerald-600',
+    INVALID: 'bg-red-50 text-red-600',
+  };
+  const label: Record<LlmKeyVerifyState, string> = {
+    UNVERIFIED: '미확인',
+    VALID: '정상',
+    INVALID: '거부됨',
+  };
+  return (
+    <span
+      className={cn(
+        'inline-block rounded-md px-2 py-0.5 text-xs font-semibold',
+        style[state],
+      )}
+    >
+      {label[state]}
+    </span>
+  );
+}
+
+/**
+ * 앱에 물릴 LLM 업체 키(BYOK).
+ *
+ * **원문은 저장 뒤 다시 볼 수 없다.** 우리 서비스 키처럼 한 번 보여주고 마는 것이 아니라
+ * 아예 보여주지 않는다 — 사용자가 업체 콘솔에서 만든 값이라 잃어버려도 거기서 다시 받으면
+ * 되고, 우리 쪽에서 되돌려 주는 경로가 있으면 그 경로가 곧 유출 경로가 된다.
+ */
+function ProviderKeySection({ appId }: { appId: number }) {
+  const [adding, setAdding] = useState<LlmProvider | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [restricted, setRestricted] = useState(false);
+
+  /*
+    **아직 안 연 환경에서는 버튼만 잠근다**(빌드 때 박히는 VITE_FEATURE_LLM_PROVIDER_KEYS).
+    목록은 그대로 읽는다 — 껐다고 이미 등록된 것을 숨기면, 왜 이 앱의 AI 호출이 그 키로
+    안 나가는지 화면에서 알 방법이 사라진다.
+  */
+  const locked = !LLM_PROVIDER_KEYS_ENABLED;
+
+  const query = useQuery({
+    queryKey: ['llm-keys', appId],
+    queryFn: () => listLlmKeys(appId),
+  });
+  const keys = query.data ?? [];
+  const reload = () => void query.refetch();
+
+  const create = useMutation({
+    mutationFn: (input: CreateLlmKeyInput) => createLlmKey(appId, input),
+    onSuccess: () => {
+      setAdding(null);
+      reload();
+    },
+  });
+
+  const selected = keys.find((k) => k.id === selectedId) ?? null;
+  const registered = new Set(keys.map((k) => k.provider));
+
   return (
     <PanelSection>
       <SectionHead
         icon={<Sparkles className="h-5 w-5" />}
         title="AI/LLM 업체 키"
-        desc="OpenAI·Anthropic 같은 업체에서 발급받은 본인 키를 등록해 이 앱의 AI 기능에 씁니다."
+        desc="업체에서 발급받은 본인 키를 등록하면 이 앱의 AI 호출이 그 키로 나갑니다."
         right={
-          <Button variant="outline" className="w-auto shrink-0" disabled>
+          <Button
+            variant="outline"
+            className="w-auto shrink-0"
+            onClick={() => (locked ? setRestricted(true) : setPicking(true))}
+          >
             <Plus className="h-4 w-4" /> 키 등록
           </Button>
         }
       />
-      <div className="flex min-h-[160px] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gray-300 text-sm text-gray-400">
-        <p className="font-medium text-gray-500">준비 중입니다.</p>
-        <p>업체 키를 등록하면 이 앱의 AI 호출이 해당 키로 나갑니다.</p>
-      </div>
+
+      {query.isError ? (
+        <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-red-200 text-sm text-red-500">
+          {errorMessage(query.error, '업체 키를 불러오지 못했습니다.')}
+        </div>
+      ) : keys.length === 0 ? (
+        <div className="flex min-h-[120px] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-gray-300 text-sm text-gray-400">
+          <p className="font-medium text-gray-500">등록된 업체 키가 없습니다.</p>
+          <p>등록하기 전까지 AI 호출은 서비스 기본 키로 나갑니다.</p>
+        </div>
+      ) : (
+        <Table
+          columns={LLM_COLUMNS}
+          head={['업체', '이름', '키', '엔드포인트', '상태']}
+        >
+          {keys.map((k) => (
+            <button
+              key={k.id}
+              type="button"
+              onClick={() => setSelectedId(k.id)}
+              className={cn(
+                'grid w-full items-center border-b border-gray-100 py-4 text-left text-sm transition last:border-0 hover:bg-gray-50',
+                LLM_COLUMNS,
+              )}
+            >
+              <span className="flex min-w-0 items-center gap-1.5 font-medium text-gray-800">
+                <span className="truncate">{LLM_PROVIDER_LABEL[k.provider]}</span>
+                {!k.enabled && (
+                  <span className="shrink-0 text-xs font-semibold text-gray-400">
+                    사용 안 함
+                  </span>
+                )}
+              </span>
+              <span className="truncate text-gray-700">{k.name || '—'}</span>
+              <code className="font-mono text-gray-500">
+                {k.secretSuffix ? `••••${k.secretSuffix}` : '없음'}
+              </code>
+              <span className="truncate text-gray-500">{k.baseUrl ?? '기본값'}</span>
+              <span>
+                <VerifyBadge state={k.verifyState} />
+              </span>
+            </button>
+          ))}
+        </Table>
+      )}
+
+      {/* 업체 선택 */}
+      {picking && (
+        <Modal
+          onClose={() => setPicking(false)}
+          size="lg"
+          title="업체 선택"
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            {LLM_PROVIDERS.map((p) => {
+              const multi = LLM_MULTI_PROVIDERS.includes(p);
+              const already = registered.has(p);
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    setPicking(false);
+                    setAdding(p);
+                  }}
+                  className="flex flex-col items-start gap-1 rounded-xl border border-gray-200 px-4 py-4 text-left transition hover:border-primary hover:bg-primary-50"
+                >
+                  <span className="flex w-full items-center justify-between gap-2">
+                    <span className="font-semibold text-gray-800">
+                      {LLM_PROVIDER_LABEL[p]}
+                    </span>
+                    {already && !multi && (
+                      <span className="shrink-0 text-xs font-semibold text-amber-600">
+                        등록됨 · 교체
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {LLM_PROVIDER_DESC[p]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-xs text-gray-400">
+            Anthropic·OpenAI·Google 은 앱당 하나씩만 둡니다. 이미 있으면 키만
+            교체되고 상한·모델 설정은 그대로 남습니다. 직접 띄운 서버는 이름을
+            달리해 여러 대를 등록할 수 있습니다.
+          </p>
+        </Modal>
+      )}
+
+      {/* 등록 폼 */}
+      {adding && (
+        <Modal
+          onClose={() => setAdding(null)}
+          size="lg"
+          title={`${LLM_PROVIDER_LABEL[adding]} 키 등록`}
+        >
+          <LlmKeyForm
+            provider={adding}
+            submitLabel="등록"
+            submitting={create.isPending}
+            error={create.isError ? errorMessage(create.error) : undefined}
+            onCancel={() => setAdding(null)}
+            onSubmit={(v) => create.mutate({ provider: adding, ...v })}
+          />
+        </Modal>
+      )}
+
+      {/* 상세/편집 */}
+      {selected && (
+        <Modal
+          onClose={() => setSelectedId(null)}
+          size="lg"
+          title={`${LLM_PROVIDER_LABEL[selected.provider]}${
+            selected.name ? ` · ${selected.name}` : ''
+          }`}
+        >
+          <LlmKeyDetail
+            key={selected.id}
+            appId={appId}
+            llmKey={selected}
+            locked={locked}
+            onRestricted={() => setRestricted(true)}
+            onChange={reload}
+            onDeleted={() => setSelectedId(null)}
+          />
+        </Modal>
+      )}
+
+      {restricted && (
+        <RestrictedNotice
+          what="업체 키 등록"
+          onClose={() => setRestricted(false)}
+        />
+      )}
     </PanelSection>
   );
 }
 
-// ---- 위험 구역: 앱 삭제(이름 입력 확인) ----
+/**
+ * 아직 열지 않은 기능이라고 알린다.
+ *
+ * **오류로 보이게 하지 않는다.** 사용자가 뭘 잘못한 것이 아니라 우리가 아직 안 연 것이라,
+ * 붉은 경고 대신 안내로 둔다.
+ */
+function RestrictedNotice({
+  what,
+  onClose,
+}: {
+  what: string;
+  onClose: () => void;
+}) {
+  return (
+    <Modal onClose={onClose} title="사용이 제한되어 있습니다">
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">
+          {what}은(는) 아직 준비 중인 기능입니다. 열리면 이 화면에서 바로 쓸 수
+          있습니다.
+        </p>
+        <div className="flex justify-end">
+          <Button className="w-auto" onClick={onClose}>
+            확인
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
-function DangerZone({ appId, appName }: { appId: number; appName: string }) {
+function LlmKeyDetail({
+  appId,
+  llmKey,
+  locked,
+  onRestricted,
+  onChange,
+  onDeleted,
+}: {
+  appId: number;
+  llmKey: LlmKey;
+  locked: boolean;
+  onRestricted: () => void;
+  onChange: () => void;
+  onDeleted: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const update = useMutation({
+    mutationFn: (v: UpdateLlmKeyInput) => updateLlmKey(appId, llmKey.id, v),
+    onSuccess: () => {
+      setEditing(false);
+      onChange();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: () => deleteLlmKey(appId, llmKey.id),
+    onSuccess: () => {
+      setConfirmDelete(false);
+      onChange();
+      onDeleted();
+    },
+  });
+
+  if (editing) {
+    return (
+      <LlmKeyForm
+        provider={llmKey.provider}
+        initial={llmKey}
+        submitLabel="저장"
+        submitting={update.isPending}
+        error={update.isError ? errorMessage(update.error) : undefined}
+        onCancel={() => setEditing(false)}
+        onSubmit={(v) => update.mutate(v)}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-gray-50 px-4 py-3">
+        <Row label="업체" value={LLM_PROVIDER_LABEL[llmKey.provider]} />
+        {llmKey.name && <Row label="이름" value={llmKey.name} />}
+        <Row
+          label="키"
+          value={llmKey.secretSuffix ? `••••${llmKey.secretSuffix}` : '등록 안 함'}
+        />
+        <Row label="엔드포인트" value={llmKey.baseUrl ?? '서버 기본값'} />
+        <Row label="기본 모델" value={llmKey.defaultModel ?? '서버 기본값'} />
+        <Row label="월 상한" value={formatLimit(llmKey.monthlyLimitMicroUsd)} />
+        <Row label="일 상한" value={formatLimit(llmKey.dailyLimitMicroUsd)} />
+        <Row
+          label="상한 초과 시"
+          value={
+            llmKey.fallbackToService ? '서비스 키로 전환' : '호출 거부(기본)'
+          }
+        />
+        <Row label="사용" value={llmKey.enabled ? '사용 중' : '사용 안 함'} />
+        <Row label="등록일" value={llmKey.createdAt.slice(0, 10)} />
+        <Row
+          label="마지막 사용"
+          value={llmKey.lastUsedAt ? llmKey.lastUsedAt.slice(0, 10) : '—'}
+        />
+      </div>
+
+      {/*
+        판정은 등록이 아니라 **첫 실사용**이 정한다. 화면에서 이 문장을 빼면 사용자는
+        "등록했는데 왜 미확인인가" 를 오류로 읽는다.
+      */}
+      <div className="flex items-start gap-2 rounded-lg border border-gray-200 px-4 py-3 text-xs text-gray-500">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+        <p>
+          <b className="text-gray-700">
+            상태 <VerifyBadge state={llmKey.verifyState} />
+          </b>{' '}
+          — 키는 등록할 때가 아니라 이 앱이 실제로 AI를 처음 부를 때 확인됩니다.
+          {llmKey.verifyError && (
+            <span className="mt-1 block text-red-500">
+              업체 응답: {llmKey.verifyError}
+            </span>
+          )}
+        </p>
+      </div>
+
+      <div className="flex justify-between gap-2">
+        <Button
+          variant="outline"
+          className="w-auto text-red-600"
+          onClick={() => (locked ? onRestricted() : setConfirmDelete(true))}
+        >
+          <Trash2 className="h-4 w-4" /> 삭제
+        </Button>
+        <Button
+          className="w-auto"
+          onClick={() => (locked ? onRestricted() : setEditing(true))}
+        >
+          수정
+        </Button>
+      </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          danger
+          title="업체 키를 삭제할까요?"
+          confirmText="삭제"
+          loading={remove.isPending}
+          onConfirm={() => remove.mutate()}
+          onCancel={() => setConfirmDelete(false)}
+        >
+          삭제하면 이 앱의 AI 호출은 <b>서비스 기본 키로 되돌아갑니다.</b> 업체
+          콘솔의 키 자체는 지워지지 않으니, 완전히 막으려면 거기서도 폐기하세요.
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+/** 상한 표시. 저장은 마이크로 USD 정수이고 화면에는 달러로 보인다. */
+function formatLimit(microUsd?: number | null): string {
+  if (microUsd == null) return '무제한';
+  return `$${(microUsd / 1_000_000).toLocaleString('en-US', {
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/** 달러 입력 → 마이크로 USD 정수. 빈 값은 무제한(null). */
+function toMicroUsd(input: string): number | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const dollars = Number(trimmed);
+  if (!Number.isFinite(dollars) || dollars <= 0) return null;
+  return Math.round(dollars * 1_000_000);
+}
+
+interface LlmKeyFormValues {
+  name: string;
+  secret: string;
+  baseUrl: string;
+  defaultModel: string;
+  monthlyLimitUsd: string;
+  dailyLimitUsd: string;
+  fallbackToService: boolean;
+  enabled: boolean;
+}
+
+/**
+ * 등록·수정 공용 폼.
+ *
+ * **수정에서 키 칸을 비워 두면 기존 키가 그대로 남는다.** 상한만 고치려고 업체 키를 다시
+ * 입력하게 만들면, 사용자가 키를 어딘가에 적어 두거나 새로 발급받게 된다.
+ */
+function LlmKeyForm({
+  provider,
+  initial,
+  submitLabel,
+  submitting,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  provider: LlmProvider;
+  initial?: LlmKey;
+  submitLabel: string;
+  submitting: boolean;
+  error?: string;
+  onCancel: () => void;
+  onSubmit: (values: UpdateLlmKeyInput) => void;
+}) {
+  const local = provider === 'LOCAL';
+  const editing = initial != null;
+
+  const { register, handleSubmit, formState } = useForm<LlmKeyFormValues>({
+    defaultValues: {
+      name: initial?.name ?? '',
+      secret: '',
+      baseUrl: initial?.baseUrl ?? '',
+      defaultModel: initial?.defaultModel ?? '',
+      monthlyLimitUsd:
+        initial?.monthlyLimitMicroUsd != null
+          ? String(initial.monthlyLimitMicroUsd / 1_000_000)
+          : '',
+      dailyLimitUsd:
+        initial?.dailyLimitMicroUsd != null
+          ? String(initial.dailyLimitMicroUsd / 1_000_000)
+          : '',
+      fallbackToService: initial?.fallbackToService ?? false,
+      enabled: initial?.enabled ?? true,
+    },
+  });
+
+  const submit = handleSubmit((v) => {
+    onSubmit({
+      // 호스팅 업체는 이름을 쓰지 않는다(서버도 무시한다). 보내지 않아 뜻을 분명히 한다.
+      ...(local ? { name: v.name.trim() } : {}),
+      // 빈 값 = "그대로 두기". 수정에서 이게 곧 "키를 안 건드린다" 가 된다.
+      ...(v.secret.trim() ? { secret: v.secret.trim() } : {}),
+      baseUrl: v.baseUrl.trim(),
+      defaultModel: v.defaultModel.trim(),
+      ...(local
+        ? {}
+        : {
+            monthlyLimitMicroUsd: toMicroUsd(v.monthlyLimitUsd),
+            dailyLimitMicroUsd: toMicroUsd(v.dailyLimitUsd),
+            fallbackToService: v.fallbackToService,
+          }),
+      ...(editing ? { enabled: v.enabled } : {}),
+    });
+  });
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      {local && (
+        <TextField
+          label="이름"
+          hint="여러 대를 구분하는 값입니다. 영숫자로 시작하고 점·하이픈·밑줄을 쓸 수 있습니다."
+          placeholder="gpu-server"
+          error={formState.errors.name?.message}
+          {...register('name', {
+            required: '이름을 입력하세요.',
+            pattern: {
+              value: /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/,
+              message: '영숫자로 시작하고 영숫자·. - _ 만 쓸 수 있습니다.',
+            },
+            maxLength: { value: 50, message: '50자 이하로 입력하세요.' },
+          })}
+        />
+      )}
+
+      <TextField
+        label="API 키"
+        type="password"
+        autoComplete="off"
+        hint={
+          editing
+            ? '비워 두면 지금 키를 그대로 씁니다. 입력하면 교체되고 상태가 미확인으로 돌아갑니다.'
+            : local
+              ? '직접 띄운 서버는 대개 인증이 없습니다. 없으면 비워 두세요.'
+              : '저장 후에는 다시 볼 수 없습니다. 뒤 4자만 표시됩니다.'
+        }
+        placeholder={editing ? '변경할 때만 입력' : ''}
+        error={formState.errors.secret?.message}
+        {...register('secret', {
+          required:
+            editing || local ? false : '업체에서 발급받은 키를 입력하세요.',
+        })}
+      />
+
+      <TextField
+        label={local ? '엔드포인트' : '엔드포인트(선택)'}
+        hint={
+          local
+            ? '어느 기계인지가 이 값으로 갈립니다.'
+            : 'Azure OpenAI 나 사내 게이트웨이를 끼울 때만 채웁니다. 비우면 기본값을 씁니다.'
+        }
+        placeholder={local ? 'http://10.0.0.7:11434' : ''}
+        error={formState.errors.baseUrl?.message}
+        {...register('baseUrl', {
+          required: local ? '엔드포인트를 입력하세요.' : false,
+          pattern: {
+            value: /^$|^https?:\/\/.+/,
+            message: 'http:// 또는 https:// 로 시작하는 주소여야 합니다.',
+          },
+        })}
+      />
+
+      <TextField
+        label="기본 모델(선택)"
+        hint="비우면 서버 기본 모델을 씁니다."
+        placeholder={local ? 'llama3.1' : ''}
+        {...register('defaultModel', {
+          maxLength: { value: 100, message: '100자 이하로 입력하세요.' },
+        })}
+      />
+
+      {/*
+        직접 띄운 서버에는 상한이 없다 — 자기 기계에서 도니 청구서가 없다.
+        의미 없는 칸을 남겨 두면 "0을 넣으면 막히나" 같은 오해만 생긴다.
+      */}
+      {!local && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              label="월 상한(USD, 선택)"
+              hint="비우면 무제한"
+              placeholder="50"
+              inputMode="decimal"
+              {...register('monthlyLimitUsd')}
+            />
+            <TextField
+              label="일 상한(USD, 선택)"
+              hint="비우면 무제한"
+              placeholder="5"
+              inputMode="decimal"
+              {...register('dailyLimitUsd')}
+            />
+          </div>
+
+          <label className="flex items-start gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4"
+              {...register('fallbackToService')}
+            />
+            <span>
+              상한에 걸리면 서비스 키로 전환
+              <span className="mt-0.5 block text-xs text-gray-400">
+                꺼 두면 상한이 &quot;여기까지만 쓴다&quot;가 되어 호출이 거부됩니다.
+              </span>
+            </span>
+          </label>
+        </>
+      )}
+
+      {editing && (
+        <label className="flex items-start gap-2 text-sm text-gray-700">
+          <input type="checkbox" className="mt-0.5 h-4 w-4" {...register('enabled')} />
+          <span>
+            이 키를 사용
+            <span className="mt-0.5 block text-xs text-gray-400">
+              끄면 지우지 않고 잠시 서비스 기본 키로 되돌립니다.
+            </span>
+          </span>
+        </label>
+      )}
+
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" className="w-auto" type="button" onClick={onCancel}>
+          취소
+        </Button>
+        <Button className="w-auto" type="submit" loading={submitting}>
+          {submitLabel}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// ---- 앱 삭제(아이콘 + 이름 입력 확인) ----
+
+/**
+ * 앱 삭제.
+ *
+ * **눈에 띄지 않게 둔다.** 붉은 상자로 크게 세우면 자주 쓰는 화면에 되돌릴 수 없는 동작이
+ * 늘 시야에 들어온다 — 하루에 한 번 쓸까 말까 한 것이 매번 보이는 셈이다. 그래서 기본 정보
+ * 카드 밑줄 왼쪽 끝에 작은 글자로만 두고, **무게는 누른 다음에 싣는다**: 앱 이름을 그대로
+ * 쳐야 버튼이 열린다.
+ *
+ * 다만 **읽히기는 해야 한다** — 너무 흐리면 지우고 싶을 때 못 찾아 헤맨다. 되돌릴 수 없는
+ * 동작을 숨기는 것과 안 보이게 만드는 것은 다르다.
+ *
+ * 아이콘만 두더라도 `aria-label`·`title` 은 붙인다 — 그림만 보고 무엇인지 짐작하게 만들면,
+ * 그 짐작이 틀렸을 때 되돌릴 수 없는 쪽이 눌린다.
+ */
+function DeleteApp({ appId, appName }: { appId: number; appName: string }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [armed, setArmed] = useState(false);
@@ -1677,53 +2336,60 @@ function DangerZone({ appId, appName }: { appId: number; appName: string }) {
   });
   const match = input.trim() === appName;
 
-  return (
-    // 넓은 화면에서는 안내가 왼쪽, 삭제 버튼이 오른쪽 끝에 한 줄로 붙는다.
-    <section className="flex flex-col gap-4 rounded-2xl border border-red-200 bg-red-50/40 p-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-      <div className="min-w-0">
-        <h2 className="font-bold text-red-700">위험 구역</h2>
-        <p className="mt-1.5 text-sm text-gray-600">
-          앱을 삭제하면 서비스 키·클라이언트가 <b>즉시 비활성화</b>되고 목록에서
-          사라집니다.
-        </p>
-      </div>
+  const close = () => {
+    setArmed(false);
+    setInput('');
+  };
 
+  return (
+    <>
       <button
         type="button"
         onClick={() => setArmed(true)}
-        className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 sm:self-auto"
+        aria-label="앱 삭제"
+        title="앱 삭제"
+        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-gray-500 transition hover:bg-red-50 hover:text-red-600"
       >
-        <Trash2 className="h-4 w-4" /> 앱 삭제
+        <Trash2 className="h-4 w-4" />
+        앱 삭제
       </button>
 
       {armed && (
         <ConfirmDialog
           danger
-          title="앱 삭제"
+          title="앱을 삭제할까요?"
           confirmText="삭제"
           disabled={!match}
           loading={remove.isPending}
           onConfirm={() => remove.mutate()}
-          onCancel={() => {
-            setArmed(false);
-            setInput('');
-          }}
+          onCancel={close}
         >
           <p>
-            삭제하면 이 앱의 서비스 키·클라이언트가 <b>즉시 비활성화</b>되고
-            목록에서 사라집니다. 확인을 위해 앱 이름 <b>{appName}</b> 을(를)
-            입력하세요.
+            <b className="text-gray-900">{appName}</b> 을(를) 삭제하면 되돌릴 수
+            없습니다.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-gray-600">
+            <li>
+              서비스 키와 클라이언트가 <b>즉시 비활성화</b>됩니다 — 이 앱으로
+              들어오던 호출이 그 순간부터 거부됩니다.
+            </li>
+            <li>등록한 업체 키도 함께 지워집니다.</li>
+            <li>목록에서 사라지며 다시 열 수 없습니다.</li>
+          </ul>
+          <p className="mt-3">
+            확인을 위해 앱 이름 <b className="text-gray-900">{appName}</b>{' '}
+            을(를) 그대로 입력하세요.
           </p>
           <input
             autoFocus
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={appName}
-            className="mt-3 h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            className="mt-2 h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
           />
         </ConfirmDialog>
       )}
-    </section>
+    </>
   );
 }
 

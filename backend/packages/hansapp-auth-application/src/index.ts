@@ -9,6 +9,9 @@ export type { ConsentInput, ConsentMeta } from './consent.service';
 export type { AuthResult, RequestMeta } from './auth.service';
 export { OAuthTokenService } from './oauth-token.service';
 export { AppService, reviewStateOf } from './app/app.service';
+export { LlmKeyService } from './app/llm-key.service';
+export type { UpsertLlmKeyInput } from './app/llm-key.service';
+export type { LlmKeyView } from './app/llm-key.repository';
 export type {
   AppDetail,
   AppReviewState,
@@ -23,6 +26,8 @@ export type { App, AppApiKey, AppClient } from '@hansapp/data';
 // 앱/클라이언트 enum(값으로 씀 — DTO @IsEnum·컨트롤러 매핑).
 // UserTier 는 CLI 가 --tier 값을 검증할 때 값으로 쓴다.
 export { AppClientType, AppStatus, UserTier } from '@hansapp/data';
+// LLM 업체 키 enum(DTO @IsEnum·컨트롤러 매핑에서 값으로 쓴다).
+export { LlmKeyVerifyState, LlmProvider } from '@hansapp/data';
 export { TokenService } from './token/token.service';
 export { JwtKeyService } from './token/jwt-key.service';
 export {

@@ -26,6 +26,7 @@ import { UserController } from './users/user.controller';
 import { HealthController } from './health/health.controller';
 import { JwksController } from './oauth/jwks.controller';
 import { AppsController } from './apps/app.controller';
+import { LlmKeyController } from './apps/llm-key.controller';
 import { AddressController } from './address/address.controller';
 import { AddressService } from './address/address.service';
 import { BusinessController } from './business/business.controller';
@@ -100,6 +101,7 @@ export class AppModule {
         HealthController,
         JwksController,
         AppsController,
+        LlmKeyController,
         HiraHospitalController,
         NmcHospitalController,
         HiraCodeController,

@@ -46,6 +46,8 @@ export type {
   AppMember,
   AppApiKey,
   AppClient,
+  // AI(ai.prisma) 도메인 모델
+  AppLlmKey,
   // 운영 환경(env_*) 테이블. 서비스 데이터가 아니라 서버 운영을 다루는 모델이다.
   EnvSwaggerAllowedIp,
 } from '../generated/main';
@@ -63,6 +65,9 @@ export {
   ConsentType,
   EmailVerifyPurpose,
 } from '../generated/main';
+
+// AI 도메인 enum(값으로도 쓴다).
+export { LlmProvider, LlmKeyVerifyState } from '../generated/main';
 
 // 로그 DB(log 스키마) 인증 이벤트 로그. Prisma 네임스페이스도 별도 export
 // (main 과 log 는 다른 client 라 Create 입력 타입 등이 서로 다르다).
