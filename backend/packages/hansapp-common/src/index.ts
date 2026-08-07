@@ -27,3 +27,15 @@ export class Page<T> {
     this.totalPages = size > 0 ? Math.ceil(totalCount / size) : 0;
   }
 }
+
+// 되돌릴 수 있게 잠그는 비밀 상자(AES-256-GCM). 남의 업체 키처럼 원문이 필요한 값에 쓴다.
+export {
+  seal,
+  open,
+  sealedVersion,
+  suffixOf,
+  secretEquals,
+  parseSecretBoxKeys,
+  SecretBoxError,
+} from './secret-box';
+export type { SecretBoxKeys } from './secret-box';

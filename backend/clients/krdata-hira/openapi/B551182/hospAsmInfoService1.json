@@ -14,12 +14,18 @@
       "get": {
         "operationId": "getHospitalAssessmentList",
         "summary": "병원평가 상세등급 조회",
-        "description": "평가대상 요양기관의 평가항목별 평가결과 등급. ykiho 는 옵션이라 생략하면 평가대상 전체를 페이지 단위로 받는다(병원당 1콜이 아니다). 전체 36,599건이라 numOfRows=1000 이면 37콜에 전수가 나온다(2026-07 실측). 한 기관이 한 행이고 평가항목이 asmGrd01~24 컬럼으로 **가로로** 붙는다 — 우수기관서비스(exclInstHospAsmInfoService1)가 항목마다 행을 주는 것과 반대다.",
+        "description": "평가대상 요양기관의 평가항목별 평가결과 등급. ykiho 는 옵션이라 생략하면 평가대상 전체를 페이지 단위로 받는다(병원당 1콜이 아니다). 전체 36,599건이라 numOfRows=1000 이면 37콜에 전수가 나온다. 한 기관이 한 행이고 평가항목이 asmGrd01~24 컬럼으로 **가로로** 붙는다 — 우수기관서비스(exclInstHospAsmInfoService1)가 항목마다 행을 주는 것과 반대다.",
         "tags": ["hosp-asm"],
         "parameters": [
-          { "$ref": "#/components/parameters/Ykiho" },
-          { "$ref": "#/components/parameters/PageNo" },
-          { "$ref": "#/components/parameters/NumOfRows" }
+          {
+            "$ref": "#/components/parameters/Ykiho"
+          },
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          }
         ],
         "responses": {
           "200": {
@@ -43,21 +49,29 @@
         "in": "query",
         "required": false,
         "description": "암호화된 요양기호. 생략하면 평가대상 전체를 받는다.",
-        "schema": { "type": "string" }
+        "schema": {
+          "type": "string"
+        }
       },
       "PageNo": {
         "name": "pageNo",
         "in": "query",
         "required": false,
         "description": "페이지 번호",
-        "schema": { "type": "integer", "default": 1 }
+        "schema": {
+          "type": "integer",
+          "default": 1
+        }
       },
       "NumOfRows": {
         "name": "numOfRows",
         "in": "query",
         "required": false,
         "description": "한 페이지 결과 수",
-        "schema": { "type": "integer", "default": 10 }
+        "schema": {
+          "type": "integer",
+          "default": 10
+        }
       }
     },
     "schemas": {
@@ -69,7 +83,10 @@
             "type": "string",
             "description": "결과코드 (정상: 00)"
           },
-          "resultMsg": { "type": "string", "description": "결과메시지" }
+          "resultMsg": {
+            "type": "string",
+            "description": "결과메시지"
+          }
         }
       },
       "PageInfo": {
@@ -79,8 +96,14 @@
             "type": "integer",
             "description": "한 페이지 결과 수"
           },
-          "pageNo": { "type": "integer", "description": "현재 페이지 번호" },
-          "totalCount": { "type": "integer", "description": "전체 결과 수" }
+          "pageNo": {
+            "type": "integer",
+            "description": "현재 페이지 번호"
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "전체 결과 수"
+          }
         }
       },
       "HospitalAssessmentResponse": {
@@ -94,13 +117,19 @@
       "HospitalAssessmentResult": {
         "type": "object",
         "properties": {
-          "header": { "$ref": "#/components/schemas/ResultHeader" },
-          "body": { "$ref": "#/components/schemas/HospitalAssessmentBody" }
+          "header": {
+            "$ref": "#/components/schemas/ResultHeader"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HospitalAssessmentBody"
+          }
         }
       },
       "HospitalAssessmentBody": {
         "allOf": [
-          { "$ref": "#/components/schemas/PageInfo" },
+          {
+            "$ref": "#/components/schemas/PageInfo"
+          },
           {
             "type": "object",
             "properties": {
@@ -123,107 +152,224 @@
         }
       },
       "AssessmentGrade": {
-        "oneOf": [{ "type": "integer" }, { "type": "string" }],
-        "description": "평가등급. **숫자와 문자열이 섞여 온다**(2026-07 실측). 등급은 정수 1~5 로, 문자열 '등급제외' 는 **등급대상 제외**(평가는 했으나 등급을 매기지 않음)다. 가이드는 전부 문자열이라 하지만 실제로는 아니다.\n\n**'등급대상 제외' 와 '평가대상 제외' 는 다르다.** 평가대상이 아닌 항목은 **키 자체가 없다**(빈 문자열이 아니라 부재). 둘을 합치면 정보가 사라진다 — 예: 약품목수는 키없음 1,876 · '등급제외' 516 으로 수가 다르다.\n\n천식(asmGrd16)만 등급대상 제외를 '등급제외' 가 아니라 숫자 0 으로 준다. AssessmentGrade16 참고."
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "description": "평가등급. **숫자와 문자열이 섞여 온다**. 등급은 정수 1~5 로, 문자열 '등급제외' 는 **등급대상 제외**(평가는 했으나 등급을 매기지 않음)다. 가이드는 전부 문자열이라 하지만 실제로는 아니다.\n\n**'등급대상 제외' 와 '평가대상 제외' 는 다르다.** 평가대상이 아닌 항목은 **키 자체가 없다**(빈 문자열이 아니라 부재). 둘을 합치면 정보가 사라진다 — 예: 약품목수는 키없음 1,876 · '등급제외' 516 으로 수가 다르다.\n\n천식(asmGrd16)만 등급대상 제외를 '등급제외' 가 아니라 숫자 0 으로 준다. AssessmentGrade16 참고."
       },
       "HospitalAssessmentItem": {
         "type": "object",
-        "description": "기관 하나의 평가등급. 필드는 가이드가 아니라 실응답을 따랐다(2026-07 실측, 표본 1,000건).\n\n**asmGrd02·asmGrd11 은 존재하지 않는다** — 원본에 없다(폐지 항목으로 보인다). 번호가 연속이 아니다.\n\n평가대상은 36,599개 기관이고 대부분 의원(clCd=31)이다. 병원급 전용이 아니다.",
+        "description": "기관 하나의 평가등급. 필드는 가이드가 아니라 실응답을 따랐다(표본 1,000건).\n\n**asmGrd02·asmGrd11 은 존재하지 않는다** — 원본에 없다(폐지 항목으로 보인다). 번호가 연속이 아니다.\n\n평가대상은 36,599개 기관이고 대부분 의원(clCd=31)이다. 병원급 전용이 아니다.",
         "properties": {
-          "ykiho": { "type": "string", "description": "암호화된 요양기호" },
-          "yadmNm": { "type": "string", "description": "요양기관명" },
-          "clCd": {
-            "oneOf": [{ "type": "integer" }, { "type": "string" }],
-            "description": "종별코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). '01'(상급종합)만 문자열이고 나머지(11·21·28·29·31·71·72·75…)는 정수다 — 앞자리 0 은 JSON 숫자가 될 수 없어 문자열로 남는다. 비교할 땐 asString() 으로 맞춰라."
+          "ykiho": {
+            "type": "string",
+            "description": "암호화된 요양기호"
           },
-          "clCdNm": { "type": "string", "description": "종별코드명" },
-          "addr": { "type": "string", "description": "주소" },
+          "yadmNm": {
+            "type": "string",
+            "description": "요양기관명"
+          },
+          "clCd": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "종별코드. **숫자와 문자열이 섞여 온다.** '01'(상급종합)만 문자열이고 나머지(11·21·28·29·31·71·72·75…)는 정수다 — 앞자리 0 이 있는 코드만 문자열로 남기 때문이다. 비교할 때는 문자열로 맞춘다."
+          },
+          "clCdNm": {
+            "type": "string",
+            "description": "종별코드명"
+          },
+          "addr": {
+            "type": "string",
+            "description": "주소"
+          },
           "asmGrd01": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "급성기뇌졸중"
           },
           "asmGrd03": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "혈액투석"
           },
           "asmGrd04": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "의료급여정신과"
           },
           "asmGrd05": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "수술부위 감염예방 항생제"
           },
           "asmGrd06": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "관상동맥우회술"
           },
           "asmGrd07": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "급성상기도감염 항생제 처방률"
           },
           "asmGrd08": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "주사제 처방률"
           },
           "asmGrd09": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "약품목수"
           },
           "asmGrd10": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "요양병원"
           },
           "asmGrd12": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "대장암"
           },
           "asmGrd13": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "위암"
           },
           "asmGrd14": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "유방암"
           },
           "asmGrd15": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "폐암"
           },
           "asmGrd16": {
-            "oneOf": [{ "type": "integer" }, { "type": "string" }],
-            "description": "천식. **이 항목만 인코딩이 다르다. 등급 체계 자체는 나머지와 같다.** (2026-07 실측 + 심평원 홈페이지 대조)\n\n    일반 21개 :  1        2 3 4 5   '등급제외'\n    천식      : '양호'     2 3 4 5    0\n\n1등급을 '양호' 로, 등급대상 제외를 0 으로 줄 뿐이다. 그래서 천식엔 1 도 '등급제외' 도 전수 14,923건에 한 번도 안 나온다 — 그 자리를 각각 '양호' 와 0 이 대신하기 때문이다. 가이드가 이 항목만 '(양호한 기관 공개)' 로 적은 것이 이 뜻이다(나머지 21개는 '(1~5등급, 등급제외)').\n\n**0 을 '최하 등급' 이나 '값 없음' 으로 읽지 마라.** 0 은 등급제외고 최하는 5 다. 다른 항목과 비교하려면 '양호'→1, 0→'등급제외' 로 옮기고 나서 하라."
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "천식. **이 항목만 등급 표기가 다르다. 등급 체계 자체는 나머지와 같다.**\n\n 일반 21개 : 1 2 3 4 5 '등급제외'\n 천식 : '양호' 2 3 4 5 0\n\n1등급을 '양호' 로, 등급대상 제외를 0 으로 표기할 뿐이다. 그래서 천식에는 1 과 '등급제외' 가 오지 않는다. 가이드가 이 항목만 '(양호한 기관 공개)' 로 표기한 것이 이 뜻이다(나머지 21개는 '(1~5등급, 등급제외)').\n\n**0 은 최하 등급도 값 없음도 아니다.** 0 은 등급제외이고 최하는 5 다. 다른 항목과 비교하려면 '양호'→1, 0→'등급제외' 로 옮겨서 쓴다."
           },
           "asmGrd17": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "만성폐쇄성폐질환"
           },
           "asmGrd18": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "폐렴"
           },
           "asmGrd19": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "중환자실"
           },
           "asmGrd20": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "신생아중환자실"
           },
           "asmGrd21": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "마취"
           },
           "asmGrd22": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "정신건강 입원영역"
           },
           "asmGrd23": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "급성하기도감염 항생제 처방률"
           },
           "asmGrd24": {
-            "allOf": [{ "$ref": "#/components/schemas/AssessmentGrade" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentGrade"
+              }
+            ],
             "description": "고혈압·당뇨병"
           }
         }

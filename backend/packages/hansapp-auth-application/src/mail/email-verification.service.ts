@@ -43,7 +43,7 @@ export class EmailVerificationService {
   async issueAndSend(
     purpose: EmailVerifyPurpose,
     email: string,
-    opts: { userNameGreeting?: string; locale?: string } = {},
+    opts: { userName?: string | null; locale?: string } = {},
   ): Promise<void> {
     const { code, expiresInSec } = await this.issue(purpose, email);
     await this.mail.sendVerificationCode({
@@ -51,7 +51,7 @@ export class EmailVerificationService {
       to: email,
       code,
       expiresInSec,
-      userNameGreeting: opts.userNameGreeting,
+      userName: opts.userName,
       locale: opts.locale,
     });
   }

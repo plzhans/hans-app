@@ -3,12 +3,12 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 export interface ScrollResponseDto {
   /** 목록 항목 */
   items: unknown[][];
-  /** 다음 스크롤 커서. 다음 호출에 그대로 실어 보내면 이 지점 다음부터 이어 준다. **없으면 다음 페이지가 없다는 뜻이다** — 스크롤을 멈춘다. 불투명 문자열이니 해석하지 마라. */
+  /** 다음 스크롤 커서. 다음 호출에 그대로 실어 보내면 이 지점 다음부터 이어 준다. **없으면 다음 페이지가 없다는 뜻이다** — 스크롤을 멈춘다. 불투명 문자열이므로 해석하지 않는다. */
   nextToken?: string;
 }

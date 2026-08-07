@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { HiraApplyDate } from './hiraApplyDate';
 import type { HiraClassCode } from './hiraClassCode';
@@ -30,14 +30,14 @@ export interface HiraNonPaymentDetailItem {
   sgguCd?: number;
   /** 시군구명 (예: 영등포구) */
   sgguCdNm?: string;
-  /** 병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 391건, 2026-07 실측). */
+  /** 병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 391건). */
   urlAddr?: string;
   /** 일련번호 */
   sno?: number;
   npayCd?: HiraNonPaymentCode;
   /** 비급여 한글명. '대분류/중분류/소분류' 를 슬래시로 이어 붙인 형태다 (예: MRI진단료/근골격계/고관절). */
   npayKorNm?: string;
-  /** 요양기관이 자체적으로 붙인 항목명 (예: 'Hip MRI', 'MegaDerm 3~4mm*1*1Cm  (엘앤씨바이오)'). **표기가 기관 제각각**이라 이 값으로 기관 간 비교하지 마라 — 비교는 `npayCd` 로 한다. */
+  /** 요양기관이 자체적으로 붙인 항목명 (예: 'Hip MRI', 'MegaDerm 3~4mm*1*1Cm (엘앤씨바이오)'). **표기가 기관 제각각**이라 이 값으로 기관 간 비교에 쓰지 않는다 — 비교는 `npayCd` 로 한다. */
   yadmNpayCdNm?: string;
   /** 적용개시일자 (YYYYMMDD, JSON number) */
   adtFrDd?: HiraApplyDate;

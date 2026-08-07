@@ -16,7 +16,7 @@ export class ScrollResponseDto<T> {
   @ApiPropertyOptional({
     description:
       '다음 스크롤 커서. 다음 호출에 그대로 실어 보내면 이 지점 다음부터 이어 준다. ' +
-      '**없으면 다음 페이지가 없다는 뜻이다** — 스크롤을 멈춘다. 불투명 문자열이니 해석하지 마라.',
+      '**없으면 다음 페이지가 없다는 뜻이다** — 스크롤을 멈춘다. 불투명 문자열이므로 해석하지 않는다.',
   })
   readonly nextToken?: string;
 

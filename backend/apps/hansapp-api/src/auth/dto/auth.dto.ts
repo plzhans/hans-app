@@ -87,6 +87,8 @@ export class LoginRequestDto {
 
   @ApiProperty({ description: '비밀번호', example: 'p@ssw0rd!' })
   @IsString()
+  // 가입과 같은 상한. bcrypt 는 72바이트 뒤를 버리므로 그 너머는 받아도 의미가 없다.
+  @MaxLength(72)
   readonly password!: string;
 
   @ApiPropertyOptional({
@@ -97,30 +99,6 @@ export class LoginRequestDto {
   @IsOptional()
   @IsBoolean()
   readonly rememberMe?: boolean;
-}
-
-/** 비밀번호 변경 요청(로그인 상태) */
-/** 표시 이름 변경 요청. 빈 문자열이면 이름을 지운다. */
-export class UpdateProfileRequestDto {
-  @ApiProperty({
-    description: '표시 이름(빈 문자열이면 삭제)',
-    example: '홍길동',
-  })
-  @IsString()
-  @MaxLength(100)
-  readonly name!: string;
-}
-
-export class ChangePasswordRequestDto {
-  @ApiProperty({ description: '현재 비밀번호' })
-  @IsString()
-  readonly currentPassword!: string;
-
-  @ApiProperty({ description: '새 비밀번호(8자 이상)' })
-  @IsString()
-  @MinLength(8)
-  @MaxLength(72)
-  readonly newPassword!: string;
 }
 
 /** 비밀번호 재설정 요청(가입 이메일로 인증 코드 발송) */
@@ -256,91 +234,4 @@ export class AuthorizeRequestDto {
 export class AuthorizeResponseDto {
   @ApiProperty({ description: '1회용 인가코드(ac_...)' })
   readonly code!: string;
-}
-
-/** 내 정보 응답 */
-export class MeResponseDto {
-  @ApiProperty({ description: '회원번호' })
-  readonly id!: number;
-
-  @ApiProperty({ description: '이메일' })
-  readonly email!: string;
-
-  @ApiProperty({ description: '이메일 인증 여부' })
-  readonly emailVerified!: boolean;
-
-  @ApiPropertyOptional({ description: '표시 이름' })
-  readonly name?: string | null;
-
-  @ApiProperty({ description: '권한', example: 'USER' })
-  readonly role!: string;
-
-  @ApiProperty({ description: '최초 가입 수단', example: 'EMAIL' })
-  readonly joinType!: string;
-
-  @ApiProperty({
-    description: '가입 일시',
-    example: '2026-08-06T02:10:00.000Z',
-  })
-  readonly createdAt!: string;
-
-  @ApiProperty({
-    description:
-      '비밀번호가 설정돼 있는가. 소셜로만 가입한 계정은 false 라 비밀번호 변경을 띄우지 않는다.',
-  })
-  readonly hasPassword!: boolean;
-
-  @ApiProperty({
-    description: '연동된 소셜 제공자 목록',
-    example: ['GOOGLE', 'KAKAO'],
-    type: [String],
-  })
-  readonly linkedProviders!: string[];
-}
-
-/**
- * 동의 기록 한 줄.
- *
- * **이용자가 볼 수 있어야 기록이 의미를 가진다.** 개인정보처리방침 제10조가 약속한 "열람" 의
- * 실체가 이것이다 — 무엇에 언제 어느 판으로 동의했는지를 본인이 확인할 수 있어야 한다.
- * IP·기기는 돌려주지 않는다. 본인 것이라도 화면에 뿌릴 이유가 없고, 유출 시 손해만 는다.
- */
-/**
- * 로그인한 기기 한 대.
- *
- * **토큰 해시는 내보내지 않는다.** 세션 식별자만 있으면 로그아웃시킬 수 있고, 해시는 화면이
- * 쓸 일이 없다 — 응답에 실을 이유가 없는 값은 싣지 않는다.
- */
-export class SessionDto {
-  @ApiProperty({ description: '세션 식별자. 개별 로그아웃에 쓴다.' })
-  readonly sessionId!: string;
-
-  @ApiPropertyOptional({ description: '접속 기기의 브라우저·운영체제 정보' })
-  readonly userAgent?: string | null;
-
-  @ApiPropertyOptional({ description: '접속 IP' })
-  readonly ip?: string | null;
-
-  @ApiProperty({ description: '로그인 시각' })
-  readonly createdAt!: string;
-
-  @ApiProperty({ description: '마지막 갱신 시각(최근 활동)' })
-  readonly updatedAt!: string;
-
-  @ApiProperty({ description: '지금 보고 있는 이 기기인가' })
-  readonly current!: boolean;
-}
-
-export class ConsentRecordDto {
-  @ApiProperty({ description: '동의 항목', example: 'TERMS' })
-  readonly type!: string;
-
-  @ApiProperty({ description: '동의한 문서의 판', example: '2026-08-06' })
-  readonly version!: string;
-
-  @ApiProperty({
-    description: '동의 일시',
-    example: '2026-08-06T02:10:00.000Z',
-  })
-  readonly agreedAt!: string;
 }

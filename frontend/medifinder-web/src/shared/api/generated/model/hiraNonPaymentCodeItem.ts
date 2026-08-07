@@ -3,11 +3,11 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
- * 비급여 항목 분류 한 행. **대/중/소 3단이고 아래로 갈수록 optional 이다**(2026-07 실측 — 대분류 54행 전부, 중분류 52행, 소분류 20행). PET·캡슐내시경처럼 중분류가 없는 대분류도 있다.
+ * 비급여 항목 분류 한 행. **대/중/소 3단이고 아래로 갈수록 optional 이다**(— 대분류 54행 전부, 중분류 52행, 소분류 20행). PET·캡슐내시경처럼 중분류가 없는 대분류도 있다.
  *
  * 각 단계가 코드·이름·설명 세 쌍이다. **설명(Dsc)이 이 사전의 값이다** — 신고 데이터에 없는 항목 안내 텍스트다.
  */
@@ -24,7 +24,7 @@ export interface HiraNonPaymentCodeItem {
   divCd2Nm?: string;
   /** 중분류 설명문 */
   divCd2Dsc?: string;
-  /** 소분류코드. **없을 수 있다** — 소분류가 있는 항목만 온다(실측 20행). */
+  /** 소분류코드. **없을 수 있다** — 소분류가 있는 항목만 온다(20행). */
   divCd3?: string;
   /** 소분류명 */
   divCd3Nm?: string;

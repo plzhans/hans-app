@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { NmcYnFlag } from './nmcYnFlag';
 
@@ -210,17 +210,15 @@ export interface NmcHospitalBasisInfoItem {
   /**
      * 시도명 (예: 서울특별시).
      *
-     * **원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.
-     * NMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,
-     * 지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.
+     * **원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 첫 토큰에서 추출하며,
      * 축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.
      */
   sidoNm?: string;
   /**
      * 시군구명 (예: 강남구).
      *
-     * **원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.
-     * 시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).
+     * **원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 둘째 토큰에서 추출한다.
+     * 시 아래 구가 있으면 두 토큰을 합친다(예: 수원시 팔달구).
      * 세종특별자치시처럼 시군구가 없는 지역은 값이 없다.
      */
   sgguNm?: string;

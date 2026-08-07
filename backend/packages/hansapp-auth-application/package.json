@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "description": "인증/인가 응용 계층. 토큰 발급·검증, 소셜 연동, 가드가 여기 있다. hansapp-api 가 이 패키지를 참조한다.",
+  "files": [
+    "dist"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

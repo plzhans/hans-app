@@ -11,15 +11,15 @@
 - 초당 최대 트랜잭션: 30 TPS
 - 데이터 갱신주기: 일 1회 (배치는 하루 한 번이면 충분하다)
 - 가이드상 최대 메시지 사이즈는 4000 bytes 로 적혀 있으나 실제로는 지켜지지 않는다.
-  numOfRows 를 크게 주면 수십 MB 응답도 그대로 내려온다. NumOfRows 파라미터 설명 참고.
+ numOfRows 를 크게 주면 수십 MB 응답도 그대로 내려온다. NumOfRows 파라미터 설명 참고.
 
 [이 스펙의 규칙]
 - ServiceKey 와 _type 파라미터는 정의하지 않는다. @krdata/core 의 mutator 가 모든 요청에 주입한다.
-  ServiceKey 를 스펙에 넣으면 생성된 코드가 URLSearchParams 로 재인코딩해 이미 인코딩된 발급키가
-  이중 인코딩되어 401 이 발생한다.
+ ServiceKey 를 스펙에 넣으면 생성된 코드가 URLSearchParams 로 재인코딩해 이미 인코딩된 발급키가
+ 이중 인코딩되어 401 이 발생한다.
 - 가이드는 XML 기준이지만 _type=json 을 주면 JSON 으로 응답한다. mutator 가 항상 주입한다.
 - 응답 스키마는 '이상적인' 형태로 정의한다. 실제 응답에서 items 가 빈 문자열로 오거나
-  item 이 단일 객체로 오는 경우는 @krdata/core 의 normalizeKrDataResponse 가 보정한다.
+ item 이 단일 객체로 오는 경우는 @krdata/core 의 normalizeKrDataResponse 가 보정한다.
 - 가이드의 응답 명세에 없지만 실제 응답에 나오는 필드(dutyLvkl 등)도 포함한다.
  * OpenAPI spec version: 1.1.0
  */
@@ -98,15 +98,13 @@ export interface HospitalListItem {
   dutyTime8c?: string;
   /** 시도명 (예: 서울특별시).
 
-**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.
-NMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,
-지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.
+**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 첫 토큰에서 추출하며,
 축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다. */
   sidoNm?: string;
   /** 시군구명 (예: 강남구).
 
-**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.
-시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).
+**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 둘째 토큰에서 추출한다.
+시 아래 구가 있으면 두 토큰을 합친다(예: 수원시 팔달구).
 세종특별자치시처럼 시군구가 없는 지역은 값이 없다. */
   sgguNm?: string;
 }

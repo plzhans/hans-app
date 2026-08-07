@@ -3,12 +3,12 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { HospitalNearbyDto } from './hospitalNearbyDto';
 
 export interface HospitalNearbyResponseDto {
-  /** 이 결과를 만든 반경(m). 요청에 radius 가 있었으면 그 값, 없었으면 **기준 병원 등급으로 서버가 고른 값**이다. 화면에 "반경 N 안에서" 를 쓸 거면 이 값을 써라. */
+  /** 이 결과를 만든 반경(m). 요청에 radius 가 있었으면 그 값, 없었으면 **기준 병원 등급으로 서버가 고른 값**이다. "반경 N 안에서" 같은 표기에는 요청값이 아니라 이 값을 쓴다. */
   radius: number;
   items: HospitalNearbyDto[];
 }

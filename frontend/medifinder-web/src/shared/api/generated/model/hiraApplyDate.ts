@@ -3,10 +3,10 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
- * 적용일자 (YYYYMMDD). **문자열이 아니라 JSON number 로 온다**(2026-07 실측).
+ * 적용일자 (YYYYMMDD). **문자열이 아니라 JSON number 로 온다**.
  */
 export type HiraApplyDate = number;

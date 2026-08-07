@@ -49,3 +49,19 @@ export const SENTRY_TRACES_SAMPLE_RATE =
 
 /** 이 산출물의 신원. vite define 이 빌드 때 박는다(→ vite.config.ts). Sentry release 로 쓴다. */
 export const APP_RELEASE = __APP_RELEASE__;
+
+/**
+ * AI/LLM 업체 키(BYOK) 등록 기능을 여나.
+ *
+ * **빌드 때 박히는 스위치다.** 아직 열지 않은 기능의 화면을 잠그는 용도이고, 단위는 환경
+ * 하나다 — 사용자·앱마다 달라져야 하는 것이 생기면 그건 권한이라 여기가 아니라 서버로 간다.
+ *
+ * **서버는 이 값을 모른다.** 백엔드 API 는 언제나 열려 있고, 잠그는 것은 화면뿐이다 —
+ * 막는 대상이 남이 아니라 아직 준비가 안 된 우리 자신이라 그 정도면 충분하다.
+ *
+ * `'true'` 만 켠 것으로 본다. 빈 값·미설정·그 밖의 문자열은 전부 꺼짐이다 —
+ * `'false'` 를 넣었는데 켜지는(빈 문자열이 아니라서) 사고를 막으려고 값을 하나로 좁힌다.
+ */
+export const LLM_PROVIDER_KEYS_ENABLED =
+  (import.meta.env.VITE_FEATURE_LLM_PROVIDER_KEYS as string | undefined) ===
+  'true';

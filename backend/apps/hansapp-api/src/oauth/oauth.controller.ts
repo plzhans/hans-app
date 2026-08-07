@@ -109,10 +109,11 @@ export class OAuthController {
   @Auth(AuthType.Jwt)
   @HttpCode(200)
   @ApiOperation({
-    summary: 'SSO 인가코드 발급',
+    summary: '인가 코드 발급',
     description:
-      '로그인된 사용자에 대해 다른 클라이언트(앱)의 redirect_uri(허용목록)로 넘길 1회용 ' +
-      '인가코드를 발급한다. 클라이언트는 이 code 를 /oauth/token 으로 교환한다.',
+      'OAuth 2.0 Authorization Code Grant 의 인가 코드(authorization code)를 발급한다. ' +
+      '로그인된 사용자에 대해, 클라이언트가 등록한 `redirect_uri` 로 전달할 1회용 코드다.\n\n' +
+      '발급된 코드는 `POST /oauth/token` 에서 access token 으로 교환한다.',
   })
   @ApiOkResponse({ type: AuthorizeResponseDto })
   async authorize(

@@ -24,6 +24,7 @@ import { UserOAuthRepository } from '../repository/user-oauth.repository';
 import { WithdrawalRepository } from '../repository/withdrawal.repository';
 import { AuthTokens, TokenService } from '../token/token.service';
 import { EmailVerificationService } from '../mail/email-verification.service';
+import { MailService } from '../mail/mail.service';
 import { SocialTicketService } from './social-ticket.service';
 import { ConsentService, type ConsentInput } from '../consent.service';
 import { SocialProfile } from './social.types';
@@ -91,20 +92,50 @@ export class SocialService {
     private readonly log: ActionLogService,
     private readonly login: LoginService,
     private readonly emailVerification: EmailVerificationService,
+    private readonly mail: MailService,
   ) {}
+
+  /**
+   * "소셜이 연동/해제되었다" 통지.
+   *
+   * **최초 가입 때는 부르지 않는다** — 그때는 가입 축하 메일이 나가고, 소셜로 가입한
+   * 사람에게 "소셜이 연동되었습니다" 는 같은 사실을 두 번 말하는 것이다.
+   * 알려야 하는 것은 **이미 쓰던 계정에 로그인 수단이 늘거나 줄었을 때**다.
+   */
+  private notifySocialChange(
+    user: { email: string; name: string | null },
+    kind: 'SOCIAL_LINKED' | 'SOCIAL_UNLINKED',
+    provider: OAuthProvider,
+    locale?: string,
+  ): Promise<void> {
+    return this.mail.sendAccountNotice({
+      to: user.email,
+      kind,
+      provider,
+      locale,
+      userName: user.name,
+    });
+  }
 
   /** provider 콜백 처리. state 의도에 따라 분기하고, 복귀 URL(returnTo)을 함께 돌려준다. */
   async handleCallback(
     profile: SocialProfile,
     stateToken: string,
     meta: RequestMeta,
+    locale?: string,
   ): Promise<CallbackResult> {
     const state = this.tickets.verifyState(stateToken);
     const existing = await this.oauths.findByProvider(
       profile.provider,
       profile.providerId,
     );
-    const outcome = await this.resolveOutcome(state, profile, existing, meta);
+    const outcome = await this.resolveOutcome(
+      state,
+      profile,
+      existing,
+      meta,
+      locale,
+    );
     return {
       outcome,
       returnTo: state.returnTo,
@@ -125,9 +156,10 @@ export class SocialService {
     profile: SocialProfile,
     existing: { userId: number } | null,
     meta: RequestMeta,
+    locale?: string,
   ): Promise<CallbackOutcome> {
     if (state.intent === 'link') {
-      return this.handleLink(state.userId, profile, existing, meta);
+      return this.handleLink(state.userId, profile, existing, meta, locale);
     }
 
     // 로그인 의도
@@ -162,6 +194,17 @@ export class SocialService {
             provider: toJoinType(profile.provider),
             ...meta,
           });
+          /*
+            **자동 연동이라 사용자가 누른 적이 없다.** 이메일이 같아서 서버가 스스로 이었다 —
+            그래서 오히려 더 알려야 한다. 남이 내 이메일로 소셜을 만들어 붙였다면 이 메일이
+            유일한 신호다.
+          */
+          await this.notifySocialChange(
+            active,
+            'SOCIAL_LINKED',
+            profile.provider,
+            locale,
+          );
           return this.completeLogin(
             active.id,
             state,
@@ -245,6 +288,7 @@ export class SocialService {
       consent: ConsentInput;
     },
     meta: RequestMeta,
+    locale?: string,
   ): Promise<AuthResult> {
     // **계정을 만들기 전에 막는다.** 이메일 가입과 같은 규칙이다.
     this.consent.assertValid(input.consent);
@@ -310,6 +354,19 @@ export class SocialService {
       provider: toJoinType(payload.provider),
       ...meta,
     });
+
+    /*
+      가입 축하 메일만 보낸다. **연동 알림은 보내지 않는다** — 소셜로 가입한 사람에게
+      "소셜이 연동되었습니다" 는 방금 한 가입을 두 번 말하는 것이다.
+      연동 알림은 이미 쓰던 계정에 수단이 붙을 때의 신호다.
+    */
+    await this.mail.sendAccountNotice({
+      to: user.email,
+      kind: 'SIGNUP_WELCOME',
+      locale,
+      userName: user.name,
+    });
+
     const tokens = await this.login.complete(
       user,
       toJoinType(payload.provider),
@@ -375,6 +432,7 @@ export class SocialService {
     userId: number,
     provider: OAuthProvider,
     meta: RequestMeta,
+    locale?: string,
   ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
@@ -399,6 +457,8 @@ export class SocialService {
       provider: toJoinType(provider),
       ...meta,
     });
+    // 로그인 수단이 하나 줄었다. 남이 끊은 것이라면 이 메일로만 알 수 있다.
+    await this.notifySocialChange(user, 'SOCIAL_UNLINKED', provider, locale);
   }
 
   /** 연동 처리(내부). intent=link 경로에서 호출된다. */
@@ -407,6 +467,7 @@ export class SocialService {
     profile: SocialProfile,
     existing: { userId: number } | null,
     meta: RequestMeta,
+    locale?: string,
   ): Promise<CallbackOutcome> {
     if (!userId) {
       return { kind: 'error', error: 'link_requires_login' };
@@ -434,6 +495,13 @@ export class SocialService {
       provider: toJoinType(profile.provider),
       ...meta,
     });
+    // 이미 쓰던 계정에 로그인 수단이 하나 늘었다 — 본인이 한 일이 아니면 알아야 한다.
+    await this.notifySocialChange(
+      user,
+      'SOCIAL_LINKED',
+      profile.provider,
+      locale,
+    );
     return { kind: 'linked' };
   }
 }

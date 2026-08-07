@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import {
   useQuery
@@ -184,7 +184,7 @@ export const getRegionControllerReverseUrl = (params: RegionControllerReversePar
  * 받은 코드는 **병원 검색의 `region` 파라미터에 그대로** 넣으면 된다 — `region` 이 있으면 그 시군구 코드를, 없으면 `sido` 코드를 보낸다.
  *
  * **한국 밖이거나 주변에 병원이 없으면 404** 다. 위치를 못 알아낸 것이지 오류가 아니니, 클라이언트는 조용히 지역 선택을 비워두면 된다.
- * @summary 좌표 → 지역 코드 (역지오코딩)
+ * @summary 좌표로 지역 코드 조회
  */
 export const regionControllerReverse = async (params: RegionControllerReverseParams, options?: RequestInit): Promise<RegionPointDto> => {
 
@@ -255,7 +255,7 @@ export function useRegionControllerReverse<TData = Awaited<ReturnType<typeof reg
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary 좌표 → 지역 코드 (역지오코딩)
+ * @summary 좌표로 지역 코드 조회
  */
 
 export function useRegionControllerReverse<TData = Awaited<ReturnType<typeof regionControllerReverse>>, TError = unknown>(

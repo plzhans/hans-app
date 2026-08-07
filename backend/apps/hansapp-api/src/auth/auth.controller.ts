@@ -1,17 +1,7 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  HttpCode,
-  Post,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
 import {
   ApiCreatedResponse,
+  ApiExcludeController,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -19,38 +9,26 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
-  Auth,
   AuthService,
-  AuthType,
   ConsentService,
-  CurrentUser,
   FirstPartyOnly,
   Public,
   SocialService,
 } from '@hansapp/auth-application';
-import type { AuthResult, AuthUser } from '@hansapp/auth-application';
+import type { AuthResult } from '@hansapp/auth-application';
 import type { SupportedLang } from '@hansapp/common';
 
 import { Lang } from '../common/lang.decorator';
 
 import {
-  ChangePasswordRequestDto,
   LoginRequestDto,
-  ConsentRecordDto,
-  MeResponseDto,
-  SessionDto,
-  UpdateProfileRequestDto,
   PasswordResetConfirmDto,
   PasswordResetRequestDto,
   SignupCodeRequestDto,
   SignupRequestDto,
   TokenResponseDto,
 } from './dto/auth.dto';
-import {
-  clearRefreshCookie,
-  requestMeta,
-  respondTokens,
-} from './refresh-cookie';
+import { requestMeta, respondTokens } from './refresh-cookie';
 
 /**
  * 인증(로그인 흐름) 엔드포인트. 프론트가 직접 호출하는 이메일 가입·로그인·계정관리가 여기 있다.
@@ -58,6 +36,14 @@ import {
  *
  * refresh token 은 httpOnly 쿠키로만 내려가고, 바디에는 access token 만 담는다.
  */
+/**
+ * **스펙에 싣지 않는다(@ApiExcludeController).** 여기 있는 것은 전부 우리 인증웹이 부르는
+ * 자리다(`@FirstPartyOnly()` — 오리진 가드가 외부 호출을 막는다). 연동하는 쪽이 구현하는
+ * 것은 `/oauth/*` 프로토콜이고, 가입·로그인·비밀번호 재설정은 그 인증웹의 **내부 흐름**이다.
+ *
+ * 스펙의 뜻을 한 문장으로 지킨다: **스펙에 있는 것 = 외부가 부를 수 있는 것.**
+ */
+@ApiExcludeController()
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -100,8 +86,9 @@ export class AuthController {
     @Body() dto: SignupRequestDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
+    @Lang() lang: SupportedLang,
   ): Promise<TokenResponseDto> {
-    const result = await this.authService.signup(dto, requestMeta(req));
+    const result = await this.authService.signup(dto, requestMeta(req), lang);
     return this.respondWithTokens(res, result);
   }
 
@@ -124,150 +111,6 @@ export class AuthController {
   ): Promise<TokenResponseDto> {
     const result = await this.authService.login(dto, requestMeta(req));
     return this.respondWithTokens(res, result);
-  }
-
-  @Get('me')
-  @Auth(AuthType.Jwt)
-  @ApiOperation({
-    summary: '내 정보',
-    description: '현재 로그인 사용자 정보를 반환한다.',
-  })
-  @ApiOkResponse({ type: MeResponseDto })
-  async me(@CurrentUser() user: AuthUser): Promise<MeResponseDto> {
-    const [u, linked] = await Promise.all([
-      this.authService.getProfile(user.userId),
-      this.socialService.listLinked(user.userId),
-    ]);
-    return {
-      id: u.id,
-      email: u.email,
-      emailVerified: u.emailVerified,
-      name: u.name,
-      role: u.role,
-      joinType: u.joinType,
-      hasPassword: !!u.password,
-      createdAt: u.createdAt.toISOString(),
-      linkedProviders: linked,
-    };
-  }
-
-  @Patch('me')
-  @Auth(AuthType.Jwt)
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '내 정보 수정',
-    description:
-      '표시 이름을 바꾼다. 개인정보처리방침 제10조의 정정 요구에 응하는 자리다.',
-  })
-  async updateMe(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: UpdateProfileRequestDto,
-  ): Promise<void> {
-    await this.authService.updateName(user.userId, dto.name);
-  }
-
-  @Get('me/sessions')
-  @Auth(AuthType.Jwt)
-  @ApiOperation({
-    summary: '로그인한 기기 목록',
-    description:
-      '살아 있는 세션을 최근 활동 순으로 돌려준다. 계정 이용약관 제6조④가 약속한 기능이다.',
-  })
-  @ApiOkResponse({ type: [SessionDto] })
-  async sessions(@CurrentUser() user: AuthUser): Promise<SessionDto[]> {
-    const rows = await this.authService.listSessions(user.userId);
-    return rows.map((r) => ({
-      sessionId: r.sessionId,
-      userAgent: r.userAgent,
-      ip: r.ip,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-      // access token 에 sid 가 실려 있어 지금 이 기기를 가릴 수 있다.
-      current: r.sessionId === user.sessionId,
-    }));
-  }
-
-  @Delete('me/sessions/:sessionId')
-  @Auth(AuthType.Jwt)
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '기기 로그아웃',
-    description:
-      '세션 하나를 폐기한다. 자기 세션만 지워진다(남의 식별자를 넣으면 404 성격의 오류).',
-  })
-  async revokeSession(
-    @CurrentUser() user: AuthUser,
-    @Param('sessionId') sessionId: string,
-  ): Promise<void> {
-    await this.authService.revokeSession(user.userId, sessionId);
-  }
-
-  @Delete('me/sessions')
-  @Auth(AuthType.Jwt)
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '모든 기기에서 로그아웃',
-    description:
-      '이 계정의 세션을 전부 폐기한다. 지금 이 기기도 포함되므로 호출한 쪽도 로그아웃된다.',
-  })
-  async revokeAllSessions(
-    @CurrentUser() user: AuthUser,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<void> {
-    await this.authService.revokeAllSessions(user.userId, requestMeta(req));
-    // **쿠키도 같이 지운다.** 세션 행만 지우면 브라우저에는 죽은 refresh 쿠키가 남고,
-    // 프론트는 힌트 쿠키를 보고 로그인 상태로 착각해 refresh 를 부르다 401 을 맞는다.
-    clearRefreshCookie(res);
-  }
-
-  @Get('me/consents')
-  @Auth(AuthType.Jwt)
-  @ApiOperation({
-    summary: '내 동의 기록',
-    description:
-      '가입 시 무엇에 언제 어느 판으로 동의했는지 돌려준다. 개인정보처리방침 제10조의 열람 요구에 응하는 자리다.',
-  })
-  @ApiOkResponse({ type: [ConsentRecordDto] })
-  async consents(@CurrentUser() user: AuthUser): Promise<ConsentRecordDto[]> {
-    const rows = await this.consentService.listByUser(user.userId);
-    return rows.map((r) => ({
-      type: r.type,
-      version: r.version,
-      agreedAt: r.agreedAt.toISOString(),
-    }));
-  }
-
-  @Post('withdraw')
-  @Auth(AuthType.Jwt)
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '회원 탈퇴',
-    description:
-      '계정을 탈퇴 상태로 전환한다. 모든 세션이 폐기되고 재로그인이 차단되며, 30일간 같은 이메일 재가입이 제한된다.',
-  })
-  async withdraw(
-    @CurrentUser() user: AuthUser,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<void> {
-    await this.authService.withdraw(user.userId, requestMeta(req));
-    clearRefreshCookie(res);
-  }
-
-  @Post('password/change')
-  @Auth(AuthType.Jwt)
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '비밀번호 변경',
-    description: '로그인 상태에서 비밀번호를 변경한다.',
-  })
-  async changePassword(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: ChangePasswordRequestDto,
-    @Req() req: Request,
-  ): Promise<void> {
-    await this.authService.changePassword(user.userId, dto, requestMeta(req));
   }
 
   @Post('password/reset-request')
@@ -302,8 +145,9 @@ export class AuthController {
   async resetPassword(
     @Body() dto: PasswordResetConfirmDto,
     @Req() req: Request,
+    @Lang() lang: SupportedLang,
   ): Promise<void> {
-    await this.authService.resetPassword(dto, requestMeta(req));
+    await this.authService.resetPassword(dto, requestMeta(req), lang);
   }
 
   /** refresh 를 쿠키+바디로, access 는 바디로 반환한다. */

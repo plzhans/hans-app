@@ -9,7 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
 import type { RequestWithId } from '../common/request-id.middleware';
@@ -50,7 +50,10 @@ import { AiSearchRequestDto, AiSearchResponseDto } from './dto/ai-search.dto';
  * **전역 한도보다 세게 조인다**(IP 당 60초에 10회). 호출 한 번이 외부 LLM 요금이라,
  * 폭주하면 응답이 느려지는 게 아니라 돈이 나간다.
  */
-@ApiTags('healthcare')
+// **`healthcare` 가 아니라 `ai` 다.** 경로는 병원 밑이지만(`/healthcare/ai-search`) 태그는
+// 문서 페이지와 생성 SDK 의 묶음을 정한다 — 사용자가 찾는 자리는 "병원 API 중 하나" 가 아니라
+// "AI 로 뭘 할 수 있나" 쪽이라, `/ai/capabilities` 와 같은 페이지에 있어야 말이 된다.
+@ApiTags('ai')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
 @Controller('healthcare/ai-search')
 export class HealthcareAiSearchController {
@@ -61,17 +64,17 @@ export class HealthcareAiSearchController {
   @Post()
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @ApiOperation({
-    summary: '자연어 질문 → 실행할 툴',
+    summary: '자연어 병원 검색',
     description:
-      '질문을 **화면이 실행할 지시**로 옮긴다. 검색 결과가 아니다 — ' +
-      '`tool` 로 갈리고 `params` 를 그대로 실어 기존 조회 API 를 부른다.\n\n' +
-      '- `search_hospitals` `params.filter`(+`regionCd`)로 `GET /healthcare/hospitals`\n' +
-      '- `search_nearby` 측위한 뒤 같은 조회에 `sort=distance`·좌표를 얹는다\n' +
-      '- `ask_location` 지역을 되묻는다(장소를 말했는데 코드로 못 옮김). 조건은 살아 있다\n' +
-      '- `reject` 검색하지 않는다. `explain` 을 보여준다\n\n' +
-      '**좌표는 주지도 받지도 않는다** — 측위는 화면 몫이고 서버는 쓸지 말지만 정한다.\n' +
-      '진단·치료 조언은 하지 않는다(병원을 고르는 조건만 만든다).',
+      '자연어 질문을 검색 조건으로 변환한다. **병원 목록은 반환하지 않는다** — ' +
+      '응답의 `tool` 로 동작을 고르고 `params` 를 실어 `GET /healthcare/hospitals` 를 호출한다.\n\n' +
+      '좌표는 주고받지 않는다. 측위는 클라이언트가 하고, 서버는 위치 기준으로 ' +
+      '검색할지 여부만 정한다.\n\n' +
+      '진단·치료 조언은 하지 않는다. 병원을 고르기 위한 조건만 만든다.',
   })
+  // **안 붙이면 스펙에 응답 스키마가 없다.** 반환 타입만으로는 안 잡히고, 그러면 스펙을
+  // 읽는 쪽(문서 페이지·생성 SDK)이 응답을 `void` 로 본다 — 훅이 타입 없이 생성된다.
+  @ApiOkResponse({ type: AiSearchResponseDto })
   async search(
     @Body() request: AiSearchRequestDto,
     @Req() req: Request,

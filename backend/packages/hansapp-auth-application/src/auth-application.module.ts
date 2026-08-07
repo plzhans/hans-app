@@ -37,6 +37,12 @@ import { AuthCodeRepository } from './repository/auth-code.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
 import { AppRepository } from './app/app.repository';
 import { AppService } from './app/app.service';
+import {
+  APP_SECRET_CONFIG,
+  buildAppSecretConfig,
+} from './app/app-secret.config';
+import { LlmKeyRepository } from './app/llm-key.repository';
+import { LlmKeyService } from './app/llm-key.service';
 import { AccessCache } from './app/access-cache.service';
 import { ApiAccessService } from './app/api-access.service';
 import { SocialService } from './social/social.service';
@@ -122,6 +128,10 @@ export class AuthModule {
         // 앱(개발자 플랫폼)
         AppRepository,
         AppService,
+        // 앱이 등록한 LLM 업체 키(BYOK). 마스터 키가 없으면 저장 경로만 막힌다.
+        { provide: APP_SECRET_CONFIG, useValue: buildAppSecretConfig(source) },
+        LlmKeyRepository,
+        LlmKeyService,
         // API 접근 인증(서비스 키/클라이언트) + 조회 캐시
         AccessCache,
         ApiAccessService,
@@ -148,6 +158,7 @@ export class AuthModule {
         // 그 의존(AUTH_CONFIG·SocialTicketService·AccessCache)이 모두 export 돼 있어야 한다.
         AccessCache,
         AppService,
+        LlmKeyService,
         ApiAccessService,
       ],
     };

@@ -1,0 +1,392 @@
+<!doctype html>
+<!--
+  소셜 연동 / 연동 해제 알림
+
+  **연동과 해제가 같이 쓴다.** 마크업이 글자 하나까지 같고 문구만 다르기 때문이다 —
+  파일을 둘로 두면 한쪽만 고치는 사고가 난다(예전 코드 메일 둘이 딱 그 상태였다).
+  무엇이 일어났는지는 heading·message·alertNote 가 말한다.
+
+  **최초 가입은 여기 오지 않는다** — 그때는 가입 축하 메일이 나가고, 소셜로 가입한 사람에게
+  "소셜이 연동되었습니다" 는 같은 사실을 두 번 말하는 것이다. 이 메일은 **이미 쓰던 계정에
+  로그인 수단이 늘거나 줄었을 때**의 신호다.
+
+  자동 연동(이메일이 같아 서버가 스스로 이은 경우)일 때 특히 중요하다. 사용자가 누른 적이
+  없으므로, 남이 내 이메일로 소셜을 만들어 붙였다면 이 메일이 유일한 단서다.
+
+  ─ 이 파일이 "소스"다. 브라우저로 열어 렌더를 확인하고, Litmus / Email on Acid 에 붙여 본다.
+  ─ MailService 가 플레이스홀더를 치환해 발송한다. 계약은 같은 폴더 README.md 참고.
+
+  **언어별 파일이 없다.** 보이는 문구가 전부 슬롯이라 파일 하나가 모든 언어를 낸다 —
+  그래서 이름에 locale 접미사가 없다.
+-->
+<html lang="{{lang}}" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
+    <title>{{appName}} — {{heading}}</title>
+    <style>
+      html,
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+      }
+      table,
+      td {
+        border-collapse: collapse !important;
+      }
+      a {
+        color: #2563eb;
+      }
+      @media only screen and (max-width: 600px) {
+        .sm-w-full {
+          width: 100% !important;
+        }
+        .sm-px-24 {
+          padding-left: 24px !important;
+          padding-right: 24px !important;
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        .body-bg {
+          background-color: #0b0f19 !important;
+        }
+        .card {
+          background-color: #111827 !important;
+          border-color: #1f2937 !important;
+        }
+        .info-box {
+          background-color: #0b0f19 !important;
+          border-color: #1f2937 !important;
+        }
+        .alert-box {
+          background-color: #2a1e05 !important;
+          border-color: #6b4e0a !important;
+        }
+        .alert-text {
+          color: #fcd34d !important;
+        }
+        .text-heading {
+          color: #f9fafb !important;
+        }
+        .text-body {
+          color: #cbd5e1 !important;
+        }
+        .text-muted {
+          color: #94a3b8 !important;
+        }
+        .divider {
+          border-color: #1f2937 !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body
+    class="body-bg"
+    style="
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background-color: #f1f5f9;
+      word-break: break-word;
+    "
+  >
+    <!-- 프리헤더: 받은편지함 미리보기. 화면엔 안 보이게 숨긴다. -->
+    <div
+      style="
+        display: none;
+        max-height: 0;
+        overflow: hidden;
+        mso-hide: all;
+        font-size: 1px;
+        color: #f1f5f9;
+        opacity: 0;
+      "
+    >
+      {{message}} &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+    </div>
+
+    <div
+      role="article"
+      aria-roledescription="email"
+      aria-label="{{appName}} — {{heading}}"
+      lang="{{lang}}"
+      style="
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo',
+          'Malgun Gothic', Roboto, Helvetica, Arial, sans-serif;
+      "
+    >
+      <table
+        role="presentation"
+        cellpadding="0"
+        cellspacing="0"
+        width="100%"
+        style="background-color: #f1f5f9"
+        class="body-bg"
+      >
+        <tr>
+          <td align="center" style="padding: 40px 16px">
+            <table
+              role="presentation"
+              cellpadding="0"
+              cellspacing="0"
+              width="600"
+              class="sm-w-full"
+              style="width: 600px; max-width: 600px"
+            >
+              <tr>
+                <td align="center" style="padding: 0 0 24px">
+                  <a href="{{appUrl}}" style="text-decoration: none">
+                    <span
+                      class="text-heading"
+                      style="font-size: 22px; font-weight: 700; color: #0f172a"
+                      >{{appName}}</span
+                    >
+                  </a>
+                </td>
+              </tr>
+
+              <tr>
+                <td
+                  class="card"
+                  style="
+                    background-color: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 16px;
+                  "
+                >
+                  <table
+                    role="presentation"
+                    cellpadding="0"
+                    cellspacing="0"
+                    width="100%"
+                  >
+                    <tr>
+                      <td class="sm-px-24" style="padding: 40px 48px 8px">
+                        <h1
+                          class="text-heading"
+                          style="
+                            margin: 0;
+                            font-size: 24px;
+                            line-height: 32px;
+                            font-weight: 700;
+                            color: #0f172a;
+                          "
+                        >
+                          {{heading}}
+                        </h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="sm-px-24" style="padding: 16px 48px 0">
+                        <p
+                          class="text-body"
+                          style="
+                            margin: 0;
+                            font-size: 16px;
+                            line-height: 26px;
+                            color: #334155;
+                          "
+                        >
+                          {{greeting}}{{userNameGreeting}},<br />
+                          {{message}}
+                        </p>
+                      </td>
+                    </tr>
+
+                    <!-- 언제 일어났나. 본인이 한 일인지 가리는 유일한 단서라 늘 넣는다. -->
+                    <tr>
+                      <td class="sm-px-24" style="padding: 24px 48px 0">
+                        <table
+                          role="presentation"
+                          cellpadding="0"
+                          cellspacing="0"
+                          width="100%"
+                          class="info-box"
+                          style="
+                            background-color: #f8fafc;
+                            border: 1px solid #e2e8f0;
+                            border-radius: 10px;
+                          "
+                        >
+                          <tr>
+                            <td style="padding: 14px 18px 4px">
+                              <p
+                                class="text-muted"
+                                style="
+                                  margin: 0;
+                                  font-size: 13px;
+                                  line-height: 22px;
+                                  color: #64748b;
+                                "
+                              >
+                                {{providerLabel}}
+                                <strong style="color: #334155"
+                                  >{{provider}}</strong
+                                >
+                              </p>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 14px 18px">
+                              <p
+                                class="text-muted"
+                                style="
+                                  margin: 0;
+                                  font-size: 13px;
+                                  line-height: 22px;
+                                  color: #64748b;
+                                "
+                              >
+                                {{detailLabel}}
+                                <strong style="color: #334155"
+                                  >{{detail}}</strong
+                                >
+                              </p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+
+                    <!-- 본인이 아닐 때의 안내. **이 메일의 존재 이유라 눈에 걸리게 세운다.** -->
+                    <tr>
+                      <td class="sm-px-24" style="padding: 20px 48px 0">
+                        <table
+                          role="presentation"
+                          cellpadding="0"
+                          cellspacing="0"
+                          width="100%"
+                          class="alert-box"
+                          style="
+                            background-color: #fffbeb;
+                            border: 1px solid #fcd34d;
+                            border-radius: 10px;
+                          "
+                        >
+                          <tr>
+                            <td style="padding: 16px 18px">
+                              <p
+                                class="alert-text"
+                                style="
+                                  margin: 0;
+                                  font-size: 14px;
+                                  line-height: 23px;
+                                  color: #92400e;
+                                "
+                              >
+                                {{alertNote}}
+                              </p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td class="sm-px-24" style="padding: 28px 48px 0">
+                        <table
+                          role="presentation"
+                          cellpadding="0"
+                          cellspacing="0"
+                        >
+                          <tr>
+                            <td
+                              align="center"
+                              style="
+                                background-color: #2563eb;
+                                border-radius: 10px;
+                              "
+                            >
+                              <a
+                                href="{{ctaUrl}}"
+                                style="
+                                  display: inline-block;
+                                  padding: 14px 28px;
+                                  font-size: 15px;
+                                  font-weight: 700;
+                                  color: #ffffff;
+                                  text-decoration: none;
+                                "
+                                >{{ctaLabel}}</a
+                              >
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td class="sm-px-24" style="padding: 32px 48px 0">
+                        <div
+                          class="divider"
+                          style="
+                            border-top: 1px solid #e2e8f0;
+                            font-size: 0;
+                            line-height: 0;
+                          "
+                        >
+                          &nbsp;
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td class="sm-px-24" style="padding: 24px 48px 40px">
+                        <p
+                          class="text-muted"
+                          style="
+                            margin: 0;
+                            font-size: 13px;
+                            line-height: 22px;
+                            color: #64748b;
+                          "
+                        >
+                          {{closingNote}}
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="sm-px-24" style="padding: 24px 48px">
+                  <p
+                    class="text-muted"
+                    style="
+                      margin: 0;
+                      font-size: 12px;
+                      line-height: 20px;
+                      color: #94a3b8;
+                      text-align: center;
+                    "
+                  >
+                    {{footerLegal}}
+                  </p>
+                  <p
+                    class="text-muted"
+                    style="
+                      margin: 8px 0 0;
+                      font-size: 12px;
+                      line-height: 20px;
+                      color: #94a3b8;
+                      text-align: center;
+                    "
+                  >
+                    {{copyright}}
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

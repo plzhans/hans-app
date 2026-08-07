@@ -154,7 +154,7 @@
       },
       "ClinicTop5Item": {
         "type": "object",
-        "description": "의원 진료 상위질병 5개 항목. 필드명은 가이드가 아니라 실응답을 따랐다(2026-07 실측).",
+        "description": "의원 진료 상위질병 5개 항목. 필드명은 가이드가 아니라 실응답을 따랐다.",
         "properties": {
           "rnum": {
             "type": "integer",

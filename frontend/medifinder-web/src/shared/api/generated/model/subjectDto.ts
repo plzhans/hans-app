@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 export interface SubjectDto {
@@ -11,7 +11,7 @@ export interface SubjectDto {
   name: string;
   /** 신고한 과목인가. **진료과목** 판정 기준이다. */
   declared: boolean;
-  /** 과목별 의사수. **겸직이 중복 계산된다. 합산하지 마라** — 총원은 staff.doctorTotal 이다. */
+  /** 과목별 의사수. **겸직이 중복 계산되므로 합산하지 않는다** — 총원은 staff.doctorTotal 이다. */
   doctorCount?: number;
   /** 과목별 전문의수. 0보다 크면 **표시과목**이다. 상세 수집이 끝난 병원만 값이 있다. */
   specialistCount?: number;

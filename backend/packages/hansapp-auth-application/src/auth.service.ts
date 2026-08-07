@@ -6,6 +6,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import {
   ActionResult,
@@ -48,6 +49,9 @@ export interface AuthResult {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+
+  /** 로그인 타이밍 방어용 더미 해시. 첫 사용 때 만들어 재사용한다(getDummyHash 참고). */
+  private dummyHash?: string;
 
   constructor(
     private readonly consent: ConsentService,
@@ -94,6 +98,7 @@ export class AuthService {
       consent: ConsentInput;
     },
     meta: RequestMeta,
+    locale?: string,
   ): Promise<AuthResult> {
     // **계정을 만들기 전에 막는다.** 통과 못 하면 아무것도 생기지 않는다.
     this.consent.assertValid(input.consent);
@@ -128,6 +133,14 @@ export class AuthService {
       ...meta,
     });
 
+    // 가입 축하 메일. 실패해도 가입은 이미 끝났다(sendAccountNotice 가 삼킨다).
+    await this.mail.sendAccountNotice({
+      to: user.email,
+      kind: 'SIGNUP_WELCOME',
+      locale,
+      userName: user.name,
+    });
+
     /*
       가입 직후 로그인은 **유지하지 않는다**(세션 쿠키). 가입 화면에는 "로그인 상태 유지"
       체크가 없어서 이용자가 고른 적이 없는데, 고르지 않은 것을 켠 것으로 볼 이유가 없다.
@@ -150,10 +163,17 @@ export class AuthService {
     const email = normalizeEmail(input.email);
     const user = await this.users.findActiveByEmail(email);
 
-    const ok =
-      !!user &&
-      !!user.password &&
-      (await bcrypt.compare(input.password, user.password));
+    /*
+      **계정이 없어도 대조는 한 번 돌린다.** 없다고 곧장 실패로 빠지면 bcrypt 를 건너뛰어
+      응답이 그만큼(코스트 10 기준 ~80ms) 빨리 돌아오고, 그 시간차가 "이 이메일은 가입돼
+      있다" 를 말해 준다 — 메시지를 똑같이 맞춰 둔 의미가 없어진다.
+      비밀번호가 없는 소셜 전용 계정도 같은 이유로 더미와 대조한다.
+    */
+    const matched = await bcrypt.compare(
+      input.password,
+      user?.password ?? this.getDummyHash(),
+    );
+    const ok = !!user?.password && matched;
     if (!user || !ok) {
       await this.log.record({
         userId: user?.id ?? null,
@@ -165,6 +185,9 @@ export class AuthService {
       });
       throw new UnauthorizedException('Invalid email or password.');
     }
+
+    // 평문을 손에 쥐는 유일한 순간이라 여기서 해 둔다(rehashIfStale 주석 참고).
+    await this.rehashIfStale(user, input.password);
 
     const tokens = await this.issueLoginTokens(
       user,
@@ -209,29 +232,44 @@ export class AuthService {
     });
   }
 
-  /** 비밀번호 변경(로그인 상태). 변경 후 다른 세션은 유지한다(정책 필요 시 전체 로그아웃으로 강화). */
-  async changePassword(
+  /**
+   * 비밀번호 변경·설정(로그인 상태). **경로가 하나다.**
+   *
+   * 갈림은 클라이언트가 무엇을 보냈나가 아니라 **계정에 비밀번호가 있나**로 정한다 —
+   * `currentPassword` 를 안 보냈다고 설정으로 처리하면, 남의 세션을 주운 사람이 그 항목을
+   * 빼고 보내는 것만으로 비밀번호를 갈아 끼우고 원래 주인을 밀어낼 수 있다.
+   *
+   *  - 비밀번호가 **있으면** → 현재 비밀번호를 반드시 확인한다(변경).
+   *  - 비밀번호가 **없으면** → 물을 것이 없다(소셜 전용 계정의 최초 설정).
+   *    로그인 상태 자체가 신원 증명이다.
+   */
+  async updatePassword(
     userId: number,
-    input: { currentPassword: string; newPassword: string },
+    input: { currentPassword?: string; newPassword: string },
     meta: RequestMeta,
+    locale?: string,
   ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== 'ACTIVE') {
       throw new UnauthorizedException('Invalid account.');
     }
-    if (
-      !user.password ||
-      !(await bcrypt.compare(input.currentPassword, user.password))
-    ) {
-      await this.log.record({
-        userId: user.id,
-        action: UserAction.PASSWORD_CHANGE,
-        result: ActionResult.FAIL,
-        failReason: 'bad_credentials',
-        ...meta,
-      });
-      throw new UnauthorizedException('Current password is incorrect.');
+
+    if (user.password) {
+      const ok =
+        !!input.currentPassword &&
+        (await bcrypt.compare(input.currentPassword, user.password));
+      if (!ok) {
+        await this.log.record({
+          userId: user.id,
+          action: UserAction.PASSWORD_CHANGE,
+          result: ActionResult.FAIL,
+          failReason: 'bad_credentials',
+          ...meta,
+        });
+        throw new UnauthorizedException('Current password is incorrect.');
+      }
     }
+
     await this.users.updatePassword(
       user.id,
       await this.hashPassword(input.newPassword),
@@ -242,11 +280,30 @@ export class AuthService {
       result: ActionResult.SUCCESS,
       ...meta,
     });
+    await this.notifyPasswordChanged(user, locale);
   }
 
   /**
-   * 비밀번호 재설정 코드 발송. 소셜 전용 계정(비밀번호 없음)은 재설정 대상이 아니다.
-   * 존재하지 않는/대상이 아닌 이메일도 동일 응답(202)을 위해 조용히 넘어간다(계정 유무 노출 방지).
+   * "비밀번호가 바뀌었다" 통지. 세 경로(변경·설정·재설정)가 모두 지난다.
+   *
+   * **이 메일이 유일한 탈취 신호다.** 남이 내 비밀번호를 바꿨을 때 계정 주인이 그것을
+   * 알아차릴 방법이 달리 없다 — 이미 비밀번호가 바뀌어 로그인도 안 된다.
+   */
+  private notifyPasswordChanged(
+    user: { email: string; name: string | null },
+    locale?: string,
+  ): Promise<void> {
+    return this.mail.sendAccountNotice({
+      to: user.email,
+      kind: 'PASSWORD_CHANGED',
+      locale,
+      userName: user.name,
+    });
+  }
+
+  /**
+   * 비밀번호 재설정 코드 발송. **소셜 전용 계정도 대상이다**(설정 겸 재설정).
+   * 존재하지 않는 이메일도 동일 응답(202)을 위해 조용히 넘어간다(계정 유무 노출 방지).
    */
   async requestPasswordReset(emailRaw: string, locale?: string): Promise<void> {
     const email = normalizeEmail(emailRaw);
@@ -255,31 +312,21 @@ export class AuthService {
       this.logSkippedReset(email, '가입된 계정 없음');
       return;
     }
-    if (!user.password) {
-      /*
-        **소셜로만 가입한 계정이다. 재설정할 비밀번호가 없다.**
+    /*
+      **소셜 전용 계정도 여기로 비밀번호를 만든다.** 예전에는 "재설정할 비밀번호가 없다" 며
+      안내 메일만 보내고 돌려보냈는데, 그러면 소셜 로그인을 잃은 사람이 계정으로 돌아올
+      길이 없다 — 마지막 연동을 못 풀게 막아 둔 자리에서 "먼저 비밀번호를 설정하세요" 라고
+      안내하면서 정작 그 경로가 없었다.
 
-        화면에는 이 사실을 알려 주지 않는다 — 알려 주면 가입 여부와 어느 제공자인지까지
-        공격자에게 새어 나간다. 대신 **받은 편지함을 가진 진짜 주인에게** 메일로 알린다.
-        그러면 화면은 계속 같은 말을 하면서도 정작 도움이 필요한 사람은 길을 찾는다.
-      */
-      const links = await this.oauths.listByUser(user.id);
-      await this.mail.sendSocialOnlyNotice({
-        to: email,
-        providers: links.map((l) => l.provider),
-        locale,
-        userNameGreeting: user.name ? ` ${user.name}님` : '',
-      });
-      this.logSkippedReset(
-        email,
-        '비밀번호 없는 계정(소셜 전용) → 안내 메일 발송',
-      );
-      return;
-    }
+      열어도 강도는 그대로다. 이 흐름이 증명하는 것은 **받은 편지함의 소유**이고,
+      계정의 이메일은 가입 때 이미 검증됐다(소셜은 provider 검증 또는 우리 코드).
+      이메일 가입 계정의 재설정과 똑같은 근거로 서 있다.
+    */
     await this.emailVerification.issueAndSend(
       EmailVerifyPurpose.PASSWORD_RESET,
       email,
-      { locale },
+      // 이 경로에만 계정이 손에 있다 — 가입 코드는 계정 이전이라 이름을 모른다.
+      { locale, userName: user.name },
     );
   }
 
@@ -287,6 +334,7 @@ export class AuthService {
   async resetPassword(
     input: { email: string; code: string; newPassword: string },
     meta: RequestMeta,
+    locale?: string,
   ): Promise<void> {
     const email = normalizeEmail(input.email);
     const ok = await this.emailVerification.verify(
@@ -312,6 +360,7 @@ export class AuthService {
       result: ActionResult.SUCCESS,
       ...meta,
     });
+    await this.notifyPasswordChanged(user, locale);
   }
 
   /** 현재 로그인 사용자 프로필 조회. 비활성 계정은 거부한다. */
@@ -430,6 +479,47 @@ export class AuthService {
 
   private hashPassword(plain: string): Promise<string> {
     return bcrypt.hash(plain, this.config.bcryptRounds);
+  }
+
+  /**
+   * 계정이 없거나 비밀번호가 없을 때 대신 대조할 더미 해시(login 의 타이밍 방어용).
+   *
+   * **평문을 난수로 뽑는다.** 상수 문자열을 쓰면 그 값이 곧 백도어가 된다 — 지금은
+   * `!!user?.password` 가 결과를 걸러 주지만, 나중에 누가 그 조건을 정리하다 지우면
+   * 소스에 적힌 그 문자열로 소셜 전용 계정에 로그인된다. 난수면 아무도 못 맞추므로
+   * **널 검사에 의존하지 않고도 안전**하다.
+   *
+   * 프로세스마다 한 번 만들어 재사용한다. 값이 어디에도 안 남아야 하니 저장하지 않고,
+   * 부팅을 80ms 늦추지 않으려고 생성자가 아니라 첫 사용 때 만든다.
+   */
+  private getDummyHash(): string {
+    this.dummyHash ??= bcrypt.hashSync(
+      randomBytes(32).toString('base64'),
+      this.config.bcryptRounds,
+    );
+    return this.dummyHash;
+  }
+
+  /**
+   * 저장된 해시가 지금 설정보다 약한 코스트면 조용히 다시 해시한다.
+   *
+   * **하드웨어가 빨라지면 코스트를 올리게 되는데, 설정만 올려서는 기존 사용자가 안 따라온다** —
+   * 우리는 그 사람의 평문을 모르니 다시 만들 방법이 로그인 순간밖에 없다. 그대로 두면 강화가
+   * 신규 가입자에게만 적용되고, 정작 오래된 계정이 옛 코스트에 남는다.
+   *
+   * 실패해도 로그인은 통과시킨다 — 이건 부수적인 정리이지 인증의 일부가 아니다.
+   */
+  private async rehashIfStale(user: User, plain: string): Promise<void> {
+    if (!user.password) return;
+    if (bcrypt.getRounds(user.password) >= this.config.bcryptRounds) return;
+
+    try {
+      await this.users.updatePassword(user.id, await this.hashPassword(plain));
+    } catch (e) {
+      this.logger.warn(
+        `Failed to rehash password for user ${user.id}: ${String(e)}`,
+      );
+    }
   }
 
   private async deleteAllOAuthLinks(userId: number): Promise<void> {

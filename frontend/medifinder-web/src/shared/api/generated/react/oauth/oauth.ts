@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import {
   useQuery
@@ -161,8 +161,10 @@ export const getOAuthControllerAuthorizeUrl = () => {
 }
 
 /**
- * 로그인된 사용자에 대해 다른 클라이언트(앱)의 redirect_uri(허용목록)로 넘길 1회용 인가코드를 발급한다. 클라이언트는 이 code 를 /oauth/token 으로 교환한다.
- * @summary SSO 인가코드 발급
+ * OAuth 2.0 Authorization Code Grant 의 인가 코드(authorization code)를 발급한다. 로그인된 사용자에 대해, 클라이언트가 등록한 `redirect_uri` 로 전달할 1회용 코드다.
+ *
+ * 발급된 코드는 `POST /oauth/token` 에서 access token 으로 교환한다.
+ * @summary 인가 코드 발급
  */
 export const oAuthControllerAuthorize = async (authorizeRequestDto: AuthorizeRequestDto, options?: RequestInit): Promise<AuthorizeResponseDto> => {
 
@@ -233,7 +235,7 @@ export function useOAuthControllerAuthorize<TData = Awaited<ReturnType<typeof oA
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary SSO 인가코드 발급
+ * @summary 인가 코드 발급
  */
 
 export function useOAuthControllerAuthorize<TData = Awaited<ReturnType<typeof oAuthControllerAuthorize>>, TError = unknown>(

@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { CodeDto } from './codeDto';
 import type { LocationDto } from './locationDto';
@@ -31,9 +31,9 @@ export interface HospitalNearbyDto {
   /** 기준 병원으로부터의 **직선거리(m)**. 도로 거리도 소요시간도 아니다 — "420m" 처럼 대략의 가까움을 보여주는 용도다. */
   distance?: number;
   /**
-     * 기준 병원과 겹친 진료과목. **이 병원이 위에 뜬 이유**이자 화면 배지 재료다.
+     * 기준 병원과 겹친 진료과목. 이 병원이 결과에 포함된 근거다.
      *
-     * **빈 배열일 수 있다** — 겹치는 과목이 없어도 반경 안이면 거리순으로 채운다. 섹션이 통째로 비는 것보다 낫다는 판단이니, 비면 배지만 안 그리면 된다.
+     * **빈 배열일 수 있다** — 겹치는 과목이 없어도 반경 안이면 거리순으로 채운다.
      */
   matchedSubjects: MatchedSubjectDto[];
 }

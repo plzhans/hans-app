@@ -3,14 +3,14 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { HospitalRegionDto } from './hospitalRegionDto';
 
 export interface LocationDto {
   /**
-     * 가장 가까운 지하철역. 교통정보의 첫 지하철 항목에서 뽑는다.
-     * **거리는 따지지 않는다** — 원본이 거리("500m")와 소요시간("도보 5분")을 같은 칸에 섞어 쓰고 비워두기도 해서, 걸러내면 멀쩡한 역세권 병원이 대거 빠진다. 정확한 거리는 상세의 transport 를 봐라.
+     * 가장 가까운 지하철역. 교통정보의 첫 지하철 항목에서 가져온다.
+     * **거리 기준으로 고른 값이 아니다.** 정확한 거리·노선 정보는 상세의 transport 를 참고한다.
      */
   station?: string;
   /**

@@ -3,18 +3,18 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
- * 비급여코드 하나의 **지역 가격통계**. **행마다 필드가 다르다** — 값이 있는 지역만 온다(2026-07 실측: 27~71필드). 그래서 가격 필드는 전부 optional 이다. 지역 18종(전체+17시도) × 통계 4종. **가이드와 필드명이 다르다** — 세종은 Sejong 이 아니라 Sj, 충북은 Ccbk 이 아니라 Ccb 다(2026-07 실측).
+ * 비급여코드 하나의 **지역 가격통계**. **행마다 필드가 다르다** — 값이 있는 지역만 온다(27~71필드). 그래서 가격 필드는 전부 optional 이다. 지역 18종(전체+17시도) × 통계 4종. **가이드와 필드명이 다르다** — 세종은 Sejong 이 아니라 Sj, 충북은 Ccbk 이 아니라 Ccb 다.
  */
 export interface HiraNonPaymentRegionStatItem {
-  /** 비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(2026-07 실측 655). */
+  /** 비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(655). */
   npayCd?: string;
   /** 비급여코드명 (예: 모발이식술료/모발이식술/500모미만) */
   npayKorNm?: string;
-  /** 적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**(2026-07 실측). */
+  /** 적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**. */
   stdDate?: number;
   /** 전체 최대비용(원) */
   prcMaxAll?: number;

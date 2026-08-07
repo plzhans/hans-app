@@ -17,36 +17,35 @@ import type {
 
 /** 통 하나의 상태. **어느 통인지는 담긴 필드 이름이 말한다.** */
 export class QuotaWindowDto implements AiSearchQuotaWindow {
-  @ApiProperty({ description: '지금까지 쓴 통합 토큰', example: 21400 })
+  @ApiProperty({ description: '사용한 양', example: 21400 })
   readonly used!: number;
 
-  @ApiProperty({ example: 2000000 })
+  @ApiProperty({ description: '한도', example: 2000000 })
   readonly limit!: number;
 }
 
-/** 앱 몫. **우리 예산이다** — 이 앱에 이번 달 얼마까지 쓸 것인가. */
+/** 앱 몫. 하루·한 달 두 통이 겹쳐 걸린다. */
 export class AppQuotaDto implements AiSearchAppQuota {
   @ApiPropertyOptional({
     type: QuotaWindowDto,
-    description:
-      '오늘 몫(KST 자정 리셋). 월 예산이 첫날에 다 타지 않게 하는 둑이다.',
+    description: '일 단위 사용량. KST 자정에 리셋된다.',
   })
   readonly daily?: QuotaWindowDto;
 
   @ApiPropertyOptional({
     type: QuotaWindowDto,
     description:
-      '이번 달 몫(월초 리셋). **이쪽이 진짜 예산이다.** ' +
-      '`daily` 와 둘 중 먼저 차는 쪽이 막는다.',
+      '월 단위 사용량. 매월 1일에 리셋된다. ' +
+      '`daily` 와 함께 걸리며, 먼저 소진되는 쪽이 적용된다.',
   })
   readonly monthly?: QuotaWindowDto;
 }
 
-/** 개인 몫. 충전해서 쓰는 잔액이라 **리셋되지 않고, 하루·월로 나누지도 않는다.** */
+/** 개인 몫. 하루·월로 나누지 않고 잔여량 하나로 관리한다. */
 export class UserQuotaDto implements AiSearchUserQuota {
   @ApiPropertyOptional({
     type: QuotaWindowDto,
-    description: '충전 잔액. 리셋되지 않는다.',
+    description: '사용자 잔여량. 주기적으로 리셋되지 않는다.',
   })
   readonly balance?: QuotaWindowDto;
 }
@@ -54,7 +53,7 @@ export class UserQuotaDto implements AiSearchUserQuota {
 /**
  * 지금 쓰는 몫. **둘 다 내려준다 — 화면이 골라 쓴다.**
  *
- * 실제로 깎이는 것은 신원의 것 하나다(로그인했으면 개인 잔액, 아니면 앱 예산).
+ * 실제로 깎이는 것은 신원의 것 하나다(로그인했으면 개인 몫, 아니면 앱 몫).
  * 그래도 둘 다 싣는 것은, 안 깎는 쪽도 얼마나 남았는지는 알아야 해서다.
  *
  * **없는 쪽은 안 걸렸다는 뜻이다.** 지금은 로그인이 없어 `user` 가 늘 비어 있다.
@@ -62,16 +61,13 @@ export class UserQuotaDto implements AiSearchUserQuota {
 export class QuotaDto implements AiSearchQuota {
   @ApiPropertyOptional({
     type: AppQuotaDto,
-    description:
-      '앱 예산. 늘 온다. **로그인한 사용자에게는 이 값이 안 깎인다** — ' +
-      '그때는 개인 잔액에서 깎는다.',
+    description: '앱 단위 사용량.',
   })
   readonly app?: AppQuotaDto;
 
   @ApiPropertyOptional({
     type: UserQuotaDto,
-    description:
-      '개인 충전 잔액. **로그인했을 때만 온다** — 지금은 로그인이 없어 늘 비어 있다.',
+    description: '사용자 단위 사용량. 로그인 상태에서만 온다.',
   })
   readonly user?: UserQuotaDto;
 }
@@ -79,43 +75,40 @@ export class QuotaDto implements AiSearchQuota {
 /**
  * 고를 수 있는 모델 하나.
  *
- * **`locked` 는 아직 못 고른다는 뜻이다**(요금제가 안 열렸다). 목록에 남겨 두는 것은
- * 곧 열릴 것을 미리 알리기 위해서고, 골라도 요청에는 안 실린다.
- *
- * 잠기지 않은 것은 **서버가 실제로 부르는 모델**이다 — 화면 표시가 실제와 어긋날 수 없다.
+ * 잠기지 않은 것이 **서버가 실제로 부르는 모델**이다 — 목록을 서버가 내려주므로
+ * 화면 표시가 실제와 어긋날 수 없다. 잠긴 것은 곧 열릴 것을 미리 보여 주는 자리다.
  */
 export class ModelChoiceDto implements LlmModelChoice {
   @ApiProperty({
-    description: '업체가 쓰는 모델 id. 화면에 보일 이름은 여기서 뽑는다.',
+    description: '모델 식별자.',
     example: 'claude-haiku-4-5',
   })
   readonly id!: string;
 
-  @ApiProperty({ description: '아직 못 고른다(자물쇠 표시).' })
+  @ApiProperty({
+    description:
+      '선택할 수 없는 모델. 목록에는 표시되지만 요청에는 실리지 않는다.',
+  })
   readonly locked!: boolean;
 }
 
 /**
  * `GET /ai/capabilities` 응답.
  *
- * **감싸서 보낸다.** 몫은 못 셀 수 있는데(Redis 미설정·읽기 실패, 한도 없음) 벗겨서
- * 보내면 그 경우에 빈 몸통이 되어, 받는 쪽이 "없다" 와 "응답이 깨졌다" 를 구분 못 한다.
+ * **감싸서 보낸다.** 몫은 못 셀 수 있는데 벗겨서 보내면 그 경우에 빈 몸통이 되어,
+ * 받는 쪽이 "없다" 와 "응답이 깨졌다" 를 구분하지 못한다.
  * 질문 응답(`AiSearchResponseDto.quota`)과 같은 모양이라 화면도 한 갈래로 다룬다.
  */
 export class CapabilitiesResponseDto {
   @ApiPropertyOptional({
     type: QuotaDto,
-    description:
-      '쓴 몫. **못 셌으면 없다** — 화면은 없으면 아무것도 안 그린다 ' +
-      '(0/0 은 다 쓴 것처럼 보인다).',
+    description: '사용량. 한도가 걸려 있지 않으면 오지 않는다.',
   })
   readonly quota?: QuotaDto;
 
   @ApiProperty({
     type: [ModelChoiceDto],
-    description:
-      '고를 수 있는 모델. **잠기지 않은 것이 서버가 실제로 부르는 모델이다** — ' +
-      '화면이 목록을 들고 있으면 설정이 바뀌는 순간 조용히 거짓말이 된다.',
+    description: '선택할 수 있는 모델 목록.',
   })
   readonly models!: ModelChoiceDto[];
 

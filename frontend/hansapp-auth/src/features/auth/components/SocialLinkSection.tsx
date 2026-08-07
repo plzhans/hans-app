@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   prepareSocialLink,
   socialLinkUrl,
@@ -51,9 +51,9 @@ function unlinkError(e: unknown): string {
  * 지우면 들어올 문이 사라진다. 서버가 거부하지만, 화면에서도 버튼을 죽이고 이유를 적는다 —
  * 눌러 보고 나서 오류로 알게 되는 것과, 왜 못 누르는지 미리 아는 것은 다르다.
  *
- * **빠져나갈 길로 "비밀번호 설정" 을 안내하지 않는다.** 그 길이 아직 없다 — 비밀번호 변경은
- * 현재 비밀번호를 대조하므로, 비밀번호가 없는 계정은 설정 자체를 못 한다. 지금 실제로
- * 가능한 것은 다른 소셜을 하나 더 붙이는 것뿐이라 그렇게만 적는다.
+ * **빠져나갈 길을 둘 다 안내한다.** 소셜을 하나 더 붙이거나, 비밀번호를 설정하면 된다 —
+ * 비밀번호가 없는 계정도 정보 수정에서 현재 비밀번호 없이 설정할 수 있다(로그인 상태가
+ * 곧 신원 증명이다). 막힌 이유만 적고 나가는 길을 안 적으면 사용자는 멈춘다.
  *
  * **연동은 로그인과 같은 진입점을 쓴다.** GET /auth/:provider 에 link_token 만 더 실으면
  * 서버가 "로그인" 이 아니라 "이 계정에 붙이기" 로 해석한다. 그래서 provider 를 다녀오는
@@ -138,12 +138,23 @@ export function SocialLinkSection() {
               <SocialBadge provider={p.key} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-gray-900">{p.label}</p>
-                <p className="mt-0.5 truncate text-xs text-gray-500">
-                  {blocked
-                    ? '유일한 로그인 수단입니다. 다른 계정을 먼저 연동하세요.'
-                    : on
-                      ? '연동됨'
-                      : '연동 안 됨'}
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {blocked ? (
+                    <>
+                      유일한 로그인 수단입니다.{' '}
+                      <Link
+                        to="/me/password"
+                        className="text-primary hover:underline"
+                      >
+                        비밀번호를 설정
+                      </Link>
+                      하거나 다른 계정을 먼저 연동하세요.
+                    </>
+                  ) : on ? (
+                    '연동됨'
+                  ) : (
+                    '연동 안 됨'
+                  )}
                 </p>
               </div>
 

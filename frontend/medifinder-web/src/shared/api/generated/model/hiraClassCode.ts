@@ -3,10 +3,10 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
- * 종별코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). `'01'`(상급종합)만 문자열이고 나머지(11·21·28·29·41·92)는 정수다 — 앞자리 0 은 JSON 숫자가 될 수 없어 문자열로 남는다. 비교할 땐 문자열로 맞춰라.
+ * 종별코드. **숫자와 문자열이 섞여 온다**. `'01'`(상급종합)만 문자열이고 나머지(11·21·28·29·41·92)는 정수다 — 앞자리 0 은 JSON 숫자가 될 수 없어 문자열로 남는다. 비교할 땐 문자열로 맞춘다.
  */
 export type HiraClassCode = number | string;

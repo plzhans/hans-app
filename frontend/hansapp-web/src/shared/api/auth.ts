@@ -115,7 +115,7 @@ export function socialRegister(
 }
 
 export function getMe(): Promise<Me> {
-  return apiFetch('/auth/me', {}, { auth: true });
+  return apiFetch('/users/me', {}, { auth: true });
 }
 
 /**

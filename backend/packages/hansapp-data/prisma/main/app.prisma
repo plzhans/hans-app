@@ -42,6 +42,9 @@ model App {
   apiKeys AppApiKey[]
   clients AppClient[]
 
+  /// LLM 업체 키(BYOK). 본체는 ai.prisma 에 있다 — 여기는 역방향 관계만 걸어 둔다.
+  llmKeys AppLlmKey[]
+
   @@index([createdBy])
   @@map("app")
 }

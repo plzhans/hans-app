@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { HiraEquipmentCodeBody } from './hiraEquipmentCodeBody';
 import type { HiraResultHeader } from './hiraResultHeader';

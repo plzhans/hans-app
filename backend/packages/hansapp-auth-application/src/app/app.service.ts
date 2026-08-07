@@ -613,8 +613,13 @@ export class AppService {
     await this.cache.invalidateClient(client.clientId);
   }
 
-  /** 멤버십 + 최소 역할 검증. 멤버가 아니면 404(존재 노출 방지), 권한 부족이면 403. */
-  private async assertMember(
+  /**
+   * 멤버십 + 최소 역할 검증. 멤버가 아니면 404(존재 노출 방지), 권한 부족이면 403.
+   *
+   * **앱에 매달린 다른 서비스도 이 판정을 쓴다**(LlmKeyService 등). 같은 규칙을 두 번 적으면
+   * 한쪽만 고치는 사고가 나므로 여기를 정본으로 두고 빌려 쓴다.
+   */
+  async assertMember(
     userId: number,
     appId: number,
     minRole: AppRole = AppRole.MEMBER,

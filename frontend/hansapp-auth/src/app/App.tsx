@@ -21,6 +21,7 @@ import ForgotPassword from '@/features/auth/pages/ForgotPassword';
 import Callback from '@/features/auth/pages/Callback';
 import Logout from '@/features/auth/pages/Logout';
 import Home from '@/features/auth/pages/Home';
+import PasswordEdit from '@/features/auth/pages/PasswordEdit';
 import ProfileEdit from '@/features/auth/pages/ProfileEdit';
 
 /** 로컬 단일 오리진에선 /auth 프리픽스 아래로 마운트한다(VITE_ROUTER_BASE). 배포(서브도메인)는 루트. */
@@ -177,6 +178,15 @@ export default function App() {
           element={
             <RequireAuth>
               <ProfileEdit />
+            </RequireAuth>
+          }
+        />
+        {/* 비밀번호는 정보 수정과 부르는 API 가 달라 화면도 나눈다(PasswordEdit 주석 참고). */}
+        <Route
+          path="/me/password"
+          element={
+            <RequireAuth>
+              <PasswordEdit />
             </RequireAuth>
           }
         />

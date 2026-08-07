@@ -3,11 +3,11 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 export interface NonPaymentPriceDetailDto {
-  /** 요양기관이 자체적으로 붙인 항목명. **표기가 기관 제각각이라 이 값으로 기관 간 비교하지 마라** — 비교는 code 로 한다. */
+  /** 요양기관이 자체적으로 붙인 항목명. **기관마다 표기가 달라 기관 간 비교에는 쓰지 않는다** — 비교는 code 로 한다. */
   name?: string;
   /** 그 기관이 실제로 받는 금액(원). */
   amount: number;

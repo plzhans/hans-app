@@ -186,3 +186,80 @@ export const regenerateClientSecret = (appId: number, clientPk: number) =>
 
 export const deleteClient = (appId: number, clientPk: number) =>
   apiFetch<void>(`/apps/${appId}/clients/${clientPk}`, { method: 'DELETE' }, auth);
+
+// ---- AI/LLM 업체 키 (BYOK) ----
+
+/**
+ * LLM 업체.
+ *
+ * `LOCAL` 은 OpenAI 호환 엔드포인트(Ollama·vLLM·LM Studio)를 뜻한다. 업체가 아니라
+ * "사용자가 띄운 서버" 라 앞의 셋과 성격이 다르다 — 키가 없을 수 있고, baseUrl 이 신원이며,
+ * 여러 대를 붙일 수 있다.
+ */
+export type LlmProvider = 'OPENAI' | 'ANTHROPIC' | 'GOOGLE' | 'LOCAL';
+
+/**
+ * 키 판정. **등록 시점에는 늘 `UNVERIFIED` 다** — 서버가 등록할 때 업체에 물어보지 않는다.
+ * 첫 실사용의 결과가 `VALID`·`INVALID` 를 정한다.
+ */
+export type LlmKeyVerifyState = 'UNVERIFIED' | 'VALID' | 'INVALID';
+
+export interface LlmKey {
+  id: number;
+  provider: LlmProvider;
+  /** 이름. 호스팅 업체는 빈 문자열이고, LOCAL 만 값을 갖는다. */
+  name: string;
+  /** 표시용 키 뒤 4자. **원문은 어느 경로로도 다시 내려오지 않는다.** */
+  secretSuffix?: string | null;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
+  monthlyLimitMicroUsd?: number | null;
+  dailyLimitMicroUsd?: number | null;
+  fallbackToService: boolean;
+  verifyState: LlmKeyVerifyState;
+  verifiedAt?: string | null;
+  verifyError?: string | null;
+  enabled: boolean;
+  lastUsedAt?: string | null;
+  createdAt: string;
+}
+
+export interface CreateLlmKeyInput {
+  provider: LlmProvider;
+  /** LOCAL 전용·필수. 다른 업체는 보내도 무시된다. */
+  name?: string;
+  secret?: string;
+  baseUrl?: string;
+  defaultModel?: string;
+  monthlyLimitMicroUsd?: number | null;
+  dailyLimitMicroUsd?: number | null;
+  fallbackToService?: boolean;
+  enabled?: boolean;
+}
+
+/** 수정. **보내지 않은 항목은 그대로 둔다** — 상한만 고칠 때 키를 다시 입력할 필요가 없다. */
+export type UpdateLlmKeyInput = Omit<CreateLlmKeyInput, 'provider'>;
+
+export const listLlmKeys = (appId: number) =>
+  apiFetch<LlmKey[]>(`/apps/${appId}/llm-keys`, {}, auth);
+
+export const createLlmKey = (appId: number, input: CreateLlmKeyInput) =>
+  apiFetch<LlmKey>(
+    `/apps/${appId}/llm-keys`,
+    { method: 'POST', body: JSON.stringify(input) },
+    auth,
+  );
+
+export const updateLlmKey = (
+  appId: number,
+  keyId: number,
+  input: UpdateLlmKeyInput,
+) =>
+  apiFetch<LlmKey>(
+    `/apps/${appId}/llm-keys/${keyId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+    auth,
+  );
+
+export const deleteLlmKey = (appId: number, keyId: number) =>
+  apiFetch<void>(`/apps/${appId}/llm-keys/${keyId}`, { method: 'DELETE' }, auth);

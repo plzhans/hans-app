@@ -11,7 +11,7 @@ import type { NumOfRowsParameter } from './numOfRowsParameter';
 export type GetSpecialtyHospitalFieldListParams = {
   /**
  * 암호화된 요양기호. 병원 기본목록(getHospitalList) 응답의 ykiho 값을 그대로 넘긴다.
-Base64 문자열이라 +, / , = 가 섞여 있다. 쿼리 인코딩이 필요하며 생성된 코드가 처리한다.
+Base64 문자열이라 +, /, = 가 섞여 있다. 쿼리 인코딩이 필요하며 생성된 코드가 처리한다.
  */
   ykiho: YkihoParameter;
   /**

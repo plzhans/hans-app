@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { HiraApplyDate } from './hiraApplyDate';
 import type { HiraClassCode } from './hiraClassCode';
@@ -12,7 +12,7 @@ import type { HiraNonPaymentCode } from './hiraNonPaymentCode';
 /**
  * 기관 하나의 비급여 항목 요약 한 건. 가격이 **범위(`minPrc`~`maxPrc`)** 로 오고 분류체계(중/소/상세분류)가 붙는다.
  *
- * 분류코드 예시는 가이드(`A`·`A01`)와 실제(`1010A`·`1010A010`)가 다르다 — **실제 값 기준으로 쓰라**(2026-07 실측).
+ * 분류코드 예시는 가이드(`A`·`A01`)와 실제(`1010A`·`1010A010`)가 다르다 — **실제 값 기준으로 쓴다**.
  */
 export interface HiraNonPaymentSummaryItem {
   /** 암호화된 요양기호 */
@@ -30,7 +30,7 @@ export interface HiraNonPaymentSummaryItem {
   sgguCd?: number;
   /** 시군구명 (예: 수원팔달구) */
   sgguCdNm?: string;
-  /** 병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 331건, 2026-07 실측). */
+  /** 병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 331건). */
   urlAddr?: string;
   npayCd?: HiraNonPaymentCode;
   /** 비급여 한글명 (예: 상급병실료/1인실) */
@@ -43,7 +43,7 @@ export interface HiraNonPaymentSummaryItem {
   npaySdivCd?: string;
   /** 비급여 소분류코드명 (예: 1인실) */
   npaySdivCdNm?: string;
-  /** 비급여 상세분류코드. **숫자와 문자열이 섞여 온다**(2026-07 실측, 표본 4,000행 중 119건이 숫자). */
+  /** 비급여 상세분류코드. **숫자와 문자열이 섞여 온다**(표본 4,000행 중 119건이 숫자). */
   npayDtlDivCd?: number | string;
   /** 비급여 상세분류코드명 (예: 1인실) */
   npayDtlDivCdNm?: string;
