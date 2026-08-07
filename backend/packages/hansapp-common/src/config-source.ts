@@ -106,6 +106,83 @@ function interpolate(
 }
 
 /**
+ * yaml 경로 한 조각을 환경변수 조각으로. camelCase 와 kebab-case 를 모두 `_` 로 가른다.
+ *
+ *   logUrl            → LOG_URL
+ *   sslCertificateKey → SSL_CERTIFICATE_KEY
+ *   apps-api          → APPS_API
+ *   v1                → V1        (숫자 앞에는 안 끊는다 — V_1 은 아무도 안 쓴다)
+ */
+function envSegment(key: string): string {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/-/g, '_')
+    .toUpperCase();
+}
+
+/** yaml 경로(`auth.jwt.secret`) → 환경변수 이름(`AUTH_JWT_SECRET`). */
+export function envNameOf(path: string): string {
+  return path.split('.').map(envSegment).join('_');
+}
+
+/**
+ * 빌드 3단계: **yaml 에 선언된 모든 끝값을 같은 이름의 환경변수가 덮는다.** Spring 의
+ * relaxed binding 과 같은 규칙이고, 덕분에 `${VAR}` 자리표시자를 일일이 적을 필요가 없다 —
+ * `auth.jwt.secret` 은 선언만 해 두면 `AUTH_JWT_SECRET` 이 알아서 덮는다.
+ *
+ * **방향이 핵심이다.** 환경변수 이름을 쪼개 경로를 만들지 않는다(그건 `A_B` 가 `a.b` 인지
+ * `a_b` 인지 알 수 없어 애초에 불가능하다). 반대로 **yaml 에 있는 경로에서 환경변수 이름을
+ * 계산해 조회**한다. Spring 이 하는 것이 이것이고, 그래서 모호함이 없다.
+ *
+ * **끝값만 덮는다.** 섹션(객체)은 통째로 못 갈아치운다. 리스트는 끝값이라
+ * `AUTH_JWT_ALLOWED_ISSUERS=a,b` 처럼 콤마로 준다(getStringArray 가 쪼갠다).
+ *
+ * 치환(`${}`)보다 **뒤**에 돈다 — 경로로 콕 집은 쪽이 자리표시자보다 구체적이라 이긴다.
+ * 빈 문자열도 값이다(`interpolateString` 의 규칙과 같다). 키가 없을 때만 yaml 값이 남는다.
+ *
+ * **yaml 에 아예 없는 경로**는 여기서 못 만든다(순회할 잎이 없다). 그쪽은 읽는 순간
+ * sectionOf 가 같은 이름으로 한 번 더 본다 — Spring 이 yaml 에 없는 프로퍼티도 env 로
+ * 받는 것과 같다. 둘로 나뉜 이유는 sectionOf 주석 참고.
+ */
+function applyEnvOverrides(
+  tree: Record<string, unknown>,
+  env: NodeJS.ProcessEnv,
+): Record<string, unknown> {
+  // 환경변수 이름 → 그 이름을 만들어 낸 yaml 경로. 충돌 검출용이다.
+  const claimed = new Map<string, string>();
+
+  const walk = (node: unknown, path: string): unknown => {
+    // 객체는 가지다. 배열·null·원시값은 끝값 — 배열까지 끝값으로 두는 건 인덱스 문법
+    // (Spring 의 `_0_`)을 들이지 않기 위해서다. 콤마 문자열로 충분하다.
+    if (node && typeof node === 'object' && !Array.isArray(node)) {
+      const out: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(node)) {
+        out[key] = walk(value, path ? `${path}.${key}` : key);
+      }
+      return out;
+    }
+
+    const name = envNameOf(path);
+    // **두 경로가 같은 환경변수 이름으로 접히면 부팅을 막는다.** 값이 실제로 주입될 때까지
+    // 기다리면, 그 환경변수를 처음 쓰는 배포에서야 터진다 — 그것도 둘 중 하나만 조용히
+    // 덮인 채로. 이름이 겹친다는 사실 자체가 버그라 설정을 읽는 순간 잡는다.
+    const owner = claimed.get(name);
+    if (owner !== undefined) {
+      throw new Error(
+        `설정 경로 ${owner} 와 ${path} 가 같은 환경변수 이름(${name})으로 접힌다.\n` +
+          '둘 중 하나의 yaml 키를 바꿀 것 — 지금 상태로는 환경변수로 둘을 구별할 수 없다.',
+      );
+    }
+    claimed.set(name, path);
+
+    const injected = env[name];
+    return injected !== undefined ? injected : node;
+  };
+
+  return walk(tree, '') as Record<string, unknown>;
+}
+
+/**
  * 계산된 섹션 트리의 **읽기 전용 표면**. .NET IConfiguration/IConfigurationSection 과 같다.
  *
  * 트리를 '.' / ':' 로 잘라 순회한다. 끝값은 타입 게터로(getString 등), 섹션(하위 트리)은
@@ -221,75 +298,124 @@ function toDurationSec(raw: unknown, path: string): number {
   return Number(matched[1]) * DURATION_UNIT[matched[2] ?? 's'];
 }
 
-/** 계산된 트리를 감싸 읽기 표면을 만든다(getSection 은 하위 트리로 재귀). */
-function sectionOf(tree: unknown, env: AppEnv): ConfigSource {
-  const at = (path: string): unknown => getByPath(tree, path);
-  return {
-    env,
-    getSection: (path) => {
-      const node = at(path);
-      return sectionOf(node && typeof node === 'object' ? node : {}, env);
-    },
-    getValue: (path) => at(path),
-    getString: (path) => {
-      const raw = at(path);
-      if (!present(raw)) {
-        throw new Error(`필수 설정이 없다: ${path}`);
-      }
-      return String(raw).trim();
-    },
-    getStringOrDefault: (path, fallback = '') => {
-      const raw = at(path);
-      return present(raw) ? String(raw).trim() : fallback;
-    },
-    getUrl: (path) => {
-      const raw = at(path);
-      if (!present(raw)) {
-        throw new Error(`필수 설정이 없다: ${path}`);
-      }
-      return normalizeConnectionUrl(String(raw).trim());
-    },
-    getUrlOrDefault: (path, fallback = '') => {
-      const raw = at(path);
-      return present(raw)
-        ? normalizeConnectionUrl(String(raw).trim())
-        : fallback;
-    },
-    getNumber: (path) => {
-      const raw = at(path);
-      if (!present(raw)) {
-        throw new Error(`필수 설정이 없다: ${path}`);
-      }
-      return toNumber(raw, path);
-    },
-    getNumberOrDefault: (path, fallback) => {
-      const raw = at(path);
-      return present(raw) ? toNumber(raw, path) : fallback;
-    },
-    getBool: (path) => {
-      const raw = at(path);
-      if (!present(raw)) {
-        throw new Error(`필수 설정이 없다: ${path}`);
-      }
-      return toBool(raw, path);
-    },
-    getBoolOrDefault: (path, fallback) => {
-      const raw = at(path);
-      return present(raw) ? toBool(raw, path) : fallback;
-    },
-    getStringArray: (path) => Object.freeze(toStringArray(at(path))),
-    getDurationSec: (path) => {
-      const raw = at(path);
-      if (!present(raw)) {
-        throw new Error(`필수 설정이 없다: ${path}`);
-      }
-      return toDurationSec(raw, path);
-    },
-    getDurationSecOrDefault: (path, fallbackSec) => {
-      const raw = at(path);
-      return present(raw) ? toDurationSec(raw, path) : fallbackSec;
-    },
-  };
+/**
+ * 계산된 트리의 읽기 표면. **섹션은 접두사일 뿐이다** — getSection 은 하위 트리를 떼어
+ * 새 표면을 짓지 않고, 자기 접두사만 기억한 채 조회 때 루트 기준 절대 경로로 편다.
+ *
+ * 하위 트리를 떼면 안 되는 이유가 실제로 있다. **환경변수 이름은 루트 기준**이어야 한다 —
+ * `getSection('auth').getString('jwt.secret')` 도 AUTH_JWT_SECRET 이지 JWT_SECRET 이 아니다.
+ * 하위 트리만 넘기면 그 정보가 사라지고, 접두사까지 같이 넘기면 같은 사실을 두 벌로 갖는 게 된다.
+ * 접두사 하나만 남기면 둘 다 없어진다.
+ *
+ * 섹션 인스턴스는 접두사로 메모해 재사용한다. 메서드가 프로토타입에 한 벌만 있으므로
+ * 섹션 하나당 필드 세 개짜리 객체가 전부다.
+ *
+ * **트리에 없는 경로는 환경변수를 한 번 더 본다.** applyEnvOverrides 는 yaml 에 선언된 잎만
+ * 순회하므로 yaml 에 아예 없는 경로를 못 만드는데, Spring 은 그런 프로퍼티도 env 로 받는다.
+ * 그 몫이 여기다 — 읽는 쪽이 경로를 알고 있으니 이름을 계산할 수 있다.
+ *
+ * **덮어쓰기를 여기 하나로 몰지 않는 이유**는 트리를 통째로 받아 직접 순회하는 소비자가
+ * 있기 때문이다(parseSecretBoxKeys 가 `appSecretEncryption` 섹션을 그렇게 읽는다). 읽기
+ * 시점에만 덮으면 그런 자리는 env 를 못 본 채로 지나간다. 그래서 **선언된 잎은 트리에
+ * 미리 반영하고(applyEnvOverrides), 선언되지 않은 경로만 여기서 받는다.**
+ */
+class ConfigSection implements ConfigSource {
+  /** 접두사 → 그 섹션. 같은 섹션을 여러 번 부르는 것이 흔해서 한 번 만든 것을 돌려준다. */
+  private readonly sections = new Map<string, ConfigSource>();
+
+  constructor(
+    private readonly root: unknown,
+    readonly env: AppEnv,
+    private readonly prefix = '',
+  ) {}
+
+  /** 섹션 기준 경로 → 루트 기준 절대 경로. 구분자는 '.' 으로 통일한다(':' 도 받으므로). */
+  private absolute(path: string): string {
+    const normalized = path.replace(/:/g, '.');
+    return this.prefix ? `${this.prefix}.${normalized}` : normalized;
+  }
+
+  private at(path: string): unknown {
+    const full = this.absolute(path);
+    const node = getByPath(this.root, full);
+    // null 은 "yaml 이 값 없이 선언한 잎" 이라 이미 applyEnvOverrides 를 거쳤다. 여기서
+    // 다시 보지 않는다 — 트리에 자리 자체가 없을 때(undefined)만 env 를 본다.
+    return node !== undefined ? node : process.env[envNameOf(full)];
+  }
+
+  /** 없으면 던진다. **메시지에는 절대 경로**를 찍는다 — 섹션 기준 이름은 어디를 고칠지 못 알려준다. */
+  private required(path: string): unknown {
+    const raw = this.at(path);
+    if (!present(raw)) {
+      throw new Error(`필수 설정이 없다: ${this.absolute(path)}`);
+    }
+    return raw;
+  }
+
+  getSection(path: string): ConfigSource {
+    const full = this.absolute(path);
+    let section = this.sections.get(full);
+    if (!section) {
+      // 트리에 그 자리가 있는지 보지 않는다. 없어도 빈 섹션처럼 굴고(조회가 undefined),
+      // 환경변수로만 채워진 섹션도 그대로 읽힌다.
+      section = new ConfigSection(this.root, this.env, full);
+      this.sections.set(full, section);
+    }
+    return section;
+  }
+
+  getValue(path: string): unknown {
+    return this.at(path);
+  }
+
+  getString(path: string): string {
+    return String(this.required(path)).trim();
+  }
+
+  getStringOrDefault(path: string, fallback = ''): string {
+    const raw = this.at(path);
+    return present(raw) ? String(raw).trim() : fallback;
+  }
+
+  getUrl(path: string): string {
+    return normalizeConnectionUrl(String(this.required(path)).trim());
+  }
+
+  getUrlOrDefault(path: string, fallback = ''): string {
+    const raw = this.at(path);
+    return present(raw) ? normalizeConnectionUrl(String(raw).trim()) : fallback;
+  }
+
+  getNumber(path: string): number {
+    return toNumber(this.required(path), this.absolute(path));
+  }
+
+  getNumberOrDefault(path: string, fallback: number): number {
+    const raw = this.at(path);
+    return present(raw) ? toNumber(raw, this.absolute(path)) : fallback;
+  }
+
+  getBool(path: string): boolean {
+    return toBool(this.required(path), this.absolute(path));
+  }
+
+  getBoolOrDefault(path: string, fallback: boolean): boolean {
+    const raw = this.at(path);
+    return present(raw) ? toBool(raw, this.absolute(path)) : fallback;
+  }
+
+  getStringArray(path: string): readonly string[] {
+    return Object.freeze(toStringArray(this.at(path)));
+  }
+
+  getDurationSec(path: string): number {
+    return toDurationSec(this.required(path), this.absolute(path));
+  }
+
+  getDurationSecOrDefault(path: string, fallbackSec: number): number {
+    const raw = this.at(path);
+    return present(raw) ? toDurationSec(raw, this.absolute(path)) : fallbackSec;
+  }
 }
 
 /**
@@ -297,12 +423,21 @@ function sectionOf(tree: unknown, env: AppEnv): ConfigSource {
  * 읽기(ConfigSource)가 분리**된다. 빌드가 끝나면 트리 하나만 남는다.
  *
  * 순서:
- *   1. loadEnv: .env 계층을 process.env 로 (${} 치환의 값 원천)
+ *   1. loadEnv: .env 계층을 process.env 로 (env 값의 원천)
  *   2. 로드: config/config.<환경>.yaml (환경별 — 자기완결적, 공통 base 없음)
- *   3. 치환: 트리의 ${VAR} 를 process.env 로 → 계산된 트리
+ *   3. 치환: 트리의 ${VAR} 를 process.env 로
+ *   4. 오버레이: 모든 끝값을 경로에서 계산한 이름의 환경변수가 덮는다 → 계산된 트리
+ *      (yaml 에 아예 없는 경로는 읽는 순간 sectionOf 가 같은 이름으로 받는다)
  *
- * yaml 이 **구조의 단일 원천**이다 — 시크릿은 `${DATABASE_URL}` 처럼 자리표시자로 선언되고
- * 빌드 때 채워진다. 그래서 시크릿 env 이름을 안 바꾸고도(sops 그대로) 중첩 섹션을 쓸 수 있다.
+ * yaml 이 **구조의 단일 원천**이다. env 가 값을 주입하는 길은 둘인데, 성격이 다르다:
+ *
+ *   - **4단계(기본)** — `auth.jwt.secret` 은 선언만 있으면 `AUTH_JWT_SECRET` 이 덮는다.
+ *     이름을 적을 필요가 없어 설정이 짧아지고, 경로와 env 이름이 어긋날 수가 없다.
+ *   - **3단계(예외)** — 이름이 규칙과 다를 때만 `${VAR}` 로 적는다. 남이 정한 이름
+ *     (prisma 가 직접 읽는 `DATABASE_URL`), 한 값을 두 경로가 나눠 쓰는 별칭
+ *     (`auth.otp.hashSecret: ${AUTH_JWT_SECRET}`) 이 그런 경우다.
+ *
+ * 자리표시자가 남아 있어도 4단계는 그대로 돈다 — 경로 이름으로도 덮을 수 있다(그쪽이 이긴다).
  *
  * @param appDir 바이너리(main.js)가 있는 디렉터리. 보통 __dirname.
  * @param loader dotenv 의 config. common 이 dotenv 에 직접 의존하지 않기 위해 주입받는다.
@@ -337,6 +472,10 @@ export function createConfigSource(
         '컨테이너라면 배포가 yaml 을 config/config.yaml 로 마운트했는지 확인할 것.',
     );
   }
-  const tree = interpolate(merged, process.env) as Record<string, unknown>;
-  return sectionOf(tree, env);
+  const interpolated = interpolate(merged, process.env) as Record<
+    string,
+    unknown
+  >;
+  const tree = applyEnvOverrides(interpolated, process.env);
+  return new ConfigSection(tree, env);
 }

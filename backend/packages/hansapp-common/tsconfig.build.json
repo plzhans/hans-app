@@ -1,0 +1,6 @@
+// 빌드 전용. tsconfig.json 은 편집기·eslint 가 보는 것이라 테스트까지 포함하고,
+// 산출물에서 테스트를 빼는 일은 여기서 한다(hansapp-api 와 같은 방식).
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}

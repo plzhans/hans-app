@@ -12,14 +12,31 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.build.json",
+    "test": "jest"
   },
   "dependencies": {
     "js-yaml": "^5.2.2",
     "lodash.merge": "^4.6.2"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/lodash.merge": "^4.6.9"
+    "@types/lodash.merge": "^4.6.9",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "testEnvironment": "node"
   }
 }

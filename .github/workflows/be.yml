@@ -290,6 +290,14 @@ jobs:
         if: needs.plan.outputs.verify == 'true'
         run: pnpm check
 
+      # **설정 로딩이 여기서 걸린다.** 부팅 때 한 번 도는 코드라 깨져도 늦게 아는데, 그중
+      # 환경변수 이름 충돌(`a.b` 와 `a-b` 가 둘 다 `A_B`)은 설정을 읽는 순간에만 드러나
+      # 이 단계가 없으면 배포에서 처음 본다. 값(.env)은 러너에 없지만 yaml 문법·자리표시자·
+      # 충돌은 파일만으로 판정되므로 시크릿 없이 검사된다.
+      - name: 테스트
+        if: needs.plan.outputs.verify == 'true'
+        run: pnpm test
+
       # pnpm deploy: 그 앱과 의존성만 추려 자립형 디렉터리(node_modules 포함)를 만든다.
       # --legacy 는 inject-workspace-packages 를 켜지 않은 워크스페이스에서 필요하다.
       - name: 산출물 추리기
