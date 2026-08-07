@@ -3,18 +3,18 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
- * 비급여코드 하나의 **종별 가격통계**. **행마다 필드가 다르다** — 값이 있는 종별만 온다(2026-07 실측: 15~31필드). 그래서 가격 필드는 전부 optional 이다. 종별 7종(전체·상급종합·종합·치과·한방·병원·요양) × 통계 4종(최대·최소·평균·중간).
+ * 비급여코드 하나의 **종별 가격통계**. **행마다 필드가 다르다** — 값이 있는 종별만 온다(15~31필드). 그래서 가격 필드는 전부 optional 이다. 종별 7종(전체·상급종합·종합·치과·한방·병원·요양) × 통계 4종(최대·최소·평균·중간).
  */
 export interface HiraNonPaymentClassStatItem {
-  /** 비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(2026-07 실측 655). */
+  /** 비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(655). */
   npayCd?: string;
   /** 비급여코드명 (예: 모발이식술료/모발이식술/500모미만) */
   npayKorNm?: string;
-  /** 적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**(2026-07 실측). */
+  /** 적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**. */
   stdDate?: number;
   /** 전체 최대비용(원) */
   prcMaxAll?: number;

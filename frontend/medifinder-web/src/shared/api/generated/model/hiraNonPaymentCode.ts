@@ -3,10 +3,10 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
- * 비급여코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). 코드가 전부 숫자면 JSON number 로 뭉개진다 — `'ABZ010001'` vs `480510000`(표본 4,000행 중 77건). 조인·비교 전에 문자열로 맞춰라.
+ * 비급여코드. **숫자와 문자열이 섞여 온다**. 코드가 전부 숫자면 JSON number 로 뭉개진다 — `'ABZ010001'` vs `480510000`(표본 4,000행 중 77건). 조인·비교 전에 문자열로 맞춘다.
  */
 export type HiraNonPaymentCode = number | string;

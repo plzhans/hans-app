@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { MeResponseDtoName } from './meResponseDtoName';
 
@@ -20,4 +20,10 @@ export interface MeResponseDto {
   role: string;
   /** 최초 가입 수단 */
   joinType: string;
+  /** 가입 일시 */
+  createdAt: string;
+  /** 비밀번호가 설정돼 있는가. 소셜로만 가입한 계정은 false 라 화면이 "변경" 대신 "설정" 을 띄운다. */
+  hasPassword: boolean;
+  /** 연동된 소셜 제공자 목록 */
+  linkedProviders: string[];
 }

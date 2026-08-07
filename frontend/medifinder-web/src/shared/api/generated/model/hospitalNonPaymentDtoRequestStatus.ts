@@ -3,13 +3,13 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
- * 갱신 요청의 진행 상태. `source=requestable` 일 때만 의미가 있다. 요청한 적 없으면 없다.
+ * 갱신 요청의 진행 상태. `source=requestable` 일 때만 의미가 있으며, 요청한 적이 없으면 오지 않는다.
  *
- * **`done` 은 오지 않는다** — 처리가 끝났으면 그 결과가 `source`(web|none)로 나타난다.
+ * **`done` 상태는 없다** — 처리가 끝나면 결과가 `source`(web 또는 none)로 나타난다.
  */
 export type HospitalNonPaymentDtoRequestStatus = typeof HospitalNonPaymentDtoRequestStatus[keyof typeof HospitalNonPaymentDtoRequestStatus];
 

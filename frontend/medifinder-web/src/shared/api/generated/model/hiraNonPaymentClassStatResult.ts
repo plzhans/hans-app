@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { HiraNonPaymentClassStatBody } from './hiraNonPaymentClassStatBody';
 import type { HiraResultHeader } from './hiraResultHeader';

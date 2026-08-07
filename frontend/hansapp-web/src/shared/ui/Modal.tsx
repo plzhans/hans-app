@@ -8,12 +8,24 @@ import { X } from 'lucide-react';
  * - 오버레이 클릭 시 닫기(패널 내부 클릭은 유지)
  * - z-40 (파괴적 확인 ConfirmDialog z-50 이 위에 뜨도록)
  */
+/**
+ * 패널 폭. 항목 몇 줄만 보여 주는 창과 입력 폼을 두 단으로 세우는 창이
+ * 같은 폭을 쓸 이유가 없다 — 부르는 쪽이 고른다.
+ */
+const WIDTH = {
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
+} as const;
+
 export function Modal({
   title,
+  size = 'md',
   onClose,
   children,
 }: {
   title?: ReactNode;
+  size?: keyof typeof WIDTH;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -38,10 +50,10 @@ export function Modal({
       aria-modal="true"
     >
       <div
-        className="max-h-[90vh] w-full max-w-lg animate-fade-in overflow-y-auto rounded-2xl bg-white p-6 shadow-lg"
+        className={`max-h-[90vh] w-full ${WIDTH[size]} animate-fade-in overflow-y-auto rounded-2xl bg-white p-6 shadow-lg sm:p-8`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-5 flex items-center justify-between gap-2">
           <div className="min-w-0 text-lg font-bold text-gray-900">{title}</div>
           <button
             type="button"

@@ -155,3 +155,23 @@ export async function apiFetch<T>(
   if (!text) return undefined as T;
   return JSON.parse(text) as T;
 }
+
+/** 서버 산출물 신원. `GET /version` 응답 중 화면이 쓰는 것만 추린다. */
+export interface BuildInfo {
+  /** 표시용 버전(예: `0.12.0+a1b2c3d`). */
+  version: string;
+  /** 빌드된 커밋. 진짜 신원이다. */
+  sha: string;
+  branch: string;
+  builtAt: string;
+}
+
+/**
+ * 백엔드 버전 조회. **인증이 필요 없다** — 누구나 부를 수 있는 공개 경로다.
+ *
+ * 푸터의 숨은 버전 표시에서만 쓴다(Footer 의 Copyright 주석 참고).
+ * 실패해도 화면은 프론트 버전만 보여주면 되므로, 부르는 쪽이 조용히 넘긴다.
+ */
+export function getServerVersion(): Promise<BuildInfo> {
+  return apiFetch<BuildInfo>('/version');
+}

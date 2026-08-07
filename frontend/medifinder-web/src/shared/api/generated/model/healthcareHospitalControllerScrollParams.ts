@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { HealthcareHospitalControllerScrollSort } from './healthcareHospitalControllerScrollSort';
 
@@ -100,7 +100,7 @@ lat?: number;
  */
 lon?: number;
 /**
- * 이어받기 커서. **직전 응답의 nextToken 을 그대로** 실어 보낸다. 비우면 처음부터다. 값은 불투명 문자열이니 클라이언트가 해석하지 마라.
+ * 이어받기 커서. **직전 응답의 nextToken 을 그대로** 실어 보낸다. 비우면 처음부터 조회한다. 불투명 문자열이므로 해석하지 않는다.
  */
 nextToken?: string;
 /**
@@ -110,9 +110,9 @@ nextToken?: string;
  */
 size?: number;
 /**
- * **원천 선택(테스트용).** 기본은 Elasticsearch 검색이고, `true` 면 DB 로 조회한다. ES 장애 환경에서 DB 로 우회하려고 둔 스위치다 — 평상시엔 지정하지 마라.
+ * **검증용 파라미터.** 기본 조회 경로 대신 DB 로 직접 조회한다. 일반적인 사용에서는 지정하지 않는다.
  *
- * **nextToken 은 원천마다 형식이 다르다**(DB↔ES 호환 안 됨). 스크롤 도중 db 값을 바꾸면 커서가 맞지 않으니, 한 스크롤 세션 안에서는 db 를 고정해라.
+ * **nextToken 은 조회 경로마다 형식이 다르다.** 스크롤 도중 이 값을 바꾸면 커서가 맞지 않으므로, 한 스크롤 세션에서는 고정한다.
  */
 db?: string;
 };

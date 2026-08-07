@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import {
   useQuery
@@ -57,13 +57,13 @@ export const getTransportControllerSubwayStationsUrl = () => {
 /**
  * 병원 상세의 교통정보(`transport.subway[].arrival`)에 나오는 하차역명을 화면에서 다국어로 보여줄 때 쓴다.
  *
- * **언어를 한꺼번에 다 내린다.** 다른 API 와 달리 `Accept-Language` 를 보지 않는다 — 화면에 나온 역명을 **찾아 바꾸는** 용도라, 클라이언트가 통째로 받아 맵으로 들고 쓰기 때문이다. 언어를 바꿀 때 다시 받을 필요가 없다.
+ * **세 언어를 한 번에 반환한다.** 다른 API 와 달리 `Accept-Language` 를 보지 않는다 — 역명을 찾아 바꾸는 용도라 클라이언트가 전체를 받아 두고 쓰기 때문이며, 화면 언어를 바꿔도 다시 받을 필요가 없다.
  *
- * **필터도 페이징도 없다.** 세 언어를 다 담아도 응답이 gzip 십수 KB 밖에 안 된다.
+ * **필터도 페이징도 없다.** 전체를 한 번에 받는다.
  *
  * `Cache-Control: private, max-age=3600` 이 붙는다. 브라우저가 한 시간 캐시한다.
  *
- * **응답의 `version` 과 `ETag` 에 원본 데이터의 배포일자가 담긴다.** `If-None-Match` 로 재검증하면 바뀐 게 없을 때 **304** 가 오고 본문은 안 내려온다. 원본 갱신 주기가 길어(연 1~2회) 대부분의 재검증이 304 다.
+ * **응답의 `version` 과 `ETag` 에 원본 데이터의 배포일자가 담긴다.** `If-None-Match` 로 재검증하면 바뀐 게 없을 때 **304** 가 오고 본문은 안 내려온다. 원본 갱신 주기가 길어(연 1~2회) 대부분의 재검증이 304 로 끝난다.
  *
  * 출처: 국가철도공단 전국 도시광역철도 역사정보 (표준데이터). 전국 도시철도를 모두 덮는다 — 수도권·부산·대구·대전·광주.
  * @summary 지하철역 목록

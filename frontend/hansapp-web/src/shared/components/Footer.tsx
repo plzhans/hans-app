@@ -1,7 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CONTACT_EMAIL } from '@/shared/config/contact';
 import { APP_ENV, APP_RELEASE } from '@/shared/config/env';
+import { getServerVersion, type BuildInfo } from '@/shared/api/client';
+import { cn } from '@/shared/lib/cn';
+import { PAGE_CONTAINER } from '@/shared/ui/layout';
 
 /**
  * 하단 고지.
@@ -24,7 +27,7 @@ export function Footer() {
       내용이 없는데도 스크롤바가 생긴다. 본문과의 간격은 main 의 아래 패딩이 맡는다.
     */
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto max-w-5xl px-4 py-6 text-xs text-gray-400">
+      <div className={cn(PAGE_CONTAINER, 'py-6 text-xs text-gray-400')}>
         {/* 왼쪽 브랜드, 오른쪽 링크. 좁으면 링크가 다음 줄로 내려간다. */}
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <p>
@@ -83,13 +86,35 @@ const REVEAL_CLICKS = 5;
  * 때문이다. 그렇다고 볼 방법이 없으면 "지금 배포된 게 뭔지"를 확인하려고 매번
  * 개발자도구를 열어야 한다 — 아는 사람만 여는 자리를 하나 둔다.
  *
+ * **프론트와 백엔드를 따로 적는다.** 둘은 따로 배포되므로 한 줄로 합치면 어느 쪽이
+ * 안 올라갔는지 알 수 없다. "화면은 새 버전인데 서버가 옛 버전" 이 바로 이 자리에서
+ * 드러나야 하는 상황이다.
+ *
  * 버튼으로 만들지 않는다. role 을 붙이는 순간 스크린 리더와 키보드 탭 순서에
  * "누를 수 있는 것"으로 드러나서, 숨겨 둔 의미가 없어진다.
  */
 function Copyright() {
   const [shown, setShown] = useState(false);
+  const [server, setServer] = useState<BuildInfo | null>(null);
+  const [serverFailed, setServerFailed] = useState(false);
   const clicks = useRef(0);
   const lastClickAt = useRef(0);
+
+  /*
+    **열었을 때만 부른다.** 아무도 안 여는 자리 때문에 모든 방문자가 요청을 하나 더
+    보낼 이유가 없다. 한 번 받아 두면 다시 열어도 그대로 쓴다(배포 중이 아니면 안 바뀐다).
+  */
+  useEffect(() => {
+    if (!shown || server || serverFailed) return;
+    let alive = true;
+    void getServerVersion()
+      .then((info) => alive && setServer(info))
+      // 서버가 없거나 옛 버전이라 /version 이 없을 수도 있다. 화면은 프론트만 보여준다.
+      .catch(() => alive && setServerFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, [shown, server, serverFailed]);
 
   function handleClick() {
     const now = Date.now();
@@ -115,7 +140,18 @@ function Copyright() {
       </span>
       {shown && (
         <span className="font-mono text-gray-500">
-          v{APP_RELEASE} · {APP_ENV}
+          <span title="이 화면(프론트) 산출물">web v{APP_RELEASE}</span>
+          {' · '}
+          <span title="백엔드 산출물">
+            api{' '}
+            {server
+              ? `v${server.version}`
+              : serverFailed
+                ? '확인 실패'
+                : '확인 중…'}
+          </span>
+          {' · '}
+          {APP_ENV}
         </span>
       )}
     </p>

@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
@@ -11,9 +11,9 @@
  *
  * - `hira` — 공개 API(병원급 이상). 금액이 행마다 단일값이라 `price.details` 가 찬다.
  * - `web` — 심평원 홈페이지(의원급). 원본이 범위만 줘서 **`price.details` 가 빈다**.
- * - `none` — 받아봤는데 그 기관이 신고한 게 없다. **끝이다** — 다시 요청해도 같다.
- * - `requestable` — 공개 API 에 없고 아직 받아본 적도 없다. **갱신 요청(POST .../hira-npay/request)이 가능하다.**
- * - `unavailable` — 요청할 수 없다. HIRA 연동(ykiho)이 없는 병원은 조회 자체가 불가능하다.
+ * - `none` — 조회했으나 그 기관이 신고한 항목이 없다. 다시 요청해도 결과가 같다.
+ * - `requestable` — 공개 API 에 없고 아직 조회한 적도 없다. **갱신 요청(POST .../hira-npay/request)이 가능하다.**
+ * - `unavailable` — 요청할 수 없다. 심평원 식별자(ykiho)가 없는 병원은 조회 자체가 불가능하다.
  */
 export type HospitalNonPaymentDtoSource = typeof HospitalNonPaymentDtoSource[keyof typeof HospitalNonPaymentDtoSource];
 

@@ -154,26 +154,33 @@ export function socialRegister(
 }
 
 export function getMe(): Promise<Me> {
-  return apiFetch('/auth/me', {}, { auth: true });
+  return apiFetch('/users/me', {}, { auth: true });
 }
 
 /** 표시 이름 변경. 빈 문자열을 보내면 이름을 지운다. */
 export function updateMyName(name: string): Promise<void> {
   return apiFetch(
-    '/auth/me',
+    '/users/me',
     { method: 'PATCH', body: JSON.stringify({ name }) },
     { auth: true },
   );
 }
 
-/** 비밀번호 변경. 현재 비밀번호를 함께 보낸다. */
-export function changePassword(
-  currentPassword: string,
-  newPassword: string,
-): Promise<void> {
+/**
+ * 비밀번호 변경·설정. **엔드포인트가 하나다.**
+ *
+ * 소셜로만 가입해 비밀번호가 없는 계정은 `currentPassword` 를 비우고 부른다 — 물을 것이
+ * 없고, 로그인 상태가 곧 신원 증명이다. **어느 쪽인지는 서버가 정한다**: 계정에 비밀번호가
+ * 있으면 이 값이 반드시 있어야 하고 없거나 틀리면 401 이다. 화면은 `me.hasPassword` 로
+ * 무엇을 물을지만 고르면 된다.
+ */
+export function updatePassword(input: {
+  currentPassword?: string;
+  newPassword: string;
+}): Promise<void> {
   return apiFetch(
-    '/auth/password/change',
-    { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) },
+    '/users/me/password',
+    { method: 'PUT', body: JSON.stringify(input) },
     { auth: true },
   );
 }
@@ -185,7 +192,7 @@ export function changePassword(
  * 호출부에서 이어서 signOut 을 부른다(authStore 가 토큰·프로필 캐시를 지우고 다른 탭에 알린다).
  */
 export function withdraw(): Promise<void> {
-  return apiFetch('/auth/withdraw', { method: 'POST' }, { auth: true });
+  return apiFetch('/users/me', { method: 'DELETE' }, { auth: true });
 }
 
 /** 로그인한 기기 한 대. 토큰 해시는 서버가 내보내지 않는다. */
@@ -201,13 +208,13 @@ export interface Session {
 
 /** 로그인한 기기 목록. 최근 활동 순. */
 export function getMySessions(): Promise<Session[]> {
-  return apiFetch('/auth/me/sessions', {}, { auth: true });
+  return apiFetch('/users/me/sessions', {}, { auth: true });
 }
 
 /** 기기 하나를 로그아웃시킨다. */
 export function revokeSession(sessionId: string): Promise<void> {
   return apiFetch(
-    `/auth/me/sessions/${encodeURIComponent(sessionId)}`,
+    `/users/me/sessions/${encodeURIComponent(sessionId)}`,
     { method: 'DELETE' },
     { auth: true },
   );
@@ -218,7 +225,7 @@ export function revokeSession(sessionId: string): Promise<void> {
  * 서버가 refresh·힌트 쿠키까지 지우지만, 이 오리진의 저장소는 signOut 이 치운다.
  */
 export function revokeAllSessions(): Promise<void> {
-  return apiFetch('/auth/me/sessions', { method: 'DELETE' }, { auth: true });
+  return apiFetch('/users/me/sessions', { method: 'DELETE' }, { auth: true });
 }
 
 /**
@@ -229,7 +236,7 @@ export function revokeAllSessions(): Promise<void> {
  */
 export function prepareSocialLink(): Promise<{ linkToken: string }> {
   return apiFetch(
-    '/auth/social/link/prepare',
+    '/users/me/socials/link-token',
     { method: 'POST' },
     { auth: true },
   );
@@ -240,7 +247,11 @@ export function prepareSocialLink(): Promise<{ linkToken: string }> {
  * 화면에서도 미리 막지만, 판단의 정본은 서버다 — 다른 탭에서 먼저 지웠을 수 있다.
  */
 export function unlinkSocial(provider: SocialProvider): Promise<void> {
-  return apiFetch(`/auth/${provider}/link`, { method: 'DELETE' }, { auth: true });
+  return apiFetch(
+    `/users/me/socials/${provider}`,
+    { method: 'DELETE' },
+    { auth: true },
+  );
 }
 
 /** 연동 시작 URL(전체 페이지 리다이렉트). 끝나면 백엔드가 콜백에 linked=1 을 실어 돌려보낸다. */
@@ -254,7 +265,7 @@ export function socialLinkUrl(
 
 /** 내 동의 기록. 마이페이지의 열람 항목이다. */
 export function getMyConsents(): Promise<ConsentRecord[]> {
-  return apiFetch('/auth/me/consents', {}, { auth: true });
+  return apiFetch('/users/me/consents', {}, { auth: true });
 }
 
 /**

@@ -69,6 +69,10 @@ export default function Home() {
         <Button variant="outline" onClick={() => navigate('/me/edit')}>
           정보 수정
         </Button>
+        {/* 비밀번호는 부르는 API 가 달라 화면을 나눠 뒀다. 없는 계정에는 '설정'으로 보인다. */}
+        <Button variant="outline" onClick={() => navigate('/me/password')}>
+          {me?.hasPassword ? '비밀번호 변경' : '비밀번호 설정'}
+        </Button>
         {/* 미설정(로컬에서 포털을 안 띄운 경우)이면 죽은 버튼을 만들지 않고 감춘다. */}
         {PORTAL_WEB_URL && (
           <Button onClick={() => (window.location.href = PORTAL_WEB_URL)}>

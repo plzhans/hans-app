@@ -1,0 +1,84 @@
+// AI 도메인: 앱에 물린 외부 LLM 업체 키(BYOK).
+// 멀티파일 스키마의 한 조각으로 default.prisma 의 generator·datasource(메인 DB)를 공유한다.
+//
+// **app.prisma 에 섞지 않는다.** 그 파일은 "이것만 들어내면 개발자 플랫폼을 통째로 이관"
+// 하려고 도메인을 한 곳에 모아 둔 것인데, 업체 키는 개발자 플랫폼의 발급물이 아니라
+// AI 기능이 쓰는 설정이다 — 앱에 매달려 있을 뿐이다.
+
+/// 앱이 자기 이름으로 쓰는 LLM 업체 키(OpenAI·Anthropic 등).
+///
+/// **app_api_key 와 저장 방식이 정반대다.** 우리 서비스 키는 들어온 값을 해시해 대조하면
+/// 끝이라 SHA-256 만 남기지만, 업체 키는 우리가 업체를 부를 때 **원문이 필요**하다.
+/// 그래서 해시가 아니라 서버 키로 **되돌릴 수 있게** 잠가 둔다.
+/// 이 테이블이 털리면 남의 업체 계정이 털리는 것이라, 다루는 규칙이 몇 가지 따라붙는다.
+///  - 복호화는 업체 호출 직전 한 번뿐이다. 복호화한 값을 로그·응답·예외 메시지에 절대 싣지 않는다.
+///  - 화면에는 secretSuffix 만 내려간다. 등록한 본인에게도 원문을 다시 보여주지 않는다.
+///  - 조회 API 는 secretEncrypted 를 아예 select 하지 않는다(리포지토리 프로젝션으로 막는다).
+///
+/// **업체당 한 행이다.** 여러 개를 두면 "지금 어느 키로 나갔나" 에 답이 둘 이상이 되는데,
+/// 그 답은 비용 청구서와 맞춰 봐야 하는 값이라 흐려지면 곤란하다. 교체는 덮어쓰기다.
+model AppProviderKey {
+  id Int @id @default(autoincrement())
+
+  appId Int @map("app_id")
+
+  /// 어느 업체 키인가. 앱당 업체별로 하나(@@unique).
+  provider AiProvider
+
+  /// 서버 키(env: LLM_KEY_ENCRYPTION_KEY_V{n})로 잠근 업체 키. **해시가 아니다** —
+  /// 업체를 부르려면 원문을 되찾아야 한다.
+  ///
+  /// `v{버전}:{iv}:{tag}:{암호문}` 한 문자열로 담는다(각 조각 base64).
+  /// AES-GCM 은 결과가 세 덩어리로 나오는데(암호문·IV·인증태그) 셋 다 있어야 열리므로,
+  /// 컬럼을 셋으로 펼치지 않고 붙여 둔다 — DB 에서 볼 일은 "잠긴 값 하나" 뿐이다.
+  ///  - iv  : 암호화할 때마다 새로 뽑는 난수. **비밀이 아니다.** 비밀번호 해시에 붙이는
+  ///          salt 와 같은 몫이다 — 이게 없으면 같은 업체 키를 등록한 두 앱의 암호문이
+  ///          똑같이 나와서, 암호문만 비교해도 같은 계정임이 드러난다.
+  ///  - tag : 체크섬. 복호화 때 대조해 DB 에서 값이 바뀌었으면 예외로 터뜨린다.
+  ///  - v{n}: 어느 서버 키로 잠갔나. **키를 갈 때 아직 옛 키인 행을 가른다** —
+  ///          없으면 교체하는 순간 기존 행을 하나도 못 연다.
+  secretEncrypted String @map("secret_encrypted") @db.VarChar(512)
+
+  /// 표시용 뒤 4자(`sk-…aB3f`). 사용자가 업체 콘솔의 키 목록과 대조할 때 쓰는 유일한 단서다.
+  /// **목록 한 번 그리자고 전 행을 복호화하지 않으려고** 따로 둔다.
+  secretSuffix String @map("secret_suffix") @db.VarChar(8)
+
+  /// 등록·교체 직후 업체에 한 번 물어본 결과. **오타 키를 실사용 때 알게 되면 늦다.**
+  verifyState AiKeyVerifyState @default(UNVERIFIED)
+
+  /// 마지막으로 확인한 시각. 업체가 키를 폐기하면 VALID 였던 것도 나중에 INVALID 가 된다.
+  verifiedAt DateTime? @map("verified_at")
+
+  /// 확인이 실패한 이유(업체 응답 요약). **키 값은 절대 담지 않는다.**
+  verifyError String? @map("verify_error") @db.VarChar(200)
+
+  /// 끌 수 있게 둔다. 지우지 않고 잠깐 우리 키로 되돌리고 싶을 때가 있다.
+  /// **AppStatus 를 재사용하지 않는다** — 남의 업체 키에 PENDING(심사 대기)이라는 상태가 없다.
+  enabled Boolean @default(true)
+
+  /// 이 키로 업체를 마지막으로 부른 시각. 안 쓰는 키를 골라내는 데 쓴다.
+  lastUsedAt DateTime? @map("last_used_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  app App @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  /// 앱당 업체별 한 행. 조회도 이 조합으로만 들어오므로 별도 인덱스가 필요 없다.
+  @@unique([appId, provider])
+  @@map("app_provider_key")
+}
+
+enum AiProvider {
+  OPENAI
+  ANTHROPIC
+  GOOGLE
+}
+
+enum AiKeyVerifyState {
+  /// 아직 안 물어봤다. (확인 호출이 실패했을 때도 여기로 되돌린다)
+  UNVERIFIED
+  VALID
+  /// 업체가 거절했다. 키가 틀렸거나 폐기됐다.
+  INVALID
+}

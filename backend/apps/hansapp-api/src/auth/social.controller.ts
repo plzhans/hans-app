@@ -3,38 +3,27 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
   HttpCode,
-  Param,
   Post,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiExcludeEndpoint,
+  ApiExcludeController,
   ApiOkResponse,
   ApiOperation,
-  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import {
-  Auth,
-  AuthType,
-  CurrentUser,
   FirstPartyOnly,
   Public,
   SocialAuthGuard,
   SocialService,
-  toOAuthProvider,
 } from '@hansapp/auth-application';
-import type {
-  AuthUser,
-  CallbackOutcome,
-  SocialProfile,
-} from '@hansapp/auth-application';
+import type { CallbackOutcome, SocialProfile } from '@hansapp/auth-application';
 import type { SupportedLang } from '@hansapp/common';
 import { AUTH_CONFIG } from '@hansapp/auth-application';
 import type { AuthConfig } from '@hansapp/auth-application';
@@ -43,7 +32,6 @@ import { Lang } from '../common/lang.decorator';
 
 import { TokenResponseDto } from './dto/auth.dto';
 import {
-  LinkPrepareResponseDto,
   SocialRegisterCodeRequestDto,
   SocialRegisterRequestDto,
 } from './dto/social.dto';
@@ -53,7 +41,12 @@ import { requestMeta, respondTokens, setLoginCookies } from './refresh-cookie';
  * 소셜 로그인(인증) 엔드포인트. 백엔드가 provider 콜백을 받아 처리한 뒤,
  * 결과(인가코드/가입티켓/연동/에러)를 프론트(SPA)로 리다이렉트한다.
  * 최종 로그인 토큰 교환은 /oauth/token 이 담당한다.
+ *
+ * **스펙에 싣지 않는다(@ApiExcludeController).** 리다이렉트 둘은 애초에 API 가 아니고
+ * (302 라 fetch 로 부를 수 없다), 가입 확정 둘은 콜백이 돌려준 티켓을 우리 인증웹이 쓰는
+ * 자리다. 외부 앱은 이 왕복을 몰라도 된다 — `/oauth/authorize` 로 시작하면 우리가 대신 돈다.
  */
+@ApiExcludeController()
 @ApiTags('auth-social')
 @Controller('auth')
 export class SocialController {
@@ -97,6 +90,7 @@ export class SocialController {
     @Body() dto: SocialRegisterRequestDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
+    @Lang() lang: SupportedLang,
   ): Promise<TokenResponseDto> {
     const result = await this.social.register(
       {
@@ -106,38 +100,23 @@ export class SocialController {
         consent: dto.consent,
       },
       requestMeta(req),
+      lang,
     );
     return respondTokens(res, result.tokens);
   }
 
-  @Post('social/link/prepare')
-  @Auth(AuthType.Jwt)
-  @ApiOperation({
-    summary: '소셜 연동 시작 토큰 발급',
-    description:
-      '로그인 상태에서 연동 시작 토큰을 받는다. 이후 GET /auth/:provider?link_token=<토큰> 으로 이동하면 현재 계정에 연동된다.',
-  })
-  @ApiOkResponse({ type: LinkPrepareResponseDto })
-  prepareLink(@CurrentUser() user: AuthUser): LinkPrepareResponseDto {
-    return { linkToken: this.social.prepareLink(user.userId) };
-  }
-
+  /**
+   * 소셜 로그인 시작. 브라우저를 provider 인가 페이지로 302 시킨다.
+   * `link_token` 쿼리가 있으면 로그인이 아니라 현재 계정에 연동하는 의도로 시작한다.
+   *
+   * **애초에 API 가 아니다.** 브라우저 내비게이션이라 `fetch` 로 부르면 CORS 에 막히고,
+   * 통과해도 provider 의 로그인 HTML 을 받을 뿐이다. 실제 사용법은 `location.href = ...` 뿐이다.
+   * 스펙에 실려 있던 동안 orval 이 이걸로 `useSocialControllerStart()` 훅을 만들어 놨었다 —
+   * 부르면 안 되는 훅이다. (컨트롤러째 제외되어 지금은 스펙에 없다.)
+   */
   @Get(':provider')
   @Public()
   @UseGuards(SocialAuthGuard)
-  @ApiOperation({
-    summary: '소셜 로그인 시작',
-    description:
-      'provider 인가 페이지로 리다이렉트한다. link_token 쿼리가 있으면 현재 계정 연동 의도로 시작한다. provider: google|naver|kakao|line',
-  })
-  // 핸들러가 @Param 을 안 받아(가드가 처리한다) 스웨거 플러그인이 경로 변수를 못 만든다.
-  // 그러면 경로에 {provider} 가 있는데 parameters 가 비어 OpenAPI 규격에 어긋나고,
-  // 스펙으로 클라이언트를 생성하는 도구(orval)가 거기서 멈춘다. 문서용으로만 선언해 둔다.
-  @ApiParam({
-    name: 'provider',
-    description: '소셜 제공자',
-    enum: ['google', 'naver', 'kakao', 'line'],
-  })
   start(): void {
     // 리다이렉트는 SocialAuthGuard(passport)가 처리한다. 여기 도달하지 않는다.
   }
@@ -145,10 +124,10 @@ export class SocialController {
   @Get(':provider/callback')
   @Public()
   @UseGuards(SocialAuthGuard)
-  @ApiExcludeEndpoint()
   async callback(
     @Req() req: Request & { user?: SocialProfile },
     @Res() res: Response,
+    @Lang() lang: SupportedLang,
   ): Promise<void> {
     const profile = req.user;
     if (!profile) {
@@ -156,33 +135,13 @@ export class SocialController {
     }
     const state = typeof req.query.state === 'string' ? req.query.state : '';
     const { outcome, returnTo, clientState, clientId } =
-      await this.social.handleCallback(profile, state, requestMeta(req));
+      await this.social.handleCallback(profile, state, requestMeta(req), lang);
     // **자사 로그인은 여기서 끝난다.** 쿠키를 심고 원래 있던 자리로 돌려보낸다 —
     // 인가코드를 만들어 프론트가 교환하게 하는 왕복이 없다.
     if (outcome.kind === 'session') {
       setLoginCookies(res, outcome.tokens);
     }
     res.redirect(this.buildRedirect(clientId, returnTo, outcome, clientState));
-  }
-
-  @Delete(':provider/link')
-  @Auth(AuthType.Jwt)
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '소셜 연동 해제',
-    description:
-      '현재 계정에서 해당 provider 연동을 제거한다. 마지막 로그인 수단(비밀번호도 없고 연동 하나뿐)이면 거부한다.',
-  })
-  async unlink(
-    @CurrentUser() user: AuthUser,
-    @Param('provider') providerParam: string,
-    @Req() req: Request,
-  ): Promise<void> {
-    const provider = toOAuthProvider(providerParam);
-    if (!provider) {
-      throw new BadRequestException('Unsupported social provider.');
-    }
-    await this.social.unlink(user.userId, provider, requestMeta(req));
   }
 
   /**

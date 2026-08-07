@@ -3,11 +3,11 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 /**
- * 의원 진료 상위질병 5개 항목. 필드명은 가이드가 아니라 실응답을 따랐다(2026-07 실측).
+ * 의원 진료 상위질병 5개 항목. 필드명은 가이드가 아니라 실응답을 따랐다.
  */
 export interface HiraClinicTop5Item {
   /** 행 번호. 가이드 응답 표에 없지만 실제로는 온다. */

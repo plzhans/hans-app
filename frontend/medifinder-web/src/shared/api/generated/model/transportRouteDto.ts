@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 export interface TransportRouteDto {
@@ -15,7 +15,7 @@ export interface TransportRouteDto {
   arrival?: string;
   /** 이름은 방향이지만 실제로는 이용 안내가 온다 */
   dir?: string;
-  /** 거리 **또는 소요시간**. 단위가 제각각이라 계산하지 마라 */
+  /** 거리 **또는 소요시간**. 표기가 일정하지 않아 계산에 쓰지 않는다 */
   distance?: string;
   note?: string;
 }

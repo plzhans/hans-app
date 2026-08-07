@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
+  ApiExcludeController,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -48,6 +49,14 @@ import {
  * 앱 관리(개발자 플랫폼). 로그인한 사용자가 자기 앱을 등록하고, 앱마다 API 키(서버용)와
  * 클라이언트(브라우저/OAuth: origins·redirectUris)를 관리한다. 모든 리소스는 소유자만 접근한다.
  */
+/**
+ * **스펙에 싣지 않는다(@ApiExcludeController).** 여기는 우리 개발자 콘솔(hansapp-web)이
+ * 부르는 자리다 — 연동하는 쪽이 앱을 만들고 키를 발급하는 것은 화면에서 하지 API 로 하지 않는다.
+ *
+ * 스펙의 뜻을 한 문장으로 지킨다: **스펙에 있는 것 = 외부가 부를 수 있는 것.**
+ * 자사 전용을 실어 두면 문서 쪽에서 다시 걸러야 하고, 정본이 둘이 되면 한쪽만 고치는 사고가 난다.
+ */
+@ApiExcludeController()
 @ApiTags('apps')
 @Auth(AuthType.Jwt)
 @Controller('apps')

@@ -1,29 +1,6 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/": {
-      "get": {
-        "operationId": "AppController_getHello",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                },
-                "example": "Hello World!"
-              }
-            }
-          }
-        },
-        "summary": "헬스 체크",
-        "tags": [
-          "app"
-        ]
-      }
-    },
     "/version": {
       "get": {
         "operationId": "AppController_getVersion",
@@ -43,379 +20,6 @@
         "summary": "빌드 버전",
         "tags": [
           "app"
-        ]
-      }
-    },
-    "/auth/signup/request-code": {
-      "post": {
-        "description": "가입할 이메일로 인증 코드를 보낸다(계정 생성 전). 이미 가입된 이메일이면 409. 같은 이메일로 1시간 5통·재발송 쿨다운을 초과하면 429.",
-        "operationId": "AuthController_requestSignupCode",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SignupCodeRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": ""
-          }
-        },
-        "summary": "가입 인증 코드 발송",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/signup": {
-      "post": {
-        "description": "사전에 발송된 인증 코드를 검증하고 계정을 만든다(검증된 이메일만 계정을 소유). 코드가 틀리거나 만료면 400, 이미 가입된 이메일이거나 탈퇴 후 재가입 제한기간이면 409. 성공 시 곧바로 로그인 토큰을 발급한다.",
-        "operationId": "AuthController_signup",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SignupRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "이메일 회원가입",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/login": {
-      "post": {
-        "description": "이메일/비밀번호로 로그인한다. 소셜 전용 계정(비밀번호 없음)은 이메일 로그인이 불가하다.",
-        "operationId": "AuthController_login",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "이메일 로그인",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/me": {
-      "get": {
-        "description": "현재 로그인 사용자 정보를 반환한다.",
-        "operationId": "AuthController_me",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "내 정보",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/withdraw": {
-      "post": {
-        "description": "계정을 탈퇴 상태로 전환한다. 모든 세션이 폐기되고 재로그인이 차단되며, 30일간 같은 이메일 재가입이 제한된다.",
-        "operationId": "AuthController_withdraw",
-        "parameters": [],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "회원 탈퇴",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/password/change": {
-      "post": {
-        "description": "로그인 상태에서 비밀번호를 변경한다.",
-        "operationId": "AuthController_changePassword",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangePasswordRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "비밀번호 변경",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/password/reset-request": {
-      "post": {
-        "description": "가입 이메일로 인증 코드를 보낸다. 계정 유무·대상 여부와 무관하게 202(존재 노출 방지). 발송 상한 초과 시 429.",
-        "operationId": "AuthController_requestPasswordReset",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordResetRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": ""
-          }
-        },
-        "summary": "비밀번호 재설정 요청",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/password/reset": {
-      "post": {
-        "description": "메일로 받은 인증 코드로 새 비밀번호를 설정한다. 코드가 틀리거나 만료면 400. 성공 시 전체 세션이 폐기된다.",
-        "operationId": "AuthController_resetPassword",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordResetConfirmDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "summary": "비밀번호 재설정 확정",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/social/register/request-code": {
-      "post": {
-        "description": "provider 가 이메일을 검증하지 않은 경우(콜백 code_required) 가입 이메일로 코드를 보낸다. provider 가 이메일을 안 준 경우 email 을 함께 보낸다.",
-        "operationId": "SocialController_requestRegisterCode",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SocialRegisterCodeRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": ""
-          }
-        },
-        "summary": "소셜 가입 인증 코드 발송",
-        "tags": [
-          "auth-social"
-        ]
-      }
-    },
-    "/auth/social/register": {
-      "post": {
-        "description": "콜백에서 받은 가입 티켓으로 계정을 만든다. provider 가 이메일을 주지 않은 경우 email 을 함께 보낸다. 성공 시 로그인 토큰을 발급한다.",
-        "operationId": "SocialController_register",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SocialRegisterRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "소셜 신규 가입 확정",
-        "tags": [
-          "auth-social"
-        ]
-      }
-    },
-    "/auth/social/link/prepare": {
-      "post": {
-        "description": "로그인 상태에서 연동 시작 토큰을 받는다. 이후 GET /auth/:provider?link_token=<토큰> 으로 이동하면 현재 계정에 연동된다.",
-        "operationId": "SocialController_prepareLink",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LinkPrepareResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "소셜 연동 시작 토큰 발급",
-        "tags": [
-          "auth-social"
-        ]
-      }
-    },
-    "/auth/{provider}": {
-      "get": {
-        "description": "provider 인가 페이지로 리다이렉트한다. link_token 쿼리가 있으면 현재 계정 연동 의도로 시작한다. provider: google|naver|kakao|line",
-        "operationId": "SocialController_start",
-        "parameters": [
-          {
-            "name": "provider",
-            "required": true,
-            "in": "path",
-            "description": "소셜 제공자",
-            "schema": {
-              "enum": [
-                "google",
-                "naver",
-                "kakao",
-                "line"
-              ],
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "소셜 로그인 시작",
-        "tags": [
-          "auth-social"
-        ]
-      }
-    },
-    "/auth/{provider}/link": {
-      "delete": {
-        "description": "현재 계정에서 해당 provider 연동을 제거한다. 마지막 로그인 수단(비밀번호도 없고 연동 하나뿐)이면 거부한다.",
-        "operationId": "SocialController_unlink",
-        "parameters": [
-          {
-            "name": "provider",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "소셜 연동 해제",
-        "tags": [
-          "auth-social"
         ]
       }
     },
@@ -454,7 +58,7 @@
     },
     "/oauth/authorize": {
       "post": {
-        "description": "로그인된 사용자에 대해 다른 클라이언트(앱)의 redirect_uri(허용목록)로 넘길 1회용 인가코드를 발급한다. 클라이언트는 이 code 를 /oauth/token 으로 교환한다.",
+        "description": "OAuth 2.0 Authorization Code Grant 의 인가 코드(authorization code)를 발급한다. 로그인된 사용자에 대해, 클라이언트가 등록한 `redirect_uri` 로 전달할 1회용 코드다.\n\n발급된 코드는 `POST /oauth/token` 에서 access token 으로 교환한다.",
         "operationId": "OAuthController_authorize",
         "parameters": [],
         "requestBody": {
@@ -484,7 +88,7 @@
             "bearer": []
           }
         ],
-        "summary": "SSO 인가코드 발급",
+        "summary": "인가 코드 발급",
         "tags": [
           "oauth"
         ]
@@ -506,9 +110,10 @@
         ]
       }
     },
-    "/apps": {
+    "/users/me": {
       "get": {
-        "operationId": "AppsController_list",
+        "description": "현재 로그인 사용자 정보를 반환한다.",
+        "operationId": "UserController_me",
         "parameters": [],
         "responses": {
           "200": {
@@ -516,10 +121,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AppSummaryDto"
-                  }
+                  "$ref": "#/components/schemas/MeResponseDto"
                 }
               }
             }
@@ -530,566 +132,9 @@
             "bearer": []
           }
         ],
-        "summary": "내 앱 목록",
+        "summary": "내 정보",
         "tags": [
-          "apps"
-        ]
-      },
-      "post": {
-        "description": "등급별 생성 한도를 초과하면 403.",
-        "operationId": "AppsController_create",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateAppDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppSummaryDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "앱 등록",
-        "tags": [
-          "apps"
-        ]
-      }
-    },
-    "/apps/{id}": {
-      "get": {
-        "operationId": "AppsController_detail",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppDetailDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "앱 상세(키·클라이언트 포함)",
-        "tags": [
-          "apps"
-        ]
-      },
-      "patch": {
-        "operationId": "AppsController_update",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateAppDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppSummaryDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "앱 수정(이름·상태)",
-        "tags": [
-          "apps"
-        ]
-      },
-      "delete": {
-        "operationId": "AppsController_remove",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "앱 삭제(즉시, 하위 키·클라이언트 함께 삭제)",
-        "tags": [
-          "apps"
-        ]
-      }
-    },
-    "/apps/{id}/review-request": {
-      "post": {
-        "description": "PENDING 앱을 심사 대기로 올린다. 거절된 앱의 재요청도 이 경로다(사유가 지워지고 다시 심사 중). 이미 승인·삭제된 앱이면 400.",
-        "operationId": "AppsController_requestReview",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppSummaryDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "심사 요청",
-        "tags": [
-          "apps"
-        ]
-      }
-    },
-    "/apps/{id}/api-keys": {
-      "post": {
-        "description": "이름을 지정해 발급한다. 앱당 상한(App.apiKeyLimit, 기본 3)까지 여러 개 가능. 원문(sk_...)은 이 응답에서만 확인 가능하다.",
-        "operationId": "AppsController_createApiKey",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateApiKeyDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatedApiKeyDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "서비스 키 발급",
-        "tags": [
-          "apps"
-        ]
-      },
-      "get": {
-        "operationId": "AppsController_listApiKeys",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ApiKeySummaryDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "API 키 목록",
-        "tags": [
-          "apps"
-        ]
-      }
-    },
-    "/apps/{id}/api-keys/{keyId}/regenerate": {
-      "post": {
-        "description": "행(id)은 유지하고 값만 새로 만든다. 기존 값은 즉시 무효화. 원문은 이 응답에서만 확인 가능.",
-        "operationId": "AppsController_regenerateApiKey",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "keyId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatedApiKeyDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "서비스 키 재발급",
-        "tags": [
-          "apps"
-        ]
-      }
-    },
-    "/apps/{id}/api-keys/{keyId}": {
-      "delete": {
-        "operationId": "AppsController_deleteApiKey",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "keyId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "API 키 삭제",
-        "tags": [
-          "apps"
-        ]
-      }
-    },
-    "/apps/{id}/clients": {
-      "post": {
-        "description": "type=WEB|IOS|ANDROID. WEB 만 client secret 을 발급하며 이 응답에서만 확인 가능하다(네이티브는 PKCE).",
-        "operationId": "AppsController_createClient",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateClientDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatedClientDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "클라이언트 등록(플랫폼별, 앱당 여러 개)",
-        "tags": [
-          "apps"
-        ]
-      },
-      "get": {
-        "operationId": "AppsController_listClients",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ClientDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "클라이언트 목록",
-        "tags": [
-          "apps"
-        ]
-      }
-    },
-    "/apps/{id}/clients/{clientPk}/secret": {
-      "post": {
-        "description": "기존 시크릿은 즉시 무효화된다. 새 원문은 이 응답에서만 확인 가능하다.",
-        "operationId": "AppsController_regenerateSecret",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "clientPk",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SecretResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "클라이언트 보안 비밀번호 재발급",
-        "tags": [
-          "apps"
-        ]
-      }
-    },
-    "/apps/{id}/clients/{clientPk}": {
-      "patch": {
-        "operationId": "AppsController_updateClient",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "clientPk",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateClientDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "클라이언트 수정(이름·origins·redirectUris)",
-        "tags": [
-          "apps"
-        ]
-      },
-      "delete": {
-        "operationId": "AppsController_deleteClient",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "clientPk",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "클라이언트 삭제",
-        "tags": [
-          "apps"
+          "users"
         ]
       }
     },
@@ -2245,7 +1290,7 @@
             "name": "nextToken",
             "required": false,
             "in": "query",
-            "description": "이어받기 커서. **직전 응답의 nextToken 을 그대로** 실어 보낸다. 비우면 처음부터다. 값은 불투명 문자열이니 클라이언트가 해석하지 마라.",
+            "description": "이어받기 커서. **직전 응답의 nextToken 을 그대로** 실어 보낸다. 비우면 처음부터 조회한다. 불투명 문자열이므로 해석하지 않는다.",
             "schema": {
               "type": "string"
             }
@@ -2266,7 +1311,7 @@
             "name": "db",
             "required": false,
             "in": "query",
-            "description": "**원천 선택(테스트용).** 기본은 Elasticsearch 검색이고, `true` 면 DB 로 조회한다. ES 장애 환경에서 DB 로 우회하려고 둔 스위치다 — 평상시엔 지정하지 마라.\n\n**nextToken 은 원천마다 형식이 다르다**(DB↔ES 호환 안 됨). 스크롤 도중 db 값을 바꾸면 커서가 맞지 않으니, 한 스크롤 세션 안에서는 db 를 고정해라.",
+            "description": "**검증용 파라미터.** 기본 조회 경로 대신 DB 로 직접 조회한다. 일반적인 사용에서는 지정하지 않는다.\n\n**nextToken 은 조회 경로마다 형식이 다르다.** 스크롤 도중 이 값을 바꾸면 커서가 맞지 않으므로, 한 스크롤 세션에서는 고정한다.",
             "schema": {
               "example": "false",
               "type": "string"
@@ -2356,7 +1401,7 @@
     },
     "/healthcare/hospitals/{id}/nearby": {
       "get": {
-        "description": "이 병원 **대신 갈 만한** 근처 병원을 찾는다. 상세 화면 하단 섹션용이다.\n\n**단순히 가까운 순이 아니다.** 진료과목이 겹치는지를 가장 크게 보고, 전문병원 지정분야·종별·응급실 운영 여부로 보정한 뒤, 거리를 가중치로 곱해 정렬한다. 바로 옆 치과가 1km 밖 같은 정형외과를 이기지 않는다는 뜻이다.\n\n**왜 유사한지는 matchedSubjects 로 돌려준다** — 겹친 과목을 그대로 실어 주므로 \"정형외과·재활의학과\" 같은 배지를 달 수 있다.\n\n요양병원·정신병원은 기본적으로 빠지지만, **기준 병원이 그 계열이면 같은 계열만** 찾는다 — 요양병원 보는 사람에게 근처 의원은 대체재가 아니다.\n\n결과가 비어도 정상이다(좌표가 없는 병원이거나 반경 안에 후보가 없다). 병원 자체가 없을 때만 404 다.",
+        "description": "이 병원을 **대체할 만한** 근처 병원을 찾는다.\n\n**단순히 가까운 순이 아니다.** 진료과목이 겹치는지를 가장 크게 보고, 전문병원 지정분야·종별·응급실 운영 여부로 보정한 뒤, 거리를 가중치로 곱해 정렬한다.\n\n겹친 과목은 **matchedSubjects** 로 함께 반환하므로, 결과에 포함된 근거를 화면에 표시할 수 있다.\n\n요양병원·정신병원은 기본적으로 제외되며, **기준 병원이 그 계열이면 같은 계열에서만** 찾는다.\n\n결과가 비어도 정상이다(좌표가 없는 병원이거나 반경 안에 후보가 없다). 병원 자체가 없을 때만 404 다.",
         "operationId": "HealthcareHospitalController_nearby",
         "parameters": [
           {
@@ -2372,7 +1417,7 @@
             "name": "radius",
             "required": false,
             "in": "query",
-            "description": "반경(미터). **웬만하면 비워라** — 비우면 서버가 기준 병원의 등급을 보고 정한다.\n\n\"근처\" 의 크기가 등급마다 다르기 때문이다. 의원은 걸어갈 곳을 찾는 자리라 1km 면 되지만 (같은 등급 다섯 곳이 잡히는 거리가 중앙값 75m 다), 상급종합은 전국에 47곳뿐이라 서로 중앙값 38.7km 떨어져 있다 — 좁게 잡으면 **서로를 아예 못 찾는다.**\n\n```\n의원급    1km      병원급   5km     상급종합  80km\n요양병원  15km     정신병원 30km\n```\n\n값을 주면 그 값이 이긴다. **어느 쪽이든 실제 적용값은 응답의 radius 에 실려 온다** — 화면에 \"반경 N 안에서\" 를 쓰려면 요청값이 아니라 그 값을 봐라.",
+            "description": "반경(미터). **비워 두는 것을 권장한다** — 비우면 기준 병원의 등급에 따라 서버가 정한다.\n\n등급마다 \"근처\" 의 크기가 다르다. 의원급은 걸어갈 거리에 여러 곳이 있지만, 상급종합은 전국 47곳이라 좁게 잡으면 결과가 비어 버린다.\n\n```\n의원급    1km      병원급   5km     상급종합  80km\n요양병원  15km     정신병원 30km\n```\n\n값을 주면 그 값이 우선한다. **실제 적용된 반경은 응답의 radius 로 확인한다** — 요청값과 다를 수 있다.",
             "schema": {
               "minimum": 500,
               "maximum": 100000,
@@ -2420,7 +1465,7 @@
     },
     "/healthcare/hospitals/{id}/hira-npay": {
       "get": {
-        "description": "병원이 신고한 비급여 항목별 가격. 대분류 → 표준코드로 묶어 **기관 전건을 한 번에** 돌려준다(페이지 없음).\n\n**빈 categories 가 정상이다.** 비급여를 신고한 기관은 3,511곳(전체의 4.4%)뿐이고, 의원(clCd=31)은 원본에 통째로 없어 늘 비어 있다. 병원이 없을 때만 404 다.\n\n**금액은 범위다.** 한 표준코드에 원본 행이 여럿일 수 있어서다(체외충격파가 단순/복잡 두 행). 단일가면 minAmount 와 maxAmount 가 같다 — 그때는 범위로 표시하지 마라.\n\n상세(/healthcare/hospitals/:id)에 끼워 넣지 않은 이유는 95% 의 병원에게 헛짐이고 한 기관에 수백 행이기 때문이다(최다 1,048행).",
+        "description": "병원이 신고한 비급여 항목별 가격. 대분류 → 표준코드로 묶어 **기관 전건을 한 번에** 돌려준다(페이지 없음).\n\n**빈 categories 도 정상이다.** 비급여를 신고한 기관은 전체의 약 4%(3,511곳)이며, 의원급(clCd=31)은 원본에 없어 항상 비어 있다. 404 는 병원 자체가 없을 때만 반환한다.\n\n**금액은 범위다.** 한 표준코드에 원본 행이 여럿일 수 있어서다(체외충격파가 단순/복잡 두 행). 단일가면 minAmount 와 maxAmount 가 같으며, 이때는 범위로 표시하지 않는다.\n\n한 기관에 수백 행이 될 수 있어(최다 1,048행) 병원 상세와 분리된 엔드포인트다.",
         "operationId": "HealthcareHospitalController_nonPayments",
         "parameters": [
           {
@@ -2547,7 +1592,7 @@
     },
     "/healthcare/meta/subject-groups": {
       "get": {
-        "description": "기본 검색의 칩. 47개 진료과목을 환자가 아는 이름으로 묶은 **우리 분류**다.\n\n그룹을 고르면 subjects 의 code 들을 펼쳐서 `/healthcare/hospitals?subject=A,B,C` 로 검색한다.\n환자가 직접 가지 않는 과(영상의학·병리·진단검사 등)는 어느 그룹에도 없다.",
+        "description": "47개 진료과목을 이용자가 아는 이름으로 묶은 **서비스 자체 분류**다. 표준 코드가 아니다.\n\n그룹을 고르면 subjects 의 code 들을 펼쳐서 `/healthcare/hospitals?subject=A,B,C` 로 검색한다.\n환자가 직접 가지 않는 과(영상의학·병리·진단검사 등)는 어느 그룹에도 없다.",
         "operationId": "HealthcareMetaController_subjectGroups",
         "parameters": [],
         "responses": {
@@ -2854,7 +1899,7 @@
             "client-id": []
           }
         ],
-        "summary": "특수진료(진료가능분야) 코드",
+        "summary": "특수진료 코드",
         "tags": [
           "healthcare-meta"
         ]
@@ -2905,9 +1950,81 @@
         ]
       }
     },
+    "/healthcare/ai-search": {
+      "post": {
+        "description": "자연어 질문을 검색 조건으로 변환한다. **병원 목록은 반환하지 않는다** — 응답의 `tool` 로 동작을 고르고 `params` 를 실어 `GET /healthcare/hospitals` 를 호출한다.\n\n좌표는 주고받지 않는다. 측위는 클라이언트가 하고, 서버는 위치 기준으로 검색할지 여부만 정한다.\n\n진단·치료 조언은 하지 않는다. 병원을 고르기 위한 조건만 만든다.",
+        "operationId": "HealthcareAiSearchController_search",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSearchRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSearchResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "client-id": []
+          }
+        ],
+        "summary": "자연어 병원 검색",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/ai/capabilities": {
+      "get": {
+        "description": "남은 사용량과 선택할 수 있는 모델을 반환한다. **사용량을 소모하지 않는다.**\n\nAI 기능을 **열 때 한 번** 호출한다. 이후 값은 검색 응답(`quota`)에 실려 오므로 주기적으로 호출하지 않는다.\n\n누구의 사용량인지는 자격증명이 정한다 — access token 이면 사용자, 클라이언트 키면 해당 앱의 몫이다.\n\n`quota` 가 비어 오면 걸린 한도가 없다는 뜻이다. 사용량을 확인할 수 없는 상태면 **503** 이며, 이때는 검색도 거절되므로 AI 기능을 비활성화하는 것이 맞다.",
+        "operationId": "AiCapabilitiesController_capabilities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "client-id": []
+          }
+        ],
+        "summary": "AI 사용량 · 모델 목록",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
     "/transport/subway-stations": {
       "get": {
-        "description": "병원 상세의 교통정보(`transport.subway[].arrival`)에 나오는 하차역명을 화면에서 다국어로 보여줄 때 쓴다.\n\n**언어를 한꺼번에 다 내린다.** 다른 API 와 달리 `Accept-Language` 를 보지 않는다 — 화면에 나온 역명을 **찾아 바꾸는** 용도라, 클라이언트가 통째로 받아 맵으로 들고 쓰기 때문이다. 언어를 바꿀 때 다시 받을 필요가 없다.\n\n**필터도 페이징도 없다.** 세 언어를 다 담아도 응답이 gzip 십수 KB 밖에 안 된다.\n\n`Cache-Control: private, max-age=3600` 이 붙는다. 브라우저가 한 시간 캐시한다.\n\n**응답의 `version` 과 `ETag` 에 원본 데이터의 배포일자가 담긴다.** `If-None-Match` 로 재검증하면 바뀐 게 없을 때 **304** 가 오고 본문은 안 내려온다. 원본 갱신 주기가 길어(연 1~2회) 대부분의 재검증이 304 다.\n\n출처: 국가철도공단 전국 도시광역철도 역사정보 (표준데이터). 전국 도시철도를 모두 덮는다 — 수도권·부산·대구·대전·광주.",
+        "description": "병원 상세의 교통정보(`transport.subway[].arrival`)에 나오는 하차역명을 화면에서 다국어로 보여줄 때 쓴다.\n\n**세 언어를 한 번에 반환한다.** 다른 API 와 달리 `Accept-Language` 를 보지 않는다 — 역명을 찾아 바꾸는 용도라 클라이언트가 전체를 받아 두고 쓰기 때문이며, 화면 언어를 바꿔도 다시 받을 필요가 없다.\n\n**필터도 페이징도 없다.** 전체를 한 번에 받는다.\n\n`Cache-Control: private, max-age=3600` 이 붙는다. 브라우저가 한 시간 캐시한다.\n\n**응답의 `version` 과 `ETag` 에 원본 데이터의 배포일자가 담긴다.** `If-None-Match` 로 재검증하면 바뀐 게 없을 때 **304** 가 오고 본문은 안 내려온다. 원본 갱신 주기가 길어(연 1~2회) 대부분의 재검증이 304 로 끝난다.\n\n출처: 국가철도공단 전국 도시광역철도 역사정보 (표준데이터). 전국 도시철도를 모두 덮는다 — 수도권·부산·대구·대전·광주.",
         "operationId": "TransportController_subwayStations",
         "parameters": [],
         "responses": {
@@ -3049,7 +2166,7 @@
             "client-id": []
           }
         ],
-        "summary": "좌표 → 지역 코드 (역지오코딩)",
+        "summary": "좌표로 지역 코드 조회",
         "tags": [
           "address"
         ]
@@ -3231,7 +2348,7 @@
   "info": {
     "title": "Hans API",
     "description": "Hans API backend 문서",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "contact": {}
   },
   "tags": [],
@@ -3308,48 +2425,34 @@
           "node"
         ]
       },
-      "SignupCodeRequestDto": {
+      "TokenRequestDto": {
         "type": "object",
         "properties": {
-          "email": {
+          "grant_type": {
             "type": "string",
-            "description": "가입할 이메일",
-            "example": "user@example.com"
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
-      "SignupRequestDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "description": "이메일",
-            "example": "user@example.com"
-          },
-          "password": {
-            "type": "string",
-            "description": "비밀번호(8자 이상)",
-            "example": "p@ssw0rd!"
-          },
-          "name": {
-            "type": "string",
-            "description": "표시 이름",
-            "example": "홍길동"
+            "description": "grant 종류",
+            "enum": [
+              "authorization_code",
+              "refresh_token"
+            ],
+            "example": "authorization_code"
           },
           "code": {
             "type": "string",
-            "description": "메일로 받은 인증 코드",
-            "example": "846210"
+            "description": "authorization_code grant 의 인가코드(ac_...)"
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "refresh_token grant 의 refresh token(rt_...). 생략 시 httpOnly 쿠키에서 읽는다."
+          },
+          "code_verifier": {
+            "type": "string",
+            "description": "PKCE code_verifier(RFC 7636). authorization_code grant 에 **필수**다. 인가 요청 때 보낸 code_challenge 의 원본으로, BASE64URL(SHA256(이 값)) 이 일치해야 한다.",
+            "example": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
           }
         },
         "required": [
-          "email",
-          "password",
-          "name",
-          "code"
+          "grant_type"
         ]
       },
       "TokenResponseDto": {
@@ -3385,193 +2488,6 @@
           "expiresIn",
           "refreshToken",
           "refreshExpiresAt"
-        ]
-      },
-      "LoginRequestDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "description": "이메일",
-            "example": "user@example.com"
-          },
-          "password": {
-            "type": "string",
-            "description": "비밀번호",
-            "example": "p@ssw0rd!"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ]
-      },
-      "MeResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number",
-            "description": "회원번호"
-          },
-          "email": {
-            "type": "string",
-            "description": "이메일"
-          },
-          "emailVerified": {
-            "type": "boolean",
-            "description": "이메일 인증 여부"
-          },
-          "name": {
-            "type": "object",
-            "description": "표시 이름"
-          },
-          "role": {
-            "type": "string",
-            "description": "권한",
-            "example": "USER"
-          },
-          "joinType": {
-            "type": "string",
-            "description": "최초 가입 수단",
-            "example": "EMAIL"
-          }
-        },
-        "required": [
-          "id",
-          "email",
-          "emailVerified",
-          "role",
-          "joinType"
-        ]
-      },
-      "ChangePasswordRequestDto": {
-        "type": "object",
-        "properties": {
-          "currentPassword": {
-            "type": "string",
-            "description": "현재 비밀번호"
-          },
-          "newPassword": {
-            "type": "string",
-            "description": "새 비밀번호(8자 이상)"
-          }
-        },
-        "required": [
-          "currentPassword",
-          "newPassword"
-        ]
-      },
-      "PasswordResetRequestDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "description": "가입 이메일"
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
-      "PasswordResetConfirmDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "description": "가입 이메일"
-          },
-          "code": {
-            "type": "string",
-            "description": "메일로 받은 인증 코드",
-            "example": "846210"
-          },
-          "newPassword": {
-            "type": "string",
-            "description": "새 비밀번호(8자 이상)"
-          }
-        },
-        "required": [
-          "email",
-          "code",
-          "newPassword"
-        ]
-      },
-      "SocialRegisterCodeRequestDto": {
-        "type": "object",
-        "properties": {
-          "ticket": {
-            "type": "string",
-            "description": "콜백에서 받은 소셜 가입 티켓"
-          },
-          "email": {
-            "type": "string",
-            "description": "provider 가 이메일을 주지 않은 경우 사용자가 입력한 이메일"
-          }
-        },
-        "required": [
-          "ticket"
-        ]
-      },
-      "SocialRegisterRequestDto": {
-        "type": "object",
-        "properties": {
-          "ticket": {
-            "type": "string",
-            "description": "콜백에서 받은 소셜 가입 티켓"
-          },
-          "email": {
-            "type": "string",
-            "description": "provider 가 이메일을 주지 않은 경우 사용자가 입력한 이메일"
-          },
-          "code": {
-            "type": "string",
-            "description": "provider 가 이메일을 검증하지 않은 경우(code_required) 메일로 받은 인증 코드"
-          }
-        },
-        "required": [
-          "ticket"
-        ]
-      },
-      "LinkPrepareResponseDto": {
-        "type": "object",
-        "properties": {
-          "linkToken": {
-            "type": "string",
-            "description": "연동 시작 토큰(단기)"
-          }
-        },
-        "required": [
-          "linkToken"
-        ]
-      },
-      "TokenRequestDto": {
-        "type": "object",
-        "properties": {
-          "grant_type": {
-            "type": "string",
-            "description": "grant 종류",
-            "enum": [
-              "authorization_code",
-              "refresh_token"
-            ],
-            "example": "authorization_code"
-          },
-          "code": {
-            "type": "string",
-            "description": "authorization_code grant 의 인가코드(ac_...)"
-          },
-          "refresh_token": {
-            "type": "string",
-            "description": "refresh_token grant 의 refresh token(rt_...). 생략 시 httpOnly 쿠키에서 읽는다."
-          },
-          "code_verifier": {
-            "type": "string",
-            "description": "PKCE code_verifier(RFC 7636). authorization_code grant 에 **필수**다. 인가 요청 때 보낸 code_challenge 의 원본으로, BASE64URL(SHA256(이 값)) 이 일치해야 한다.",
-            "example": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-          }
-        },
-        "required": [
-          "grant_type"
         ]
       },
       "AuthorizeRequestDto": {
@@ -3610,518 +2526,66 @@
           "code"
         ]
       },
-      "AppSummaryDto": {
+      "MeResponseDto": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "number"
-          },
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "ACTIVE",
-              "DISABLED"
-            ],
-            "description": "앱 상태"
-          },
-          "reviewState": {
-            "type": "string",
-            "enum": [
-              "DRAFT",
-              "REVIEWING",
-              "REJECTED",
-              "APPROVED",
-              "DISABLED"
-            ],
-            "description": "심사 세부 상태(표시용). DRAFT=작성 중, REVIEWING=심사 중, REJECTED=거절됨, APPROVED=승인, DISABLED=삭제"
-          },
-          "rejectionReason": {
-            "type": "object",
-            "description": "거절 사유(REJECTED 일 때만). 사용자가 보고 고쳐 재요청한다."
-          },
-          "deletedAt": {
-            "type": "object",
-            "description": "삭제 시각(null 이면 삭제 안 됨)"
-          },
-          "createdBy": {
             "type": "number",
-            "description": "생성자 회원번호"
+            "description": "회원번호"
+          },
+          "email": {
+            "type": "string",
+            "description": "이메일"
+          },
+          "emailVerified": {
+            "type": "boolean",
+            "description": "이메일 인증 여부"
+          },
+          "name": {
+            "type": "object",
+            "description": "표시 이름"
+          },
+          "role": {
+            "type": "string",
+            "description": "권한",
+            "example": "USER"
+          },
+          "joinType": {
+            "type": "string",
+            "description": "최초 가입 수단",
+            "example": "EMAIL"
           },
           "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "status",
-          "reviewState",
-          "createdBy",
-          "createdAt"
-        ]
-      },
-      "CreateAppDto": {
-        "type": "object",
-        "properties": {
-          "name": {
             "type": "string",
-            "description": "앱 이름(영어·하이픈)",
-            "example": "my-service"
-          }
-        },
-        "required": [
-          "name"
-        ]
-      },
-      "ApiKeySummaryDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number"
+            "description": "가입 일시",
+            "example": "2026-08-06T02:10:00.000Z"
           },
-          "name": {
-            "type": "string"
+          "hasPassword": {
+            "type": "boolean",
+            "description": "비밀번호가 설정돼 있는가. 소셜로만 가입한 계정은 false 라 화면이 \"변경\" 대신 \"설정\" 을 띄운다."
           },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "ACTIVE",
-              "DISABLED"
+          "linkedProviders": {
+            "description": "연동된 소셜 제공자 목록",
+            "example": [
+              "GOOGLE",
+              "KAKAO"
             ],
-            "description": "PENDING 이면 승인 전이라 인증에 쓸 수 없다"
-          },
-          "keyPrefix": {
-            "type": "string",
-            "description": "표시용 접두사(원문은 생성 시 1회만 확인 가능)"
-          },
-          "lastUsedAt": {
-            "type": "object"
-          },
-          "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "status",
-          "keyPrefix",
-          "createdAt"
-        ]
-      },
-      "ClientDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number"
-          },
-          "clientId": {
-            "type": "string",
-            "description": "공개 클라이언트 식별자"
-          },
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "ACTIVE",
-              "DISABLED"
-            ],
-            "description": "PENDING 이면 승인 전이라 인증에 쓸 수 없다"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "WEB",
-              "IOS",
-              "ANDROID"
-            ],
-            "description": "플랫폼 타입"
-          },
-          "origins": {
-            "description": "[WEB] 승인된 JavaScript 원본",
             "type": "array",
             "items": {
               "type": "string"
             }
-          },
-          "redirectUris": {
-            "description": "[WEB] 승인된 리디렉션 URI",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "secretSuffix": {
-            "type": "object",
-            "description": "[WEB] 보안 비밀번호 뒤 4자(마스킹 표기용)"
-          },
-          "secretCreatedAt": {
-            "type": "object",
-            "description": "[WEB] 보안 비밀번호 발급 시각"
-          },
-          "config": {
-            "type": "object",
-            "description": "[NATIVE] 플랫폼 식별자"
-          },
-          "lastUsedAt": {
-            "type": "object",
-            "description": "마지막 사용 시각"
-          },
-          "createdAt": {
-            "type": "string"
           }
         },
         "required": [
           "id",
-          "clientId",
-          "name",
-          "status",
-          "type",
-          "createdAt"
-        ]
-      },
-      "AppDetailDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number"
-          },
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "ACTIVE",
-              "DISABLED"
-            ],
-            "description": "앱 상태"
-          },
-          "reviewState": {
-            "type": "string",
-            "enum": [
-              "DRAFT",
-              "REVIEWING",
-              "REJECTED",
-              "APPROVED",
-              "DISABLED"
-            ],
-            "description": "심사 세부 상태(표시용). DRAFT=작성 중, REVIEWING=심사 중, REJECTED=거절됨, APPROVED=승인, DISABLED=삭제"
-          },
-          "rejectionReason": {
-            "type": "object",
-            "description": "거절 사유(REJECTED 일 때만). 사용자가 보고 고쳐 재요청한다."
-          },
-          "deletedAt": {
-            "type": "object",
-            "description": "삭제 시각(null 이면 삭제 안 됨)"
-          },
-          "createdBy": {
-            "type": "number",
-            "description": "생성자 회원번호"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "apiKeyLimit": {
-            "type": "number",
-            "description": "서비스 키 발급 상한"
-          },
-          "apiKeys": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ApiKeySummaryDto"
-            }
-          },
-          "clients": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ClientDto"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "status",
-          "reviewState",
-          "createdBy",
+          "email",
+          "emailVerified",
+          "role",
+          "joinType",
           "createdAt",
-          "apiKeyLimit",
-          "apiKeys",
-          "clients"
+          "hasPassword",
+          "linkedProviders"
         ]
-      },
-      "UpdateAppDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "앱 이름(영어·하이픈)",
-            "example": "my-service"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "ACTIVE",
-              "DISABLED"
-            ],
-            "description": "앱 상태"
-          }
-        }
-      },
-      "CreateApiKeyDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "키 이름(용도 구분)",
-            "example": "server-prod"
-          }
-        },
-        "required": [
-          "name"
-        ]
-      },
-      "CreatedApiKeyDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number"
-          },
-          "name": {
-            "type": "string"
-          },
-          "key": {
-            "type": "string",
-            "description": "API 키 원문(sk_...). 다시 볼 수 없으니 안전하게 보관하세요."
-          },
-          "keyPrefix": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "key",
-          "keyPrefix",
-          "createdAt"
-        ]
-      },
-      "CreateClientDto": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "WEB",
-              "IOS",
-              "ANDROID"
-            ],
-            "description": "플랫폼 타입"
-          },
-          "name": {
-            "type": "string",
-            "description": "클라이언트 이름(영어·하이픈)",
-            "example": "web"
-          },
-          "clientId": {
-            "type": "string",
-            "description": "Client ID 직접 지정(소문자·숫자·하이픈, 2~30자). 저장 시 cl_fixed_ 접두사가 붙는다. 비우면 cl_{appId}_{id}-{랜덤} 자동 발급. 멀티 환경에서 값을 고정하려면 지정.",
-            "example": "medifinder-web"
-          },
-          "origins": {
-            "description": "[WEB] 자바스크립트 원본(scheme://host[:port])",
-            "example": [
-              "https://app.example.com"
-            ],
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "redirectUris": {
-            "description": "[WEB] 로그인 후 복귀 허용 URL",
-            "example": [
-              "https://app.example.com/auth/callback"
-            ],
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "bundleId": {
-            "type": "string",
-            "description": "[iOS] Bundle ID",
-            "example": "com.example.app"
-          },
-          "teamId": {
-            "type": "string",
-            "description": "[iOS] Apple Team ID (Universal Links 검증용)",
-            "example": "ABCDE12345"
-          },
-          "packageName": {
-            "type": "string",
-            "description": "[Android] 패키지명",
-            "example": "com.example.app"
-          },
-          "fingerprints": {
-            "description": "[Android] SHA-256 인증서 지문",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "type",
-          "name"
-        ]
-      },
-      "CreatedClientDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "number"
-          },
-          "clientId": {
-            "type": "string",
-            "description": "공개 클라이언트 식별자"
-          },
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "PENDING",
-              "ACTIVE",
-              "DISABLED"
-            ],
-            "description": "PENDING 이면 승인 전이라 인증에 쓸 수 없다"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "WEB",
-              "IOS",
-              "ANDROID"
-            ],
-            "description": "플랫폼 타입"
-          },
-          "origins": {
-            "description": "[WEB] 승인된 JavaScript 원본",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "redirectUris": {
-            "description": "[WEB] 승인된 리디렉션 URI",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "secretSuffix": {
-            "type": "object",
-            "description": "[WEB] 보안 비밀번호 뒤 4자(마스킹 표기용)"
-          },
-          "secretCreatedAt": {
-            "type": "object",
-            "description": "[WEB] 보안 비밀번호 발급 시각"
-          },
-          "config": {
-            "type": "object",
-            "description": "[NATIVE] 플랫폼 식별자"
-          },
-          "lastUsedAt": {
-            "type": "object",
-            "description": "마지막 사용 시각"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "secret": {
-            "type": "string",
-            "description": "[WEB] 클라이언트 보안 비밀번호 원문. 다시 볼 수 없습니다."
-          }
-        },
-        "required": [
-          "id",
-          "clientId",
-          "name",
-          "status",
-          "type",
-          "createdAt"
-        ]
-      },
-      "SecretResponseDto": {
-        "type": "object",
-        "properties": {
-          "secret": {
-            "type": "string",
-            "description": "새 보안 비밀번호 원문. 다시 볼 수 없습니다."
-          }
-        },
-        "required": [
-          "secret"
-        ]
-      },
-      "UpdateClientDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "클라이언트 이름(영어·하이픈)"
-          },
-          "origins": {
-            "description": "[WEB]",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "redirectUris": {
-            "description": "[WEB]",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "bundleId": {
-            "type": "string",
-            "description": "[iOS] Bundle ID"
-          },
-          "teamId": {
-            "type": "string",
-            "description": "[iOS] Apple Team ID"
-          },
-          "packageName": {
-            "type": "string",
-            "description": "[Android] 패키지명"
-          },
-          "fingerprints": {
-            "description": "[Android] SHA-256 지문",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
       },
       "KrDataHeaderDto": {
         "type": "object",
@@ -4513,7 +2977,7 @@
           "station": {
             "type": "string",
             "example": "혜화역",
-            "description": "가장 가까운 지하철역. 교통정보의 첫 지하철 항목에서 뽑는다.\n**거리는 따지지 않는다** — 원본이 거리(\"500m\")와 소요시간(\"도보 5분\")을 같은 칸에 섞어 쓰고 비워두기도 해서, 걸러내면 멀쩡한 역세권 병원이 대거 빠진다. 정확한 거리는 상세의 transport 를 봐라."
+            "description": "가장 가까운 지하철역. 교통정보의 첫 지하철 항목에서 가져온다.\n**거리 기준으로 고른 값이 아니다.** 정확한 거리·노선 정보는 상세의 transport 를 참고한다."
           },
           "stationLine": {
             "type": "string",
@@ -4613,7 +3077,7 @@
           },
           "nextToken": {
             "type": "string",
-            "description": "다음 스크롤 커서. 다음 호출에 그대로 실어 보내면 이 지점 다음부터 이어 준다. **없으면 다음 페이지가 없다는 뜻이다** — 스크롤을 멈춘다. 불투명 문자열이니 해석하지 마라."
+            "description": "다음 스크롤 커서. 다음 호출에 그대로 실어 보내면 이 지점 다음부터 이어 준다. **없으면 다음 페이지가 없다는 뜻이다** — 스크롤을 멈춘다. 불투명 문자열이므로 해석하지 않는다."
           }
         },
         "required": [
@@ -4659,7 +3123,7 @@
           "distance": {
             "type": "string",
             "example": "5분~10분 소요",
-            "description": "거리 **또는 소요시간**. 단위가 제각각이라 계산하지 마라"
+            "description": "거리 **또는 소요시간**. 표기가 일정하지 않아 계산에 쓰지 않는다"
           },
           "note": {
             "type": "string",
@@ -4730,7 +3194,7 @@
           },
           "doctorCount": {
             "type": "number",
-            "description": "과목별 의사수. **겸직이 중복 계산된다. 합산하지 마라** — 총원은 staff.doctorTotal 이다."
+            "description": "과목별 의사수. **겸직이 중복 계산되므로 합산하지 않는다** — 총원은 staff.doctorTotal 이다."
           },
           "specialistCount": {
             "type": "number",
@@ -4900,12 +3364,12 @@
           },
           "name": {
             "type": "string",
-            "description": "항목명. 요청 언어(Accept-Language)로 온다. 번역이 없으면 한국어로 폴백한다.\n\n**심평원 공식 번역이 아니라 우리가 붙인 표시용 이름이다** — 심평원은 한국어만 준다.",
+            "description": "항목명. 요청 언어(Accept-Language)로 온다. 번역이 없으면 한국어로 폴백한다.\n\n**한국어 외 언어는 표시용 번역이다** — 원본(심평원)은 한국어만 제공한다.",
             "example": "급성기뇌졸중"
           },
           "grade": {
             "type": "string",
-            "description": "등급. 원본 그대로다. **1 이 가장 좋고 5 가 가장 나쁘다.** '등급제외' 는 평가는 했으나 등급을 안 매긴 것이다(평가대상이 아닌 항목은 아예 목록에 없다 — 둘은 다르다).\n\n**천식(code='16')만 인코딩이 다르다** — 1등급을 '양호' 로, 등급제외를 '0' 으로 준다. 그래서 이 값을 숫자로 파싱해 정렬하면 안 된다. 비교는 normalized 를 써라.",
+            "description": "등급. 원본 값을 그대로 전달한다. **1 이 가장 좋고 5 가 가장 나쁘다.** '등급제외' 는 평가는 했으나 등급을 매기지 않은 항목이다(평가대상이 아닌 항목은 목록에 포함되지 않는다).\n\n**천식(code='16')은 표기가 다르다** — 1등급을 '양호', 등급제외를 '0' 으로 준다. 이 값을 숫자로 파싱해 정렬하면 안 되며, 항목 간 비교에는 normalized 를 사용한다.",
             "example": "1"
           },
           "normalized": {
@@ -5027,7 +3491,7 @@
           },
           "legalName": {
             "type": "string",
-            "description": "원문 이름(원본이 준 그대로). **`name` 과 다를 때만 온다.** `corpName` + `name` 이면 같은 내용이라 셋 다 표시하면 같은 글자가 두 번 나온다 — 화면용이 아니라 서류·간판 표기가 필요하거나 원문과 대조할 때 쓰는 값이다.",
+            "description": "원본이 제공한 원문 이름. **`name` 과 다를 때만 온다.** 표시용이 아니라 서류·간판 표기가 필요하거나 원문과 대조할 때 쓴다.",
             "example": "(의)일맥의료재단 강동더서울의원"
           },
           "sources": {
@@ -5197,7 +3661,7 @@
             "example": 420
           },
           "matchedSubjects": {
-            "description": "기준 병원과 겹친 진료과목. **이 병원이 위에 뜬 이유**이자 화면 배지 재료다.\n\n**빈 배열일 수 있다** — 겹치는 과목이 없어도 반경 안이면 거리순으로 채운다. 섹션이 통째로 비는 것보다 낫다는 판단이니, 비면 배지만 안 그리면 된다.",
+            "description": "기준 병원과 겹친 진료과목. 이 병원이 결과에 포함된 근거다.\n\n**빈 배열일 수 있다** — 겹치는 과목이 없어도 반경 안이면 거리순으로 채운다.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MatchedSubjectDto"
@@ -5219,7 +3683,7 @@
           "radius": {
             "type": "number",
             "example": 1000,
-            "description": "이 결과를 만든 반경(m). 요청에 radius 가 있었으면 그 값, 없었으면 **기준 병원 등급으로 서버가 고른 값**이다. 화면에 \"반경 N 안에서\" 를 쓸 거면 이 값을 써라."
+            "description": "이 결과를 만든 반경(m). 요청에 radius 가 있었으면 그 값, 없었으면 **기준 병원 등급으로 서버가 고른 값**이다. \"반경 N 안에서\" 같은 표기에는 요청값이 아니라 이 값을 쓴다."
           },
           "items": {
             "type": "array",
@@ -5239,7 +3703,7 @@
           "name": {
             "type": "string",
             "example": "Hip MRI",
-            "description": "요양기관이 자체적으로 붙인 항목명. **표기가 기관 제각각이라 이 값으로 기관 간 비교하지 마라** — 비교는 code 로 한다."
+            "description": "요양기관이 자체적으로 붙인 항목명. **기관마다 표기가 달라 기관 간 비교에는 쓰지 않는다** — 비교는 code 로 한다."
           },
           "amount": {
             "type": "number",
@@ -5257,7 +3721,7 @@
           "min": {
             "type": "number",
             "example": 450000,
-            "description": "최저가(원). **단일가면 max 와 같다** — 같은 값이면 범위로 표시하지 마라."
+            "description": "최저가(원). **단일가면 max 와 같다** — 두 값이 같으면 범위로 표시하지 않는다."
           },
           "max": {
             "type": "number",
@@ -5265,7 +3729,7 @@
             "description": "최고가(원)."
           },
           "details": {
-            "description": "범위를 이룬 개별 행. **한 코드에 여러 행이 정상이다** — 체외충격파(SZ0840000)가 단순/복잡 두 행인 식이다.\n\n**빈 배열이 정상이다** — 원본이 처음부터 범위만 주는 출처가 그렇다. 비었으면 \"쪼갤 내역이 없다\" 는 뜻이지 \"못 받았다\" 가 아니다. 그때는 범위만 보여주면 된다.",
+            "description": "범위를 이룬 개별 행. **한 코드에 여러 행일 수 있다** — 예: 체외충격파(SZ0840000)의 단순·복잡.\n\n**빈 배열도 정상이다.** 원본이 범위만 제공하는 출처에서는 세부 내역이 없다 — 조회 실패를 뜻하지 않으며, 이 경우 범위(min·max)만 표시한다.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NonPaymentPriceDetailDto"
@@ -5342,7 +3806,7 @@
               "requestable",
               "unavailable"
             ],
-            "description": "이 응답의 출처, 또는 왜 비었는지.\n\n- `hira` — 공개 API(병원급 이상). 금액이 행마다 단일값이라 `price.details` 가 찬다.\n- `web` — 심평원 홈페이지(의원급). 원본이 범위만 줘서 **`price.details` 가 빈다**.\n- `none` — 받아봤는데 그 기관이 신고한 게 없다. **끝이다** — 다시 요청해도 같다.\n- `requestable` — 공개 API 에 없고 아직 받아본 적도 없다. **갱신 요청(POST .../hira-npay/request)이 가능하다.**\n- `unavailable` — 요청할 수 없다. HIRA 연동(ykiho)이 없는 병원은 조회 자체가 불가능하다."
+            "description": "이 응답의 출처, 또는 왜 비었는지.\n\n- `hira` — 공개 API(병원급 이상). 금액이 행마다 단일값이라 `price.details` 가 찬다.\n- `web` — 심평원 홈페이지(의원급). 원본이 범위만 줘서 **`price.details` 가 빈다**.\n- `none` — 조회했으나 그 기관이 신고한 항목이 없다. 다시 요청해도 결과가 같다.\n- `requestable` — 공개 API 에 없고 아직 조회한 적도 없다. **갱신 요청(POST .../hira-npay/request)이 가능하다.**\n- `unavailable` — 요청할 수 없다. 심평원 식별자(ykiho)가 없는 병원은 조회 자체가 불가능하다."
           },
           "requestStatus": {
             "type": "string",
@@ -5351,10 +3815,10 @@
               "running",
               "failed"
             ],
-            "description": "갱신 요청의 진행 상태. `source=requestable` 일 때만 의미가 있다. 요청한 적 없으면 없다.\n\n**`done` 은 오지 않는다** — 처리가 끝났으면 그 결과가 `source`(web|none)로 나타난다."
+            "description": "갱신 요청의 진행 상태. `source=requestable` 일 때만 의미가 있으며, 요청한 적이 없으면 오지 않는다.\n\n**`done` 상태는 없다** — 처리가 끝나면 결과가 `source`(web 또는 none)로 나타난다."
           },
           "categories": {
-            "description": "대분류 묶음. 원본 게시 순서를 유지한다. **빈 배열이 정상이다** — 왜 비었는지는 `source` 를 봐라.",
+            "description": "대분류 묶음. 원본 게시 순서를 유지한다. **빈 배열도 정상이다** — 사유는 `source` 로 확인한다.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NonPaymentCategoryDto"
@@ -5372,7 +3836,7 @@
           "result": {
             "type": "string",
             "example": "queued",
-            "description": "`queued` — 큐에 등록됐다. 배치가 처리하면 다음 조회부터 `source` 가 web|none 으로 바뀐다."
+            "description": "`queued` — 요청이 등록됐다. 처리가 끝나면 다음 조회부터 `source` 가 web 또는 none 으로 바뀐다."
           }
         },
         "required": [
@@ -5559,6 +4023,426 @@
           "code",
           "name",
           "items"
+        ]
+      },
+      "AiSearchFilterDto": {
+        "type": "object",
+        "properties": {
+          "subjectCds": {
+            "description": "진료과목 코드(신고 기준)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "specialistCds": {
+            "description": "그 과목 전문의를 실제로 보유한 병원만 거는 진료과목 코드",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "asmItemCds": {
+            "description": "적정성평가 항목 코드. 그 항목 1등급(우수) 병원만 걸린다.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "specialtyCds": {
+            "description": "전문병원 지정분야 코드",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "equipmentCds": {
+            "description": "보유장비 코드",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "classCds": {
+            "description": "종별 코드",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tiers": {
+            "description": "병원 등급. 비면 요양병원·정신병원이 제외된다.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "emergency": {
+            "type": "boolean",
+            "description": "응급실 운영 병원만"
+          },
+          "baby": {
+            "type": "boolean",
+            "description": "달빛어린이병원만"
+          },
+          "name": {
+            "type": "string",
+            "description": "병원 이름(부분 일치)"
+          }
+        },
+        "required": [
+          "subjectCds",
+          "specialistCds",
+          "asmItemCds",
+          "specialtyCds",
+          "equipmentCds",
+          "classCds",
+          "tiers",
+          "emergency",
+          "baby"
+        ]
+      },
+      "AiSearchParamsDto": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "$ref": "#/components/schemas/AiSearchFilterDto"
+          },
+          "regionCd": {
+            "type": "string",
+            "description": "시군구 코드(없으면 시도 코드). 검색의 `region` 파라미터다. **`search_hospitals` 에서만 채워진다.**",
+            "example": "41450"
+          },
+          "placeText": {
+            "type": "string",
+            "description": "사용자가 쓴 지역 표현 원문(예: \"강남역\"). **코드가 아니다** — `ask_location` 이 되물을 때 화면에 그대로 보여준다."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "off_topic",
+              "medical_question",
+              "emergency_suspected",
+              "medical_caution",
+              "unsupported_inverse",
+              "tertiary_referral",
+              "too_vague"
+            ],
+            "description": "`reject` 사유. `warnings` 와 같은 값 집합이다."
+          },
+          "answer": {
+            "type": "string",
+            "description": "`answer_medical` 의 본문. 다른 동작에서는 오지 않는다."
+          }
+        },
+        "required": [
+          "filter"
+        ]
+      },
+      "AiSearchHistoryTurnDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "사용자가 한 말",
+            "example": "무릎이 왜 아픈 거야?"
+          },
+          "answer": {
+            "type": "string",
+            "description": "그 질문에 대한 응답. 답변이 있었던 턴에만 담는다.",
+            "example": "무릎이 아픈 원인은…"
+          },
+          "signature": {
+            "type": "string",
+            "description": "`answer` 에 딸려 온 서명(응답의 `answerSignature`). **`answer` 를 보낼 거면 반드시 같이 보낸다.**",
+            "example": "X1c…"
+          }
+        },
+        "required": [
+          "question"
+        ]
+      },
+      "AiSearchRequestDto": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "자연어 질문",
+            "example": "천식치료 소아과 병원 추천해줘",
+            "maxLength": 300
+          },
+          "context": {
+            "description": "직전 응답의 `params` 를 그대로 돌려보낸다. 앞서 잡힌 조건을 이어받는 수단이다 — 서버는 대화를 기억하지 않는다.\n\n새 주제를 시작하려면 빼고 보낸다. `answer`·`reason` 은 보내도 무시한다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AiSearchParamsDto"
+              }
+            ]
+          },
+          "history": {
+            "description": "앞서 오간 말. \"아까 말한 증상\" 처럼 앞을 가리키는 말을 푸는 데 쓴다 (`context` 는 조건만 담아 이것까지는 못 푼다).\n\n`answer` 를 보낼 때는 그 응답의 `answerSignature` 를 `signature` 로 같이 실어야 한다. 없거나 맞지 않으면 그 턴의 `answer` 만 버리고 `question` 은 그대로 쓴다.\n\n**최근 3마디만 쓴다**(더 보내면 앞쪽부터 버린다). 한 마디의 길이도 자른다 — 질문 300자, 답 800자.",
+            "example": [
+              {
+                "question": "무릎이 왜 아픈 거야?",
+                "answer": "무릎이 아픈 원인은…",
+                "signature": "X1c…"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiSearchHistoryTurnDto"
+            }
+          }
+        },
+        "required": [
+          "q"
+        ]
+      },
+      "AiSearchConditionDto": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "enum": [
+              "subject",
+              "specialist",
+              "assessment",
+              "specialty",
+              "equipment",
+              "class"
+            ],
+            "description": "묶음 이름. 화면이 이 값으로 \"진료과\"/\"장비\" 같은 앞말을 고른다."
+          },
+          "names": {
+            "description": "사람이 읽는 이름들. **요청 언어**(Accept-Language)로 온다.",
+            "example": [
+              "내과",
+              "가정의학과"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "group",
+          "names"
+        ]
+      },
+      "QuotaWindowDto": {
+        "type": "object",
+        "properties": {
+          "used": {
+            "type": "number",
+            "description": "사용한 양",
+            "example": 21400
+          },
+          "limit": {
+            "type": "number",
+            "description": "한도",
+            "example": 2000000
+          }
+        },
+        "required": [
+          "used",
+          "limit"
+        ]
+      },
+      "AppQuotaDto": {
+        "type": "object",
+        "properties": {
+          "daily": {
+            "description": "일 단위 사용량. KST 자정에 리셋된다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuotaWindowDto"
+              }
+            ]
+          },
+          "monthly": {
+            "description": "월 단위 사용량. 매월 1일에 리셋된다. `daily` 와 함께 걸리며, 먼저 소진되는 쪽이 적용된다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuotaWindowDto"
+              }
+            ]
+          }
+        }
+      },
+      "UserQuotaDto": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "description": "사용자 잔여량. 주기적으로 리셋되지 않는다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuotaWindowDto"
+              }
+            ]
+          }
+        }
+      },
+      "QuotaDto": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "description": "앱 단위 사용량.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppQuotaDto"
+              }
+            ]
+          },
+          "user": {
+            "description": "사용자 단위 사용량. 로그인 상태에서만 온다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserQuotaDto"
+              }
+            ]
+          }
+        }
+      },
+      "AiSearchResponseDto": {
+        "type": "object",
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": [
+              "search_hospitals",
+              "search_nearby",
+              "ask_location",
+              "answer_medical",
+              "reject"
+            ],
+            "description": "클라이언트가 실행할 동작.\n- `search_hospitals` `params.filter`(+`regionCd`)로 병원 검색\n- `search_nearby` 현재 위치 기준 거리순 검색. 측위는 클라이언트가 한다\n- `ask_location` 지역을 되묻는다. `params.placeText` 에 사용자가 쓴 표현이 있다\n- `answer_medical` `params.answer` 를 그대로 보여준다\n- `reject` 검색하지 않는다. `params.reason` 이 사유다"
+          },
+          "params": {
+            "$ref": "#/components/schemas/AiSearchParamsDto"
+          },
+          "warnings": {
+            "type": "array",
+            "description": "사용자에게 안내할 신호.\n- `off_topic` 병원 검색 범위 밖의 질문\n- `medical_question` 건강 질문. 검색 조건으로 옮기지 않았다\n- `emergency_suspected` 응급 징후. 119·응급실 안내가 필요하다\n- `medical_caution` 요구가 일반적인 의학 권고와 어긋난다\n- `unsupported_inverse` 검색 조건으로 표현할 수 없는 반대 조건이라 빠졌다\n- `tertiary_referral` 상급종합병원은 진료의뢰서가 없으면 전액 본인 부담이다\n- `too_vague` 조건을 잡기에 질문이 모호하다",
+            "items": {
+              "type": "string",
+              "enum": [
+                "off_topic",
+                "medical_question",
+                "emergency_suspected",
+                "medical_caution",
+                "unsupported_inverse",
+                "tertiary_referral",
+                "too_vague"
+              ]
+            }
+          },
+          "explain": {
+            "type": "string",
+            "description": "조건이 맞게 잡혔는지 사용자가 확인할 한 문장",
+            "example": "소아청소년과 중 천식 진료 평가가 우수한 병원입니다."
+          },
+          "dropped": {
+            "description": "검증에서 제외된 값(`subject:XX` 꼴). 비어 있는 것이 정상이다.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conditions": {
+            "description": "잡힌 조건을 사람이 읽는 이름으로 푼 것. `params.filter` 의 코드와 같은 내용이라 코드표를 따로 조회할 필요가 없다. 등급·응급실처럼 코드표가 없는 값은 포함되지 않는다.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiSearchConditionDto"
+            }
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "anthropic",
+              "openai",
+              "local"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "description": "실제로 응답한 모델. 요청에 실은 이름이 아니라 확정된 버전이다."
+          },
+          "credits": {
+            "type": "number",
+            "description": "이 요청이 사용한 양. `quota` 와 같은 단위라 그대로 견줄 수 있다. 같은 질문이면 언제 묻든 같은 값이다.",
+            "example": 9387
+          },
+          "elapsedMs": {
+            "type": "number",
+            "description": "서버 처리 시간(ms). 네트워크 구간은 포함되지 않는다.",
+            "example": 1840
+          },
+          "quota": {
+            "description": "사용량. 한도가 걸려 있지 않으면 오지 않는다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuotaDto"
+              }
+            ]
+          },
+          "answerSignature": {
+            "type": "string",
+            "description": "`params.answer` 의 서명. 답이 있을 때만 온다. 다음 요청의 `history[].signature` 로 그대로 돌려주면 그 답이 문맥으로 이어진다."
+          }
+        },
+        "required": [
+          "tool",
+          "params",
+          "warnings",
+          "explain",
+          "dropped",
+          "conditions",
+          "provider",
+          "model",
+          "credits",
+          "elapsedMs"
+        ]
+      },
+      "ModelChoiceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "모델 식별자.",
+            "example": "claude-haiku-4-5"
+          },
+          "locked": {
+            "type": "boolean",
+            "description": "선택할 수 없는 모델. 목록에는 표시되지만 요청에는 실리지 않는다."
+          }
+        },
+        "required": [
+          "id",
+          "locked"
+        ]
+      },
+      "CapabilitiesResponseDto": {
+        "type": "object",
+        "properties": {
+          "quota": {
+            "description": "사용량. 한도가 걸려 있지 않으면 오지 않는다.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuotaDto"
+              }
+            ]
+          },
+          "models": {
+            "description": "선택할 수 있는 모델 목록.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelChoiceDto"
+            }
+          }
+        },
+        "required": [
+          "models"
         ]
       },
       "SubwayStationDto": {
@@ -6070,12 +4954,12 @@
           },
           "sidoNm": {
             "type": "string",
-            "description": "시도명 (예: 서울특별시).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.\nNMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,\n지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
+            "description": "시도명 (예: 서울특별시).\n\n**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 첫 토큰에서 추출하며,\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
             "example": "서울특별시"
           },
           "sgguNm": {
             "type": "string",
-            "description": "시군구명 (예: 강남구).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.\n시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
+            "description": "시군구명 (예: 강남구).\n\n**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 둘째 토큰에서 추출한다.\n시 아래 구가 있으면 두 토큰을 합친다(예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
             "example": "강남구"
           }
         }
@@ -6149,12 +5033,12 @@
           },
           "sidoNm": {
             "type": "string",
-            "description": "시도명 (예: 서울특별시).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.\nNMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,\n지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
+            "description": "시도명 (예: 서울특별시).\n\n**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 첫 토큰에서 추출하며,\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
             "example": "서울특별시"
           },
           "sgguNm": {
             "type": "string",
-            "description": "시군구명 (예: 강남구).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.\n시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
+            "description": "시군구명 (예: 강남구).\n\n**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 둘째 토큰에서 추출한다.\n시 아래 구가 있으면 두 토큰을 합친다(예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
             "example": "강남구"
           }
         }
@@ -6300,12 +5184,12 @@
           },
           "sidoNm": {
             "type": "string",
-            "description": "시도명 (예: 서울특별시).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.\nNMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,\n지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
+            "description": "시도명 (예: 서울특별시).\n\n**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 첫 토큰에서 추출하며,\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
             "example": "서울특별시"
           },
           "sgguNm": {
             "type": "string",
-            "description": "시군구명 (예: 강남구).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.\n시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
+            "description": "시군구명 (예: 강남구).\n\n**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 둘째 토큰에서 추출한다.\n시 아래 구가 있으면 두 토큰을 합친다(예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
             "example": "강남구"
           }
         }
@@ -6796,12 +5680,12 @@
           },
           "sidoNm": {
             "type": "string",
-            "description": "시도명 (예: 서울특별시).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 첫 토큰에서 계산한다.\nNMC 는 지역을 코드로 주지 않고 검색 파라미터(Q0)도 주소 문자열의 부분 일치라,\n지역으로 검색·집계하려면 주소에서 뽑아내는 수밖에 없다.\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
+            "description": "시도명 (예: 서울특별시).\n\n**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 첫 토큰에서 추출하며,\n축약 표기(서울)는 정식 명칭(서울특별시)으로 정규화한다.",
             "example": "서울특별시"
           },
           "sgguNm": {
             "type": "string",
-            "description": "시군구명 (예: 강남구).\n\n**원본 API 가 주지 않는 파생 필드다.** dutyAddr 의 둘째 토큰에서 계산한다.\n시 아래 구가 있으면 두 토큰을 합친다 (예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
+            "description": "시군구명 (예: 강남구).\n\n**원본 API 에는 없는 파생 필드다.** 주소(dutyAddr)의 둘째 토큰에서 추출한다.\n시 아래 구가 있으면 두 토큰을 합친다(예: 수원시 팔달구).\n세종특별자치시처럼 시군구가 없는 지역은 값이 없다.",
             "example": "강남구"
           }
         }
@@ -7241,7 +6125,7 @@
           },
           "pnursCnt": {
             "type": "integer",
-            "description": "공식 가이드(2021)에 없는 필드. 값이 대부분 0 이고 드물게 한 자릿수인 것으로 보아\n전문간호사 수로 추정된다. (2026-07 확인)"
+            "description": "공식 가이드(2021)에 없는 필드. 값이 대부분 0 이고 드물게 한 자릿수인 것으로 보아\n전문간호사 수로 추정된다."
           },
           "XPos": {
             "type": "string",
@@ -8534,7 +7418,7 @@
       },
       "HiraClinicTop5Item": {
         "type": "object",
-        "description": "의원 진료 상위질병 5개 항목. 필드명은 가이드가 아니라 실응답을 따랐다(2026-07 실측).",
+        "description": "의원 진료 상위질병 5개 항목. 필드명은 가이드가 아니라 실응답을 따랐다.",
         "properties": {
           "rnum": {
             "type": "integer",
@@ -8587,7 +7471,7 @@
             "type": "string"
           }
         ],
-        "description": "종별코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). `'01'`(상급종합)만 문자열이고 나머지(11·21·28·29·41·92)는 정수다 — 앞자리 0 은 JSON 숫자가 될 수 없어 문자열로 남는다. 비교할 땐 문자열로 맞춰라.",
+        "description": "종별코드. **숫자와 문자열이 섞여 온다**. `'01'`(상급종합)만 문자열이고 나머지(11·21·28·29·41·92)는 정수다 — 앞자리 0 은 JSON 숫자가 될 수 없어 문자열로 남는다. 비교할 땐 문자열로 맞춘다.",
         "example": "01"
       },
       "HiraNonPaymentCode": {
@@ -8599,12 +7483,12 @@
             "type": "string"
           }
         ],
-        "description": "비급여코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). 코드가 전부 숫자면 JSON number 로 뭉개진다 — `'ABZ010001'` vs `480510000`(표본 4,000행 중 77건). 조인·비교 전에 문자열로 맞춰라.",
+        "description": "비급여코드. **숫자와 문자열이 섞여 온다**. 코드가 전부 숫자면 JSON number 로 뭉개진다 — `'ABZ010001'` vs `480510000`(표본 4,000행 중 77건). 조인·비교 전에 문자열로 맞춘다.",
         "example": "ABZ010001"
       },
       "HiraApplyDate": {
         "type": "integer",
-        "description": "적용일자 (YYYYMMDD). **문자열이 아니라 JSON number 로 온다**(2026-07 실측).",
+        "description": "적용일자 (YYYYMMDD). **문자열이 아니라 JSON number 로 온다**.",
         "example": 20250903
       },
       "HiraNonPaymentDetailResponse": {
@@ -8691,7 +7575,7 @@
           },
           "urlAddr": {
             "type": "string",
-            "description": "병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 391건, 2026-07 실측)."
+            "description": "병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 391건)."
           },
           "sno": {
             "type": "integer",
@@ -8706,7 +7590,7 @@
           },
           "yadmNpayCdNm": {
             "type": "string",
-            "description": "요양기관이 자체적으로 붙인 항목명 (예: 'Hip MRI', 'MegaDerm 3~4mm*1*1Cm  (엘앤씨바이오)'). **표기가 기관 제각각**이라 이 값으로 기관 간 비교하지 마라 — 비교는 `npayCd` 로 한다."
+            "description": "요양기관이 자체적으로 붙인 항목명 (예: 'Hip MRI', 'MegaDerm 3~4mm*1*1Cm (엘앤씨바이오)'). **표기가 기관 제각각**이라 이 값으로 기관 간 비교에 쓰지 않는다 — 비교는 `npayCd` 로 한다."
           },
           "adtFrDd": {
             "allOf": [
@@ -8778,7 +7662,7 @@
       },
       "HiraNonPaymentSummaryItem": {
         "type": "object",
-        "description": "기관 하나의 비급여 항목 요약 한 건. 가격이 **범위(`minPrc`~`maxPrc`)** 로 오고 분류체계(중/소/상세분류)가 붙는다.\n\n분류코드 예시는 가이드(`A`·`A01`)와 실제(`1010A`·`1010A010`)가 다르다 — **실제 값 기준으로 쓰라**(2026-07 실측).",
+        "description": "기관 하나의 비급여 항목 요약 한 건. 가격이 **범위(`minPrc`~`maxPrc`)** 로 오고 분류체계(중/소/상세분류)가 붙는다.\n\n분류코드 예시는 가이드(`A`·`A01`)와 실제(`1010A`·`1010A010`)가 다르다 — **실제 값 기준으로 쓴다**.",
         "properties": {
           "ykiho": {
             "type": "string",
@@ -8815,7 +7699,7 @@
           },
           "urlAddr": {
             "type": "string",
-            "description": "병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 331건, 2026-07 실측)."
+            "description": "병원 비급여 안내 URL. **없는 행이 있다**(표본 4,000행 중 331건)."
           },
           "npayCd": {
             "$ref": "#/components/schemas/HiraNonPaymentCode"
@@ -8849,7 +7733,7 @@
                 "type": "string"
               }
             ],
-            "description": "비급여 상세분류코드. **숫자와 문자열이 섞여 온다**(2026-07 실측, 표본 4,000행 중 119건이 숫자).",
+            "description": "비급여 상세분류코드. **숫자와 문자열이 섞여 온다**(표본 4,000행 중 119건이 숫자).",
             "example": "1010A010"
           },
           "npayDtlDivCdNm": {
@@ -8931,7 +7815,7 @@
       },
       "HiraNonPaymentCodeItem": {
         "type": "object",
-        "description": "비급여 항목 분류 한 행. **대/중/소 3단이고 아래로 갈수록 optional 이다**(2026-07 실측 — 대분류 54행 전부, 중분류 52행, 소분류 20행). PET·캡슐내시경처럼 중분류가 없는 대분류도 있다.\n\n각 단계가 코드·이름·설명 세 쌍이다. **설명(Dsc)이 이 사전의 값이다** — 신고 데이터에 없는 항목 안내 텍스트다.",
+        "description": "비급여 항목 분류 한 행. **대/중/소 3단이고 아래로 갈수록 optional 이다**(— 대분류 54행 전부, 중분류 52행, 소분류 20행). PET·캡슐내시경처럼 중분류가 없는 대분류도 있다.\n\n각 단계가 코드·이름·설명 세 쌍이다. **설명(Dsc)이 이 사전의 값이다** — 신고 데이터에 없는 항목 안내 텍스트다.",
         "properties": {
           "divCd1": {
             "type": "string",
@@ -8963,7 +7847,7 @@
           },
           "divCd3": {
             "type": "string",
-            "description": "소분류코드. **없을 수 있다** — 소분류가 있는 항목만 온다(실측 20행)."
+            "description": "소분류코드. **없을 수 있다** — 소분류가 있는 항목만 온다(20행)."
           },
           "divCd3Nm": {
             "type": "string",
@@ -9023,11 +7907,11 @@
       },
       "HiraNonPaymentClassStatItem": {
         "type": "object",
-        "description": "비급여코드 하나의 **종별 가격통계**. **행마다 필드가 다르다** — 값이 있는 종별만 온다(2026-07 실측: 15~31필드). 그래서 가격 필드는 전부 optional 이다. 종별 7종(전체·상급종합·종합·치과·한방·병원·요양) × 통계 4종(최대·최소·평균·중간).",
+        "description": "비급여코드 하나의 **종별 가격통계**. **행마다 필드가 다르다** — 값이 있는 종별만 온다(15~31필드). 그래서 가격 필드는 전부 optional 이다. 종별 7종(전체·상급종합·종합·치과·한방·병원·요양) × 통계 4종(최대·최소·평균·중간).",
         "properties": {
           "npayCd": {
             "type": "string",
-            "description": "비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(2026-07 실측 655).",
+            "description": "비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(655).",
             "example": "1Z9230001"
           },
           "npayKorNm": {
@@ -9036,7 +7920,7 @@
           },
           "stdDate": {
             "type": "integer",
-            "description": "적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**(2026-07 실측).",
+            "description": "적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**.",
             "example": 20260718
           },
           "prcMaxAll": {
@@ -9201,11 +8085,11 @@
       },
       "HiraNonPaymentRegionStatItem": {
         "type": "object",
-        "description": "비급여코드 하나의 **지역 가격통계**. **행마다 필드가 다르다** — 값이 있는 지역만 온다(2026-07 실측: 27~71필드). 그래서 가격 필드는 전부 optional 이다. 지역 18종(전체+17시도) × 통계 4종. **가이드와 필드명이 다르다** — 세종은 Sejong 이 아니라 Sj, 충북은 Ccbk 이 아니라 Ccb 다(2026-07 실측).",
+        "description": "비급여코드 하나의 **지역 가격통계**. **행마다 필드가 다르다** — 값이 있는 지역만 온다(27~71필드). 그래서 가격 필드는 전부 optional 이다. 지역 18종(전체+17시도) × 통계 4종. **가이드와 필드명이 다르다** — 세종은 Sejong 이 아니라 Sj, 충북은 Ccbk 이 아니라 Ccb 다.",
         "properties": {
           "npayCd": {
             "type": "string",
-            "description": "비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(2026-07 실측 655).",
+            "description": "비급여코드 (예: 1Z9230001). **npayCd 하나당 한 행이라 totalCount 가 곧 전체 비급여코드 수다**(655).",
             "example": "1Z9230001"
           },
           "npayKorNm": {
@@ -9214,7 +8098,7 @@
           },
           "stdDate": {
             "type": "integer",
-            "description": "적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**(2026-07 실측).",
+            "description": "적용시작일자 (YYYYMMDD). **가이드는 string 이라지만 JSON number 로 온다**.",
             "example": 20260718
           },
           "prcMaxAll": {
@@ -9561,11 +8445,11 @@
             "type": "string"
           }
         ],
-        "description": "평가등급. **숫자와 문자열이 섞여 온다**(2026-07 실측). 등급은 정수 1~5 로, 문자열 '등급제외' 는 **등급대상 제외**(평가는 했으나 등급을 매기지 않음)다. 가이드는 전부 문자열이라 하지만 실제로는 아니다.\n\n**'등급대상 제외' 와 '평가대상 제외' 는 다르다.** 평가대상이 아닌 항목은 **키 자체가 없다**(빈 문자열이 아니라 부재). 둘을 합치면 정보가 사라진다 — 예: 약품목수는 키없음 1,876 · '등급제외' 516 으로 수가 다르다.\n\n천식(asmGrd16)만 등급대상 제외를 '등급제외' 가 아니라 숫자 0 으로 준다. AssessmentGrade16 참고."
+        "description": "평가등급. **숫자와 문자열이 섞여 온다**. 등급은 정수 1~5 로, 문자열 '등급제외' 는 **등급대상 제외**(평가는 했으나 등급을 매기지 않음)다. 가이드는 전부 문자열이라 하지만 실제로는 아니다.\n\n**'등급대상 제외' 와 '평가대상 제외' 는 다르다.** 평가대상이 아닌 항목은 **키 자체가 없다**(빈 문자열이 아니라 부재). 둘을 합치면 정보가 사라진다 — 예: 약품목수는 키없음 1,876 · '등급제외' 516 으로 수가 다르다.\n\n천식(asmGrd16)만 등급대상 제외를 '등급제외' 가 아니라 숫자 0 으로 준다. AssessmentGrade16 참고."
       },
       "HiraHospitalAssessmentItem": {
         "type": "object",
-        "description": "기관 하나의 평가등급. 필드는 가이드가 아니라 실응답을 따랐다(2026-07 실측, 표본 1,000건).\n\n**asmGrd02·asmGrd11 은 존재하지 않는다** — 원본에 없다(폐지 항목으로 보인다). 번호가 연속이 아니다.\n\n평가대상은 36,599개 기관이고 대부분 의원(clCd=31)이다. 병원급 전용이 아니다.",
+        "description": "기관 하나의 평가등급. 필드는 가이드가 아니라 실응답을 따랐다(표본 1,000건).\n\n**asmGrd02·asmGrd11 은 존재하지 않는다** — 원본에 없다(폐지 항목으로 보인다). 번호가 연속이 아니다.\n\n평가대상은 36,599개 기관이고 대부분 의원(clCd=31)이다. 병원급 전용이 아니다.",
         "properties": {
           "ykiho": {
             "type": "string",
@@ -9584,7 +8468,7 @@
                 "type": "string"
               }
             ],
-            "description": "종별코드. **숫자와 문자열이 섞여 온다**(2026-07 실측). '01'(상급종합)만 문자열이고 나머지(11·21·28·29·31·71·72·75…)는 정수다 — 앞자리 0 은 JSON 숫자가 될 수 없어 문자열로 남는다. 비교할 땐 asString() 으로 맞춰라."
+            "description": "종별코드. **숫자와 문자열이 섞여 온다.** '01'(상급종합)만 문자열이고 나머지(11·21·28·29·31·71·72·75…)는 정수다 — 앞자리 0 이 있는 코드만 문자열로 남기 때문이다. 비교할 때는 문자열로 맞춘다."
           },
           "clCdNm": {
             "type": "string",
@@ -9707,7 +8591,7 @@
                 "type": "string"
               }
             ],
-            "description": "천식. **이 항목만 인코딩이 다르다. 등급 체계 자체는 나머지와 같다.** (2026-07 실측 + 심평원 홈페이지 대조)\n\n    일반 21개 :  1        2 3 4 5   '등급제외'\n    천식      : '양호'     2 3 4 5    0\n\n1등급을 '양호' 로, 등급대상 제외를 0 으로 줄 뿐이다. 그래서 천식엔 1 도 '등급제외' 도 전수 14,923건에 한 번도 안 나온다 — 그 자리를 각각 '양호' 와 0 이 대신하기 때문이다. 가이드가 이 항목만 '(양호한 기관 공개)' 로 적은 것이 이 뜻이다(나머지 21개는 '(1~5등급, 등급제외)').\n\n**0 을 '최하 등급' 이나 '값 없음' 으로 읽지 마라.** 0 은 등급제외고 최하는 5 다. 다른 항목과 비교하려면 '양호'→1, 0→'등급제외' 로 옮기고 나서 하라."
+            "description": "천식. **이 항목만 등급 표기가 다르다. 등급 체계 자체는 나머지와 같다.**\n\n 일반 21개 : 1 2 3 4 5 '등급제외'\n 천식 : '양호' 2 3 4 5 0\n\n1등급을 '양호' 로, 등급대상 제외를 0 으로 표기할 뿐이다. 그래서 천식에는 1 과 '등급제외' 가 오지 않는다. 가이드가 이 항목만 '(양호한 기관 공개)' 로 표기한 것이 이 뜻이다(나머지 21개는 '(1~5등급, 등급제외)').\n\n**0 은 최하 등급도 값 없음도 아니다.** 0 은 등급제외이고 최하는 5 다. 다른 항목과 비교하려면 '양호'→1, 0→'등급제외' 로 옮겨서 쓴다."
           },
           "asmGrd17": {
             "allOf": [

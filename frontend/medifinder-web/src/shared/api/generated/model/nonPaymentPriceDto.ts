@@ -3,19 +3,19 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 import type { NonPaymentPriceDetailDto } from './nonPaymentPriceDetailDto';
 
 export interface NonPaymentPriceDto {
-  /** 최저가(원). **단일가면 max 와 같다** — 같은 값이면 범위로 표시하지 마라. */
+  /** 최저가(원). **단일가면 max 와 같다** — 두 값이 같으면 범위로 표시하지 않는다. */
   min: number;
   /** 최고가(원). */
   max: number;
   /**
-     * 범위를 이룬 개별 행. **한 코드에 여러 행이 정상이다** — 체외충격파(SZ0840000)가 단순/복잡 두 행인 식이다.
+     * 범위를 이룬 개별 행. **한 코드에 여러 행일 수 있다** — 예: 체외충격파(SZ0840000)의 단순·복잡.
      *
-     * **빈 배열이 정상이다** — 원본이 처음부터 범위만 주는 출처가 그렇다. 비었으면 "쪼갤 내역이 없다" 는 뜻이지 "못 받았다" 가 아니다. 그때는 범위만 보여주면 된다.
+     * **빈 배열도 정상이다.** 원본이 범위만 제공하는 출처에서는 세부 내역이 없다 — 조회 실패를 뜻하지 않으며, 이 경우 범위(min·max)만 표시한다.
      */
   details: NonPaymentPriceDetailDto[];
 }

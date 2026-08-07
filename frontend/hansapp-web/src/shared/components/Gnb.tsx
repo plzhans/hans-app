@@ -3,6 +3,8 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { startLogin } from '@/shared/auth/login';
 import { UserMenu } from '@/shared/components/UserMenu';
 import { LINKS } from '@/shared/config/links';
+import { cn } from '@/shared/lib/cn';
+import { PAGE_CONTAINER } from '@/shared/ui/layout';
 
 const MENU = [
   // MediFinder 는 상단 헤더에서 일단 뺀다(링크 설정은 links.ts 에 남겨 둠).
@@ -16,7 +18,7 @@ export function Gnb() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+      <div className={cn(PAGE_CONTAINER, 'flex h-14 items-center justify-between')}>
         <div className="flex items-center gap-6">
           <Link to="/" className="text-lg font-extrabold text-primary">
             HansApp

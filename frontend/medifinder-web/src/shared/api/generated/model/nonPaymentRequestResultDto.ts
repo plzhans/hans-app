@@ -3,10 +3,10 @@
  * Do not edit manually.
  * Hans API
  * Hans API backend 문서
- * OpenAPI spec version: 0.12.0
+ * OpenAPI spec version: 0.13.0
  */
 
 export interface NonPaymentRequestResultDto {
-  /** `queued` — 큐에 등록됐다. 배치가 처리하면 다음 조회부터 `source` 가 web|none 으로 바뀐다. */
+  /** `queued` — 요청이 등록됐다. 처리가 끝나면 다음 조회부터 `source` 가 web 또는 none 으로 바뀐다. */
   result: string;
 }
