@@ -34,6 +34,24 @@
     "files.watcherExclude": {
       "**/node_modules/**": true,
       "**/dist/**": true
+    },
+
+    // 곁딸린 파일을 본체 밑으로 접는다. 테스트를 소스 옆에 두는 배치(콜로케이션)라
+    // 안 접으면 트리에서 파일 수가 두 배로 보인다.
+    //
+    // **여기(워크스페이스 설정)에 둬야 한다.** expand 는 window 스코프여서 폴더
+    // .vscode/settings.json 에 적으면 조용히 무시된다(enabled·patterns 만 먹는다).
+    // 그러면 접히지 않고 들여쓰기만 생겨 "설정이 안 먹는다" 로 보인다.
+    "explorer.fileNesting.enabled": true,
+    // 기본값이 true 라 명시하지 않으면 펼쳐진 채로 보인다 — 이 한 줄이 요점이다.
+    "explorer.fileNesting.expand": false,
+    // **이 객체는 병합이 아니라 통째로 교체된다.** VSCode 기본 패턴(*.ts → .js 등)이
+    // 필요하면 여기에 다시 적어야 한다.
+    "explorer.fileNesting.patterns": {
+      "*.ts": "${capture}.spec.ts, ${capture}.test.ts",
+      // 패키지마다 tsconfig.json + tsconfig.build.json 짝이 생긴다.
+      "tsconfig.json": "tsconfig.*.json",
+      "package.json": "pnpm-lock.yaml, pnpm-workspace.yaml, .npmrc"
     }
   }
 }
