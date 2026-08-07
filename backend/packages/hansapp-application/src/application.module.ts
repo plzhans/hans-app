@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
 import type { ConfigSource } from '@hansapp/common';
+
 import { DataModule } from '@hansapp/data';
 import { LlmModule } from '@hansapp/llm';
 import {

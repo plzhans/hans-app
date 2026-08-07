@@ -37,6 +37,19 @@ export type { HiraCodeType, HiraCodeResponse } from '@hansapp/application';
 // 직접 의존하게 만들지 않는다(위 HIRA_CODE_TYPES 와 같은 이유).
 export { HealthService } from '@hansapp/application';
 
+// 서비스 설정 관리. 읽기는 공용 계층이 갖고, 관리자 API 가 쓰기 엔드포인트를 연다.
+export { SettingService } from './setting/setting.service';
+export { SettingAdminService } from './setting/setting-admin.service';
+// 타입·카탈로그는 계층이 아니라 공용이다 — 관리자 API 가 DTO 를 만들 때 이걸 쓴다.
+export type {
+  SettingSource,
+  SettingFieldView,
+  SettingGroupView,
+  SettingInput,
+  SettingCategory,
+  SettingFieldType,
+} from '@hansapp/common';
+
 export { NmcCodeSyncService } from './nmc/nmc-code-sync.service';
 export { HiraCodeSyncService } from './hira/hira-code-sync.service';
 export type { HiraCodeSyncOptions } from './hira/hira-code-sync.service';

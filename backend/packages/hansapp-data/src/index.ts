@@ -53,6 +53,7 @@ export type {
   AppLlmKey,
   // 운영 환경(env_*) 테이블. 서비스 데이터가 아니라 서버 운영을 다루는 모델이다.
   EnvSwaggerAllowedIp,
+  EnvSetting,
 } from '../generated/main';
 
 // 인증 도메인 enum(값으로도 쓰므로 type-only 가 아니다).
@@ -88,3 +89,11 @@ export { PrismaMigrationService, DB_TARGETS } from './prisma-migration.service';
 export type { DbTarget, MigrationOptions } from './prisma-migration.service';
 export { DB_CONFIG, buildDbConfig } from './db.config';
 export type { DbConfig } from './db.config';
+
+/*
+  서비스 설정(env_setting) 저장소. **테이블 하나짜리 리포지토리를 이 패키지에 두는 예외다** —
+  계층마다 달라질 조회 조건이 없어서, 응용 계층마다 같은 코드를 두는 것보다 낫다.
+  **읽기 전용이다** — 쓰기는 관리자 계층이 따로 갖는다(SettingWriteRepository).
+  자세한 판단은 data.module.ts 주석 참고.
+*/
+export { SettingReadRepository } from './setting.repository';

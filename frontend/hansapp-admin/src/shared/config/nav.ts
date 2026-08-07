@@ -1,4 +1,4 @@
-import { Boxes, Users, type LucideIcon } from 'lucide-react';
+import { Boxes, Mail, Plug, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -26,6 +26,14 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/users', label: '회원', icon: Users },
       { to: '/apps', label: '앱', icon: Boxes },
+    ],
+  },
+  {
+    // 성격이 다른 것을 한 화면에 몰지 않는다 — 메일과 연동키는 고치는 사람도 시점도 다르다.
+    title: '설정',
+    items: [
+      { to: '/settings/mail', label: '메일', icon: Mail },
+      { to: '/settings/integrations', label: '외부 연동', icon: Plug },
     ],
   },
 ];

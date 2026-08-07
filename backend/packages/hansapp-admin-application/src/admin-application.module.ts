@@ -1,9 +1,17 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import type { ConfigSource } from '@hansapp/common';
+import {
+  buildSettingKeyring,
+  SETTING_KEYRING,
+  type ConfigSource,
+  type SecretBoxKeys,
+} from '@hansapp/common';
 import { ApplicationModule } from '@hansapp/application';
-import { DataModule } from '@hansapp/data';
+import { DataModule, SettingReadRepository } from '@hansapp/data';
 import { SearchModule } from '@hansapp/search';
 
+import { SettingService } from './setting/setting.service';
+import { SettingAdminService } from './setting/setting-admin.service';
+import { SettingWriteRepository } from './setting/setting-write.repository';
 import { HiraCodeReadService } from './hira/hira-code-read.service';
 import { HiraCodeSeedService } from './hira/hira-code-seed.service';
 import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
@@ -98,6 +106,25 @@ export class AdminApplicationModule {
         SearchModule.forRoot(source),
       ],
       providers: [
+        /*
+          서비스 설정(env_setting). 값은 DB 에, **어떤 설정이 있는지는 코드(카탈로그)** 에 있고
+          그 카탈로그는 @hansapp/common 이 갖는다. 읽기 저장소는 @hansapp/data 것을 그대로 쓰고,
+          **쓰기는 이 계층에만 둔다** — 관리자 아닌 계층에서 설정을 덮을 자리를 만들지 않는다.
+
+          SettingService 는 ConfigSource 를 생성자로 받는데 그것이 DI 토큰이 아니라
+          forRoot 인자라, 여기서 팩토리로 묶어 넣는다.
+        */
+        { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
+        SettingWriteRepository,
+        {
+          provide: SettingService,
+          useFactory: (
+            repo: SettingReadRepository,
+            keyring: SecretBoxKeys | undefined,
+          ) => new SettingService(repo, keyring, source),
+          inject: [SettingReadRepository, SETTING_KEYRING],
+        },
+        SettingAdminService,
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         HiraHospitalSyncRepository,
         NmcBasicSyncRepository,
@@ -174,6 +201,15 @@ export class AdminApplicationModule {
       ],
       // SDK 클라이언트는 export 하지 않는다. 외부 API 호출은 이 계층 안에 가둔다.
       exports: [
+        SettingService,
+        SettingAdminService,
+        /*
+          **모듈을 통째로 다시 내보낸다.** Nest 는 provider 를 전이적으로 노출하지 않아서,
+          이걸 안 하면 이 모듈을 import 한 앱의 컨트롤러가 ApplicationModule 의 서비스
+          (SettingService·SettingAdminService 등)를 생성자로 못 받는다.
+          app.get() 은 모듈을 안 가려서 되지만 컨트롤러 주입은 안 된다 — 그래서 걸린다.
+        */
+        ApplicationModule,
         UserReadService,
         AppReadService,
         NmcHospitalSyncService,

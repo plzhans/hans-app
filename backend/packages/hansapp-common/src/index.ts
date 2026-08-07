@@ -41,3 +41,28 @@ export {
   SecretBoxError,
 } from './secret-box';
 export type { SecretBoxKeys } from './secret-box';
+
+/*
+  서비스 설정 카탈로그. **어떤 설정이 존재하는지는 코드가 소유하고, 그 코드는 여기 있다.**
+  값은 DB(env_setting)에, 저장소는 @hansapp/data 에, 읽고 쓰는 구현체는 각 응용 계층에 있다.
+  이 파일에는 그 셋이 공유하는 표와 타입만 둔다 — nest 도 prisma 도 필요 없다.
+*/
+export {
+  SETTING_GROUPS,
+  SETTING_KEYS,
+  findSettingField,
+  findSettingGroup,
+} from './setting-catalog';
+export type {
+  SettingField,
+  SettingFieldType,
+  SettingGroup,
+  SettingCategory,
+  SettingConsole,
+  SettingSource,
+  SettingFieldView,
+  SettingGroupView,
+  SettingInput,
+  SettingReader,
+} from './setting-catalog';
+export { SETTING_KEYRING, buildSettingKeyring } from './setting-keyring';

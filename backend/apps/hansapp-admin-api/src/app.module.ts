@@ -16,6 +16,7 @@ import { SyncStateController } from './admin/sync-state.controller';
 import { HealthController } from './health/health.controller';
 import { UserController } from './user/user.controller';
 import { AppController } from './apps/app.controller';
+import { SettingController } from './setting/setting.controller';
 
 @Module({})
 export class AppModule {
@@ -50,6 +51,7 @@ export class AppModule {
         SyncStateController,
         UserController,
         AppController,
+        SettingController,
       ],
       providers: [
         // 폭주 요청을 인증 처리 전에 값싸게 쳐내려면 이쪽이 먼저다.
