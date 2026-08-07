@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.14.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.13.0...release-backend/v0.14.0) (2026-08-07)
+
+
+### 기능
+
+* **ai-search:** LLM 사용량 기록 테이블 ([9df84f6](https://github.com/plzhans/hans-app/commit/9df84f6cf1abf799befe2ddbe4b2b3d12f124260))
+* **ai-search:** 대화 문맥 잇기 — 직전 조건과 앞선 대화 ([40da5d6](https://github.com/plzhans/hans-app/commit/40da5d64be5129259dca009186c464397e6c8c61))
+* **ai-search:** 사용량을 토큰 단위로 세고 GET /ai/quota 추가 ([3925162](https://github.com/plzhans/hans-app/commit/39251625ea9484470809e2d0d4f11ae81334cce8))
+* **ai-search:** 의학 질문 분리 · /test 답변 모드 ([8613e4e](https://github.com/plzhans/hans-app/commit/8613e4e1bfb4f899e597d348eda9ba2e9f416b9f))
+* **ai-search:** 자연어 병원 검색 ([d0b1bd3](https://github.com/plzhans/hans-app/commit/d0b1bd39af0cc9621ee6b93ffda31a185f14378b))
+* **ai-search:** 채팅 입력을 여러 줄로 ([c699485](https://github.com/plzhans/hans-app/commit/c699485a5795bac3fef07a89c5b2fcf3c3e41517))
+* **ai-search:** 하루 사용량 상한 · 추적 id ([ce8d2fe](https://github.com/plzhans/hans-app/commit/ce8d2feb93608c67df3f1291b7a5d67d1c4f8e2d))
+* **ai-search:** 화면 이동·새로고침에도 대화 유지 ([ff1e31b](https://github.com/plzhans/hans-app/commit/ff1e31b2f72503511b5d51133d6622f841f93a6e))
+* **ai:** GET /ai/capabilities — 사용량과 고를 수 있는 모델 ([79640b6](https://github.com/plzhans/hans-app/commit/79640b6a3f014034ee1c12f5fbf751c014c37d2f))
+* **apps:** 앱별 LLM 업체 키 등록 ([8a8ad79](https://github.com/plzhans/hans-app/commit/8a8ad7910221ce35495d6160d764d4093cb77064))
+* **auth:** 가입 동의를 서버에서 검증하고 기록 ([4abaf7e](https://github.com/plzhans/hans-app/commit/4abaf7eb36781ddc3140cc35b0123140c881db0b))
+* **auth:** 로그인 기기 목록과 개별 로그아웃 ([6f200f1](https://github.com/plzhans/hans-app/commit/6f200f1a8f4589b94eb1ffb6ae9775bb430d7ec4))
+* **auth:** 로그인 상태 유지 체크박스 ([33f3689](https://github.com/plzhans/hans-app/commit/33f3689b8b743bcede13fdb165d26d0b53142873))
+* **auth:** 마이페이지 열람 - 계정 정보·소셜 연동·동의 내역 ([70ee11a](https://github.com/plzhans/hans-app/commit/70ee11a3a3a9343d3482fa3c94a3057840171d46))
+* **auth:** 마이페이지 정보 수정 - 이름·비밀번호 ([3633621](https://github.com/plzhans/hans-app/commit/3633621c4dc72c40ab71b042e529ab9636501c78))
+* **auth:** 소셜 로그인에도 "로그인 상태 유지" 반영, 모든 기기 로그아웃 추가 ([4e07a3b](https://github.com/plzhans/hans-app/commit/4e07a3b4006cea8dc51f7c18383eea82526663de))
+* **auth:** 소셜 전용 계정에 비밀번호 재설정 안내 메일 ([6c0965d](https://github.com/plzhans/hans-app/commit/6c0965df2c777607f981fe4e9b880dd90804d5a0))
+* **batch:** 만료 세션 정리 크론(session-cleanup) ([f6309ca](https://github.com/plzhans/hans-app/commit/f6309caece65e62299bc9fca5d3f109dec249273))
+* **batch:** 인증 부산물 정리 크론(auth-cleanup) ([de393c4](https://github.com/plzhans/hans-app/commit/de393c49b4dc2ac32bd103019beab5867d7030b6))
+* **event:** 도메인 이벤트 발행 계층과 세션 상한 리스너 ([ab700ee](https://github.com/plzhans/hans-app/commit/ab700ee424636286d854be67490d0f3a2c53046d))
+* **event:** 발행·소비 패키지 분리, 큐(BullMQ) 전환 ([c61cabe](https://github.com/plzhans/hans-app/commit/c61cabe9ae7f0bcc1ffe7be78e86648ac02780eb))
+* **healthcare:** 자연어 질문을 검색 조건으로 옮기는 AI 검색 ([0111795](https://github.com/plzhans/hans-app/commit/011179505a6df85016bfad88daf826e26ed0c843))
+
+
+### 버그 수정
+
+* **ai-search:** AiSearchHistoryTurn 를 export 에 추가 #be-deploy ([8bb84c1](https://github.com/plzhans/hans-app/commit/8bb84c168b5b6b7a1f8075da6b6ec176afd98506))
+* **ai-search:** 서비스 프롬프트를 api 이미지에 굽는다 #be-deploy ([45c0ca8](https://github.com/plzhans/hans-app/commit/45c0ca80ca66330539b2752ca957ea02b2fe09c2))
+* **api:** AI 스펙 누락 보완 ([1fffb5d](https://github.com/plzhans/hans-app/commit/1fffb5de47cc5f2d31771141d8c70f1e76e70f89))
+* **auth:** ConsentService 를 모듈 exports 에 추가 ([2c81858](https://github.com/plzhans/hans-app/commit/2c818583bd22bfc3a55bf402addc1a9af96cc02d))
+* **auth:** 소셜 콜백에서 이메일·티켓을 fragment 로 옮김 ([3b91f7a](https://github.com/plzhans/hans-app/commit/3b91f7ac1ab38fa0a4da6732869aa1e3d86dd55f))
+* **auth:** 쿠키 접두사를 환경 이름에서 유도 ([ee08f13](https://github.com/plzhans/hans-app/commit/ee08f134588a3897025be940d3744d00774cd8fc))
+* **config:** ${VAR:기본값} 을 Spring 규칙으로 통일 ([f11d8fa](https://github.com/plzhans/hans-app/commit/f11d8fa3fa8eacc617b844220fe58d014c219cac))
+* **config:** yaml 에 bash 문법 ${VAR:-기본값} 이 있으면 부팅 거부 ([39364d3](https://github.com/plzhans/hans-app/commit/39364d3b356360976c6c5e52a0411260ee3799cf))
+* **legal:** 오라클 국외이전 반영, 나이 확인 체크 제거, 위치정보 보유 조항 정정 ([6c4df0d](https://github.com/plzhans/hans-app/commit/6c4df0dceb76713ef733b729b29df354c8cb5bae))
+* **llm:** zod 를 의존성에 명시 #be-deploy ([7d34cc1](https://github.com/plzhans/hans-app/commit/7d34cc18ba8829fbbca6c4d1c4d527befe3b6e7d))
+
+
+### 구조 변경
+
+* **auth:** 세션 상한 정리를 application 계층으로 옮김 ([01e5a88](https://github.com/plzhans/hans-app/commit/01e5a8887105c840cea66c0588058e4bab85d260))
+* 인증/유저 API 분리, 계정 알림 메일, 앱관리 PC 레이아웃 ([40907ac](https://github.com/plzhans/hans-app/commit/40907ac70ec92cfe1be92620ec677b3fbcad0f3e))
+
+
+### 문서
+
+* **api:** 스펙 설명문을 명세서 문체로 정리 ([3b8e821](https://github.com/plzhans/hans-app/commit/3b8e8211e937b458dc761282e94aa07542995faa))
+
 ## [0.13.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.12.0...release-backend/v0.13.0) (2026-08-05)
 
 
