@@ -9,18 +9,28 @@
       "email": "thjang2414@korea.kr"
     }
   },
-  "servers": [{ "url": "https://apis.data.go.kr/1741000" }],
+  "servers": [
+    {
+      "url": "https://apis.data.go.kr/1741000"
+    }
+  ],
   "paths": {
     "/StanReginCd/getStanReginCdList": {
       "get": {
         "operationId": "getStandardRegionCodeList",
         "summary": "법정동코드 조회",
-        "description": "법정동코드의 지역코드·시도코드·시군구코드·읍면동코드·리코드·지역주소명을 조회한다.\n\n필터 없이 부르면 전체 20,560건이다. (2026-08 확인)\n정렬 기준은 코드순도 이름순도 아니지만 **같은 페이지를 다시 불러도 순서가 같다.** (실측 2회)\n전량 수집은 numOfRows=1000 으로 21콜이면 끝난다.",
+        "description": "법정동코드의 지역코드·시도코드·시군구코드·읍면동코드·리코드·지역주소명을 조회한다.\n\n필터 없이 부르면 전체 20,560건이다.\n정렬 기준은 코드순도 이름순도 아니지만 **같은 페이지를 다시 불러도 순서가 같다.** (실측 2회)\n전량 수집은 numOfRows=1000 으로 21콜이면 끝난다.",
         "tags": ["region"],
         "parameters": [
-          { "$ref": "#/components/parameters/PageNo" },
-          { "$ref": "#/components/parameters/NumOfRows" },
-          { "$ref": "#/components/parameters/LocataddNm" }
+          {
+            "$ref": "#/components/parameters/PageNo"
+          },
+          {
+            "$ref": "#/components/parameters/NumOfRows"
+          },
+          {
+            "$ref": "#/components/parameters/LocataddNm"
+          }
         ],
         "responses": {
           "200": {
@@ -44,21 +54,31 @@
         "in": "query",
         "required": false,
         "description": "페이지 번호. 범위를 넘기면 데이터없음(INFO-3)으로 응답한다.",
-        "schema": { "type": "integer", "default": 1 }
+        "schema": {
+          "type": "integer",
+          "default": 1
+        }
       },
       "NumOfRows": {
         "name": "numOfRows",
         "in": "query",
         "required": false,
         "description": "한 페이지 결과 수. **최대 1,000 이다.**\n초과하면 {\"RESULT\":{\"resultCode\":\"ERROR-1\",\"resultMsg\":\"어플리케이션 에러\"}} 가 온다.\n(가이드는 이 경우를 336 '데이터 요청은 한번에 최대 1,000건을 넘을 수 없습니다' 로 적었다.)\n콜수 제한이 있으므로 배치는 항상 1,000 으로 받는다 — 전체 20,560건이 21콜이다.",
-        "schema": { "type": "integer", "default": 10, "maximum": 1000 }
+        "schema": {
+          "type": "integer",
+          "default": 10,
+          "maximum": 1000
+        }
       },
       "LocataddNm": {
         "name": "locatadd_nm",
         "in": "query",
         "required": false,
         "description": "지역주소명 필터. **부분일치다.** '송파' 로 14건이 걸린다. (2026-08 실측)",
-        "schema": { "type": "string", "maxLength": 50 }
+        "schema": {
+          "type": "string",
+          "maxLength": 50
+        }
       }
     },
     "schemas": {
@@ -73,7 +93,9 @@
                 {
                   "$ref": "#/components/schemas/StandardRegionCodeHeadSection"
                 },
-                { "$ref": "#/components/schemas/StandardRegionCodeRowSection" }
+                {
+                  "$ref": "#/components/schemas/StandardRegionCodeRowSection"
+                }
               ]
             }
           },
@@ -89,7 +111,9 @@
         "properties": {
           "head": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/StandardRegionCodeHead" }
+            "items": {
+              "$ref": "#/components/schemas/StandardRegionCodeHead"
+            }
           }
         }
       },
@@ -101,13 +125,21 @@
             "type": "integer",
             "description": "전체 결과 수. 이 칸에만 숫자로 온다(다른 페이지 필드는 문자열이다)."
           },
-          "numOfRows": { "type": "string", "description": "한 페이지 결과 수" },
-          "pageNo": { "type": "string", "description": "페이지 번호" },
+          "numOfRows": {
+            "type": "string",
+            "description": "한 페이지 결과 수"
+          },
+          "pageNo": {
+            "type": "string",
+            "description": "페이지 번호"
+          },
           "type": {
             "type": "string",
             "description": "수신 문서양식. type=json 이면 'JSON'"
           },
-          "RESULT": { "$ref": "#/components/schemas/ResultHeader" }
+          "RESULT": {
+            "$ref": "#/components/schemas/ResultHeader"
+          }
         }
       },
       "StandardRegionCodeRowSection": {
@@ -116,7 +148,9 @@
         "properties": {
           "row": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/StandardRegionCodeRow" }
+            "items": {
+              "$ref": "#/components/schemas/StandardRegionCodeRow"
+            }
           }
         }
       },
@@ -142,10 +176,22 @@
             "type": "string",
             "description": "지역코드 10자리. 예: 1171010100 (서울특별시 송파구 잠실동)"
           },
-          "sido_cd": { "type": "string", "description": "시도코드 2자리" },
-          "sgg_cd": { "type": "string", "description": "시군구코드 3자리" },
-          "umd_cd": { "type": "string", "description": "읍면동코드 3자리" },
-          "ri_cd": { "type": "string", "description": "리코드 2자리" },
+          "sido_cd": {
+            "type": "string",
+            "description": "시도코드 2자리"
+          },
+          "sgg_cd": {
+            "type": "string",
+            "description": "시군구코드 3자리"
+          },
+          "umd_cd": {
+            "type": "string",
+            "description": "읍면동코드 3자리"
+          },
+          "ri_cd": {
+            "type": "string",
+            "description": "리코드 2자리"
+          },
           "locatjumin_cd": {
             "type": "string",
             "description": "지역코드_주민. 주민등록 체계의 코드다."

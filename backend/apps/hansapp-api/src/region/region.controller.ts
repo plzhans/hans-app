@@ -74,7 +74,7 @@ export class RegionController {
   */
   @Get('reverse')
   @ApiOperation({
-    summary: '좌표 → 지역 코드 (역지오코딩)',
+    summary: '좌표로 지역 코드 조회',
     description:
       '위경도를 주면 그 좌표가 속한 시도·시군구를 돌려준다. ' +
       '"내 위치" 버튼이 브라우저에서 받은 좌표를 지역 필터로 바꿀 때 쓴다.\n\n' +

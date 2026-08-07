@@ -64,7 +64,7 @@ export interface HospitalItem {
   /** 한방전문의 인원수 */
   cmdcSdrCnt?: number;
   /** 공식 가이드(2021)에 없는 필드. 값이 대부분 0 이고 드물게 한 자릿수인 것으로 보아
-전문간호사 수로 추정된다. (2026-07 확인) */
+전문간호사 수로 추정된다. */
   pnursCnt?: number;
   /** x좌표 (경도). 대문자 X 로 시작한다. */
   XPos?: string;

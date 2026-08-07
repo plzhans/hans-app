@@ -255,7 +255,7 @@ export class HospitalScrollRequestDto extends HospitalFilterRequestDto {
   @ApiPropertyOptional({
     description:
       '이어받기 커서. **직전 응답의 nextToken 을 그대로** 실어 보낸다. ' +
-      '비우면 처음부터다. 값은 불투명 문자열이니 클라이언트가 해석하지 마라.',
+      '비우면 처음부터 조회한다. 불투명 문자열이므로 해석하지 않는다.',
   })
   @IsOptional()
   @IsString()
@@ -276,10 +276,10 @@ export class HospitalScrollRequestDto extends HospitalFilterRequestDto {
 
   @ApiPropertyOptional({
     description:
-      '**원천 선택(테스트용).** 기본은 Elasticsearch 검색이고, `true` 면 DB 로 조회한다. ' +
-      'ES 장애 환경에서 DB 로 우회하려고 둔 스위치다 — 평상시엔 지정하지 마라.\n\n' +
-      '**nextToken 은 원천마다 형식이 다르다**(DB↔ES 호환 안 됨). 스크롤 도중 db 값을 바꾸면 ' +
-      '커서가 맞지 않으니, 한 스크롤 세션 안에서는 db 를 고정해라.',
+      '**검증용 파라미터.** 기본 조회 경로 대신 DB 로 직접 조회한다. 일반적인 사용에서는 ' +
+      '지정하지 않는다.\n\n' +
+      '**nextToken 은 조회 경로마다 형식이 다르다.** 스크롤 도중 이 값을 바꾸면 커서가 ' +
+      '맞지 않으므로, 한 스크롤 세션에서는 고정한다.',
     example: 'false',
   })
   @IsOptional()
@@ -296,16 +296,15 @@ export class HospitalScrollRequestDto extends HospitalFilterRequestDto {
 export class HospitalNearbyRequestDto {
   @ApiPropertyOptional({
     description:
-      '반경(미터). **웬만하면 비워라** — 비우면 서버가 기준 병원의 등급을 보고 정한다.\n\n' +
-      '"근처" 의 크기가 등급마다 다르기 때문이다. 의원은 걸어갈 곳을 찾는 자리라 1km 면 되지만 ' +
-      '(같은 등급 다섯 곳이 잡히는 거리가 중앙값 75m 다), 상급종합은 전국에 47곳뿐이라 ' +
-      '서로 중앙값 38.7km 떨어져 있다 — 좁게 잡으면 **서로를 아예 못 찾는다.**\n\n' +
+      '반경(미터). **비워 두는 것을 권장한다** — 비우면 기준 병원의 등급에 따라 서버가 정한다.\n\n' +
+      '등급마다 "근처" 의 크기가 다르다. 의원급은 걸어갈 거리에 여러 곳이 있지만, ' +
+      '상급종합은 전국 47곳이라 좁게 잡으면 결과가 비어 버린다.\n\n' +
       '```\n' +
       '의원급    1km      병원급   5km     상급종합  80km\n' +
       '요양병원  15km     정신병원 30km\n' +
       '```\n\n' +
-      '값을 주면 그 값이 이긴다. **어느 쪽이든 실제 적용값은 응답의 radius 에 실려 온다** — ' +
-      '화면에 "반경 N 안에서" 를 쓰려면 요청값이 아니라 그 값을 봐라.',
+      '값을 주면 그 값이 우선한다. **실제 적용된 반경은 응답의 radius 로 확인한다** — ' +
+      '요청값과 다를 수 있다.',
     minimum: MIN_NEARBY_RADIUS,
     maximum: MAX_NEARBY_RADIUS,
   })
@@ -377,10 +376,8 @@ export class LocationDto {
     type: String,
     example: '혜화역',
     description:
-      '가장 가까운 지하철역. 교통정보의 첫 지하철 항목에서 뽑는다.\n' +
-      '**거리는 따지지 않는다** — 원본이 거리("500m")와 소요시간("도보 5분")을 같은 칸에 ' +
-      '섞어 쓰고 비워두기도 해서, 걸러내면 멀쩡한 역세권 병원이 대거 빠진다. ' +
-      '정확한 거리는 상세의 transport 를 봐라.',
+      '가장 가까운 지하철역. 교통정보의 첫 지하철 항목에서 가져온다.\n' +
+      '**거리 기준으로 고른 값이 아니다.** 정확한 거리·노선 정보는 상세의 transport 를 참고한다.',
   })
   readonly station?: string;
 
@@ -506,9 +503,8 @@ export class HospitalNearbyDto extends HospitalSummaryDto {
     type: MatchedSubjectDto,
     isArray: true,
     description:
-      '기준 병원과 겹친 진료과목. **이 병원이 위에 뜬 이유**이자 화면 배지 재료다.\n\n' +
-      '**빈 배열일 수 있다** — 겹치는 과목이 없어도 반경 안이면 거리순으로 채운다. ' +
-      '섹션이 통째로 비는 것보다 낫다는 판단이니, 비면 배지만 안 그리면 된다.',
+      '기준 병원과 겹친 진료과목. 이 병원이 결과에 포함된 근거다.\n\n' +
+      '**빈 배열일 수 있다** — 겹치는 과목이 없어도 반경 안이면 거리순으로 채운다.',
   })
   readonly matchedSubjects!: MatchedSubjectDto[];
 }
@@ -520,7 +516,7 @@ export class HospitalNearbyResponseDto {
     example: 1000,
     description:
       '이 결과를 만든 반경(m). 요청에 radius 가 있었으면 그 값, 없었으면 **기준 병원 등급으로 ' +
-      '서버가 고른 값**이다. 화면에 "반경 N 안에서" 를 쓸 거면 이 값을 써라.',
+      '서버가 고른 값**이다. "반경 N 안에서" 같은 표기에는 요청값이 아니라 이 값을 쓴다.',
   })
   readonly radius!: number;
 
@@ -555,7 +551,7 @@ export class SubjectDto {
   @ApiPropertyOptional({
     type: Number,
     description:
-      '과목별 의사수. **겸직이 중복 계산된다. 합산하지 마라** — 총원은 staff.doctorTotal 이다.',
+      '과목별 의사수. **겸직이 중복 계산되므로 합산하지 않는다** — 총원은 staff.doctorTotal 이다.',
   })
   readonly doctorCount?: number;
 
@@ -679,7 +675,7 @@ export class AssessmentItemDto {
     type: String,
     description:
       '항목명. 요청 언어(Accept-Language)로 온다. 번역이 없으면 한국어로 폴백한다.\n\n' +
-      '**심평원 공식 번역이 아니라 우리가 붙인 표시용 이름이다** — 심평원은 한국어만 준다.',
+      '**한국어 외 언어는 표시용 번역이다** — 원본(심평원)은 한국어만 제공한다.',
     example: '급성기뇌졸중',
   })
   readonly name!: string;
@@ -687,7 +683,7 @@ export class AssessmentItemDto {
   @ApiProperty({
     type: String,
     description:
-      "등급. 원본 그대로다. **1 이 가장 좋고 5 가 가장 나쁘다.** '등급제외' 는 평가는 했으나 등급을 안 매긴 것이다(평가대상이 아닌 항목은 아예 목록에 없다 — 둘은 다르다).\n\n**천식(code='16')만 인코딩이 다르다** — 1등급을 '양호' 로, 등급제외를 '0' 으로 준다. 그래서 이 값을 숫자로 파싱해 정렬하면 안 된다. 비교는 normalized 를 써라.",
+      "등급. 원본 값을 그대로 전달한다. **1 이 가장 좋고 5 가 가장 나쁘다.** '등급제외' 는 평가는 했으나 등급을 매기지 않은 항목이다(평가대상이 아닌 항목은 목록에 포함되지 않는다).\n\n**천식(code='16')은 표기가 다르다** — 1등급을 '양호', 등급제외를 '0' 으로 준다. 이 값을 숫자로 파싱해 정렬하면 안 되며, 항목 간 비교에는 normalized 를 사용한다.",
     example: '1',
   })
   readonly grade!: string;
@@ -785,7 +781,8 @@ export class TransportRouteDto {
   @ApiPropertyOptional({
     type: String,
     example: '5분~10분 소요',
-    description: '거리 **또는 소요시간**. 단위가 제각각이라 계산하지 마라',
+    description:
+      '거리 **또는 소요시간**. 표기가 일정하지 않아 계산에 쓰지 않는다',
   })
   readonly distance?: string;
 
@@ -830,9 +827,8 @@ export class HospitalDetailDto extends HospitalSummaryDto {
   @ApiPropertyOptional({
     type: String,
     description:
-      '원문 이름(원본이 준 그대로). **`name` 과 다를 때만 온다.** ' +
-      '`corpName` + `name` 이면 같은 내용이라 셋 다 표시하면 같은 글자가 두 번 나온다 — ' +
-      '화면용이 아니라 서류·간판 표기가 필요하거나 원문과 대조할 때 쓰는 값이다.',
+      '원본이 제공한 원문 이름. **`name` 과 다를 때만 온다.** ' +
+      '표시용이 아니라 서류·간판 표기가 필요하거나 원문과 대조할 때 쓴다.',
     example: '(의)일맥의료재단 강동더서울의원',
   })
   readonly legalName?: string;

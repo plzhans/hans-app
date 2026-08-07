@@ -50,7 +50,7 @@ export class HealthcareMetaController {
   @ApiOperation({
     summary: '진료 분야 그룹',
     description:
-      '기본 검색의 칩. 47개 진료과목을 환자가 아는 이름으로 묶은 **우리 분류**다.\n\n' +
+      '47개 진료과목을 이용자가 아는 이름으로 묶은 **서비스 자체 분류**다. 표준 코드가 아니다.\n\n' +
       '그룹을 고르면 subjects 의 code 들을 펼쳐서 `/healthcare/hospitals?subject=A,B,C` 로 검색한다.\n' +
       '환자가 직접 가지 않는 과(영상의학·병리·진단검사 등)는 어느 그룹에도 없다.',
   })
@@ -117,7 +117,7 @@ export class HealthcareMetaController {
 
   @Get('specials')
   @ApiOperation({
-    summary: '특수진료(진료가능분야) 코드',
+    summary: '특수진료 코드',
     description:
       '방문진료·재택의료·치매주치의·중환자실 운영 등. 대부분 시범사업이다.\n\n' +
       '병원 상세의 capabilities(type=special) 코드를 이 이름으로 푼다.',

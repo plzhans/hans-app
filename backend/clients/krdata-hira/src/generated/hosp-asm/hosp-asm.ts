@@ -12,7 +12,7 @@ import type {
 import { krDataMutator } from '../../mutator';
 
 /**
- * 평가대상 요양기관의 평가항목별 평가결과 등급. ykiho 는 옵션이라 생략하면 평가대상 전체를 페이지 단위로 받는다(병원당 1콜이 아니다). 전체 36,599건이라 numOfRows=1000 이면 37콜에 전수가 나온다(2026-07 실측). 한 기관이 한 행이고 평가항목이 asmGrd01~24 컬럼으로 **가로로** 붙는다 — 우수기관서비스(exclInstHospAsmInfoService1)가 항목마다 행을 주는 것과 반대다.
+ * 평가대상 요양기관의 평가항목별 평가결과 등급. ykiho 는 옵션이라 생략하면 평가대상 전체를 페이지 단위로 받는다(병원당 1콜이 아니다). 전체 36,599건이라 numOfRows=1000 이면 37콜에 전수가 나온다. 한 기관이 한 행이고 평가항목이 asmGrd01~24 컬럼으로 **가로로** 붙는다 — 우수기관서비스(exclInstHospAsmInfoService1)가 항목마다 행을 주는 것과 반대다.
  * @summary 병원평가 상세등급 조회
  */
 export type getHospitalAssessmentListResponse200 = {
