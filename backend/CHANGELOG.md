@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.14.0...release-backend/v0.14.1) (2026-08-07)
+
+
+### 버그 수정
+
+* **auth:** 소셜 로그인 실패를 인증웹으로 돌려보낸다 #deploy ([75e0816](https://github.com/plzhans/hans-app/commit/75e0816381ca200f6394ef69d06653500a6a3349))
+* **auth:** 소셜 실패를 로그인 화면에서 보여준다 #deploy ([10991ec](https://github.com/plzhans/hans-app/commit/10991ec9a2b9409dae94669fc3e947a5674be7ea))
+
 ## [0.14.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.13.0...release-backend/v0.14.0) (2026-08-07)
 
 
