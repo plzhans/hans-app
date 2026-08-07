@@ -161,6 +161,27 @@ export class SocialController {
   }
 
   /**
+   * 자사 흐름이 실패했을 때 내려놓을 자리(인증웹 콜백).
+   *
+   * 원래 가려던 곳을 `ret` 으로 함께 싣는다 — 사용자가 사유를 읽고 이메일로 로그인하면
+   * 거기서 이어 갈 수 있어야 한다. 값은 이미 서명 state 로 왕복하며 오리진이 검증된 것이라
+   * 여기서 다시 열어 볼 것이 없다.
+   *
+   * 인증웹 주소를 모르면(설정 누락) null 을 돌려 예전 동작으로 물러난다 — 보낼 데가 없는데
+   * 실패까지 삼키면 사용자는 빈 화면만 본다.
+   */
+  private errorLandingUrl(
+    outcome: CallbackOutcome,
+    returnTo: string | undefined,
+  ): string | null {
+    const base = this.authConfig.externalUrl;
+    if (!base) return null;
+    const url = this.withOutcome(new URL(`${base}/callback`), outcome);
+    if (returnTo) url.searchParams.set('ret', returnTo);
+    return url.toString();
+  }
+
+  /**
    * 콜백 결과를 실제 리다이렉트 대상으로 바꾼다.
    *
    * **1차 기준은 clientId 다 — 없으면 자사(1st-party).**
@@ -174,6 +195,25 @@ export class SocialController {
     outcome: CallbackOutcome,
     clientState?: string,
   ): string {
+    /*
+      **실패는 자사 앱으로 돌려보내지 않는다.**
+
+      돌려보내면 포털이 `?error=email_exists` 를 달고 열린다 — 그 화면에는 이 값을 읽는
+      코드도, 사용자가 다음에 무엇을 해야 하는지 말해 줄 자리도 없다. 로그인하려던 사람이
+      아무 설명 없는 원래 화면으로 튕겨 나오는 셈이다.
+
+      사유 문구와 다음 행동(이메일로 로그인 → 마이페이지에서 연동)을 아는 화면은 인증웹의
+      콜백 하나뿐이므로, 실패는 거기로 내려놓는다. 원래 가려던 곳은 ret 으로 실어 보내
+      사용자가 문제를 풀고 나면 이어서 갈 수 있게 한다.
+
+      **외부 앱(clientId)은 예외다.** OAuth 는 실패도 redirect_uri 로 돌려주게 돼 있고
+      (RFC 6749 §4.1.2.1), 그 앱들은 그렇게 받도록 만들어져 있다. 여기서 규약을 어기면
+      그 앱은 사용자가 어디로 사라졌는지 알 수 없다.
+    */
+    if (outcome.kind === 'error' && !clientId) {
+      const landing = this.errorLandingUrl(outcome, returnTo);
+      if (landing) return landing;
+    }
     // 자사인데 돌아갈 곳이 없다 = 인증웹에 직접 와서 로그인한 경우. 우리가 내려놓는다.
     if (!clientId && !returnTo) {
       const landing = this.landingUrl(outcome);

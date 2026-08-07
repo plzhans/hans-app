@@ -309,11 +309,22 @@ export default function Callback() {
     );
   }
 
+  /*
+    실패해도 **원래 가려던 곳은 잃지 않는다.** 포털에서 넘어온 경우 ret 에 그 주소가 실려
+    오는데, 여기서 흘리면 사용자가 이메일로 로그인해도 인증웹 /me 에 남겨진다 —
+    자기가 어디서 출발했는지는 사용자가 기억할 일이 아니다.
+  */
+  const back = new URLSearchParams(window.location.search).get('ret');
+  const loginPath =
+    back && isFirstPartyReturn(back)
+      ? `/login?return=${encodeURIComponent(back)}`
+      : '/login';
+
   return (
     <AuthCard title="로그인 실패">
       <p className="text-center text-sm text-gray-600">{message}</p>
       <Link
-        to="/login"
+        to={loginPath}
         className="mt-6 block text-center text-sm font-semibold text-primary hover:underline"
       >
         로그인으로 돌아가기
