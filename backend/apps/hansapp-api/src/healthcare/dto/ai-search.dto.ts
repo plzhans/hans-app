@@ -1,4 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiHideProperty,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsArray,
@@ -32,11 +36,45 @@ const TOOLS = [
   'reject',
 ] as const;
 
+/** 화면이 배너로 띄우는 신호. 닫힌 집합이라 스펙에 enum 으로 싣는다. */
+const WARNINGS = [
+  'off_topic',
+  'medical_question',
+  'emergency_suspected',
+  'medical_caution',
+  'unsupported_inverse',
+  'tertiary_referral',
+  'too_vague',
+] as const;
+
 /** 질문 길이 상한. 이 API 는 검색어를 받는 자리라 문단이 들어올 이유가 없다. */
 export const MAX_QUESTION_LENGTH = 300;
 
 /** 고를 수 있는 프로바이더. 설정에 없는 걸 고르면 호출 시점에 실패한다. */
 const PROVIDERS = ['anthropic', 'openai', 'local'] as const;
+
+/** 앞서 오간 말 한 마디. 검증이 아니라 **스펙에 모양을 싣기 위한** 클래스다. */
+class AiSearchHistoryTurnDto implements AiSearchHistoryTurn {
+  @ApiProperty({
+    description: '사용자가 한 말',
+    example: '무릎이 왜 아픈 거야?',
+  })
+  readonly question!: string;
+
+  @ApiPropertyOptional({
+    description: '그 질문에 대한 응답. 답변이 있었던 턴에만 담는다.',
+    example: '무릎이 아픈 원인은…',
+  })
+  readonly answer?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '`answer` 에 딸려 온 서명(응답의 `answerSignature`). ' +
+      '**`answer` 를 보낼 거면 반드시 같이 보낸다.**',
+    example: 'X1c…',
+  })
+  readonly signature?: string;
+}
 
 export class AiSearchRequestDto {
   @ApiProperty({
@@ -62,14 +100,9 @@ export class AiSearchRequestDto {
   @ApiPropertyOptional({
     type: () => AiSearchParamsDto,
     description:
-      '**직전 응답의 `params` 를 그대로 돌려보낸다.** 대화를 잇는 유일한 수단이다.\n\n' +
-      '서버는 대화를 기억하지 않는다(요청 하나가 자족적이다). 대신 조건이 이미 코드로 ' +
-      '정규화돼 있어서 이 한 덩어리면 "지금까지 뭘 찾고 있었나" 가 복원된다 — ' +
-      '전체 대화를 물고 다니는 것보다 싸고, 상태가 같으면 캐시도 그대로 맞는다.\n\n' +
-      '**모양이 응답과 같은 것은 일부러다** — 받은 것을 그대로 돌려주면 되고 새 규격을 ' +
-      '익힐 필요가 없다. 새 주제를 시작하려면 빼고 보내면 된다.\n\n' +
-      '`answer`·`reason` 은 보내도 무시한다(자유 문장이라 되먹이지 않는다). ' +
-      '`filter` 의 코드도 코드표로 다시 거른다.',
+      '직전 응답의 `params` 를 그대로 돌려보낸다. 앞서 잡힌 조건을 이어받는 수단이다 ' +
+      '— 서버는 대화를 기억하지 않는다.\n\n' +
+      '새 주제를 시작하려면 빼고 보낸다. `answer`·`reason` 은 보내도 무시한다.',
   })
   /*
     **모양을 여기서 파고들지 않는다.** 안쪽 값의 뜻은 코드표를 아는 응용 계층만 판별할 수
@@ -81,21 +114,18 @@ export class AiSearchRequestDto {
   readonly context?: AiSearchParams;
 
   @ApiPropertyOptional({
+    type: () => [AiSearchHistoryTurnDto],
     description:
-      '앞서 오간 말. `[{ question, answer?, signature? }]`.\n\n' +
-      '`context` 와 **주인이 다르다** — 그쪽은 서버가 발급한 상태고 이쪽은 화면이 들고 있는 ' +
-      '대화 원문이다. 조건만으로는 "아까 말한 증상", "그럼 약은?" 처럼 앞을 가리키는 말을 ' +
-      '풀 수 없어서 따로 받는다.\n\n' +
-      '**`answer` 에는 응답의 `answerSignature` 를 `signature` 로 같이 실어야 한다.** ' +
-      '없거나 안 맞으면 그 턴의 `answer` 만 버리고 `question` 은 그대로 쓴다 — 답은 ' +
-      '"우리가 이렇게 답했다" 는 주장이라 아무 문장이나 심으면 모델을 유도할 수 있다. ' +
-      '자기가 한 말(`question`)을 다시 보내는 것은 위조가 아니라 검사하지 않는다.\n\n' +
-      '**최근 3마디만 쓴다.** 더 보내도 앞쪽부터 버린다. 한 마디의 길이도 자른다 ' +
-      '(질문 300자, 답 800자) — 안 자르면 요금이 부르는 쪽 손에 넘어간다.',
+      '앞서 오간 말. "아까 말한 증상" 처럼 앞을 가리키는 말을 푸는 데 쓴다 ' +
+      '(`context` 는 조건만 담아 이것까지는 못 푼다).\n\n' +
+      '`answer` 를 보낼 때는 그 응답의 `answerSignature` 를 `signature` 로 같이 실어야 한다. ' +
+      '없거나 맞지 않으면 그 턴의 `answer` 만 버리고 `question` 은 그대로 쓴다.\n\n' +
+      '**최근 3마디만 쓴다**(더 보내면 앞쪽부터 버린다). ' +
+      '한 마디의 길이도 자른다 — 질문 300자, 답 800자.',
     example: [
       {
-        q: '무릎이 왜 아픈 거야?',
-        a: '무릎이 아픈 원인은…',
+        question: '무릎이 왜 아픈 거야?',
+        answer: '무릎이 아픈 원인은…',
         signature: 'X1c…',
       },
     ],
@@ -183,14 +213,13 @@ class AiSearchConditionDto implements AiSearchCondition {
   readonly names!: string[];
 }
 
-/** 확인용 원시값. **사용자에게 보일 것이 아니다.** */
+/**
+ * 확인용 원시값. **스펙에 실리지 않는다**(AiSearchResponseDto.debug 가 @ApiHideProperty).
+ * 로컬·개발에서 눈으로 보는 값이라 설명도 우리끼리 쓰는 말로 둔다.
+ */
 class AiSearchDebugDto implements AiSearchDebug {
-  @ApiProperty({
-    description:
-      '우리 Redis 캐시에서 나온 답인가. 계속 false 면 캐시 키가 매번 갈리고 있다는 뜻이다. ' +
-      '**true 면 아래 `usage` 는 처음 물었을 때 쓴 양이다**(이 요청은 LLM 을 안 불렀다). ' +
-      '`credits` 는 히트든 아니든 같다 — 값은 우리 원가가 아니라 질문 하나의 값이다.',
-  })
+  /** 캐시에서 나온 답인가. true 면 `usage` 는 처음 물었을 때 쓴 양이다. */
+  @ApiProperty()
   readonly cached!: boolean;
 
   @ApiProperty({ type: AiSearchUsageDto })
@@ -217,36 +246,35 @@ class AiSearchParamsDto implements AiSearchParams {
   readonly placeText?: string;
 
   @ApiPropertyOptional({
-    description:
-      '`reject` 사유. `off_topic`(범위 밖) 또는 `too_vague`(조건 못 잡음).',
+    // 타입(AiSearchWarning)만 두면 스펙에 자유 객체로 나간다. 값 목록을 명시한다.
+    enum: WARNINGS,
+    description: '`reject` 사유. `warnings` 와 같은 값 집합이다.',
   })
   readonly reason?: AiSearchWarning;
+
+  @ApiPropertyOptional({
+    description: '`answer_medical` 의 본문. 다른 동작에서는 오지 않는다.',
+  })
+  readonly answer?: string;
 }
 
 /**
- * AI 검색 응답. **병원 목록이 아니라 "무엇을 할지" 다.**
+ * AI 검색 응답. 병원 목록이 아니라 **무엇을 할지**를 준다.
  *
- * 화면은 `tool` 로 갈리고 `params` 를 그대로 실어 기존 API 를 부른다 —
- * 조건 조합을 화면이 추론하지 않는다(그러다 "조건은 비었는데 할 일은 있는" 경우를 놓쳤다).
- *
- * ```
- *   search_hospitals  params.filter (+regionCd) 로 GET /healthcare/hospitals
- *   search_nearby     측위한 뒤 같은 조회에 sort=distance·origin 을 얹는다
- *   ask_location      지역을 되묻는다. params.filter 는 들고 있다가 나중에 쓴다
- *   reject            검색하지 않는다. explain 을 보여준다
- * ```
- *
- * 툴이 늘어도 모르는 이름은 화면이 조용히 넘기면 되므로 옛 클라이언트가 안 깨진다.
+ * 조건 개수로 할 일을 추론하지 않게 `tool` 을 따로 둔다 — "근처 병원" 처럼
+ * 조건은 비었는데 할 일은 있는 경우가 있다. 툴이 늘어도 모르는 이름을 넘기면
+ * 되므로 옛 클라이언트가 깨지지 않는다.
  */
 export class AiSearchResponseDto {
   @ApiProperty({
     enum: TOOLS,
     description:
-      '화면이 실행할 일.\n' +
-      '- `search_hospitals` 조건(+지역)으로 조회\n' +
-      '- `search_nearby` 현재 위치 기준 거리순 조회(측위는 화면 몫)\n' +
-      '- `ask_location` 지역을 되물어야 함(장소를 말했는데 코드로 못 옮김)\n' +
-      '- `reject` 검색하지 않음',
+      '클라이언트가 실행할 동작.\n' +
+      '- `search_hospitals` `params.filter`(+`regionCd`)로 병원 검색\n' +
+      '- `search_nearby` 현재 위치 기준 거리순 검색. 측위는 클라이언트가 한다\n' +
+      '- `ask_location` 지역을 되묻는다. `params.placeText` 에 사용자가 쓴 표현이 있다\n' +
+      '- `answer_medical` `params.answer` 를 그대로 보여준다\n' +
+      '- `reject` 검색하지 않는다. `params.reason` 이 사유다',
   })
   readonly tool!: AiSearchTool;
 
@@ -254,14 +282,16 @@ export class AiSearchResponseDto {
   readonly params!: AiSearchParamsDto;
 
   @ApiProperty({
-    type: [String],
+    enum: WARNINGS,
+    isArray: true,
     description:
-      '화면이 배너로 띄울 신호.\n' +
-      '- `medical_question` 건강 질문이라 지금은 답하지 않는다(가입·충전 안내로 잇는다)\n' +
-      '- `emergency_suspected` 응급 징후. 119·응급실 안내를 띄운다\n' +
-      '- `medical_caution` 요구가 의학 권고와 반대다\n' +
-      '- `unsupported_inverse` 표현할 수 없는 반대 조건이라 빠졌다\n' +
-      '- `tertiary_referral` 상급종합은 진료의뢰서가 없으면 전액 본인 부담\n' +
+      '사용자에게 안내할 신호.\n' +
+      '- `off_topic` 병원 검색 범위 밖의 질문\n' +
+      '- `medical_question` 건강 질문. 검색 조건으로 옮기지 않았다\n' +
+      '- `emergency_suspected` 응급 징후. 119·응급실 안내가 필요하다\n' +
+      '- `medical_caution` 요구가 일반적인 의학 권고와 어긋난다\n' +
+      '- `unsupported_inverse` 검색 조건으로 표현할 수 없는 반대 조건이라 빠졌다\n' +
+      '- `tertiary_referral` 상급종합병원은 진료의뢰서가 없으면 전액 본인 부담이다\n' +
       '- `too_vague` 조건을 잡기에 질문이 모호하다',
   })
   readonly warnings!: string[];
@@ -275,17 +305,15 @@ export class AiSearchResponseDto {
   @ApiProperty({
     type: [String],
     description:
-      '검증에서 떨어진 값(`subject:XX` 꼴). **비어 있는 게 정상이다** — ' +
-      '값이 있으면 프롬프트의 코드표가 실제 코드표와 어긋났다는 뜻이다.',
+      '검증에서 제외된 값(`subject:XX` 꼴). 비어 있는 것이 정상이다.',
   })
   readonly dropped!: string[];
 
   @ApiProperty({
     type: [AiSearchConditionDto],
     description:
-      '잡힌 조건을 **사람이 읽는 이름으로** 푼 것. `params.filter` 의 코드와 같은 내용이다. ' +
-      '화면이 코드표를 또 부르지 않게 서버가 붙인다. ' +
-      '등급·응급실 같은 고정값은 여기 없다 — 코드표가 없는 값이라 화면이 자기 문구를 쓴다.',
+      '잡힌 조건을 사람이 읽는 이름으로 푼 것. `params.filter` 의 코드와 같은 내용이라 ' +
+      '코드표를 따로 조회할 필요가 없다. 등급·응급실처럼 코드표가 없는 값은 포함되지 않는다.',
   })
   readonly conditions!: AiSearchConditionDto[];
 
@@ -294,56 +322,44 @@ export class AiSearchResponseDto {
 
   @ApiProperty({
     description:
-      '실제로 답한 모델. **요청에 실은 이름이 아니다** — 별칭을 보내면 ' +
-      '업체가 구체 버전으로 풀어 준다. 모델만으로는 요금이 역산되지 않는다 ' +
-      '(곱할 수량인 토큰 수가 `debug` 에 있고 운영에서는 안 나간다).',
+      '실제로 응답한 모델. 요청에 실은 이름이 아니라 확정된 버전이다.',
   })
   readonly model!: string;
 
   @ApiProperty({
     description:
-      '이 요청이 쓴 **통합 토큰**. 사용자에게 보이는 유일한 사용량 숫자다. ' +
-      '원시 토큰 수가 아니라 환산값이다 — 출력이 입력보다 비싸고 모델마다 단가가 달라서, ' +
-      '단위를 하나로 접지 않으면 같은 숫자가 자리마다 다른 돈을 뜻한다. ' +
-      '`quota` 와 같은 단위라 그대로 견줄 수 있다. ' +
-      '**캐시에서 나온 답도 같은 값을 문다** — 같은 질문이면 언제 묻든 같은 값이어야 한다. ' +
-      '0 인 경우는 아무 답도 안 준 때뿐이다(사전 차단).',
+      '이 요청이 사용한 양. `quota` 와 같은 단위라 그대로 견줄 수 있다. ' +
+      '같은 질문이면 언제 묻든 같은 값이다.',
     example: 9387,
   })
   readonly credits!: number;
 
   @ApiProperty({
-    description:
-      '서버가 이 요청을 처리한 시간(ms). **브라우저가 기다린 시간이 아니다**(네트워크 제외). ' +
-      '캐시 히트면 한 자릿수까지 떨어진다.',
+    description: '서버 처리 시간(ms). 네트워크 구간은 포함되지 않는다.',
     example: 1840,
   })
   readonly elapsedMs!: number;
 
   @ApiPropertyOptional({
     type: QuotaDto,
-    description:
-      '쓴 몫. **못 셌으면 없다**(Redis 미설정·읽기 실패, 또는 한도 없음) — ' +
-      '화면은 없으면 아무것도 안 그린다(0/0 은 다 쓴 것처럼 보인다).',
+    description: '사용량. 한도가 걸려 있지 않으면 오지 않는다.',
   })
   readonly quota?: QuotaDto;
 
   @ApiPropertyOptional({
     description:
-      '`params.answer` 의 서명. **답이 있고 키가 설정된 배포에만 온다.**\n\n' +
-      '답과 함께 들고 있다가 다음 요청의 `history[].signature` 로 그대로 돌려준다 — ' +
-      '그래야 우리가 쓴 글만 문맥으로 이어진다.\n\n' +
-      '저작자를 증명할 뿐 자격을 담지 않으므로 만료도 nonce 도 없다.',
+      '`params.answer` 의 서명. 답이 있을 때만 온다. ' +
+      '다음 요청의 `history[].signature` 로 그대로 돌려주면 그 답이 문맥으로 이어진다.',
   })
   readonly answerSignature?: string;
 
-  @ApiPropertyOptional({
-    type: AiSearchDebugDto,
-    description:
-      '원시 토큰 내역. **설정(llm.exposeDebugUsage)이 켜진 배포에만 온다** — 로컬·개발이다. ' +
-      '모델 이름과 달리 이쪽은 곱할 수량이라, 나가면 단가와 맞물려 요금이 역산된다. ' +
-      '화면에서 감추는 걸로는 안 감춰지므로(응답 JSON) 서버가 아예 안 싣는다.',
-  })
+  /**
+   * 원시 토큰 내역. 설정(`llm.exposeDebugUsage`)이 켜진 배포에만 실린다 — 로컬·개발이다.
+   *
+   * **스펙에서 감춘다.** 대외로 나가는 값이 아니라 문서에 적을 것이 아니고, 적어 두면
+   * 쓰는 쪽이 기대게 된다. 개발 화면에서 그리려면 클라이언트가 자기 타입으로 얹어 쓴다.
+   */
+  @ApiHideProperty()
   readonly debug?: AiSearchDebugDto;
 
   constructor(result: AiSearchResult) {

@@ -4,7 +4,7 @@ import {
   Req,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
 import {
@@ -54,21 +54,19 @@ export class AiCapabilitiesController {
 
   @Get('capabilities')
   @ApiOperation({
-    summary: '지금 할 수 있는 것 (사용량 · 모델)',
+    summary: 'AI 사용량 · 모델 목록',
     description:
-      '지금까지 쓴 몫과 고를 수 있는 모델. **아무것도 깎지 않는다.**\n\n' +
-      '화면이 채팅창을 **열 때 한 번** 부르는 용도다 — 첫 질문을 하기 전에도 얼마나 ' +
-      '남았는지, 무엇으로 보내지는지는 보여야 하는데, 답변에 실려 오는 값은 물어봐야 생긴다.\n\n' +
-      '둘을 한 응답에 담는 것은 **같은 때에 같은 이유로 필요하기 때문**이다 — ' +
-      '창을 열 때 한 번 보고, 바뀌는 계기도 같다(설정·요금제). 나누면 왕복만 두 번이 된다.\n\n' +
-      '**주기적으로 부르지 마라.** 값이 바뀌는 계기는 이 사람이 질문하는 순간뿐이고 ' +
-      '그때는 답변이 새 값을 싣고 온다. 폴링하면 안 바뀐 값을 계속 받는다.\n\n' +
-      '**누구 몫인지는 자격증명이 정한다** — access token 이면 그 사람 잔액, ' +
-      '클라이언트 키뿐이면 그 앱의 하루·이번 달 몫이다. 둘 다 걸려 있으면 둘 다 온다.\n\n' +
-      '**계수기를 못 읽으면 503 이다** — 몸통이 비어 오는 것과 다르다. 빈 몸통은 ' +
-      '"걸린 한도가 없다"(한도 0, 또는 Redis 를 안 쓰는 구성)이고, 503 은 "모른다" 다. ' +
-      '모르는 상태에서는 질문도 막히므로(fail-closed) 화면은 AI 기능을 꺼야 한다.',
+      '남은 사용량과 선택할 수 있는 모델을 반환한다. **사용량을 소모하지 않는다.**\n\n' +
+      'AI 기능을 **열 때 한 번** 호출한다. 이후 값은 검색 응답(`quota`)에 실려 오므로 ' +
+      '주기적으로 호출하지 않는다.\n\n' +
+      '누구의 사용량인지는 자격증명이 정한다 — access token 이면 사용자, ' +
+      '클라이언트 키면 해당 앱의 몫이다.\n\n' +
+      '`quota` 가 비어 오면 걸린 한도가 없다는 뜻이다. ' +
+      '사용량을 확인할 수 없는 상태면 **503** 이며, 이때는 검색도 거절되므로 ' +
+      'AI 기능을 비활성화하는 것이 맞다.',
   })
+  // 반환 타입만으로는 스펙에 안 실린다 — 없으면 생성 SDK 가 응답을 `void` 로 본다.
+  @ApiOkResponse({ type: CapabilitiesResponseDto })
   async capabilities(@Req() req: Request): Promise<CapabilitiesResponseDto> {
     const authed = req as AuthedRequest;
     /*
