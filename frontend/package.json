@@ -3,7 +3,8 @@
   "version": "0.5.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n auth,console -c magenta,blue \"pnpm -C hansapp-auth local\" \"pnpm -C hansapp-web local\""
+    "dev": "concurrently -k -n auth,console -c magenta,blue \"pnpm -C hansapp-auth local\" \"pnpm -C hansapp-web local\"",
+    "dev:admin": "pnpm -C hansapp-admin local"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

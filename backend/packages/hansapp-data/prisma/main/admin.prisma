@@ -1,0 +1,85 @@
+// 관리자(운영자) 도메인 모델. 멀티파일 스키마의 한 조각으로, default.prisma 의
+// generator·datasource(메인 DB)를 공유한다. → 별도 커넥션/클라이언트를 만들지 않는다.
+//
+// **auth.prisma 의 User 와 섞지 않는다.** User 에 role=ADMIN 이 있긴 하지만, 그 길로 가면
+// 소셜 로그인으로 얻은 세션도 클레임 하나만 맞으면 관리자 자격이 된다 — 방어선이 한 겹뿐이다.
+// 계정도 세션도 통째로 갈라 두면 "공개 API 로 얻은 것으로는 admin 에 닿을 수 없다" 가
+// 코드가 아니라 구조로 성립한다.
+
+/// 관리자 계정. **이메일/비밀번호만 받는다** — 소셜 연동이 없다.
+/// 계정은 CLI(hansapp-cli admin create)로만 만든다. 가입 화면이 없다.
+model AdminUser {
+  /// 관리자 번호
+  id Int @id @default(autoincrement())
+
+  /// 로그인 식별자. 전역 유일.
+  email String @unique @db.VarChar(320)
+
+  /// bcrypt 해시(60자). **null 을 허용하지 않는다** — 비밀번호 없는 관리자는 없다.
+  password String @db.VarChar(60)
+
+  /// 표시 이름
+  name String? @db.VarChar(100)
+
+  /// 계정 상태. DISABLED 는 로그인 차단.
+  ///
+  /// **로그인 실패 잠금을 붙일 자리가 여기다.** 지금은 잠금 정책(횟수·해제 방법)을 정하지
+  /// 않아서 상태만 둔다. 필요해지면 failedLoginCount·lockedUntil 을 더한다.
+  status AdminStatus @default(ACTIVE)
+
+  /// 다음 로그인에서 비밀번호를 반드시 바꿔야 하는가.
+  ///
+  /// **남이 정해 준 비밀번호는 전부 여기 걸린다** — 부팅 시 자동 생성된 계정, CLI 로 만든 계정,
+  /// 운영자가 초기화해 준 비밀번호. 그 값들은 로그·터미널·메신저를 한 번은 거쳐 왔으므로
+  /// 본인만 아는 값이 아니다.
+  ///
+  /// 화면에서 막는 것으로는 강제가 되지 않는다(요청을 직접 부르면 그만이다). 그래서 이 값이
+  /// access token 클레임으로 실려 나가고, 가드가 비밀번호 변경 외의 요청을 거절한다.
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+
+  /// 마지막 로그인 시각. 안 쓰는 계정을 골라내는 데 쓴다.
+  lastLoginAt DateTime? @map("last_login_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  sessions AdminTokenSession[]
+
+  @@map("admin_user")
+}
+
+/// 관리자 계정 상태.
+enum AdminStatus {
+  ACTIVE
+  DISABLED
+}
+
+/// 관리자 refresh 세션. 불투명 refresh 토큰의 서버측 저장소.
+/// 토큰 원문은 저장하지 않고 secret 의 SHA-256 해시만 둔다. rotate 시 만료를 연장한다(sliding).
+///
+/// **UserTokenSession 의 persistent 가 여기엔 없다.** 관리자에게는 "로그인 상태 유지" 를
+/// 두지 않기로 했다 — 쿠키는 항상 세션 쿠키이고 브라우저를 닫으면 사라진다.
+model AdminTokenSession {
+  /// 세션 식별자. refresh 토큰에 내장돼 조회 키로 쓰인다.
+  sessionId String @id @map("session_id") @db.VarChar(64)
+
+  adminId Int @map("admin_id")
+
+  /// SHA-256(secret) hex 64자. rotate 마다 새 secret 으로 교체된다.
+  secretHash String @map("secret_hash") @db.Char(64)
+
+  /// 발급 기기 정보(세션 목록·개별 로그아웃용)
+  userAgent String? @map("user_agent") @db.VarChar(255)
+  ip        String? @db.VarChar(45)
+
+  /// 만료 시각. rotate 마다 갱신(연장)된다.
+  expiresAt DateTime @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@map("admin_token_session")
+}

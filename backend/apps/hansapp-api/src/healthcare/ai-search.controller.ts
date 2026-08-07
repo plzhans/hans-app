@@ -12,7 +12,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
-import type { RequestWithId } from '../common/request-id.middleware';
+import type { RequestWithId } from '@hansapp/http-common';
 
 /**
  * 가드가 요청에 얹어 둔 신원. **둘 중 하나만 채워진다** —

@@ -47,6 +47,32 @@
       "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
     },
     {
+      // 관리자 화면. 5275 로 뜨고 백엔드는 admin-api(3001)를 부른다.
+      // 백엔드는 backend/.vscode/launch.json 의 "be: hansapp-admin-api (local)" 로 띄운다.
+      "name": "fe: hansapp-admin (local server)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/hansapp-admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "local"],
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true,
+      "restart": true,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      // 관리자 화면의 React 코드에 중단점을 건다. dev 서버가 먼저 떠 있어야 한다.
+      "name": "fe: hansapp-admin (chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:5275",
+      "webRoot": "${workspaceFolder}/hansapp-admin/src",
+      "sourceMapPathOverrides": {
+        "/src/*": "${workspaceFolder}/hansapp-admin/src/*"
+      }
+    },
+    {
       // 위 dev 서버에 Chrome 을 띄워 브라우저(React) 코드에 중단점을 건다.
       // dev 서버가 먼저 떠 있어야 하며, 아래 compound 로 한 번에 실행할 수 있다.
       "name": "fe: medifinder-web (chrome)",
@@ -65,6 +91,12 @@
       // dev 서버 + Chrome 을 함께 실행 (원클릭 풀 디버깅)
       "name": "fe: medifinder-web (full)",
       "configurations": ["fe: medifinder-web (dev server)", "fe: medifinder-web (chrome)"],
+      "stopAll": true
+    },
+    {
+      // 관리자 화면 + Chrome. 백엔드(admin-api)는 backend 워크스페이스에서 따로 띄운다.
+      "name": "fe: hansapp-admin (full)",
+      "configurations": ["fe: hansapp-admin (local server)", "fe: hansapp-admin (chrome)"],
       "stopAll": true
     }
   ]

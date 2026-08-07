@@ -193,6 +193,63 @@ apps-api:
     # 성능 트레이스 표본 비율(0=끔, 1=전부). 개발은 트래픽이 적어 전부 본다.
     tracesSampleRate: 1.0
 
+# 관리자 인증. 공개 API(auth.*)와 계정도 세션도 시크릿도 갈라져 있다.
+#
+# **ADMIN_JWT_SECRET 은 AUTH_JWT_SECRET 과 반드시 달라야 한다.** 같으면 hansapp-api 가 발급한
+# access token 이 관리자 API 의 서명 검증을 통과해, 일반 회원 토큰으로 관리자 API 를 부를 수 있다.
+# 부팅 때 두 값을 비교해 같으면 뜨지 않는다 — 설정 실수로 조용히 뚫리는 쪽을 막는다.
+admin:
+  jwt:
+    issuer: https://admin-develop.plzhans.com
+    secret: ${ADMIN_JWT_SECRET}
+    # accessTokenExpiresIn(5m) / refreshTokenExpiresIn(8h) 기본값은 코드가 원천이다.
+    # 환경마다 다르게 갈 때만 이 줄을 살린다.
+
+  # 첫 관리자 계정 자동 생성. **local·develop 전용이다** — 운영에서는 이 값과 무관하게
+  # 동작하지 않는다(코드가 막는다. AdminBootstrapService 주석 참고).
+  #
+  # 계정이 **하나도 없을 때만** 만든다. 재부팅해도 기존 계정은 건드리지 않는다.
+  # 이렇게 만든 계정은 첫 로그인에서 비밀번호를 반드시 바꿔야 한다.
+  bootstrap:
+    enabled: ${ADMIN_BOOTSTRAP_ENABLED:true}
+    email: ${ADMIN_BOOTSTRAP_EMAIL:plzhans@gmail.com}
+    name: ${ADMIN_BOOTSTRAP_NAME:관리자}
+    # 비우면 난수를 만들어 **부팅 로그에 한 번** 찍는다. 놓쳤으면
+    # `hansapp-cli admin password-reset <email>` 로 다시 발급한다.
+    password: ${ADMIN_BOOTSTRAP_PASSWORD:}
+
+apps-admin-api:
+  name: hansapp-admin-api
+  externalUrl: https://admin-develop.plzhans.com
+  web:
+    # **3001 이다(3000 아님).** 관리자 API 의 전용 포트를 환경마다 다르게 두면
+    # 로컬에서 develop 설정으로 띄웠을 때 hansapp-api(3000)와 부딪힌다.
+    # 컨테이너 안에서는 혼자 떠서 아무 값이나 되지만, compose 의 포트 매핑을
+    # `<호스트>:3001` 로 맞춰야 한다.
+    port: 3001
+    # ⚠️ **아직 비어 있다 → 컨테이너 안에서 HTTP 로 뜬다.**
+    # 관리자용 Origin CA 인증서(admin-develop.plzhans.com)를 발급해 config/develop 아래에 두고
+    # 이 두 줄을 채우는 것은 배포 배선 단계에서 한다 — 지금은 배포 대상이 아니다.
+    # 발급: backend/ssl-issue.sh develop admin-develop.plzhans.com
+    sslCertificate: ${ADMIN_SSL_CERTIFICATE:}
+    sslCertificateKey: ${ADMIN_SSL_CERTIFICATE_KEY:}
+  proxy:
+    trust: 1
+    clientIpHeader: cf-connecting-ip
+  # 관리자 SPA 는 같은 오리진에서 뜬다 → CORS 를 켜지 않는다(비우면 아예 안 켠다).
+  cors:
+    origins: []
+  swagger:
+    # 관리자 API 는 외부 소비자가 없다. develop 은 켜 두고 production 만 끈다.
+    enabled: ${ADMIN_SWAGGER_ENABLED:true}
+  sentry:
+    # 끄개는 apps-api·apps-batch 와 같은 이름을 나눠 쓴다 — 한 번에 다 끄려는 것이다.
+    enabled: ${SENTRY_ENABLED:true}
+    # **아직 프로젝트를 파지 않았다.** 비어 있으면 Sentry 를 아예 켜지 않는다(서버는 그대로 뜬다).
+    # 공개 API DSN 을 재사용하지 않는다 — 호출량이 두 자릿수 이상 차이나 관리자 오류가 묻힌다.
+    dsn: ''
+    tracesSampleRate: 1.0
+
 search:
   # Elasticsearch 정본 스키마 JSON 디렉터리(비밀 아님). **비워서 패키지 동봉본을 쓴다**
   # (@hansapp/search 의 elasticsearch/ — files 에 있어 배포 번들에도 실린다).

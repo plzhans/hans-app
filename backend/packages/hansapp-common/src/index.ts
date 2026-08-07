@@ -10,6 +10,8 @@ export * from './config-source';
 export * from './connection-url';
 export * from './config-summary';
 export * from './build-info';
+// 되돌릴 수 없게 굳히는 단방향 해시와 토큰 조립. 인증 계층(공개·admin)이 함께 쓴다.
+export * from './token-crypto';
 
 /**
  * 목록 조회 공통 페이지 결과. 응용 계층 서비스가 반환하고,

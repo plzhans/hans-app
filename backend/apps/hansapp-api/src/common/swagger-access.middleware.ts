@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import type { RequestHandler } from 'express';
 import type { SwaggerAccessService } from '@hansapp/application';
 
-import { resolveClientIp } from './client-ip';
+import { resolveClientIp } from '@hansapp/http-common';
 import { OPENAPI_JSON_PATH, SWAGGER_PATH } from '../swagger';
 
 /**

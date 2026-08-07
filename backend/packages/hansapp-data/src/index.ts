@@ -41,6 +41,9 @@ export type {
   UserAuthCode,
   UserWithdrawal,
   EmailVerification,
+  // 관리자(admin.prisma) 도메인 모델. 회원(User)과 계정도 세션도 갈라져 있다.
+  AdminUser,
+  AdminTokenSession,
   // 개발자 플랫폼(app.prisma) 도메인 모델
   App,
   AppMember,
@@ -64,6 +67,7 @@ export {
   OAuthProvider,
   ConsentType,
   EmailVerifyPurpose,
+  AdminStatus,
 } from '../generated/main';
 
 // AI 도메인 enum(값으로도 쓴다).

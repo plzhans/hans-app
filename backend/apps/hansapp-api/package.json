@@ -30,6 +30,7 @@
     "@hansapp/event-consumer": "workspace:*",
     "@hansapp/event-contract": "workspace:*",
     "@hansapp/event-publisher": "workspace:*",
+    "@hansapp/http-common": "workspace:*",
     "@hansapp/mcp": "workspace:*",
     "@kr-go/juso": "workspace:*",
     "@kr-go/nts": "workspace:*",

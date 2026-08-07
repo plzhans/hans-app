@@ -14,8 +14,7 @@ import {
 } from '@hansapp/auth-application';
 import { NtsClient } from '@kr-go/nts';
 import { JusoClient } from '@kr-go/juso';
-
-import { resolveClientIp } from './common/client-ip';
+import { resolveClientIp } from '@hansapp/http-common';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';

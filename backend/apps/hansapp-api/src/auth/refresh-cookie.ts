@@ -3,7 +3,7 @@ import type { AuthTokens, RequestMeta } from '@hansapp/auth-application';
 
 import type { ConfigSource } from '@hansapp/common';
 
-import { resolveClientIp } from '../common/client-ip';
+import { resolveClientIp } from '@hansapp/http-common';
 
 import type { TokenResponseDto } from './dto/auth.dto';
 

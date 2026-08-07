@@ -1,0 +1,43 @@
+{
+  "name": "hansapp-admin-api",
+  "version": "0.14.0",
+  "private": true,
+  "description": "관리자 API 서버. 공개 API(hansapp-api)와 인증을 공유하지 않는다.",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "nest build && node ../../scripts/build-info.mjs",
+    "start:local": "APP_ENV=local node --watch --conditions src -r @swc-node/register src/main.ts",
+    "start:develop": "APP_ENV=develop node --watch --conditions src -r @swc-node/register src/main.ts",
+    "start:debug": "APP_ENV=develop node --inspect=9230 --watch --conditions src -r @swc-node/register src/main.ts",
+    "start:prod": "node dist/main"
+  },
+  "dependencies": {
+    "@hansapp/admin-application": "workspace:*",
+    "@hansapp/common": "workspace:*",
+    "@hansapp/http-common": "workspace:*",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
+    "@nestjs/platform-express": "^11.1.27",
+    "@nestjs/swagger": "^11.4.5",
+    "@nestjs/throttler": "^6.5.0",
+    "@sentry/nestjs": "^10.68.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.23",
+    "@nestjs/schematics": "^11.1.0",
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.43",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.0",
+    "typescript": "^5.9.3"
+  }
+}

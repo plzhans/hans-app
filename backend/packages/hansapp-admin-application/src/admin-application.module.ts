@@ -14,6 +14,10 @@ import { NmcCodeSyncRepository } from './nmc/nmc-code-sync.repository';
 import { NmcHospitalSyncRepository } from './nmc/nmc-hospital-sync.repository';
 import { NmcSubjectSyncRepository } from './nmc/nmc-subject-sync.repository';
 import { SyncStateRepository } from './common/sync-state.repository';
+import { AppReadRepository } from './app-registry/app-read.repository';
+import { AppReadService } from './app-registry/app-read.service';
+import { UserReadRepository } from './user/user-read.repository';
+import { UserReadService } from './user/user-read.service';
 import { HiraNmcMatchRepository } from './match/hira-nmc-match.repository';
 import { HospitalI18nExportRepository } from './i18n/hospital-i18n-export.repository';
 import { HiraAssessmentSyncRepository } from './hira/hira-assessment-sync.repository';
@@ -102,6 +106,8 @@ export class AdminApplicationModule {
         NmcHospitalSyncRepository,
         NmcSubjectSyncRepository,
         SyncStateRepository,
+        UserReadRepository,
+        AppReadRepository,
         HiraNmcMatchRepository,
         HospitalI18nExportRepository,
         HiraAssessmentSyncRepository,
@@ -137,6 +143,8 @@ export class AdminApplicationModule {
         NmcCodeReadService,
         HiraCodeReadService,
         SyncStateService,
+        UserReadService,
+        AppReadService,
         NmcSubjectSyncService,
         HiraSubjectSyncService,
         HiraSpecialtySyncService,
@@ -166,6 +174,8 @@ export class AdminApplicationModule {
       ],
       // SDK 클라이언트는 export 하지 않는다. 외부 API 호출은 이 계층 안에 가둔다.
       exports: [
+        UserReadService,
+        AppReadService,
         NmcHospitalSyncService,
         HiraHospitalSyncService,
         NmcCodeSyncService,

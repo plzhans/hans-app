@@ -32,6 +32,11 @@ export {
 } from '@hansapp/application';
 export type { HiraCodeType, HiraCodeResponse } from '@hansapp/application';
 
+// 인프라 접속 점검. AdminApplicationModule 이 ApplicationModule 을 통해 이미 제공하고 있어
+// 앱은 app.get(HealthService) 로 꺼내 쓴다 — 그 타입을 가져오자고 @hansapp/application 을
+// 직접 의존하게 만들지 않는다(위 HIRA_CODE_TYPES 와 같은 이유).
+export { HealthService } from '@hansapp/application';
+
 export { NmcCodeSyncService } from './nmc/nmc-code-sync.service';
 export { HiraCodeSyncService } from './hira/hira-code-sync.service';
 export type { HiraCodeSyncOptions } from './hira/hira-code-sync.service';
@@ -69,6 +74,28 @@ export type {
   StageRun,
 } from './common/sync-runner.service';
 export { SyncStateService } from './common/sync-state.service';
+
+// 관리자용 회원 조회(읽기 전용). 회원 수정은 회원 본인의 통로가 하고 여기서는 보기만 한다.
+export { UserReadService } from './user/user-read.service';
+export type {
+  UserSummary,
+  UserDetail,
+  UserOAuthSummary,
+  UserListQuery,
+} from './user/user-read.service';
+// 관리자용 앱(개발자 플랫폼) 조회. 회원 조회와 같이 읽기 전용이다.
+export { AppReadService } from './app-registry/app-read.service';
+export type {
+  AppSummary,
+  AppDetail,
+  AppListQuery,
+  AppApiKeySummary,
+  AppClientSummary,
+  AppMemberSummary,
+} from './app-registry/app-read.service';
+
+// 목록 필터에 쓰는 enum. 앱이 @hansapp/data 를 직접 의존하지 않게 여기서 재노출한다.
+export { UserStatus, AppStatus, AppClientType } from '@hansapp/data';
 export type { SyncJob, SyncOutcome } from './common/sync-state.service';
 export { DATA_PROVIDERS } from './common/provider';
 export type { DataProvider } from './common/provider';

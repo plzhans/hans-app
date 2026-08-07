@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AppClientType, AppStatus } from '@hansapp/data';
 import type { Request } from 'express';
 
-import { sha256hex, timingSafeEqualHex } from '../token/crypto.util';
+import { sha256hex, timingSafeEqualHex } from '@hansapp/common';
 import { AccessCache } from './access-cache.service';
 
 /** API 접근 주체. 가드가 request.apiAccess 에 채운다. */

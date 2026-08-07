@@ -9,7 +9,7 @@ import {
   hmacSha256hex,
   randomNumericCode,
   timingSafeEqualHex,
-} from '../token/crypto.util';
+} from '@hansapp/common';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();

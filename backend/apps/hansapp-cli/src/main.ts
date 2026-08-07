@@ -26,6 +26,7 @@ import { nmcCommand } from './commands/nmc';
 import { esCommand } from './commands/es';
 import { appCommand } from './commands/app';
 import { userCommand } from './commands/user';
+import { adminCommand } from './commands/admin';
 import { jwtCommand } from './commands/jwt';
 import { addExamples, localizeHelp } from './help';
 
@@ -87,6 +88,7 @@ const program = new Command()
   .addCommand(esCommand(envSource))
   .addCommand(appCommand(envSource))
   .addCommand(userCommand(envSource))
+  .addCommand(adminCommand(envSource))
   .addCommand(jwtCommand(envSource));
 
 addExamples(program, [
