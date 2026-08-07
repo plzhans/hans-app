@@ -195,15 +195,8 @@ search:
   schemaDir: ''
   batchSize: 1000
 
-mail:
-  from: HansApp <no-reply@plzhans.com>
-  provider: smtp
-  smtp:
-    host:
-    port: 587
-    secure: false
-    user:
-    password:
+# 메일 설정(mail.*)은 여기 없다. **관리 화면에서 관리하고 DB(env_setting)에 있다.**
+# 값을 보거나 고치려면 관리자 → 설정 → 메일 발송. 여기에 다시 적으면 DB 값이 이겨서 안 먹는다.
 
 # ── 외부 플랫폼 provider (OAuth) — clientId/secret 둘 다 있어야 활성 ──
 google:

@@ -24,7 +24,7 @@ import { UserOAuthRepository } from '../repository/user-oauth.repository';
 import { WithdrawalRepository } from '../repository/withdrawal.repository';
 import { AuthTokens, TokenService } from '../token/token.service';
 import { EmailVerificationService } from '../mail/email-verification.service';
-import { MailService } from '../mail/mail.service';
+import { AuthEmailService } from '../mail/auth-email.service';
 import { SocialTicketService } from './social-ticket.service';
 import { ConsentService, type ConsentInput } from '../consent.service';
 import { SocialProfile } from './social.types';
@@ -92,7 +92,7 @@ export class SocialService {
     private readonly log: ActionLogService,
     private readonly login: LoginService,
     private readonly emailVerification: EmailVerificationService,
-    private readonly mail: MailService,
+    private readonly mail: AuthEmailService,
   ) {}
 
   /**

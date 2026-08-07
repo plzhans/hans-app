@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { createTransport, type Transporter } from 'nodemailer';
+import { EmailSender } from '@hansapp/email-sender';
 import { EmailVerifyPurpose } from '@hansapp/data';
 
 import { MAIL_CONFIG } from './mail.config';
@@ -324,13 +324,14 @@ function escapeHtml(value: string): string {
  * 런타임에 이 파일 기준 상대경로로 읽는다.
  */
 @Injectable()
-export class MailService implements OnModuleInit {
-  private readonly logger = new Logger(MailService.name);
+export class AuthEmailService implements OnModuleInit {
+  private readonly logger = new Logger(AuthEmailService.name);
   private readonly templateDir = resolve(__dirname, 'templates');
   private readonly cache = new Map<string, string>();
-  private transporter?: Transporter;
-
-  constructor(@Inject(MAIL_CONFIG) private readonly config: MailConfig) {}
+  constructor(
+    @Inject(MAIL_CONFIG) private readonly config: MailConfig,
+    private readonly sender: EmailSender,
+  ) {}
 
   /**
    * 템플릿을 전부 읽어 캐시에 올린다. **하나라도 없으면 여기서 부팅을 세운다.**
@@ -551,46 +552,18 @@ export class MailService implements OnModuleInit {
     return tpl;
   }
 
-  private async send(msg: {
+  /**
+   * 실제 발송은 @hansapp/email-sender 가 한다.
+   *
+   * **여기는 본문을 다 만들어 넘기기만 한다** — 꺼져 있거나 SMTP 가 비었을 때의 처리(로그로
+   * 대체)도 발송기의 몫이라, 이 계층은 "보냈다/안 보냈다" 를 신경 쓰지 않는다.
+   */
+  private send(msg: {
     to: string;
     subject: string;
     html: string;
     text: string;
   }): Promise<void> {
-    const t = this.getTransporter();
-    if (!t) {
-      // SMTP 미설정(로컬)뿐이므로, 개발 편의를 위해 본문(코드 포함)을 콘솔에 찍는다.
-      // 운영은 host 가 채워져 이 분기를 타지 않는다.
-      this.logger.warn(
-        `[mail:dev] SMTP 미설정 → 발송 생략. to=${msg.to} subject="${msg.subject}"\n${msg.text}`,
-      );
-      return;
-    }
-    await t.sendMail({
-      from: this.config.from,
-      to: msg.to,
-      subject: msg.subject,
-      html: msg.html,
-      text: msg.text,
-    });
-  }
-
-  private getTransporter(): Transporter | undefined {
-    if (this.transporter) {
-      return this.transporter;
-    }
-    const smtp = this.config.smtp;
-    if (!smtp) {
-      return undefined;
-    }
-    this.transporter = createTransport({
-      host: smtp.host,
-      port: smtp.port,
-      secure: smtp.secure,
-      auth: smtp.user
-        ? { user: smtp.user, pass: smtp.password ?? '' }
-        : undefined,
-    });
-    return this.transporter;
+    return this.sender.send(msg);
   }
 }

@@ -19,7 +19,7 @@ import {
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
 import { EmailVerificationService } from './mail/email-verification.service';
-import { MailService } from './mail/mail.service';
+import { AuthEmailService } from './mail/auth-email.service';
 import { ConsentService, type ConsentInput } from './consent.service';
 import { ActionLogService } from './log/action-log.service';
 import { LoginService } from './login.service';
@@ -58,7 +58,7 @@ export class AuthService {
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
-    private readonly mail: MailService,
+    private readonly mail: AuthEmailService,
     private readonly sessions: TokenSessionRepository,
     private readonly withdrawals: WithdrawalRepository,
     private readonly tokens: TokenService,

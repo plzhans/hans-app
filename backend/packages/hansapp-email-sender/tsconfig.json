@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "nodenext",
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    // @Injectable()·@Inject() 가 데코레이터 메타데이터를 낸다.
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": true,
+    "types": ["node"],
+    "moduleResolution": "nodenext",
+    // 워크스페이스 패키지를 import 할 때 exports 의 "src" 조건을 켠다 — dist 의 .d.ts 가 아니라
+    // 원본 .ts 로 해석돼 편집기의 "정의로 이동" 이 소스로 간다(앱 tsconfig 와 같은 설정).
+    "customConditions": ["src"]
+  },
+  "include": ["src"]
+}

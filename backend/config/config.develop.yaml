@@ -261,19 +261,8 @@ search:
   # 색인 벌크 배치 크기(한 번에 밀어넣는 문서 수).
   batchSize: 1000
 
-mail:
-  # 보내는 사람(RFC 5322).
-  from: HansApp <no-reply@plzhans.com>
-  # 발송 방식. smtp.
-  provider: smtp
-  smtp:
-    # host 가 있어야 실제 발송. 없으면 콘솔 로깅으로 대체(로컬 개발).
-    host:
-    # 587=STARTTLS(secure=false), 465=암묵적 TLS(secure=true).
-    port: 587
-    secure: false
-    user:
-    password:
+# 메일 설정(mail.*)은 여기 없다. **관리 화면에서 관리하고 DB(env_setting)에 있다.**
+# 값을 보거나 고치려면 관리자 → 설정 → 메일 발송. 여기에 다시 적으면 DB 값이 이겨서 안 먹는다.
 
 # ── 외부 플랫폼 provider (OAuth) ────────────────────────────────────────────────
 # google/naver/kakao/line 플랫폼 연동 자격증명. **소셜 "로그인" 전용이 아니라** 그 플랫폼 API 를

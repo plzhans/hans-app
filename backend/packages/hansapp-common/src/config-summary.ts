@@ -51,10 +51,11 @@ export function logConfigSummary(
       s('elasticsearch.indexPrefix') || cfg.env
     })`,
   );
-  const mailHost = s('mail.smtp.host');
-  log(
-    `Config Mail : ${mailHost ? `${s('mail.provider') || 'smtp'} (${mailHost})` : 'inactive — host missing'}`,
-  );
+  /*
+    **메일은 여기서 안 찍는다.** 값이 DB(env_setting)에 있어서 설정 파일을 요약해 봐야
+    실제로 쓰이는 값이 아니다 — 부팅 시점 요약이 런타임에 바뀌는 값을 말하면 거짓이 된다.
+    무엇이 설정돼 있는지는 관리 화면에서 본다.
+  */
   if (opts.oauth) {
     const idOr = (raw: string): string => raw || '(empty)';
     log(`Config OAuth google : ${idOr(s('google.clientId'))}`);

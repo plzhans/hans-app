@@ -1,8 +1,13 @@
 import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import type { ConfigSource } from '@hansapp/common';
-import { DataModule } from '@hansapp/data';
+import {
+  buildSettingKeyring,
+  SETTING_KEYRING,
+  type ConfigSource,
+  type SecretBoxKeys,
+} from '@hansapp/common';
+import { DataModule, SettingReadRepository } from '@hansapp/data';
 
 import {
   ACCESS_CACHE_CONFIG,
@@ -17,7 +22,11 @@ import {
 } from './mail/mail.config';
 import { EmailVerificationRepository } from './mail/email-verification.repository';
 import { EmailVerificationService } from './mail/email-verification.service';
-import { MailService } from './mail/mail.service';
+import { EmailSender, EMAIL_SETTINGS_SOURCE } from '@hansapp/email-sender';
+
+import { AuthEmailService } from './mail/auth-email.service';
+import { MailSettingsSource } from './mail/mail-settings.source';
+import { SettingService } from './setting/setting.service';
 import { AuthService } from './auth.service';
 import { LoginService } from './login.service';
 import { OAuthTokenService } from './oauth-token.service';
@@ -91,11 +100,31 @@ export class AuthModule {
       providers: [
         { provide: AUTH_CONFIG, useValue: config },
         { provide: MAIL_CONFIG, useValue: mailConfig },
+        /*
+          발송기(@hansapp/email-sender)는 SMTP 만 안다. 값이 어디서 오는지는 이 어댑터가
+          정한다 — 지금은 설정 파일, 다음 단계에서 DB 로 갈아끼운다.
+        */
+        /*
+          설정 읽기. **이 계층이 제 것을 갖는다** — 관리자 계층에도 같은 이름이 있지만
+          공유하지 않는다(계층을 나눈 뜻이 그것이다). 읽기 저장소만 @hansapp/data 것을 쓴다.
+        */
+        { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
+        {
+          provide: SettingService,
+          useFactory: (
+            repo: SettingReadRepository,
+            keyring: SecretBoxKeys | undefined,
+          ) => new SettingService(repo, keyring, source),
+          inject: [SettingReadRepository, SETTING_KEYRING],
+        },
+        MailSettingsSource,
+        { provide: EMAIL_SETTINGS_SOURCE, useExisting: MailSettingsSource },
+        EmailSender,
         { provide: OTP_CONFIG, useValue: otpConfig },
         // 이메일 인증 코드(OTP) 발급·검증 + 메일 발송
         EmailVerificationRepository,
         EmailVerificationService,
-        MailService,
+        AuthEmailService,
         // AccessCache 는 설정 전체가 아니라 캐시 TTL 조각만 받는다.
         { provide: ACCESS_CACHE_CONFIG, useValue: config.accessCache },
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
