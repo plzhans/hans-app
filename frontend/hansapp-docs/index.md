@@ -1,9 +1,16 @@
 ---
-layout: home
+# **`layout: home` 을 쓰지 않는다.** 그 레이아웃은 사이드바를 하드코딩으로 빼기 때문에
+# (VitePress: `frontmatter.layout !== 'home'`) 첫 페이지에서만 목차가 사라진다.
+# 대신 문서 레이아웃에 홈 조각(VPHomeHero·VPHomeFeatures)을 얹어 디자인은 그대로 둔다.
+# 아래 hero·features 는 그 컴포넌트들이 읽는 값이다.
+title: Hans API
+pageClass: home-page
+aside: false
+outline: false
 hero:
   name: Hans API
-  text: 공공데이터를 하나의 API 로
-  tagline: 기관마다 흩어진 국내 공공데이터를 정리해 제공합니다. 어느 도메인을 쓰든 인증과 규칙은 같습니다.
+  text: API 문서
+  tagline: 여러 도메인의 정보와 기능을 하나의 REST API 로 제공합니다. 무엇을 쓰든 인증과 응답 규칙은 같습니다.
   actions:
     - theme: brand
       text: 시작하기 (인증·다국어)
@@ -12,39 +19,31 @@ hero:
       text: 병원 검색 API
       link: /apis/healthcare
 features:
-  - title: 병원
-    details: 지역·진료과목·종별·응급실 여부로 전국 병원을 찾고, 진료시간·교통편·병상까지 상세로 받습니다.
+  - title: 헬스케어
+    details: 전국 병원 검색 · 진료시간 · 응급실 · 병상 · 장비 · 평가등급
     link: /apis/healthcare
+  - title: AI · MCP
+    details: 자연어 → 검색 조건 · AI 도구에 물리는 MCP 엔드포인트
+    link: /apis/ai
   - title: 주소
-    details: 시도·시군구 지역 코드와, 한글 주소를 국가 공식 영문 표기로 바꾸는 검색.
+    details: 시도 · 시군구 지역 코드 · 공식 영문 주소 표기
     link: /apis/address
   - title: 사업자
-    details: 국세청 사업자등록번호 상태조회(계속·휴업·폐업)와 등록정보 진위확인.
+    details: 사업자등록번호 상태조회(계속·휴업·폐업) · 진위확인
     link: /apis/business
   - title: 다국어
-    details: Accept-Language 헤더 하나로 한국어·영어·일본어 응답을 받습니다.
+    details: Accept-Language 헤더 하나로 한국어 · 영어 · 일본어 · 중국어
     link: /common#다국어
 ---
 
-## 무엇을 하는 곳인가
+<VPHomeHero />
+<VPHomeFeatures />
 
-공공데이터는 기관마다 흩어져 있고, 기관마다 코드 체계도 응답 형식도 다릅니다.
-Hans API 는 그걸 **주기적으로 동기화하고, 코드를 통일하고, 쓸 수 있는 형태로 다듬어**
-하나의 API 로 내줍니다. 어느 도메인을 쓰든 인증(`Authorization`)과
-다국어(`Accept-Language`)는 똑같습니다.
+## 시작하기
 
-지금 제공하는 도메인은 **병원**, **주소**, **사업자** 이고,
-여기에 화면을 만들 때 쓰는 참조 데이터(지역 코드·지하철역)가 딸려 있습니다.
-
-### 병원 — 주력 API
-
-병원 정보는 특히 심하게 흩어져 있습니다. **건강보험심사평가원(HIRA)** 은 병상·장비·진료과목 같은
-기관 제원을 갖고 있고, **국립중앙의료원(NMC)** 은 진료시간과 응급실 운영 여부를 갖고 있습니다.
-그런데 **두 기관은 코드 체계도 기관 식별자도 다릅니다.** 원본만으로는 "우리 동네에서 지금 문 연
-소아과"를 찾을 수 없습니다.
-
-Hans API 는 이 둘을 **병원 단위로 매칭해 하나로 합친 것**입니다. 쓰는 쪽은 병원 하나를 가리키는
-**id 하나**만 알면 됩니다.
+모든 요청은 `https://api.plzhans.com` 으로 보냅니다.
+인증(`Authorization`)과 응답 언어(`Accept-Language`)는 **도메인과 무관하게 같습니다** —
+[공통](/common) 을 먼저 읽으세요. 키는 [앱 관리 콘솔](https://plzhans.com)에서 발급합니다.
 
 ```bash
 # 강남구의 응급실 운영 병원을 영어로
@@ -53,12 +52,21 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
      "https://api.plzhans.com/healthcare/hospitals?region=11680&emergency=true"
 ```
 
-## 어디서부터 볼까
+## 제공 도메인
+
+| 도메인 | 내용 |
+| --- | --- |
+| [**헬스케어**](/apis/healthcare) | 전국 병원 검색·상세. 검색 조건 코드는 [참조 데이터](/apis/healthcare-meta) 에서 받습니다 |
+| [**AI · MCP**](/apis/ai) | 자연어 질문을 검색 조건으로. AI 도구에 물리는 MCP 엔드포인트 |
+| [**주소**](/apis/address) | 시도·시군구 지역 코드, 한글 주소의 공식 영문 표기 |
+| [**사업자**](/apis/business) | 국세청 사업자등록번호 상태조회·진위확인 |
+| [**교통정보**](/apis/transport) | 지하철역 목록(한/영/일) |
+| [**계정**](/apis/oauth) | OAuth 토큰 발급·갱신과 사용자 계정 API |
+
+## 공통 규칙
 
 | | |
 | --- | --- |
-| [**공통**](/common) | 인증(`Authorization`)과 다국어(`Accept-Language`). **모든 요청에 필요합니다.** |
-| [**병원 검색**](/apis/healthcare) | 주력 API. 검색과 상세. |
-| [**참조 데이터**](/apis/healthcare-meta) | 병원 검색 조건에 넣을 코드. 드롭다운을 채울 때 씁니다. |
-| [**사업자**](/apis/business) | 국세청 사업자등록번호 상태조회·진위확인. 병원과 무관하게 단독으로 씁니다. |
-| [**주소**](/apis/address) · [**교통정보**](/apis/transport) | 지역 코드, 영문 주소, 지하철역 목록. 도메인 무관이라 병원 밖에서도 씁니다. |
+| [**인증**](/common#인증) | 서비스 키(`Authorization`) 또는 클라이언트 ID(`X-Client-Id`) |
+| [**로그인 연동**](/common#login-integration) | OAuth 2.0 Authorization Code + PKCE |
+| [**다국어**](/common#다국어) | `Accept-Language` 하나로 한국어·영어·일본어·중국어 |

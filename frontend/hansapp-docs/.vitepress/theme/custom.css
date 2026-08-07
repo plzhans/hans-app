@@ -38,6 +38,68 @@
 .vp-doc .oa-params-table td {
   vertical-align: top;
 }
+/*
+  본문 링크의 밑줄을 뗀다(기본 테마는 항상 밑줄을 긋는다).
+
+  이 문서는 표와 코드가 많고 그 안이 거의 다 링크라, 밑줄이 상시로 깔리면 줄이 지저분해진다.
+  링크임은 색으로 이미 드러나므로, 밑줄은 **마우스를 올렸을 때만** 보여 준다.
+*/
+.vp-doc a {
+  text-decoration: none;
+}
+.vp-doc a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/*
+  첫 페이지: 문서 레이아웃(사이드바 유지) 위에 홈 조각을 얹은 자리다.
+
+  기본 문서 폭(688px)은 본문 글줄에 맞춘 값이라 히어로와 기능 카드가 갇힌다.
+  이 페이지에서만 폭을 풀어 원래 홈 화면과 같은 배치를 되돌린다.
+*/
+.home-page .VPDoc .content,
+.home-page .VPDoc .content-container,
+.home-page .VPDoc .container {
+  max-width: 1152px;
+}
+/* 히어로가 페이지 맨 위에 오므로 문서 상단 여백은 필요 없다. */
+.home-page .VPDoc {
+  padding-top: 0;
+}
+/* 홈 조각은 자체 여백을 갖고 있어 문서 본문 규칙(첫 요소 margin)이 겹치지 않게 한다. */
+.home-page .vp-doc > .VPHomeHero:first-child,
+.home-page .vp-doc > .VPHomeFeatures {
+  margin-top: 0;
+}
+/*
+  **홈 조각에는 문서 본문의 제목 규칙이 닿으면 안 된다.**
+
+  `.vp-doc h2` 는 위쪽 구분선과 큰 여백을 넣는다 — 본문에서는 절을 가르는 선이지만,
+  기능 카드 제목(`.title` 이 h2 다)에 걸리면 카드마다 줄이 하나씩 그어진다.
+  글꼴 크기는 컴포넌트의 scoped 규칙이 이기므로, 새는 것(테두리·여백)만 되돌린다.
+*/
+.home-page .VPHomeHero :is(h1, h2, h3, p),
+.home-page .VPHomeFeatures :is(h1, h2, h3, p) {
+  margin: 0;
+  padding-top: 0;
+  border-top: none;
+  letter-spacing: normal;
+}
+
+/*
+  표 안의 인라인 코드는 배경을 없앤다.
+
+  VitePress 기본 `code` 는 배경 + 라운드라, 파라미터 이름이 전부 알약(뱃지)처럼 보인다 —
+  본문에서는 코드가 문장 속에서 튀어야 하니 맞지만, 표에서는 **모든 칸이 코드라** 강조가
+  아니라 잡음이 된다. 고정폭 글꼴만 남겨 이름임을 알아볼 수 있게 한다.
+*/
+.vp-doc .oa-params-table code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+}
 /* 설명 컬럼을 넓게, 값 컬럼들은 줄바꿈 없이 좁게 */
 .vp-doc .oa-params-table .oa-p-desc {
   width: 45%;
@@ -53,11 +115,24 @@
 .vp-doc .oa-params-table .oa-p-optional {
   color: var(--vp-c-text-3);
 }
-/* 모델 표에서 중첩 object 를 한 표에 펼칠 때: depth 만큼 들여쓰고 └─ 로 계층을 표시한다. */
+/*
+  모델 표에서 중첩 object 를 한 표에 펼칠 때의 계층 표시.
+
+  **아이콘은 하나, 간격은 깊이만큼.**
+
+    filter            (0단)
+    ↳ subjectCds      (1단) — 아이콘만
+      ↳ code          (2단) — 한 칸 밀고 아이콘
+        ↳ name        (3단) — 두 칸 밀고 아이콘
+
+  `↳` 를 깊이만큼 반복하면 `↳↳↳` 가 되어 지저분하고, 반대로 간격 없이 아이콘만
+  두면 3단이 1단과 같은 자리에 서서 **최상위 필드의 멤버처럼 보인다.** 아이콘은 "중첩이다",
+  간격은 "몇 단째다" 로 역할을 나눈다. 1단은 밀지 않는다 — 아이콘만으로 이미 구분된다.
+*/
 .vp-doc .oa-params-table .oa-p-indent {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 .vp-doc .oa-params-table .oa-p-branch {
   color: var(--vp-c-text-3);
@@ -181,11 +256,12 @@
 }
 .vp-doc .oa-auth-note a {
   color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
 }
 .vp-doc .oa-auth-note a:hover {
   color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* 4) 응답 Table / JSON 탭 */

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig } from 'vitepress';
 import { withMermaid } from 'vitepress-plugin-mermaid';
-import { loadSpec, specPath } from './openapi-spec';
+import { loadSpec, sortOperations, specPath } from './openapi-spec';
 
 /**
  * 실행 환경 이름(local|develop|production). Sentry 의 environment 태그가 이 값이다.
@@ -56,6 +56,10 @@ function collectTags(): Map<string, Array<{ operationId: string; summary: string
       });
     }
   }
+  // 문서가 정한 순서로 정렬한다(스펙의 선언 순서가 읽는 순서와 다를 수 있다).
+  for (const [tag, ops] of byTag) {
+    byTag.set(tag, sortOperations(tag, ops));
+  }
   return byTag;
 }
 
@@ -75,6 +79,18 @@ const HEALTHCARE_TAG_LABELS: Record<string, string> = {
   'healthcare-meta': '참조 데이터',
 };
 const HEALTHCARE_TAGS = Object.keys(HEALTHCARE_TAG_LABELS);
+// AI: 자연어 검색과 사용량 조회. **도메인 위에 둔다** — 경로는 `/healthcare/ai-search` 지만
+// 사용자가 찾는 자리는 "병원 API 중 하나" 가 아니라 "AI 로 뭘 할 수 있나" 쪽이다.
+// MCP(`POST /mcp/healthcare`)는 스펙에 없어(RPC 라 @ApiExcludeController) 노트의 앵커로만 건다.
+const AI_TAGS = ['ai'];
+// 계정: 토큰 발급(oauth)과 access token 으로 부르는 사용자 API(account).
+// 공통 문서가 흐름을 설명하고, 여기는 그 흐름에 쓰이는 엔드포인트다.
+// account 는 백엔드 태그가 아니라 문서가 붙인 이름이다(.vitepress/openapi-spec.ts 참고).
+const ACCOUNT_TAG_LABELS: Record<string, string> = {
+  oauth: '토큰',
+  account: '사용자',
+};
+const ACCOUNT_TAGS = Object.keys(ACCOUNT_TAG_LABELS);
 // 최상위 참조 데이터. **도메인 무관이라 헬스케어 밑에 두지 않는다** —
 // 지하철역도 지역 코드도 병원만 쓰는 게 아니다. 병원·학교·약국이 같이 쓴다.
 const TRANSPORT_TAGS = ['transport'];
@@ -89,15 +105,24 @@ const BUSINESS_TAGS = Object.keys(BUSINESS_TAG_LABELS);
 const originTags = allTags.filter((t) => ORIGIN_TAGS.includes(t));
 // 스펙에 실제로 있는 태그만, HEALTHCARE_TAG_LABELS 에 적은 순서대로 노출한다.
 const healthcareTags = HEALTHCARE_TAGS.filter((t) => allTags.includes(t));
+const aiTags = allTags.filter((t) => AI_TAGS.includes(t));
+const accountTags = ACCOUNT_TAGS.filter((t) => allTags.includes(t));
 const transportTags = allTags.filter((t) => TRANSPORT_TAGS.includes(t));
 const addressTags = allTags.filter((t) => ADDRESS_TAGS.includes(t));
 // 스펙에 실제로 있는 태그만, BUSINESS_TAG_LABELS 에 적은 순서대로.
 const businessTags = BUSINESS_TAGS.filter((t) => allTags.includes(t));
 // 어느 그룹에도 매핑되지 않은 나머지 태그는 모두 '기타'로 간다.
+//
+// **여기 쌓이면 사이드바가 무너진다.** 그룹을 안 적은 태그는 오퍼레이션이 통째로 평평하게
+// 나열되므로, 태그 하나만 빠져도 '기타' 가 사이드바의 절반을 먹는다.
+// 서버에 @ApiTags 를 새로 만들었다면 위 목록 중 하나에 적을 것.
+// (문서에 아예 안 낼 태그는 여기가 아니라 .vitepress/openapi-spec.ts 의 PRIVATE_TAGS 다)
 const etcTags = allTags.filter(
   (t) =>
     !ORIGIN_TAGS.includes(t) &&
     !HEALTHCARE_TAGS.includes(t) &&
+    !AI_TAGS.includes(t) &&
+    !ACCOUNT_TAGS.includes(t) &&
     !TRANSPORT_TAGS.includes(t) &&
     !ADDRESS_TAGS.includes(t) &&
     !BUSINESS_TAGS.includes(t),
@@ -172,12 +197,40 @@ export default withMermaid(defineConfig({
         collapsed: false,
         items: [
           { text: '인증', link: '/common#인증' },
-          { text: '로그인 연동(OAuth·PKCE)', link: '/common#login-integration' },
+          { text: '로그인 연동', link: '/common#login-integration' },
+          { text: '소셜 제공자 등록', link: '/common#social-provider' },
           { text: '토큰 만료', link: '/common#token-ttl' },
-          { text: 'JWT 검증(JWKS)', link: '/common#jwt-verify' },
+          { text: 'JWT 검증', link: '/common#jwt-verify' },
           { text: '다국어', link: '/common#다국어' },
         ],
       },
+      // 계정: 로그인 연동에 실제로 쓰이는 엔드포인트. 흐름 설명은 /common 이 한다.
+      ...(accountTags.length
+        ? [
+            {
+              text: '계정',
+              collapsed: false,
+              items: accountTags.map((t) => ({
+                text: ACCOUNT_TAG_LABELS[t],
+                link: `/apis/${t}`,
+              })),
+            },
+          ]
+        : []),
+      // AI: 도메인 위에 둔다. 오퍼레이션 둘과, 스펙에 없는 MCP 는 노트 앵커로 건다.
+      ...(aiTags.length
+        ? [
+            {
+              text: 'AI',
+              link: '/apis/ai',
+              collapsed: false,
+              items: [
+                ...aiTags.flatMap(opItems),
+                { text: 'MCP', link: '/apis/ai#mcp' },
+              ],
+            },
+          ]
+        : []),
       // 헬스케어: 통합 API. 태그마다 한 그룹이고, 하위는 오퍼레이션 앵커다.
       //   병원        healthcare       병원 검색·상세
       //   참조 데이터 healthcare-meta  진료과목·종별·장비 등 검색 조건용 코드
@@ -260,6 +313,11 @@ export default withMermaid(defineConfig({
       // DSN 은 여기 없다 — .env.<환경> 의 VITE_SENTRY_DSN 을 theme/sentry.ts 가 직접 읽는다.
       __APP_ENV__: JSON.stringify(docsEnv),
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),
+      // 푸터에 노출할 대표 이메일. hansapp-web 의 VITE_CONTACT_EMAIL 과 같은 값을 쓴다
+      // (약관·방침 안에 박힌 연락처는 별개다 — 그쪽은 고치면 개정이라 공지 대상이다).
+      __CONTACT_EMAIL__: JSON.stringify(
+        process.env.VITE_CONTACT_EMAIL ?? 'plzhans@gmail.com',
+      ),
     },
     // mermaid 최적화(dayjs·cytoscape 등 하위 의존 pre-bundle)는 withMermaid 플러그인이
     // optimizeDeps.include 로 이미 넣는다. pnpm 에서 그 베어 이름들이 resolve 되도록
