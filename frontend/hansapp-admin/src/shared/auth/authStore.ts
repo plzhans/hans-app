@@ -17,8 +17,16 @@ import {
 /**
  * `mustChange` 는 로그인은 됐지만 **비밀번호를 바꾸기 전까지 아무것도 못 하는** 상태다.
  * 그 상태에서 업무 API 를 부르면 서버가 403 을 준다.
+ *
+ * `offline` 은 **서버에 닿지 못한 것이지 로그아웃이 아니다.** 배포나 재시작으로 잠깐
+ * 내려간 사이에 화면을 열면 여기 걸린다 — 세션은 그대로라 서버가 돌아오면 이어진다.
  */
-type Status = 'loading' | 'authenticated' | 'mustChange' | 'anonymous';
+type Status =
+  | 'loading'
+  | 'authenticated'
+  | 'mustChange'
+  | 'anonymous'
+  | 'offline';
 
 interface AuthState {
   status: Status;
@@ -55,7 +63,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       return;
     }
 
-    if (!(await refreshSession())) {
+    const refreshed = await refreshSession();
+    /*
+      **서버에 못 닿은 것을 로그아웃으로 처리하지 않는다.** 재시작 중에 새로고침했다는
+      이유로 로그인 화면을 띄우면, 세션이 멀쩡한데도 비밀번호를 다시 치게 된다.
+    */
+    if (refreshed === 'offline') {
+      set({ status: 'offline', me: null });
+      return;
+    }
+    if (refreshed === 'expired') {
       set({ status: 'anonymous', me: null });
       return;
     }

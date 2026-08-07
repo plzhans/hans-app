@@ -9,11 +9,42 @@ import Users from '@/features/users/pages/Users';
 import UserDetail from '@/features/users/pages/UserDetail';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
+import MailSettings from '@/features/settings/pages/MailSettings';
+import IntegrationSettings from '@/features/settings/pages/IntegrationSettings';
 
 function FullScreenMessage({ children }: { children: string }) {
   return (
     <div className="flex h-full items-center justify-center text-sm text-gray-400">
       {children}
+    </div>
+  );
+}
+
+/**
+ * 서버에 닿지 못했을 때.
+ *
+ * **스스로 다시 시도한다.** 개발 중 재시작이나 배포로 잠깐 내려간 경우가 대부분이라,
+ * 사람이 새로고침을 누르기 전에 대개 돌아온다. 버튼은 그보다 오래 걸릴 때를 위한 것이다.
+ */
+function Offline({ onRetry }: { onRetry: () => Promise<void> }) {
+  useEffect(() => {
+    const timer = setInterval(() => void onRetry(), 3000);
+    return () => clearInterval(timer);
+  }, [onRetry]);
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+      <p className="text-sm text-gray-500">서버에 연결할 수 없습니다.</p>
+      <p className="text-xs text-gray-400">
+        로그아웃된 것이 아닙니다 — 연결되면 이어서 진행합니다.
+      </p>
+      <button
+        type="button"
+        onClick={() => void onRetry()}
+        className="mt-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+      >
+        지금 다시 시도
+      </button>
     </div>
   );
 }
@@ -38,6 +69,14 @@ export default function App() {
 
   if (status === 'loading') {
     return <FullScreenMessage>불러오는 중…</FullScreenMessage>;
+  }
+
+  /*
+    **서버에 닿지 못한 상태다. 로그아웃이 아니다.** 로그인 화면을 띄우면 세션이 멀쩡한데도
+    비밀번호를 다시 치게 되므로, 여기서 기다렸다가 서버가 돌아오면 그대로 이어 붙인다.
+  */
+  if (status === 'offline') {
+    return <Offline onRetry={bootstrap} />;
   }
 
   return (
@@ -66,6 +105,11 @@ export default function App() {
           <Route path="/apps/:id" element={<AppDetail />} />
           {/* 같은 화면이다. clientId 가 있으면 그 위에 모달이 뜬다. */}
           <Route path="/apps/:id/clients/:clientId" element={<AppDetail />} />
+          <Route path="/settings/mail" element={<MailSettings />} />
+          <Route
+            path="/settings/integrations"
+            element={<IntegrationSettings />}
+          />
           <Route path="/me" element={<Me />} />
           {/* 강제 변경 때와 같은 화면이다. 어느 쪽인지는 status 를 보고 스스로 정한다. */}
           <Route path="/password" element={<ChangePassword />} />
