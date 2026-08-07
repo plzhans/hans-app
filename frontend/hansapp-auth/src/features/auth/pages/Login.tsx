@@ -7,6 +7,7 @@ import { goAfterLogin, readAfterLoginParams } from '@/shared/auth/afterLogin';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
+import { socialErrorMessage } from '../socialError';
 import { AuthCard } from '../components/AuthCard';
 import { SocialButtons } from '../components/SocialButtons';
 
@@ -40,6 +41,12 @@ export default function Login() {
   const after = readAfterLoginParams(params);
   const { returnTo, clientId, codeChallenge, clientState, appReturn } = after;
   const authenticate = useAuthStore((s) => s.authenticate);
+  /*
+    소셜이 실패해 되돌아온 경우의 사유. **별도 화면이 아니라 여기 띄운다** — 사용자가 하려던
+    일은 로그인이고, 다음 행동(이메일로 로그인·다른 소셜)이 전부 이 화면에 있다.
+    실패 화면을 따로 두면 읽고 나서 "돌아가기" 를 한 번 더 눌러야 제자리가 된다.
+  */
+  const socialError = params.get('error');
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -67,6 +74,11 @@ export default function Login() {
 
   return (
     <AuthCard title="로그인" subtitle="HansApp 계정으로 로그인하기">
+      {socialError && (
+        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {socialErrorMessage(socialError)}
+        </p>
+      )}
       <form onSubmit={onSubmit} className="space-y-3">
         <TextField
           label="이메일"

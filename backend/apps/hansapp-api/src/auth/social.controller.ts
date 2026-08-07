@@ -161,23 +161,24 @@ export class SocialController {
   }
 
   /**
-   * 자사 흐름이 실패했을 때 내려놓을 자리(인증웹 콜백).
+   * 자사 흐름이 실패했을 때 내려놓을 자리 — **인증웹 로그인 화면**이다.
    *
-   * 원래 가려던 곳을 `ret` 으로 함께 싣는다 — 사용자가 사유를 읽고 이메일로 로그인하면
-   * 거기서 이어 갈 수 있어야 한다. 값은 이미 서명 state 로 왕복하며 오리진이 검증된 것이라
-   * 여기서 다시 열어 볼 것이 없다.
+   * 원래 가려던 곳을 `return` 으로 함께 싣는다(로그인 화면이 이미 읽는 이름이다) —
+   * 사용자가 사유를 읽고 이메일로 로그인하면 거기서 이어 갈 수 있어야 한다. 값은 서명
+   * state 로 왕복하며 오리진이 검증된 것이라 여기서 다시 열어 볼 것이 없다.
    *
    * 인증웹 주소를 모르면(설정 누락) null 을 돌려 예전 동작으로 물러난다 — 보낼 데가 없는데
    * 실패까지 삼키면 사용자는 빈 화면만 본다.
    */
   private errorLandingUrl(
-    outcome: CallbackOutcome,
+    error: string,
     returnTo: string | undefined,
   ): string | null {
     const base = this.authConfig.externalUrl;
     if (!base) return null;
-    const url = this.withOutcome(new URL(`${base}/callback`), outcome);
-    if (returnTo) url.searchParams.set('ret', returnTo);
+    const url = new URL(`${base}/login`);
+    url.searchParams.set('error', error);
+    if (returnTo) url.searchParams.set('return', returnTo);
     return url.toString();
   }
 
@@ -202,16 +203,17 @@ export class SocialController {
       코드도, 사용자가 다음에 무엇을 해야 하는지 말해 줄 자리도 없다. 로그인하려던 사람이
       아무 설명 없는 원래 화면으로 튕겨 나오는 셈이다.
 
-      사유 문구와 다음 행동(이메일로 로그인 → 마이페이지에서 연동)을 아는 화면은 인증웹의
-      콜백 하나뿐이므로, 실패는 거기로 내려놓는다. 원래 가려던 곳은 ret 으로 실어 보내
-      사용자가 문제를 풀고 나면 이어서 갈 수 있게 한다.
+      **로그인 화면으로 되돌린다.** 사용자가 하려던 일은 로그인이고, 다음 행동(이메일로
+      로그인·다른 소셜)이 전부 그 화면에 있다. 전용 실패 화면을 거치면 읽고 나서 "돌아가기"
+      를 한 번 더 눌러야 제자리가 된다. 원래 가려던 곳은 return 으로 실어 보내 문제를 풀고
+      나면 이어서 갈 수 있게 한다.
 
       **외부 앱(clientId)은 예외다.** OAuth 는 실패도 redirect_uri 로 돌려주게 돼 있고
       (RFC 6749 §4.1.2.1), 그 앱들은 그렇게 받도록 만들어져 있다. 여기서 규약을 어기면
       그 앱은 사용자가 어디로 사라졌는지 알 수 없다.
     */
     if (outcome.kind === 'error' && !clientId) {
-      const landing = this.errorLandingUrl(outcome, returnTo);
+      const landing = this.errorLandingUrl(outcome.error, returnTo);
       if (landing) return landing;
     }
     // 자사인데 돌아갈 곳이 없다 = 인증웹에 직접 와서 로그인한 경우. 우리가 내려놓는다.

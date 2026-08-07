@@ -12,6 +12,7 @@ import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
+import { socialErrorMessage } from '../socialError';
 import { AuthCard } from '../components/AuthCard';
 import {
   ConsentFields,
@@ -23,15 +24,6 @@ import {
 } from '../components/ConsentFields';
 
 type Phase = 'processing' | 'register' | 'error';
-
-const ERROR_MESSAGES: Record<string, string> = {
-  email_exists:
-    '이미 가입된 이메일입니다. 이메일 로그인 후 마이페이지에서 연동하세요.',
-  withdrawn_cooldown: '탈퇴 후 재가입 제한기간입니다. 잠시 후 다시 시도하세요.',
-  already_linked_other: '이 소셜 계정은 다른 회원에 이미 연동돼 있습니다.',
-  link_requires_login: '연동은 로그인 상태에서만 가능합니다.',
-  invalid_account: '유효하지 않은 계정입니다.',
-};
 
 /**
  * 소셜 콜백 착지점. 백엔드가 실어 보낸 결과(code/pending/error)를 처리한다.
@@ -124,7 +116,7 @@ export default function Callback() {
 
     if (error) {
       setPhase('error');
-      setMessage(ERROR_MESSAGES[error] ?? `로그인 실패: ${error}`);
+      setMessage(socialErrorMessage(error));
       return;
     }
     /*
@@ -309,22 +301,11 @@ export default function Callback() {
     );
   }
 
-  /*
-    실패해도 **원래 가려던 곳은 잃지 않는다.** 포털에서 넘어온 경우 ret 에 그 주소가 실려
-    오는데, 여기서 흘리면 사용자가 이메일로 로그인해도 인증웹 /me 에 남겨진다 —
-    자기가 어디서 출발했는지는 사용자가 기억할 일이 아니다.
-  */
-  const back = new URLSearchParams(window.location.search).get('ret');
-  const loginPath =
-    back && isFirstPartyReturn(back)
-      ? `/login?return=${encodeURIComponent(back)}`
-      : '/login';
-
   return (
     <AuthCard title="로그인 실패">
       <p className="text-center text-sm text-gray-600">{message}</p>
       <Link
-        to={loginPath}
+        to="/login"
         className="mt-6 block text-center text-sm font-semibold text-primary hover:underline"
       >
         로그인으로 돌아가기
