@@ -198,19 +198,9 @@ search:
 # 메일 설정(mail.*)은 여기 없다. **관리 화면에서 관리하고 DB(env_setting)에 있다.**
 # 값을 보거나 고치려면 관리자 → 설정 → 메일 발송. 여기에 다시 적으면 DB 값이 이겨서 안 먹는다.
 
-# ── 외부 플랫폼 provider (OAuth) — clientId/secret 둘 다 있어야 활성 ──
-google:
-  clientId:
-  clientSecret:
-naver:
-  clientId:
-  clientSecret:
-kakao:
-  clientId:
-  clientSecret:
-line:
-  clientId:
-  clientSecret:
+# OAuth 자격증명(google·naver·kakao·line)은 여기 없다.
+# **관리 화면에서 관리하고 DB(env_setting)에 있다.** 관리자 → 설정 → 외부 연동.
+# 전략을 요청마다 만들므로 값을 바꾸면 재시작 없이 반영된다.
 
 # 공공데이터 포털(data.go.kr). NTS 사업자등록도 이 키 공유.
 krdata:

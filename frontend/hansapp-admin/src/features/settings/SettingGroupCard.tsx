@@ -102,28 +102,11 @@ function SectionForm({
   /** 저장을 누른 뒤 확인을 기다리는 중인가. */
   const [confirming, setConfirming] = useState(false);
 
-  /*
-    **설정 파일에 있는 값은 저장할 때 같이 DB 로 옮긴다.**
-
-    화면이 파일 값을 그대로 보여 주고 있으므로 "보이는 대로 저장된다" 가 맞다. 안 그러면
-    host 하나를 고쳤을 때 그것만 DB 로 가고 나머지는 파일에 남아, 한 구역의 값이 두 곳에
-    흩어진다 — 나중에 파일을 지울 때 무엇이 빠지는지 알 수 없게 된다.
-
-    키만 보낸다. secret 은 원문을 받아 온 적이 없어 화면이 되돌려 보낼 수가 없다.
-  */
-  const adopt = fields.filter(
-    (f) => f.source === 'file' && !(f.key in draft),
-  );
   /** 이번에 바뀌는 줄. 확인 모달이 "무엇이 바뀌는지" 를 이걸로 나열한다. */
   const changed = fields.filter((f) => f.key in draft);
 
   const save = useMutation({
-    mutationFn: () =>
-      saveSettingGroup(
-        groupId,
-        draft,
-        adopt.map((f) => f.key),
-      ),
+    mutationFn: () => saveSettingGroup(groupId, draft),
     onSuccess: (groups) => {
       // 응답이 곧 최신 상태다. 다시 불러오지 않고 캐시를 갈아 끼운다.
       qc.setQueryData(['settings'], groups);
@@ -134,8 +117,7 @@ function SectionForm({
     },
   });
 
-  // 파일 값을 옮기는 것만으로도 저장할 것이 있다.
-  const dirty = Object.keys(draft).length > 0 || adopt.length > 0;
+  const dirty = Object.keys(draft).length > 0;
 
   const set = (key: string, value: Value) => {
     setSaved(false);
@@ -231,7 +213,6 @@ function SectionForm({
         <ConfirmSave
           title={title}
           changed={changed}
-          adopt={adopt}
           draft={draft}
           restartRequired={restartRequired}
           pending={save.isPending}
@@ -256,7 +237,6 @@ function SectionForm({
 function ConfirmSave({
   title,
   changed,
-  adopt,
   draft,
   restartRequired,
   pending,
@@ -266,7 +246,6 @@ function ConfirmSave({
 }: {
   title?: string;
   changed: SettingField[];
-  adopt: SettingField[];
   draft: SettingValues;
   restartRequired?: boolean;
   pending: boolean;
@@ -297,22 +276,6 @@ function ConfirmSave({
             value: describeDraft(f, draft),
           }))}
         />
-      )}
-
-      {adopt.length > 0 && (
-        <>
-          <ChangeList
-            title="설정 파일에서 DB 로 옮기는 값"
-            rows={adopt.map((f) => ({
-              label: f.label,
-              // secret 은 원문을 받아 온 적이 없어 보여 줄 값 자체가 없다.
-              value: f.type === 'secret' ? `••••${f.suffix ?? ''}` : f.value,
-            }))}
-          />
-          <p className="mt-1 text-xs text-gray-400">
-            옮긴 뒤에는 DB 값이 쓰입니다. 설정 파일을 고쳐도 반영되지 않습니다.
-          </p>
-        </>
       )}
 
       {error != null && (
@@ -494,7 +457,7 @@ function FieldRow({
               <RotateCcw className="h-4 w-4" />
             </IconButton>
           ) : field.source === 'db' ? (
-            <IconButton title="저장한 값 지우기" onClick={() => onChange(null)}>
+            <IconButton title="지우기" onClick={() => onChange(null)}>
               <Trash2 className="h-4 w-4" />
             </IconButton>
           ) : null}
@@ -631,10 +594,8 @@ function StatusTag({
     : touched
       ? '변경됨'
       : source === 'db'
-        ? 'DB'
-        : source === 'file'
-          ? '설정 파일'
-          : '미설정';
+        ? '설정됨'
+        : '미설정';
 
   return (
     <span

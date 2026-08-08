@@ -70,9 +70,9 @@ export interface SettingGroup {
   /**
    * 값을 바꿔도 **서버를 다시 띄워야 반영되는** 그룹인가.
    *
-   * 소셜 로그인(google·naver·kakao·line)이 그렇다 — passport 전략이 모듈을 만들 때
-   * 조건부로 등록돼서, 값만 바뀐다고 전략이 새로 끼워지지 않는다. 화면에서 미리 알려 주지
-   * 않으면 "저장했는데 안 되는데요" 가 된다.
+   * **지금은 해당하는 그룹이 없다.** 소셜 로그인이 마지막이었는데, passport 전략을 요청마다
+   * 만들도록 바꿔(SocialStrategyFactory) 재시작 없이 반영된다. 자리를 남겨 둔 것은 앞으로
+   * 부팅에 묶이는 설정이 생길 때를 위해서다.
    */
   readonly restartRequired?: boolean;
   /** 이 그룹의 키를 발급받는 곳. 화면에서 바로 열 수 있게 띄운다. */
@@ -90,7 +90,6 @@ function oauthGroup(
     id,
     label,
     category: 'integration',
-    restartRequired: true,
     consoles,
     fields: [
       { key: `${id}.clientId`, label: 'Client ID', type: 'string' },
@@ -264,8 +263,11 @@ export function findSettingGroup(id: string): SettingGroup | undefined {
 // **값이 아니라 형태만 여기 있다.** 실제 값을 채우는 것은 각 응용 계층의 서비스이고,
 // 그 결과가 이 모양이어야 관리 화면·DTO 가 계층을 몰라도 된다.
 
-/** 값이 어디서 왔는가. 설정을 DB 로 옮기는 중에는 두 곳이 섞인다. */
-export type SettingSource = 'db' | 'file' | 'none';
+/**
+ * 값이 있는가. **출처는 DB 하나뿐이다** — 설정 파일 폴백은 이관이 끝나며 걷어냈다.
+ * 남겨 둔 것은 화면이 "설정됨/미설정" 을 같은 축으로 그리기 위해서다.
+ */
+export type SettingSource = 'db' | 'none';
 
 /** 화면에 내려보내는 필드 한 칸. */
 export interface SettingFieldView extends SettingField {

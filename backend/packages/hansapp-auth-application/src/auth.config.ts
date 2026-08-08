@@ -157,57 +157,13 @@ export interface AuthConfig {
    * 약관을 개정하면 그 파일과 이 기본값(또는 config 의 auth.consent.*)을 함께 고친다.
    */
   readonly consentVersions: ConsentVersions;
-
-  /** 소셜 로그인 설정. provider 별 키는 있는 것만 담긴다(없으면 그 provider 는 비활성). */
-  readonly oauth: OAuthConfig;
 }
 
-/** 소셜 provider 자격증명. clientId·clientSecret 이 모두 있어야 활성화된다. */
-export interface OAuthProviderCredentials {
-  readonly clientId: string;
-  readonly clientSecret: string;
-}
-
-export interface OAuthConfig {
-  // redirect_uri 는 별도 base URL 을 두지 않고 요청이 들어온 호스트에서 조립한다
-  // ({scheme}://{host}/auth/:provider/callback, SocialAuthGuard 참고).
-  readonly google?: OAuthProviderCredentials;
-  readonly naver?: OAuthProviderCredentials;
-  readonly kakao?: OAuthProviderCredentials;
-  readonly line?: OAuthProviderCredentials;
-}
-
-/** provider 자격증명을 설정에서 뽑는다(둘 다 시크릿). 둘 다 있어야 credentials 를 반환한다. */
-function readProviderCredentials(
-  source: ConfigSource,
-  idPath: string,
-  secretPath: string,
-): OAuthProviderCredentials | undefined {
-  const clientId = source.getStringOrDefault(idPath);
-  const clientSecret = source.getStringOrDefault(secretPath);
-  if (!clientId || !clientSecret) {
-    return undefined;
-  }
-  return Object.freeze({ clientId, clientSecret });
-}
-
-/**
- * 카카오 자격증명. 카카오는 **REST API 키를 client_id(KAKAO_CLIENT_ID)로** 쓰고,
- * client secret(KAKAO_CLIENT_SECRET)은 선택이다(콘솔 '카카오 로그인 > 보안'에서 켰을 때만).
- * JS 키는 브라우저 SDK 용이라 서버 리다이렉트 로그인엔 쓰지 않는다. client_id 만 있으면 활성화한다.
- */
-function readKakaoCredentials(
-  source: ConfigSource,
-): OAuthProviderCredentials | undefined {
-  const clientId = source.getStringOrDefault('kakao.clientId');
-  if (!clientId) {
-    return undefined;
-  }
-  return Object.freeze({
-    clientId,
-    clientSecret: source.getStringOrDefault('kakao.clientSecret'),
-  });
-}
+/*
+  **소셜 자격증명은 여기 없다.** 값이 DB(env_setting)에 있고, 요청마다 SocialStrategyFactory 가
+  읽어 전략을 만든다 — 부팅 때 확정하면 화면에서 키를 바꿔도 재시작 전까지 안 먹는다.
+  "설정된 provider 인가" 판정도 그쪽으로 옮겼다(없으면 404, 응답은 예전과 같다).
+*/
 
 /**
  * EnvSource 에서 인증 설정을 뽑아 검증한다.
@@ -283,24 +239,6 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
       privacy: source.getStringOrDefault(
         'auth.consent.privacyVersion',
         '2026-08-06',
-      ),
-    }),
-    oauth: Object.freeze({
-      google: readProviderCredentials(
-        source,
-        'google.clientId',
-        'google.clientSecret',
-      ),
-      naver: readProviderCredentials(
-        source,
-        'naver.clientId',
-        'naver.clientSecret',
-      ),
-      kakao: readKakaoCredentials(source),
-      line: readProviderCredentials(
-        source,
-        'line.clientId',
-        'line.clientSecret',
       ),
     }),
   });

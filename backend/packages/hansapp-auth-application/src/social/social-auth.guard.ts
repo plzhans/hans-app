@@ -5,9 +5,9 @@ import {
   ExecutionContext,
   Inject,
   Injectable,
-  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
+import passport from 'passport';
 import { AppStatus } from '@hansapp/data';
 import type { Request, Response } from 'express';
 
@@ -16,6 +16,11 @@ import { AUTH_CONFIG } from '../auth.config';
 import type { AuthConfig } from '../auth.config';
 import { isFirstPartyOrigin } from '../first-party-origin';
 import { SocialTicketService } from './social-ticket.service';
+import {
+  SocialStrategyFactory,
+  type RequestStrategy,
+  type SocialKey,
+} from './social-strategy.factory';
 import { externalBaseUrl } from './request-url';
 import { toOAuthProvider, toStrategyName } from './social.types';
 
@@ -42,12 +47,21 @@ function isCallbackRequest(req: Request): boolean {
   return /\/callback\/?$/.test(req.path);
 }
 
+/**
+ * passport 가 넘기는 오류를 Error 로 맞춘다. **원본을 감싸지 않고 그대로 통과시킨다** —
+ * HttpException 도 여기로 오는데 감싸면 상태코드를 잃는다.
+ */
+function toError(raw: unknown): Error {
+  return raw instanceof Error ? raw : new Error(String(raw));
+}
+
 @Injectable()
 export class SocialAuthGuard implements CanActivate {
   constructor(
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly tickets: SocialTicketService,
     private readonly access: AccessCache,
+    private readonly strategies: SocialStrategyFactory,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -58,11 +72,7 @@ export class SocialAuthGuard implements CanActivate {
     if (!provider) {
       throw new BadRequestException('Unsupported social provider.');
     }
-    const key = toStrategyName(provider) as
-      'google' | 'naver' | 'kakao' | 'line';
-    if (!this.config.oauth[key]) {
-      throw new NotFoundException(`Social provider is not configured: ${key}`);
-    }
+    const key = toStrategyName(provider) as SocialKey;
 
     // **콜백이면 먼저 흐름 소유권을 확인한다.** provider 와 코드를 교환하기 전에 막아야
     // 남의 흐름으로 계정이 만들어지거나 연동되는 부수효과가 생기지 않는다.
@@ -85,15 +95,51 @@ export class SocialAuthGuard implements CanActivate {
         : key === 'naver'
           ? { authType: 'reprompt' }
           : {};
-    const BaseGuard = PassportAuthGuard(key);
-    const guard = new (class extends BaseGuard {
-      getAuthenticateOptions() {
-        return { state, session: false, callbackURL, ...extra };
-      }
-    })();
+    /*
+      **전략을 요청마다 만들어 넘긴다.** 자격증명이 DB(env_setting)에 있어 부팅 때
+      passport.use() 로 등록해 둘 수가 없다 — 등록해 두면 화면에서 Client Secret 을 바꿔도
+      재시작 전까지 옛 값으로 인가 요청이 나간다.
 
-    const result = await guard.canActivate(context);
-    return result as boolean;
+      설정 안 된 provider 면 팩토리가 404 를 던진다(예전 config.oauth[key] 판정과 같은 응답).
+    */
+    const strategy = await this.strategies.create(key, callbackURL);
+    return this.run(strategy, context, { state, session: false, ...extra });
+  }
+
+  /**
+   * passport 를 직접 돌린다.
+   *
+   * **두 갈래로 끝난다.**
+   *  - 시작 요청: passport 가 provider 로 리다이렉트한다. 응답이 이미 나갔으므로 여기서
+   *    돌려줄 값이 없다 — 콜백도 next 도 불리지 않는다(@nestjs/passport 도 같게 동작한다).
+   *  - 콜백 요청: verify 가 끝나 user 가 오면 req.user 에 담고 true 를 돌려준다.
+   */
+  private run(
+    strategy: RequestStrategy,
+    context: ExecutionContext,
+    options: Record<string, unknown>,
+  ): Promise<boolean> {
+    const req = context.switchToHttp().getRequest<Request>();
+    const res = context.switchToHttp().getResponse<Response>();
+
+    return new Promise<boolean>((resolve, reject) => {
+      const handler = passport.authenticate(
+        strategy as never,
+        options,
+        (err: unknown, user: unknown) => {
+          if (err) return reject(toError(err));
+          if (!user) {
+            return reject(new UnauthorizedException('Social sign-in failed.'));
+          }
+          (req as Request & { user?: unknown }).user = user;
+          resolve(true);
+        },
+      ) as (req: Request, res: Response, next: (e?: unknown) => void) => void;
+
+      handler(req, res, (e?: unknown) => {
+        if (e) reject(toError(e));
+      });
+    });
   }
 
   /**

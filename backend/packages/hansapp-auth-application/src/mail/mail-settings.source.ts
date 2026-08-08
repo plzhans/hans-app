@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { EmailSettings, EmailSettingsSource } from '@hansapp/email-sender';
 
 import { SettingCache } from '../setting/setting-cache.service';
+import { MAIL_CONFIG, type MailConfig } from './mail.config';
 
 /**
  * 발송기에 설정을 대 준다. **값은 DB(env_setting)에서 온다.**
@@ -17,13 +18,35 @@ import { SettingCache } from '../setting/setting-cache.service';
  */
 @Injectable()
 export class MailSettingsSource implements EmailSettingsSource {
-  constructor(private readonly settings: SettingCache) {}
+  private readonly logger = new Logger(MailSettingsSource.name);
+  /** 강제 차단 안내를 한 번만 남긴다. 메일 한 통마다 찍으면 로그가 그것만 남는다. */
+  private warned = false;
+
+  constructor(
+    private readonly settings: SettingCache,
+    @Inject(MAIL_CONFIG) private readonly config: MailConfig,
+  ) {}
 
   async load(): Promise<EmailSettings> {
     /*
       **꺼짐이 기본이다.** 설정을 덜 채운 환경이 바깥으로 메일을 뿌리는 사고보다,
       켜기를 잊어 안 나가는 쪽이 되돌리기 쉽다.
     */
+    /*
+      **설정 파일이 DB 를 이기는 유일한 자리다.** 로컬에서 develop DB 를 보며 개발할 때
+      실제 사용자에게 메일이 나가는 것을 막는다. 화면에서 끄면 develop 서버까지 같이 꺼지므로
+      이 서버에서만 듣는 스위치가 따로 필요하다.
+    */
+    if (this.config.forceDisabled) {
+      if (!this.warned) {
+        this.warned = true;
+        this.logger.warn(
+          'mail.forceDisabled=true — DB 설정과 무관하게 발송을 막는다. 본문은 콘솔로 나간다.',
+        );
+      }
+      return { enabled: false, from: DEFAULT_FROM, smtp: null };
+    }
+
     const enabled = await this.settings.getBoolean('mail.enabled', false);
     const from = await this.settings.getString('mail.from');
     const host = await this.settings.getString('mail.smtp.host');

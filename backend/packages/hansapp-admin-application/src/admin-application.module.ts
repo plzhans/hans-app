@@ -119,8 +119,8 @@ export class AdminApplicationModule {
           그 카탈로그는 @hansapp/common 이 갖는다. 읽기 저장소는 @hansapp/data 것을 그대로 쓰고,
           **쓰기는 이 계층에만 둔다** — 관리자 아닌 계층에서 설정을 덮을 자리를 만들지 않는다.
 
-          SettingCache 는 ConfigSource 를 생성자로 받는데 그것이 DI 토큰이 아니라
-          forRoot 인자라, 여기서 팩토리로 묶어 넣는다.
+          **설정 파일 폴백은 없다.** 카탈로그의 모든 값이 DB 로 넘어가서, 두 곳을 보면
+          `.env` 의 주석 한 줄이 풀리는 것만으로 화면이 파일 값을 다시 집는다.
         */
         { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
         SettingWriteRepository,
@@ -129,7 +129,7 @@ export class AdminApplicationModule {
           useFactory: (
             repo: SettingReadRepository,
             keyring: SecretBoxKeys | undefined,
-          ) => new SettingCache(repo, keyring, source),
+          ) => new SettingCache(repo, keyring),
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         SettingAdminService,

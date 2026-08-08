@@ -38,7 +38,6 @@ export class SettingController {
     summary: '설정 저장',
     description:
       '한 그룹의 값을 저장한다. 요청에 없는 키는 건드리지 않고, null 을 보내면 지운다. ' +
-      'adopt 에 실린 키는 설정 파일 값을 그대로 DB 로 옮긴다. ' +
       '저장 즉시 캐시를 버려 다음 조회부터 새 값이 쓰인다.',
   })
   @ApiOkResponse({ type: [SettingGroupDto] })
@@ -52,7 +51,6 @@ export class SettingController {
       groupId,
       dto.values,
       admin.adminId,
-      dto.adopt,
     );
     return groups.map((g) => new SettingGroupDto(g));
   }

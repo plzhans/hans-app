@@ -50,17 +50,22 @@ export function logConfigSummary(
     })`,
   );
   /*
-    **메일은 여기서 안 찍는다.** 값이 DB(env_setting)에 있어서 설정 파일을 요약해 봐야
+    **메일 설정은 여기서 안 찍는다.** 값이 DB(env_setting)에 있어서 설정 파일을 요약해 봐야
     실제로 쓰이는 값이 아니다 — 부팅 시점 요약이 런타임에 바뀌는 값을 말하면 거짓이 된다.
     무엇이 설정돼 있는지는 관리 화면에서 본다.
+
+    다만 **강제 차단은 찍는다.** 이건 설정 파일에만 있는 값이라 부팅에 확정되고, 켜 두면
+    화면에서 아무리 켜도 메일이 안 나가서 "왜 안 오지" 를 가장 오래 헤매게 되는 자리다.
   */
-  if (opts.oauth) {
-    const idOr = (raw: string): string => raw || '(empty)';
-    log(`Config OAuth google : ${idOr(s('google.clientId'))}`);
-    log(`Config OAuth naver  : ${idOr(s('naver.clientId'))}`);
-    log(`Config OAuth kakao  : ${idOr(s('kakao.clientId'))}`);
-    log(`Config OAuth line   : ${idOr(s('line.clientId'))}`);
+  if (cfg.getBoolOrDefault('mail.forceDisabled', false)) {
+    log(
+      'Config Mail : ⚠️ 강제 차단(mail.forceDisabled) — DB 설정과 무관하게 안 나간다',
+    );
   }
+  /*
+    **OAuth 도 여기서 안 찍는다.** 메일·서비스키와 같은 이유다 — 값이 DB(env_setting)에
+    있어서 설정 파일 요약은 실제로 쓰이는 값이 아니다.
+  */
   if (opts.llm) {
     /*
       **자격증명이 둘이라 어느 쪽으로 나가는지를 찍는다.** apiKey(배포)와

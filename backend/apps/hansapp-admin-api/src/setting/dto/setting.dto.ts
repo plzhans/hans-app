@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsObject } from 'class-validator';
 import type {
   SettingFieldView,
   SettingGroupView,
@@ -44,8 +44,7 @@ export class SettingFieldDto {
   readonly suffix!: string | null;
 
   @ApiProperty({
-    description:
-      '값의 출처. db=화면에서 저장함, file=설정 파일 값, none=아직 없음',
+    description: '값이 있는가. db=저장돼 있음, none=아직 없음',
   })
   readonly source!: string;
 
@@ -119,24 +118,11 @@ export class SettingGroupDto {
 export class SettingSaveRequestDto {
   @ApiProperty({
     description:
-      '바꿀 값만 담는다. **없는 키는 건드리지 않고**, null 을 보내면 지운다(설정 파일 값으로 되돌아간다).',
+      '바꿀 값만 담는다. **없는 키는 건드리지 않고**, null 을 보내면 지운다.',
     example: { 'mail.smtp.host': 'smtp.example.com', 'mail.smtp.port': 587 },
     type: 'object',
     additionalProperties: true,
   })
   @IsObject()
   readonly values!: SettingInput;
-
-  @ApiPropertyOptional({
-    description:
-      '설정 파일에 있던 값을 그대로 DB 로 옮길 키 목록. **값이 아니라 키만 보낸다** — ' +
-      'secret 은 원문을 내려보낸 적이 없어 화면이 되돌려 보낼 수 없으므로, 서버가 제 손으로 읽어 넣는다. ' +
-      'values 에 같은 키가 있으면 values 가 이긴다.',
-    type: [String],
-    example: ['mail.smtp.host', 'mail.smtp.password'],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  readonly adopt?: string[];
 }

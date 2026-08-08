@@ -56,6 +56,18 @@ export function buildOtpConfig(source: ConfigSource): OtpConfig {
  */
 export interface MailConfig {
   /**
+   * **DB 설정을 무시하고 발송을 막는다.** 이 저장소에서 설정 파일이 DB 를 이기는 유일한 값이다.
+   *
+   * 로컬 개발을 위한 것이다 — DB 는 develop 과 같은 것을 볼 때가 많은데, 거기서 메일이 켜져
+   * 있으면 코드를 만지다 실제 사용자에게 메일이 나간다. 화면에서 끄면 develop 서버까지 같이
+   * 꺼지므로, **그 환경에서만 듣는 스위치**가 따로 필요하다.
+   *
+   * 켜면 발송 대신 본문을 콘솔에 찍는다(꺼져 있을 때와 같은 동작).
+   * 기본은 꺼짐 — 배포 환경에서 실수로 메일이 멎지 않게.
+   */
+  readonly forceDisabled: boolean;
+
+  /**
    * 템플릿 {{appName}}·제목 치환값. **서비스 공통 이름(APP_NAME)을 쓴다** — 메일 전용 값이 아니다.
    */
   readonly appName: string;
@@ -69,6 +81,9 @@ export interface MailConfig {
 
 export function buildMailConfig(source: ConfigSource): MailConfig {
   return Object.freeze({
+    // **설정 파일에만 있다.** DB 로 옮기면 화면에서 끌 수 있게 되는데, 그러면 "이 서버에서만
+    // 막는다" 는 뜻 자체가 사라진다(모든 서버가 같은 DB 를 본다).
+    forceDisabled: source.getBoolOrDefault('mail.forceDisabled', false),
     // 메일 전용이 아니라 서비스 공통 값(appName·appPublicUrl)이다 — 메일은 참조만 한다.
     appName: source.getStringOrDefault('apps-api.name', 'HansApp'),
     appUrl: source.getStringOrDefault(

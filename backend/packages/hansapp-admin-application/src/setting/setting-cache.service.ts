@@ -2,7 +2,6 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   open,
   SETTING_KEYRING,
-  type ConfigSource,
   type SecretBoxKeys,
   type SettingReader,
 } from '@hansapp/common';
@@ -21,14 +20,14 @@ import { SettingReadRepository } from '@hansapp/data';
 const CACHE_TTL_MS = 5 * 60_000;
 
 /**
- * 서비스 설정을 읽는다. **DB 가 먼저, 없으면 설정 파일이다.**
+ * 서비스 설정을 읽는다. **DB 가 유일한 원천이다.**
  *
  * **이름이 Cache 인 것은 원본이 여기가 아니기 때문이다.** 값은 DB(env_setting)에 있고
  * 이 클래스는 그 사본을 TTL 동안 들고 있을 뿐이다 — AccessCache·RegionCache 와 같은 결이다.
  *
- * 이 폴백이 이 클래스의 핵심이다. DB 로 옮기는 일이 한 번에 끝나지 않기 때문이다 —
- * 어떤 값은 이미 화면에서 넣었고 어떤 값은 아직 yaml 에만 있는 기간이 반드시 생긴다.
- * 그동안 부르는 쪽은 이 서비스 하나만 보면 되고, 값이 어디서 왔는지 몰라도 된다.
+ * **설정 파일로 폴백하지 않는다.** 이관 중에는 폴백이 다리 역할을 했지만, 카탈로그의 모든 값이
+ * DB 로 넘어간 지금은 두 곳을 볼 이유가 없다 — 남겨 두면 `.env` 의 주석 한 줄이 풀리는 것만으로
+ * 화면이 파일 값을 다시 집는다. **ConfigSource 를 아예 받지 않아** 되살아날 자리를 없앤다.
  *
  * [실패 방향]
  * 갱신에 실패하면 **직전 값을 그대로 쓴다.** DB 가 순간 흔들릴 때마다 메일 설정이
@@ -47,7 +46,6 @@ export class SettingCache implements SettingReader {
     private readonly repository: SettingReadRepository,
     @Inject(SETTING_KEYRING)
     private readonly keyring: SecretBoxKeys | undefined,
-    private readonly config: ConfigSource,
   ) {}
 
   /**
@@ -57,40 +55,22 @@ export class SettingCache implements SettingReader {
    * "빈 값" 을 갈라 보여 주려면 이 구분이 필요하다.
    */
   async getString(key: string): Promise<string | null> {
-    const stored = await this.getStored(key);
-    if (stored !== undefined) return stored;
-    // ConfigSource 는 없는 키에도 '' 를 준다. 여기서 "없음" 으로 되돌린다.
-    const fromFile = this.config.getStringOrDefault(key);
-    return fromFile === '' ? null : fromFile;
+    return (await this.getStored(key)) ?? null;
   }
 
+  /** 설정이 없거나 숫자로 못 읽으면 fallback. */
   async getNumber(key: string, fallback: number): Promise<number> {
     const stored = await this.getStored(key);
-    if (stored === undefined)
-      return this.config.getNumberOrDefault(key, fallback);
+    if (stored === undefined) return fallback;
     const n = Number(stored);
-    return Number.isFinite(n) ? n : fallback;
+    // 빈 문자열은 Number('') === 0 이라 그냥 두면 0 이 된다. 설정으로는 뜻이 없는 값이다.
+    return stored !== '' && Number.isFinite(n) ? n : fallback;
   }
 
   async getBoolean(key: string, fallback = false): Promise<boolean> {
     const stored = await this.getStored(key);
-    if (stored === undefined)
-      return this.config.getBoolOrDefault(key, fallback);
+    if (stored === undefined) return fallback;
     return stored === 'true' || stored === '1';
-  }
-
-  /**
-   * 여러 키를 한 번에. 설정 뭉치(메일 한 벌)를 읽을 때 캐시를 한 번만 확인한다.
-   * 값이 없는 키는 결과에서 빠진다 — 부르는 쪽이 폴백을 정한다.
-   */
-  async getMany(keys: readonly string[]): Promise<Map<string, string>> {
-    const stored = await this.load();
-    const result = new Map<string, string>();
-    for (const key of keys) {
-      const value = stored.get(key) ?? this.config.getStringOrDefault(key);
-      if (value) result.set(key, value);
-    }
-    return result;
   }
 
   /** DB 에 값이 들어 있는 키 목록. 관리 화면이 "어디서 온 값인가" 를 표시하는 데 쓴다. */

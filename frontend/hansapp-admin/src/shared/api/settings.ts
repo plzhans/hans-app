@@ -7,8 +7,8 @@ export type SettingFieldType =
   | 'select'
   | 'secret';
 
-/** 값이 어디서 왔는가. 설정을 DB 로 옮기는 중에는 두 곳이 섞인다. */
-export type SettingSource = 'db' | 'file' | 'none';
+/** 값이 있는가. 출처는 DB 하나뿐이다 — 설정 파일 폴백은 걷어냈다. */
+export type SettingSource = 'db' | 'none';
 
 export type SettingCategory = 'mail' | 'integration';
 
@@ -47,7 +47,7 @@ export interface SettingGroup {
   fields: SettingField[];
 }
 
-/** 저장 요청. `null` 은 "지운다"(설정 파일 값으로 되돌린다)는 뜻이다. */
+/** 저장 요청. `null` 은 "지운다"는 뜻이다. */
 export type SettingValues = Record<string, string | number | boolean | null>;
 
 export const listSettings = () => apiFetch<SettingGroup[]>('/api/settings');
@@ -56,18 +56,8 @@ export const listSettings = () => apiFetch<SettingGroup[]>('/api/settings');
  * 한 그룹을 저장한다. **바꾼 값만 보낸다** — 요청에 없는 키는 서버가 건드리지 않는다.
  * 그래야 secret 을 빈 값으로 되돌려 보내 실수로 지우는 일이 없다.
  */
-export const saveSettingGroup = (
-  groupId: string,
-  values: SettingValues,
-  /**
-   * 설정 파일 값을 그대로 DB 로 옮길 키 목록.
-   *
-   * **값이 아니라 키만 보낸다** — secret 은 원문을 받아 온 적이 없어 되돌려 보낼 수가 없다.
-   * 서버가 제 손으로 읽어 넣는다.
-   */
-  adopt: string[] = [],
-) =>
+export const saveSettingGroup = (groupId: string, values: SettingValues) =>
   apiFetch<SettingGroup[]>(`/api/settings/${groupId}`, {
     method: 'PUT',
-    body: JSON.stringify({ values, adopt }),
+    body: JSON.stringify({ values }),
   });

@@ -264,26 +264,9 @@ search:
 # 메일 설정(mail.*)은 여기 없다. **관리 화면에서 관리하고 DB(env_setting)에 있다.**
 # 값을 보거나 고치려면 관리자 → 설정 → 메일 발송. 여기에 다시 적으면 DB 값이 이겨서 안 먹는다.
 
-# ── 외부 플랫폼 provider (OAuth) ────────────────────────────────────────────────
-# google/naver/kakao/line 플랫폼 연동 자격증명. **소셜 "로그인" 전용이 아니라** 그 플랫폼 API 를
-# 쓰기 위한 provider 다(로그인은 그 용도 중 하나). clientId/secret 이 둘 다 있어야 그 provider 가
-# 활성 — 하나라도 없으면 그 provider 만 비활성(서버는 정상).
-google:
-  clientId:
-  clientSecret:
-
-naver:
-  clientId:
-  clientSecret:
-
-kakao:
-  # 카카오는 REST API 키를 clientId 로 쓴다(secret 은 콘솔에서 켰을 때만 선택적으로).
-  clientId:
-  clientSecret:
-
-line:
-  clientId:
-  clientSecret:
+# OAuth 자격증명(google·naver·kakao·line)은 여기 없다.
+# **관리 화면에서 관리하고 DB(env_setting)에 있다.** 관리자 → 설정 → 외부 연동.
+# 전략을 요청마다 만들므로 값을 바꾸면 재시작 없이 반영된다.
 
 # 서비스키(krdata.serviceKey · molit.vworld.serviceKey · juso.serviceKey)는 여기 없다.
 # **관리 화면에서 관리하고 DB(env_setting)에 있다.** 관리자 → 설정 → 외부 연동.

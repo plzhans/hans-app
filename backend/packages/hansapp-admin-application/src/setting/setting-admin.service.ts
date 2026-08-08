@@ -50,7 +50,6 @@ export class SettingAdminService {
       const fields: SettingFieldView[] = [];
       for (const field of group.fields) {
         const inDb = stored.has(field.key);
-        // 값 자체는 읽기 서비스를 통해 가져온다 — DB → 설정 파일 폴백이 거기 있다.
         const raw = await this.settings.getString(field.key);
         /*
           **`null`(설정 안 됨)과 `''`(빈 값으로 설정함)를 갈라 받는다.** 화면에서는 둘 다
@@ -69,8 +68,8 @@ export class SettingAdminService {
           hasValue,
           suffix:
             field.type === 'secret' && hasValue ? suffixOf(raw) || null : null,
-          // 빈 값이라도 DB 에 행이 있으면 'db' 다. 행의 유무가 출처를 정한다.
-          source: inDb ? 'db' : hasValue ? 'file' : 'none',
+          // 빈 값이라도 DB 에 행이 있으면 'db' 다. 행의 유무가 정한다.
+          source: inDb ? 'db' : 'none',
         });
       }
       groups.push({ ...group, fields });
@@ -90,7 +89,6 @@ export class SettingAdminService {
     groupId: string,
     input: SettingInput,
     adminId: number | null,
-    adopt: readonly string[] = [],
   ): Promise<SettingGroupView[]> {
     const group = findSettingGroup(groupId);
     if (!group) {
@@ -98,7 +96,7 @@ export class SettingAdminService {
     }
 
     const allowed = new Map(group.fields.map((f) => [f.key, f]));
-    for (const key of [...Object.keys(input), ...adopt]) {
+    for (const key of Object.keys(input)) {
       // 카탈로그에 없는 키를 받으면 DB 에 쓰레기가 쌓이고, 남의 그룹 값을 이 화면에서
       // 덮어쓸 수도 있다. 그룹에 속한 키만 받는다.
       if (!allowed.has(key)) {
@@ -106,24 +104,6 @@ export class SettingAdminService {
           `Key does not belong to group "${groupId}": ${key}`,
         );
       }
-    }
-
-    /*
-      **설정 파일에 있던 값을 DB 로 옮긴다.**
-
-      화면은 파일 값을 그대로 보여 주고 있으므로, 관리자가 그 상태로 저장을 누르면 "보이는
-      대로 저장된다" 가 되어야 한다. 그런데 secret 은 원문을 내려보낸 적이 없어서 화면이
-      되돌려 보낼 수가 없다 — 그래서 값이 아니라 **키만** 받아 서버가 제 손으로 읽어 넣는다.
-
-      화면이 바꾼 값(input)이 우선이다. 같은 키가 양쪽에 있으면 여기서는 건너뛴다.
-    */
-    for (const key of adopt) {
-      if (key in input) continue;
-      const field = allowed.get(key) as SettingField;
-      const plain = await this.settings.getString(key);
-      // 파일에도 없는 값이다. 빈 행을 만들 이유가 없다.
-      if (!plain) continue;
-      await this.write(field, plain, adminId);
     }
 
     for (const [key, value] of Object.entries(input)) {

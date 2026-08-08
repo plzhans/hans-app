@@ -1,4 +1,4 @@
-import { DynamicModule, Module, Provider } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import {
@@ -26,6 +26,7 @@ import { EmailSender, EMAIL_SETTINGS_SOURCE } from '@hansapp/email-sender';
 
 import { AuthEmailService } from './mail/auth-email.service';
 import { MailSettingsSource } from './mail/mail-settings.source';
+import { SocialStrategyFactory } from './social/social-strategy.factory';
 import { SettingCache } from './setting/setting-cache.service';
 import { AuthService } from './auth.service';
 import { LoginService } from './login.service';
@@ -57,10 +58,6 @@ import { ApiAccessService } from './app/api-access.service';
 import { SocialService } from './social/social.service';
 import { SocialTicketService } from './social/social-ticket.service';
 import { SocialAuthGuard } from './social/social-auth.guard';
-import { GoogleStrategy } from './social/strategies/google.strategy';
-import { NaverStrategy } from './social/strategies/naver.strategy';
-import { KakaoStrategy } from './social/strategies/kakao.strategy';
-import { LineStrategy } from './social/strategies/line.strategy';
 
 /**
  * 인증/인가 응용 계층의 DI 진입점. 서버 앱은 `imports: [AuthModule.forRoot(src)]` 로 주입받고,
@@ -81,11 +78,11 @@ export class AuthModule {
     const otpConfig = buildOtpConfig(source);
 
     // 설정된 소셜 provider 의 전략만 등록한다(키가 없으면 전략을 만들지 않는다 → 서버는 그대로 뜬다).
-    const strategyProviders: Provider[] = [];
-    if (config.oauth.google) strategyProviders.push(GoogleStrategy);
-    if (config.oauth.naver) strategyProviders.push(NaverStrategy);
-    if (config.oauth.kakao) strategyProviders.push(KakaoStrategy);
-    if (config.oauth.line) strategyProviders.push(LineStrategy);
+    /*
+      **소셜 전략을 여기서 등록하지 않는다.** 자격증명이 DB(env_setting)에 있어 부팅 때
+      확정할 수 없다 — SocialStrategyFactory 가 요청마다 만든다. 그래서 "설정된 provider 만
+      등록" 하던 조건 분기도 사라졌고, 키를 화면에서 바꾸면 재시작 없이 반영된다.
+    */
 
     return {
       module: AuthModule,
@@ -153,7 +150,7 @@ export class AuthModule {
         SocialTicketService,
         SocialService,
         SocialAuthGuard,
-        ...strategyProviders,
+        SocialStrategyFactory,
         // 앱(개발자 플랫폼)
         AppRepository,
         AppService,
@@ -184,8 +181,10 @@ export class AuthModule {
         SocialAuthGuard,
         SocialTicketService,
         // SocialAuthGuard(passport)는 @UseGuards 로 AppModule 컨트롤러에서 생성되므로
-        // 그 의존(AUTH_CONFIG·SocialTicketService·AccessCache)이 모두 export 돼 있어야 한다.
+        // 그 의존이 모두 export 돼 있어야 한다
+        // (AUTH_CONFIG·SocialTicketService·AccessCache·SocialStrategyFactory).
         AccessCache,
+        SocialStrategyFactory,
         AppService,
         LlmKeyService,
         ApiAccessService,
