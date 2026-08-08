@@ -97,3 +97,11 @@ export type { DbConfig } from './db.config';
   자세한 판단은 data.module.ts 주석 참고.
 */
 export { SettingReadRepository } from './setting.repository';
+
+/*
+  서버 LLM 키(env_llm_key). app_llm_key 와 짝이고, 설정이 아니라 관리 대상 목록이다 —
+  **읽기 전용이다.** 쓰기는 관리자 계층이 따로 갖는다.
+*/
+export { EnvLlmKeyReadRepository } from './env-llm-key.repository';
+export type { EnvLlmKey } from '../generated/main';
+export { EnvLlmKeyStatus, LlmKeyType } from '../generated/main';

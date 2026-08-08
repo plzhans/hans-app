@@ -17,6 +17,7 @@ import { HealthController } from './health/health.controller';
 import { UserController } from './user/user.controller';
 import { AppController } from './apps/app.controller';
 import { SettingController } from './setting/setting.controller';
+import { EnvLlmKeyController } from './llm/env-llm-key.controller';
 
 @Module({})
 export class AppModule {
@@ -52,6 +53,7 @@ export class AppModule {
         UserController,
         AppController,
         SettingController,
+        EnvLlmKeyController,
       ],
       providers: [
         // 폭주 요청을 인증 처리 전에 값싸게 쳐내려면 이쪽이 먼저다.

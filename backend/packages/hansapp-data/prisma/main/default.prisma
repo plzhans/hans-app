@@ -1725,3 +1725,88 @@ model EnvSetting {
 
   @@map("env_setting")
 }
+
+/// 우리 서버가 LLM 을 부를 때 쓰는 키. **app_llm_key 와 짝이다** —
+/// 그쪽은 앱이 제 키로 부르는 자리, 이쪽은 우리가 제 예산으로 부르는 자리다.
+/// provider·name·secret 의 모양을 일부러 맞춰 뒀다.
+///
+/// **설정(env_setting)이 아니라 관리 대상 목록이다.** 카탈로그가 키를 소유하는 설정과 달리
+/// 행이 늘고 준다 — LOCAL 은 여러 대를 붙일 수 있다. 화면도 앱 클라이언트처럼 목록 + 모달이다.
+model EnvLlmKey {
+  id Int @id @default(autoincrement())
+
+  /// 어느 업체 키인가. 이 값이 SDK 어댑터를 고른다.
+  provider LlmProvider
+
+  /// **provider 안에서의 신원.** 호스팅 업체는 하나뿐이라 늘 빈 문자열이고,
+  /// LOCAL 은 여러 대를 붙일 수 있어 사람이 붙인 이름이 들어간다(`사무실 ollama`).
+  ///
+  /// 이 컬럼이 "앤트로픽·OpenAI 는 하나, Ollama 는 여러 개" 를 DB 수준에서 강제하는 장치다 —
+  /// @@unique([provider, name]) 에서 호스팅 업체는 이름이 늘 같으므로(빈 문자열) 두 번째 행이
+  /// 들어가지 못하고, LOCAL 은 이름이 다르면 얼마든지 들어간다.
+  /// MySQL 에는 조건부 유니크 인덱스가 없어 이 방식으로 표현한다. (app_llm_key 와 같은 수법)
+  name String @default("") @db.VarChar(50)
+
+  /// 이 값을 **어떻게 실어 보내는가.** 업체가 헤더를 다르게 받는다:
+  ///   API_KEY     `x-api-key: <값>`
+  ///   AUTH_TOKEN  `Authorization: Bearer <값>` + `anthropic-beta: oauth-2025-04-20`
+  ///
+  /// **값을 보고 추측하지 않는다.** 접두사(`sk-ant-api03-` / `sk-ant-oat01-`)로 가를 수는
+  /// 있지만, 업체가 형식을 바꾸는 날 조용히 깨진다. 넣은 사람이 골라 적어 둔다.
+  ///
+  /// AUTH_TOKEN 은 개인 구독 토큰이라 **ANTHROPIC 에서만 고를 수 있다**(서비스가 검사한다).
+  keyType LlmKeyType @default(API_KEY) @map("key_type")
+
+  /// 서버 키(appSecretEncryption)로 잠근 값. **해시가 아니다** — 업체를 부르려면 원문이 필요하다.
+  /// `v{버전}:{iv}:{tag}:{암호문}` 한 문자열이다(app_llm_key 와 같은 형식).
+  ///
+  /// **LOCAL 은 비어 있을 수 있다.** 사내에 띄운 Ollama 는 대개 인증이 없다.
+  secretEncrypted String? @map("secret_encrypted") @db.VarChar(512)
+
+  /// 표시용 뒤 4자. 업체 콘솔의 키 목록과 대조할 유일한 단서다.
+  /// **목록 한 번 그리자고 전 행을 복호화하지 않으려고** 따로 둔다.
+  secretSuffix String? @map("secret_suffix") @db.VarChar(8)
+
+  /// 스킴+호스트까지의 엔드포인트. 비우면 업체 기본 주소를 쓴다.
+  ///  - 호스팅 업체: 비워 두는 것이 보통. 프록시·게이트웨이를 끼울 때만 채운다.
+  ///  - LOCAL: **사실상 필수다.** 어느 기계인지가 이 값으로만 갈린다.
+  baseUrl String? @map("base_url") @db.VarChar(200)
+
+  /// 이 키로 부를 모델. **날짜 없는 별칭**을 쓴다 — 스냅샷 ID 는 은퇴한다.
+  defaultModel String? @map("default_model") @db.VarChar(100)
+
+  /// **이 키로 부를 수 있는 모델들**(쉼표 나열). 비우면 defaultModel 하나뿐이다.
+  ///
+  /// 잠금 목록이 아니라 허용 목록인 이유는 **업체가 모델을 새로 낼 때** 있다. 잠금 방식이면
+  /// 새 모델이 아무 장치 없이 부를 수 있는 상태로 나타나는데, 모델이 곧 단가라 그건 예산이
+  /// 새는 자리가 된다. 목록에 없으면 못 쓴다.
+  allowedModels String? @map("allowed_models") @db.VarChar(500)
+
+  /// 지정되지 않은 호출이 쓸 키. **전체에서 하나만 true 다**(서비스가 보장한다).
+  isDefault Boolean @default(false) @map("is_default")
+
+  status EnvLlmKeyStatus @default(ACTIVE)
+
+  /// 마지막으로 바꾼 관리자. 계정이 지워져도 기록은 남아야 해서 FK 를 걸지 않는다.
+  updatedBy Int? @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, name])
+  @@index([isDefault])
+  @@map("env_llm_key")
+}
+
+/// 자격증명을 어떻게 실어 보내는가.
+enum LlmKeyType {
+  /// `x-api-key`. 서비스용 정식 키다.
+  API_KEY
+  /// `Authorization: Bearer` + oauth 베타 헤더. **개인 구독 토큰이라 ANTHROPIC 전용이다.**
+  AUTH_TOKEN
+}
+
+enum EnvLlmKeyStatus {
+  ACTIVE
+  DISABLED
+}

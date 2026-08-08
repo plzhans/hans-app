@@ -322,38 +322,14 @@ apps-batch:
 appSecretEncryption:
   v1: ${APP_SECRET_ENCRYPTION_KEY_V1}
 
+# LLM. **대부분 DB(env_setting)에 있다** — 관리자 → 설정 → AI.
+# 여기 남는 둘은 성격이 다르다:
+#   promptDir        배포마다 다른 파일 경로다. DB 에 넣으면 서버마다 달라야 하는 값이 하나가 된다.
+#   answerSigningKey 서명 키라 설정이 아니라 서버의 신원에 가깝다. 바꾸면 진행 중인 대화가 끊긴다.
 llm:
-  # anthropic | openai | local. local 은 OpenAI 호환 엔드포인트(ollama·vLLM·LM Studio).
-  defaultProvider: anthropic
-  timeoutSec: 30
-  # 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
-  maxTokens: 2048
   # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
   promptDir: data/healthcare/svc-prompts
-  # 질문 끝의 `/test` 를 답변 모드로 받는다. **로그인이 붙기 전까지의 임시 수단**이라
-  # 켜져 있으면 누구나 유료로 팔 답변을 공짜로 받는다 — 운영은 반드시 꺼 둔다.
-  allowTestCommand: true
-  # 응답에 원시 사용량(모델 이름·토큰 내역)을 실는다. **확인용**이다.
-  # 사용자에게 파는 단위는 환산 크레딧 하나뿐이고, 어느 모델로 몇 토큰 썼는지가 드러나면
-  # 요금이 역산된다 — 화면에서 감추는 것으로는 안 감춰지므로(응답 JSON) 여기서 끊는다.
-  exposeDebugUsage: true
   # 답변 서명 키(HMAC-SHA256). **비어 있으면 답변을 문맥으로 이어받지 않는다.**
   # 화면이 돌려보내는 직전 답변은 "우리가 이렇게 답했다" 는 주장이라, 서명이 없으면
-  # 아무 문장이나 심어 모델을 유도할 수 있다. 없으면 서명도 안 붙이고 받지도 않는다.
+  # 아무 문장이나 심어 모델을 유도할 수 있다.
   answerSigningKey:
-  # 업체 이름으로 둔다(모델 이름 claude 가 아니라). openai 와 같은 층위여야 읽을 때
-  # 헷갈리지 않고, 한 업체가 모델을 여럿 내도 이 키는 그대로다.
-  anthropic:
-    apiKey: ${ANTHROPIC_API_KEY}
-    # 구독 토큰. **로컬 전용** — 개인 구독이라 사용자 트래픽을 태우면 안 된다.
-    #   claude setup-token 생성
-    # 키와 토큰이 둘 다 있으면 키가 이긴다.
-    authToken: ${ANTHROPIC_AUTH_TOKEN}
-    defaultModel: ${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}
-    # 아직 못 고르는 모델. 화면에 자물쇠와 함께 보인다 — "곧 열린다" 를 미리 알리는 목록이고,
-    # 골라도 요청에는 안 실린다. 유료가 열리면 하나씩 defaultModel 쪽으로 옮겨 온다.
-    lockedModels: [claude-opus-5]
-  openai:
-    apiKey: ${OPENAI_API_KEY}
-    # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
-    defaultModel: ${OPENAI_DEFAULT_MODEL}

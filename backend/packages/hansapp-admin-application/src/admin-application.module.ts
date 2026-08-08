@@ -12,6 +12,8 @@ import { SearchModule } from '@hansapp/search';
 import { SettingCache } from './setting/setting-cache.service';
 import { SettingAdminService } from './setting/setting-admin.service';
 import { SettingWriteRepository } from './setting/setting-write.repository';
+import { EnvLlmKeyWriteRepository } from './llm/env-llm-key-write.repository';
+import { EnvLlmKeyAdminService } from './llm/env-llm-key-admin.service';
 import { HiraCodeReadService } from './hira/hira-code-read.service';
 import { HiraCodeSeedService } from './hira/hira-code-seed.service';
 import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
@@ -133,6 +135,9 @@ export class AdminApplicationModule {
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         SettingAdminService,
+        // 서버 LLM 키(env_llm_key). 설정이 아니라 관리 대상 목록이라 CRUD 가 붙는다.
+        EnvLlmKeyWriteRepository,
+        EnvLlmKeyAdminService,
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         HiraHospitalSyncRepository,
         NmcBasicSyncRepository,
@@ -235,6 +240,10 @@ export class AdminApplicationModule {
       exports: [
         SettingCache,
         SettingAdminService,
+        EnvLlmKeyAdminService,
+        // 서버 LLM 키(env_llm_key). 설정이 아니라 관리 대상 목록이라 CRUD 가 붙는다.
+        EnvLlmKeyWriteRepository,
+        EnvLlmKeyAdminService,
         /*
           **모듈을 통째로 다시 내보낸다.** Nest 는 provider 를 전이적으로 노출하지 않아서,
           이걸 안 하면 이 모듈을 import 한 앱의 컨트롤러가 ApplicationModule 의 서비스

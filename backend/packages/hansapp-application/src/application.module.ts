@@ -9,7 +9,7 @@ import {
 } from '@hansapp/common';
 
 import { DataModule, SettingReadRepository } from '@hansapp/data';
-import { LlmModule } from '@hansapp/llm';
+import { LlmModule, LlmService, LLM_SETTINGS_SOURCE } from '@hansapp/llm';
 import {
   buildSearchConfig,
   ElasticsearchService,
@@ -17,6 +17,8 @@ import {
 } from '@hansapp/search';
 
 import { SettingCache } from './setting/setting-cache.service';
+import { LlmSettingsSource } from './llm/llm-settings.source';
+import { EnvLlmKeyCache } from './llm/env-llm-key.cache';
 import { NtsClientFactory } from './business/nts-client.factory';
 import { BusinessService } from './business/business.service';
 import { JusoClientFactory } from './address/juso-client.factory';
@@ -123,6 +125,18 @@ export class ApplicationModule {
           만든다 — 서비스키를 화면에서 바꾸면 재시작 없이 반영되고, 앞으로 앱마다 제 키를
           쓰게 될 자리도 열려 있다.
         */
+        /*
+          LLM 설정을 DB 에서 읽어 LlmService 에 대 준다. LlmModule 이 이 토큰을 요구하지만
+          구현은 주지 않는다 — 저장소가 응용 계층마다 다르기 때문이다.
+        */
+        EnvLlmKeyCache,
+        LlmSettingsSource,
+        { provide: LLM_SETTINGS_SOURCE, useExisting: LlmSettingsSource },
+        /*
+          **LlmService 를 여기서 만든다.** LlmModule 안에서 만들면 LLM_SETTINGS_SOURCE 를
+          그 스코프에서 못 찾는다 — 구현이 이 계층의 SettingCache 에 얹혀 있기 때문이다.
+        */
+        LlmService,
         NtsClientFactory,
         BusinessService,
         JusoClientFactory,
@@ -190,6 +204,7 @@ export class ApplicationModule {
       ],
       exports: [
         SettingCache,
+        LlmService,
         BusinessService,
         AddressService,
         HiraHospitalService,

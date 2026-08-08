@@ -10,7 +10,7 @@ export type SettingFieldType =
 /** 값이 있는가. 출처는 DB 하나뿐이다 — 설정 파일 폴백은 걷어냈다. */
 export type SettingSource = 'db' | 'none';
 
-export type SettingCategory = 'mail' | 'integration';
+export type SettingCategory = 'mail' | 'integration' | 'llm';
 
 export interface SettingField {
   key: string;

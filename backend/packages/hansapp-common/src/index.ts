@@ -48,6 +48,7 @@ export type { SecretBoxKeys } from './secret-box';
   이 파일에는 그 셋이 공유하는 표와 타입만 둔다 — nest 도 prisma 도 필요 없다.
 */
 export {
+  LLM_DEFAULTS,
   SETTING_GROUPS,
   SETTING_KEYS,
   findSettingField,

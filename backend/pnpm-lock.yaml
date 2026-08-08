@@ -418,6 +418,9 @@ importers:
       '@hansapp/data':
         specifier: workspace:*
         version: link:../hansapp-data
+      '@hansapp/llm':
+        specifier: workspace:*
+        version: link:../hansapp-llm
       '@hansapp/search':
         specifier: workspace:*
         version: link:../hansapp-search

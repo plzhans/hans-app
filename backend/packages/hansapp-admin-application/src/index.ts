@@ -40,6 +40,19 @@ export { HealthService } from '@hansapp/application';
 // 서비스 설정 관리. 읽기는 공용 계층이 갖고, 관리자 API 가 쓰기 엔드포인트를 연다.
 export { SettingCache } from './setting/setting-cache.service';
 export { SettingAdminService } from './setting/setting-admin.service';
+
+/* 서버 LLM 키(env_llm_key). app_llm_key 와 짝이고, 설정이 아니라 관리 대상 목록이라 CRUD 다. */
+export { EnvLlmKeyAdminService } from './llm/env-llm-key-admin.service';
+/*
+  enum 을 여기서 다시 내보낸다. 관리자 API 가 DTO 검증(@IsEnum)에 값을 써야 하는데
+  @hansapp/data 를 직접 의존시키면 HTTP 앱이 DB 계층에 붙는다 — HealthService 를
+  re-export 한 것과 같은 이유다.
+*/
+export { LlmProvider, LlmKeyType, EnvLlmKeyStatus } from '@hansapp/data';
+export type {
+  EnvLlmKeyView,
+  EnvLlmKeyInput,
+} from './llm/env-llm-key-admin.service';
 // 타입·카탈로그는 계층이 아니라 공용이다 — 관리자 API 가 DTO 를 만들 때 이걸 쓴다.
 export type {
   SettingSource,

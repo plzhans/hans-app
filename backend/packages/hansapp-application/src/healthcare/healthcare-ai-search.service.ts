@@ -7,6 +7,9 @@ import { FALLBACK_LANG, type SupportedLang } from '@hansapp/common';
 
 import {
   LLM_CONFIG,
+  LLM_SETTINGS_SOURCE,
+  type LlmSettings,
+  type LlmSettingsSource,
   LlmService,
   SvcPromptRepository,
   jsonOutput,
@@ -458,8 +461,13 @@ export class HealthcareAiSearchService {
     private readonly regions: RegionCache,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly quota: UsageQuotaService,
-    // 한도 값만 본다. 실행은 LlmService 가 하고 이쪽은 "누가 얼마나 쓸 수 있나" 만 정한다.
+    /*
+      **설정 파일에 남은 값만 본다** — 지금은 answerSigningKey 하나다. 나머지(한도·노출
+      스위치·업체)는 DB 에 있어 아래 settings 로 읽는다.
+    */
     @Inject(LLM_CONFIG) private readonly llmConfig: LlmConfig,
+    // 화면에서 바뀌는 값. 부를 때마다 읽는다(5분 캐시).
+    @Inject(LLM_SETTINGS_SOURCE) private readonly settings: LlmSettingsSource,
     private readonly usage: LlmUsageService,
   ) {}
 
@@ -588,7 +596,9 @@ export class HealthcareAiSearchService {
    * 표시용이라 없으면 안 보여주면 그만이고, 실제 차단은 질문할 때 fail-closed 로 걸린다.
    */
   async getQuota(caller: QuotaCaller): Promise<QuotaSnapshot> {
-    return this.readQuota(this.quotaTargets(caller));
+    return this.readQuota(
+      this.quotaTargets(caller, await this.settings.load()),
+    );
   }
 
   /**
@@ -596,7 +606,14 @@ export class HealthcareAiSearchService {
    *
    * **여기서 나오는 것은 "보여줄 통" 전부다.** 실제로 깎는 것은 그중 일부다(chargeTargets).
    */
-  private quotaTargets(caller: QuotaCaller): QuotaTarget[] {
+  private quotaTargets(
+    caller: QuotaCaller,
+    /*
+      **한도를 인자로 받는다.** DB 에서 읽어야 해서 비동기인데, 이 메서드를 async 로 바꾸면
+      부르는 쪽이 줄줄이 async 가 된다 — 값을 먼저 읽어 넘기는 편이 번짐이 적다.
+    */
+    limits: LlmSettings,
+  ): QuotaTarget[] {
     const targets: QuotaTarget[] = [
       {
         owner: 'app',
@@ -604,8 +621,8 @@ export class HealthcareAiSearchService {
         // 부르는 경로가 달라도 몫은 하나다.
         scope: `ai-search:app:${caller.appId ?? 'unknown'}`,
         buckets: [
-          { window: 'day', limit: this.llmConfig.appDailyTokens },
-          { window: 'month', limit: this.llmConfig.appMonthlyTokens },
+          { window: 'day', limit: limits.appDailyTokens },
+          { window: 'month', limit: limits.appMonthlyTokens },
         ],
       },
     ];
@@ -613,7 +630,7 @@ export class HealthcareAiSearchService {
       targets.push({
         owner: 'user',
         scope: `ai-search:user:${caller.userId}`,
-        buckets: [{ window: 'balance', limit: this.llmConfig.userTokens }],
+        buckets: [{ window: 'balance', limit: limits.userTokens }],
       });
     }
     return targets;
@@ -775,6 +792,8 @@ export class HealthcareAiSearchService {
       history?: AiSearchHistoryTurn[];
     } = {},
   ): Promise<AiSearchResult> {
+    // 한 번 읽어 아래 전부가 같은 값을 본다 — 중간에 갱신되면 판단이 갈린다.
+    const settings = await this.settings.load();
     // 맨 처음에 잡는다 — 즉답으로 끝나는 경로(preReject)도 걸린 시간을 남겨야 한다.
     const startedAt = Date.now();
     const lang = caller.lang ?? FALLBACK_LANG;
@@ -789,7 +808,7 @@ export class HealthcareAiSearchService {
         user  사용자가 충전해 자기 것을 쓰는 자리다. 언제 얼마나 쓸지는 그 사람이 정할
               일이라 **나눌 이유가 없다** — 잔액 하나뿐이고 리셋도 없다.
     */
-    const targets = this.quotaTargets(caller);
+    const targets = this.quotaTargets(caller, settings);
     /** 아무 답도 안 준 경로(사전 차단)에서 현재 사용량만 읽어 붙인다. */
     /** 아무 답도 안 준 경로(사전 차단)에서 현재 사용량만 읽어 붙인다. */
     const peekQuota = async () => (await this.readQuota(targets)).quota;
@@ -809,7 +828,7 @@ export class HealthcareAiSearchService {
     const question = asked
       ? cleaned.slice(0, -TEST_COMMAND.length).trim()
       : cleaned;
-    const answerMode = asked && this.llmConfig.allowTestCommand;
+    const answerMode = asked && settings.allowTestCommand;
 
     /*
       **부를 필요가 없는 질문은 여기서 끝낸다.** 캐시·쿼터보다도 앞이다 —
@@ -819,14 +838,15 @@ export class HealthcareAiSearchService {
       this.logger.log(
         `${tag(caller.requestId)}${PROMPT_NAME} pre-rejected (${Date.now() - startedAt}ms)`,
       );
-      return this.publish(lang, {
+      return this.publish(lang, settings, {
         tool: 'reject',
         // explain 은 비워 둔다 — 화면이 자기 문구를 쓴다(백엔드가 한국어를 쓰지 않는다).
         params: { filter: emptyFilter(), reason: 'too_vague' },
         warnings: ['too_vague'],
         explain: '',
         dropped: [],
-        provider: this.llmConfig.defaultProvider,
+        // 부른 적이 없으니 어느 접속처인지도 없다. 등록된 기본값을 적어 둔다.
+        provider: settings.endpoint?.provider ?? 'anthropic',
         // 부른 적이 없으니 답한 모델도 없다.
         model: '',
         // 외부 호출이 없었다. 쓴 것도 없다.
@@ -923,7 +943,7 @@ export class HealthcareAiSearchService {
       if (!room.allowed) {
         throw new AiSearchQuotaError(room.owner, room.window);
       }
-      return this.publish(lang, {
+      return this.publish(lang, settings, {
         ...cached,
         elapsedMs,
         quota: await this.chargeQuota(targets, cached.credits),
@@ -931,7 +951,7 @@ export class HealthcareAiSearchService {
     }
 
     // 1) 뼈대를 받는다. 업체 선택·모델 인스턴스·캐시 옵션·시스템 메시지가 채워져 온다.
-    const call = this.llm.prepare({
+    const call = await this.llm.prepare({
       system: prompt.system,
       // 캐시되는 앞부분은 그대로 두고 뒤에만 붙인다 — 두 모드가 같은 캐시를 나눠 쓴다.
       appendSystem: block?.text,
@@ -1148,7 +1168,7 @@ export class HealthcareAiSearchService {
       캐시 히트도 `llm_usage` 에 "어느 모델의 답이 재사용됐나" 를 남겨야 하는데, 담을 때
       빼 버리면 그 기록에서 모델이 사라진다. 나가면 안 되는 것은 응답이지 캐시가 아니다.
     */
-    return this.publish(lang, result);
+    return this.publish(lang, settings, result);
   }
 
   /**
@@ -1199,6 +1219,7 @@ export class HealthcareAiSearchService {
    */
   private publish(
     lang: SupportedLang,
+    settings: LlmSettings,
     result: Omit<AiSearchResult, 'conditions'>,
   ): AiSearchResult {
     /*
@@ -1210,7 +1231,7 @@ export class HealthcareAiSearchService {
       conditions: this.conditionsOf(result.params.filter, lang),
       answerSignature: this.signAnswer(result.params.answer),
     };
-    if (this.llmConfig.exposeDebugUsage) {
+    if (settings.exposeDebugUsage) {
       return withNames;
     }
     // 키를 통째로 없앤다 — undefined 로 두면 직렬화에서 빠지긴 하지만, 남겨 둘 이유가 없다.

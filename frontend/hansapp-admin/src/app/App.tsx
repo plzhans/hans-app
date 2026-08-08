@@ -11,6 +11,7 @@ import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
 import MailSettings from '@/features/settings/pages/MailSettings';
 import IntegrationSettings from '@/features/settings/pages/IntegrationSettings';
+import LlmSettings from '@/features/settings/pages/LlmSettings';
 
 function FullScreenMessage({ children }: { children: string }) {
   return (
@@ -110,6 +111,7 @@ export default function App() {
             path="/settings/integrations"
             element={<IntegrationSettings />}
           />
+          <Route path="/settings/llm" element={<LlmSettings />} />
           <Route path="/me" element={<Me />} />
           {/* 강제 변경 때와 같은 화면이다. 어느 쪽인지는 status 를 보고 스스로 정한다. */}
           <Route path="/password" element={<ChangePassword />} />

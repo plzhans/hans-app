@@ -43,7 +43,7 @@ export interface SettingField {
 }
 
 /** 화면 메뉴를 가르는 축. 성격이 다른 것을 한 화면에 몰지 않는다. */
-export type SettingCategory = 'mail' | 'integration';
+export type SettingCategory = 'mail' | 'integration' | 'llm';
 
 /**
  * 키를 발급받는 곳.
@@ -97,6 +97,23 @@ function oauthGroup(
     ],
   };
 }
+
+/**
+ * 설정을 비워 뒀을 때 코드가 쓰는 값.
+ *
+ * **여기가 원천이다.** 읽는 쪽(LlmSettingsSource)과 화면이 같은 상수를 보게 해서, 한쪽만
+ * 고쳐 "화면엔 30 이라 적혀 있는데 실제로는 60" 이 되는 일을 막는다.
+ */
+export const LLM_DEFAULTS = {
+  timeoutSec: 30,
+  // 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
+  maxTokens: 2048,
+  // 한 번 물으면 1만 토큰 안팎이다 — 하루 200 번, 한 달 2,000 번쯤 되는 상한이다.
+  appDailyTokens: 2_000_000,
+  appMonthlyTokens: 20_000_000,
+  // 로그인이 없으니 기본은 꺼 둔다.
+  userTokens: 0,
+} as const;
 
 export const SETTING_GROUPS: readonly SettingGroup[] = [
   {
@@ -238,6 +255,70 @@ export const SETTING_GROUPS: readonly SettingGroup[] = [
     category: 'integration',
     consoles: [{ url: 'https://juso.go.kr' }],
     fields: [{ key: 'juso.serviceKey', label: 'Service Key', type: 'secret' }],
+  },
+
+  // ── AI ────────────────────────────────────────────────────────────────────
+  {
+    id: 'llm',
+    label: '동작',
+    category: 'llm',
+    fields: [
+      /*
+        **기본 업체는 여기 없다.** 접속처가 목록(llm_endpoint)이 되면서 고를 대상이 행이라
+        정적 선택지로 적을 수가 없다 — 목록 화면에서 "기본으로 지정" 으로 정한다.
+      */
+      /*
+        placeholder 로 코드 기본값을 보여 준다. 비워 두면 그 값이 쓰인다는 뜻이 입력칸 안에
+        그대로 있어서, 별도 설명 없이 읽힌다.
+      */
+      {
+        key: 'llm.timeoutSec',
+        label: '타임아웃(초)',
+        type: 'number',
+        placeholder: String(LLM_DEFAULTS.timeoutSec),
+      },
+      {
+        key: 'llm.maxTokens',
+        label: '최대 토큰',
+        type: 'number',
+        placeholder: String(LLM_DEFAULTS.maxTokens),
+      },
+      /*
+        **둘 다 운영에서는 꺼야 하는 값이다.** 화면에 나란히 둬서 한눈에 보이게 한다.
+         - allowTestCommand: 켜져 있으면 누구나 유료로 팔 답변을 공짜로 받는다
+         - exposeDebugUsage: 모델·토큰 내역이 응답에 실려 요금이 역산된다
+      */
+      {
+        key: 'llm.allowTestCommand',
+        label: '/test 허용',
+        type: 'boolean',
+        section: '노출',
+        help: '질문 끝의 /test 를 답변 모드로 받는다. 운영은 꺼 둔다.',
+      },
+      {
+        key: 'llm.exposeDebugUsage',
+        label: '사용량 노출',
+        type: 'boolean',
+        section: '노출',
+        help: '응답에 모델·토큰 내역을 싣는다. 켜면 요금을 역산할 수 있다.',
+      },
+    ],
+  },
+  {
+    id: 'llm-quota',
+    label: '사용량 한도',
+    category: 'llm',
+    help: '토큰 단위. 앱은 일·월 두 통, 사용자는 잔액 한 통으로 센다.',
+    fields: [
+      { key: 'llm.appDailyTokens', label: '앱 일일', type: 'number' },
+      { key: 'llm.appMonthlyTokens', label: '앱 월간', type: 'number' },
+      {
+        key: 'llm.userTokens',
+        label: '사용자 잔액',
+        type: 'number',
+        help: '0 이면 사용자별 한도를 적용하지 않는다.',
+      },
+    ],
   },
 ];
 

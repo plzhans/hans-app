@@ -1,4 +1,4 @@
-import { Boxes, Mail, Plug, Users, type LucideIcon } from 'lucide-react';
+import { Boxes, Mail, Plug, Sparkles, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -34,6 +34,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/settings/mail', label: '메일', icon: Mail },
       { to: '/settings/integrations', label: '외부 연동', icon: Plug },
+      { to: '/settings/llm', label: 'LLM', icon: Sparkles },
     ],
   },
 ];
