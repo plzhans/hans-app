@@ -21,29 +21,19 @@ export interface OtpConfig {
   readonly resendCooldownSec: number;
   /** 같은 이메일로 1시간 동안 보낼 수 있는 최대 통수. 초과하면 발송을 거부한다. 기본 5 */
   readonly maxSendsPerHour: number;
-  /**
-   * 이메일·코드를 DB 에 저장할 때 HMAC 에 쓰는 pepper(서버 시크릿).
-   * 미설정이면 AUTH_JWT_SECRET 을 재사용한다(별도 시크릿을 강제하지 않되, 평문 hash 는 피한다).
-   */
+  /** 이메일·코드를 DB 에 저장할 때 HMAC 에 쓰는 pepper. `auth.jwt.secret` 을 그대로 쓴다. */
   readonly hashSecret: string;
 }
 
 /** EnvSource 에서 OTP 정책을 뽑는다. 전부 기본값이 있어 미설정이어도 동작한다. */
 export function buildOtpConfig(source: ConfigSource): OtpConfig {
-  // 정책 값(비밀 아님)은 getX 로 — config/config.<환경>.yaml 또는 환경변수.
-  // hashSecret 만 시크릿이라 .env 로 두고 기존 방식 유지(없으면 AUTH_JWT_SECRET 재사용).
   return Object.freeze({
-    codeLength: source.getNumberOrDefault('auth.otp.codeLength', 6),
-    ttlSec: source.getNumberOrDefault('auth.otp.ttlSec', 600),
-    maxAttempts: source.getNumberOrDefault('auth.otp.maxAttempts', 5),
-    resendCooldownSec: source.getNumberOrDefault(
-      'auth.otp.resendCooldownSec',
-      60,
-    ),
-    maxSendsPerHour: source.getNumberOrDefault('auth.otp.maxSendsPerHour', 5),
-    hashSecret:
-      source.getStringOrDefault('auth.otp.hashSecret') ||
-      source.getString('auth.jwt.secret'),
+    codeLength: source.getNumberOrDefault('auth.otp.codeLength'),
+    ttlSec: source.getNumberOrDefault('auth.otp.ttlSec'),
+    maxAttempts: source.getNumberOrDefault('auth.otp.maxAttempts'),
+    resendCooldownSec: source.getNumberOrDefault('auth.otp.resendCooldownSec'),
+    maxSendsPerHour: source.getNumberOrDefault('auth.otp.maxSendsPerHour'),
+    hashSecret: source.getString('auth.jwt.secret'),
   });
 }
 
@@ -83,9 +73,9 @@ export function buildMailConfig(source: ConfigSource): MailConfig {
   return Object.freeze({
     // **설정 파일에만 있다.** DB 로 옮기면 화면에서 끌 수 있게 되는데, 그러면 "이 서버에서만
     // 막는다" 는 뜻 자체가 사라진다(모든 서버가 같은 DB 를 본다).
-    forceDisabled: source.getBoolOrDefault('mail.forceDisabled', false),
+    forceDisabled: source.getBoolOrDefault('mail.forceDisabled'),
     // 메일 전용이 아니라 서비스 공통 값(appName·appPublicUrl)이다 — 메일은 참조만 한다.
-    appName: source.getStringOrDefault('apps-api.name', 'HansApp'),
+    appName: source.getStringOrDefault('apps-api.name'),
     appUrl: source.getStringOrDefault(
       'apps-api.externalUrl',
       'https://plzhans.com',

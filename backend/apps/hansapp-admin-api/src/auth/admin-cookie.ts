@@ -53,7 +53,7 @@ function resolveCookiePrefix(cfg: ConfigSource, env: string): string {
 
 /** 부팅 시점에 설정을 한 번 읽어 고정한다(main 부트스트랩에서 호출). */
 export function initAdminCookie(cfg: ConfigSource, env: string): void {
-  secure = cfg.getBoolOrDefault('auth.cookieSecure', false);
+  secure = cfg.getBoolOrDefault('auth.cookieSecure');
   clientIpHeader =
     cfg.getStringOrDefault('apps-admin-api.proxy.clientIpHeader') || undefined;
 

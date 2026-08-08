@@ -167,7 +167,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpErrorFilter());
 
   /*
-    Swagger. **기본값이 "production 에서는 끈다" 이다.**
+    Swagger. **기본은 꺼짐이고, 열 환경이 yaml 에 명시로 켠다**(config-defaults.ts).
 
     hansapp-api 가 운영에서도 문서를 여는 것은 외부 개발자가 스펙을 소비하기 때문이고, 그래서
     IP 화이트리스트가 필요했다. 관리자 API 는 외부 소비자가 없다 — 열어 둘 이유가 없으니
@@ -175,7 +175,6 @@ async function bootstrap() {
   */
   const swaggerEnabled = appConfig.getBoolOrDefault(
     'apps-admin-api.swagger.enabled',
-    appConfig.env !== 'production',
   );
   if (swaggerEnabled) {
     const document = buildOpenApiDocument(app);
@@ -199,7 +198,7 @@ async function bootstrap() {
   await verifyInfrastructure(app, logger);
 
   // 기본 포트가 3001 인 이유는 3000 을 hansapp-api 가 쓰기 때문이다(로컬에서 같이 띄운다).
-  const port = appConfig.getNumberOrDefault('apps-admin-api.web.port', 3001);
+  const port = appConfig.getNumberOrDefault('apps-admin-api.web.port');
   await app.listen(port);
 
   const baseUrl = `${httpsOptions ? 'https' : 'http'}://127.0.0.1:${port}`;

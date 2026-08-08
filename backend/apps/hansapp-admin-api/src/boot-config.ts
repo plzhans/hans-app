@@ -3,6 +3,7 @@ import {
   createConfigSource,
   exitIfVersionFlag,
   loadBuildInfo,
+  requireSettings,
   resolveAppEnv,
 } from '@hansapp/common';
 import type { BuildInfo, ConfigSource } from '@hansapp/common';
@@ -32,7 +33,7 @@ process.env.APP_ENV = appEnv;
 /** 이 산출물의 신원(버전·커밋). Sentry release/태그로 올린다. */
 export const buildInfo: BuildInfo = loadBuildInfo(__dirname);
 
-// 설정 접근자. 계층형 .env 위에 config/config.<환경>.yaml 을 얹은 ConfigSource 다.
+// 설정 접근자. 계층형 .env 위에 config/config.yaml + config.<환경>.yaml 을 얹은 ConfigSource 다.
 // **설정 파일은 hansapp-api 와 같은 것을 읽는다** — DB·Redis 접속정보를 앱마다 중복시키지 않는다.
 // 이 앱만의 값은 최상위 키 `apps-admin-api`·`admin` 아래에 있다.
 export const appConfig: ConfigSource = createConfigSource(
@@ -40,3 +41,10 @@ export const appConfig: ConfigSource = createConfigSource(
   appEnv,
   config,
 );
+
+/*
+  없으면 뜨면 안 되는 값. **DI 가 만들다 터지기 전에 여기서 먼저 막는다.**
+
+  admin.jwt.secret  관리자 토큰 서명키. auth.jwt.secret 과 달라야 한다(같으면 별도로 거부한다).
+*/
+requireSettings(appConfig, ['admin.jwt.secret']);

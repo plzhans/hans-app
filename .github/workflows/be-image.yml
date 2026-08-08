@@ -6,8 +6,9 @@
 #   workflow_dispatch  → 환경을 골라서 굽고 민다
 #   workflow_call      → 나중에 release.yml 이 검증용으로 부를 수 있다
 #
-# 이미지는 **환경에 무관하다.** APP_ENV 를 런타임에 읽어 config/config.<환경>.yaml 을
-# 고르기 때문이다(프론트와 정반대 — 그쪽은 VITE_* 가 빌드에 구워져 환경마다 산출물이 다르다).
+# 이미지는 **환경에 무관하다.** APP_ENV 를 런타임에 읽어 config/config.yaml 위에
+# config.<환경>.yaml 을 겹쳐 읽기 때문이다(프론트와 정반대 — 그쪽은 VITE_* 가 빌드에
+# 구워져 환경마다 산출물이 다르다).
 # 그래도 태그를 환경별로 나누는 이유는 "지금 develop 에 뭐가 떠 있나" 를 태그로 답하기
 # 위해서다. 같은 커밋이면 두 태그가 같은 이미지를 가리켜도 된다.
 name: be - docker image

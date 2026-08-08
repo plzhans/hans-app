@@ -1,258 +1,38 @@
-# hansapp production 환경 설정.
-# yaml=구조·기본값. 모든 값은 경로를 편 이름의 환경변수가 덮는다(auth.jwt.secret → AUTH_JWT_SECRET).
-# `${VAR}` 는 이름이 그 규칙과 다를 때만 쓴다. 자세한 규칙·주석은 config.develop.yaml.
-# **자기완결적** — 공통 base 없이 이 파일 하나가 production 설정 전부다.
-
-# ── DB (Prisma) ───────────────────────────────────────────────────────────────
-# Prisma migrate 는 스키마의 env("...") 로 env 를 직접 읽는다(yaml 아님) — 이름 바꾸면 스키마도 같이.
-database:
-  url:
-  logUrl:
-  shadowUrl:
-
-redis:
-  url:
-
-elasticsearch:
-  url:
-  indexPrefix: production
-
-# 서버 기동·종료 슬랙 알림. 비면 알림만 꺼지고 서버는 정상으로 뜬다.
-# botToken 이 있어야 종료 알림이 시작 알림의 스레드에 달린다(자세한 설명은 config.develop.yaml).
-slack:
-  botToken:
-  channel:
-  webhookUrl:
-  # 이 프로세스를 띄운 배포가 만든 슬랙 스레드의 ts. 있으면 기동 알림이 그 스레드에 붙는다.
-  # **배포가 docker compose up 할 때만 넣는다** — .env 에는 없고, 값이 낡으면 앱이 무시한다.
-  deployThreadTimestamp:
-
-# API 접근(서비스키·클라이언트) 2단 캐시 TTL.
-cache:
-  memoryMaxEntries: 10000
-  memoryTtlSec: 300
-  sharedTtlSec: 600
+# production 에서 config.yaml 과 달라지는 값만.
 
 auth:
-  # 운영 서비스 루트 도메인(앞 점 없이). SSO 쿠키 Domain + 1st-party 판단이 여기서 파생.
-  # 소셜 로그인 흐름(state·흐름 쿠키)의 유효시간(초). **둘이 같은 값을 쓴다.**
-  # provider 화면에서 계정을 고르고 동의하는 시간이라 너무 짧으면 정상 로그인이 실패한다.
-  socialFlowTtlSec: 600
-  # 쿠키에 Secure 를 붙일지. HTTPS 로 서비스하면 켠다.
-  #
-  # **sameSite 와는 별개다** — 그쪽은 lax 로 고정돼 있다(refresh-cookie.ts).
-  # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
-  # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
-  cookieSecure: true
-  # 쿠키 이름 접두사. **환경마다 달라야 한다.**
-  # develop-auth·api 는 develop.plzhans.com 의 서브도메인이 아니라 plzhans.com 의 형제라,
-  # 쿠키 도메인을 양쪽 다 plzhans.com 까지 올려야 한다. 이름까지 같으면 한 환경에서
-  # 로그인할 때마다 다른 환경의 세션 토큰을 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
-  cookiePrefix:
-  rootDomain: plzhans.com
-  # bcrypt 비용 계수. 저사양이면 10.
-  bcryptRounds: 10
-  # OAuth2 authorization_endpoint = 프론트(hans-auth) 로그인 URL. discovery 에 실린다.
-  # 인증웹(fe/hans-auth) 외부 주소. 자사 로그인 착지점(/me·/callback)과 discovery 의
-  # authorization_endpoint(/login)가 모두 여기서 파생된다.
   externalUrl: https://auth.plzhans.com
-  # 탈퇴 후 재가입 제한 보존일.
-  withdrawalRetentionDays: 30
   jwt:
-    # access token 발급자(iss).
     issuer: https://api.plzhans.com
-    # 받아들일 iss 허용목록. 자기 issuer 는 코드가 자동 포함한다.
     allowedIssuers:
       - https://api.plzhans.com
-    # 대칭 서명 비밀키(시크릿).
-    secret:
-    # access token 비대칭(ES256) 키 디렉터리. 없으면 HS256(secret) 폴백.
-    keyDir:
-    # 만료 3종. 기본값은 코드(auth.config.ts)에 있다 — 운영만 다르게 갈 때 살린다.
-    #accessTokenExpiresIn: 1h
-    #refreshTokenExpiresIn: 7d
-    #authCodeExpiresIn: 5m
-  otp:
-    codeLength: 6
-    ttlSec: 600
-    maxAttempts: 5
-    resendCooldownSec: 60
-    maxSendsPerHour: 5
-    # 코드 해시 pepper(시크릿).
-    hashSecret: ${AUTH_JWT_SECRET}
 
 apps-api:
   name: hansapp
-  # 이 서비스의 외부 주소(포털웹). 메일 템플릿의 링크 base 로 쓴다.
   externalUrl: https://plzhans.com
   web:
-    # HTTP 리슨 포트. 컨테이너가 APPS_API_WEB_PORT 로 덮을 수 있다.
-    port: 3000
-    # 대외 공개 URL(메일 템플릿 {{appUrl}} 등).
-    # nginx 의 ssl_certificate / ssl_certificate_key 와 같은 이름·같은 역할이다.
-    # **둘 다 있으면 HTTPS 로, 둘 다 비면 HTTP 로 뜬다.** 한쪽만 있으면 부팅을 거부한다
-    # — 조용히 HTTP 로 떨어지면 평문으로 서비스가 열린다.
-    #
-    # 앞단이 TLS 를 끝내는 구성(nginx·cloudflared tunnel·LB)으로 갈아탈 때는 두 줄을
-    # 비우면 되고 코드는 안 바뀐다. 인프라 교체가 설정 두 줄인 셈이다.
-    #
-    # 발급: backend/ssl-issue.sh <환경> <호스트명>  (Cloudflare Origin CA, 15년)
-    # 배포: .enc 로 커밋되고 ci-deploy.sh 가 풀어 서버에 놓는다 — jwt 키와 같은 경로.
-    # Cloudflare Origin CA 로 발급한 api.plzhans.com 인증서(2041-07 만료).
-    # 경로가 상대경로인 이유: 컨테이너 WORKDIR 이 /app 이고 compose 가 config/production 을
-    # 그 아래로 마운트한다. 로컬에서 돌릴 때도 backend/ 기준이라 같은 경로가 맞는다.
     sslCertificate: ${SSL_CERTIFICATE:config/production/ssl/fullchain.pem}
     sslCertificateKey: ${SSL_CERTIFICATE_KEY:config/production/ssl/privkey.pem}
   proxy:
-    # **토폴로지 확정**: Cloudflare 가 바로 앞이고 그 사이에 다른 프록시가 없다. 홉이 하나라 1.
-    # 위조 XFF 로 IP 한도를 우회하는 것을 막으려면 이 값이 실제 홉 수보다 크면 안 된다.
-    trust: ${TRUST_PROXY:1}
-    # Cloudflare 가 붙이는 진짜 클라이언트 IP. 이걸 안 쓰면 접속 IP 가 전부 CF 로 찍혀
-    # rate limit 과 접근 로그가 무의미해진다.
-    clientIpHeader: ${CLIENT_IP_HEADER:cf-connecting-ip}
-  # API 문서(/docs, /openapi.json) 노출.
-  #
-  # **운영도 켠다.** 대신 env_swagger_allowed_ip 에 등록된 IP 에서만 보인다 — 그 외에는 403.
-  # 판정에 쓰는 IP 는 위 clientIpHeader(cf-connecting-ip)에서 뽑는다.
-  #
-  # ⚠️ 이 설정만으로는 안전하지 않다. 오리진(443)이 직접 노출돼 있으면 공격자가 Cloudflare 를
-  # 우회해 그 헤더를 위조할 수 있다. 방화벽에서 Cloudflare 대역만 받도록 잠가야 전제가 성립한다.
-  #
-  # 목록이 비어 있으면 아무도 못 본다(fail-closed). 켠 직후 최소 한 건은 넣어야 한다.
+    trust: 1
+    clientIpHeader: cf-connecting-ip
   swagger:
-    enabled: ${SWAGGER_ENABLED:true}
-    ipRestricted: ${SWAGGER_IP_RESTRICTED:true}
-  # 에러 추적(Sentry). DSN 은 비밀이 아니라 리터럴로 고정한다(전송 전용 공개 엔드포인트).
-  # environment·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts. 비우면 Sentry 를 끈다.
+    enabled: true
   sentry:
-    # 끄개. dsn 을 비워도(SENTRY_DSN 이 아니라 <섹션>_SENTRY_DSN=) 꺼지지만, 그러면 어느
-    # 프로젝트였는지가 설정에서 사라진다. **apps-api 와 apps-batch 가 이 한 이름을 나눠 쓴다** —
-    # 한 번에 둘 다 끄려는 것이다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:true}
-    dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
-    # 성능 트레이스 표본 비율. 운영은 요청량이 많아 10% 만 샘플링한다(쿼터·오버헤드).
-    tracesSampleRate: 0.1
+    enabled: true
 
-# 관리자 인증. 공개 API(auth.*)와 계정도 세션도 시크릿도 갈라져 있다.
-#
-# **ADMIN_JWT_SECRET 은 AUTH_JWT_SECRET 과 반드시 달라야 한다.** 같으면 hansapp-api 가 발급한
-# access token 이 관리자 API 의 서명 검증을 통과해, 일반 회원 토큰으로 관리자 API 를 부를 수 있다.
-# 부팅 때 두 값을 비교해 같으면 뜨지 않는다 — 설정 실수로 조용히 뚫리는 쪽을 막는다.
 admin:
   jwt:
     issuer: https://admin.plzhans.com
-    secret: ${ADMIN_JWT_SECRET}
-    # accessTokenExpiresIn(5m) / refreshTokenExpiresIn(8h) 기본값은 코드가 원천이다.
-
-  # 첫 관리자 계정 자동 생성. **운영에는 두지 않는다.**
-  #
-  # 켜 봐야 동작하지 않는다 — AdminBootstrapService 가 환경을 보고 거부한다. 설정으로 열 수
-  # 있게 두면 환경변수 오타나 잘못 복사한 .env 하나로 운영에 관리자 계정이 생기는 길이 열린다.
-  # 운영 관리자 계정은 `hansapp-cli admin create <email>` 로만 만든다.
-  #
-  #   bootstrap:
-  #     enabled: false
 
 apps-admin-api:
-  name: hansapp-admin-api
   externalUrl: https://admin.plzhans.com
-  web:
-    # **3001 이다(3000 아님).** 관리자 API 의 전용 포트를 환경마다 다르게 두면
-    # 로컬에서 develop 설정으로 띄웠을 때 hansapp-api(3000)와 부딪힌다.
-    # 컨테이너 안에서는 혼자 떠서 아무 값이나 되지만, compose 의 포트 매핑을
-    # `<호스트>:3001` 로 맞춰야 한다.
-    port: 3001
-    # ⚠️ **아직 비어 있다 → 컨테이너 안에서 HTTP 로 뜬다.**
-    # 관리자용 Origin CA 인증서(admin.plzhans.com)를 발급해 config/production 아래에 두고
-    # 이 두 줄을 채우는 것은 배포 배선 단계에서 한다 — 지금은 배포 대상이 아니다.
-    # 그 전에는 compose 에 이 서비스를 올리지 않는다(평문으로 열리는 것보다 안 뜨는 게 낫다).
-    # 발급: backend/ssl-issue.sh production admin.plzhans.com
-    sslCertificate: ${ADMIN_SSL_CERTIFICATE:}
-    sslCertificateKey: ${ADMIN_SSL_CERTIFICATE_KEY:}
   proxy:
-    trust: ${TRUST_PROXY:1}
-    clientIpHeader: ${CLIENT_IP_HEADER:cf-connecting-ip}
-  # 관리자 SPA 는 같은 오리진에서 뜬다 → CORS 를 켜지 않는다(비우면 아예 안 켠다).
-  cors:
-    origins: []
-  swagger:
-    # **운영에서는 끈다.** 공개 API 가 운영에서도 문서를 여는 건 외부 개발자가 스펙을
-    # 소비하기 때문이고, 관리자 API 는 소비자가 없다 — 열어 둘 이유가 없다.
-    enabled: ${ADMIN_SWAGGER_ENABLED:false}
+    trust: 1
+    clientIpHeader: cf-connecting-ip
   sentry:
-    enabled: ${SENTRY_ENABLED:true}
-    # **아직 프로젝트를 파지 않았다.** 비어 있으면 Sentry 를 아예 켜지 않는다(서버는 그대로 뜬다).
-    dsn: ''
-    tracesSampleRate: 0.1
+    enabled: true
 
-search:
-  # ES 정본 스키마 JSON 디렉터리. **비워서 패키지 동봉본을 쓴다**
-  # (@hansapp/search 의 elasticsearch/ — files 에 있어 배포 번들에도 실린다).
-  #
-  # 여기에 경로를 적으면 cwd 기준이다. 컨테이너의 cwd 는 /app 이고 compose 는 yaml 하나만
-  # 마운트하므로, config/schema 같은 값을 두면 정본을 못 찾아 ENOENT 로 죽는다.
-  # 서버에서 스키마만 고쳐 재적용할 일이 생기면 그때 디렉터리를 마운트하고 경로를 적는다.
-  schemaDir: ''
-  batchSize: 1000
-
-# 메일 설정(mail.*)은 여기 없다. **관리 화면에서 관리하고 DB(env_setting)에 있다.**
-# 값을 보거나 고치려면 관리자 → 설정 → 메일 발송. 여기에 다시 적으면 DB 값이 이겨서 안 먹는다.
-
-# OAuth 자격증명(google·naver·kakao·line)은 여기 없다.
-# **관리 화면에서 관리하고 DB(env_setting)에 있다.** 관리자 → 설정 → 외부 연동.
-# 전략을 요청마다 만들므로 값을 바꾸면 재시작 없이 반영된다.
-
-# 공공데이터 포털(data.go.kr). NTS 사업자등록도 이 키 공유.
-krdata:
-  serviceKey:
-  maxRetry: 3
-  readTimeoutMs: 60000
-  hiraDetailVersion:
-
-# 도로명주소(juso.go.kr).
-juso:
-  maxRetry: 3
-  readTimeoutMs: 30000
-
-# 배치 잡. **`batch:` 를 두 번 쓰면 안 된다** — YAML 중복 키는 뒤엣것이 앞엣것을 통째로 덮는다.
 apps-batch:
-  # 앱 이름. 로그·에러 보고 등에 쓰인다.
-  name: hansapp-batch
-  cron: ${BATCH_CRON:0 4 * * *}
-  maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:0}
-  # 에러 추적(Sentry). **apps-api 와 별도 프로젝트**(DSN 이 다르다) — 알림 규칙을 나눈다. 비면 끈다.
   sentry:
-    # 끄개. dsn 을 비워도(SENTRY_DSN 이 아니라 <섹션>_SENTRY_DSN=) 꺼지지만, 그러면 어느
-    # 프로젝트였는지가 설정에서 사라진다. **apps-api 와 apps-batch 가 이 한 이름을 나눠 쓴다** —
-    # 한 번에 둘 다 끄려는 것이다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:true}
-    dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
-    # 배치는 요청 트레이스가 없다. 크론 실행 트레이스가 필요해지면 올린다.
-    tracesSampleRate: 0
-
-# ── 앱 자격증명 암호화 ─────────────────────────────────────────────────────────
-# 앱이 등록한 외부 자격증명(LLM 업체 키·외부 서비스 키)을 DB 에 잠글 때 쓰는 마스터 키.
-# 32바이트 난수를 base64 로 넣는다.
-#   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-#
-# **표는 나뉘어도 자물쇠는 하나다** — app_llm_key 와 app_external_key 가 이 꾸러미를 같이 쓴다.
-# 나누면 키를 교체할 때 두 벌을 따로 돌려야 하고, 한쪽만 옮긴 채 옛 키를 지우는 사고가 열린다.
-#
-# **교체는 v2 를 더하는 것이지 v1 을 바꾸는 것이 아니다.** 새로 잠그는 값만 v2 로 가고
-# v1 로 잠긴 값은 그대로 남는다 — 다 옮기기 전에 v1 을 지우면 그 값들은 영영 못 연다.
-#
-# 비어 있으면 키 등록 기능만 꺼진다(서버는 정상 기동).
-appSecretEncryption:
-  v1: ${APP_SECRET_ENCRYPTION_KEY_V1}
-
-# LLM. **대부분 DB(env_setting)에 있다** — 관리자 → 설정 → AI.
-# 여기 남는 둘은 성격이 다르다:
-#   promptDir        배포마다 다른 파일 경로다. DB 에 넣으면 서버마다 달라야 하는 값이 하나가 된다.
-#   answerSigningKey 서명 키라 설정이 아니라 서버의 신원에 가깝다. 바꾸면 진행 중인 대화가 끊긴다.
-llm:
-  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
-  promptDir: data/healthcare/svc-prompts
-  # 답변 서명 키(HMAC-SHA256). **비어 있으면 답변을 문맥으로 이어받지 않는다.**
-  # 화면이 돌려보내는 직전 답변은 "우리가 이렇게 답했다" 는 주장이라, 서명이 없으면
-  # 아무 문장이나 심어 모델을 유도할 수 있다.
-  answerSigningKey:
+    enabled: true

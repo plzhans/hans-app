@@ -6,6 +6,7 @@ export * from './location';
 export * from './time-range';
 export * from './env';
 export * from './app-config';
+export * from './config-defaults';
 export * from './config-source';
 export * from './connection-url';
 export * from './config-summary';

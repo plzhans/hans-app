@@ -46,7 +46,7 @@ export function logConfigSummary(
     다만 **강제 차단은 찍는다.** 이건 설정 파일에만 있는 값이라 부팅에 확정되고, 켜 두면
     화면에서 아무리 켜도 메일이 안 나가서 "왜 안 오지" 를 가장 오래 헤매게 되는 자리다.
   */
-  if (cfg.getBoolOrDefault('mail.forceDisabled', false)) {
+  if (cfg.getBoolOrDefault('mail.forceDisabled')) {
     log(
       'Config Mail : ⚠️ 강제 차단(mail.forceDisabled) — DB 설정과 무관하게 안 나간다',
     );

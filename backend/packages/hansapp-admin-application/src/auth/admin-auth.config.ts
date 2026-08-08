@@ -76,26 +76,21 @@ export function buildAdminAuthConfig(source: ConfigSource): AdminAuthConfig {
     // access token 은 stateless 라 즉시 폐기가 안 된다.
     accessTokenTtlSec: source.getDurationSecOrDefault(
       'admin.jwt.accessTokenExpiresIn',
-      5 * 60,
     ),
     // 8시간. 하루 근무를 덮으므로 작업 중 재로그인이 없고, 퇴근 뒤에는 자연히 끊긴다.
     refreshTokenTtlSec: source.getDurationSecOrDefault(
       'admin.jwt.refreshTokenExpiresIn',
-      8 * 60 * 60,
     ),
-    bcryptRounds: source.getNumberOrDefault('admin.bcryptRounds', 10),
-    cookieSecure: source.getBoolOrDefault('auth.cookieSecure', false),
-    maxSessionsPerAdmin: source.getNumberOrDefault(
-      'admin.maxSessionsPerAdmin',
-      5,
-    ),
+    bcryptRounds: source.getNumberOrDefault('admin.bcryptRounds'),
+    cookieSecure: source.getBoolOrDefault('auth.cookieSecure'),
+    maxSessionsPerAdmin: source.getNumberOrDefault('admin.maxSessionsPerAdmin'),
     bootstrap: Object.freeze({
       // **기본은 꺼짐이다.** 켜는 것을 명시적으로 적게 한다 — 자동으로 계정이 생기는
       // 동작은 설정 파일만 보고도 알 수 있어야 한다.
-      enabled: source.getBoolOrDefault('admin.bootstrap.enabled', false),
+      enabled: source.getBoolOrDefault('admin.bootstrap.enabled'),
       email: source.getStringOrDefault('admin.bootstrap.email'),
       password: source.getStringOrDefault('admin.bootstrap.password'),
-      name: source.getStringOrDefault('admin.bootstrap.name') || '관리자',
+      name: source.getStringOrDefault('admin.bootstrap.name'),
     }),
   });
 }

@@ -16,16 +16,12 @@ import { appConfig, buildInfo } from './boot-config';
  * 오류는 공개 API 이슈 스트림과 섞이면 묻힌다(호출량이 두 자릿수 이상 차이난다).
  * 비어 있으면 init 자체를 하지 않는다 — 이후 captureException 등은 전부 no-op 이 된다.
  */
-const enabled = appConfig.getBoolOrDefault(
-  'apps-admin-api.sentry.enabled',
-  true,
-);
+const enabled = appConfig.getBoolOrDefault('apps-admin-api.sentry.enabled');
 const dsn = enabled
   ? appConfig.getStringOrDefault('apps-admin-api.sentry.dsn')
   : '';
 const tracesSampleRate = appConfig.getNumberOrDefault(
   'apps-admin-api.sentry.tracesSampleRate',
-  0,
 );
 
 if (dsn) {

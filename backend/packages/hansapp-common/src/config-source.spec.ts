@@ -2,7 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createConfigSource, envNameOf } from './config-source';
+import {
+  createConfigSource,
+  envNameOf,
+  requireSettings,
+} from './config-source';
 import type { ConfigSource } from './config-source';
 import { APP_ENVS } from './env';
 import type { AppEnv } from './env';
@@ -261,6 +265,29 @@ describe('yaml 병합', () => {
     expect(cfg.getString('apps-api.externalUrl')).toBe('https://base');
   });
 
+  it('config.<환경>.local.yaml 이 가장 세다', () => {
+    // .env.<환경>.local 과 같은 자리다 — 개인 오버라이드라 커밋하지 않는다(.gitignore).
+    writeConfig(
+      'config',
+      'apps-api:\n  name: base\n  externalUrl: https://base\n',
+    );
+    writeConfig('config.develop', 'apps-api:\n  name: develop\n');
+    writeConfig('config.develop.local', 'apps-api:\n  name: 내것\n');
+
+    const cfg = load();
+    expect(cfg.getString('apps-api.name')).toBe('내것');
+    // 덮지 않은 값은 아래 두 장에서 그대로 올라온다.
+    expect(cfg.getString('apps-api.externalUrl')).toBe('https://base');
+  });
+
+  it('환경변수는 config.<환경>.local.yaml 보다도 세다', () => {
+    // 오버레이(4단계)는 yaml 을 다 합친 뒤에 얹힌다 — 층이 늘어도 그 순서는 안 바뀐다.
+    writeConfig('config.develop.local', 'apps-api:\n  name: 내것\n');
+    process.env.APPS_API_NAME = 'env';
+
+    expect(load().getString('apps-api.name')).toBe('env');
+  });
+
   it('설정 파일이 하나도 없으면 부팅을 거부한다', () => {
     expect(() => load()).toThrow(/설정 파일이 없다/);
   });
@@ -318,5 +345,34 @@ describe('실제 설정 파일', () => {
     const cfg = createConfigSource(REAL_CONFIG_DIR, env, noEnvFiles);
 
     expect(cfg.env).toBe(env);
+  });
+});
+
+describe('requireSettings — 필수 설정 방어', () => {
+  it('빠진 것을 한 번에 다 알린다', () => {
+    writeConfig('config.develop', 'auth:\n  jwt:\n    secret: s\n');
+
+    expect(() =>
+      requireSettings(load(), [
+        'auth.jwt.secret',
+        'llm.answerSigningKey',
+        'appSecretEncryption.v1',
+      ]),
+    ).toThrow(/llm\.answerSigningKey[\s\S]*appSecretEncryption\.v1/);
+  });
+
+  it('빈 문자열도 없는 것으로 본다', () => {
+    // 시크릿을 빈값으로 두는 것은 끄겠다는 뜻이 아니라 실수다.
+    writeConfig('config.develop', "auth:\n  jwt:\n    secret: ''\n");
+
+    expect(() => requireSettings(load(), ['auth.jwt.secret'])).toThrow(
+      /AUTH_JWT_SECRET/,
+    );
+  });
+
+  it('다 있으면 조용히 지나간다', () => {
+    writeConfig('config.develop', 'auth:\n  jwt:\n    secret: s\n');
+
+    expect(() => requireSettings(load(), ['auth.jwt.secret'])).not.toThrow();
   });
 });

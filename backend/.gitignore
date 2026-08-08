@@ -29,6 +29,11 @@ pnpm-debug.log*
 !*.example
 !*.enc
 
+# 설정 yaml 의 개인 오버라이드. .env.<환경>.local 과 같은 자리·같은 뜻이다 —
+# 내 인증서 경로, 내가 켠 Sentry 처럼 **사람마다 다른 값**을 공유 파일에 박지 않기 위한 것.
+# 정본(config.yaml)과 환경별(config.<환경>.yaml)은 커밋한다. 배포도 그 둘만 나른다.
+config/config.*.local.yaml
+
 # JWT 서명 개인키(PEM). 평문은 절대 커밋 금지 — sops 로 암호화한 .key.enc 만 추적한다.
 # 공개키(.pub)는 공개돼도 안전해 막지 않는다(JWKS 로도 어차피 노출).
 *.key

@@ -2,7 +2,7 @@ import { createConfigSource } from '@hansapp/common';
 import type { AppEnv, ConfigSource, DotenvLoader } from '@hansapp/common';
 
 /**
- * 서버의 설정 접근자를 만든다. 계층형 .env(EnvSource) 위에 config/config.<환경>.yaml + 환경변수(__ 계층)를
+ * 서버의 설정 접근자를 만든다. 계층형 .env(EnvSource) 위에 config/config.yaml + config.<환경>.yaml + 환경변수(__ 계층)를
  * 얹어, 경로로 값을 꺼낸다. 개별 값은 `cfg.getX(path)`, 복잡한 도메인만 객체로 뽑는다.
  * ConfigSource 는 EnvSource 를 확장하므로 기존 `requireString(cfg,...)` 계층에도 그대로 넘긴다.
  *

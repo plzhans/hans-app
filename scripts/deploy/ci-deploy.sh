@@ -316,17 +316,22 @@ command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 �
       echo "  $f → ${f%.enc}"
     done
 
-  # 환경별 yaml. **비밀이 아니라 복호화 대상이 아니지만 같이 나른다** — 이미지에 굽지
-  # 않기 때문이다(이미지는 환경을 모른다). 컨테이너에서는 config/config.yaml 로 마운트된다.
+  # 설정 yaml **두 장**. 비밀이 아니라 복호화 대상은 아니지만 같이 나른다 — 이미지에 굽지
+  # 않기 때문이다(이미지는 환경을 모른다). 컨테이너에는 같은 이름 그대로 마운트되고,
+  # 앱이 config.yaml → config.$APP_ENV.yaml 순으로 겹쳐 읽는다(뒤가 이긴다).
+  #
+  # **공통 파일을 빼먹으면 안 된다.** 환경 파일에는 달라지는 값만 있어서, 혼자서는
+  # database.url 부터 없는 반쪽짜리 설정이 된다.
   #
   # 이미지에 굽지 않는 대신 배포가 나르므로, **이미지와 설정이 어긋날 수 있다.** 서버의
   # yaml 은 배포할 때마다 덮어써지니 레포가 정본이고, 서버에서 직접 고치면 다음 배포가 지운다.
-  yaml="config/config.$APP_ENV.yaml"
-  [ -f "$yaml" ] || die "$yaml 이 없다."
   mkdir -p "$work/config"
-  cp "$yaml" "$work/$yaml"
-  chmod 644 "$work/$yaml"
-  echo "  $yaml (비밀 아님)"
+  for yaml in "config/config.yaml" "config/config.$APP_ENV.yaml"; do
+    [ -f "$yaml" ] || die "$yaml 이 없다."
+    cp "$yaml" "$work/$yaml"
+    chmod 644 "$work/$yaml"
+    echo "  $yaml (비밀 아님)"
+  done
 )
 
 # ─────────────────────────────────────────────────────────────────────────────

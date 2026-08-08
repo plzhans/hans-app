@@ -170,7 +170,7 @@ export interface AuthConfig {
  * JWT_SECRET 이 없으면 부팅 시점에 즉시 실패한다.
  */
 export function buildAuthConfig(source: ConfigSource): AuthConfig {
-  // 비밀·비밀아님 모두 계산된 트리에서 경로로 읽는다. 비밀 아닌 값은 config/config.<환경>.yaml 또는
+  // 비밀·비밀아님 모두 계산된 트리에서 경로로 읽는다. 비밀 아닌 값은 config/config.yaml 또는
   // 환경변수(AUTH_ISSUER→authIssuer), 시크릿은 .env(AUTH_JWT_SECRET→authJwtSecret)에서 공급된다.
   const issuer = source.getStringOrDefault('auth.jwt.issuer') || undefined;
   // 허용 발급처 = auth.jwt.allowedIssuers(yaml 리스트) + 자기 issuer(자동 포함).
@@ -198,48 +198,32 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     // 부팅이 죽었다(환경 yaml 은 서로 상속하지 않아 세 파일에 다 적어야 했다).
     accessTokenTtlSec: source.getDurationSecOrDefault(
       'auth.jwt.accessTokenExpiresIn',
-      60 * 60, // 1h
     ),
     refreshTokenTtlSec: source.getDurationSecOrDefault(
       'auth.jwt.refreshTokenExpiresIn',
-      7 * 24 * 60 * 60, // 7d
     ),
     authCodeTtlSec: source.getDurationSecOrDefault(
       'auth.jwt.authCodeExpiresIn',
-      5 * 60, // 5m
     ),
     accessCache: Object.freeze({
-      memoryTtlSec: source.getNumberOrDefault('cache.memoryTtlSec', 5 * 60),
-      memoryMaxEntries: source.getNumberOrDefault(
-        'cache.memoryMaxEntries',
-        10_000,
-      ),
-      sharedTtlSec: source.getNumberOrDefault('cache.sharedTtlSec', 10 * 60),
+      memoryTtlSec: source.getNumberOrDefault('cache.memoryTtlSec'),
+      memoryMaxEntries: source.getNumberOrDefault('cache.memoryMaxEntries'),
+      sharedTtlSec: source.getNumberOrDefault('cache.sharedTtlSec'),
     }),
     withdrawalRetentionDays: source.getNumberOrDefault(
       'auth.withdrawalRetentionDays',
-      30,
     ),
     // 앞 점 제거·트림 후, IP·점없는 라벨(localhost 등)이면 경고 후 무시(빈값). 도메인만 통과.
     rootDomain: normalizeRootDomain(
       source.getStringOrDefault('auth.rootDomain'),
     ),
-    cookieSecure: source.getBoolOrDefault('auth.cookieSecure', false),
-    socialFlowTtlSec: source.getNumberOrDefault('auth.socialFlowTtlSec', 600),
-    bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds', 10),
-    maxSessionsPerUser: source.getNumberOrDefault(
-      'auth.maxSessionsPerUser',
-      10,
-    ),
+    cookieSecure: source.getBoolOrDefault('auth.cookieSecure'),
+    socialFlowTtlSec: source.getNumberOrDefault('auth.socialFlowTtlSec'),
+    bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds'),
+    maxSessionsPerUser: source.getNumberOrDefault('auth.maxSessionsPerUser'),
     consentVersions: Object.freeze({
-      terms: source.getStringOrDefault(
-        'auth.consent.termsVersion',
-        '2026-08-06',
-      ),
-      privacy: source.getStringOrDefault(
-        'auth.consent.privacyVersion',
-        '2026-08-06',
-      ),
+      terms: source.getStringOrDefault('auth.consent.termsVersion'),
+      privacy: source.getStringOrDefault('auth.consent.privacyVersion'),
     }),
   });
 }

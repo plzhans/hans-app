@@ -1,109 +1,37 @@
-# hansapp local 환경 설정.
-# yaml=구조·기본값. 모든 값은 경로를 편 이름의 환경변수가 덮는다(auth.jwt.secret → AUTH_JWT_SECRET).
-# `${VAR}` 는 이름이 그 규칙과 다를 때만 쓴다. 자세한 규칙·주석은 config.develop.yaml.
-
-database:
-  url:
-  logUrl:
-  shadowUrl:
-
-redis:
-  url:
+# local 에서 config.yaml 과 달라지는 값만.
 
 elasticsearch:
-  url:
-  # 인덱스 이름 접두사. 미설정이면 환경 이름(local). dev 클러스터를 같이 쓰므로
-  # 남의 인덱스를 건드리지 않으려면 자기 접두사를 준다.
+  # dev 클러스터를 같이 쓴다. 개인 접두사로 바꿔 쓸 수 있다.
   indexPrefix: local
 
-cache:
-  memoryMaxEntries: 10000
-  memoryTtlSec: 300
-  sharedTtlSec: 600
-
 auth:
+  # IP 는 쿠키 Domain 으로 못 쓴다.
   rootDomain:
-  cookiePrefix:
+  # http 로 뜬다.
+  cookieSecure: false
   externalUrl: http://127.0.0.1:5173
   jwt:
     issuer: http://127.0.0.1:3000
     allowedIssuers:
       - http://develop.plzhans.com
       - http://127.0.0.1:3000
-    secret:
-    keyDir:
 
 apps-api:
-  # 이 서비스의 외부 주소(포털웹). 메일 템플릿의 링크 base 로 쓴다.
   externalUrl: http://127.0.0.1:3000
+  swagger:
+    enabled: true
+    ipRestricted: false
 
-# 관리자 인증. 공개 API(auth.*)와 **다른 시크릿**을 쓴다 — 같으면 부팅이 거부된다.
 admin:
   jwt:
     issuer: http://127.0.0.1:3001
-    secret:
-    # accessTokenExpiresIn(5m) / refreshTokenExpiresIn(8h) 기본값은 코드가 원천이다.
-    # 환경마다 다르게 갈 때만 이 줄을 살린다.
-
-  # 첫 관리자 계정 자동 생성. **local·develop 전용이다** — 운영에서는 이 값과 무관하게
-  # 동작하지 않는다(코드가 막는다. AdminBootstrapService 주석 참고).
-  #
-  # 계정이 **하나도 없을 때만** 만든다. 재부팅해도 기존 계정은 건드리지 않는다.
-  # 이렇게 만든 계정은 첫 로그인에서 비밀번호를 반드시 바꿔야 한다.
-  bootstrap:
-    enabled: ${ADMIN_BOOTSTRAP_ENABLED:true}
-    email: ${ADMIN_BOOTSTRAP_EMAIL:plzhans@gmail.com}
-    name: ${ADMIN_BOOTSTRAP_NAME:관리자}
-    # 비우면 난수를 만들어 **부팅 로그에 한 번** 찍는다. 놓쳤으면
-    # `hansapp-cli admin password-reset <email>` 로 다시 발급한다.
-    password: ${ADMIN_BOOTSTRAP_PASSWORD:}
 
 apps-admin-api:
   externalUrl: http://127.0.0.1:3001
-  web:
-    # 3000 은 hansapp-api 가 쓴다. 로컬에서 둘을 같이 띄운다.
-    # (디버거 포트도 갈라져 있다 — api 9229 / admin-api 9230. .vscode/launch.json 참고)
-    port: 3001
   cors:
-    # 관리자 SPA 를 Vite dev server 로 따로 띄울 때만 채운다.
-    # 배포에서는 같은 오리진이라 비워 둔다(비면 CORS 를 아예 켜지 않는다).
-    # 5275 = 프론트 포트 규칙의 다음 자리(5273 auth · 5274 web · 5275 admin).
+    # 관리자 SPA 의 Vite dev server(5273 auth · 5274 web · 5275 admin).
     origins:
       - http://127.0.0.1:5275
       - http://localhost:5275
-
-# 메일 설정(mail.*)은 여기 없다 — 관리 화면에서 관리하고 DB(env_setting)에 있다.
-# 딱 하나 예외인 mail.forceDisabled 는 **각자의 .env.*.local 에** 둔다(MAIL_FORCE_DISABLED).
-# 사람마다 실제 발송을 켜 볼 때가 달라서, 공유 파일에 박으면 서로 고쳐 커밋하게 된다.
-
-# 서비스키(krdata·molit.vworld·juso)는 여기 없다 — DB(env_setting)에 있다.
-# 아래는 비밀이 아닌 값만 남긴 것이다.
-krdata:
-  hiraDetailVersion:
-
-# ── 앱 자격증명 암호화 ─────────────────────────────────────────────────────────
-# 앱이 등록한 외부 자격증명(LLM 업체 키·외부 서비스 키)을 DB 에 잠글 때 쓰는 마스터 키.
-# 32바이트 난수를 base64 로 넣는다.
-#   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-#
-# **표는 나뉘어도 자물쇠는 하나다** — app_llm_key 와 app_external_key 가 이 꾸러미를 같이 쓴다.
-# 나누면 키를 교체할 때 두 벌을 따로 돌려야 하고, 한쪽만 옮긴 채 옛 키를 지우는 사고가 열린다.
-#
-# **교체는 v2 를 더하는 것이지 v1 을 바꾸는 것이 아니다.** 새로 잠그는 값만 v2 로 가고
-# v1 로 잠긴 값은 그대로 남는다 — 다 옮기기 전에 v1 을 지우면 그 값들은 영영 못 연다.
-#
-# 비어 있으면 키 등록 기능만 꺼진다(서버는 정상 기동).
-appSecretEncryption:
-  v1: ${APP_SECRET_ENCRYPTION_KEY_V1}
-
-# LLM. **대부분 DB(env_setting)에 있다** — 관리자 → 설정 → AI.
-# 여기 남는 둘은 성격이 다르다:
-#   promptDir        배포마다 다른 파일 경로다. DB 에 넣으면 서버마다 달라야 하는 값이 하나가 된다.
-#   answerSigningKey 서명 키라 설정이 아니라 서버의 신원에 가깝다. 바꾸면 진행 중인 대화가 끊긴다.
-llm:
-  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
-  promptDir: data/healthcare/svc-prompts
-  # 답변 서명 키(HMAC-SHA256). **비어 있으면 답변을 문맥으로 이어받지 않는다.**
-  # 화면이 돌려보내는 직전 답변은 "우리가 이렇게 답했다" 는 주장이라, 서명이 없으면
-  # 아무 문장이나 심어 모델을 유도할 수 있다.
-  answerSigningKey:
+  swagger:
+    enabled: true

@@ -1,6 +1,7 @@
 import merge from 'lodash.merge';
 
 import { loadYamlObject } from './app-config';
+import { configDefaultOf } from './config-defaults';
 import { normalizeConnectionUrl } from './connection-url';
 import { loadEnv } from './env';
 import type { AppEnv, DotenvLoader } from './env';
@@ -198,9 +199,19 @@ export interface ConfigSource {
   /** 그 자리 원시값. 섹션(객체)이든 끝값이든 그대로. 없으면 undefined. */
   getValue(path: string): unknown;
 
+  /*
+    ── *OrDefault 의 기본값은 어디서 오나 ──────────────────────────────────────
+    인자를 안 넘기면 **CONFIG_DEFAULTS(config-defaults.ts)에서 경로로 찾는다.** 같은
+    기본값이 여러 파일에 복제되는 것을 막으려는 것이다 — auth.cookieSecure 는 실제로
+    네 곳에 따로 적혀 있었다. 표에 없는 값만 호출부가 인자로 준다.
+
+    문자열류는 표에도 없으면 빈 문자열이고, 숫자·불리언·기간은 던진다. 그쪽은 조용히
+    0·false 로 떨어지면 "설정이 빠진 것" 과 구별이 안 되기 때문이다.
+  */
+
   /** 필수 문자열. 없거나 비면 부팅 거부. */
   getString(path: string): string;
-  /** 없으면 기본값(기본 빈 문자). */
+  /** 없으면 기본값 → CONFIG_DEFAULTS → 빈 문자열. */
   getStringOrDefault(path: string, fallback?: string): string;
 
   /**
@@ -213,18 +224,18 @@ export interface ConfigSource {
 
   /** 필수 숫자. 숫자가 아니면 던진다. */
   getNumber(path: string): number;
-  getNumberOrDefault(path: string, fallback: number): number;
+  getNumberOrDefault(path: string, fallback?: number): number;
 
   /** true/false 또는 'true'/'false' 문자열. */
   getBool(path: string): boolean;
-  getBoolOrDefault(path: string, fallback: boolean): boolean;
+  getBoolOrDefault(path: string, fallback?: boolean): boolean;
 
   /** 문자열 배열. yaml 리스트 그대로, 또는 콤마 문자열을 쪼갠다. 없으면 빈 배열. */
   getStringArray(path: string): readonly string[];
 
   /** 기간을 초로. '30s'·'5m'·'1h'·'7d'(단위 없으면 초). 없거나 형식이 틀리면 던진다. */
   getDurationSec(path: string): number;
-  getDurationSecOrDefault(path: string, fallbackSec: number): number;
+  getDurationSecOrDefault(path: string, fallbackSec?: number): number;
 }
 
 /** 'a.b.c' / 'a:b:c' 경로를 따라 섹션 트리를 내려간다. */
@@ -372,9 +383,33 @@ class ConfigSection implements ConfigSource {
     return String(this.required(path)).trim();
   }
 
-  getStringOrDefault(path: string, fallback = ''): string {
+  /**
+   * 인자로 안 넘긴 기본값을 CONFIG_DEFAULTS 에서 찾는다. **키는 루트 기준 절대 경로**라
+   * 섹션으로 열어 읽어도 같은 값이 나온다.
+   *
+   * 표에도 없으면 던진다 — 조용히 0·false 로 떨어지면 "기본값이 그렇다" 와 "등록을
+   * 빠뜨렸다" 가 구별되지 않는다.
+   */
+  private fallbackOf(path: string, given: unknown): unknown {
+    if (given !== undefined) return given;
+    const absolute = this.absolute(path);
+    const found = configDefaultOf(absolute);
+    if (found === undefined) {
+      throw new Error(
+        `설정 기본값이 없다: ${absolute}. ` +
+          'config-defaults.ts 에 등록하거나 호출부에서 기본값을 넘길 것.',
+      );
+    }
+    return found;
+  }
+
+  getStringOrDefault(path: string, fallback?: string): string {
     const raw = this.at(path);
-    return present(raw) ? String(raw).trim() : fallback;
+    if (present(raw)) return String(raw).trim();
+    // 문자열은 표에도 없으면 빈 문자열이다 — "미설정" 을 빈값으로 다루는 자리가 많다.
+    return String(
+      fallback ?? configDefaultOf(this.absolute(path)) ?? '',
+    ).trim();
   }
 
   getUrl(path: string): string {
@@ -390,18 +425,22 @@ class ConfigSection implements ConfigSource {
     return toNumber(this.required(path), this.absolute(path));
   }
 
-  getNumberOrDefault(path: string, fallback: number): number {
+  getNumberOrDefault(path: string, fallback?: number): number {
     const raw = this.at(path);
-    return present(raw) ? toNumber(raw, this.absolute(path)) : fallback;
+    return present(raw)
+      ? toNumber(raw, this.absolute(path))
+      : toNumber(this.fallbackOf(path, fallback), this.absolute(path));
   }
 
   getBool(path: string): boolean {
     return toBool(this.required(path), this.absolute(path));
   }
 
-  getBoolOrDefault(path: string, fallback: boolean): boolean {
+  getBoolOrDefault(path: string, fallback?: boolean): boolean {
     const raw = this.at(path);
-    return present(raw) ? toBool(raw, this.absolute(path)) : fallback;
+    return present(raw)
+      ? toBool(raw, this.absolute(path))
+      : toBool(this.fallbackOf(path, fallback), this.absolute(path));
   }
 
   getStringArray(path: string): readonly string[] {
@@ -412,9 +451,12 @@ class ConfigSection implements ConfigSource {
     return toDurationSec(this.required(path), this.absolute(path));
   }
 
-  getDurationSecOrDefault(path: string, fallbackSec: number): number {
+  getDurationSecOrDefault(path: string, fallbackSec?: number): number {
     const raw = this.at(path);
-    return present(raw) ? toDurationSec(raw, this.absolute(path)) : fallbackSec;
+    return toDurationSec(
+      present(raw) ? raw : this.fallbackOf(path, fallbackSec),
+      this.absolute(path),
+    );
   }
 }
 
@@ -424,7 +466,8 @@ class ConfigSection implements ConfigSource {
  *
  * 순서:
  *   1. loadEnv: .env 계층을 process.env 로 (env 값의 원천)
- *   2. 로드: config/config.<환경>.yaml (환경별 — 자기완결적, 공통 base 없음)
+ *   2. 로드: config/config.yaml(정본) → config.<환경>.yaml(달라지는 값만)
+ *      → config.<환경>.local.yaml(개인, gitignore). 깊게 병합하고 뒤가 이긴다
  *   3. 치환: 트리의 ${VAR} 를 process.env 로
  *   4. 오버레이: 모든 끝값을 경로에서 계산한 이름의 환경변수가 덮는다 → 계산된 트리
  *      (yaml 에 아예 없는 경로는 읽는 순간 sectionOf 가 같은 이름으로 받는다)
@@ -434,8 +477,8 @@ class ConfigSection implements ConfigSource {
  *   - **4단계(기본)** — `auth.jwt.secret` 은 선언만 있으면 `AUTH_JWT_SECRET` 이 덮는다.
  *     이름을 적을 필요가 없어 설정이 짧아지고, 경로와 env 이름이 어긋날 수가 없다.
  *   - **3단계(예외)** — 이름이 규칙과 다를 때만 `${VAR}` 로 적는다. 남이 정한 이름
- *     (prisma 가 직접 읽는 `DATABASE_URL`), 한 값을 두 경로가 나눠 쓰는 별칭
- *     (`auth.otp.hashSecret: ${AUTH_JWT_SECRET}`) 이 그런 경우다.
+ *     (prisma 가 직접 읽는 `DATABASE_URL`), 경로에서 계산한 이름과 다른 이름을 쓰는
+ *     값(`appSecretEncryption.v1: ${APP_SECRET_ENCRYPTION_KEY_V1}`) 이 그런 경우다.
  *
  * 자리표시자가 남아 있어도 4단계는 그대로 돈다 — 경로 이름으로도 덮을 수 있다(그쪽이 이긴다).
  *
@@ -449,27 +492,40 @@ export function createConfigSource(
 ): ConfigSource {
   // .env → process.env (${} 치환의 값 원천)
   loadEnv(appDir, env, loader);
-  // yaml 두 자리를 본다. 낮은 쪽부터 쌓아 뒤가 이긴다.
+  // yaml 세 장을 겹쳐 읽는다. 낮은 쪽부터 쌓아 뒤가 이긴다. **.env 계층과 같은 이름 규칙**이다
+  // (.env → .env.<환경> → .env.<환경>.local).
   //
-  //   config/config.yaml          환경 이름이 없는 자리 — **컨테이너가 여기로 마운트받는다**
-  //   config/config.<환경>.yaml    환경별 — 로컬 개발이 쓴다(환경들이 나란히 있어야 하므로)
+  //   config/config.yaml             **정본** — 모든 설정과 그 설명이 여기 다 있다
+  //   config/config.<환경>.yaml       그 환경에서 **달라지는 값만**. 설명은 적지 않는다
+  //   config/config.<환경>.local.yaml 개인 오버라이드(gitignore). 남의 머신에는 없다
   //
-  // 컨테이너에는 환경이 하나뿐이라 파일 이름이 환경을 말할 이유가 없다. 그래서 이미지에
-  // yaml 을 굽지 않고 배포가 그 환경 것을 config.yaml 로 얹는다 — .env 를 config/.env 로
-  // 마운트하는 것과 같은 규칙이다. 덕분에 이미지도 compose 도 환경을 모른 채로 있는다.
+  // **앞의 둘은 있는 것이 정상이다.** 예전엔 환경별 파일이 각자 자기완결적이라 한 장만 읽어도
+  // 됐는데, 그러면 같은 설명이 세 벌 있고 값 하나를 이해하려면 세 파일을 diff 떠야 했다.
+  // 설명을 한 벌로 모으면서 공통값도 같이 정본으로 올라왔다 — 그래서 환경 파일 혼자서는
+  // database.url 부터 없는 반쪽이다.
   //
-  // 한쪽만 있는 것이 정상이라 병합할 일이 거의 없지만, 둘 다 있으면 환경별이 이긴다(더 구체적).
+  // **.local 은 커밋하지 않는다.** 사람마다 다른 값(내 인증서 경로, 내가 켠 Sentry)을 공유
+  // 파일에 박으면 서로 고쳐 커밋하게 된다. .env.<환경>.local 과 같은 이유·같은 취급이고,
+  // 배포도 나르지 않는다(ci-deploy.sh 는 앞의 두 장만 집는다).
+  //
+  // 병합은 깊게 일어난다. 다만 **리스트는 인덱스별로 합쳐지므로**(lodash.merge) 정본의
+  // 리스트는 비워 두고 값은 환경 파일이 통째로 준다 — config.yaml 머리말에 적어 뒀다.
+  //
+  // 배포는 이미지에 굽지 않고 두 장 다 마운트한다(infra/*/docker-compose.yml).
+  // 기본값이 바뀌었다고 이미지를 다시 말 이유가 없어서다.
   const merged = buildConfigTree([
     yamlProvider(appDir, 'config'),
     yamlProvider(appDir, `config.${env}`),
+    yamlProvider(appDir, `config.${env}.local`),
   ]);
 
   // 설정 파일이 아예 없으면 여기서 멈춘다. 그대로 두면 "필수 설정이 없다: database.url"
   // 처럼 **결과**만 보이고 원인(yaml 을 못 찾음)이 안 보인다.
   if (Object.keys(merged).length === 0) {
     throw new Error(
-      `설정 파일이 없다: config/config.yaml 또는 config/config.${env}.yaml. ` +
-        '컨테이너라면 배포가 yaml 을 config/config.yaml 로 마운트했는지 확인할 것.',
+      `설정 파일이 없다: config/config.yaml 도 config/config.${env}.yaml 도 못 찾았다. ` +
+        '컨테이너라면 배포가 두 장 다 마운트했는지 확인할 것 — 환경 파일에는 달라지는 ' +
+        '값만 있어 정본(config.yaml)이 빠지면 반쪽짜리 설정이 된다.',
     );
   }
   const interpolated = interpolate(merged, process.env) as Record<
@@ -478,4 +534,30 @@ export function createConfigSource(
   >;
   const tree = applyEnvOverrides(interpolated, process.env);
   return new ConfigSection(tree, env);
+}
+
+/**
+ * 이 앱이 없으면 뜨면 안 되는 설정을 부팅 최초에 한 번 검사한다.
+ *
+ * DI 가 만들다 터지는 것과 다른 점은 **시점과 모양**이다. 여기서 잡으면 Sentry.init 도
+ * Nest 컨테이너도 서기 전이라 스택 없이 "무엇이 없는지" 만 나오고, **빠진 것을 한 번에
+ * 다 보여준다** — 하나씩 채우며 세 번 재기동하지 않아도 된다.
+ *
+ * 필요한 값은 앱마다 다르다(관리자 API 는 llm 키가 없어도 된다). 그래서 목록은 공통이
+ * 아니라 각 앱의 boot-config 가 가진다.
+ *
+ * 빈 문자열도 없는 것으로 본다 — 시크릿을 빈값으로 두는 것은 끄겠다는 뜻이 아니라 실수다.
+ */
+export function requireSettings(
+  cfg: ConfigSource,
+  paths: readonly string[],
+): void {
+  const missing = paths.filter((path) => !cfg.getStringOrDefault(path));
+  if (missing.length === 0) return;
+  throw new Error(
+    `필수 설정이 없다:\n${missing
+      .map((path) => `  ${path}  (환경변수 ${envNameOf(path)})`)
+      .join('\n')}\n` +
+      'config/.env.<환경> 또는 config/config.<환경>.yaml 에 채울 것.',
+  );
 }

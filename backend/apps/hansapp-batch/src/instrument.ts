@@ -11,19 +11,18 @@ import { appConfig, buildInfo } from './boot-config';
  * Sentry 는 http·prisma 같은 모듈을 monkey-patch 한다. 그 모듈이 Sentry.init 보다 먼저 require 되면
  * **조용히 아무것도 계측되지 않는다**(에러가 안 나서 더 위험하다). 그래서 이 파일만 따로 둔다.
  *
- * DSN 은 config/config.<환경>.yaml 의 `apps-batch.sentry.dsn` — **apps-api 와 다른 Sentry 프로젝트다.**
+ * DSN 은 config/config.yaml 의 `apps-batch.sentry.dsn` — **apps-api 와 다른 Sentry 프로젝트다.**
  * 배치는 "한 번 실패해도 즉시 알림", API 는 "임계치 초과 시 알림" 으로 알림 성격이 달라서 나눴다.
  * 비어 있으면 init 을 하지 않는다(이후 captureException 등은 전부 no-op).
  */
 
 // 끄개는 dsn 과 따로 둔다(이유는 apps-api 의 instrument.ts 참고 — 빈 값은 기본값으로 되돌아간다).
-const enabled = appConfig.getBoolOrDefault('apps-batch.sentry.enabled', true);
+const enabled = appConfig.getBoolOrDefault('apps-batch.sentry.enabled');
 const dsn = enabled
   ? appConfig.getStringOrDefault('apps-batch.sentry.dsn')
   : '';
 const tracesSampleRate = appConfig.getNumberOrDefault(
   'apps-batch.sentry.tracesSampleRate',
-  0,
 );
 
 if (dsn) {

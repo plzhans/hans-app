@@ -34,7 +34,7 @@ export function buildJusoConfig(source: ConfigSource): JusoAppConfig {
   // confmKey 는 DB(env_setting)에서 온다 — 모듈이 부팅할 때 비동기로 채운다.
   return Object.freeze({
     confmKey: '',
-    maxRetry: source.getNumberOrDefault('juso.maxRetry', 3),
-    readTimeoutMs: source.getNumberOrDefault('juso.readTimeoutMs', 30_000),
+    maxRetry: source.getNumberOrDefault('juso.maxRetry'),
+    readTimeoutMs: source.getNumberOrDefault('juso.readTimeoutMs'),
   });
 }
