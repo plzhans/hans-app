@@ -7,6 +7,7 @@ import { PrismaService } from './prisma.service';
 import { PrismaLogService } from './prisma-log.service';
 import { SettingReadRepository } from './setting.repository';
 import { EnvLlmKeyReadRepository } from './env-llm-key.repository';
+import { EnvLlmModelReadRepository } from './env-llm-model.repository';
 
 /**
  * 데이터 접근 계층 모듈. DB 별 Prisma 서비스를 제공/노출한다.
@@ -42,6 +43,7 @@ export class DataModule {
         */
         SettingReadRepository,
         EnvLlmKeyReadRepository,
+        EnvLlmModelReadRepository,
       ],
       exports: [
         DB_CONFIG,
@@ -50,6 +52,7 @@ export class DataModule {
         PrismaMigrationService,
         SettingReadRepository,
         EnvLlmKeyReadRepository,
+        EnvLlmModelReadRepository,
       ],
     };
   }

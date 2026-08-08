@@ -89,7 +89,12 @@ export type {
 } from './healthcare/healthcare-ai-search.service';
 // LLM 계층은 @hansapp/llm 이 소유한다. 컨트롤러가 예외를 상태코드로 옮기고 프로바이더
 // 이름을 검증하는 데 필요한 것만 여기서 재노출한다 — 서버가 패키지를 직접 물지 않게.
-export { LlmConfigError, LlmError, LlmInvalidCallError } from '@hansapp/llm';
+export {
+  LlmConfigError,
+  LlmError,
+  LlmInvalidCallError,
+  LlmModelNotAllowedError,
+} from '@hansapp/llm';
 export type { LlmProviderName } from '@hansapp/llm';
 
 // 지역(주소)은 도메인 무관이라 healthcare 밑이 아니다. 병원·학교·약국이 같이 쓴다.

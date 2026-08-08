@@ -5,7 +5,6 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   createLlmKey,
   deleteLlmKey,
-  fetchVendorModels,
   setDefaultLlmKey,
   updateLlmKey,
   type EnvLlmKey,
@@ -57,11 +56,6 @@ export function LlmKeyModal({
    * baseUrl 이 안 보인 채로 "왜 기본 주소로 안 나가지" 를 찾게 된다.
    */
   const [advanced, setAdvanced] = useState(!!llmKey?.baseUrl);
-  /**
-   * 업체에서 받아 온 모델 목록. **비어 있으면 셀렉트를 안 그린다** —
-   * 조회는 거들 뿐이고, 직접 입력이 늘 열려 있어야 한다.
-   */
-  const [models, setModels] = useState<string[]>([]);
 
   const provider = draft.provider ?? llmKey?.provider ?? 'ANTHROPIC';
   const keyType: LlmKeyType = ALLOWS_AUTH_TOKEN(provider)
@@ -97,30 +91,13 @@ export function LlmKeyModal({
     onSuccess: done,
   });
 
-  /*
-    **모델 조회는 저장과 별개다.** 실패해도 등록은 계속할 수 있어야 하므로 오류를 따로
-    들고 있고(아래 error 에 섞지 않는다) 목록만 못 채운 상태로 둔다.
-  */
-  const load = useMutation({
-    mutationFn: () =>
-      fetchVendorModels({
-        id: llmKey?.id,
-        provider,
-        keyType,
-        // 화면에서 막 입력한 키가 있으면 그것으로 물어본다.
-        secret: typeof draft.secret === 'string' ? draft.secret : undefined,
-        baseUrl: value('baseUrl') || undefined,
-      }),
-    onSuccess: setModels,
-  });
-
   const busy = save.isPending || makeDefault.isPending || remove.isPending;
   const error = save.error ?? makeDefault.error ?? remove.error;
 
   return (
     <Modal
       size="md"
-      title={creating ? '키 등록' : (llmKey.name || llmKey.provider)}
+      title={creating ? '인증 등록' : (llmKey.name || llmKey.provider)}
       onClose={onClose}
     >
       <div className="space-y-3">
@@ -205,119 +182,6 @@ export function LlmKeyModal({
             />
           </Field>
         )}
-
-        <Field
-          label="기본 모델"
-          hint="날짜 없는 별칭을 씁니다 — 스냅샷 ID 는 은퇴합니다. 직접 적어도 됩니다."
-        >
-          <div className="flex gap-2">
-            <input
-              className={BOX}
-              value={value('defaultModel')}
-              placeholder="claude-haiku-4-5"
-              onChange={(e) => set('defaultModel', e.target.value)}
-            />
-            <button
-              type="button"
-              disabled={load.isPending}
-              onClick={() => load.mutate()}
-              className="h-10 shrink-0 rounded-lg border border-gray-300 px-3 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-            >
-              {load.isPending ? '조회 중…' : '모델 조회'}
-            </button>
-          </div>
-          {/*
-            **셀렉트는 거들 뿐이다.** 업체가 안 될 때도 등록은 되어야 하므로 목록이 왔을
-            때만 나타나고, 고르면 위 입력칸을 채운다.
-          */}
-          {/*
-            **고른 값을 그대로 비춘다.** 빈 placeholder 로 두면 위 입력칸과 따로 노는 것처럼
-            보인다. 손으로 적어 목록에 없는 이름도 선택지에 끼워 넣어야 셀렉트가 빈칸이 되지 않는다.
-          */}
-          {models.length > 0 && (
-            <div className="mt-2">
-              <Select
-                value={value('defaultModel')}
-                onChange={(v) => set('defaultModel', v)}
-              >
-                <option value="">선택 안 함</option>
-                {withCurrent(models, value('defaultModel')).map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
-          {/*
-            **업체가 돌려준 본문을 그대로 보여 준다.** 여기 담기는 것은 우리 문구가 아니라
-            업체의 JSON 이라(무엇이 틀렸는지는 그쪽만 안다) 줄바꿈·따옴표가 살아 있어야 읽힌다.
-            길어서 잘리면 정작 원인이 뒤에 있으므로 스크롤을 단다.
-          */}
-          {load.isError && (
-            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-700">
-              {errorMessage(load.error, '모델을 불러오지 못했습니다.')}
-            </pre>
-          )}
-        </Field>
-
-        {/*
-          **잠금이 아니라 허용이다.** 업체가 모델을 새로 내도 여기 적기 전까지는 못 부른다 —
-          모델이 곧 단가라 "부를 수 있는 것" 을 명시해 두는 쪽이 맞다.
-        */}
-        <Field
-          label="허용 모델"
-          hint="쉼표로 나열. 비우면 기본 모델 하나만 쓸 수 있습니다."
-        >
-          <input
-            className={BOX}
-            value={value('allowedModels')}
-            placeholder="claude-opus-5, claude-sonnet-5"
-            onChange={(e) => set('allowedModels', e.target.value)}
-          />
-          {/*
-            **조회한 것은 체크로 담고 뺀다.** 목록이 열 개 안팎이라 콤보박스보다 한눈에 들어온다.
-
-            위 입력칸이 원본이고 이 목록은 그것을 거드는 수단이다 — 업체가 안 될 때도(키 만료·
-            서버 다운) 손으로 적을 수 있어야 하고, 조회 목록에 없는 이름(직접 적은 것)도
-            입력칸에는 그대로 남는다.
-          */}
-          {models.length > 0 && (
-            <div className="mt-2 max-h-44 overflow-auto rounded-lg border border-gray-200">
-              {models.map((m) => {
-                const picked = splitCsv(value('allowedModels')).includes(m);
-                return (
-                  <label
-                    key={m}
-                    className="flex cursor-pointer items-center gap-2 border-b border-gray-50 px-3 py-1.5 last:border-0 hover:bg-gray-50"
-                  >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 shrink-0 accent-primary"
-                      checked={picked}
-                      onChange={() => {
-                        const current = splitCsv(value('allowedModels'));
-                        const next = picked
-                          ? current.filter((v) => v !== m)
-                          : [...current, m];
-                        set('allowedModels', next.join(', '));
-                      }}
-                    />
-                    <span className="truncate font-mono text-xs text-gray-700">
-                      {m}
-                    </span>
-                    {m === value('defaultModel') && (
-                      // 기본 모델은 목록에 없어도 늘 쓸 수 있다. 그 사실을 여기서 알린다.
-                      <span className="ml-auto shrink-0 text-[11px] text-gray-400">
-                        기본
-                      </span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-          )}
-        </Field>
 
         {!creating && (
           <Field label="상태">
@@ -428,19 +292,6 @@ function Select({
       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
     </div>
   );
-}
-
-/** 지금 값이 조회 목록에 없으면 앞에 끼운다 — 손으로 적은 이름이 셀렉트에서 사라지지 않게. */
-function withCurrent(models: string[], current: string): string[] {
-  return current && !models.includes(current) ? [current, ...models] : models;
-}
-
-/** 쉼표 문자열 → 목록. 백엔드가 읽는 방식과 같아야 화면과 동작이 안 갈린다. */
-function splitCsv(raw: string): string[] {
-  return raw
-    .split(',')
-    .map((v) => v.trim())
-    .filter(Boolean);
 }
 
 /** 평소에는 안 쓰는 값들. 접어 두되 값이 들어 있으면 펼친 채로 연다. */

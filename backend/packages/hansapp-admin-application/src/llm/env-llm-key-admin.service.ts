@@ -34,8 +34,6 @@ export interface EnvLlmKeyView {
   readonly hasSecret: boolean;
   readonly secretSuffix: string | null;
   readonly baseUrl: string | null;
-  readonly defaultModel: string | null;
-  readonly allowedModels: string | null;
   readonly isDefault: boolean;
   readonly status: EnvLlmKeyStatus;
   readonly createdAt: Date;
@@ -50,8 +48,6 @@ export interface EnvLlmKeyInput {
   /** `null` 은 지운다, `undefined` 는 건드리지 않는다. */
   secret?: string | null;
   baseUrl?: string | null;
-  defaultModel?: string | null;
-  allowedModels?: string | null;
   status?: EnvLlmKeyStatus;
 }
 
@@ -126,8 +122,6 @@ export class EnvLlmKeyAdminService {
           secretEncrypted: secret.encrypted ?? null,
           secretSuffix: secret.suffix ?? null,
           baseUrl,
-          defaultModel: trimOrNull(input.defaultModel),
-          allowedModels: trimOrNull(input.allowedModels),
           status: input.status ?? EnvLlmKeyStatus.ACTIVE,
           updatedBy: adminId,
         }),
@@ -181,12 +175,6 @@ export class EnvLlmKeyAdminService {
               }
             : {}),
           baseUrl,
-          ...(input.defaultModel !== undefined
-            ? { defaultModel: trimOrNull(input.defaultModel) }
-            : {}),
-          ...(input.allowedModels !== undefined
-            ? { allowedModels: trimOrNull(input.allowedModels) }
-            : {}),
           ...(input.status !== undefined ? { status: input.status } : {}),
           updatedBy: adminId,
         }),
@@ -356,8 +344,6 @@ function toView(row: EnvLlmKey): EnvLlmKeyView {
     hasSecret: !!row.secretEncrypted,
     secretSuffix: row.secretSuffix,
     baseUrl: row.baseUrl,
-    defaultModel: row.defaultModel,
-    allowedModels: row.allowedModels,
     isDefault: row.isDefault,
     status: row.status,
     createdAt: row.createdAt,

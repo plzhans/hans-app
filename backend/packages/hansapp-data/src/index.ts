@@ -105,3 +105,5 @@ export { SettingReadRepository } from './setting.repository';
 export { EnvLlmKeyReadRepository } from './env-llm-key.repository';
 export type { EnvLlmKey } from '../generated/main';
 export { EnvLlmKeyStatus, LlmKeyType } from '../generated/main';
+export { EnvLlmModelReadRepository } from './env-llm-model.repository';
+export type { EnvLlmModel } from '../generated/main';

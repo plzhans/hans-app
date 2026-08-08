@@ -21,8 +21,6 @@ export interface EnvLlmKey {
   hasSecret: boolean;
   secretSuffix?: string | null;
   baseUrl?: string | null;
-  defaultModel?: string | null;
-  allowedModels?: string | null;
   isDefault: boolean;
   status: EnvLlmKeyStatus;
   createdAt: string;
@@ -43,8 +41,6 @@ export interface EnvLlmKeyInput {
   /** 평문으로 보낸다 — 잠그는 것은 서버가 한다. */
   secret?: string | null;
   baseUrl?: string | null;
-  defaultModel?: string | null;
-  allowedModels?: string | null;
   status?: EnvLlmKeyStatus;
 }
 
@@ -88,3 +84,62 @@ export const fetchVendorModels = (input: {
     method: 'POST',
     body: JSON.stringify(input),
   }).then((r) => r.models);
+
+/**
+ * 서버가 부를 수 있는 모델 한 줄. **키가 소유한다.**
+ *
+ * 같은 이름이라도 어느 접속처로 부르느냐가 다르면 다른 행이다(사무실 ollama 의 llama3 와
+ * 다른 기계의 llama3).
+ */
+export interface EnvLlmModel {
+  id: number;
+  keyId: number;
+  name: string;
+  /** 끄면 목록에는 남되 부를 수 없다. 지우는 것과 다르다. */
+  enabled: boolean;
+  /** 모델을 안 적은 요청이 이 모델로 나간다. 키마다 하나뿐이다. */
+  isDefault: boolean;
+  /** 목록에서의 자리. 작은 것이 앞이고, 화면에 내려보내는 차례가 이 순서다. */
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const listLlmModels = () =>
+  apiFetch<EnvLlmModel[]>('/api/llm/models');
+
+export const createLlmModel = (input: {
+  keyId: number;
+  name: string;
+  enabled?: boolean;
+}) =>
+  apiFetch<EnvLlmModel>('/api/llm/models', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+
+export const updateLlmModel = (
+  id: number,
+  input: { name?: string; enabled?: boolean },
+) =>
+  apiFetch<EnvLlmModel>(`/api/llm/models/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+
+/** 기본으로 지정. 꺼져 있었다면 같이 켜진다. */
+export const setDefaultLlmModel = (id: number) =>
+  apiFetch<void>(`/api/llm/models/${id}/default`, { method: 'POST' });
+
+export const deleteLlmModel = (id: number) =>
+  apiFetch<void>(`/api/llm/models/${id}`, { method: 'DELETE' });
+
+/**
+ * 차례를 다시 매긴다. **그 키의 모델 id 를 빠짐없이 나열해 보낸다** — 두 줄만 맞바꾸는
+ * 요청은 사이에 다른 변경이 끼면 결과가 갈리는데, 통째로 보내면 화면이 본 그대로가 된다.
+ */
+export const reorderLlmModels = (keyId: number, ids: number[]) =>
+  apiFetch<EnvLlmModel[]>('/api/llm/models/order', {
+    method: 'PUT',
+    body: JSON.stringify({ keyId, ids }),
+  });

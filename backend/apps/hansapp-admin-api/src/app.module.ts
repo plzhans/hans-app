@@ -18,6 +18,7 @@ import { UserController } from './user/user.controller';
 import { AppController } from './apps/app.controller';
 import { SettingController } from './setting/setting.controller';
 import { EnvLlmKeyController } from './llm/env-llm-key.controller';
+import { EnvLlmModelController } from './llm/env-llm-model.controller';
 
 @Module({})
 export class AppModule {
@@ -54,6 +55,7 @@ export class AppModule {
         AppController,
         SettingController,
         EnvLlmKeyController,
+        EnvLlmModelController,
       ],
       providers: [
         // 폭주 요청을 인증 처리 전에 값싸게 쳐내려면 이쪽이 먼저다.

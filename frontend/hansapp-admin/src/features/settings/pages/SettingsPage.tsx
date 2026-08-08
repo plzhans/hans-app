@@ -11,11 +11,11 @@ interface Props {
 }
 
 /**
- * 설정 화면. **메일과 외부 연동이 같은 컴포넌트를 쓴다** — 다른 것은 어느 카테고리를
- * 거르느냐뿐이다.
+ * 카테고리 하나를 그대로 펼치는 설정 화면.
  *
- * LLM 은 이걸 쓰지 않는다. 카탈로그 카드 아래에 접속처 목록이 붙어서 제 페이지가 필요하다
- * (LlmSettings 참고) — 대신 카드 렌더링은 SettingGroupList 로 공유한다.
+ * 화면이 카탈로그 목록 하나로 끝나지 않는 곳은 이걸 쓰지 않고 제 페이지를 갖는다 —
+ * LLM 은 카드 아래에 접속처 목록이 붙고(LlmSettings), 외부 연동은 탭으로 갈린다
+ * (IntegrationSettings). 대신 카드 렌더링은 셋 다 SettingGroupList 로 공유한다.
  */
 export default function SettingsPage({
   category,

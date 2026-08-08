@@ -10,7 +10,7 @@ export type SettingFieldType =
 /** 값이 있는가. 출처는 DB 하나뿐이다 — 설정 파일 폴백은 걷어냈다. */
 export type SettingSource = 'db' | 'none';
 
-export type SettingCategory = 'mail' | 'integration' | 'llm';
+export type SettingCategory = 'mail' | 'oauth' | 'integration' | 'llm';
 
 export interface SettingField {
   key: string;
@@ -18,6 +18,8 @@ export interface SettingField {
   type: SettingFieldType;
   options?: string[];
   placeholder?: string;
+  /** 연달아 있고 이름이 같은 필드끼리 한 줄에 놓인다. */
+  row?: string;
   help?: string;
   /** 카드 안에서 다시 갈라 놓을 구역 이름. 없으면 맨 위 묶음이다. */
   section?: string;

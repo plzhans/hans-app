@@ -43,6 +43,11 @@ export { SettingAdminService } from './setting/setting-admin.service';
 
 /* 서버 LLM 키(env_llm_key). app_llm_key 와 짝이고, 설정이 아니라 관리 대상 목록이라 CRUD 다. */
 export { EnvLlmKeyAdminService } from './llm/env-llm-key-admin.service';
+export { EnvLlmModelAdminService } from './llm/env-llm-model-admin.service';
+export type {
+  EnvLlmModelInput,
+  EnvLlmModelView,
+} from './llm/env-llm-model-admin.service';
 /*
   enum 을 여기서 다시 내보낸다. 관리자 API 가 DTO 검증(@IsEnum)에 값을 써야 하는데
   @hansapp/data 를 직접 의존시키면 HTTP 앱이 DB 계층에 붙는다 — HealthService 를

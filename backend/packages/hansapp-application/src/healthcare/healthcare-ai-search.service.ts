@@ -768,6 +768,13 @@ export class HealthcareAiSearchService {
       /** 조건 이름을 어느 언어로 풀지. 없으면 기본 언어. */
       lang?: SupportedLang;
       /**
+       * 쓸 모델. **없으면 그 키의 기본 모델이다.**
+       *
+       * 있으면 허용 목록 안인지 LlmService 가 검사한다 — 모델이 곧 단가라 부르는 쪽이
+       * 요금을 정하게 두면 안 된다.
+       */
+      model?: string;
+      /**
        * **직전에 우리가 내려준 `params` 를 그대로 받는다.** 대화를 잇는 유일한 수단이다.
        *
        * 서버는 대화를 기억하지 않는다(요청 하나가 자족적이다). 대신 조건이 이미 코드로
@@ -952,6 +959,8 @@ export class HealthcareAiSearchService {
 
     // 1) 뼈대를 받는다. 업체 선택·모델 인스턴스·캐시 옵션·시스템 메시지가 채워져 온다.
     const call = await this.llm.prepare({
+      // 없으면 LlmService 가 기본 모델을 쓴다. 있으면 허용 목록 검사를 거친다.
+      model: caller.model,
       system: prompt.system,
       // 캐시되는 앞부분은 그대로 두고 뒤에만 붙인다 — 두 모드가 같은 캐시를 나눠 쓴다.
       appendSystem: block?.text,

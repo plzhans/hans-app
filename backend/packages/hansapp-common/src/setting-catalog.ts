@@ -40,10 +40,23 @@ export interface SettingField {
    * 값이 없으면 카드 맨 위에 구분선 없이 놓인다.
    */
   readonly section?: string;
+
+  /**
+   * 옆에 나란히 세울 묶음 이름. **연달아 있고 이름이 같은 필드끼리 한 줄에 놓인다.**
+   *
+   * 같은 단위를 기간만 달리해 받는 값(일일·월간)처럼, 한쪽만 보면 판단이 안 되는 것들을
+   * 붙여 둔다. 값이 없으면 한 줄에 하나다.
+   */
+  readonly row?: string;
 }
 
-/** 화면 메뉴를 가르는 축. 성격이 다른 것을 한 화면에 몰지 않는다. */
-export type SettingCategory = 'mail' | 'integration' | 'llm';
+/**
+ * 화면 메뉴를 가르는 축. 성격이 다른 것을 한 화면에 몰지 않는다.
+ *
+ * `oauth` 와 `integration` 은 한 메뉴 안의 탭 둘이다. 로그인 자격증명(google·kakao …)과
+ * 서비스 키(공공데이터포털 …)는 발급처도 갱신 주기도 달라 섞어 두면 찾기 어렵다.
+ */
+export type SettingCategory = 'mail' | 'oauth' | 'integration' | 'llm';
 
 /**
  * 키를 발급받는 곳.
@@ -89,7 +102,7 @@ function oauthGroup(
   return {
     id,
     label,
-    category: 'integration',
+    category: 'oauth',
     consoles,
     fields: [
       { key: `${id}.clientId`, label: 'Client ID', type: 'string' },
@@ -234,6 +247,13 @@ export const SETTING_GROUPS: readonly SettingGroup[] = [
     consoles: [{ url: 'https://www.data.go.kr/' }],
     fields: [
       { key: 'krdata.serviceKey', label: 'Service Key', type: 'secret' },
+      {
+        key: 'krdata.hiraDetailVersion',
+        label: 'HIRA 상세 API 버전',
+        type: 'string',
+        placeholder: '2.8',
+        help: '비워 두면 2.8 을 씁니다. 병원 상세 조회가 403 이면 포털의 활용신청 상세에서 승인된 버전을 확인해 적으세요.',
+      },
     ],
   },
   {
@@ -273,33 +293,35 @@ export const SETTING_GROUPS: readonly SettingGroup[] = [
       */
       {
         key: 'llm.timeoutSec',
-        label: '타임아웃(초)',
+        label: '타임아웃',
         type: 'number',
+        row: 'call',
         placeholder: String(LLM_DEFAULTS.timeoutSec),
+        help: '초 단위.',
       },
       {
         key: 'llm.maxTokens',
         label: '최대 토큰',
         type: 'number',
+        row: 'call',
         placeholder: String(LLM_DEFAULTS.maxTokens),
+        help: '답변 한 번의 상한.',
       },
       /*
         **둘 다 운영에서는 꺼야 하는 값이다.** 화면에 나란히 둬서 한눈에 보이게 한다.
          - allowTestCommand: 켜져 있으면 누구나 유료로 팔 답변을 공짜로 받는다
-         - exposeDebugUsage: 모델·토큰 내역이 응답에 실려 요금이 역산된다
+         - exposeDebugUsage: 디버깅용 모델·토큰 내역이 응답에 실려 요금이 역산된다
       */
       {
         key: 'llm.allowTestCommand',
-        label: '/test 허용',
+        label: 'test 모드 허용',
         type: 'boolean',
-        section: '노출',
         help: '질문 끝의 /test 를 답변 모드로 받는다. 운영은 꺼 둔다.',
       },
       {
         key: 'llm.exposeDebugUsage',
-        label: '사용량 노출',
+        label: '디버깅 값 노출',
         type: 'boolean',
-        section: '노출',
         help: '응답에 모델·토큰 내역을 싣는다. 켜면 요금을 역산할 수 있다.',
       },
     ],
@@ -310,13 +332,32 @@ export const SETTING_GROUPS: readonly SettingGroup[] = [
     category: 'llm',
     help: '토큰 단위. 앱은 일·월 두 통, 사용자는 잔액 한 통으로 센다.',
     fields: [
-      { key: 'llm.appDailyTokens', label: '앱 일일', type: 'number' },
-      { key: 'llm.appMonthlyTokens', label: '앱 월간', type: 'number' },
+      /*
+        placeholder 로 코드 기본값을 보여 준다 — 비워 두면 그 값이 쓰인다는 뜻이고, 0 이
+        예닐곱 개 붙는 값이라 자릿수를 눈으로 셀 기준이 없으면 한 자리씩 어긋난다.
+      */
+      {
+        key: 'llm.appDailyTokens',
+        label: '앱 일일',
+        type: 'number',
+        row: 'app',
+        placeholder: String(LLM_DEFAULTS.appDailyTokens),
+        help: '0 이면 제한 없음. 질문 한 번이 1만 토큰 안팎입니다.',
+      },
+      {
+        key: 'llm.appMonthlyTokens',
+        label: '앱 월간',
+        type: 'number',
+        row: 'app',
+        placeholder: String(LLM_DEFAULTS.appMonthlyTokens),
+        help: '0 이면 제한 없음.',
+      },
       {
         key: 'llm.userTokens',
-        label: '사용자 잔액',
+        label: '사용자',
         type: 'number',
-        help: '0 이면 사용자별 한도를 적용하지 않는다.',
+        placeholder: String(LLM_DEFAULTS.userTokens),
+        help: '0 이면 제한 없음. 사용자 한 명이 쓸 수 있는 총 잔액입니다.',
       },
     ],
   },

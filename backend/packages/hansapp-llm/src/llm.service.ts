@@ -19,6 +19,7 @@ import {
 import type { LlmProviderName } from './llm.config';
 import {
   LlmConfigError,
+  LlmModelNotAllowedError,
   LlmError,
   LlmInvalidCallError,
   type LlmCall,
@@ -111,10 +112,7 @@ export class LlmService {
       전까지는 못 부른다 — 모델이 곧 단가라 "부를 수 있는 것" 을 명시해 두는 쪽이 맞다.
     */
     if (input.model && !allowedOf(endpoint).includes(input.model)) {
-      throw new LlmConfigError(
-        `model is not allowed for this key: ${input.model}`,
-        provider,
-      );
+      throw new LlmModelNotAllowedError(input.model, provider);
     }
     const resolved = this.resolve(endpoint, input);
 

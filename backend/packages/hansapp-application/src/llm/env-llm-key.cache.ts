@@ -3,8 +3,10 @@ import { open, SETTING_KEYRING, type SecretBoxKeys } from '@hansapp/common';
 import {
   EnvLlmKeyReadRepository,
   EnvLlmKeyStatus,
+  EnvLlmModelReadRepository,
   LlmKeyType,
   type EnvLlmKey,
+  type EnvLlmModel,
 } from '@hansapp/data';
 import type { LlmEndpointSettings } from '@hansapp/llm';
 
@@ -49,6 +51,7 @@ export class EnvLlmKeyCache {
 
   constructor(
     private readonly repository: EnvLlmKeyReadRepository,
+    private readonly models: EnvLlmModelReadRepository,
     @Inject(SETTING_KEYRING)
     private readonly keyring: SecretBoxKeys | undefined,
   ) {}
@@ -70,7 +73,10 @@ export class EnvLlmKeyCache {
 
   private async refresh(): Promise<void> {
     try {
-      const rows = await this.repository.findAll();
+      const [rows, models] = await Promise.all([
+        this.repository.findAll(),
+        this.models.findAll(),
+      ]);
       const usable = rows.filter(
         (r) => r.status === EnvLlmKeyStatus.ACTIVE && PROVIDER[r.provider],
       );
@@ -79,7 +85,13 @@ export class EnvLlmKeyCache {
         등록한 흔한 상태에서 "왜 안 되지" 가 되지 않게 한다.
       */
       const row = usable.find((r) => r.isDefault) ?? usable[0];
-      this.value = row ? this.toSettings(row) : null;
+      this.value = row
+        ? this.toSettings(
+            row,
+            // **꺼 둔 모델은 아예 안 넘긴다.** 넘기고 나중에 거르면 거르는 곳이 둘이 된다.
+            models.filter((m) => m.keyId === row.id && m.enabled),
+          )
+        : null;
       this.expiresAt = Date.now() + CACHE_TTL_MS;
     } catch (error) {
       // 직전 값을 그대로 쓴다. DB 가 순간 흔들릴 때마다 AI 가 멎는 편이 더 나쁘다.
@@ -90,17 +102,25 @@ export class EnvLlmKeyCache {
     }
   }
 
-  private toSettings(row: EnvLlmKey): LlmEndpointSettings {
+  /**
+   * 한 행을 호출 계층이 쓰는 모양으로.
+   *
+   * **모델은 등록된 행이 전부다**(env_llm_model). 기본으로 지정된 것이 없으면 첫 번째를
+   * 쓴다 — 모델을 하나만 등록하고 기본 지정을 안 한 흔한 상태에서 "왜 안 되지" 가 되지
+   * 않게 한다.
+   */
+  private toSettings(
+    row: EnvLlmKey,
+    models: readonly EnvLlmModel[],
+  ): LlmEndpointSettings {
+    const preferred = models.find((m) => m.isDefault) ?? models[0];
     return {
       provider: PROVIDER[row.provider],
       keyType: row.keyType === LlmKeyType.AUTH_TOKEN ? 'authToken' : 'apiKey',
       secret: this.reveal(row.secretEncrypted, `#${row.id}`),
       baseUrl: row.baseUrl || BASE_URL[row.provider] || '',
-      defaultModel: row.defaultModel ?? undefined,
-      allowedModels: (row.allowedModels ?? '')
-        .split(',')
-        .map((v) => v.trim())
-        .filter(Boolean),
+      defaultModel: preferred?.name,
+      allowedModels: models.map((m) => m.name),
     };
   }
 

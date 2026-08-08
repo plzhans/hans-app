@@ -1772,15 +1772,8 @@ model EnvLlmKey {
   ///  - LOCAL: **사실상 필수다.** 어느 기계인지가 이 값으로만 갈린다.
   baseUrl String? @map("base_url") @db.VarChar(200)
 
-  /// 이 키로 부를 모델. **날짜 없는 별칭**을 쓴다 — 스냅샷 ID 는 은퇴한다.
-  defaultModel String? @map("default_model") @db.VarChar(100)
-
-  /// **이 키로 부를 수 있는 모델들**(쉼표 나열). 비우면 defaultModel 하나뿐이다.
-  ///
-  /// 잠금 목록이 아니라 허용 목록인 이유는 **업체가 모델을 새로 낼 때** 있다. 잠금 방식이면
-  /// 새 모델이 아무 장치 없이 부를 수 있는 상태로 나타나는데, 모델이 곧 단가라 그건 예산이
-  /// 새는 자리가 된다. 목록에 없으면 못 쓴다.
-  allowedModels String? @map("allowed_models") @db.VarChar(500)
+  /// 이 키로 부를 모델들. 등록·사용여부·기본 지정이 전부 저 표에 있다.
+  models EnvLlmModel[]
 
   /// 지정되지 않은 호출이 쓸 키. **전체에서 하나만 true 다**(서비스가 보장한다).
   isDefault Boolean @default(false) @map("is_default")
@@ -1796,6 +1789,44 @@ model EnvLlmKey {
   @@unique([provider, name])
   @@index([isDefault])
   @@map("env_llm_key")
+}
+
+/// 서버가 부를 수 있는 모델 하나. **키가 소유한다** — 같은 이름이라도 어느 접속처로 부르느냐가
+/// 다르면 다른 행이다(사무실 ollama 의 llama3 와 다른 기계의 llama3).
+///
+/// **등록된 것만 부를 수 있다.** 업체가 모델을 새로 내도 여기 없으면 못 쓴다 — 모델이 곧
+/// 단가라, 목록에 없는 것이 조용히 불릴 수 있으면 그건 예산이 새는 자리가 된다.
+model EnvLlmModel {
+  id Int @id @default(autoincrement())
+
+  keyId Int @map("key_id")
+
+  /// 업체에 실어 보내는 모델 id. **날짜 없는 별칭**을 쓴다 — 스냅샷 ID(`-20251001`)는 은퇴한다.
+  name String @db.VarChar(100)
+
+  /// 끄면 목록에는 남되 부를 수 없다. **지우는 것과 다르다** — 잠깐 막았다가 되돌릴 때 쓴다.
+  enabled Boolean @default(true)
+
+  /// 목록에서의 자리. 작은 것이 앞이다. 같으면 id 순.
+  ///
+  /// **화면에 내려보내는 차례가 이 값이다.** 앱이 모델을 고르는 화면에서 무엇을 먼저
+  /// 보여 줄지가 여기서 정해진다 — 등록한 순서가 곧 권하는 순서는 아니다.
+  sortOrder Int @default(0) @map("sort_order")
+
+  /// 요청이 모델을 안 적었을 때 쓸 모델. **키마다 하나만 true 다**(서비스가 보장한다).
+  isDefault Boolean @default(false) @map("is_default")
+
+  /// 마지막으로 바꾼 관리자. 계정이 지워져도 기록은 남아야 해서 FK 를 걸지 않는다.
+  updatedBy Int? @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  key EnvLlmKey @relation(fields: [keyId], references: [id], onDelete: Cascade)
+
+  @@unique([keyId, name])
+  @@index([keyId, sortOrder])
+  @@map("env_llm_model")
 }
 
 /// 자격증명을 어떻게 실어 보내는가.

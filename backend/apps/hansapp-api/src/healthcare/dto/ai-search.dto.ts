@@ -97,6 +97,22 @@ export class AiSearchRequestDto {
   @MaxLength(MAX_QUESTION_LENGTH)
   readonly q!: string;
 
+  /*
+    **안 보내면 서버가 정한 기본 모델로 나간다.** 보내면 그 키의 허용 목록 안에 있어야 하고,
+    없으면 400 이다 — 모델이 곧 단가라 아무 이름이나 받으면 요금을 부르는 쪽이 정하게 된다.
+
+    고를 수 있는 것은 /ai/capabilities 가 내려준다(locked=false 인 것들).
+  */
+  @ApiPropertyOptional({
+    description:
+      '쓸 모델. 안 보내면 서버 기본 모델. 허용 목록 밖이면 거절한다.',
+    example: 'claude-haiku-4-5',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  readonly model?: string;
+
   @ApiPropertyOptional({
     type: () => AiSearchParamsDto,
     description:

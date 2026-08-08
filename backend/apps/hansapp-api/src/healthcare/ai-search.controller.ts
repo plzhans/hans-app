@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   GatewayTimeoutException,
@@ -26,6 +27,7 @@ import {
   AiSearchQuotaError,
   HealthcareAiSearchService,
   LlmConfigError,
+  LlmModelNotAllowedError,
   LlmError,
   LlmInvalidCallError,
 } from '@hansapp/application';
@@ -82,8 +84,9 @@ export class HealthcareAiSearchController {
   ): Promise<AiSearchResponseDto> {
     try {
       /*
-        업체·모델은 안 넘긴다(설정이 정한다). 넘기는 것은 **누가 물었나** 뿐이고,
-        그건 하루 몫을 누구 통에서 깎을지 정하는 데만 쓴다.
+        업체는 안 넘긴다(등록된 키가 정한다). 모델은 **받되 그 키의 허용 목록 안이어야 한다** —
+        안 보내면 기본 모델이다. 그 밖에 넘기는 것은 **누가 물었나** 뿐이고, 그건 하루 몫을
+        누구 통에서 깎을지 정하는 데만 쓴다.
 
         가드가 둘 중 하나를 채워 놓는다:
           user      access token 으로 사람이 식별됐다 (로그인 붙은 뒤)
@@ -112,6 +115,8 @@ export class HealthcareAiSearchController {
         context: request.context,
         // 앞서 오간 말. 조건만으로 못 푸는 지시대명사("아까 그것")를 위해 받는다.
         history: request.history,
+        // 안 보내면 서버 기본 모델. 보내면 허용 목록 밖인지 검사한다.
+        model: request.model,
       });
       return new AiSearchResponseDto(result);
     } catch (cause) {
@@ -160,6 +165,13 @@ export class HealthcareAiSearchController {
     // **보내기 전에 실패한 것들을 먼저 걸러낸다.** 둘 다 status 가 없어서(왕복을 안 했으니)
     // 아래 타임아웃 분기에 그대로 떨어졌었다 — 키가 없는데 "잠시 뒤 다시" 라고 안내하면
     // 사람이 고치기 전에는 영원히 안 되는 일을 기다리게 된다.
+    /*
+      **허용 목록 밖의 모델은 400 이다.** 설정도 우리 코드도 멀쩡하고 부르는 쪽이 안 되는
+      이름을 보낸 것이라, 503 으로 뭉치면 "서버가 고장났나" 로 읽혀 사람이 기다리게 된다.
+    */
+    if (cause instanceof LlmModelNotAllowedError) {
+      return new BadRequestException(cause.message);
+    }
     if (cause instanceof LlmConfigError) {
       return new ServiceUnavailableException('AI search is not configured');
     }

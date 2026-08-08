@@ -43,15 +43,6 @@ export class EnvLlmKeyDto {
   @ApiPropertyOptional({ description: '비우면 업체 기본 주소. LOCAL 은 필수.' })
   readonly baseUrl!: string | null;
 
-  @ApiPropertyOptional({ description: '이 키로 부를 모델(날짜 없는 별칭)' })
-  readonly defaultModel!: string | null;
-
-  @ApiPropertyOptional({
-    description:
-      '**이 키로 부를 수 있는 모델들**(쉼표). 비우면 기본 모델 하나뿐이다.',
-  })
-  readonly allowedModels!: string | null;
-
   @ApiProperty({ description: '지정 없는 호출이 이 키로 나가는가' })
   readonly isDefault!: boolean;
 
@@ -69,8 +60,6 @@ export class EnvLlmKeyDto {
     this.hasSecret = view.hasSecret;
     this.secretSuffix = view.secretSuffix;
     this.baseUrl = view.baseUrl;
-    this.defaultModel = view.defaultModel;
-    this.allowedModels = view.allowedModels;
     this.isDefault = view.isDefault;
     this.status = view.status;
     this.createdAt = view.createdAt;
@@ -123,18 +112,6 @@ export class EnvLlmKeySaveRequestDto {
   @IsString()
   @MaxLength(200)
   readonly baseUrl?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  readonly defaultModel?: string | null;
-
-  @ApiPropertyOptional({ description: '쉼표로 나열' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  readonly allowedModels?: string | null;
 
   @ApiPropertyOptional({ enum: EnvLlmKeyStatus })
   @IsOptional()

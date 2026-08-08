@@ -33,6 +33,12 @@ export class SettingFieldDto {
 
   @ApiPropertyOptional({
     description:
+      '옆에 나란히 세울 묶음 이름. 연달아 있고 이름이 같은 필드끼리 한 줄에 놓인다.',
+  })
+  readonly row?: string;
+
+  @ApiPropertyOptional({
+    description:
       '현재 값. **secret 은 언제나 null 이다** — 원문은 내려보내지 않는다.',
   })
   readonly value!: string | null;
@@ -56,6 +62,7 @@ export class SettingFieldDto {
     this.placeholder = field.placeholder;
     this.help = field.help;
     this.section = field.section;
+    this.row = field.row;
     this.value = field.value;
     this.hasValue = field.hasValue;
     this.suffix = field.suffix;
@@ -84,7 +91,7 @@ export class SettingGroupDto {
 
   @ApiProperty({ description: '표시 이름' }) readonly label!: string;
 
-  @ApiProperty({ description: '메뉴 구분. mail · integration' })
+  @ApiProperty({ description: '메뉴 구분. mail · oauth · integration · llm' })
   readonly category!: string;
 
   @ApiPropertyOptional({ description: '그룹 설명' })

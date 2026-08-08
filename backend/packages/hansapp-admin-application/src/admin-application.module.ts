@@ -14,6 +14,8 @@ import { SettingAdminService } from './setting/setting-admin.service';
 import { SettingWriteRepository } from './setting/setting-write.repository';
 import { EnvLlmKeyWriteRepository } from './llm/env-llm-key-write.repository';
 import { EnvLlmKeyAdminService } from './llm/env-llm-key-admin.service';
+import { EnvLlmModelWriteRepository } from './llm/env-llm-model-write.repository';
+import { EnvLlmModelAdminService } from './llm/env-llm-model-admin.service';
 import { HiraCodeReadService } from './hira/hira-code-read.service';
 import { HiraCodeSeedService } from './hira/hira-code-seed.service';
 import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
@@ -58,6 +60,7 @@ import { HiraHospitalReadService } from './hira/hira-hospital-read.service';
 import { HiraQueryService } from './hira/hira-query.service';
 import {
   buildKrDataConfig,
+  DEFAULT_HIRA_DETAIL_VERSION,
   KRDATA_CONFIG,
   type KrDataAppConfig,
 } from './krdata.config';
@@ -138,6 +141,8 @@ export class AdminApplicationModule {
         // 서버 LLM 키(env_llm_key). 설정이 아니라 관리 대상 목록이라 CRUD 가 붙는다.
         EnvLlmKeyWriteRepository,
         EnvLlmKeyAdminService,
+        EnvLlmModelWriteRepository,
+        EnvLlmModelAdminService,
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         HiraHospitalSyncRepository,
         NmcBasicSyncRepository,
@@ -179,6 +184,9 @@ export class AdminApplicationModule {
           ): Promise<KrDataAppConfig> => ({
             ...config,
             serviceKey: (await settings.getString('krdata.serviceKey')) ?? '',
+            hiraDetailVersion:
+              (await settings.getString('krdata.hiraDetailVersion')) ||
+              DEFAULT_HIRA_DETAIL_VERSION,
           }),
           inject: [SettingCache],
         },
@@ -244,6 +252,8 @@ export class AdminApplicationModule {
         // 서버 LLM 키(env_llm_key). 설정이 아니라 관리 대상 목록이라 CRUD 가 붙는다.
         EnvLlmKeyWriteRepository,
         EnvLlmKeyAdminService,
+        EnvLlmModelWriteRepository,
+        EnvLlmModelAdminService,
         /*
           **모듈을 통째로 다시 내보낸다.** Nest 는 provider 를 전이적으로 노출하지 않아서,
           이걸 안 하면 이 모듈을 import 한 앱의 컨트롤러가 ApplicationModule 의 서비스

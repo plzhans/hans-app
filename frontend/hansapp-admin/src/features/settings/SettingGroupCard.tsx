@@ -105,6 +105,10 @@ function SectionForm({
   /** 이번에 바뀌는 줄. 확인 모달이 "무엇이 바뀌는지" 를 이걸로 나열한다. */
   const changed = fields.filter((f) => f.key in draft);
 
+  const rows = groupByRow(fields);
+  /** 구역 안에서 제일 긴 줄의 칸 수. 모든 줄이 이 칸 수로 선다. */
+  const columns = Math.max(...rows.map((row) => row.length), 1);
+
   const save = useMutation({
     mutationFn: () => saveSettingGroup(groupId, draft),
     onSuccess: (groups) => {
@@ -162,17 +166,41 @@ function SectionForm({
       )}
 
       <div className={cn(!title && 'mt-2')}>
-        {fields.map((field) => (
-          <FieldRow
-            key={field.key}
-            field={field}
-            draft={draft}
-            editing={editingSecrets.has(field.key)}
-            onOpenSecret={() => openSecret(field.key)}
-            onChange={(v) => set(field.key, v)}
-            onUnset={() => unset(field.key)}
-          />
-        ))}
+        {rows.map((row) => {
+          const cells = row.map((field) => (
+            <FieldRow
+              key={field.key}
+              field={field}
+              draft={draft}
+              editing={editingSecrets.has(field.key)}
+              onOpenSecret={() => openSecret(field.key)}
+              onChange={(v) => set(field.key, v)}
+              onUnset={() => unset(field.key)}
+            />
+          ));
+          if (columns === 1) return cells[0];
+          /*
+            **체크박스 줄은 칸을 나누지 않는다.** 늘어나는 입력칸이 없어 넓다고 이상해지지
+            않고, 오히려 옆에 붙는 설명이 반 폭에서 잘린다.
+          */
+          if (row.length === 1 && row[0].type === 'boolean') return cells[0];
+          /*
+            **칸 수를 구역 안에서 맞춘다.** 입력칸이 있는 줄이 혼자 서면 남는 폭을 다 먹어
+            그 줄만 두 배로 길어진다 — 모자란 칸은 빈 자리로 채운다.
+          */
+          return (
+            <div key={row[0].key} className="flex gap-4">
+              {cells.map((cell, i) => (
+                <div key={row[i].key} className="min-w-0 flex-1">
+                  {cell}
+                </div>
+              ))}
+              {Array.from({ length: columns - cells.length }, (_, i) => (
+                <div key={`pad-${i}`} className="flex-1" aria-hidden />
+              ))}
+            </div>
+          );
+        })}
       </div>
 
       {save.isError && (
@@ -318,7 +346,18 @@ function describeDraft(field: SettingField, draft: SettingValues): string {
   if (field.type === 'boolean') return value === true ? '사용' : '사용 안 함';
   const text = String(value);
   if (field.type === 'secret') return `••••${text.slice(-4)}`;
-  return text;
+  // 확인 창에서도 같은 모양이어야 "내가 친 것이 이것" 이 한눈에 맞는다.
+  return field.type === 'number' ? group(text) : text;
+}
+
+/**
+ * 세 자리마다 쉼표. **숫자가 아닌 것은 건드리지 않는다** — 아직 다 안 친 값이나 빈 칸이
+ * 그대로 지나가야 입력이 끊기지 않는다.
+ */
+function group(raw: string): string {
+  const digits = raw.replace(/,/g, '');
+  if (!/^\d+$/.test(digits)) return raw;
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 function ChangeList({
@@ -401,6 +440,7 @@ function FieldRow({
           onClick={() => setShowKey((v) => !v)}
           title={showKey ? '설정 키 감추기' : '설정 키 보기'}
           className={cn(
+            // **폭이 하나다.** 줄마다 다르면 입력칸 왼쪽 끝이 어긋나 표가 깨져 보인다.
             'w-28 shrink-0 truncate text-left text-sm font-medium transition',
             'decoration-dotted underline-offset-4 hover:underline',
             showKey ? 'text-primary' : 'text-gray-700 hover:text-gray-900',
@@ -441,13 +481,8 @@ function FieldRow({
           )}
         </div>
 
-        <StatusTag
-          source={field.source}
-          touched={touched}
-          removing={removing}
-        />
-
         {/*
+          **버튼이 입력칸 바로 옆이다.** 누르는 것과 눌러서 바뀌는 것이 붙어 있어야 한다.
           자리는 항상 차지한다 — 비워 두면 줄마다 입력칸 끝이 어긋난다.
           DB 에 값이 있는 줄만 지울 것이 있다.
         */}
@@ -462,17 +497,26 @@ function FieldRow({
             </IconButton>
           ) : null}
         </div>
+
+        {/* 결과(변경됨·지움)는 줄 끝에서 읽는다. */}
+        <StatusTag touched={touched} removing={removing} />
       </div>
 
       {/* select-all 이라 한 번 누르면 통째로 잡힌다 — 이 값은 보려는 게 아니라 복사하려는 것이다. */}
       {showKey && (
-        <p className="mt-0.5 select-all pl-[7.75rem] font-mono text-xs text-primary-700">
+        <p
+          // 레이블 폭 + gap-3. 아래 줄이 입력칸 왼쪽 끝과 맞아야 읽힌다.
+          className="mt-0.5 select-all pl-[7.75rem] font-mono text-xs text-primary-700"
+        >
           {field.key}
         </p>
       )}
 
-      {/* 한 줄이 원칙이라, 설명만 예외로 입력칸 위치에 맞춰 아래에 붙인다. */}
-      {field.help && (
+      {/*
+        한 줄이 원칙이라, 설명만 예외로 입력칸 위치에 맞춰 아래에 붙인다.
+        boolean 은 체크박스 옆이 비어 있어 그쪽에 붙는다(FieldInput 참고).
+      */}
+      {field.help && field.type !== 'boolean' && (
         <p className="mt-0.5 pl-[7.75rem] text-xs text-gray-400">
           {field.help}
         </p>
@@ -497,16 +541,35 @@ function FieldInput({
     'h-9 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-100';
 
   if (field.type === 'boolean') {
+    /*
+      **설명을 체크박스 옆에 붙인다.** 다른 타입은 입력칸이 줄을 다 쓰지만 이건 체크박스
+      하나라 오른쪽이 통째로 비는데, 설명을 아래 줄로 내리면 안 써도 될 줄을 하나 더 쓴다.
+
+      label 밖에 둔다 — 안에 넣으면 설명을 읽으려고 누른 것이 체크 토글이 된다.
+    */
     return (
-      <label className="flex h-9 items-center gap-2 text-sm text-gray-600">
-        <input
-          type="checkbox"
-          className="h-4 w-4 shrink-0 accent-primary"
-          checked={touched ? draft[field.key] === true : field.value === 'true'}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        사용
-      </label>
+      <div className="flex h-9 min-w-0 items-center gap-2.5">
+        <label className="flex shrink-0 items-center gap-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            className="h-4 w-4 shrink-0 accent-primary"
+            checked={
+              touched ? draft[field.key] === true : field.value === 'true'
+            }
+            onChange={(e) => onChange(e.target.checked)}
+          />
+          사용
+        </label>
+        {field.help && (
+          // 좁은 화면에서 넘치면 자르되 title 로 전문을 남긴다.
+          <span
+            title={field.help}
+            className="min-w-0 flex-1 truncate text-xs text-gray-400"
+          >
+            {field.help}
+          </span>
+        )}
+      </div>
     );
   }
 
@@ -527,29 +590,38 @@ function FieldInput({
     );
   }
 
+  const isNumber = field.type === 'number';
+  const raw = touched
+    ? String(draft[field.key] ?? '')
+    : field.type === 'secret'
+      ? ''
+      : (field.value ?? '');
+
   return (
     <input
       className={box}
       // secret 은 편집 모드로 열렸을 때만 여기 온다. 언제나 빈 칸에서 시작한다.
       type={field.type === 'secret' ? 'password' : 'text'}
-      inputMode={field.type === 'number' ? 'numeric' : undefined}
+      inputMode={isNumber ? 'numeric' : undefined}
       autoComplete="off"
       autoFocus={field.type === 'secret'}
-      placeholder={field.placeholder}
-      value={
-        touched
-          ? String(draft[field.key] ?? '')
-          : field.type === 'secret'
-            ? ''
-            : (field.value ?? '')
+      /*
+        **숫자는 자리를 끊어 보여 준다.** 토큰 한도처럼 0 이 예닐곱 개 붙는 값은 그냥 두면
+        자릿수를 눈으로 못 센다 — 실제로 20000000 을 200000 으로 적는 사고가 났다.
+        저장은 끊김 없는 숫자로 나간다(아래 onChange 가 쉼표를 떼고 Number 로 바꾼다).
+      */
+      placeholder={
+        isNumber && field.placeholder
+          ? group(field.placeholder)
+          : field.placeholder
       }
-      onChange={(e) =>
-        onChange(
-          field.type === 'number' && e.target.value !== ''
-            ? Number(e.target.value)
-            : e.target.value,
-        )
-      }
+      value={isNumber ? group(raw) : raw}
+      onChange={(e) => {
+        if (!isNumber) return onChange(e.target.value);
+        // 사람이 친 쉼표든 우리가 넣은 쉼표든 똑같이 뗀다.
+        const digits = e.target.value.replace(/,/g, '');
+        onChange(digits === '' ? '' : Number(digits));
+      }}
     />
   );
 }
@@ -576,38 +648,27 @@ function IconButton({
 }
 
 /**
- * 줄의 현재 상태. 폭을 고정해 뒤따르는 칸이 줄마다 어긋나지 않게 한다.
+ * **아직 저장 안 한 변경**을 알린다. 폭을 고정해 뒤따르는 칸이 줄마다 어긋나지 않게 한다.
  *
- * 값이 어디서 왔는지도 여기서 알린다 — 설정을 DB 로 옮기는 중에는 두 곳이 섞인다.
+ * 값이 있는지 없는지는 적지 않는다 — 입력칸에 그대로 보이고(secret 은 `****뒤4자`),
+ * 같은 말을 두 번 하면 정작 여기서 봐야 할 "내가 뭘 만졌나" 가 묻힌다.
+ * 설정 파일 폴백이 있던 시절에는 값의 출처가 갈려 필요했지만, 지금 출처는 DB 하나다.
  */
 function StatusTag({
-  source,
   touched,
   removing,
 }: {
-  source: SettingField['source'];
   touched: boolean;
   removing: boolean;
 }) {
-  const text = removing
-    ? '지움'
-    : touched
-      ? '변경됨'
-      : source === 'db'
-        ? '설정됨'
-        : '미설정';
-
   return (
     <span
       className={cn(
-        'w-14 shrink-0 text-right text-xs',
-        removing && 'font-medium text-red-500',
-        touched && !removing && 'font-medium text-amber-600',
-        !touched && source === 'none' && 'text-gray-300',
-        !touched && source !== 'none' && 'text-gray-400',
+        'w-14 shrink-0 text-right text-xs font-medium',
+        removing ? 'text-red-500' : 'text-amber-600',
       )}
     >
-      {text}
+      {removing ? '지움' : touched ? '변경됨' : ''}
     </span>
   );
 }
@@ -629,4 +690,21 @@ function groupBySection(
     }
   }
   return sections;
+}
+
+/**
+ * 구역 안의 필드를 한 줄 단위로 묶는다. **카탈로그 순서를 그대로 지킨다** —
+ * 연달아 있고 `row` 가 같은 것끼리만 한 줄에 선다(떨어져 있으면 각자 줄을 갖는다).
+ */
+function groupByRow(fields: SettingField[]): SettingField[][] {
+  const rows: SettingField[][] = [];
+  for (const field of fields) {
+    const last = rows[rows.length - 1];
+    if (field.row && last && last[0].row === field.row) {
+      last.push(field);
+    } else {
+      rows.push([field]);
+    }
+  }
+  return rows;
 }
