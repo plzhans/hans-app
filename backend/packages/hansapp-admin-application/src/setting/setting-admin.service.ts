@@ -52,7 +52,12 @@ export class SettingAdminService {
         const inDb = stored.has(field.key);
         // 값 자체는 읽기 서비스를 통해 가져온다 — DB → 설정 파일 폴백이 거기 있다.
         const raw = await this.settings.getString(field.key);
-        const hasValue = raw.length > 0;
+        /*
+          **`null`(설정 안 됨)과 `''`(빈 값으로 설정함)를 갈라 받는다.** 화면에서는 둘 다
+          "채워진 값이 없다" 로 보이지만, 출처는 다르다 — 빈 값이라도 DB 에 행이 있으면
+          그것은 관리자가 일부러 넣은 상태다.
+        */
+        const hasValue = raw !== null && raw.length > 0;
 
         fields.push({
           ...field,
@@ -64,6 +69,7 @@ export class SettingAdminService {
           hasValue,
           suffix:
             field.type === 'secret' && hasValue ? suffixOf(raw) || null : null,
+          // 빈 값이라도 DB 에 행이 있으면 'db' 다. 행의 유무가 출처를 정한다.
           source: inDb ? 'db' : hasValue ? 'file' : 'none',
         });
       }

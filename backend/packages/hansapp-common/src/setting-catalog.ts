@@ -294,7 +294,15 @@ export type SettingInput = Record<string, string | number | boolean | null>;
  * 이 인터페이스만 공유하면 설정을 읽는 코드(메일 등)가 어느 계층에 얹히든 그대로 돈다.
  */
 export interface SettingReader {
-  getString(key: string): Promise<string>;
+  /**
+   * **`null` 은 "설정 안 됨", `''` 는 "빈 값으로 설정함" 이다.**
+   *
+   * 저장소가 지울 때 행을 없애고 빈 문자열로 덮지 않는 것이 이 구분을 위해서다 —
+   * 읽는 쪽에서 뭉개면 저장소가 애써 갈라 놓은 것이 사라진다. 기본값을 쓸지는
+   * `?? 기본값` 으로 부르는 쪽이 정한다.
+   */
+  getString(key: string): Promise<string | null>;
+  /** 설정이 없으면 fallback. 숫자로 못 읽는 값(빈 값 포함)도 fallback 이다. */
   getNumber(key: string, fallback: number): Promise<number>;
   getBoolean(key: string, fallback?: boolean): Promise<boolean>;
 }

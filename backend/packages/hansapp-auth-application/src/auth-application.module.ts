@@ -114,7 +114,7 @@ export class AuthModule {
           useFactory: (
             repo: SettingReadRepository,
             keyring: SecretBoxKeys | undefined,
-          ) => new SettingService(repo, keyring, source),
+          ) => new SettingService(repo, keyring),
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         MailSettingsSource,

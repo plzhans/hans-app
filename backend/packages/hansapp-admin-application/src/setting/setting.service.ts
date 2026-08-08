@@ -47,10 +47,18 @@ export class SettingService implements SettingReader {
     private readonly config: ConfigSource,
   ) {}
 
-  /** 문자열 설정. DB → 설정 파일 순. 둘 다 없으면 빈 문자열. */
-  async getString(key: string): Promise<string> {
+  /**
+   * 문자열 설정. DB → 설정 파일 순.
+   *
+   * **`null` 은 "어디에도 없음", `''` 는 "빈 값으로 설정함" 이다.** 화면이 "미설정" 과
+   * "빈 값" 을 갈라 보여 주려면 이 구분이 필요하다.
+   */
+  async getString(key: string): Promise<string | null> {
     const stored = await this.getStored(key);
-    return stored ?? this.config.getStringOrDefault(key);
+    if (stored !== undefined) return stored;
+    // ConfigSource 는 없는 키에도 '' 를 준다. 여기서 "없음" 으로 되돌린다.
+    const fromFile = this.config.getStringOrDefault(key);
+    return fromFile === '' ? null : fromFile;
   }
 
   async getNumber(key: string, fallback: number): Promise<number> {

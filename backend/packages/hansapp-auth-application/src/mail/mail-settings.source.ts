@@ -30,6 +30,7 @@ export class MailSettingsSource implements EmailSettingsSource {
 
     return {
       enabled,
+      // `??` 다 — 관리자가 일부러 빈 값으로 뒀다면 그 뜻을 존중할 자리가 아니다(발송이 깨진다).
       from: from || DEFAULT_FROM,
       // host 가 없으면 보낼 곳이 없다. 나머지를 읽어 봐야 의미가 없다.
       smtp: host
