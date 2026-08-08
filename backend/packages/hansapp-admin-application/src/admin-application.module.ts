@@ -9,7 +9,7 @@ import { ApplicationModule } from '@hansapp/application';
 import { DataModule, SettingReadRepository } from '@hansapp/data';
 import { SearchModule } from '@hansapp/search';
 
-import { SettingService } from './setting/setting.service';
+import { SettingCache } from './setting/setting-cache.service';
 import { SettingAdminService } from './setting/setting-admin.service';
 import { SettingWriteRepository } from './setting/setting-write.repository';
 import { HiraCodeReadService } from './hira/hira-code-read.service';
@@ -54,9 +54,17 @@ import { HiraCodeSyncService } from './hira/hira-code-sync.service';
 import { HiraHospitalSyncService } from './hira/hira-hospital-sync.service';
 import { HiraHospitalReadService } from './hira/hira-hospital-read.service';
 import { HiraQueryService } from './hira/hira-query.service';
-import { buildKrDataConfig, KRDATA_CONFIG } from './krdata.config';
+import {
+  buildKrDataConfig,
+  KRDATA_CONFIG,
+  type KrDataAppConfig,
+} from './krdata.config';
 import { krDataProviders } from './krdata.providers';
-import { buildJusoConfig, JUSO_CONFIG } from './juso.config';
+import {
+  buildJusoConfig,
+  JUSO_CONFIG,
+  type JusoAppConfig,
+} from './juso.config';
 import { jusoProviders } from './juso.providers';
 import { ntsProviders } from './nts.providers';
 import { NmcCodeReadService } from './nmc/nmc-code-read.service';
@@ -111,17 +119,17 @@ export class AdminApplicationModule {
           그 카탈로그는 @hansapp/common 이 갖는다. 읽기 저장소는 @hansapp/data 것을 그대로 쓰고,
           **쓰기는 이 계층에만 둔다** — 관리자 아닌 계층에서 설정을 덮을 자리를 만들지 않는다.
 
-          SettingService 는 ConfigSource 를 생성자로 받는데 그것이 DI 토큰이 아니라
+          SettingCache 는 ConfigSource 를 생성자로 받는데 그것이 DI 토큰이 아니라
           forRoot 인자라, 여기서 팩토리로 묶어 넣는다.
         */
         { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
         SettingWriteRepository,
         {
-          provide: SettingService,
+          provide: SettingCache,
           useFactory: (
             repo: SettingReadRepository,
             keyring: SecretBoxKeys | undefined,
-          ) => new SettingService(repo, keyring, source),
+          ) => new SettingCache(repo, keyring, source),
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         SettingAdminService,
@@ -153,9 +161,33 @@ export class AdminApplicationModule {
         // ES 색인: DB 읽기(repo) + 오케스트레이션(service). ES 쓰기 프리미티브는 SearchModule 이 준다.
         HealthcareIndexRepository,
         HealthcareIndexService,
-        { provide: KRDATA_CONFIG, useValue: config },
+        /*
+          서비스키는 DB(env_setting)에서 읽는다. **부팅할 때 한 번만 읽는다** —
+          배치·CLI 는 명령 하나 돌고 끝나는 프로세스라 "재시작 없이 반영" 이 뜻이 없고,
+          동기화 도중에 키가 바뀌는 것이 오히려 이상하다.
+          (요청마다 도는 API 서버 쪽은 팩토리로 매번 만든다 — NtsClientFactory 참고.)
+        */
+        {
+          provide: KRDATA_CONFIG,
+          useFactory: async (
+            settings: SettingCache,
+          ): Promise<KrDataAppConfig> => ({
+            ...config,
+            serviceKey: (await settings.getString('krdata.serviceKey')) ?? '',
+          }),
+          inject: [SettingCache],
+        },
         ...krDataProviders,
-        { provide: JUSO_CONFIG, useValue: jusoConfig },
+        {
+          provide: JUSO_CONFIG,
+          useFactory: async (
+            settings: SettingCache,
+          ): Promise<JusoAppConfig> => ({
+            ...jusoConfig,
+            confmKey: (await settings.getString('juso.serviceKey')) ?? '',
+          }),
+          inject: [SettingCache],
+        },
         ...jusoProviders,
         // 국세청 사업자등록 API 는 KRDATA_SERVICE_KEY 를 공유한다 — 별도 설정 없이 KRDATA_CONFIG 를 쓴다.
         ...ntsProviders,
@@ -201,12 +233,12 @@ export class AdminApplicationModule {
       ],
       // SDK 클라이언트는 export 하지 않는다. 외부 API 호출은 이 계층 안에 가둔다.
       exports: [
-        SettingService,
+        SettingCache,
         SettingAdminService,
         /*
           **모듈을 통째로 다시 내보낸다.** Nest 는 provider 를 전이적으로 노출하지 않아서,
           이걸 안 하면 이 모듈을 import 한 앱의 컨트롤러가 ApplicationModule 의 서비스
-          (SettingService·SettingAdminService 등)를 생성자로 못 받는다.
+          (SettingCache·SettingAdminService 등)를 생성자로 못 받는다.
           app.get() 은 모듈을 안 가려서 되지만 컨트롤러 주입은 안 된다 — 그래서 걸린다.
         */
         ApplicationModule,

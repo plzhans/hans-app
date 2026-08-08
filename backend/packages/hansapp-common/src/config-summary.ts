@@ -21,8 +21,6 @@ export function logConfigSummary(
       return '(missing)';
     }
   };
-  const mask = (raw: string): string =>
-    raw ? `${raw.slice(0, 5)}*****` : '(empty)';
   /**
    * **뒤** 5글자만 남긴다. 다른 마스킹(mask)이 앞을 남기는 것과 반대인데, 이 값들은 접두사가
    * 고정이라 앞을 보여 줘 봐야 아무것도 구별되지 않기 때문이다 — `sk-ant-api03-`(API 키)와
@@ -91,6 +89,8 @@ export function logConfigSummary(
       log('Config LLM : ⚠️ 자격증명 없음 — AI 검색은 503 을 낸다');
     }
   }
-  log(`Config KRDATA : ${mask(s('krdata.serviceKey'))}`);
-  log(`Config JUSO   : ${mask(s('juso.serviceKey'))}`);
+  /*
+    **서비스키도 여기서 안 찍는다.** 메일과 같은 이유다 — 값이 DB(env_setting)에 있어서
+    설정 파일 요약은 실제로 쓰이는 값이 아니다. 무엇이 설정돼 있는지는 관리 화면에서 본다.
+  */
 }

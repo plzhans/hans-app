@@ -41,9 +41,13 @@ export interface KrDataAppConfig {
  * **정말 필요한 sync 는 호출 시점에** 401/403 으로 드러난다(부팅 때가 아니라).
  */
 export function buildKrDataConfig(source: ConfigSource): KrDataAppConfig {
-  // serviceKey 만 시크릿(.env). 나머지(재시도·타임아웃·버전)는 비밀 아님 → getX.
+  /*
+    **serviceKey 는 여기서 안 읽는다.** 값이 DB(env_setting)에 있어서 모듈이 부팅할 때
+    비동기로 채운다(admin-application.module 의 KRDATA_CONFIG 프로바이더 참고).
+    빈 문자열로 두는 것은 "아직 안 채워졌다" 는 뜻이고, 실제 값이 그 자리를 덮는다.
+  */
   return Object.freeze({
-    serviceKey: source.getStringOrDefault('krdata.serviceKey'),
+    serviceKey: '',
     maxRetry: source.getNumberOrDefault('krdata.maxRetry', 3),
     readTimeoutMs: source.getNumberOrDefault('krdata.readTimeoutMs', 60_000),
     hiraDetailVersion:

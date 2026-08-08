@@ -92,13 +92,7 @@ krdata:
   serviceKey:
   hiraDetailVersion:
 
-# 국토교통부(vworld). 3D 지도·항공사진. **vworld 서비스키는 공공데이터포털과 별개**.
-molit:
-  vworld:
-    serviceKey: ${KRGO_MOLIT_VWORLD_SERVICE_KEY}
-
 juso:
-  serviceKey: ${KRGO_JUSO_SERVICE_KEY}
 
 # ── 앱 자격증명 암호화 ─────────────────────────────────────────────────────────
 # 앱이 등록한 외부 자격증명(LLM 업체 키·외부 서비스 키)을 DB 에 잠글 때 쓰는 마스터 키.

@@ -3,7 +3,7 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
-import { BusinessService } from './business.service';
+import { BusinessService } from '@hansapp/application';
 import {
   BnoParamDto,
   BusinessStatusDto,

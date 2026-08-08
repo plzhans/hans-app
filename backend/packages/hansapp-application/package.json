@@ -19,6 +19,8 @@
     "@hansapp/search": "workspace:*",
     "@hansapp/slack-notify": "workspace:*",
     "@keyv/redis": "^5.1.6",
+    "@kr-go/juso": "workspace:*",
+    "@kr-go/nts": "workspace:*",
     "@krdata/hira": "workspace:*",
     "@krdata/nmc": "workspace:*",
     "@nestjs/cache-manager": "^3.1.3",

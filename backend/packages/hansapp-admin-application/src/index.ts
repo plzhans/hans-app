@@ -38,7 +38,7 @@ export type { HiraCodeType, HiraCodeResponse } from '@hansapp/application';
 export { HealthService } from '@hansapp/application';
 
 // 서비스 설정 관리. 읽기는 공용 계층이 갖고, 관리자 API 가 쓰기 엔드포인트를 연다.
-export { SettingService } from './setting/setting.service';
+export { SettingCache } from './setting/setting-cache.service';
 export { SettingAdminService } from './setting/setting-admin.service';
 // 타입·카탈로그는 계층이 아니라 공용이다 — 관리자 API 가 DTO 를 만들 때 이걸 쓴다.
 export type {

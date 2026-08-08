@@ -26,7 +26,7 @@ import { EmailSender, EMAIL_SETTINGS_SOURCE } from '@hansapp/email-sender';
 
 import { AuthEmailService } from './mail/auth-email.service';
 import { MailSettingsSource } from './mail/mail-settings.source';
-import { SettingService } from './setting/setting.service';
+import { SettingCache } from './setting/setting-cache.service';
 import { AuthService } from './auth.service';
 import { LoginService } from './login.service';
 import { OAuthTokenService } from './oauth-token.service';
@@ -110,11 +110,11 @@ export class AuthModule {
         */
         { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
         {
-          provide: SettingService,
+          provide: SettingCache,
           useFactory: (
             repo: SettingReadRepository,
             keyring: SecretBoxKeys | undefined,
-          ) => new SettingService(repo, keyring),
+          ) => new SettingCache(repo, keyring),
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         MailSettingsSource,

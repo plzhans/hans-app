@@ -18,6 +18,9 @@ const CACHE_TTL_MS = 5 * 60_000;
 /**
  * 서비스 설정을 읽는다. **DB 가 유일한 원천이다.**
  *
+ * **이름이 Cache 인 것은 원본이 여기가 아니기 때문이다.** 값은 DB(env_setting)에 있고
+ * 이 클래스는 그 사본을 TTL 동안 들고 있을 뿐이다 — AccessCache·RegionCache 와 같은 결이다.
+ *
  * **설정 파일로 폴백하지 않는다.** 관리자 계층의 같은 이름 클래스는 폴백을 갖는데, 그쪽은
  * 아직 파일에 남은 값(krdata·OAuth 등)을 화면에 "설정 파일" 로 보여 주고 DB 로 옮겨야 해서다.
  * 업무 쪽은 그 과정이 끝난 값만 읽으므로 두 곳을 볼 이유가 없다 — 둘 다 지원하면 `.env` 의
@@ -30,8 +33,8 @@ const CACHE_TTL_MS = 5 * 60_000;
  * 사라져 발송이 멎는 편이 더 나쁘다.
  */
 @Injectable()
-export class SettingService implements SettingReader {
-  private readonly logger = new Logger(SettingService.name);
+export class SettingCache implements SettingReader {
+  private readonly logger = new Logger(SettingCache.name);
 
   private values: Map<string, string> | undefined;
   private expiresAt = 0;

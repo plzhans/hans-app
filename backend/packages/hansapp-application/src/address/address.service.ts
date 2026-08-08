@@ -3,11 +3,26 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { JusoClient, JusoError } from '@kr-go/juso';
+import { JusoError } from '@kr-go/juso';
 import type { AddrEng } from '@kr-go/juso';
 import { Page } from '@hansapp/common';
 
-import { AddressDto } from './dto/address.dto';
+import { JusoClientFactory } from './juso-client.factory';
+
+/**
+ * 주소 한 건. **DTO 가 아니라 도메인 타입이다** — 앱의 DTO(@ApiProperty 가 붙은 클래스)는
+ * 대외 계약이라 앱에 남고, 이 계층은 같은 모양의 평범한 객체를 돌려준다.
+ */
+export interface AddressResult {
+  readonly korAddr: string;
+  readonly roadAddr: string;
+  readonly jibunAddr?: string;
+  readonly zipNo?: string;
+  readonly sido?: string;
+  readonly sigungu?: string;
+  readonly eupmyeondong?: string;
+  readonly roadName?: string;
+}
 
 /** 주소 검색 명령. 컨트롤러가 DTO 에서 뽑아 넘긴다. */
 export interface AddressSearchCommand {
@@ -35,24 +50,25 @@ const INPUT_ERROR_CODES = new Set([
 /**
  * 주소 영문 번역 서비스.
  *
- * 도로명주소 개발자센터(juso.go.kr)를 조회한다. **국세청 API 와 함께 이 서버에서 외부 API 를
- * 직접 호출하는 소수의 API 중 하나다.** 원본 응답(snake_case·영문/한글 혼재)을 우리 DTO 로
+ * 도로명주소 개발자센터(juso.go.kr)를 조회한다. **국세청 API(BusinessService)와 함께 외부 API 를
+ * 요청마다 실시간으로 호출하는 소수의 서비스다.** 원본 응답(snake_case·영문/한글 혼재)을 우리 모양으로
  * 변환해서 돌려준다.
  */
 @Injectable()
 export class AddressService {
-  constructor(private readonly juso: JusoClient) {}
+  constructor(private readonly juso: JusoClientFactory) {}
 
   /** 한글 검색어로 영문 주소를 검색한다. 결과가 없으면 빈 페이지를 돌려준다. */
-  async search(command: AddressSearchCommand): Promise<Page<AddressDto>> {
+  async search(command: AddressSearchCommand): Promise<Page<AddressResult>> {
+    const client = await this.juso.create();
     const results = await this.call(() =>
-      this.juso.searchAddresses(command.keyword, {
+      client.searchAddresses(command.keyword, {
         currentPage: command.page,
         countPerPage: command.size,
       }),
     );
 
-    const items = (results.juso ?? []).map(toAddressDto);
+    const items = (results.juso ?? []).map(toAddressResult);
     const totalCount = Number(results.common?.totalCount);
 
     return new Page(
@@ -87,8 +103,8 @@ export class AddressService {
   }
 }
 
-/** 도로명주소 항목(snake_case)을 우리 DTO 로 변환한다. 빈 문자열은 undefined 로 접는다. */
-function toAddressDto(a: AddrEng): AddressDto {
+/** 도로명주소 항목(snake_case)을 우리 모양으로 변환한다. 빈 문자열은 undefined 로 접는다. */
+function toAddressResult(a: AddrEng): AddressResult {
   return {
     korAddr: a.korAddr ?? '',
     roadAddr: a.roadAddr ?? '',

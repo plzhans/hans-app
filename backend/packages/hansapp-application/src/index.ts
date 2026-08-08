@@ -163,3 +163,24 @@ export { HealthService } from './health/health.service';
 export type { HealthCheckResult } from './health/health.service';
 export { matchesAllowedIp, parseIp } from './env/ip-match';
 export type { ParsedIp } from './env/ip-match';
+
+/*
+  외부 API 를 요청마다 부르는 둘. 클라이언트는 팩토리로 만들고(싱글턴 아님) 서비스키는
+  DB(env_setting)에서 읽는다 — 화면에서 바꾸면 재시작 없이 반영된다.
+*/
+export { BusinessService } from './business/business.service';
+export type {
+  VerifyBusinessCommand,
+  BusinessStatusResult,
+  BusinessVerificationResult,
+} from './business/business.service';
+export { NtsClientFactory } from './business/nts-client.factory';
+export { AddressService } from './address/address.service';
+export type {
+  AddressSearchCommand,
+  AddressResult,
+} from './address/address.service';
+export { JusoClientFactory } from './address/juso-client.factory';
+
+/** 서비스 설정(env_setting) 읽기. 이 계층 전용 — DB 만 본다(설정 파일 폴백 없음). */
+export { SettingCache } from './setting/setting-cache.service';

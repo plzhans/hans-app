@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { EmailSettings, EmailSettingsSource } from '@hansapp/email-sender';
 
-import { SettingService } from '../setting/setting.service';
+import { SettingCache } from '../setting/setting-cache.service';
 
 /**
  * 발송기에 설정을 대 준다. **값은 DB(env_setting)에서 온다.**
@@ -9,7 +9,7 @@ import { SettingService } from '../setting/setting.service';
  * 발송기(@hansapp/email-sender)는 값이 어디서 오는지 모르고, AuthEmailService 는 본문만
  * 만든다. 그 사이를 잇는 것이 이 클래스 하나라 — 출처를 바꾸는 일이 여기서 끝난다.
  *
- * **부를 때마다 읽는다.** SettingService 가 5분 캐시를 들고 있어 DB 를 매번 때리지 않으면서도,
+ * **부를 때마다 읽는다.** SettingCache 가 5분 캐시를 들고 있어 DB 를 매번 때리지 않으면서도,
  * 관리 화면에서 바꾼 값이 재시작 없이 먹는다.
  *
  * 기본값이 여기 있는 이유는 설정 파일을 걷어내기 때문이다 — 아무것도 없을 때 무엇이 되는지는
@@ -17,7 +17,7 @@ import { SettingService } from '../setting/setting.service';
  */
 @Injectable()
 export class MailSettingsSource implements EmailSettingsSource {
-  constructor(private readonly settings: SettingService) {}
+  constructor(private readonly settings: SettingCache) {}
 
   async load(): Promise<EmailSettings> {
     /*

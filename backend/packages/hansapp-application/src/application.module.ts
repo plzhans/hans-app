@@ -1,9 +1,14 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
-import type { ConfigSource } from '@hansapp/common';
+import {
+  buildSettingKeyring,
+  SETTING_KEYRING,
+  type ConfigSource,
+  type SecretBoxKeys,
+} from '@hansapp/common';
 
-import { DataModule } from '@hansapp/data';
+import { DataModule, SettingReadRepository } from '@hansapp/data';
 import { LlmModule } from '@hansapp/llm';
 import {
   buildSearchConfig,
@@ -11,6 +16,11 @@ import {
   SEARCH_CONFIG,
 } from '@hansapp/search';
 
+import { SettingCache } from './setting/setting-cache.service';
+import { NtsClientFactory } from './business/nts-client.factory';
+import { BusinessService } from './business/business.service';
+import { JusoClientFactory } from './address/juso-client.factory';
+import { AddressService } from './address/address.service';
 import { EnvSwaggerAllowedIpRepository } from './env/env-swagger-allowed-ip.repository';
 import { buildHealthConfig, HEALTH_CONFIG } from './health/health.config';
 import { HealthService } from './health/health.service';
@@ -95,6 +105,28 @@ export class ApplicationModule {
         cacheModule,
       ],
       providers: [
+        /*
+          서비스 설정(env_setting) 읽기. **이 계층 전용이다** — 관리자 계층에도 같은 이름이
+          있지만 공유하지 않는다(폴백 정책이 다르다. 이쪽은 DB 만 본다).
+        */
+        { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
+        {
+          provide: SettingCache,
+          useFactory: (
+            repo: SettingReadRepository,
+            keyring: SecretBoxKeys | undefined,
+          ) => new SettingCache(repo, keyring),
+          inject: [SettingReadRepository, SETTING_KEYRING],
+        },
+        /*
+          외부 API 를 요청마다 실시간으로 부르는 둘. 클라이언트는 싱글턴이 아니라 팩토리로
+          만든다 — 서비스키를 화면에서 바꾸면 재시작 없이 반영되고, 앞으로 앱마다 제 키를
+          쓰게 될 자리도 열려 있다.
+        */
+        NtsClientFactory,
+        BusinessService,
+        JusoClientFactory,
+        AddressService,
         // ES 검색(무한 스크롤의 기본 원천). SearchModule 전체가 아니라 조회에 필요한 것만 단다
         // — 색인 서비스·두 번째 Prisma 풀을 서버에 끌어오지 않으려는 것이다. ElasticsearchService 는
         // 지연 연결이라 ELASTICSEARCH_URL 만 있으면 부팅하고, ES 가 죽어 있어도 뜬다(db=true 로 우회).
@@ -157,6 +189,9 @@ export class ApplicationModule {
         LlmUsageService,
       ],
       exports: [
+        SettingCache,
+        BusinessService,
+        AddressService,
         HiraHospitalService,
         NmcHospitalService,
         HiraCodeService,

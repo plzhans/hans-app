@@ -17,7 +17,7 @@ import {
   type SettingInput,
 } from '@hansapp/common';
 
-import { SettingService } from './setting.service';
+import { SettingCache } from './setting-cache.service';
 import { SettingWriteRepository } from './setting-write.repository';
 
 // 화면에 내려보내는 모양(SettingFieldView 등)은 @hansapp/common 이 갖는다 — DTO 도 같은 것을 본다.
@@ -25,7 +25,7 @@ import { SettingWriteRepository } from './setting-write.repository';
 /**
  * 서비스 설정 관리(쓰기).
  *
- * 읽기(SettingService)와 갈라 둔 이유는 캐시 때문이다 — 읽기는 5분을 버티는 것이 목적이고,
+ * 읽기(SettingCache)와 갈라 둔 이유는 캐시 때문이다 — 읽기는 5분을 버티는 것이 목적이고,
  * 쓰기는 바꾼 즉시 보여야 한다. 한 클래스에 두면 저장할 때마다 캐시를 어떻게 다룰지
  * 부르는 쪽이 신경 써야 한다.
  *
@@ -36,7 +36,7 @@ import { SettingWriteRepository } from './setting-write.repository';
 export class SettingAdminService {
   constructor(
     private readonly repository: SettingWriteRepository,
-    private readonly settings: SettingService,
+    private readonly settings: SettingCache,
     @Inject(SETTING_KEYRING)
     private readonly keyring: SecretBoxKeys | undefined,
   ) {}
