@@ -15,6 +15,12 @@ import {
   User,
   UserAction,
 } from '@hansapp/data';
+import {
+  normalizeLanguageChoice,
+  normalizeTimeZoneChoice,
+  resolveUserLocale,
+  type ClientLocaleInput,
+} from '@hansapp/common';
 
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
@@ -96,6 +102,8 @@ export class AuthService {
       name?: string | null;
       code: string;
       consent: ConsentInput;
+      /** 브라우저에서 뽑아 온 지역 설정. 없어도 가입은 된다(전부 null 로 남는다). */
+      clientLocale?: ClientLocaleInput;
     },
     meta: RequestMeta,
     locale?: string,
@@ -115,12 +123,15 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired verification code.');
     }
 
+    const userLocale = resolveUserLocale(input.clientLocale ?? {});
+
     const user = await this.users.create({
       email,
       emailVerified: true,
       password: await this.hashPassword(input.password),
       name: input.name ?? null,
       joinType: AuthProvider.EMAIL,
+      ...userLocale,
     });
 
     await this.consent.record(user.id, input.consent, meta);
@@ -137,7 +148,7 @@ export class AuthService {
     await this.mail.sendAccountNotice({
       to: user.email,
       kind: 'SIGNUP_WELCOME',
-      locale,
+      locale: user.language ?? locale,
       userName: user.name,
     });
 
@@ -290,13 +301,15 @@ export class AuthService {
    * 알아차릴 방법이 달리 없다 — 이미 비밀번호가 바뀌어 로그인도 안 된다.
    */
   private notifyPasswordChanged(
-    user: { email: string; name: string | null },
+    user: { email: string; name: string | null; language?: string | null },
     locale?: string,
   ): Promise<void> {
     return this.mail.sendAccountNotice({
       to: user.email,
       kind: 'PASSWORD_CHANGED',
-      locale,
+      // **회원이 고른 언어가 요청 헤더를 이긴다.** 헤더는 지금 이 브라우저의 사정이고,
+      // 메일은 나중에 다른 자리에서 읽힌다.
+      locale: user.language ?? locale,
       userName: user.name,
     });
   }
@@ -387,6 +400,45 @@ export class AuthService {
     await this.getProfile(userId);
     const trimmed = name.trim();
     return this.users.updateName(userId, trimmed || null);
+  }
+
+  /**
+   * 언어·타임존을 바꾼다. 준 항목만 바뀐다.
+   *
+   * **국가는 여기서 못 바꾼다.** 가입 시점에 타임존으로 추정해 적어 둔 집계용 값이고,
+   * 화면에 내보내지도 않는다 — 이용자가 관리할 대상이 아니다.
+   *
+   * 값은 목록에서 고르는 것이라, 알아들을 수 없으면 조용히 버리지 않고 거절한다.
+   * 가입 때(브라우저가 알아서 보낸 값)와 다른 규칙인 것은 틀렸을 때 책임이 다르기 때문이다.
+   */
+  async updateLocale(
+    userId: number,
+    input: { language?: string; timeZone?: string },
+  ): Promise<User> {
+    const current = await this.getProfile(userId);
+
+    const data: { language?: string; timeZone?: string } = {};
+
+    if (input.language !== undefined) {
+      const language = normalizeLanguageChoice(input.language);
+      if (!language) {
+        throw new BadRequestException('Unsupported language.');
+      }
+      data.language = language;
+    }
+
+    if (input.timeZone !== undefined) {
+      const timeZone = normalizeTimeZoneChoice(input.timeZone);
+      if (!timeZone) {
+        throw new BadRequestException('Unknown time zone.');
+      }
+      data.timeZone = timeZone;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return current;
+    }
+    return this.users.updateLocale(userId, data);
   }
 
   /**

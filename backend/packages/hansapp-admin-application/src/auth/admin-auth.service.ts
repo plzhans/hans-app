@@ -11,6 +11,10 @@ import {
 } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { AdminStatus, AdminUser } from '@hansapp/data';
+import {
+  normalizeLanguageChoice,
+  normalizeTimeZoneChoice,
+} from '@hansapp/common';
 
 import { ADMIN_AUTH_CONFIG } from './admin-auth.config';
 import type { AdminAuthConfig } from './admin-auth.config';
@@ -312,6 +316,45 @@ export class AdminAuthService {
 
   findById(id: number): Promise<AdminUser | null> {
     return this.admins.findById(id);
+  }
+
+  /**
+   * 본인의 언어·타임존을 바꾼다. 준 항목만 바뀐다.
+   *
+   * 목록에서 고르는 값이라 알아들을 수 없으면 조용히 버리지 않고 거절한다.
+   * **국가는 바꾸지 않는다** — 관리자는 한국 기준으로 굳어 있다.
+   */
+  async updateOwnLocale(
+    adminId: number,
+    input: { language?: string; timeZone?: string },
+  ): Promise<AdminUser> {
+    const current = await this.admins.findById(adminId);
+    if (!current) {
+      throw new NotFoundException('Admin not found.');
+    }
+
+    const data: { language?: string; timeZone?: string } = {};
+
+    if (input.language !== undefined) {
+      const language = normalizeLanguageChoice(input.language);
+      if (!language) {
+        throw new BadRequestException('Unsupported language.');
+      }
+      data.language = language;
+    }
+
+    if (input.timeZone !== undefined) {
+      const timeZone = normalizeTimeZoneChoice(input.timeZone);
+      if (!timeZone) {
+        throw new BadRequestException('Unknown time zone.');
+      }
+      data.timeZone = timeZone;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return current;
+    }
+    return this.admins.updateLocale(adminId, data);
   }
 
   // ---- 내부 ----

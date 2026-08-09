@@ -13,6 +13,7 @@ import {
   UserAction,
   UserStatus,
 } from '@hansapp/data';
+import { resolveUserLocale, type ClientLocaleInput } from '@hansapp/common';
 
 import { AUTH_CONFIG } from '../auth.config';
 import type { AuthConfig } from '../auth.config';
@@ -286,6 +287,8 @@ export class SocialService {
       email?: string | null;
       code?: string | null;
       consent: ConsentInput;
+      /** 브라우저에서 뽑아 온 지역 설정. 이메일 가입과 같은 규칙으로 좁혀 저장한다. */
+      clientLocale?: ClientLocaleInput;
     },
     meta: RequestMeta,
     locale?: string,
@@ -337,6 +340,7 @@ export class SocialService {
       password: null,
       name: payload.name,
       joinType: toJoinType(payload.provider),
+      ...resolveUserLocale(input.clientLocale ?? {}),
     });
     await this.oauths.create({
       userId: user.id,
@@ -363,7 +367,7 @@ export class SocialService {
     await this.mail.sendAccountNotice({
       to: user.email,
       kind: 'SIGNUP_WELCOME',
-      locale,
+      locale: user.language ?? locale,
       userName: user.name,
     });
 

@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/shared/config/env';
+import { detectClientLocale } from '@/shared/lib/clientLocale';
 import { apiFetch } from './client';
 
 export type SocialProvider = 'google' | 'naver' | 'kakao' | 'line';
@@ -25,6 +26,10 @@ export interface Me {
   hasPassword: boolean;
   /** 연동된 소셜 제공자(GOOGLE·NAVER·KAKAO·LINE). 이메일만으로 가입했으면 빈 배열. */
   linkedProviders: string[];
+  /** 고른 언어(ko·en·ja·zh). 고른 적이 없으면 null — 그때는 요청 헤더를 따른다. */
+  language?: string | null;
+  /** 고른 IANA 타임존. 고른 적이 없으면 null. */
+  timeZone?: string | null;
 }
 
 /**
@@ -84,7 +89,16 @@ export function emailSignup(
 ): Promise<TokenResponse> {
   return apiFetch('/auth/signup', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name, code, consent }),
+    // 언어·타임존은 **가입할 때만** 브라우저에서 뽑아 보낸다. 이후로는 본인이 고른 값이
+    // 정본이라, 로그인할 때마다 덮어쓰면 기기를 옮길 때 설정이 조용히 되돌아간다.
+    body: JSON.stringify({
+      email,
+      password,
+      name,
+      code,
+      consent,
+      clientLocale: detectClientLocale(),
+    }),
   });
 }
 
@@ -149,7 +163,13 @@ export function socialRegister(
 ): Promise<TokenResponse> {
   return apiFetch('/auth/social/register', {
     method: 'POST',
-    body: JSON.stringify({ ticket, email, code, consent }),
+    body: JSON.stringify({
+      ticket,
+      email,
+      code,
+      consent,
+      clientLocale: detectClientLocale(),
+    }),
   });
 }
 
@@ -157,11 +177,20 @@ export function getMe(): Promise<Me> {
   return apiFetch('/users/me', {}, { auth: true });
 }
 
-/** 표시 이름 변경. 빈 문자열을 보내면 이름을 지운다. */
-export function updateMyName(name: string): Promise<void> {
+/**
+ * 내 정보 변경. **보낸 항목만 바뀐다** — 이름만 고치려고 언어까지 실을 필요가 없다.
+ * 이름에 빈 문자열을 보내면 이름을 지운다.
+ *
+ * 국가는 여기 없다. 가입 때 한 번 기록하는 집계용 값이라 고칠 경로가 없다.
+ */
+export function updateMyProfile(input: {
+  name?: string;
+  language?: string;
+  timeZone?: string;
+}): Promise<void> {
   return apiFetch(
     '/users/me',
-    { method: 'PATCH', body: JSON.stringify({ name }) },
+    { method: 'PATCH', body: JSON.stringify(input) },
     { auth: true },
   );
 }

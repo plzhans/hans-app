@@ -37,6 +37,19 @@ model AdminUser {
   /// access token 클레임으로 실려 나가고, 가드가 비밀번호 변경 외의 요청을 거절한다.
   mustChangePassword Boolean @default(false) @map("must_change_password")
 
+  /// 국가(ISO 3166-1 alpha-2 대문자). 집계용으로만 둔다 — 화면에 내보내지도, 고치게 하지도 않는다.
+  ///
+  /// **관리자는 가입 화면이 없다.** CLI(`hansapp-cli admin create`)와 부팅 부트스트랩으로만
+  /// 만들어져 브라우저에서 값을 받을 자리가 없다 — 그래서 한국으로 굳힌다.
+  countryCode String @default("KR") @map("country_code") @db.Char(2)
+
+  /// 관리 화면·메일 언어. 지원 언어(ko/en/ja/zh). **관리자가 바꿀 수 있다.**
+  language String @default("ko") @db.VarChar(2)
+
+  /// IANA 타임존 ID. 화면의 시각 표기가 이 값을 따른다. **관리자가 바꿀 수 있다.**
+  /// 오프셋(GMT+9)이 아니라 존 ID 를 두는 이유는 User.timeZone 과 같다.
+  timeZone String @default("Asia/Seoul") @map("time_zone") @db.VarChar(64)
+
   /// 마지막 로그인 시각. 안 쓰는 계정을 골라내는 데 쓴다.
   lastLoginAt DateTime? @map("last_login_at")
 

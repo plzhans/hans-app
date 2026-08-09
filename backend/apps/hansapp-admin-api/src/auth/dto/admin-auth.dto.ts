@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { SUPPORTED_LANGS } from '@hansapp/common';
 
 export class AdminLoginRequestDto {
   @ApiProperty({ description: '관리자 이메일', example: 'admin@example.com' })
@@ -68,4 +76,43 @@ export class AdminMeResponseDto {
 
   @ApiProperty({ description: '비밀번호를 바꿔야 하는 상태인지' })
   readonly mustChangePassword!: boolean;
+
+  @ApiProperty({
+    description: '관리 화면·메일 언어',
+    enum: SUPPORTED_LANGS,
+    example: 'ko',
+  })
+  readonly language!: string;
+
+  @ApiProperty({
+    description: '화면의 시각 표기에 쓰는 IANA 타임존 ID',
+    example: 'Asia/Seoul',
+  })
+  readonly timeZone!: string;
+}
+
+/**
+ * 관리자 본인 설정 변경 요청. **보낸 항목만 바뀐다.**
+ *
+ * 이름·비밀번호는 여기 없다 — 비밀번호는 별도 경로(`POST /auth/password`)이고,
+ * 표시 이름은 계정을 만든 운영자가 정한다.
+ */
+export class AdminUpdateLocaleRequestDto {
+  @ApiPropertyOptional({
+    description: '관리 화면·메일 언어',
+    enum: SUPPORTED_LANGS,
+    example: 'ko',
+  })
+  @IsOptional()
+  @IsIn(SUPPORTED_LANGS)
+  readonly language?: string;
+
+  @ApiPropertyOptional({
+    description: 'IANA 타임존 ID',
+    example: 'Asia/Seoul',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  readonly timeZone?: string;
 }

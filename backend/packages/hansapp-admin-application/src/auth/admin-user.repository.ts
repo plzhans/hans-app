@@ -58,6 +58,17 @@ export class AdminUserRepository {
     return this.prisma.adminUser.update({ where: { id }, data: { status } });
   }
 
+  /**
+   * 언어·타임존 변경. 준 항목만 바꾼다.
+   * **국가(countryCode)는 없다** — 관리자는 한국 기준으로 굳혀 두고 고치지 않는다.
+   */
+  updateLocale(
+    id: number,
+    input: { language?: string; timeZone?: string },
+  ): Promise<AdminUser> {
+    return this.prisma.adminUser.update({ where: { id }, data: input });
+  }
+
   touchLastLogin(id: number, at: Date): Promise<void> {
     return this.prisma.adminUser
       .update({ where: { id }, data: { lastLoginAt: at } })

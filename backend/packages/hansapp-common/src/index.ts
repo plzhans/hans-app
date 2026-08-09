@@ -2,6 +2,8 @@ export const APP_NAME = 'hansapp';
 
 export * from './localization/lang-text';
 export * from './localization/accept-language';
+export * from './localization/time-zone';
+export * from './localization/user-locale';
 export * from './location';
 export * from './time-range';
 export * from './env';

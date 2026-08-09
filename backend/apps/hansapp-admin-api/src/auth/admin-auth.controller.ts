@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   NotFoundException,
+  Patch,
   Post,
   Req,
   Res,
@@ -32,6 +33,7 @@ import {
   AdminLoginRequestDto,
   AdminMeResponseDto,
   AdminTokenResponseDto,
+  AdminUpdateLocaleRequestDto,
 } from './dto/admin-auth.dto';
 
 /**
@@ -137,7 +139,23 @@ export class AdminAuthController {
       name: admin.name,
       lastLoginAt: admin.lastLoginAt?.toISOString() ?? null,
       mustChangePassword: admin.mustChangePassword,
+      language: admin.language,
+      timeZone: admin.timeZone,
     };
+  }
+
+  @Patch('me')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '내 언어·타임존 변경',
+    description:
+      '관리 화면과 메일에 쓰는 언어·타임존을 바꾼다. 보낸 항목만 바뀐다.',
+  })
+  async updateMe(
+    @CurrentAdmin() current: AdminAuthUser,
+    @Body() dto: AdminUpdateLocaleRequestDto,
+  ): Promise<void> {
+    await this.auth.updateOwnLocale(current.adminId, dto);
   }
 
   @Post('password')

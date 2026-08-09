@@ -2348,7 +2348,7 @@
   "info": {
     "title": "Hans API",
     "description": "Hans API backend 문서",
-    "version": "0.13.0",
+    "version": "0.14.0",
     "contact": {}
   },
   "tags": [],
@@ -2554,6 +2554,22 @@
             "type": "string",
             "description": "최초 가입 수단",
             "example": "EMAIL"
+          },
+          "language": {
+            "type": "string",
+            "description": "표시·메일 언어. 고른 적이 없으면 null 이고, 그때는 요청의 Accept-Language 를 따른다.",
+            "enum": [
+              "ko",
+              "en",
+              "ja",
+              "zh"
+            ],
+            "example": "ko"
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "IANA 타임존 ID. 고른 적이 없으면 null 이다.",
+            "example": "Asia/Seoul"
           },
           "createdAt": {
             "type": "string",
@@ -4170,6 +4186,11 @@
             "description": "자연어 질문",
             "example": "천식치료 소아과 병원 추천해줘",
             "maxLength": 300
+          },
+          "model": {
+            "type": "string",
+            "description": "쓸 모델. 안 보내면 서버 기본 모델. 허용 목록 밖이면 거절한다.",
+            "example": "claude-haiku-4-5"
           },
           "context": {
             "description": "직전 응답의 `params` 를 그대로 돌려보낸다. 앞서 잡힌 조건을 이어받는 수단이다 — 서버는 대화를 기억하지 않는다.\n\n새 주제를 시작하려면 빼고 보낸다. `answer`·`reason` 은 보내도 무시한다.",

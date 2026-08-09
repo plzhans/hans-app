@@ -2,11 +2,13 @@ import { create } from 'zustand';
 
 import {
   changePassword as apiChangePassword,
-  getMe,
+  getMe as apiGetMe,
   logout as apiLogout,
   login as apiLogin,
+  updateMyLocale as apiUpdateMyLocale,
   type AdminMe,
 } from '@/shared/api/auth';
+import { setDisplayTimeZone } from '@/shared/lib/formatDateTime';
 import { refreshSession } from '@/shared/api/client';
 import {
   clearAccessToken,
@@ -37,7 +39,23 @@ interface AuthState {
     currentPassword: string,
     newPassword: string,
   ) => Promise<void>;
+  updateLocale: (input: {
+    language?: string;
+    timeZone?: string;
+  }) => Promise<void>;
   signOut: () => Promise<void>;
+}
+
+/**
+ * 내 정보를 읽고 **표시 시간대까지 맞춘다.**
+ *
+ * 이 둘을 떼어 놓으면 로그인 직후 한 화면 분량은 브라우저 시간대로 찍히고, 다음 조회부터
+ * 계정 시간대로 바뀐다 — 같은 표에 두 기준이 섞인다. 읽는 자리마다 잊지 않도록 묶어 둔다.
+ */
+async function loadMe(): Promise<AdminMe> {
+  const me = await apiGetMe();
+  setDisplayTimeZone(me.timeZone);
+  return me;
 }
 
 /**
@@ -79,7 +97,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       // /auth/me 는 변경 강제 상태에서도 열려 있다(서버가 그렇게 표시해 두었다).
-      const me = await getMe();
+      const me = await loadMe();
       set({
         status: me.mustChangePassword ? 'mustChange' : 'authenticated',
         me,
@@ -94,7 +112,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signIn: async (email, password) => {
     const tokens = await apiLogin(email, password);
     setAccessToken(tokens.accessToken);
-    const me = await getMe();
+    const me = await loadMe();
     set({
       status: tokens.mustChangePassword ? 'mustChange' : 'authenticated',
       me,
@@ -108,8 +126,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   changePassword: async (currentPassword, newPassword) => {
     const tokens = await apiChangePassword(currentPassword, newPassword);
     setAccessToken(tokens.accessToken);
-    const me = await getMe();
+    const me = await loadMe();
     set({ status: 'authenticated', me });
+  },
+
+  /** 언어·시간대 변경. 저장한 뒤 다시 읽어 표시 시간대까지 새 값으로 맞춘다. */
+  updateLocale: async (input) => {
+    await apiUpdateMyLocale(input);
+    const me = await loadMe();
+    set({ me });
   },
 
   signOut: async () => {

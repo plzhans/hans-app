@@ -21,6 +21,10 @@ export interface AdminMe {
   name: string | null;
   lastLoginAt: string | null;
   mustChangePassword: boolean;
+  /** 안내 메일에 쓰는 언어(ko·en·ja·zh). 계정을 만들 때 ko 로 시작한다. */
+  language: string;
+  /** 화면의 시각을 펴는 IANA 타임존. 계정을 만들 때 Asia/Seoul 로 시작한다. */
+  timeZone: string;
 }
 
 /** 로그인. 성공하면 서버가 refresh·힌트 쿠키를 심고 access token 을 바디로 준다. */
@@ -34,6 +38,21 @@ export const login = (email: string, password: string) =>
   );
 
 export const getMe = () => apiFetch<AdminMe>('/auth/me');
+
+/**
+ * 본인의 언어·시간대 변경. 보낸 항목만 바뀐다.
+ *
+ * 이름·이메일은 여기 없다 — 관리자 계정은 CLI 로만 만들고 지우므로, 화면에서 식별자를
+ * 갈면 CLI 쪽과 어긋난다. 국가도 없다(한국으로 굳어 있고 집계 말고는 쓰지 않는다).
+ */
+export const updateMyLocale = (input: {
+  language?: string;
+  timeZone?: string;
+}) =>
+  apiFetch<void>('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
 
 /**
  * 로그아웃. **실패해도 화면은 로그아웃 처리한다** —
