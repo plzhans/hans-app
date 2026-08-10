@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.15.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.14.1...release-backend/v0.15.0) (2026-08-10)
+
+
+### 기능
+
+* **admin:** 관리자 API 와 콘솔 화면을 만든다 ([ca2c9df](https://github.com/plzhans/hans-app/commit/ca2c9dfb549e31a1a367bb3ccb52e5a68937c9ba))
+* **admin:** 앱 승인·거절·차단 #deploy ([f07b527](https://github.com/plzhans/hans-app/commit/f07b527c7c433e91d19655f7bfc12ea832c28c56))
+* **admin:** 인증·LLM 로그 조회 화면 ([65a21aa](https://github.com/plzhans/hans-app/commit/65a21aa99115d98026ebb3225a7ff5bfa6ad0aca))
+* **admin:** 회원 인증 기록을 관리 콘솔에서 본다 ([c7ced5e](https://github.com/plzhans/hans-app/commit/c7ced5e23f1b6bbfc2bf928d4d2d9f9876277290))
+* **auth:** 회원·관리자에 국가·언어·시간대를 둔다 ([21480d5](https://github.com/plzhans/hans-app/commit/21480d56166fc160a3bfad593d27684b8f4e9479))
+* **config:** yaml 값을 경로 이름의 환경변수가 덮는다 ([24157ae](https://github.com/plzhans/hans-app/commit/24157aee25b0d9916435520c67b66d8b9ccb6784))
+* **deploy:** nginx 설정을 배포가 같이 나른다 #deploy ([03d95d8](https://github.com/plzhans/hans-app/commit/03d95d8e2eb0ec440154f487f06cbc3a62e6a0f0))
+* **deploy:** 관리자 콘솔을 배포 구간에 넣는다 ([73c3b1b](https://github.com/plzhans/hans-app/commit/73c3b1b0cfd6ba22a1feb8915635297ea3ef1497))
+* **llm:** LLM 설정과 키를 화면에서 관리한다 ([6398443](https://github.com/plzhans/hans-app/commit/6398443055ae5d2f0cd1e487326aa357bb7de400))
+* **llm:** 모델을 목록으로 관리한다 ([14d0563](https://github.com/plzhans/hans-app/commit/14d0563c4718cd8b8acdc5600bbf9e1358d342a0))
+* **setting:** 서비스 설정을 관리 화면에서 관리한다 ([e9444ec](https://github.com/plzhans/hans-app/commit/e9444ec53af1019fe8685004dd109beb5f046624))
+* 관리자 콘솔과 배포, 설정 정본화 ([#41](https://github.com/plzhans/hans-app/issues/41)) #deploy ([edf260c](https://github.com/plzhans/hans-app/commit/edf260ce88d5d616b5b27607afd409889ab456e8))
+
+
+### 버그 수정
+
+* **admin:** 호스트 이름을 develop-admin 으로 맞추고 API 주소를 비운다 #deploy ([509c073](https://github.com/plzhans/hans-app/commit/509c073049d71a77b93981b8e108ef079559e4b8))
+* **http:** IPv4 접속은 IPv4 로 기록한다 #deploy ([021846d](https://github.com/plzhans/hans-app/commit/021846ddc36ff78381ac28b47250f5af067c8e40))
+
+
+### 구조 변경
+
+* **config:** 설정을 config.yaml 정본 하나로 모은다 ([68c1d0b](https://github.com/plzhans/hans-app/commit/68c1d0ba56aa3e5dae7ebbda27bb0a7c657fb4bd))
+* **deploy:** 업그레이드 map 을 shared 로 모은다 #deploy ([994c18d](https://github.com/plzhans/hans-app/commit/994c18dd79b222638dae39e53ad1e7266db536de))
+* **mail:** 발송기를 분리하고 설정을 DB 로 옮긴다 ([e16b901](https://github.com/plzhans/hans-app/commit/e16b901568ed8050c2c944e723310261ef0137c7))
+* **setting:** OAuth 키를 DB 로 옮기고 설정 파일 폴백을 걷어낸다 ([11b4cab](https://github.com/plzhans/hans-app/commit/11b4cab04431f9ef55bc8091a391142bb3b0661b))
+* **setting:** 공공데이터·도로명주소 키를 DB 로 옮긴다 ([ba7149b](https://github.com/plzhans/hans-app/commit/ba7149b912107f619d482ff667fc286662817ed0))
+* **setting:** 업무 계층은 DB 만 읽고, 없음과 빈 값을 가른다 ([fb0c6fc](https://github.com/plzhans/hans-app/commit/fb0c6fc616825ee059056c14238e9dd5a177bf7f))
+
 ## [0.14.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.14.0...release-backend/v0.14.1) (2026-08-07)
 
 
