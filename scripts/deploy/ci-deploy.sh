@@ -121,6 +121,13 @@ compose_src="$AREA_DIR/infra/$APP_ENV/docker-compose.yml"
 redis_conf_src="$AREA_DIR/infra/$APP_ENV/config/redis/redis.conf"
 [ -f "$redis_conf_src" ] || die "$redis_conf_src 가 없다."
 
+# 앞단 nginx 설정. **컨테이너 밖에서 도는 것이라 redis.conf 와 성격이 다르다** —
+# 서버에 깔린 nginx 가 읽고, 배포는 파일을 놓아 주기만 한다(심볼릭 링크·reload 는 사람이).
+#
+# **없어도 배포는 계속한다.** nginx 를 안 세운 환경이 있어서다. redis.conf 처럼 필수로
+# 걸면 그 환경의 배포가 통째로 죽는데, nginx 는 컨테이너 기동과 무관하다.
+nginx_conf_src="$AREA_DIR/infra/$APP_ENV/nginx/nginx-https.conf"
+
 # redis 서비스의 env(`env_file: .env.redis`). 시크릿이라 암호문으로 확인만 하고,
 # 복호화·전송은 아래 시크릿 단계에서 한다.
 redis_env_src="$AREA_DIR/infra/$APP_ENV/.env.redis.enc"
@@ -226,6 +233,22 @@ scp "${ssh_opts[@]}" -q "$compose_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_
 # 이 파일에는 시크릿이 없으므로(비밀번호는 .env) 0644 로 따로 놓는다.
 scp "${ssh_opts[@]}" -q "$redis_conf_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/redis/redis.conf"
 remote "chmod 644 $BE_HANSAPP_DEPLOY_PATH/redis/redis.conf"
+
+# nginx 설정. redis.conf 와 같은 이유로 config/ 밖에 둔다(0644, 배포가 매번 덮어쓴다).
+#
+# **놓기만 한다. 반영하지 않는다.** 심볼릭 링크와 reload 는 sudo 가 필요하고, 문법 오류
+# 하나로 nginx 가 안 뜨면 배포가 아니라 서버 전체가 멎는다. 배포가 건드릴 일이 아니다.
+#
+#   sudo ln -sf <배포경로>/nginx/nginx-https.conf /etc/nginx/sites-enabled/hansapp-admin.conf
+#   sudo nginx -t && sudo systemctl reload nginx
+if [ -f "$nginx_conf_src" ]; then
+  remote "mkdir -p $BE_HANSAPP_DEPLOY_PATH/nginx"
+  scp "${ssh_opts[@]}" -q "$nginx_conf_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/nginx/nginx-https.conf"
+  remote "chmod 644 $BE_HANSAPP_DEPLOY_PATH/nginx/nginx-https.conf"
+  echo "  nginx/nginx-https.conf (반영은 사람이 — nginx -t && reload)"
+else
+  echo "  nginx 설정 없음 — 건너뜀 ($AREA/infra/$APP_ENV/nginx/nginx-https.conf)"
+fi
 
 # **이 파일이 배포 상태의 전부다.** compose 는 인프라라 거의 안 바뀌고, 무엇이 떠 있는지는
 # 여기에만 적힌다. 롤백은 IMAGE_TAG 를 옛 태그로 바꿔 다시 up 하는 것이다.
