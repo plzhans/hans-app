@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.7.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.6.0...release-frontend/v0.7.0) (2026-08-10)
+
+
+### 기능
+
+* **admin:** 관리자 API 와 콘솔 화면을 만든다 ([ca2c9df](https://github.com/plzhans/hans-app/commit/ca2c9dfb549e31a1a367bb3ccb52e5a68937c9ba))
+* **admin:** 앱 승인·거절·차단 #deploy ([f07b527](https://github.com/plzhans/hans-app/commit/f07b527c7c433e91d19655f7bfc12ea832c28c56))
+* **admin:** 인증·LLM 로그 조회 화면 ([65a21aa](https://github.com/plzhans/hans-app/commit/65a21aa99115d98026ebb3225a7ff5bfa6ad0aca))
+* **admin:** 회원 인증 기록을 관리 콘솔에서 본다 ([c7ced5e](https://github.com/plzhans/hans-app/commit/c7ced5e23f1b6bbfc2bf928d4d2d9f9876277290))
+* **auth:** 회원·관리자에 국가·언어·시간대를 둔다 ([21480d5](https://github.com/plzhans/hans-app/commit/21480d56166fc160a3bfad593d27684b8f4e9479))
+* **deploy:** 관리자 콘솔을 배포 구간에 넣는다 ([73c3b1b](https://github.com/plzhans/hans-app/commit/73c3b1b0cfd6ba22a1feb8915635297ea3ef1497))
+* **llm:** LLM 설정과 키를 화면에서 관리한다 ([6398443](https://github.com/plzhans/hans-app/commit/6398443055ae5d2f0cd1e487326aa357bb7de400))
+* **llm:** 모델을 목록으로 관리한다 ([14d0563](https://github.com/plzhans/hans-app/commit/14d0563c4718cd8b8acdc5600bbf9e1358d342a0))
+* **medifinder:** 이용 통계를 붙이고 개인정보처리방침을 고친다 ([0cf975f](https://github.com/plzhans/hans-app/commit/0cf975f3d6250a81fb123c7858ae16577d606e80))
+* **setting:** 서비스 설정을 관리 화면에서 관리한다 ([e9444ec](https://github.com/plzhans/hans-app/commit/e9444ec53af1019fe8685004dd109beb5f046624))
+* 관리자 콘솔과 배포, 설정 정본화 ([#41](https://github.com/plzhans/hans-app/issues/41)) #deploy ([edf260c](https://github.com/plzhans/hans-app/commit/edf260ce88d5d616b5b27607afd409889ab456e8))
+
+
+### 버그 수정
+
+* **admin-web:** 서버 재시작에 로그아웃되지 않는다 ([d84db5b](https://github.com/plzhans/hans-app/commit/d84db5be948fa43e3b1a224e229bcbe192f96384))
+* **admin:** 호스트 이름을 develop-admin 으로 맞추고 API 주소를 비운다 #deploy ([509c073](https://github.com/plzhans/hans-app/commit/509c073049d71a77b93981b8e108ef079559e4b8))
+* **analytics:** page_view 를 page_location 으로 보낸다 ([2d90cb4](https://github.com/plzhans/hans-app/commit/2d90cb445a0d4d31c5803110d94541b9c334dd31))
+
+
+### 구조 변경
+
+* **setting:** OAuth 키를 DB 로 옮기고 설정 파일 폴백을 걷어낸다 ([11b4cab](https://github.com/plzhans/hans-app/commit/11b4cab04431f9ef55bc8091a391142bb3b0661b))
+
 ## [0.6.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.5.0...release-frontend/v0.6.0) (2026-08-07)
 
 
