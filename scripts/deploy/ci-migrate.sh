@@ -240,7 +240,17 @@ phase '마이그레이션'
 # 무엇을 돌리는지가 이름으로는 안 드러난다. 같은 컨테이너로 시드·재색인도 돌리므로
 # 여기서만은 적어 둔다 — 로그에도 그대로 남는다.
 remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' docker compose --profile cli pull hansapp-cli"
-remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' APP_UID=\"\$(id -u)\" APP_GID=\"\$(id -g)\" docker compose run --rm hansapp-cli db deploy"
+
+# **--db 를 반드시 준다.** 생략하면 CLI 기본값이 main 이라 로그 DB 가 통째로 빠진다 —
+# 위 안내문은 "main · log 둘 다" 라고 적혀 있는데 실제로는 main 만 돌아, 운영 로그 DB 가
+# 몇 달치 마이그레이션이 밀린 채로 성공 표시가 나 있었다.
+#
+# main 을 먼저 돌린다. 서비스가 뜨는 데 필요한 것은 그쪽이고, 로그 DB 는 못 따라가도
+# 인증·업무는 돈다(로그 적재만 실패한다).
+for db in main log; do
+  echo "  → $db"
+  remote "cd $BE_HANSAPP_DEPLOY_PATH && IMAGE_TAG='$IMAGE_TAG' APP_UID=\"\$(id -u)\" APP_GID=\"\$(id -g)\" docker compose run --rm hansapp-cli db deploy --db $db"
+done
 
 if [ -n "${ghcr_logged_in:-}" ]; then
   remote 'docker logout ghcr.io' >/dev/null 2>&1 || true
