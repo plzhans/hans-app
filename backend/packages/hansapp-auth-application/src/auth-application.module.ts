@@ -33,7 +33,7 @@ import { LoginService } from './login.service';
 import { OAuthTokenService } from './oauth-token.service';
 import { TokenService } from './token/token.service';
 import { JwtKeyService } from './token/jwt-key.service';
-import { ActionLogService } from './log/action-log.service';
+import { AuthLogService } from './log/auth-log.service';
 import { AuthGuard } from './guard/auth.guard';
 import { FirstPartyGuard } from './guard/first-party.guard';
 import { UserRepository } from './repository/user.repository';
@@ -132,7 +132,7 @@ export class AuthModule {
         AuthCodeRepository,
         WithdrawalRepository,
         // 서비스/가드
-        ActionLogService,
+        AuthLogService,
         JwtKeyService,
         TokenService,
         // 로그인 완결(세션 발급 + 로그). 모든 로그인 경로가 지난다.
@@ -174,7 +174,7 @@ export class AuthModule {
         ConsentService,
         SessionTrimService,
         OAuthTokenService,
-        ActionLogService,
+        AuthLogService,
         AuthGuard,
         FirstPartyGuard,
         SocialService,

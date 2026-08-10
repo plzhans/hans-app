@@ -28,6 +28,8 @@ import { NmcSubjectSyncRepository } from './nmc/nmc-subject-sync.repository';
 import { SyncStateRepository } from './common/sync-state.repository';
 import { AppReadRepository } from './app-registry/app-read.repository';
 import { AppReadService } from './app-registry/app-read.service';
+import { UserAuthLogRepository } from './user/user-auth-log.repository';
+import { UserAuthLogService } from './user/user-auth-log.service';
 import { UserReadRepository } from './user/user-read.repository';
 import { UserReadService } from './user/user-read.service';
 import { HiraNmcMatchRepository } from './match/hira-nmc-match.repository';
@@ -152,6 +154,7 @@ export class AdminApplicationModule {
         NmcSubjectSyncRepository,
         SyncStateRepository,
         UserReadRepository,
+        UserAuthLogRepository,
         AppReadRepository,
         HiraNmcMatchRepository,
         HospitalI18nExportRepository,
@@ -216,6 +219,7 @@ export class AdminApplicationModule {
         HiraCodeReadService,
         SyncStateService,
         UserReadService,
+        UserAuthLogService,
         AppReadService,
         NmcSubjectSyncService,
         HiraSubjectSyncService,
@@ -262,6 +266,7 @@ export class AdminApplicationModule {
         */
         ApplicationModule,
         UserReadService,
+        UserAuthLogService,
         AppReadService,
         NmcHospitalSyncService,
         HiraHospitalSyncService,

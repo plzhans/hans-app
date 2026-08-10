@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { ActionResult, AuthProvider, User, UserAction } from '@hansapp/data';
+import {
+  AuthLogResult,
+  AuthProvider,
+  User,
+  AuthLogAction,
+} from '@hansapp/data';
 import { DomainEvent } from '@hansapp/event-contract';
 import { EventPublisher } from '@hansapp/event-publisher';
 
-import { ActionLogService } from './log/action-log.service';
+import { AuthLogService } from './log/auth-log.service';
 import { AuthTokens, TokenService } from './token/token.service';
 import type { RequestMeta } from './auth.service';
 
@@ -23,7 +28,7 @@ export class LoginService {
   constructor(
     private readonly events: EventPublisher,
     private readonly tokens: TokenService,
-    private readonly log: ActionLogService,
+    private readonly log: AuthLogService,
   ) {}
 
   /**
@@ -46,8 +51,8 @@ export class LoginService {
     );
     await this.log.record({
       userId: user.id,
-      action: UserAction.LOGIN,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.LOGIN,
+      result: AuthLogResult.SUCCESS,
       provider,
       ...meta,
     });

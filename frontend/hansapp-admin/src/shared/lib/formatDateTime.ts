@@ -27,6 +27,16 @@ export function setDisplayTimeZone(timeZone: string | null | undefined): void {
   displayTimeZone = timeZone ?? undefined;
 }
 
+/**
+ * 지금 쓰는 표시 시간대. 아직 못 읽었으면 브라우저 시간대다.
+ *
+ * **기간 필터가 이 값을 쓴다.** 화면은 계정 시간대로 시각을 찍는데 "8월 1일부터" 를
+ * 브라우저 시간대로 계산하면, 표에 보이는 날짜와 걸러지는 경계가 어긋난다.
+ */
+export function getDisplayTimeZone(): string {
+  return displayTimeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 interface Parts {
   date: string;
   time: string;

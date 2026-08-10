@@ -1,18 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
-  ActionResult,
+  AuthLogResult,
   AuthProvider,
   LogAuthProvider,
   LogPrisma,
   PrismaLogService,
-  UserAction,
+  AuthLogAction,
 } from '@hansapp/data';
 
 /** 로그 적재 요청. provider 는 메인 도메인 enum 을 받아 로그 enum 으로 변환한다. */
-export interface ActionLogInput {
+export interface AuthLogInput {
   userId?: number | null;
-  action: UserAction;
-  result: ActionResult;
+  action: AuthLogAction;
+  result: AuthLogResult;
   provider?: AuthProvider | null;
   failReason?: string | null;
   sessionId?: string | null;
@@ -28,14 +28,14 @@ export interface ActionLogInput {
  * 로그 DB 와 메인 DB 는 분리돼 있어(별도 client) 트랜잭션으로 묶지 않는다.
  */
 @Injectable()
-export class ActionLogService {
-  private readonly logger = new Logger(ActionLogService.name);
+export class AuthLogService {
+  private readonly logger = new Logger(AuthLogService.name);
 
   constructor(private readonly prisma: PrismaLogService) {}
 
-  async record(input: ActionLogInput): Promise<void> {
+  async record(input: AuthLogInput): Promise<void> {
     try {
-      const data: LogPrisma.UserActionLogCreateInput = {
+      const data: LogPrisma.UserAuthLogCreateInput = {
         userId: input.userId ?? null,
         action: input.action,
         result: input.result,
@@ -49,7 +49,7 @@ export class ActionLogService {
       if (input.detail != null) {
         data.detail = input.detail;
       }
-      await this.prisma.userActionLog.create({ data });
+      await this.prisma.userAuthLog.create({ data });
     } catch (error) {
       this.logger.warn(
         `인증 이벤트 로그 적재 실패(action=${input.action}): ${String(error)}`,

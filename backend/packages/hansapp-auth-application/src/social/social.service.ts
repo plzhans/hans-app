@@ -6,11 +6,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
-  ActionResult,
+  AuthLogResult,
   AuthProvider,
   EmailVerifyPurpose,
   OAuthProvider,
-  UserAction,
+  AuthLogAction,
   UserStatus,
 } from '@hansapp/data';
 import { resolveUserLocale, type ClientLocaleInput } from '@hansapp/common';
@@ -18,7 +18,7 @@ import { resolveUserLocale, type ClientLocaleInput } from '@hansapp/common';
 import { AUTH_CONFIG } from '../auth.config';
 import type { AuthConfig } from '../auth.config';
 import { AuthResult, AuthService, RequestMeta } from '../auth.service';
-import { ActionLogService } from '../log/action-log.service';
+import { AuthLogService } from '../log/auth-log.service';
 import { LoginService } from '../login.service';
 import { UserRepository } from '../repository/user.repository';
 import { UserOAuthRepository } from '../repository/user-oauth.repository';
@@ -90,7 +90,7 @@ export class SocialService {
     private readonly authService: AuthService,
     private readonly tokens: TokenService,
     private readonly tickets: SocialTicketService,
-    private readonly log: ActionLogService,
+    private readonly log: AuthLogService,
     private readonly login: LoginService,
     private readonly emailVerification: EmailVerificationService,
     private readonly mail: AuthEmailService,
@@ -190,8 +190,8 @@ export class SocialService {
           });
           await this.log.record({
             userId: active.id,
-            action: UserAction.OAUTH_LINK,
-            result: ActionResult.SUCCESS,
+            action: AuthLogAction.OAUTH_LINK,
+            result: AuthLogResult.SUCCESS,
             provider: toJoinType(profile.provider),
             ...meta,
           });
@@ -353,8 +353,8 @@ export class SocialService {
 
     await this.log.record({
       userId: user.id,
-      action: UserAction.SIGNUP,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.SIGNUP,
+      result: AuthLogResult.SUCCESS,
       provider: toJoinType(payload.provider),
       ...meta,
     });
@@ -456,8 +456,8 @@ export class SocialService {
     await this.oauths.delete(userId, provider);
     await this.log.record({
       userId,
-      action: UserAction.OAUTH_UNLINK,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.OAUTH_UNLINK,
+      result: AuthLogResult.SUCCESS,
       provider: toJoinType(provider),
       ...meta,
     });
@@ -494,8 +494,8 @@ export class SocialService {
     });
     await this.log.record({
       userId,
-      action: UserAction.OAUTH_LINK,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.OAUTH_LINK,
+      result: AuthLogResult.SUCCESS,
       provider: toJoinType(profile.provider),
       ...meta,
     });

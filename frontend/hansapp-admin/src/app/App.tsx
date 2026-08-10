@@ -7,6 +7,7 @@ import ChangePassword from '@/features/auth/pages/ChangePassword';
 import Me from '@/features/auth/pages/Me';
 import Users from '@/features/users/pages/Users';
 import UserDetail from '@/features/users/pages/UserDetail';
+import UserAuthLogs from '@/features/users/pages/UserAuthLogs';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
 import MailSettings from '@/features/settings/pages/MailSettings';
@@ -102,6 +103,8 @@ export default function App() {
         <Routes>
           <Route path="/users" element={<Users />} />
           <Route path="/users/:id" element={<UserDetail />} />
+          {/* 회원 상세의 탭 하나. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          <Route path="/users/:id/auth-logs" element={<UserAuthLogs />} />
           <Route path="/apps" element={<Apps />} />
           <Route path="/apps/:id" element={<AppDetail />} />
           {/* 같은 화면이다. clientId 가 있으면 그 위에 모달이 뜬다. */}

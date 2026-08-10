@@ -4,19 +4,30 @@
 // 로그인/로그아웃/가입/비번변경/소셜연동/탈퇴를 이벤트성으로 한 테이블에 적재한다.
 // 메인 DB 와 별도 client 라 userId 는 관계 없이 값만 보관한다(로그는 지워도 감사 흔적 유지).
 
-/// 사용자 인증 이벤트 로그. action 은 MySQL 네이티브 ENUM(내부적으로 1바이트 정수)이라
-/// 대량 적재에도 저장 낭비가 없다.
-model UserActionLog {
+/// 사용자 인증·계정 이벤트 로그.
+///
+/// **서비스 행위(좋아요·조회·검색)는 여기 넣지 않는다.** 이름이 UserActionLog 이던 때 실제로
+/// 그 질문이 나왔다 — "액션" 은 아무것도 배제하지 않는 말이라 무엇을 넣으면 안 되는지를
+/// 이름이 못 막았다. 둘은 성격이 다르다:
+///   - 건수: 인증은 사용자당 수십~수백, 행위는 그 수백~수천 배
+///   - 맥락: 인증은 행마다 ip·user_agent 가 필요하고, 행위는 필요 없다
+///   - 조회 방향: 인증은 "이 사람이 뭘 했나"(user_id), 행위는 "이 대상이 얼마나 쓰였나"(target)
+///   - 보존: 인증은 분쟁 대응 근거라 길게, 행위는 집계 후 폐기
+///   - enum: 인증 종류는 닫힌 목록이지만, 행위는 기능이 늘 때마다 늘어난다(ALTER TABLE)
+/// 행위 로그는 별도 표(user_activity_log)로 만든다 — 같은 로그 DB 의 LlmUsage 가 이미 그 길이다.
+///
+/// action 은 MySQL 네이티브 ENUM(내부적으로 1바이트 정수)이라 대량 적재에도 저장 낭비가 없다.
+model UserAuthLog {
   id BigInt @id @default(autoincrement())
 
   /// 회원번호. 로그인 실패 등 회원이 특정되지 않으면 null.
   userId Int? @map("user_id")
 
   /// 이벤트 종류
-  action UserAction
+  action AuthLogAction
 
   /// 결과
-  result ActionResult
+  result AuthLogResult
 
   /// 로그인/가입/연동 시 수단
   provider AuthProvider?
@@ -35,13 +46,23 @@ model UserActionLog {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@index([userId, action])
+  /*
+    회원별 최신순 조회(관리 콘솔의 활동 기록 탭)가 타는 인덱스다.
+    `WHERE user_id=? [AND created_at BETWEEN ?] ORDER BY created_at DESC` 를 정렬까지 함께
+    해결한다 — created_at 이 인덱스 뒷자리에 있어 filesort 가 붙지 않는다.
+
+    **action 을 넣지 않았다.** 화면이 액션을 여러 개 골라 거르는데(IN), 그러면 인덱스로
+    범위를 좁혀도 정렬이 깨져 filesort 로 돌아온다. user_id 로 이미 충분히 줄어든 뒤의
+    잔여 조건이라 그냥 걸러내는 편이 낫다. 쓰기가 잦은 표라 안 쓰는 열은 넣지 않는다.
+  */
+  @@index([userId, createdAt])
+  /// 전역 로그 조회(기간 기준)용. 회원을 가리지 않는 화면이 생기면 이걸 탄다.
   @@index([createdAt])
-  @@map("user_action_log")
+  @@map("user_auth_log")
 }
 
 /// 인증 이벤트 종류. 토큰 갱신(refresh)은 매 시간 발생해 로그가 폭증하므로 기록하지 않는다.
-enum UserAction {
+enum AuthLogAction {
   LOGIN
   LOGOUT
   SIGNUP
@@ -54,7 +75,7 @@ enum UserAction {
 }
 
 /// 이벤트 결과
-enum ActionResult {
+enum AuthLogResult {
   SUCCESS
   FAIL
 }

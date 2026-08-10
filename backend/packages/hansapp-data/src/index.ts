@@ -76,11 +76,11 @@ export { LlmProvider, LlmKeyVerifyState } from '../generated/main';
 
 // 로그 DB(log 스키마) 인증 이벤트 로그. Prisma 네임스페이스도 별도 export
 // (main 과 log 는 다른 client 라 Create 입력 타입 등이 서로 다르다).
-export type { UserActionLog } from '../generated/log';
+export type { UserAuthLog } from '../generated/log';
 export { Prisma as LogPrisma } from '../generated/log';
 export {
-  UserAction,
-  ActionResult,
+  AuthLogAction,
+  AuthLogResult,
   AuthProvider as LogAuthProvider,
 } from '../generated/log';
 

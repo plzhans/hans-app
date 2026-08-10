@@ -65,3 +65,66 @@ export function listUsers(params: UserListParams) {
 }
 
 export const getUser = (id: number) => apiFetch<UserDetail>(`/api/users/${id}`);
+
+/**
+ * 인증 기록의 이벤트 종류. 백엔드 AuthLogAction 과 같은 값이다.
+ *
+ * **로그인만 있는 게 아니다** — 문의 대응에서 실제로 묻는 것("비밀번호 언제 바꿨죠?",
+ * "소셜 연동 언제 풀렸어요?")이 로그인 밖에 있는 경우가 많다.
+ *
+ * 반대로 서비스 행위(좋아요·조회)는 **여기 없다.** 그건 별도 표로 간다.
+ */
+export type AuthLogActionType =
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'SIGNUP'
+  | 'PASSWORD_CHANGE'
+  | 'PASSWORD_RESET'
+  | 'EMAIL_VERIFY'
+  | 'OAUTH_LINK'
+  | 'OAUTH_UNLINK'
+  | 'WITHDRAW';
+
+export interface UserAuthLog {
+  /** BigInt 라 서버가 문자열로 준다. */
+  id: string;
+  action: AuthLogActionType;
+  result: 'SUCCESS' | 'FAIL';
+  provider?: string | null;
+  failReason?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  /**
+   * 액션별 부가정보. **모양이 액션마다 달라 타입을 두지 않는다** —
+   * 화면은 해석하지 않고 펼쳐서 그대로 보여 준다.
+   */
+  detail?: unknown;
+  createdAt: string;
+}
+
+export interface UserAuthLogParams {
+  page: number;
+  size: number;
+  /** ISO 8601. 없으면 처음부터. */
+  from?: string;
+  /** ISO 8601. 없으면 지금까지. */
+  to?: string;
+  /** 비어 있으면 전체 액션. */
+  actions?: AuthLogActionType[];
+}
+
+/** 회원 한 명의 인증·계정 기록. 최근 순. */
+export function listUserAuthLogs(id: number, params: UserAuthLogParams) {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    size: String(params.size),
+  });
+  if (params.from) query.set('from', params.from);
+  if (params.to) query.set('to', params.to);
+  // 쉼표로 묶어 보낸다 — 같은 키를 반복하는 것보다 URL 이 짧고 서버도 둘 다 받는다.
+  if (params.actions?.length) query.set('actions', params.actions.join(','));
+
+  return apiFetch<PageResponse<UserAuthLog>>(
+    `/api/users/${id}/auth-logs?${query.toString()}`,
+  );
+}

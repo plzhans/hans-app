@@ -108,6 +108,13 @@ export { SyncStateService } from './common/sync-state.service';
 
 // 관리자용 회원 조회(읽기 전용). 회원 수정은 회원 본인의 통로가 하고 여기서는 보기만 한다.
 export { UserReadService } from './user/user-read.service';
+// 회원 인증·계정 기록(로그 DB). 로그인만이 아니라 가입·비밀번호·소셜연동·탈퇴가 같은 표에 쌓인다.
+// 서비스 행위(좋아요·조회)는 여기가 아니라 별도 표로 간다 — auth.prisma 주석 참고.
+export { UserAuthLogService } from './user/user-auth-log.service';
+export type {
+  UserAuthLogEntry,
+  UserAuthLogQuery,
+} from './user/user-auth-log.service';
 export type {
   UserSummary,
   UserDetail,
@@ -127,6 +134,8 @@ export type {
 
 // 목록 필터에 쓰는 enum. 앱이 @hansapp/data 를 직접 의존하지 않게 여기서 재노출한다.
 export { UserStatus, AppStatus, AppClientType } from '@hansapp/data';
+// 인증 기록의 enum(로그 DB). 컨트롤러 DTO 가 검증·문서화에 값으로 쓴다.
+export { AuthLogAction, AuthLogResult } from '@hansapp/data';
 export type { SyncJob, SyncOutcome } from './common/sync-state.service';
 export { DATA_PROVIDERS } from './common/provider';
 export type { DataProvider } from './common/provider';

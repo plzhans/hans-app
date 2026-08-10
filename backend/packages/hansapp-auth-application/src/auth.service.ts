@@ -9,11 +9,11 @@ import {
 import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import {
-  ActionResult,
+  AuthLogResult,
   AuthProvider,
   EmailVerifyPurpose,
   User,
-  UserAction,
+  AuthLogAction,
 } from '@hansapp/data';
 import {
   normalizeLanguageChoice,
@@ -27,7 +27,7 @@ import type { AuthConfig } from './auth.config';
 import { EmailVerificationService } from './mail/email-verification.service';
 import { AuthEmailService } from './mail/auth-email.service';
 import { ConsentService, type ConsentInput } from './consent.service';
-import { ActionLogService } from './log/action-log.service';
+import { AuthLogService } from './log/auth-log.service';
 import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
@@ -68,7 +68,7 @@ export class AuthService {
     private readonly sessions: TokenSessionRepository,
     private readonly withdrawals: WithdrawalRepository,
     private readonly tokens: TokenService,
-    private readonly log: ActionLogService,
+    private readonly log: AuthLogService,
     private readonly loginService: LoginService,
     private readonly emailVerification: EmailVerificationService,
   ) {}
@@ -138,8 +138,8 @@ export class AuthService {
 
     await this.log.record({
       userId: user.id,
-      action: UserAction.SIGNUP,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.SIGNUP,
+      result: AuthLogResult.SUCCESS,
       provider: AuthProvider.EMAIL,
       ...meta,
     });
@@ -188,8 +188,8 @@ export class AuthService {
     if (!user || !ok) {
       await this.log.record({
         userId: user?.id ?? null,
-        action: UserAction.LOGIN,
-        result: ActionResult.FAIL,
+        action: AuthLogAction.LOGIN,
+        result: AuthLogResult.FAIL,
         provider: AuthProvider.EMAIL,
         failReason: !user ? 'user_not_found' : 'bad_credentials',
         ...meta,
@@ -237,8 +237,8 @@ export class AuthService {
 
     await this.log.record({
       userId: user.id,
-      action: UserAction.WITHDRAW,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.WITHDRAW,
+      result: AuthLogResult.SUCCESS,
       ...meta,
     });
   }
@@ -272,8 +272,8 @@ export class AuthService {
       if (!ok) {
         await this.log.record({
           userId: user.id,
-          action: UserAction.PASSWORD_CHANGE,
-          result: ActionResult.FAIL,
+          action: AuthLogAction.PASSWORD_CHANGE,
+          result: AuthLogResult.FAIL,
           failReason: 'bad_credentials',
           ...meta,
         });
@@ -287,8 +287,8 @@ export class AuthService {
     );
     await this.log.record({
       userId: user.id,
-      action: UserAction.PASSWORD_CHANGE,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.PASSWORD_CHANGE,
+      result: AuthLogResult.SUCCESS,
       ...meta,
     });
     await this.notifyPasswordChanged(user, locale);
@@ -369,8 +369,8 @@ export class AuthService {
     await this.sessions.deleteAllByUser(user.id);
     await this.log.record({
       userId: user.id,
-      action: UserAction.PASSWORD_RESET,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.PASSWORD_RESET,
+      result: AuthLogResult.SUCCESS,
       ...meta,
     });
     await this.notifyPasswordChanged(user, locale);
@@ -392,7 +392,7 @@ export class AuthService {
    * 빈 문자열을 보내면 되고, 그때는 null 로 남긴다 — 빈 문자열과 "없음" 을 DB 에서 갈라 두면
    * 화면마다 둘 다 처리해야 한다.
    *
-   * **행동 로그를 남기지 않는다.** UserAction 에 맞는 값이 없고(로그인·비밀번호·탈퇴 등
+   * **행동 로그를 남기지 않는다.** AuthLogAction 에 맞는 값이 없고(로그인·비밀번호·탈퇴 등
    * 계정 보안 사건만 남긴다), 표시 이름 변경은 거기 낄 성질이 아니다. 남길 이유가 생기면
    * 그때 enum 을 늘린다.
    */
@@ -477,8 +477,8 @@ export class AuthService {
     const removed = await this.sessions.deleteAllByUser(userId);
     await this.log.record({
       userId,
-      action: UserAction.LOGOUT,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.LOGOUT,
+      result: AuthLogResult.SUCCESS,
       ...meta,
     });
     return removed;

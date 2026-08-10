@@ -18,7 +18,7 @@ export interface AdminActionLogInput {
 /**
  * 관리자 인증 이벤트 기록.
  *
- * **지금은 애플리케이션 로그로만 남긴다.** 로그 DB 의 user_action_log 는 userId 가 메인 DB 의
+ * **지금은 애플리케이션 로그로만 남긴다.** 로그 DB 의 user_auth_log 는 userId 가 메인 DB 의
  * user.id 를 가리키는 값이라, 거기에 admin_user.id 를 넣으면 `userId=1` 이 회원인지 관리자인지
  * 구분이 사라진다. 전용 테이블(prisma/log/admin.prisma)이 필요한데 로그 DB 는 마이그레이션
  * 절차가 따로라(`db migrate --db log`) 이번 범위 밖이다.

@@ -88,6 +88,65 @@ function zonePart(
   }
 }
 
+/**
+ * `2026-08-01` 같은 날짜 문자열을 **그 시간대의 하루 경계**로 바꿔 ISO 로 준다.
+ *
+ * 날짜 입력칸은 시간대가 없는 값(`YYYY-MM-DD`)을 준다. 그대로 `new Date()` 에 넣으면
+ * 브라우저 시간대로 해석되는데, 화면의 시각은 계정 시간대로 찍힌다 — 서울 기준으로 보면서
+ * 뉴욕 기준으로 걸러지는 어긋남이 생긴다. 경계도 같은 시간대에서 계산한다.
+ *
+ * `end` 면 그날 23:59:59.999 다(끝을 포함하는 조회라 하루가 통째로 들어온다).
+ */
+export function zonedDayBoundary(
+  date: string,
+  edge: 'start' | 'end',
+  timeZone: string,
+): string {
+  const wall = `${date}T${edge === 'end' ? '23:59:59.999' : '00:00:00.000'}Z`;
+  const guess = new Date(wall);
+  if (Number.isNaN(guess.getTime())) return guess.toISOString();
+
+  /*
+    오프셋은 **초 단위로 자른 시각**에서 잰다. Intl 이 밀리초를 안 돌려줘서, 999ms 가 붙은
+    끝 경계로 그대로 재면 오프셋이 그만큼 모자라게 나오고 결과가 1초 뒤로 밀린다
+    (하루 끝이 다음 날 00:00:00.998 이 된다).
+  */
+  const whole = new Date(Math.floor(guess.getTime() / 1000) * 1000);
+  // 서머타임 전환일의 한두 시간 오차는 감수한다 — 날짜 단위 필터라 결과가 갈리지 않는다.
+  return new Date(guess.getTime() - zoneOffsetMs(whole, timeZone)).toISOString();
+}
+
+/** 그 순간 그 시간대의 UTC 오프셋(ms). */
+function zoneOffsetMs(at: Date, timeZone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(at);
+    const pick = (type: string) =>
+      Number(parts.find((part) => part.type === type)?.value);
+    // 그 존의 벽시계 값을 UTC 로 되읽어 원래 순간과의 차이를 본다.
+    const asUtc = Date.UTC(
+      pick('year'),
+      pick('month') - 1,
+      pick('day'),
+      // 자정을 24시로 주는 런타임이 있다.
+      pick('hour') % 24,
+      pick('minute'),
+      pick('second'),
+    );
+    return asUtc - at.getTime();
+  } catch {
+    return 0;
+  }
+}
+
 export interface TimeZoneOption {
   value: string;
   label: string;

@@ -8,6 +8,7 @@ import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
 import { Badge } from '@/shared/ui/Badge';
+import { UserTabs } from '../components/UserTabs';
 import { STATUS_LABEL, STATUS_TONE } from '../statusTone';
 
 export default function UserDetail() {
@@ -50,6 +51,8 @@ export default function UserDetail() {
         </div>
       ) : (
         <div className="space-y-6">
+          <UserTabs userId={user.id} current="overview" />
+
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={STATUS_TONE[user.status]}>
               {STATUS_LABEL[user.status]}

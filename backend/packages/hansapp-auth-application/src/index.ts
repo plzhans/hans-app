@@ -40,7 +40,7 @@ export {
   type GeneratedKey,
 } from './token/jwt-keygen';
 export type { AuthTokens } from './token/token.service';
-export { ActionLogService } from './log/action-log.service';
+export { AuthLogService } from './log/auth-log.service';
 
 // 소셜
 export { SocialService } from './social/social.service';
