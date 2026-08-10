@@ -31,10 +31,27 @@ export function resolveClientIp(
     const value = Array.isArray(raw) ? raw[0] : raw;
     if (typeof value === 'string' && value.trim()) {
       // 전용 헤더는 단일 IP 지만, XFF 형태(콤마 목록)를 지정한 경우 맨 앞(원 클라이언트)만 취한다.
-      return stripPort(value.split(',')[0].trim());
+      return unmapIpv4(stripPort(value.split(',')[0].trim()));
     }
   }
-  return req.ip ?? req.socket?.remoteAddress ?? 'unknown';
+  return unmapIpv4(req.ip ?? req.socket?.remoteAddress ?? 'unknown');
+}
+
+/**
+ * IPv4-mapped IPv6(`::ffff:10.0.0.1`)를 IPv4 표기(`10.0.0.1`)로 되돌린다.
+ *
+ * 호스트 없이 listen 하면 Node 가 듀얼스택(`::`)으로 바인딩해서, **IPv4 로 들어온 접속도
+ * 소켓에서는 이 형태로 보인다.** 그러면 같은 클라이언트가 경로에 따라 두 문자열로 갈린다 —
+ * CLIENT_IP_HEADER(cf-connecting-ip 등)로 받으면 `10.0.0.1`, 헤더가 없어 소켓으로
+ * 폴백하면 `::ffff:10.0.0.1`.
+ *
+ * 갈리면 두 군데가 어긋난다. **인증 로그**는 환경마다 다른 표기가 쌓여 IP 로 찾을 때 한쪽이
+ * 안 걸리고, **rate limit** 은 한 사람이 버킷을 둘 쓴다(같은 함수가 버킷 키를 만든다).
+ * 표기만 되돌리는 것이라 주소 자체는 그대로다.
+ */
+function unmapIpv4(value: string): string {
+  const matched = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(value);
+  return matched ? matched[1] : value;
 }
 
 /**
