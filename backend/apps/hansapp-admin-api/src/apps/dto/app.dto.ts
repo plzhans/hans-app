@@ -4,13 +4,17 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Max,
   MaxLength,
   Min,
 } from 'class-validator';
-import { AppStatus } from '@hansapp/admin-application';
+import {
+  AppStatus,
+  REJECTION_REASON_MAX_LENGTH,
+} from '@hansapp/admin-application';
 import type {
   AppApiKeySummary,
   AppClientSummary,
@@ -60,6 +64,17 @@ export class AppListQueryDto {
   @Type(() => Boolean)
   @IsBoolean()
   readonly includeDeleted?: boolean;
+}
+
+export class AppRejectRequestDto {
+  @ApiProperty({
+    description: '거절 사유. 앱 소유자에게 그대로 노출된다.',
+    maxLength: REJECTION_REASON_MAX_LENGTH,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(REJECTION_REASON_MAX_LENGTH)
+  readonly reason!: string;
 }
 
 class AppOwnerDto {

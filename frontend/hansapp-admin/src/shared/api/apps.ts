@@ -101,3 +101,30 @@ export function listApps(params: AppListParams) {
 }
 
 export const getApp = (id: number) => apiFetch<AppDetail>(`/api/apps/${id}`);
+
+/**
+ * 앱 승인. 미승인 상태였던 서비스 키·클라이언트도 함께 켜진다.
+ *
+ * **응답이 갱신된 상세다.** 승인으로 무엇이 함께 켜졌는지가 그 안에 다 들어 있어서
+ * 화면이 다시 물어볼 필요가 없다.
+ */
+export const approveApp = (id: number) =>
+  apiFetch<AppDetail>(`/api/apps/${id}/approve`, { method: 'POST' });
+
+/** 앱 심사 거절. 사유는 소유자에게 그대로 보인다. */
+export const rejectApp = (id: number, reason: string) =>
+  apiFetch<AppDetail>(`/api/apps/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+
+/**
+ * 앱 차단. 앱과 그에 속한 키·클라이언트가 모두 중지돼 API 호출이 즉시 거부된다.
+ * 삭제가 아니라 차단 해제로 되돌릴 수 있다.
+ */
+export const blockApp = (id: number) =>
+  apiFetch<AppDetail>(`/api/apps/${id}/block`, { method: 'POST' });
+
+/** 앱 차단 해제. 중지된 키·클라이언트가 다시 살아난다. */
+export const unblockApp = (id: number) =>
+  apiFetch<AppDetail>(`/api/apps/${id}/unblock`, { method: 'POST' });

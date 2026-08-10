@@ -133,6 +133,11 @@ export type {
 } from './user/user-read.service';
 // 관리자용 앱(개발자 플랫폼) 조회. 회원 조회와 같이 읽기 전용이다.
 export { AppReadService } from './app-registry/app-read.service';
+// 앱 관리 조치(승인·거절·차단). 앱을 건드리는 유일한 쓰기 통로다.
+export {
+  AppModerationService,
+  REJECTION_REASON_MAX_LENGTH,
+} from './app-registry/app-moderation.service';
 export type {
   AppSummary,
   AppDetail,

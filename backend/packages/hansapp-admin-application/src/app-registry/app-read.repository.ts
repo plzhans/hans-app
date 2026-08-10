@@ -40,8 +40,9 @@ const USER_SELECT = { id: true, email: true, name: true } as const;
 /**
  * 관리자용 앱 조회 저장소. **읽기 전용이다.**
  *
- * 앱의 승인·차단은 별도 기능이라 여기 두지 않는다 — 열어 두면 "관리자니까 다 된다" 가
- * 기본값이 되고, 승인 흐름(reviewRequestedAt·rejectionReason)을 어디서 다루는지가 흐려진다.
+ * 앱을 건드리는 쓰기는 심사(AppModerationRepository)뿐이고 여기 섞지 않는다 — 열어 두면
+ * "관리자니까 다 된다" 가 기본값이 되고, 승인 흐름(reviewRequestedAt·rejectionReason)을
+ * 어디서 다루는지가 흐려진다.
  */
 @Injectable()
 export class AppReadRepository {

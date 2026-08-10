@@ -28,6 +28,9 @@ import { NmcSubjectSyncRepository } from './nmc/nmc-subject-sync.repository';
 import { SyncStateRepository } from './common/sync-state.repository';
 import { AppReadRepository } from './app-registry/app-read.repository';
 import { AppReadService } from './app-registry/app-read.service';
+import { AppModerationRepository } from './app-registry/app-moderation.repository';
+import { AppModerationService } from './app-registry/app-moderation.service';
+import { AccessCacheInvalidator } from './app-registry/access-cache-invalidator';
 import { AuthLogRepository } from './log/auth-log.repository';
 import { AuthLogService } from './log/auth-log.service';
 import { LlmUsageLogRepository } from './log/llm-usage-log.repository';
@@ -162,6 +165,7 @@ export class AdminApplicationModule {
         LlmUsageLogRepository,
         AuthLogRepository,
         AppReadRepository,
+        AppModerationRepository,
         HiraNmcMatchRepository,
         HospitalI18nExportRepository,
         HiraAssessmentSyncRepository,
@@ -229,6 +233,9 @@ export class AdminApplicationModule {
         LlmUsageLogService,
         AuthLogService,
         AppReadService,
+        // 앱 심사(승인·거절). 조회와 갈라 둔다 — 쓰기가 어디에 있는지 드러내기 위해서다.
+        AccessCacheInvalidator,
+        AppModerationService,
         NmcSubjectSyncService,
         HiraSubjectSyncService,
         HiraSpecialtySyncService,
@@ -278,6 +285,7 @@ export class AdminApplicationModule {
         LlmUsageLogService,
         AuthLogService,
         AppReadService,
+        AppModerationService,
         NmcHospitalSyncService,
         HiraHospitalSyncService,
         NmcCodeSyncService,
