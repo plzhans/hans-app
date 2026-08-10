@@ -12,7 +12,10 @@ out/
 coverage/
 
 # Logs
-logs/
+# **앞에 / 를 붙인다.** 앵커가 없으면 `logs/` 라는 이름의 디렉터리를 깊이와 무관하게 다 무시한다 —
+# 실제로 apps/hansapp-admin-api/src/logs/ (로그 조회 컨트롤러)가 통째로 커밋에서 빠졌다.
+# 여기서 감추려는 것은 backend/ 바로 밑에 쌓이는 런타임 로그뿐이다.
+/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*

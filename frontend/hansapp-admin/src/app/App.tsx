@@ -13,6 +13,8 @@ import AppDetail from '@/features/apps/pages/AppDetail';
 import MailSettings from '@/features/settings/pages/MailSettings';
 import IntegrationSettings from '@/features/settings/pages/IntegrationSettings';
 import LlmSettings from '@/features/settings/pages/LlmSettings';
+import AuthLogs from '@/features/logs/pages/AuthLogs';
+import LlmUsageLogs from '@/features/logs/pages/LlmUsageLogs';
 
 function FullScreenMessage({ children }: { children: string }) {
   return (
@@ -109,6 +111,9 @@ export default function App() {
           <Route path="/apps/:id" element={<AppDetail />} />
           {/* 같은 화면이다. clientId 가 있으면 그 위에 모달이 뜬다. */}
           <Route path="/apps/:id/clients/:clientId" element={<AppDetail />} />
+          {/* 로그 구역. 대상을 가리지 않고 기간으로 훑는 화면들이 여기 붙는다. */}
+          <Route path="/logs/auth" element={<AuthLogs />} />
+          <Route path="/logs/llm" element={<LlmUsageLogs />} />
           <Route path="/settings/mail" element={<MailSettings />} />
           <Route
             path="/settings/integrations"

@@ -20,7 +20,10 @@ import { zonedDayBoundary } from '@/shared/lib/timeZone';
 import { Badge } from '@/shared/ui/Badge';
 import { Pagination } from '@/shared/ui/Pagination';
 import { Table } from '@/shared/ui/Table';
-import { AUTH_ACTION_ITEMS, AUTH_ACTION_LABEL } from '../authActionLabels';
+import {
+  AUTH_ACTION_ITEMS,
+  AUTH_ACTION_LABEL,
+} from '@/shared/lib/authActions';
 import { UserTabs } from '../components/UserTabs';
 
 const PAGE_SIZE = 30;

@@ -115,6 +115,16 @@ export type {
   UserAuthLogEntry,
   UserAuthLogQuery,
 } from './user/user-auth-log.service';
+// 전역 인증 기록(로그 DB). 회원 상세의 탭과 달리 대상을 가리지 않고 기간으로 훑는다 —
+// **user_id 가 null 인 행(없는 계정으로의 시도)은 여기서만 보인다.**
+export { AuthLogService } from './log/auth-log.service';
+export type { AuthLogEntry, AuthLogQuery } from './log/auth-log.service';
+// LLM 호출 이력(로그 DB). **합산하지 않는다** — 사용량·정산은 별도 표가 맡는다.
+export { LlmUsageLogService } from './log/llm-usage-log.service';
+export type {
+  LlmUsageLogEntry,
+  LlmUsageLogQuery,
+} from './log/llm-usage-log.service';
 export type {
   UserSummary,
   UserDetail,

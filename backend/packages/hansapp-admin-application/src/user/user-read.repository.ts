@@ -55,6 +55,34 @@ export class UserReadRepository {
   }
 
   /**
+   * 이메일로 회원번호만 찾는다. **로그 조회가 쓴다.**
+   *
+   * 로그 DB 에는 회원번호만 있고 이메일이 없다(별도 DB 라 조인도 안 된다). 관리자는 번호가
+   * 아니라 이메일로 사람을 찾으므로, 조회 전에 여기서 한 번 번호로 바꿔 준다.
+   */
+  async findIdByEmail(email: string): Promise<number | null> {
+    const row = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  /**
+   * 회원번호들의 이메일. **로그 한 페이지를 받은 뒤 이름을 붙이는 데 쓴다.**
+   *
+   * 조인이 안 되니 로그를 먼저 읽고, 거기 나온 번호만 모아 한 번에 되묻는다.
+   * 페이지 크기만큼만 물으므로(최대 100) 쿼리 하나로 끝난다.
+   */
+  findEmailsByIds(ids: number[]): Promise<{ id: number; email: string }[]> {
+    if (ids.length === 0) return Promise.resolve([]);
+    return this.prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, email: true },
+    });
+  }
+
+  /**
    * 상세. 회원 한 명에 딸린 것들을 같이 센다.
    *
    * 세션·앱은 목록을 내려주지 않고 **개수만** 센다 — 상세 화면이 보여줄 것은 "이 계정이

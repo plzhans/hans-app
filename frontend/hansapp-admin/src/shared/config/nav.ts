@@ -1,4 +1,13 @@
-import { Boxes, Mail, Plug, Sparkles, Users, type LucideIcon } from 'lucide-react';
+import {
+  Boxes,
+  KeyRound,
+  Mail,
+  Plug,
+  ScrollText,
+  Sparkles,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -26,6 +35,22 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/users', label: '회원', icon: Users },
       { to: '/apps', label: '앱', icon: Boxes },
+    ],
+  },
+  {
+    /*
+      **읽는 화면들의 자리다.** 설정이 값을 고치는 곳이라면 여기는 쌓인 것을 들여다보는
+      곳이다 — `설정 > LLM`(키·모델을 고친다)과 `로그 > LLM 사용`(호출을 본다)이 이름은
+      겹쳐도 하는 일이 반대라, 같은 구역에 두면 매번 어느 쪽인지 헷갈린다.
+
+      **여기 있는 것은 전부 "대상을 안 가리고 기간으로 훑는" 화면이다.** 회원 한 명의
+      기록은 여기가 아니라 그 회원 상세의 탭이다 — 둘은 조회 방향도 인덱스도 다르다.
+      서비스 행위 로그(좋아요·조회)가 생기면 그것도 여기 붙는다.
+    */
+    title: '로그',
+    items: [
+      { to: '/logs/auth', label: '인증', icon: KeyRound },
+      { to: '/logs/llm', label: 'LLM 사용', icon: ScrollText },
     ],
   },
   {
