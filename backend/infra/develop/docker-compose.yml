@@ -73,6 +73,24 @@ services:
       redis:
         condition: service_healthy
 
+  # 관리자 콘솔. **API 와 SPA 가 한 이미지에 같이 있다** — 태그 하나가 둘의 버전이라
+  # 롤백도 같이 돈다(backend/docker/hansapp-admin.Dockerfile).
+  #
+  # **앞단 nginx 가 TLS 와 IP 제한을 하고 통째로 프록시한다.** 그래서 이 컨테이너는 평문으로
+  # 뜨고 인증서를 모른다 — api 와 다른 점이다(그쪽은 CF 가 직접 붙어 스스로 TLS 를 끝낸다).
+  #
+  # **127.0.0.1 에만 바인딩한다.** 밖에서 직접 닿으면 nginx 의 IP 제한을 지나치게 된다.
+  # 클라우드 방화벽에도 이 포트를 열지 않는다.
+  admin:
+    <<: *common
+    image: ghcr.io/plzhans/hans-app/hansapp-admin:${IMAGE_TAG}
+    container_name: hansapp-develop-admin
+    ports:
+      - '127.0.0.1:3011:3001'
+    depends_on:
+      redis:
+        condition: service_healthy
+
   # 캐시(hospital:* · auth:*). 세션·토큰은 DB 에 있어 이 데이터는 잃어도 콜드 캐시로 끝난다.
   #
   # **x-common 을 안 쓴다.** 서드파티 이미지라 셋 다 사정이 다르다:

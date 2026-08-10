@@ -71,7 +71,7 @@ jobs:
         id: pkg
         env:
           # GHCR 패키지 이름은 <레포>/<앱> 이라 접두사가 붙는다.
-          APPS: hansapp-api hansapp-batch hansapp-cli node-builder
+          APPS: hansapp-api hansapp-admin hansapp-batch hansapp-cli node-builder
         run: |
           repo="${GITHUB_REPOSITORY##*/}"
           list=''

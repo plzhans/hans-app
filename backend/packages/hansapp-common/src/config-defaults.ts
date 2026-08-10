@@ -77,6 +77,8 @@ export const CONFIG_DEFAULTS = {
   // ── hansapp-admin-api ───────────────────────────────────────────────────────
   'apps-admin-api.name': 'hansapp-admin-api',
   'apps-admin-api.web.port': 3001,
+  // 관리자 SPA 정적파일. 이미지가 여기 굽고, 비우면 SPA 를 안 내보낸다(로컬은 Vite).
+  'apps-admin-api.web.staticDir': '',
   'apps-admin-api.swagger.enabled': false,
   'apps-admin-api.sentry.enabled': false,
   'apps-admin-api.sentry.tracesSampleRate': 0.1,

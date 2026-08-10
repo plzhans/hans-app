@@ -265,14 +265,27 @@ backend/ssl-issue.sh production api.plzhans.com api-v2.plzhans.com
 > CF 는 규칙이 없으면 오리진 443 으로 붙는다. 그러니 443 을 쓰는 호스트에 "443 으로
 > 가라" 는 규칙을 만드는 것은 아무것도 바꾸지 않으면서 관리할 것만 하나 늘리는 일이다.
 
-develop 과 production 이 같은 서버에 떠서 443 을 하나만 쓸 수 있다. CF 가 오리진에 붙을
-수 있는 HTTPS 포트는 `443·2053·2083·2087·2096·8443` 뿐이라 production 이 443,
-develop 이 8443 을 쓴다. 따라서 **규칙은 develop 것 하나뿐이다.**
+develop 과 production 이 같은 서버에 떠서 443 을 하나만 쓸 수 있다.
 
-| | 오리진 포트 | 원본 규칙 |
-| --- | --- | --- |
-| `api.plzhans.com` | 443 (CF 기본값) | **불필요** |
-| `develop-api.plzhans.com` | 8443 | 필요 |
+**443 은 nginx 가 가져간다** — 관리자 콘솔(`admin*.plzhans.com`)만 받아 TLS 와 IP 제한을
+하고 컨테이너로 넘긴다. 그래서 api 두 대는 기본 포트가 아닌 자리로 간다.
+`production=7443 · develop=8443` 으로 뒤 세 자리를 맞춰, 어느 환경 것인지가 앞자리 하나로 갈린다.
+
+> **원본 규칙의 포트는 CF 의 공개 포트 목록과 다른 이야기다.**
+>
+> 방문자가 CF 엣지에 붙을 수 있는 HTTPS 포트는 `443·2053·2083·2087·2096·8443` 로 정해져
+> 있지만, **오리진 쪽 포트는 원본 규칙(대상 포트 재작성)으로 임의 값을 쓸 수 있다.**
+> 사용자는 언제나 `https://api.plzhans.com`(443)으로 붙고, 그 뒤 CF→오리진 구간만 7443 이다.
+
+| | 오리진 포트 | TLS 를 끝내는 곳 | 원본 규칙 |
+| --- | --- | --- | --- |
+| `admin.plzhans.com` | 443 (CF 기본값) | nginx | **불필요** |
+| `admin-develop.plzhans.com` | 443 (CF 기본값) | nginx | **불필요** |
+| `api.plzhans.com` | 7443 | 앱 (Origin CA) | 필요 |
+| `develop-api.plzhans.com` | 8443 | 앱 (Origin CA) | 필요 |
+
+> ⚠️ **api 의 규칙을 먼저 만들고 배포한다.** 규칙 없이 포트를 옮기면 CF 가 443 으로 붙는데
+> 거기엔 nginx 가 앉아 있어, api 요청이 관리자 콘솔로 가거나 502 가 된다.
 
 ```
 일치 조건   ● 사용자 지정 필터 식      ← "모든 수신 요청" 을 고르면 존 전체가 8443 으로 간다
@@ -289,7 +302,7 @@ develop 이 8443 을 쓴다. 따라서 **규칙은 develop 것 하나뿐이다.*
 | --- | --- |
 | 3. 인증서 경로 | `config.<환경>.yaml` 에 기입 (③ 참고) |
 | 4. 포트 공개 | `infra/<환경>/docker-compose.yml` 의 `127.0.0.1:` 제거 |
-| 5. **클라우드 방화벽** | OCI 보안목록에 `443`(production)·`8443`(develop) 인그레스 추가 |
+| 5. **클라우드 방화벽** | OCI 보안목록에 `443`(nginx·admin)·`7443`(api production)·`8443`(api develop) 인그레스 추가 |
 | 6. 배포 | `scripts/deploy/deploy.sh <환경> <태그>` |
 
 5번을 빠뜨리기 쉽다. 서버 안에서는 리스닝 중인데 밖에서는 닫혀 있어, CF 가 붙지 못하고

@@ -39,7 +39,7 @@ cd "$target_dir"
 # 프로젝트마다 빌드 방법이 다르다(환경별 빌드가 있는 것, 스펙을 읽는 것...).
 # 새 프론트를 추가하면 여기에 케이스를 하나 더 넣고, ci-lib.sh 의 목록·산출물 경로도 맞춘다.
 case "$project" in
-  medifinder-web | hansapp-web | hansapp-auth)
+  medifinder-web | hansapp-web | hansapp-auth | hansapp-admin)
     # .env.<환경> 은 커밋되어 있다. 값이 전부 VITE_*(브라우저 번들에 그대로 구워지는
     # 공개 상수)라 숨길 이유가 없다는 게 frontend/.gitignore 에 적힌 정책이다.
     #

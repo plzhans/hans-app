@@ -59,6 +59,15 @@ CF_COMPAT_DATE="${CF_COMPAT_DATE:-2026-07-01}"
 
 resolve_project "${1:-}"
 require_app_env
+
+# **Worker 로 안 나가는 대상이 있다.** hansapp-admin 은 backend 이미지 안에서 API 와 같이
+# 나간다 — 여기로 오면 이름만 맞는 빈 Worker 가 하나 생기고, 정작 보고 있는 콘솔은 안 바뀐다.
+case " $WORKER_TARGETS " in
+  *" $project "*) ;;
+  *) die "$project 은 Cloudflare Worker 로 배포하지 않는다.
+   빌드만 여기서 하고(ci-build.sh), 담는 것은 backend/docker/$project.Dockerfile 이다." ;;
+esac
+
 require_env GITHUB_SHA GITHUB_REF_NAME CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
 
 dist_dir="$(dist_dir_for "$project")"

@@ -43,16 +43,20 @@ services:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-api:${IMAGE_TAG}
     container_name: hansapp-prod-api
-    # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 산다.
+    # **Cloudflare 가 이 컨테이너에 직접 붙는다.** 앞단이 없다 — 앱이 TLS 를 스스로 끝내고
+    # (Origin CA) CF 가 Full (strict) 로 검증한다. nginx 는 admin 만 받는다.
     #
-    # 앞단에 nginx 가 없다. Cloudflare 가 오리진에 직접 붙는데 CF 가 쓸 수 있는 HTTPS
-    # 포트는 443·2053·2083·2087·2096·8443 뿐이다. production=443, develop=8443.
-    # 앱이 TLS 를 직접 끝내고(Origin CA) CF 가 Full (strict) 로 검증한다.
+    # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 산다.
+    # **443 은 nginx 가 가져간다**(admin 서빙). 그래서 api 는 production=7443, develop=8443 —
+    # 뒤 세 자리를 맞춰 둬서 어느 환경 것인지가 앞자리 하나로 갈린다.
+    #
+    # ⚠️ **443 이 아니면 CF 원본 규칙이 있어야 한다.** 규칙이 없으면 CF 는 443 으로 붙고,
+    # 거기엔 nginx 가 앉아 있어 api 요청이 엉뚱한 곳으로 간다(docs/cloudflare.md).
     #
     # **클라우드 방화벽(OCI 보안목록)에도 열어야 한다.** 서버 안에서는 리스닝인데 밖에서
     # 막혀 CF 가 522 를 뱉는 일이 흔하다. 가능하면 CF 대역만 허용한다.
     ports:
-      - '443:3000'
+      - '7443:3000'
     # 이 컨테이너를 띄운 배포의 슬랙 스레드. 있으면 기동 알림이 그 스레드에 붙는다.
     # **x-common 이 아니라 여기에만 둔다** — batch·migrate 까지 답글을 달 이유가 없다.
     # 값은 배포가 `docker compose up` 할 때만 넘긴다(ci-deploy.sh).
@@ -66,6 +70,24 @@ services:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-batch:${IMAGE_TAG}
     container_name: hansapp-prod-batch
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # 관리자 콘솔. **API 와 SPA 가 한 이미지에 같이 있다** — 태그 하나가 둘의 버전이라
+  # 롤백도 같이 돈다(backend/docker/hansapp-admin.Dockerfile).
+  #
+  # **앞단 nginx 가 TLS 와 IP 제한을 하고 통째로 프록시한다.** 그래서 이 컨테이너는 평문으로
+  # 뜨고 인증서를 모른다 — api 와 다른 점이다(그쪽은 CF 가 직접 붙어 스스로 TLS 를 끝낸다).
+  #
+  # **127.0.0.1 에만 바인딩한다.** 밖에서 직접 닿으면 nginx 의 IP 제한을 지나치게 된다.
+  # 클라우드 방화벽에도 이 포트를 열지 않는다.
+  admin:
+    <<: *common
+    image: ghcr.io/plzhans/hans-app/hansapp-admin:${IMAGE_TAG}
+    container_name: hansapp-prod-admin
+    ports:
+      - '127.0.0.1:3001:3001'
     depends_on:
       redis:
         condition: service_healthy

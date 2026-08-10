@@ -149,7 +149,7 @@ jobs:
         run: |
           printf '%s' "$TOKEN" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
 
-          apps='hansapp-api hansapp-batch hansapp-cli'
+          apps='hansapp-api hansapp-admin hansapp-batch hansapp-cli'
           deadline=$(( $(date +%s) + 600 ))   # 10분
 
           while :; do

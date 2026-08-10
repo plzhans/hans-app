@@ -22,6 +22,7 @@ import { AppModule } from './app.module';
 import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initAdminCookie } from './auth/admin-cookie';
+import { serveAdminSpa } from './static-spa';
 import {
   OPENAPI_JSON_PATH,
   SWAGGER_PATH,
@@ -185,12 +186,19 @@ async function bootstrap() {
     });
   }
 
+  /*
+    관리자 SPA. **컨트롤러가 다 선 뒤에 붙는다** — 그래야 /api·/auth 를 라우터가 먼저
+    가져가고 남는 것만 정적파일로 간다.
+  */
+  const spaStatusLine = serveAdminSpa(app, appConfig);
+
   // 종료 신호를 Nest 가 받아 종료 훅을 기다린 뒤 프로세스를 내린다.
   app.enableShutdownHooks();
 
   const logger = new Logger('Bootstrap');
   logConfigSummary(appConfig, (l) => logger.log(l));
   logger.log(corsStatusLine);
+  logger.log(spaStatusLine);
   logger.log(sentryStatusLine);
 
   // DB 에 못 붙으면 **리슨 전에** 죽는다. 반쯤 죽은 채 뜨면 포트는 열려 있어 앞단은
