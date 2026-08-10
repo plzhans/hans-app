@@ -280,7 +280,7 @@ develop 과 production 이 같은 서버에 떠서 443 을 하나만 쓸 수 있
 | | 오리진 포트 | TLS 를 끝내는 곳 | 원본 규칙 |
 | --- | --- | --- | --- |
 | `admin.plzhans.com` | 443 (CF 기본값) | nginx | **불필요** |
-| `admin-develop.plzhans.com` | 443 (CF 기본값) | nginx | **불필요** |
+| `develop-admin.plzhans.com` | 443 (CF 기본값) | nginx | **불필요** |
 | `api.plzhans.com` | 7443 | 앱 (Origin CA) | 필요 |
 | `develop-api.plzhans.com` | 8443 | 앱 (Origin CA) | 필요 |
 

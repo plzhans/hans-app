@@ -22,10 +22,10 @@ apps-api:
 
 admin:
   jwt:
-    issuer: https://admin-develop.plzhans.com
+    issuer: https://develop-admin.plzhans.com
 
 apps-admin-api:
-  externalUrl: https://admin-develop.plzhans.com
+  externalUrl: https://develop-admin.plzhans.com
   proxy:
     trust: 1
     clientIpHeader: cf-connecting-ip
