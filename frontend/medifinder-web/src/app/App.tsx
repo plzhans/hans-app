@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import {
   createBrowserRouter,
@@ -14,6 +14,7 @@ import { DetailLayout } from './layouts/DetailLayout';
 import { LangLayout } from './LangLayout';
 import { Spinner } from '@/shared/ui/Spinner';
 import { AiSearchProvider } from '@/features/ai-search/model/AiSearchPanel';
+import { trackPageView } from '@/shared/analytics/gtag';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/shared/i18n';
 import { stripLang } from '@/shared/i18n/routing';
 
@@ -36,6 +37,25 @@ function PageLoader() {
   );
 }
 
+/**
+ * 라우트 이동을 GA page_view 로 보낸다. 마운트 때도 한 번 돌아 첫 진입이 함께 잡힌다.
+ * 라우터 안에서만 useLocation 을 쓸 수 있어 컴포넌트로 둔다(그리지는 않는다).
+ *
+ * **기본 언어 접두사(`/ko/...`)는 건너뛴다.** StripKoPrefix 가 곧바로 접두사를 뗀 정식 URL 로
+ * 갈아치우므로, 그대로 보내면 한 번의 방문이 `/ko/search` 와 `/search` 두 줄로 집계된다.
+ * 버리는 쪽이 중간 URL 이라 잃는 정보도 없다.
+ */
+function RouteTracker() {
+  const { pathname, search } = useLocation();
+  useEffect(() => {
+    const isRedirectingPrefix =
+      pathname === `/${DEFAULT_LANGUAGE}` || pathname.startsWith(`/${DEFAULT_LANGUAGE}/`);
+    if (isRedirectingPrefix) return;
+    trackPageView();
+  }, [pathname, search]);
+  return null;
+}
+
 function Root() {
   return (
     /*
@@ -47,6 +67,7 @@ function Root() {
       쓰기 때문인데, 그건 **여는 자리**의 문제이지 **떠 있는 창**의 문제가 아니다.
     */
     <AiSearchProvider>
+      <RouteTracker />
       <ScrollRestoration />
       <Suspense fallback={<PageLoader />}>
         <Outlet />

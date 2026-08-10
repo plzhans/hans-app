@@ -7,10 +7,15 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/shared/i18n';
+import { initGa } from '@/shared/analytics/gtag';
 import App from '@/app/App';
 import './globals.css';
 
 console.log('[app] VITE_HANSAPP_BASE_URL =', import.meta.env.VITE_HANSAPP_BASE_URL ?? '(not set)');
+
+// Sentry 와 달리 라우터 생성보다 먼저일 필요는 없다 — page_view 는 RouteTracker 가 마운트된 뒤에
+// 보내기 때문이다. 측정 ID 가 없으면(local·develop) 아무 일도 하지 않는다.
+initGa();
 
 const queryClient = new QueryClient({
   defaultOptions: {
