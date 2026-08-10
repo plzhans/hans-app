@@ -39,6 +39,32 @@ export class ConsentDto {
   readonly privacyVersion!: string;
 }
 
+/**
+ * 가입 시점의 지역 설정. 브라우저에서 뽑아 보낸다.
+ *
+ * 서버는 이 값을 **그대로 믿지 않고** 지원 언어·실재하는 타임존으로 좁힌 뒤 저장한다.
+ * 국가를 따로 받지 않는 것은 브라우저가 주지 않기 때문이다 — 타임존에서 되짚는다.
+ */
+export class ClientLocaleDto {
+  @ApiPropertyOptional({
+    description: '언어 태그(BCP-47). 지원 언어(ko/en/ja/zh)로 좁혀 저장된다.',
+    example: 'ko-KR',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(35)
+  readonly language?: string;
+
+  @ApiPropertyOptional({
+    description: 'IANA 타임존 ID',
+    example: 'Asia/Seoul',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  readonly timeZone?: string;
+}
+
 /** 가입 인증 코드 발송 요청(계정 생성 전) */
 export class SignupCodeRequestDto {
   @ApiProperty({ description: '가입할 이메일', example: 'user@example.com' })
@@ -77,6 +103,15 @@ export class SignupRequestDto {
   @ValidateNested()
   @Type(() => ConsentDto)
   readonly consent!: ConsentDto;
+
+  @ApiPropertyOptional({
+    description: '브라우저에서 뽑은 언어·타임존. 없으면 비워 둔다.',
+    type: ClientLocaleDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ClientLocaleDto)
+  readonly clientLocale?: ClientLocaleDto;
 }
 
 /** 이메일 로그인 요청 */

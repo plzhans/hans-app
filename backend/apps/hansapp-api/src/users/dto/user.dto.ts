@@ -1,15 +1,45 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { SUPPORTED_LANGS } from '@hansapp/common';
 
-/** 표시 이름 변경 요청. 빈 문자열이면 이름을 지운다. */
+/**
+ * 내 정보 변경 요청. **보낸 항목만 바뀐다** — 이름만 고치려고 언어까지 실어 보낼 필요가 없다.
+ *
+ * 국가는 여기 없다. 가입 시점에 한 번 적어 두는 집계용 값이라 바꿀 경로를 두지 않는다.
+ */
 export class UpdateProfileRequestDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: '표시 이름(빈 문자열이면 삭제)',
     example: '홍길동',
   })
+  @IsOptional()
   @IsString()
   @MaxLength(100)
-  readonly name!: string;
+  readonly name?: string;
+
+  @ApiPropertyOptional({
+    description: '표시·메일 언어',
+    enum: SUPPORTED_LANGS,
+    example: 'ko',
+  })
+  @IsOptional()
+  @IsIn(SUPPORTED_LANGS)
+  readonly language?: string;
+
+  @ApiPropertyOptional({
+    description: 'IANA 타임존 ID',
+    example: 'Asia/Seoul',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  readonly timeZone?: string;
 }
 
 /**
@@ -58,6 +88,21 @@ export class MeResponseDto {
 
   @ApiProperty({ description: '최초 가입 수단', example: 'EMAIL' })
   readonly joinType!: string;
+
+  @ApiPropertyOptional({
+    description:
+      '표시·메일 언어. 고른 적이 없으면 null 이고, 그때는 요청의 Accept-Language 를 따른다.',
+    enum: SUPPORTED_LANGS,
+    example: 'ko',
+  })
+  readonly language?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'IANA 타임존 ID. 고른 적이 없으면 null 이다.',
+    type: String,
+    example: 'Asia/Seoul',
+  })
+  readonly timeZone?: string | null;
 
   @ApiProperty({
     description: '가입 일시',

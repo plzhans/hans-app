@@ -4,12 +4,12 @@ import { EmailVerifyPurpose } from '@hansapp/data';
 import { OTP_CONFIG } from './mail.config';
 import type { OtpConfig } from './mail.config';
 import { EmailVerificationRepository } from './email-verification.repository';
-import { MailService } from './mail.service';
+import { AuthEmailService } from './auth-email.service';
 import {
   hmacSha256hex,
   randomNumericCode,
   timingSafeEqualHex,
-} from '../token/crypto.util';
+} from '@hansapp/common';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -22,14 +22,14 @@ function normalizeEmail(email: string): string {
  * 수집되지 않게, 6자리 코드가 브루트포스로 복원되지 않게. 발급은 시간당 상한·재발송 쿨다운으로,
  * 검증은 시도 횟수 제한·단회용으로 무차별 대입을 막는다.
  *
- * 발급(issue)만 하고 실제 메일 발송은 상위(MailService)가 반환된 코드로 수행한다.
+ * 발급(issue)만 하고 실제 메일 발송은 상위(AuthEmailService)가 반환된 코드로 수행한다.
  */
 @Injectable()
 export class EmailVerificationService {
   constructor(
     @Inject(OTP_CONFIG) private readonly config: OtpConfig,
     private readonly repo: EmailVerificationRepository,
-    private readonly mail: MailService,
+    private readonly mail: AuthEmailService,
   ) {}
 
   private hash(value: string): string {

@@ -46,7 +46,7 @@ function FullScreenSpinner() {
 function RouteTracker() {
   const location = useLocation();
   useEffect(() => {
-    trackPageView(location.pathname + location.search);
+    trackPageView();
   }, [location.pathname, location.search]);
   return null;
 }

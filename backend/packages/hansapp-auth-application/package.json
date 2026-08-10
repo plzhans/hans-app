@@ -18,6 +18,7 @@
   "dependencies": {
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",
+    "@hansapp/email-sender": "workspace:*",
     "@hansapp/event-consumer": "workspace:*",
     "@hansapp/event-contract": "workspace:*",
     "@hansapp/event-publisher": "workspace:*",
@@ -29,7 +30,6 @@
     "@nestjs/swagger": "^11.4.5",
     "bcryptjs": "^3.0.2",
     "cache-manager": "^7.2.9",
-    "nodemailer": "^6.9.16",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
@@ -43,8 +43,8 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/nodemailer": "^6.4.17",
     "@types/node": "^24.13.2",
+    "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-oauth2": "^1.4.17"

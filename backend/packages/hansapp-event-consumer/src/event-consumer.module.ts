@@ -20,7 +20,7 @@ export class EventConsumerModule {
   static forRoot(source: ConfigSource): DynamicModule {
     const redisUrl = source.getUrlOrDefault('redis.url') || undefined;
     // 동시 처리 수. 이벤트 처리는 대개 DB 한두 번이라 크게 잡을 이유가 없다.
-    const concurrency = source.getNumberOrDefault('events.concurrency', 5);
+    const concurrency = source.getNumberOrDefault('events.concurrency');
 
     return {
       module: EventConsumerModule,

@@ -1,8 +1,13 @@
-import { DynamicModule, Module, Provider } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import type { ConfigSource } from '@hansapp/common';
-import { DataModule } from '@hansapp/data';
+import {
+  buildSettingKeyring,
+  SETTING_KEYRING,
+  type ConfigSource,
+  type SecretBoxKeys,
+} from '@hansapp/common';
+import { DataModule, SettingReadRepository } from '@hansapp/data';
 
 import {
   ACCESS_CACHE_CONFIG,
@@ -17,13 +22,18 @@ import {
 } from './mail/mail.config';
 import { EmailVerificationRepository } from './mail/email-verification.repository';
 import { EmailVerificationService } from './mail/email-verification.service';
-import { MailService } from './mail/mail.service';
+import { EmailSender, EMAIL_SETTINGS_SOURCE } from '@hansapp/email-sender';
+
+import { AuthEmailService } from './mail/auth-email.service';
+import { MailSettingsSource } from './mail/mail-settings.source';
+import { SocialStrategyFactory } from './social/social-strategy.factory';
+import { SettingCache } from './setting/setting-cache.service';
 import { AuthService } from './auth.service';
 import { LoginService } from './login.service';
 import { OAuthTokenService } from './oauth-token.service';
 import { TokenService } from './token/token.service';
 import { JwtKeyService } from './token/jwt-key.service';
-import { ActionLogService } from './log/action-log.service';
+import { AuthLogService } from './log/auth-log.service';
 import { AuthGuard } from './guard/auth.guard';
 import { FirstPartyGuard } from './guard/first-party.guard';
 import { UserRepository } from './repository/user.repository';
@@ -48,10 +58,6 @@ import { ApiAccessService } from './app/api-access.service';
 import { SocialService } from './social/social.service';
 import { SocialTicketService } from './social/social-ticket.service';
 import { SocialAuthGuard } from './social/social-auth.guard';
-import { GoogleStrategy } from './social/strategies/google.strategy';
-import { NaverStrategy } from './social/strategies/naver.strategy';
-import { KakaoStrategy } from './social/strategies/kakao.strategy';
-import { LineStrategy } from './social/strategies/line.strategy';
 
 /**
  * 인증/인가 응용 계층의 DI 진입점. 서버 앱은 `imports: [AuthModule.forRoot(src)]` 로 주입받고,
@@ -72,11 +78,11 @@ export class AuthModule {
     const otpConfig = buildOtpConfig(source);
 
     // 설정된 소셜 provider 의 전략만 등록한다(키가 없으면 전략을 만들지 않는다 → 서버는 그대로 뜬다).
-    const strategyProviders: Provider[] = [];
-    if (config.oauth.google) strategyProviders.push(GoogleStrategy);
-    if (config.oauth.naver) strategyProviders.push(NaverStrategy);
-    if (config.oauth.kakao) strategyProviders.push(KakaoStrategy);
-    if (config.oauth.line) strategyProviders.push(LineStrategy);
+    /*
+      **소셜 전략을 여기서 등록하지 않는다.** 자격증명이 DB(env_setting)에 있어 부팅 때
+      확정할 수 없다 — SocialStrategyFactory 가 요청마다 만든다. 그래서 "설정된 provider 만
+      등록" 하던 조건 분기도 사라졌고, 키를 화면에서 바꾸면 재시작 없이 반영된다.
+    */
 
     return {
       module: AuthModule,
@@ -91,11 +97,31 @@ export class AuthModule {
       providers: [
         { provide: AUTH_CONFIG, useValue: config },
         { provide: MAIL_CONFIG, useValue: mailConfig },
+        /*
+          발송기(@hansapp/email-sender)는 SMTP 만 안다. 값이 어디서 오는지는 이 어댑터가
+          정한다 — 지금은 설정 파일, 다음 단계에서 DB 로 갈아끼운다.
+        */
+        /*
+          설정 읽기. **이 계층이 제 것을 갖는다** — 관리자 계층에도 같은 이름이 있지만
+          공유하지 않는다(계층을 나눈 뜻이 그것이다). 읽기 저장소만 @hansapp/data 것을 쓴다.
+        */
+        { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
+        {
+          provide: SettingCache,
+          useFactory: (
+            repo: SettingReadRepository,
+            keyring: SecretBoxKeys | undefined,
+          ) => new SettingCache(repo, keyring),
+          inject: [SettingReadRepository, SETTING_KEYRING],
+        },
+        MailSettingsSource,
+        { provide: EMAIL_SETTINGS_SOURCE, useExisting: MailSettingsSource },
+        EmailSender,
         { provide: OTP_CONFIG, useValue: otpConfig },
         // 이메일 인증 코드(OTP) 발급·검증 + 메일 발송
         EmailVerificationRepository,
         EmailVerificationService,
-        MailService,
+        AuthEmailService,
         // AccessCache 는 설정 전체가 아니라 캐시 TTL 조각만 받는다.
         { provide: ACCESS_CACHE_CONFIG, useValue: config.accessCache },
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
@@ -106,7 +132,7 @@ export class AuthModule {
         AuthCodeRepository,
         WithdrawalRepository,
         // 서비스/가드
-        ActionLogService,
+        AuthLogService,
         JwtKeyService,
         TokenService,
         // 로그인 완결(세션 발급 + 로그). 모든 로그인 경로가 지난다.
@@ -124,7 +150,7 @@ export class AuthModule {
         SocialTicketService,
         SocialService,
         SocialAuthGuard,
-        ...strategyProviders,
+        SocialStrategyFactory,
         // 앱(개발자 플랫폼)
         AppRepository,
         AppService,
@@ -148,15 +174,17 @@ export class AuthModule {
         ConsentService,
         SessionTrimService,
         OAuthTokenService,
-        ActionLogService,
+        AuthLogService,
         AuthGuard,
         FirstPartyGuard,
         SocialService,
         SocialAuthGuard,
         SocialTicketService,
         // SocialAuthGuard(passport)는 @UseGuards 로 AppModule 컨트롤러에서 생성되므로
-        // 그 의존(AUTH_CONFIG·SocialTicketService·AccessCache)이 모두 export 돼 있어야 한다.
+        // 그 의존이 모두 export 돼 있어야 한다
+        // (AUTH_CONFIG·SocialTicketService·AccessCache·SocialStrategyFactory).
         AccessCache,
+        SocialStrategyFactory,
         AppService,
         LlmKeyService,
         ApiAccessService,

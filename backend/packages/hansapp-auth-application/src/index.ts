@@ -40,7 +40,7 @@ export {
   type GeneratedKey,
 } from './token/jwt-keygen';
 export type { AuthTokens } from './token/token.service';
-export { ActionLogService } from './log/action-log.service';
+export { AuthLogService } from './log/auth-log.service';
 
 // 소셜
 export { SocialService } from './social/social.service';
@@ -72,7 +72,7 @@ export {
   buildMailConfig,
   buildOtpConfig,
 } from './mail/mail.config';
-export type { MailConfig, SmtpConfig, OtpConfig } from './mail/mail.config';
+export type { MailConfig, OtpConfig } from './mail/mail.config';
 export { EmailVerificationService } from './mail/email-verification.service';
 // 이메일 인증 코드 용도 enum(값으로 씀 — 컨트롤러/DTO).
 export { EmailVerifyPurpose } from '@hansapp/data';

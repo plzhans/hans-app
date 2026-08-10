@@ -3,8 +3,8 @@ import type { ConfigSource } from '@hansapp/common';
 /** 공공데이터포털 설정 주입 토큰 */
 export const KRDATA_CONFIG = Symbol('KRDATA_CONFIG');
 
-/** openapi 스펙에 박혀 있는 HIRA 상세 서비스 버전. */
-const DEFAULT_HIRA_DETAIL_VERSION = '2.8';
+/** openapi 스펙에 박혀 있는 HIRA 상세 서비스 버전. 설정이 비면 이 값을 쓴다. */
+export const DEFAULT_HIRA_DETAIL_VERSION = '2.8';
 
 /**
  * 공공데이터포털(data.go.kr) API 설정. 이 계층이 스스로 정의하고 스스로 검증한다.
@@ -28,6 +28,9 @@ export interface KrDataAppConfig {
    * **키마다 승인된 버전이 다르다.** 포털은 버전이 오르면 기존 신청자에겐 옛 버전을 유지시키고
    * 새 활용신청은 새 버전으로만 승인한다. 그래서 서비스키를 바꾸면 버전도 같이 맞춰야 한다.
    * 2.7 만 승인된 키로 2.8 을 부르면 403 Forbidden 이다 — 키가 아니라 경로가 틀린 것이다.
+   *
+   * 서비스키와 짝이라 값도 같은 자리(DB env_setting)에 있다. serviceKey 와 마찬가지로
+   * 모듈이 부팅할 때 비동기로 채운다.
    */
   readonly hiraDetailVersion: string;
 }
@@ -41,13 +44,15 @@ export interface KrDataAppConfig {
  * **정말 필요한 sync 는 호출 시점에** 401/403 으로 드러난다(부팅 때가 아니라).
  */
 export function buildKrDataConfig(source: ConfigSource): KrDataAppConfig {
-  // serviceKey 만 시크릿(.env). 나머지(재시도·타임아웃·버전)는 비밀 아님 → getX.
+  /*
+    **serviceKey·hiraDetailVersion 은 여기서 안 읽는다.** 값이 DB(env_setting)에 있어서
+    모듈이 부팅할 때 비동기로 채운다(admin-application.module 의 KRDATA_CONFIG 프로바이더).
+    자리만 잡아 두는 것이고, 실제 값이 그 자리를 덮는다.
+  */
   return Object.freeze({
-    serviceKey: source.getStringOrDefault('krdata.serviceKey'),
-    maxRetry: source.getNumberOrDefault('krdata.maxRetry', 3),
-    readTimeoutMs: source.getNumberOrDefault('krdata.readTimeoutMs', 60_000),
-    hiraDetailVersion:
-      source.getStringOrDefault('krdata.hiraDetailVersion') ||
-      DEFAULT_HIRA_DETAIL_VERSION,
+    serviceKey: '',
+    maxRetry: source.getNumberOrDefault('krdata.maxRetry'),
+    readTimeoutMs: source.getNumberOrDefault('krdata.readTimeoutMs'),
+    hiraDetailVersion: DEFAULT_HIRA_DETAIL_VERSION,
   });
 }

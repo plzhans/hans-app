@@ -1,0 +1,31 @@
+{
+  "name": "@hansapp/email-sender",
+  "version": "0.0.1",
+  "private": true,
+  "description": "메일 발송기. 한 통 보내는 일만 한다 — 문구도 템플릿도 도메인도 모른다.",
+  "files": [
+    "dist"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "nodemailer": "^6.9.16",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "@types/nodemailer": "^6.4.17",
+    "typescript": "^5.9.3"
+  }
+}

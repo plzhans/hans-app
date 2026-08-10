@@ -14,11 +14,16 @@ name: hansapp-production
 # 세 서비스가 같은 설정을 쓴다. 다른 것은 이미지와 포트뿐이다.
 x-common: &common
   restart: unless-stopped
-  # **마운트 이름에 환경이 없다.** 컨테이너에는 환경이 하나뿐이라 자기가 무엇인지 파일
-  # 구조로 알 필요가 없다 — 그래서 이미지도 이 파일도 환경을 모른 채로 있다.
-  # APP_ENV 는 .env.<환경> 안에 있어 앱이 부팅하며 스스로 읽는다.
+  # **설정 yaml 은 두 장이다.** 공통값·설명이 든 config.yaml 위에 환경별 파일이 덮는다
+  # (앱이 APP_ENV 를 보고 두 번째 파일 이름을 만든다 — .env.<환경> 안에 있다).
+  #
+  # 예전엔 환경별 파일을 config.yaml 이라는 이름으로 얹어 한 장만 줬다. 그 시절엔 파일이
+  # 자기완결적이라 그래도 됐지만, 지금은 공통값이 config.yaml 에만 있어 그러면 다 사라진다.
+  # 두 장을 이미지에 굽지 않고 배포가 나르는 것은 그대로다 — **기본값이 바뀌었다고 이미지를
+  # 다시 말 이유는 없다.**
   volumes:
-    - ./config/config.production.yaml:/app/config/config.yaml:ro
+    - ./config/config.yaml:/app/config/config.yaml:ro
+    - ./config/config.production.yaml:/app/config/config.production.yaml:ro
     - ./config/production:/app/config/secrets:ro
   # **env 는 마운트가 아니라 주입한다.** 도커가 호스트에서 읽어 환경변수로 넣는다.
   #
@@ -38,16 +43,20 @@ services:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-api:${IMAGE_TAG}
     container_name: hansapp-prod-api
-    # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 산다.
+    # **Cloudflare 가 이 컨테이너에 직접 붙는다.** 앞단이 없다 — 앱이 TLS 를 스스로 끝내고
+    # (Origin CA) CF 가 Full (strict) 로 검증한다. nginx 는 admin 만 받는다.
     #
-    # 앞단에 nginx 가 없다. Cloudflare 가 오리진에 직접 붙는데 CF 가 쓸 수 있는 HTTPS
-    # 포트는 443·2053·2083·2087·2096·8443 뿐이다. production=443, develop=8443.
-    # 앱이 TLS 를 직접 끝내고(Origin CA) CF 가 Full (strict) 로 검증한다.
+    # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 산다.
+    # **443 은 nginx 가 가져간다**(admin 서빙). 그래서 api 는 production=7443, develop=8443 —
+    # 뒤 세 자리를 맞춰 둬서 어느 환경 것인지가 앞자리 하나로 갈린다.
+    #
+    # ⚠️ **443 이 아니면 CF 원본 규칙이 있어야 한다.** 규칙이 없으면 CF 는 443 으로 붙고,
+    # 거기엔 nginx 가 앉아 있어 api 요청이 엉뚱한 곳으로 간다(docs/cloudflare.md).
     #
     # **클라우드 방화벽(OCI 보안목록)에도 열어야 한다.** 서버 안에서는 리스닝인데 밖에서
     # 막혀 CF 가 522 를 뱉는 일이 흔하다. 가능하면 CF 대역만 허용한다.
     ports:
-      - '443:3000'
+      - '7443:3000'
     # 이 컨테이너를 띄운 배포의 슬랙 스레드. 있으면 기동 알림이 그 스레드에 붙는다.
     # **x-common 이 아니라 여기에만 둔다** — batch·migrate 까지 답글을 달 이유가 없다.
     # 값은 배포가 `docker compose up` 할 때만 넘긴다(ci-deploy.sh).
@@ -61,6 +70,24 @@ services:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-batch:${IMAGE_TAG}
     container_name: hansapp-prod-batch
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # 관리자 콘솔. **API 와 SPA 가 한 이미지에 같이 있다** — 태그 하나가 둘의 버전이라
+  # 롤백도 같이 돈다(backend/docker/hansapp-admin.Dockerfile).
+  #
+  # **앞단 nginx 가 TLS 와 IP 제한을 하고 통째로 프록시한다.** 그래서 이 컨테이너는 평문으로
+  # 뜨고 인증서를 모른다 — api 와 다른 점이다(그쪽은 CF 가 직접 붙어 스스로 TLS 를 끝낸다).
+  #
+  # **127.0.0.1 에만 바인딩한다.** 밖에서 직접 닿으면 nginx 의 IP 제한을 지나치게 된다.
+  # 클라우드 방화벽에도 이 포트를 열지 않는다.
+  admin:
+    <<: *common
+    image: ghcr.io/plzhans/hans-app/hansapp-admin:${IMAGE_TAG}
+    container_name: hansapp-prod-admin
+    ports:
+      - '127.0.0.1:3001:3001'
     depends_on:
       redis:
         condition: service_healthy
@@ -138,7 +165,8 @@ services:
     restart: 'no'
     # 비밀 에셋(jwt·TLS)은 앱의 것이라 붙이지 않는다. CLI 는 yaml 과 env 만 있으면 된다.
     volumes:
-      - ./config/config.production.yaml:/app/config/config.yaml:ro
+      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./config/config.production.yaml:/app/config/config.production.yaml:ro
 
 # 바인드가 아니라 네임드 볼륨이다 — 배포 디렉터리는 매 배포마다 갈아끼워지는 자리라
 # 그 아래에 데이터를 두면 배포 절차와 수명이 얽힌다.

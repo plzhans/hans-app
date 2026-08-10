@@ -22,14 +22,16 @@ import {
   SlackNotifyService,
   SwaggerAccessService,
 } from '@hansapp/application';
+import {
+  HttpErrorFilter,
+  StripNullInterceptor,
+  requestIdMiddleware,
+} from '@hansapp/http-common';
 
 import { AppModule } from './app.module';
 import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initRefreshCookie } from './auth/refresh-cookie';
-import { HttpErrorFilter } from './common/http-error.filter';
-import { requestIdMiddleware } from './common/request-id.middleware';
-import { StripNullInterceptor } from './common/interceptors/strip-null.interceptor';
 import { createSwaggerAccessMiddleware } from './common/swagger-access.middleware';
 import {
   OPENAPI_JSON_PATH,
@@ -157,7 +159,7 @@ async function bootstrap() {
   );
 
   // 프록시 뒤라면 실제 클라 IP 를 인식하도록 trust proxy 를 켠다(rate limit 정확도).
-  // yaml(config/config.<환경>.yaml) 기본값 또는 TRUST_PROXY 환경변수로 켠다(env 가 이긴다).
+  // yaml(config/config.yaml) 기본값 또는 TRUST_PROXY 환경변수로 켠다(env 가 이긴다).
   const trustProxy = parseTrustProxy(
     appConfig.getStringOrDefault('apps-api.proxy.trust') || undefined,
   );
@@ -231,19 +233,13 @@ async function bootstrap() {
   // SPA fetch 엔 기존 JSON 을 응답한다(소셜 로그인 콜백이 주소창에 JSON 을 노출하지 않게).
   app.useGlobalFilters(new HttpErrorFilter());
 
-  // Swagger 문서 노출. **production 도 켠다** — 대신 허용된 IP 만 통과시킨다.
-  //   local·develop : 그대로 공개
-  //   production    : 노출하되 env_swagger_allowed_ip 에 등록된 IP 만 (아래 미들웨어)
-  // 아예 끄려면 apps-api.swagger.enabled=false (SWAGGER_ENABLED 로도 덮인다).
-  const swaggerEnabled = appConfig.getBoolOrDefault(
-    'apps-api.swagger.enabled',
-    true,
-  );
-  // IP 검사를 걸 환경. 기본은 production 만 — 로컬·개발에서 목록을 채워야 문서가 열리면
-  // 개발이 불편해지기만 하고 얻는 게 없다.
+  // Swagger 문서 노출. **기본은 꺼짐이고, 열 환경이 yaml 에 명시로 켠다**(config-defaults.ts).
+  //   local·develop : 켜고 ipRestricted 를 풀어 그대로 공개
+  //   production    : 켜되 env_swagger_allowed_ip 에 등록된 IP 만 (아래 미들웨어)
+  const swaggerEnabled = appConfig.getBoolOrDefault('apps-api.swagger.enabled');
+  // 켠 뒤의 기본은 잠근 쪽이다. 목록을 채워야 열리는 게 불편한 환경이 yaml 에서 푼다.
   const swaggerIpRestricted = appConfig.getBoolOrDefault(
     'apps-api.swagger.ipRestricted',
-    appConfig.env === 'production',
   );
 
   if (swaggerEnabled) {
@@ -281,7 +277,7 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap');
   // 접속 대상·활성 provider 요약(시크릿 마스킹, 한 줄씩). listen 앞에 둬 포트 충돌 등으로 못 떠도 설정은 보이게 한다.
-  logConfigSummary(appConfig, (l) => logger.log(l), { oauth: true, llm: true });
+  logConfigSummary(appConfig, (l) => logger.log(l));
   // Sentry 가 켜졌는지도 같이 남긴다. 조용히 꺼져 있는 게 최악이다.
   logger.log(sentryStatusLine);
 
@@ -298,7 +294,7 @@ async function bootstrap() {
   // 여기서 또 기다리면 같은 일을 두 겹으로 하는 것이다 — 죽는 게 곧 재시도다.
   await verifyInfrastructure(app, logger);
 
-  const port = appConfig.getNumberOrDefault('apps-api.web.port', 3000);
+  const port = appConfig.getNumberOrDefault('apps-api.web.port');
   await app.listen(port);
 
   // 부팅 완료 후 접속 링크를 출력한다. getUrl 은 IPv6(::1)일 수 있어 localhost 기준으로 구성한다.

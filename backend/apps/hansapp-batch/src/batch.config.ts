@@ -35,14 +35,14 @@ export interface BatchConfig {
  * 각 계층이 자기 설정을 스스로 뽑고 검증한다. process.env 를 직접 읽는 곳은 @hansapp/common 뿐이다.
  */
 export function buildBatchConfig(source: ConfigSource): BatchConfig {
-  // 전부 비밀 아닌 값 → getX(config/config.<환경>.yaml 또는 환경변수 BATCH_CRON 등).
+  // 전부 비밀 아닌 값 → getX(config/config.yaml 또는 환경변수 BATCH_CRON 등).
   return {
-    cron: source.getStringOrDefault('apps-batch.cron', '0 4 * * *'),
+    cron: source.getStringOrDefault('apps-batch.cron'),
     authCleanupCron: source.getStringOrDefault(
       'apps-batch.authCleanupCron',
       '30 4 * * *',
     ),
     maxCallsPerRun:
-      source.getNumberOrDefault('apps-batch.maxCallsPerRun', 0) || undefined,
+      source.getNumberOrDefault('apps-batch.maxCallsPerRun') || undefined,
   };
 }

@@ -11,9 +11,14 @@
 AREA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # <repo>/frontend
 AREA="$(basename "$AREA_DIR")"                             # frontend
 
-# 배포 가능한 대상. frontend/* 를 훑지 않는 이유는 auth-sdk 때문이다 — 그건 medifinder-web 이
+# 빌드 가능한 대상. frontend/* 를 훑지 않는 이유는 auth-sdk 때문이다 — 그건 medifinder-web 이
 # link: 로 무는 라이브러리라 자기 혼자 배포되지 않는다. 소비자 번들 안으로 들어갈 뿐이다.
-KNOWN_TARGETS='medifinder-web hansapp-docs hansapp-web hansapp-auth'
+KNOWN_TARGETS='medifinder-web hansapp-docs hansapp-web hansapp-auth hansapp-admin'
+
+# 그중 **Cloudflare Worker 로 나가는 것.** hansapp-admin 은 여기 없다 —
+# 관리자 콘솔은 hansapp-admin 이미지 안에서 API 와 같이 나간다(같은 오리진).
+# 빌드는 여기서 하고(ci-build.sh), 담는 것은 backend/docker/hansapp-admin.Dockerfile 이다.
+WORKER_TARGETS='medifinder-web hansapp-docs hansapp-web hansapp-auth'
 
 group() {
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::group::$1"; else echo "▶ $1"; fi
@@ -92,7 +97,7 @@ require_app_env() {
 # vite 는 dist, vitepress 는 .vitepress/dist 다.
 dist_dir_for() {
   case "$1" in
-    medifinder-web | hansapp-web | hansapp-auth) echo 'dist' ;;
+    medifinder-web | hansapp-web | hansapp-auth | hansapp-admin) echo 'dist' ;;
     hansapp-docs)                                echo '.vitepress/dist' ;;
     *) die "$1 의 산출물 경로를 모른다. frontend/ci-lib.sh 에 케이스를 추가할 것." ;;
   esac

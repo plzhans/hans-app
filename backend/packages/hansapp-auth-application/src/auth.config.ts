@@ -157,64 +157,20 @@ export interface AuthConfig {
    * 약관을 개정하면 그 파일과 이 기본값(또는 config 의 auth.consent.*)을 함께 고친다.
    */
   readonly consentVersions: ConsentVersions;
-
-  /** 소셜 로그인 설정. provider 별 키는 있는 것만 담긴다(없으면 그 provider 는 비활성). */
-  readonly oauth: OAuthConfig;
 }
 
-/** 소셜 provider 자격증명. clientId·clientSecret 이 모두 있어야 활성화된다. */
-export interface OAuthProviderCredentials {
-  readonly clientId: string;
-  readonly clientSecret: string;
-}
-
-export interface OAuthConfig {
-  // redirect_uri 는 별도 base URL 을 두지 않고 요청이 들어온 호스트에서 조립한다
-  // ({scheme}://{host}/auth/:provider/callback, SocialAuthGuard 참고).
-  readonly google?: OAuthProviderCredentials;
-  readonly naver?: OAuthProviderCredentials;
-  readonly kakao?: OAuthProviderCredentials;
-  readonly line?: OAuthProviderCredentials;
-}
-
-/** provider 자격증명을 설정에서 뽑는다(둘 다 시크릿). 둘 다 있어야 credentials 를 반환한다. */
-function readProviderCredentials(
-  source: ConfigSource,
-  idPath: string,
-  secretPath: string,
-): OAuthProviderCredentials | undefined {
-  const clientId = source.getStringOrDefault(idPath);
-  const clientSecret = source.getStringOrDefault(secretPath);
-  if (!clientId || !clientSecret) {
-    return undefined;
-  }
-  return Object.freeze({ clientId, clientSecret });
-}
-
-/**
- * 카카오 자격증명. 카카오는 **REST API 키를 client_id(KAKAO_CLIENT_ID)로** 쓰고,
- * client secret(KAKAO_CLIENT_SECRET)은 선택이다(콘솔 '카카오 로그인 > 보안'에서 켰을 때만).
- * JS 키는 브라우저 SDK 용이라 서버 리다이렉트 로그인엔 쓰지 않는다. client_id 만 있으면 활성화한다.
- */
-function readKakaoCredentials(
-  source: ConfigSource,
-): OAuthProviderCredentials | undefined {
-  const clientId = source.getStringOrDefault('kakao.clientId');
-  if (!clientId) {
-    return undefined;
-  }
-  return Object.freeze({
-    clientId,
-    clientSecret: source.getStringOrDefault('kakao.clientSecret'),
-  });
-}
+/*
+  **소셜 자격증명은 여기 없다.** 값이 DB(env_setting)에 있고, 요청마다 SocialStrategyFactory 가
+  읽어 전략을 만든다 — 부팅 때 확정하면 화면에서 키를 바꿔도 재시작 전까지 안 먹는다.
+  "설정된 provider 인가" 판정도 그쪽으로 옮겼다(없으면 404, 응답은 예전과 같다).
+*/
 
 /**
  * EnvSource 에서 인증 설정을 뽑아 검증한다.
  * JWT_SECRET 이 없으면 부팅 시점에 즉시 실패한다.
  */
 export function buildAuthConfig(source: ConfigSource): AuthConfig {
-  // 비밀·비밀아님 모두 계산된 트리에서 경로로 읽는다. 비밀 아닌 값은 config/config.<환경>.yaml 또는
+  // 비밀·비밀아님 모두 계산된 트리에서 경로로 읽는다. 비밀 아닌 값은 config/config.yaml 또는
   // 환경변수(AUTH_ISSUER→authIssuer), 시크릿은 .env(AUTH_JWT_SECRET→authJwtSecret)에서 공급된다.
   const issuer = source.getStringOrDefault('auth.jwt.issuer') || undefined;
   // 허용 발급처 = auth.jwt.allowedIssuers(yaml 리스트) + 자기 issuer(자동 포함).
@@ -242,66 +198,32 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     // 부팅이 죽었다(환경 yaml 은 서로 상속하지 않아 세 파일에 다 적어야 했다).
     accessTokenTtlSec: source.getDurationSecOrDefault(
       'auth.jwt.accessTokenExpiresIn',
-      60 * 60, // 1h
     ),
     refreshTokenTtlSec: source.getDurationSecOrDefault(
       'auth.jwt.refreshTokenExpiresIn',
-      7 * 24 * 60 * 60, // 7d
     ),
     authCodeTtlSec: source.getDurationSecOrDefault(
       'auth.jwt.authCodeExpiresIn',
-      5 * 60, // 5m
     ),
     accessCache: Object.freeze({
-      memoryTtlSec: source.getNumberOrDefault('cache.memoryTtlSec', 5 * 60),
-      memoryMaxEntries: source.getNumberOrDefault(
-        'cache.memoryMaxEntries',
-        10_000,
-      ),
-      sharedTtlSec: source.getNumberOrDefault('cache.sharedTtlSec', 10 * 60),
+      memoryTtlSec: source.getNumberOrDefault('cache.memoryTtlSec'),
+      memoryMaxEntries: source.getNumberOrDefault('cache.memoryMaxEntries'),
+      sharedTtlSec: source.getNumberOrDefault('cache.sharedTtlSec'),
     }),
     withdrawalRetentionDays: source.getNumberOrDefault(
       'auth.withdrawalRetentionDays',
-      30,
     ),
     // 앞 점 제거·트림 후, IP·점없는 라벨(localhost 등)이면 경고 후 무시(빈값). 도메인만 통과.
     rootDomain: normalizeRootDomain(
       source.getStringOrDefault('auth.rootDomain'),
     ),
-    cookieSecure: source.getBoolOrDefault('auth.cookieSecure', false),
-    socialFlowTtlSec: source.getNumberOrDefault('auth.socialFlowTtlSec', 600),
-    bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds', 10),
-    maxSessionsPerUser: source.getNumberOrDefault(
-      'auth.maxSessionsPerUser',
-      10,
-    ),
+    cookieSecure: source.getBoolOrDefault('auth.cookieSecure'),
+    socialFlowTtlSec: source.getNumberOrDefault('auth.socialFlowTtlSec'),
+    bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds'),
+    maxSessionsPerUser: source.getNumberOrDefault('auth.maxSessionsPerUser'),
     consentVersions: Object.freeze({
-      terms: source.getStringOrDefault(
-        'auth.consent.termsVersion',
-        '2026-08-06',
-      ),
-      privacy: source.getStringOrDefault(
-        'auth.consent.privacyVersion',
-        '2026-08-06',
-      ),
-    }),
-    oauth: Object.freeze({
-      google: readProviderCredentials(
-        source,
-        'google.clientId',
-        'google.clientSecret',
-      ),
-      naver: readProviderCredentials(
-        source,
-        'naver.clientId',
-        'naver.clientSecret',
-      ),
-      kakao: readKakaoCredentials(source),
-      line: readProviderCredentials(
-        source,
-        'line.clientId',
-        'line.clientSecret',
-      ),
+      terms: source.getStringOrDefault('auth.consent.termsVersion'),
+      privacy: source.getStringOrDefault('auth.consent.privacyVersion'),
     }),
   });
 }

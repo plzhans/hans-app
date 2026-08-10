@@ -6,6 +6,9 @@ import {
 import { NestFactory } from '@nestjs/core';
 import { ConfigSource } from '@hansapp/common';
 import { AdminApplicationModule, I18nModule } from '@hansapp/admin-application';
+// 인증은 admin 응용 계층의 **서브패스**에 있다. 배럴(@hansapp/admin-application)에 넣으면
+// 배치·CLI 의 다른 커맨드까지 bcryptjs·@nestjs/jwt 를 지고 뜬다.
+import { AdminAuthModule } from '@hansapp/admin-application/auth';
 import { AuthModule } from '@hansapp/auth-application';
 import { DataModule } from '@hansapp/data';
 import { SearchModule } from '@hansapp/search';
@@ -127,4 +130,18 @@ export async function withAuthContext<T>(
   run: (context: INestApplicationContext) => Promise<T>,
 ): Promise<T> {
   return withContext(AuthModule.forRoot(source), run, false, false);
+}
+
+/**
+ * 관리자 계정 커맨드용. 관리자 인증 계층(AdminAuthModule)만 띄운다.
+ *
+ * **관리자 계정을 만드는 통로는 여기뿐이다** — 가입 화면이 없다.
+ * ADMIN_JWT_SECRET 은 AdminAuthModule 이 필수로 요구하므로 없으면 여기서 즉시 실패하고,
+ * AUTH_JWT_SECRET 과 같은 값이어도 마찬가지다(설정 검증이 부팅을 거부한다).
+ */
+export async function withAdminAuthContext<T>(
+  source: ConfigSource,
+  run: (context: INestApplicationContext) => Promise<T>,
+): Promise<T> {
+  return withContext(AdminAuthModule.forRoot(source), run, false, false);
 }

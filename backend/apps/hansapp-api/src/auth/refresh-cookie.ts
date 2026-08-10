@@ -3,7 +3,7 @@ import type { AuthTokens, RequestMeta } from '@hansapp/auth-application';
 
 import type { ConfigSource } from '@hansapp/common';
 
-import { resolveClientIp } from '../common/client-ip';
+import { resolveClientIp } from '@hansapp/http-common';
 
 import type { TokenResponseDto } from './dto/auth.dto';
 
@@ -69,7 +69,7 @@ function resolveCookiePrefix(cfg: ConfigSource, env: string): string {
 
 /** 부팅 시점에 설정에서 값을 한 번 읽어 고정한다(main 부트스트랩에서 호출). */
 export function initRefreshCookie(cfg: ConfigSource, env: string): void {
-  secure = cfg.getBoolOrDefault('auth.cookieSecure', false);
+  secure = cfg.getBoolOrDefault('auth.cookieSecure');
   cookieDomain = cfg.getStringOrDefault('auth.rootDomain') || undefined;
   clientIpHeader =
     cfg.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;

@@ -26,6 +26,7 @@ import { nmcCommand } from './commands/nmc';
 import { esCommand } from './commands/es';
 import { appCommand } from './commands/app';
 import { userCommand } from './commands/user';
+import { adminCommand } from './commands/admin';
 import { jwtCommand } from './commands/jwt';
 import { addExamples, localizeHelp } from './help';
 
@@ -45,7 +46,7 @@ function bootstrapEnv(): ConfigSource {
   const appEnv = resolveAppEnv(explicit);
   // 자식 프로세스(prisma)도 같은 환경을 보도록 물려준다.
   process.env.APP_ENV = appEnv;
-  // 설정 접근자(ConfigSource). config/config.<환경>.yaml + 환경변수(__ 계층)를 병합해 경로 게터로 읽고,
+  // 설정 접근자(ConfigSource). config/config.yaml + config.<환경>.yaml + 환경변수(__ 계층)를 병합해 경로 게터로 읽고,
   // EnvSource 를 확장하므로 시크릿을 flat env 로 읽는 기존 계층에도 그대로 넘어간다.
   return createConfigSource(__dirname, appEnv, config);
 }
@@ -87,6 +88,7 @@ const program = new Command()
   .addCommand(esCommand(envSource))
   .addCommand(appCommand(envSource))
   .addCommand(userCommand(envSource))
+  .addCommand(adminCommand(envSource))
   .addCommand(jwtCommand(envSource));
 
 addExamples(program, [

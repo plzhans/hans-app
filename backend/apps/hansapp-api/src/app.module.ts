@@ -12,10 +12,7 @@ import {
   AuthGuard,
   FirstPartyGuard,
 } from '@hansapp/auth-application';
-import { NtsClient } from '@kr-go/nts';
-import { JusoClient } from '@kr-go/juso';
-
-import { resolveClientIp } from './common/client-ip';
+import { resolveClientIp } from '@hansapp/http-common';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -28,9 +25,7 @@ import { JwksController } from './oauth/jwks.controller';
 import { AppsController } from './apps/app.controller';
 import { LlmKeyController } from './apps/llm-key.controller';
 import { AddressController } from './address/address.controller';
-import { AddressService } from './address/address.service';
 import { BusinessController } from './business/business.controller';
-import { BusinessService } from './business/business.service';
 import { HiraCodeController } from './datagokr/hira/hira-code.controller';
 import { HiraRegionController } from './datagokr/hira/hira-region.controller';
 import { HiraHospitalController } from './datagokr/hira/hira-hospital.controller';
@@ -58,7 +53,7 @@ export class AppModule {
     // rate limit 이 IP 버킷 키로 쓸 "진짜 클라 IP" 를 어느 헤더에서 뽑을지 설정으로 고른다.
     // 인프라(Cloudflare/CloudFront/OCI/nginx)가 아직 미정이라 provider 별 헤더를 설정으로만 바꾼다.
     //   Cloudflare  → cf-connecting-ip,  범용 프록시 → 비우고 TRUST_PROXY 로 req.ip 사용
-    // 비밀 아닌 값이라 config/config.<환경>.yaml(또는 CLIENT_IP_HEADER 환경변수)로 관리한다.
+    // 비밀 아닌 값이라 config/config.yaml(또는 CLIENT_IP_HEADER 환경변수)로 관리한다.
     const clientIpHeader =
       config.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
     return {
@@ -130,33 +125,18 @@ export class AppModule {
         // 전역 인증 가드. @Public() 라우트는 우회한다.
         // 가드 본체는 AuthModule 이 제공·export 하므로 인스턴스를 재사용한다(useExisting).
         { provide: APP_GUARD, useExisting: AuthGuard },
-        BusinessService,
-        AddressService,
         // MCP 도구 서버. **모듈이 아니라 여기 프로바이더로 둔다** — 도구가 부르는 서비스
         // (HealthcareHospitalService 등)는 위에서 import 한 ApplicationModule 이 export 하는데,
         // 별도 모듈로 감싸면 그쪽에서 ApplicationModule.forRoot 를 또 불러야 하고 그러면
         // Prisma 풀·코드 캐시가 두 벌 뜬다. 도구 정의 자체는 @hansapp/mcp 가 소유한다.
         HealthcareMcpServer,
-        // 외부 API 클라이언트. **이 서버에서 외부(국세청·도로명주소)를 직접 호출하는 소수의 API 용이다.**
-        // 나머지 API 는 로컬 DB 미러를 읽는다.
-        //
-        // 인증키는 optionalString 이라 **키가 없어도 서버는 뜬다** — 해당 엔드포인트를 호출할 때만
-        // 실패한다. 서버는 서비스키 없이도 부팅한다는 불변식을 지키기 위해서다.
-        // NTS 는 data.go.kr(odcloud) serviceKey(KRDATA_SERVICE_KEY)를, JUSO 는 confmKey(KRGO_JUSO_SERVICE_KEY)를 쓴다.
-        {
-          provide: NtsClient,
-          useFactory: (): NtsClient =>
-            new NtsClient({
-              serviceKey: config.getStringOrDefault('krdata.serviceKey'),
-            }),
-        },
-        {
-          provide: JusoClient,
-          useFactory: (): JusoClient =>
-            new JusoClient({
-              confmKey: config.getStringOrDefault('juso.serviceKey'),
-            }),
-        },
+        /*
+          외부 API(국세청·도로명주소)를 부르는 서비스와 클라이언트는 여기 없다 —
+          ApplicationModule 이 갖는다. 서비스키가 DB(env_setting)에 있어 클라이언트를
+          부팅 때 만들 수 없고, 만들 이유도 없다(팩토리가 호출 시점에 만든다).
+
+          키가 없어도 서버는 뜬다는 방침은 그대로다. 없으면 그 API 를 부르는 순간 503 이다.
+        */
       ],
     };
   }

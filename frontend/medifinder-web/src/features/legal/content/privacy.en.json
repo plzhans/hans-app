@@ -1,6 +1,6 @@
 {
   "title": "Privacy Policy",
-  "effective": "Effective date: August 5, 2026",
+  "effective": "Effective date: August 8, 2026",
   "intro": [
     "The individual operator of MediFinder (the \"Operator\") establishes and discloses this Privacy Policy in accordance with the Personal Information Protection Act of Korea, in order to protect users' personal information and to handle related enquiries.",
     "The Service has no sign-up process. It does not ask for identifying information such as name, date of birth, or contact details, and does not collect sensitive information such as treatment history or health status. The items listed below are generated automatically in the course of operating the Service, or are processed only when a user actively invokes a feature.",
@@ -25,6 +25,11 @@
                 "Recorded automatically by the server and the content delivery network (CDN) when the Service is accessed."
               ],
               [
+                "Usage statistics",
+                "Usage records (screens visited, time of visit, referring page, and the like), browser and operating system type, approximate location (country and city level)",
+                "Collected automatically through an analytics tool when the Service is accessed. Cookies and how to refuse them are set out in Article 11."
+              ],
+              [
                 "Error diagnostics",
                 "Error message and location, URL at the time of the error, browser and operating system type, IP address",
                 "Sent automatically through an error tracking tool, and only when an error occurs."
@@ -43,7 +48,7 @@
           }
         },
         "(2) The Service does not collect membership information such as name, date of birth, or contact details; sensitive information such as treatment history or health status; or unique identifiers such as resident registration numbers.",
-        "(3) The Service does not collect behavioural information and does not serve targeted advertising."
+        "(3) Usage statistics are used solely to measure how the Service is used. The Service does not use the advertising features of the analytics tool, and does not use the information collected for advertising or serve targeted advertising."
       ]
     },
     {
@@ -52,9 +57,10 @@
         {
           "list": [
             "1. Access logs: operating the Service, responding to incidents, and blocking abnormal bulk requests (security)",
-            "2. Error diagnostics: identifying the cause of errors and improving service quality",
-            "3. Location data: searching for nearby medical institutions and sorting by distance",
-            "4. Enquiry information: replying to enquiries and keeping a record of how they were handled"
+            "2. Usage statistics: understanding how the Service is used, in order to improve it",
+            "3. Error diagnostics: identifying the cause of errors and improving service quality",
+            "4. Location data: searching for nearby medical institutions and sorting by distance",
+            "5. Enquiry information: replying to enquiries and keeping a record of how they were handled"
           ]
         }
       ]
@@ -72,6 +78,10 @@
               [
                 "Access logs",
                 "Destroyed within 3 months of collection"
+              ],
+              [
+                "Usage statistics",
+                "Deleted automatically in accordance with the retention policy of the analytics tool. Aggregated statistics that cannot be traced to an individual are retained beyond that point."
               ],
               [
                 "Error diagnostics",
@@ -119,6 +129,10 @@
               [
                 "Functional Software, Inc. (Sentry)",
                 "Error tracking"
+              ],
+              [
+                "Google LLC (Google Analytics)",
+                "Measurement and analysis of usage statistics"
               ]
             ]
           }
@@ -178,7 +192,14 @@
                 "Error tracking / up to 90 days"
               ],
               [
-                "Google LLC",
+                "Google LLC (Google Analytics)",
+                "United States",
+                "Transmitted over the network when the Service is accessed",
+                "IP address, usage statistics",
+                "Measurement and analysis of usage statistics / same retention as Article 3"
+              ],
+              [
+                "Google LLC (Google Maps)",
                 "United States",
                 "Transmitted over the network when Google Maps is displayed",
                 "IP address, request details",
@@ -235,14 +256,16 @@
     {
       "heading": "Article 11 (Automatic Collection Devices and How to Refuse Them)",
       "blocks": [
-        "(1) The Service does not use cookies for tracking or advertising, and uses no analytics tools for traffic statistics or user profiling.",
-        "(2) The Service stores the following value in the browser's Local Storage. It stays on the device and is not sent to the server.",
+        "(1) The Service uses an analytics tool to measure how it is used, and in doing so cookies are stored in the user's browser. These cookies contain no information such as a name or contact details — only a random value used to distinguish visits.",
+        "(2) The Service uses no advertising cookies and no third-party tracking scripts.",
+        "(3) Users may refuse these cookies by blocking cookies or clearing this site's data in their browser settings. Doing so does not restrict use of the Service.",
+        "(4) The Service stores the following value in the browser's Local Storage. It stays on the device and is not sent to the server.",
         {
           "list": [
             "medifinder.geo.optOut — whether the user has turned off location use"
           ]
         },
-        "(3) Users may delete this value at any time by clearing site data in their browser settings. Doing so does not restrict use of the Service."
+        "(5) Users may delete this value at any time by clearing site data in their browser settings. Doing so does not restrict use of the Service."
       ]
     },
     {
@@ -301,7 +324,8 @@
     {
       "heading": "Addendum",
       "blocks": [
-        "This Privacy Policy takes effect on August 5, 2026."
+        "This Privacy Policy takes effect on August 8, 2026 and supersedes the previous policy (effective August 5, 2026).",
+        "This revision adds provisions on the use of Google Analytics to measure usage statistics and on the cookies that entails (Articles 1, 2, 3, 5, 7, and 11)."
       ]
     }
   ]

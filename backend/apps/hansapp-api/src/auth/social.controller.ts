@@ -98,6 +98,7 @@ export class SocialController {
         email: dto.email,
         code: dto.code,
         consent: dto.consent,
+        clientLocale: dto.clientLocale,
       },
       requestMeta(req),
       lang,

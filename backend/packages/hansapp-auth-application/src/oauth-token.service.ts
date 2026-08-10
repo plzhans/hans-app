@@ -5,19 +5,24 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ActionResult, AppStatus, UserAction, UserStatus } from '@hansapp/data';
-
-import { AccessCache } from './app/access-cache.service';
+import {
+  AuthLogResult,
+  AppStatus,
+  AuthLogAction,
+  UserStatus,
+} from '@hansapp/data';
 import {
   sha256base64url,
   sha256hex,
   timingSafeEqualHex,
-} from './token/crypto.util';
+} from '@hansapp/common';
+
+import { AccessCache } from './app/access-cache.service';
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
 import { isFirstPartyOrigin } from './first-party-origin';
 import { RequestMeta } from './auth.service';
-import { ActionLogService } from './log/action-log.service';
+import { AuthLogService } from './log/auth-log.service';
 import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
 import { TokenSessionRepository } from './repository/token-session.repository';
@@ -34,7 +39,7 @@ export class OAuthTokenService {
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly tokens: TokenService,
     private readonly users: UserRepository,
-    private readonly log: ActionLogService,
+    private readonly log: AuthLogService,
     private readonly login: LoginService,
     private readonly access: AccessCache,
     private readonly sessions: TokenSessionRepository,
@@ -213,8 +218,8 @@ export class OAuthTokenService {
     await this.tokens.revokeSession(sessionId);
     await this.log.record({
       userId,
-      action: UserAction.LOGOUT,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.LOGOUT,
+      result: AuthLogResult.SUCCESS,
       sessionId,
       ...meta,
     });
@@ -238,8 +243,8 @@ export class OAuthTokenService {
     if (!revoked) return;
     await this.log.record({
       userId: revoked.userId,
-      action: UserAction.LOGOUT,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.LOGOUT,
+      result: AuthLogResult.SUCCESS,
       sessionId: revoked.sessionId,
       ...meta,
     });

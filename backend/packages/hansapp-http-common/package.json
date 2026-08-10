@@ -1,0 +1,33 @@
+{
+  "name": "@hansapp/http-common",
+  "version": "0.0.1",
+  "private": true,
+  "description": "HTTP 서버 공용 계층. 오류 응답·요청 추적·클라이언트 IP 처리를 모든 API 앱이 같은 형태로 쓴다.",
+  "files": [
+    "dist"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hansapp/common": "workspace:*",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/swagger": "^11.4.5",
+    "@sentry/nestjs": "^10.68.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.0",
+    "typescript": "^5.9.3"
+  }
+}

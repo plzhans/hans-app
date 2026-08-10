@@ -88,6 +88,8 @@ export class UserController {
       name: u.name,
       role: u.role,
       joinType: u.joinType,
+      language: u.language,
+      timeZone: u.timeZone,
       hasPassword: !!u.password,
       createdAt: u.createdAt.toISOString(),
       linkedProviders: linked,
@@ -101,13 +103,22 @@ export class UserController {
   @ApiOperation({
     summary: '내 정보 수정',
     description:
-      '표시 이름을 바꾼다. 개인정보처리방침 제10조의 정정 요구에 응하는 자리다.',
+      '표시 이름·언어·타임존을 바꾼다. 보낸 항목만 바뀐다. ' +
+      '개인정보처리방침 제10조의 정정 요구에 응하는 자리다.',
   })
   async updateMe(
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdateProfileRequestDto,
   ): Promise<void> {
-    await this.authService.updateName(user.userId, dto.name);
+    if (dto.name !== undefined) {
+      await this.authService.updateName(user.userId, dto.name);
+    }
+    if (dto.language !== undefined || dto.timeZone !== undefined) {
+      await this.authService.updateLocale(user.userId, {
+        language: dto.language,
+        timeZone: dto.timeZone,
+      });
+    }
   }
 
   @Delete('me')

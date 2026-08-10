@@ -9,19 +9,25 @@ import {
 import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import {
-  ActionResult,
+  AuthLogResult,
   AuthProvider,
   EmailVerifyPurpose,
   User,
-  UserAction,
+  AuthLogAction,
 } from '@hansapp/data';
+import {
+  normalizeLanguageChoice,
+  normalizeTimeZoneChoice,
+  resolveUserLocale,
+  type ClientLocaleInput,
+} from '@hansapp/common';
 
 import { AUTH_CONFIG } from './auth.config';
 import type { AuthConfig } from './auth.config';
 import { EmailVerificationService } from './mail/email-verification.service';
-import { MailService } from './mail/mail.service';
+import { AuthEmailService } from './mail/auth-email.service';
 import { ConsentService, type ConsentInput } from './consent.service';
-import { ActionLogService } from './log/action-log.service';
+import { AuthLogService } from './log/auth-log.service';
 import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
@@ -58,11 +64,11 @@ export class AuthService {
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
-    private readonly mail: MailService,
+    private readonly mail: AuthEmailService,
     private readonly sessions: TokenSessionRepository,
     private readonly withdrawals: WithdrawalRepository,
     private readonly tokens: TokenService,
-    private readonly log: ActionLogService,
+    private readonly log: AuthLogService,
     private readonly loginService: LoginService,
     private readonly emailVerification: EmailVerificationService,
   ) {}
@@ -96,6 +102,8 @@ export class AuthService {
       name?: string | null;
       code: string;
       consent: ConsentInput;
+      /** 브라우저에서 뽑아 온 지역 설정. 없어도 가입은 된다(전부 null 로 남는다). */
+      clientLocale?: ClientLocaleInput;
     },
     meta: RequestMeta,
     locale?: string,
@@ -115,20 +123,23 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired verification code.');
     }
 
+    const userLocale = resolveUserLocale(input.clientLocale ?? {});
+
     const user = await this.users.create({
       email,
       emailVerified: true,
       password: await this.hashPassword(input.password),
       name: input.name ?? null,
       joinType: AuthProvider.EMAIL,
+      ...userLocale,
     });
 
     await this.consent.record(user.id, input.consent, meta);
 
     await this.log.record({
       userId: user.id,
-      action: UserAction.SIGNUP,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.SIGNUP,
+      result: AuthLogResult.SUCCESS,
       provider: AuthProvider.EMAIL,
       ...meta,
     });
@@ -137,7 +148,7 @@ export class AuthService {
     await this.mail.sendAccountNotice({
       to: user.email,
       kind: 'SIGNUP_WELCOME',
-      locale,
+      locale: user.language ?? locale,
       userName: user.name,
     });
 
@@ -177,8 +188,8 @@ export class AuthService {
     if (!user || !ok) {
       await this.log.record({
         userId: user?.id ?? null,
-        action: UserAction.LOGIN,
-        result: ActionResult.FAIL,
+        action: AuthLogAction.LOGIN,
+        result: AuthLogResult.FAIL,
         provider: AuthProvider.EMAIL,
         failReason: !user ? 'user_not_found' : 'bad_credentials',
         ...meta,
@@ -226,8 +237,8 @@ export class AuthService {
 
     await this.log.record({
       userId: user.id,
-      action: UserAction.WITHDRAW,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.WITHDRAW,
+      result: AuthLogResult.SUCCESS,
       ...meta,
     });
   }
@@ -261,8 +272,8 @@ export class AuthService {
       if (!ok) {
         await this.log.record({
           userId: user.id,
-          action: UserAction.PASSWORD_CHANGE,
-          result: ActionResult.FAIL,
+          action: AuthLogAction.PASSWORD_CHANGE,
+          result: AuthLogResult.FAIL,
           failReason: 'bad_credentials',
           ...meta,
         });
@@ -276,8 +287,8 @@ export class AuthService {
     );
     await this.log.record({
       userId: user.id,
-      action: UserAction.PASSWORD_CHANGE,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.PASSWORD_CHANGE,
+      result: AuthLogResult.SUCCESS,
       ...meta,
     });
     await this.notifyPasswordChanged(user, locale);
@@ -290,13 +301,15 @@ export class AuthService {
    * 알아차릴 방법이 달리 없다 — 이미 비밀번호가 바뀌어 로그인도 안 된다.
    */
   private notifyPasswordChanged(
-    user: { email: string; name: string | null },
+    user: { email: string; name: string | null; language?: string | null },
     locale?: string,
   ): Promise<void> {
     return this.mail.sendAccountNotice({
       to: user.email,
       kind: 'PASSWORD_CHANGED',
-      locale,
+      // **회원이 고른 언어가 요청 헤더를 이긴다.** 헤더는 지금 이 브라우저의 사정이고,
+      // 메일은 나중에 다른 자리에서 읽힌다.
+      locale: user.language ?? locale,
       userName: user.name,
     });
   }
@@ -356,8 +369,8 @@ export class AuthService {
     await this.sessions.deleteAllByUser(user.id);
     await this.log.record({
       userId: user.id,
-      action: UserAction.PASSWORD_RESET,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.PASSWORD_RESET,
+      result: AuthLogResult.SUCCESS,
       ...meta,
     });
     await this.notifyPasswordChanged(user, locale);
@@ -379,7 +392,7 @@ export class AuthService {
    * 빈 문자열을 보내면 되고, 그때는 null 로 남긴다 — 빈 문자열과 "없음" 을 DB 에서 갈라 두면
    * 화면마다 둘 다 처리해야 한다.
    *
-   * **행동 로그를 남기지 않는다.** UserAction 에 맞는 값이 없고(로그인·비밀번호·탈퇴 등
+   * **행동 로그를 남기지 않는다.** AuthLogAction 에 맞는 값이 없고(로그인·비밀번호·탈퇴 등
    * 계정 보안 사건만 남긴다), 표시 이름 변경은 거기 낄 성질이 아니다. 남길 이유가 생기면
    * 그때 enum 을 늘린다.
    */
@@ -387,6 +400,45 @@ export class AuthService {
     await this.getProfile(userId);
     const trimmed = name.trim();
     return this.users.updateName(userId, trimmed || null);
+  }
+
+  /**
+   * 언어·타임존을 바꾼다. 준 항목만 바뀐다.
+   *
+   * **국가는 여기서 못 바꾼다.** 가입 시점에 타임존으로 추정해 적어 둔 집계용 값이고,
+   * 화면에 내보내지도 않는다 — 이용자가 관리할 대상이 아니다.
+   *
+   * 값은 목록에서 고르는 것이라, 알아들을 수 없으면 조용히 버리지 않고 거절한다.
+   * 가입 때(브라우저가 알아서 보낸 값)와 다른 규칙인 것은 틀렸을 때 책임이 다르기 때문이다.
+   */
+  async updateLocale(
+    userId: number,
+    input: { language?: string; timeZone?: string },
+  ): Promise<User> {
+    const current = await this.getProfile(userId);
+
+    const data: { language?: string; timeZone?: string } = {};
+
+    if (input.language !== undefined) {
+      const language = normalizeLanguageChoice(input.language);
+      if (!language) {
+        throw new BadRequestException('Unsupported language.');
+      }
+      data.language = language;
+    }
+
+    if (input.timeZone !== undefined) {
+      const timeZone = normalizeTimeZoneChoice(input.timeZone);
+      if (!timeZone) {
+        throw new BadRequestException('Unknown time zone.');
+      }
+      data.timeZone = timeZone;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return current;
+    }
+    return this.users.updateLocale(userId, data);
   }
 
   /**
@@ -425,8 +477,8 @@ export class AuthService {
     const removed = await this.sessions.deleteAllByUser(userId);
     await this.log.record({
       userId,
-      action: UserAction.LOGOUT,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.LOGOUT,
+      result: AuthLogResult.SUCCESS,
       ...meta,
     });
     return removed;

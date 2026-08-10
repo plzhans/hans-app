@@ -31,10 +31,10 @@ export interface JusoAppConfig {
  * 승인키는 develop.env 등에 KRGO_JUSO_SERVICE_KEY 로 넣는다.
  */
 export function buildJusoConfig(source: ConfigSource): JusoAppConfig {
-  // confmKey 만 시크릿(.env). 재시도·타임아웃은 비밀 아님 → getX.
+  // confmKey 는 DB(env_setting)에서 온다 — 모듈이 부팅할 때 비동기로 채운다.
   return Object.freeze({
-    confmKey: source.getStringOrDefault('juso.serviceKey'),
-    maxRetry: source.getNumberOrDefault('juso.maxRetry', 3),
-    readTimeoutMs: source.getNumberOrDefault('juso.readTimeoutMs', 30_000),
+    confmKey: '',
+    maxRetry: source.getNumberOrDefault('juso.maxRetry'),
+    readTimeoutMs: source.getNumberOrDefault('juso.readTimeoutMs'),
   });
 }

@@ -35,6 +35,9 @@ export class UserRepository {
     password: string | null;
     name: string | null;
     joinType: AuthProvider;
+    countryCode: string | null;
+    language: string | null;
+    timeZone: string | null;
   }): Promise<User> {
     return this.prisma.user.create({ data: input });
   }
@@ -50,6 +53,18 @@ export class UserRepository {
   /** 표시 이름 변경. 빈 값은 지우는 것으로 보고 null 을 넣는다. */
   updateName(id: number, name: string | null): Promise<User> {
     return this.prisma.user.update({ where: { id }, data: { name } });
+  }
+
+  /**
+   * 언어·타임존 변경. **국가(countryCode)는 여기 없다** — 가입 시점에 한 번 적고 마는
+   * 집계용 값이라 고칠 경로를 두지 않는다.
+   * 준 항목만 바꾼다(둘 다 보낼 필요가 없다).
+   */
+  updateLocale(
+    id: number,
+    input: { language?: string; timeZone?: string },
+  ): Promise<User> {
+    return this.prisma.user.update({ where: { id }, data: input });
   }
 
   updateTier(id: number, tier: UserTier): Promise<User> {

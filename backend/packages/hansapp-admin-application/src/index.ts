@@ -32,6 +32,42 @@ export {
 } from '@hansapp/application';
 export type { HiraCodeType, HiraCodeResponse } from '@hansapp/application';
 
+// 인프라 접속 점검. AdminApplicationModule 이 ApplicationModule 을 통해 이미 제공하고 있어
+// 앱은 app.get(HealthService) 로 꺼내 쓴다 — 그 타입을 가져오자고 @hansapp/application 을
+// 직접 의존하게 만들지 않는다(위 HIRA_CODE_TYPES 와 같은 이유).
+export { HealthService } from '@hansapp/application';
+
+// 서비스 설정 관리. 읽기는 공용 계층이 갖고, 관리자 API 가 쓰기 엔드포인트를 연다.
+export { SettingCache } from './setting/setting-cache.service';
+export { SettingAdminService } from './setting/setting-admin.service';
+
+/* 서버 LLM 키(env_llm_key). app_llm_key 와 짝이고, 설정이 아니라 관리 대상 목록이라 CRUD 다. */
+export { EnvLlmKeyAdminService } from './llm/env-llm-key-admin.service';
+export { EnvLlmModelAdminService } from './llm/env-llm-model-admin.service';
+export type {
+  EnvLlmModelInput,
+  EnvLlmModelView,
+} from './llm/env-llm-model-admin.service';
+/*
+  enum 을 여기서 다시 내보낸다. 관리자 API 가 DTO 검증(@IsEnum)에 값을 써야 하는데
+  @hansapp/data 를 직접 의존시키면 HTTP 앱이 DB 계층에 붙는다 — HealthService 를
+  re-export 한 것과 같은 이유다.
+*/
+export { LlmProvider, LlmKeyType, EnvLlmKeyStatus } from '@hansapp/data';
+export type {
+  EnvLlmKeyView,
+  EnvLlmKeyInput,
+} from './llm/env-llm-key-admin.service';
+// 타입·카탈로그는 계층이 아니라 공용이다 — 관리자 API 가 DTO 를 만들 때 이걸 쓴다.
+export type {
+  SettingSource,
+  SettingFieldView,
+  SettingGroupView,
+  SettingInput,
+  SettingCategory,
+  SettingFieldType,
+} from '@hansapp/common';
+
 export { NmcCodeSyncService } from './nmc/nmc-code-sync.service';
 export { HiraCodeSyncService } from './hira/hira-code-sync.service';
 export type { HiraCodeSyncOptions } from './hira/hira-code-sync.service';
@@ -69,6 +105,37 @@ export type {
   StageRun,
 } from './common/sync-runner.service';
 export { SyncStateService } from './common/sync-state.service';
+
+// 관리자용 회원 조회(읽기 전용). 회원 수정은 회원 본인의 통로가 하고 여기서는 보기만 한다.
+export { UserReadService } from './user/user-read.service';
+// 회원 인증·계정 기록(로그 DB). 로그인만이 아니라 가입·비밀번호·소셜연동·탈퇴가 같은 표에 쌓인다.
+// 서비스 행위(좋아요·조회)는 여기가 아니라 별도 표로 간다 — auth.prisma 주석 참고.
+export { UserAuthLogService } from './user/user-auth-log.service';
+export type {
+  UserAuthLogEntry,
+  UserAuthLogQuery,
+} from './user/user-auth-log.service';
+export type {
+  UserSummary,
+  UserDetail,
+  UserOAuthSummary,
+  UserListQuery,
+} from './user/user-read.service';
+// 관리자용 앱(개발자 플랫폼) 조회. 회원 조회와 같이 읽기 전용이다.
+export { AppReadService } from './app-registry/app-read.service';
+export type {
+  AppSummary,
+  AppDetail,
+  AppListQuery,
+  AppApiKeySummary,
+  AppClientSummary,
+  AppMemberSummary,
+} from './app-registry/app-read.service';
+
+// 목록 필터에 쓰는 enum. 앱이 @hansapp/data 를 직접 의존하지 않게 여기서 재노출한다.
+export { UserStatus, AppStatus, AppClientType } from '@hansapp/data';
+// 인증 기록의 enum(로그 DB). 컨트롤러 DTO 가 검증·문서화에 값으로 쓴다.
+export { AuthLogAction, AuthLogResult } from '@hansapp/data';
 export type { SyncJob, SyncOutcome } from './common/sync-state.service';
 export { DATA_PROVIDERS } from './common/provider';
 export type { DataProvider } from './common/provider';

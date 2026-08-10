@@ -55,11 +55,13 @@ export default {
       initSentry(app);
 
       initGa();
-      trackPageView(location.pathname + location.search);
+      trackPageView();
       const prev = ctx.router.onAfterRouteChanged;
       ctx.router.onAfterRouteChanged = (to) => {
         prev?.(to);
-        trackPageView(to);
+        // 인자 to 를 쓰지 않는다 — trackPageView 가 window.location 에서 전체 URL 을 읽는다.
+        // 이 훅은 라우팅이 끝난 뒤라 그 값이 이미 새 주소다.
+        trackPageView();
       };
     }
   },

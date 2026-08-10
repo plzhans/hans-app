@@ -1,118 +1,37 @@
-# hansapp local 환경 설정.
-
-database:
-  url: ${DATABASE_URL}
-  logUrl: ${DATABASE_LOG_URL}
-  shadowUrl: ${DATABASE_SHADOW_URL}
-
-redis:
-  url: ${REDIS_URL}
+# local 에서 config.yaml 과 달라지는 값만.
 
 elasticsearch:
-  url: ${ELASTICSEARCH_URL}
-  # 인덱스 이름 접두사. 미설정이면 환경 이름(local). dev 클러스터를 같이 쓰므로
-  # 남의 인덱스를 건드리지 않으려면 자기 접두사를 준다.
-  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:local}
-
-cache:
-  memoryMaxEntries: 10000
-  memoryTtlSec: 300
-  sharedTtlSec: 600
+  # dev 클러스터를 같이 쓴다. 개인 접두사로 바꿔 쓸 수 있다.
+  indexPrefix: local
 
 auth:
+  # IP 는 쿠키 Domain 으로 못 쓴다.
   rootDomain:
-  cookiePrefix: ${AUTH_COOKIE_PREFIX}
+  # http 로 뜬다.
+  cookieSecure: false
   externalUrl: http://127.0.0.1:5173
   jwt:
     issuer: http://127.0.0.1:3000
     allowedIssuers:
       - http://develop.plzhans.com
       - http://127.0.0.1:3000
-    secret: ${AUTH_JWT_SECRET}
-    keyDir: ${AUTH_JWT_KEY_DIR}
 
 apps-api:
-  # 이 서비스의 외부 주소(포털웹). 메일 템플릿의 링크 base 로 쓴다.
   externalUrl: http://127.0.0.1:3000
+  swagger:
+    enabled: true
+    ipRestricted: false
 
-google:
-  clientId: ${GOOGLE_CLIENT_ID}
-  clientSecret: ${GOOGLE_CLIENT_SECRET}
+admin:
+  jwt:
+    issuer: http://127.0.0.1:3001
 
-naver:
-  clientId: ${NAVER_CLIENT_ID}
-  clientSecret: ${NAVER_CLIENT_SECRET}
-
-kakao:
-  clientId: ${KAKAO_CLIENT_ID}
-  clientSecret: ${KAKAO_CLIENT_SECRET}
-
-line:
-  clientId: ${LINE_CLIENT_ID}
-  clientSecret: ${LINE_CLIENT_SECRET}
-
-krdata:
-  serviceKey: ${KRDATA_SERVICE_KEY}
-  hiraDetailVersion: ${KRDATA_HIRA_DETAIL_VERSION}
-
-# 국토교통부(vworld). 3D 지도·항공사진. **vworld 서비스키는 공공데이터포털과 별개**.
-molit:
-  vworld:
-    serviceKey: ${KRGO_MOLIT_VWORLD_SERVICE_KEY}
-
-juso:
-  serviceKey: ${KRGO_JUSO_SERVICE_KEY}
-
-# ── 앱 자격증명 암호화 ─────────────────────────────────────────────────────────
-# 앱이 등록한 외부 자격증명(LLM 업체 키·외부 서비스 키)을 DB 에 잠글 때 쓰는 마스터 키.
-# 32바이트 난수를 base64 로 넣는다.
-#   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-#
-# **표는 나뉘어도 자물쇠는 하나다** — app_llm_key 와 app_external_key 가 이 꾸러미를 같이 쓴다.
-# 나누면 키를 교체할 때 두 벌을 따로 돌려야 하고, 한쪽만 옮긴 채 옛 키를 지우는 사고가 열린다.
-#
-# **교체는 v2 를 더하는 것이지 v1 을 바꾸는 것이 아니다.** 새로 잠그는 값만 v2 로 가고
-# v1 로 잠긴 값은 그대로 남는다 — 다 옮기기 전에 v1 을 지우면 그 값들은 영영 못 연다.
-#
-# 비어 있으면 키 등록 기능만 꺼진다(서버는 정상 기동).
-appSecretEncryption:
-  v1: ${APP_SECRET_ENCRYPTION_KEY_V1}
-
-llm:
-  # anthropic | openai | local. local 은 OpenAI 호환 엔드포인트(ollama·vLLM·LM Studio).
-  defaultProvider: anthropic
-  timeoutSec: 30
-  # 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
-  maxTokens: 2048
-  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
-  promptDir: data/healthcare/svc-prompts
-  # 질문 끝의 `/test` 를 답변 모드로 받는다. **로그인이 붙기 전까지의 임시 수단**이라
-  # 켜져 있으면 누구나 유료로 팔 답변을 공짜로 받는다 — 운영은 반드시 꺼 둔다.
-  allowTestCommand: ${LLM_ALLOW_TEST_COMMAND:true}
-  # 응답에 원시 사용량(모델 이름·토큰 내역)을 실는다. **로컬·개발 확인용**이다.
-  # 사용자에게 파는 단위는 환산 크레딧 하나뿐이고, 어느 모델로 몇 토큰 썼는지가 드러나면
-  # 요금이 역산된다 — 화면에서 감추는 것으로는 안 감춰지므로(응답 JSON) 여기서 끊는다.
-  exposeDebugUsage: ${LLM_EXPOSE_DEBUG_USAGE:true}
-  # 답변 서명 키(HMAC-SHA256). **비어 있으면 답변을 문맥으로 이어받지 않는다.**
-  # 화면이 돌려보내는 직전 답변은 "우리가 이렇게 답했다" 는 주장이라, 서명이 없으면
-  # 아무 문장이나 심어 모델을 유도할 수 있다. 없으면 서명도 안 붙이고 받지도 않는다.
-  answerSigningKey: ${LLM_ANSWER_SIGNING_KEY}
-  # 업체 이름으로 둔다(모델 이름 claude 가 아니라). openai 와 같은 층위여야 읽을 때
-  # 헷갈리지 않고, 한 업체가 모델을 여럿 내도 이 키는 그대로다.
-  anthropic:
-    apiKey: ${ANTHROPIC_API_KEY}
-    # 구독 토큰. **로컬 전용** — 개인 구독이라 사용자 트래픽을 태우면 안 된다.
-    #   claude setup-token 생성
-    # 키와 토큰이 둘 다 있으면 키가 이긴다.
-    authToken: ${ANTHROPIC_AUTH_TOKEN}
-    # 기본값은 여기(코드 아님). **날짜 없는 별칭**이어야 한다 — 스냅샷 ID 는 은퇴하고,
-    # 그날 설정을 안 건드린 배포가 조용히 404 를 맞는다. 응답이 실제 버전을 알려준다.
-    # haiku 인 이유: 구독 토큰으로 opus·sonnet 은 429 고, 질문 → 코드 추출엔 이걸로 충분하다.
-    defaultModel: ${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}
-    # 아직 못 고르는 모델. 화면에 자물쇠와 함께 보인다 — "곧 열린다" 를 미리 알리는 목록이고,
-    # 골라도 요청에는 안 실린다. 유료가 열리면 하나씩 defaultModel 쪽으로 옮겨 온다.
-    lockedModels: [claude-opus-5]
-  openai:
-    apiKey: ${OPENAI_API_KEY}
-    # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
-    defaultModel: ${OPENAI_DEFAULT_MODEL}
+apps-admin-api:
+  externalUrl: http://127.0.0.1:3001
+  cors:
+    # 관리자 SPA 의 Vite dev server(5273 auth · 5274 web · 5275 admin).
+    origins:
+      - http://127.0.0.1:5275
+      - http://localhost:5275
+  swagger:
+    enabled: true

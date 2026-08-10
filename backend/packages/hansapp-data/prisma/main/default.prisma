@@ -1681,3 +1681,163 @@ model EnvSwaggerAllowedIp {
   @@index([enabled], map: "idx_env_swagger_ip_enabled")
   @@map("env_swagger_allowed_ip")
 }
+
+/// 서비스 설정 값. **설정 파일이 아니라 화면에서 관리하는 값들이다.**
+///
+/// `env_` 접두사는 EnvSwaggerAllowedIp 와 같은 뜻이다 — 서비스 데이터가 아니라 운영을
+/// 다루는 테이블이라 목록에서 섞이지 않게 갈라 둔다.
+///
+/// [왜 파일이 아니라 DB 인가]
+/// 메일 계정이나 연동 서비스키가 바뀔 때마다 .env 를 고치고 재배포하는 대신 화면에서 바꾼다.
+/// 값이 어디 있는지도 한 곳으로 모인다 — 지금은 yaml·.env·.enc 세 군데에 흩어져 있다.
+///
+/// [키]
+/// 설정 경로를 그대로 쓴다(`mail.smtp.host`, `google.clientId`). **어떤 키가 존재하는지는
+/// 코드(설정 카탈로그)가 소유한다** — 이 테이블은 그 키에 담긴 값만 들고 있다.
+/// 그래서 설정을 하나 더하는 데 마이그레이션이 필요 없다.
+///
+/// [값]
+/// **비밀값만 암호화한다**(AES-256-GCM, appSecretEncryption 키링).
+/// 카탈로그에서 `type: 'secret'` 인 것 — client secret·비밀번호·서비스 키가 그렇고,
+/// 호스트·포트·client id 는 평문으로 둔다. 전부 잠그면 장애가 났을 때 SQL 로 확인할 수 있는
+/// 값이 하나도 없고, 키를 잃으면 설정 전체가 안 열린다.
+///
+/// 암호화 형식은 `v<n>:<iv>:<tag>:<ciphertext>` (secret-box.ts).
+model EnvSetting {
+  /// 설정 경로. 예: `mail.smtp.host`, `google.clientId`
+  key String @id @db.VarChar(120)
+
+  /// 값. `encrypted` 가 true 면 암호문, 아니면 평문이다.
+  value String @db.VarChar(1024)
+
+  /// 이 행의 value 가 암호문인가.
+  ///
+  /// **카탈로그를 읽어 판단하지 않고 행에 적어 둔다.** 나중에 누가 필드를 secret 에서
+  /// string 으로 바꾸면, 이미 잠겨 저장된 값들을 평문으로 읽어 깨진 문자열을 내보내게 된다.
+  /// 어떻게 저장했는지는 저장한 쪽이 기억하는 것이 맞다.
+  encrypted Boolean @default(false)
+
+  /// 마지막으로 바꾼 관리자. 계정이 지워져도 기록은 남아야 해서 FK 를 걸지 않는다.
+  updatedBy Int? @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("env_setting")
+}
+
+/// 우리 서버가 LLM 을 부를 때 쓰는 키. **app_llm_key 와 짝이다** —
+/// 그쪽은 앱이 제 키로 부르는 자리, 이쪽은 우리가 제 예산으로 부르는 자리다.
+/// provider·name·secret 의 모양을 일부러 맞춰 뒀다.
+///
+/// **설정(env_setting)이 아니라 관리 대상 목록이다.** 카탈로그가 키를 소유하는 설정과 달리
+/// 행이 늘고 준다 — LOCAL 은 여러 대를 붙일 수 있다. 화면도 앱 클라이언트처럼 목록 + 모달이다.
+model EnvLlmKey {
+  id Int @id @default(autoincrement())
+
+  /// 어느 업체 키인가. 이 값이 SDK 어댑터를 고른다.
+  provider LlmProvider
+
+  /// **provider 안에서의 신원.** 호스팅 업체는 하나뿐이라 늘 빈 문자열이고,
+  /// LOCAL 은 여러 대를 붙일 수 있어 사람이 붙인 이름이 들어간다(`사무실 ollama`).
+  ///
+  /// 이 컬럼이 "앤트로픽·OpenAI 는 하나, Ollama 는 여러 개" 를 DB 수준에서 강제하는 장치다 —
+  /// @@unique([provider, name]) 에서 호스팅 업체는 이름이 늘 같으므로(빈 문자열) 두 번째 행이
+  /// 들어가지 못하고, LOCAL 은 이름이 다르면 얼마든지 들어간다.
+  /// MySQL 에는 조건부 유니크 인덱스가 없어 이 방식으로 표현한다. (app_llm_key 와 같은 수법)
+  name String @default("") @db.VarChar(50)
+
+  /// 이 값을 **어떻게 실어 보내는가.** 업체가 헤더를 다르게 받는다:
+  ///   API_KEY     `x-api-key: <값>`
+  ///   AUTH_TOKEN  `Authorization: Bearer <값>` + `anthropic-beta: oauth-2025-04-20`
+  ///
+  /// **값을 보고 추측하지 않는다.** 접두사(`sk-ant-api03-` / `sk-ant-oat01-`)로 가를 수는
+  /// 있지만, 업체가 형식을 바꾸는 날 조용히 깨진다. 넣은 사람이 골라 적어 둔다.
+  ///
+  /// AUTH_TOKEN 은 개인 구독 토큰이라 **ANTHROPIC 에서만 고를 수 있다**(서비스가 검사한다).
+  keyType LlmKeyType @default(API_KEY) @map("key_type")
+
+  /// 서버 키(appSecretEncryption)로 잠근 값. **해시가 아니다** — 업체를 부르려면 원문이 필요하다.
+  /// `v{버전}:{iv}:{tag}:{암호문}` 한 문자열이다(app_llm_key 와 같은 형식).
+  ///
+  /// **LOCAL 은 비어 있을 수 있다.** 사내에 띄운 Ollama 는 대개 인증이 없다.
+  secretEncrypted String? @map("secret_encrypted") @db.VarChar(512)
+
+  /// 표시용 뒤 4자. 업체 콘솔의 키 목록과 대조할 유일한 단서다.
+  /// **목록 한 번 그리자고 전 행을 복호화하지 않으려고** 따로 둔다.
+  secretSuffix String? @map("secret_suffix") @db.VarChar(8)
+
+  /// 스킴+호스트까지의 엔드포인트. 비우면 업체 기본 주소를 쓴다.
+  ///  - 호스팅 업체: 비워 두는 것이 보통. 프록시·게이트웨이를 끼울 때만 채운다.
+  ///  - LOCAL: **사실상 필수다.** 어느 기계인지가 이 값으로만 갈린다.
+  baseUrl String? @map("base_url") @db.VarChar(200)
+
+  /// 이 키로 부를 모델들. 등록·사용여부·기본 지정이 전부 저 표에 있다.
+  models EnvLlmModel[]
+
+  /// 지정되지 않은 호출이 쓸 키. **전체에서 하나만 true 다**(서비스가 보장한다).
+  isDefault Boolean @default(false) @map("is_default")
+
+  status EnvLlmKeyStatus @default(ACTIVE)
+
+  /// 마지막으로 바꾼 관리자. 계정이 지워져도 기록은 남아야 해서 FK 를 걸지 않는다.
+  updatedBy Int? @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, name])
+  @@index([isDefault])
+  @@map("env_llm_key")
+}
+
+/// 서버가 부를 수 있는 모델 하나. **키가 소유한다** — 같은 이름이라도 어느 접속처로 부르느냐가
+/// 다르면 다른 행이다(사무실 ollama 의 llama3 와 다른 기계의 llama3).
+///
+/// **등록된 것만 부를 수 있다.** 업체가 모델을 새로 내도 여기 없으면 못 쓴다 — 모델이 곧
+/// 단가라, 목록에 없는 것이 조용히 불릴 수 있으면 그건 예산이 새는 자리가 된다.
+model EnvLlmModel {
+  id Int @id @default(autoincrement())
+
+  keyId Int @map("key_id")
+
+  /// 업체에 실어 보내는 모델 id. **날짜 없는 별칭**을 쓴다 — 스냅샷 ID(`-20251001`)는 은퇴한다.
+  name String @db.VarChar(100)
+
+  /// 끄면 목록에는 남되 부를 수 없다. **지우는 것과 다르다** — 잠깐 막았다가 되돌릴 때 쓴다.
+  enabled Boolean @default(true)
+
+  /// 목록에서의 자리. 작은 것이 앞이다. 같으면 id 순.
+  ///
+  /// **화면에 내려보내는 차례가 이 값이다.** 앱이 모델을 고르는 화면에서 무엇을 먼저
+  /// 보여 줄지가 여기서 정해진다 — 등록한 순서가 곧 권하는 순서는 아니다.
+  sortOrder Int @default(0) @map("sort_order")
+
+  /// 요청이 모델을 안 적었을 때 쓸 모델. **키마다 하나만 true 다**(서비스가 보장한다).
+  isDefault Boolean @default(false) @map("is_default")
+
+  /// 마지막으로 바꾼 관리자. 계정이 지워져도 기록은 남아야 해서 FK 를 걸지 않는다.
+  updatedBy Int? @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  key EnvLlmKey @relation(fields: [keyId], references: [id], onDelete: Cascade)
+
+  @@unique([keyId, name])
+  @@index([keyId, sortOrder])
+  @@map("env_llm_model")
+}
+
+/// 자격증명을 어떻게 실어 보내는가.
+enum LlmKeyType {
+  /// `x-api-key`. 서비스용 정식 키다.
+  API_KEY
+  /// `Authorization: Bearer` + oauth 베타 헤더. **개인 구독 토큰이라 ANTHROPIC 전용이다.**
+  AUTH_TOKEN
+}
+
+enum EnvLlmKeyStatus {
+  ACTIVE
+  DISABLED
+}

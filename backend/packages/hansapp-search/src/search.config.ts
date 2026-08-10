@@ -45,7 +45,7 @@ export interface SearchConfig {
  * ES 노드가 없으면 부팅 시점에 즉시 실패한다 — 색인을 시도하는 순간이 아니라.
  *
  * 접속 URL(node)은 시크릿이라 .env(ELASTICSEARCH_URL)로 주입되고, schemaDir 은 비밀 아닌
- * 값이라 config/config.<환경>.yaml(elasticsearchSchemaDir) 또는 환경변수로 준다. getX 가 둘을 한
+ * 값이라 config/config.yaml(elasticsearchSchemaDir) 또는 환경변수로 준다. getX 가 둘을 한
  * 트리에서 경로로 읽는다(ELASTICSEARCH_URL → elasticsearchUrl 등 __/camelCase 규칙).
  *
  * 인덱스 접두사(indexPrefix)도 같은 자리에서 온다(ELASTICSEARCH_INDEX_PREFIX).
@@ -56,7 +56,7 @@ export function buildSearchConfig(cfg: ConfigSource): SearchConfig {
     // 인덱스 접두사(ELASTICSEARCH_INDEX_PREFIX). **미설정이면 환경 이름으로 떨어진다** —
     // 예전엔 환경 이름이 곧 접두사였고, 그 시절에 만든 인덱스(develop-…)를 그대로 찾아야 한다.
     indexPrefix: cfg.getStringOrDefault('elasticsearch.indexPrefix') || cfg.env,
-    batchSize: cfg.getNumberOrDefault('search.batchSize', 1000),
+    batchSize: cfg.getNumberOrDefault('search.batchSize'),
     schemaDir: cfg.getStringOrDefault('search.schemaDir') || undefined,
   });
 }

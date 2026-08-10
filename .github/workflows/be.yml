@@ -290,17 +290,42 @@ jobs:
         if: needs.plan.outputs.verify == 'true'
         run: pnpm check
 
+      # **설정 로딩이 여기서 걸린다.** 부팅 때 한 번 도는 코드라 깨져도 늦게 아는데, 그중
+      # 환경변수 이름 충돌(`a.b` 와 `a-b` 가 둘 다 `A_B`)은 설정을 읽는 순간에만 드러나
+      # 이 단계가 없으면 배포에서 처음 본다. 값(.env)은 러너에 없지만 yaml 문법·자리표시자·
+      # 충돌은 파일만으로 판정되므로 시크릿 없이 검사된다.
+      - name: 테스트
+        if: needs.plan.outputs.verify == 'true'
+        run: pnpm test
+
       # pnpm deploy: 그 앱과 의존성만 추려 자립형 디렉터리(node_modules 포함)를 만든다.
       # --legacy 는 inject-workspace-packages 를 켜지 않은 워크스페이스에서 필요하다.
       - name: 산출물 추리기
         if: needs.plan.outputs.image == 'true'
         run: |
           rm -rf out
-          pnpm deploy --filter hansapp-api   --prod --legacy out/hansapp-api
-          pnpm deploy --filter hansapp-batch --prod --legacy out/hansapp-batch
+          pnpm deploy --filter hansapp-api       --prod --legacy out/hansapp-api
+          pnpm deploy --filter hansapp-admin-api --prod --legacy out/hansapp-admin-api
+          pnpm deploy --filter hansapp-batch     --prod --legacy out/hansapp-batch
           # cli 만 --prod 를 쓰지 않는다. prisma 가 devDependency 인데 그것으로 돌린다.
-          pnpm deploy --filter hansapp-cli          --legacy out/hansapp-cli
+          pnpm deploy --filter hansapp-cli              --legacy out/hansapp-cli
           du -sh out/* | sed 's/^/  /'
+
+      # 관리자 콘솔(SPA)은 **hansapp-admin 이미지 안에 API 와 같이 들어간다.** 화면과 API 의
+      # 버전이 따로 움직이면 "화면은 새것인데 API 는 옛것" 인 창이 열려서다.
+      #
+      # frontend/ 는 별개 워크스페이스라 위의 pnpm 과 install 이 갈린다 — 그래서 전용 빌드
+      # 스크립트를 부르고, 산출물만 backend 의 out/ 으로 옮겨 이미지가 담게 한다.
+      - name: 관리자 콘솔 빌드
+        if: needs.plan.outputs.image == 'true'
+        working-directory: .
+        env:
+          APP_ENV: develop
+        run: |
+          ./frontend/ci-build.sh hansapp-admin
+          rm -rf backend/out/hansapp-admin-web
+          cp -R frontend/hansapp-admin/dist backend/out/hansapp-admin-web
+          du -sh backend/out/hansapp-admin-web | sed 's/^/  /'
 
       # **디렉터리째 올리지 않는다.** node_modules 는 작은 파일이 3만 개라 개당 오버헤드가
       # 지배한다 — 그대로 올렸더니 4분 17초가 걸렸다. 하나로 묶으면 파일 1개가 된다.
@@ -342,7 +367,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [hansapp-api, hansapp-batch, hansapp-cli]
+        app: [hansapp-api, hansapp-admin, hansapp-batch, hansapp-cli]
     steps:
       - uses: actions/checkout@v7
 

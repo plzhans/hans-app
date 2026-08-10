@@ -3,9 +3,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
-import { ApiPageResponse } from '../common/dto/api-page-response.decorator';
-import { PageResponseDto } from '../common/dto/page.response.dto';
-import { AddressService } from './address.service';
+import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
+import { AddressService } from '@hansapp/application';
 import { AddressDto, AddressSearchRequestDto } from './dto/address.dto';
 
 /**

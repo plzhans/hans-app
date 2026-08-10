@@ -5,13 +5,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthProvider, UserRole } from '@hansapp/data';
-
-import { AUTH_CONFIG } from '../auth.config';
-import type { AuthConfig } from '../auth.config';
-import { AccessTokenPayload } from '../guard/auth-user';
-import { AuthCodeRepository } from '../repository/auth-code.repository';
-import { TokenSessionRepository } from '../repository/token-session.repository';
-import { JwtKeyService } from './jwt-key.service';
 import {
   composeSignedToken,
   hmacSha256hex,
@@ -19,7 +12,14 @@ import {
   randomToken,
   sha256hex,
   timingSafeEqualHex,
-} from './crypto.util';
+} from '@hansapp/common';
+
+import { AUTH_CONFIG } from '../auth.config';
+import type { AuthConfig } from '../auth.config';
+import { AccessTokenPayload } from '../guard/auth-user';
+import { AuthCodeRepository } from '../repository/auth-code.repository';
+import { TokenSessionRepository } from '../repository/token-session.repository';
+import { JwtKeyService } from './jwt-key.service';
 
 /** refresh token 접두사 */
 const REFRESH_PREFIX = 'rt_';

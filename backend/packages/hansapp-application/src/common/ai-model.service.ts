@@ -25,8 +25,8 @@ export class AiModelService {
    * `entitled` 는 지금 **로그인 여부로 대신 본다.** 진짜 기준은 요금제인데 결제가 아직
    * 없어서다 — 붙으면 여기만 고치면 된다(화면은 `locked` 만 본다).
    */
-  list(entitled: boolean): LlmModelChoice[] {
-    const models = this.llm.listModels();
+  async list(entitled: boolean): Promise<LlmModelChoice[]> {
+    const models = await this.llm.listModels();
     return entitled
       ? models.map((model) => ({ ...model, locked: false }))
       : models;

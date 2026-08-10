@@ -17,7 +17,7 @@ import {
 } from '@hansapp/data';
 
 import { UserRepository } from '../repository/user.repository';
-import { randomToken, sha256hex } from '../token/crypto.util';
+import { randomToken, sha256hex } from '@hansapp/common';
 import { APP_LIMIT_BY_TIER } from './app.constants';
 import { AppRepository } from './app.repository';
 import { AccessCache } from './access-cache.service';

@@ -41,6 +41,9 @@ export type {
   UserAuthCode,
   UserWithdrawal,
   EmailVerification,
+  // 관리자(admin.prisma) 도메인 모델. 회원(User)과 계정도 세션도 갈라져 있다.
+  AdminUser,
+  AdminTokenSession,
   // 개발자 플랫폼(app.prisma) 도메인 모델
   App,
   AppMember,
@@ -50,6 +53,7 @@ export type {
   AppLlmKey,
   // 운영 환경(env_*) 테이블. 서비스 데이터가 아니라 서버 운영을 다루는 모델이다.
   EnvSwaggerAllowedIp,
+  EnvSetting,
 } from '../generated/main';
 
 // 인증 도메인 enum(값으로도 쓰므로 type-only 가 아니다).
@@ -64,6 +68,7 @@ export {
   OAuthProvider,
   ConsentType,
   EmailVerifyPurpose,
+  AdminStatus,
 } from '../generated/main';
 
 // AI 도메인 enum(값으로도 쓴다).
@@ -71,11 +76,11 @@ export { LlmProvider, LlmKeyVerifyState } from '../generated/main';
 
 // 로그 DB(log 스키마) 인증 이벤트 로그. Prisma 네임스페이스도 별도 export
 // (main 과 log 는 다른 client 라 Create 입력 타입 등이 서로 다르다).
-export type { UserActionLog } from '../generated/log';
+export type { UserAuthLog } from '../generated/log';
 export { Prisma as LogPrisma } from '../generated/log';
 export {
-  UserAction,
-  ActionResult,
+  AuthLogAction,
+  AuthLogResult,
   AuthProvider as LogAuthProvider,
 } from '../generated/log';
 
@@ -84,3 +89,21 @@ export { PrismaMigrationService, DB_TARGETS } from './prisma-migration.service';
 export type { DbTarget, MigrationOptions } from './prisma-migration.service';
 export { DB_CONFIG, buildDbConfig } from './db.config';
 export type { DbConfig } from './db.config';
+
+/*
+  서비스 설정(env_setting) 저장소. **테이블 하나짜리 리포지토리를 이 패키지에 두는 예외다** —
+  계층마다 달라질 조회 조건이 없어서, 응용 계층마다 같은 코드를 두는 것보다 낫다.
+  **읽기 전용이다** — 쓰기는 관리자 계층이 따로 갖는다(SettingWriteRepository).
+  자세한 판단은 data.module.ts 주석 참고.
+*/
+export { SettingReadRepository } from './setting.repository';
+
+/*
+  서버 LLM 키(env_llm_key). app_llm_key 와 짝이고, 설정이 아니라 관리 대상 목록이다 —
+  **읽기 전용이다.** 쓰기는 관리자 계층이 따로 갖는다.
+*/
+export { EnvLlmKeyReadRepository } from './env-llm-key.repository';
+export type { EnvLlmKey } from '../generated/main';
+export { EnvLlmKeyStatus, LlmKeyType } from '../generated/main';
+export { EnvLlmModelReadRepository } from './env-llm-model.repository';
+export type { EnvLlmModel } from '../generated/main';

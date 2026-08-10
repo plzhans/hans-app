@@ -12,13 +12,14 @@ import {
 } from 'ai';
 
 import {
-  LLM_CONFIG,
-  type LlmConfig,
-  type LlmEndpointConfig,
-  type LlmProviderName,
-} from './llm.config';
+  LLM_SETTINGS_SOURCE,
+  type LlmEndpointSettings,
+  type LlmSettingsSource,
+} from './llm-settings.source';
+import type { LlmProviderName } from './llm.config';
 import {
   LlmConfigError,
+  LlmModelNotAllowedError,
   LlmError,
   LlmInvalidCallError,
   type LlmCall,
@@ -56,7 +57,14 @@ const MAX_ERROR_BODY = 500;
  */
 @Injectable()
 export class LlmService {
-  constructor(@Inject(LLM_CONFIG) private readonly config: LlmConfig) {}
+  constructor(
+    /*
+      **설정을 부를 때마다 읽는다.** 부팅 때 한 번 받아 들고 있으면 화면에서 모델·한도를
+      바꿔도 재시작 전까지 안 먹는다. 어디서 오는지(파일이든 DB든)는 이 패키지가 모른다.
+    */
+    @Inject(LLM_SETTINGS_SOURCE)
+    private readonly settings: LlmSettingsSource,
+  ) {}
 
   /**
    * 호출 뼈대를 만든다. 업체마다 다른 것(클라이언트·필수 설정·고유 옵션)을 여기서 흡수한다.
@@ -73,22 +81,40 @@ export class LlmService {
    * 보냅니다" 라고 적혀 있는데 서버는 다른 것을 부르는 식이다. 여기서 내려보내면
    * 그 어긋남이 구조적으로 불가능해진다.
    *
-   * 잠긴 것들은 "곧 열린다" 를 미리 보여 주는 목록이다(llm.<provider>.lockedModels).
-   * 골라도 요청에 안 실린다 — 유료가 열릴 때 하나씩 옮겨 온다.
+   * **허용 목록이 곧 화면의 목록이다.** 그중 기본 모델만 열려 있고 나머지는 자물쇠다 —
+   * "곧 열린다" 를 미리 보여 주되, 골라도 요청에 실리지 않는다(유료가 열릴 때 푼다).
    */
-  listModels(): LlmModelChoice[] {
-    const endpoint = this.config[this.config.defaultProvider];
-    const available = endpoint.defaultModel;
-    return [
-      // 설정에 기본 모델이 없으면 고를 것이 없다. 빈 이름을 그리게 두지 않는다.
-      ...(available ? [{ id: available, locked: false }] : []),
-      ...endpoint.lockedModels.map((id) => ({ id, locked: true })),
-    ];
+  async listModels(): Promise<LlmModelChoice[]> {
+    const endpoint = (await this.settings.load()).endpoint;
+    // 등록된 키가 없으면 고를 것도 없다.
+    if (!endpoint) return [];
+    return allowedOf(endpoint).map((id) => ({
+      id,
+      locked: id !== endpoint.defaultModel,
+    }));
   }
 
-  prepare(input: LlmPrepareInput): LlmCall {
-    const provider = input.provider ?? this.config.defaultProvider;
-    const resolved = this.resolve(provider, input);
+  async prepare(input: LlmPrepareInput): Promise<LlmCall> {
+    const endpoint = (await this.settings.load()).endpoint;
+    if (!endpoint) {
+      throw new LlmConfigError(
+        'No LLM endpoint is registered (관리자 → 설정 → AI 접속처)',
+        'anthropic',
+      );
+    }
+    /*
+      **업체를 인자로 덮지 않는다.** 접속처가 목록이 되면서 "업체 이름" 만으로는 어느 행인지
+      정해지지 않는다 — 같은 업체가 여럿일 수 있다. 어느 것으로 부를지는 목록에서 정한다.
+    */
+    const provider = endpoint.provider;
+    /*
+      **허용 목록 밖의 모델은 여기서 막는다.** 업체가 새 모델을 내도 관리 화면에서 허용하기
+      전까지는 못 부른다 — 모델이 곧 단가라 "부를 수 있는 것" 을 명시해 두는 쪽이 맞다.
+    */
+    if (input.model && !allowedOf(endpoint).includes(input.model)) {
+      throw new LlmModelNotAllowedError(input.model, provider);
+    }
+    const resolved = this.resolve(endpoint, input);
 
     return {
       provider,
@@ -123,6 +149,7 @@ export class LlmService {
     // 제네릭의 도구 자리가 비어 있는 것이 "루프가 안 돈다" 는 타입 수준의 증거다.
   ): Promise<GenerateTextResult<Record<string, never>, never, Output.Output>> {
     assertCallable(call);
+    const config = await this.settings.load();
     try {
       return await generateText({
         model: call.model,
@@ -131,10 +158,10 @@ export class LlmService {
         messages: call.messages,
         ...(call.output ? { output: call.output } : {}),
         providerOptions: call.providerOptions,
-        maxOutputTokens: call.maxOutputTokens ?? this.config.maxTokens,
+        maxOutputTokens: call.maxOutputTokens ?? config.maxTokens,
         // SDK 는 4xx 를 재시도하지 않는다(429·5xx 만).
         maxRetries: call.maxRetries ?? 2,
-        timeout: call.timeout ?? this.config.timeoutSec * 1000,
+        timeout: call.timeout ?? config.timeoutSec * 1000,
       });
     } catch (cause) {
       throw toLlmError(cause, call.provider, modelIdOf(call));
@@ -142,30 +169,34 @@ export class LlmService {
   }
 
   /** 업체별로 갈리는 것만 고른다. prepare 가 이걸 LlmCall 로 조립한다. */
-  private resolve(provider: LlmProviderName, input: LlmPrepareInput) {
+  private resolve(endpoint: LlmEndpointSettings, input: LlmPrepareInput) {
+    const provider = endpoint.provider;
     switch (provider) {
       case 'anthropic': {
-        const endpoint = this.config.anthropic;
         const model = required(
           input.model ?? endpoint.defaultModel,
-          'llm.anthropic.defaultModel',
+          'endpoint.defaultModel',
           provider,
         );
-        if (!endpoint.apiKey && !endpoint.authToken) {
+        if (!endpoint.secret) {
           throw new LlmConfigError(
-            'llm.anthropic.apiKey (or llm.anthropic.authToken for local use) is not configured',
+            'endpoint secret is not configured',
             provider,
           );
         }
-        // apiKey(`x-api-key`)가 authToken(구독 OAuth)을 이긴다 — 로컬 셸에 토큰이 남아
-        // 있어도 설정에 키를 넣으면 그쪽으로 돌아가야 환경마다 흔들리지 않는다.
-        const credentials = endpoint.apiKey
-          ? { apiKey: endpoint.apiKey }
-          : {
-              authToken: endpoint.authToken,
-              // 이 베타 헤더가 없으면 OAuth 토큰을 /v1/messages 가 거절한다.
-              headers: { 'anthropic-beta': 'oauth-2025-04-20' },
-            };
+        /*
+          **키 유형이 헤더를 정한다.** SDK 는 apiKey 와 authToken 을 둘 다 주면 거절하므로
+          하나만 골라야 하고, 값만 보고는 어느 쪽인지 확신할 수 없다(접두사에 기대면 업체가
+          형식을 바꾸는 날 깨진다). 등록할 때 고른 유형을 그대로 따른다.
+        */
+        const credentials =
+          endpoint.keyType === 'authToken'
+            ? {
+                authToken: endpoint.secret,
+                // 이 베타 헤더가 없으면 OAuth 토큰을 /v1/messages 가 거절한다.
+                headers: { 'anthropic-beta': 'oauth-2025-04-20' },
+              }
+            : { apiKey: endpoint.secret };
         return {
           model: createAnthropic({ ...credentials, baseURL: v1(endpoint) })(
             model,
@@ -182,11 +213,10 @@ export class LlmService {
       }
 
       case 'openai': {
-        const endpoint = this.config.openai;
-        const apiKey = required(endpoint.apiKey, 'llm.openai.apiKey', provider);
+        const apiKey = required(endpoint.secret, 'endpoint secret', provider);
         const model = required(
           input.model ?? endpoint.defaultModel,
-          'llm.openai.defaultModel',
+          'endpoint.defaultModel',
           provider,
         );
         // 고유 옵션이 없다 — 프롬프트 캐시가 자동이라 옵트인할 것이 없다.
@@ -198,10 +228,9 @@ export class LlmService {
       }
 
       case 'local': {
-        const endpoint = this.config.local;
         const model = required(
           input.model ?? endpoint.defaultModel,
-          'llm.local.defaultModel',
+          'endpoint.defaultModel',
           provider,
         );
         // 본가 클라이언트(createOpenAI)는 OpenAI 만 아는 파라미터를 보내서 로컬 런타임이
@@ -210,7 +239,7 @@ export class LlmService {
           model: createOpenAICompatible({
             name: provider,
             // 로컬 엔드포인트는 대개 인증이 없다.
-            ...(endpoint.apiKey ? { apiKey: endpoint.apiKey } : {}),
+            ...(endpoint.secret ? { apiKey: endpoint.secret } : {}),
             baseURL: v1(endpoint),
             // 명시하지 않으면 구조화 출력이 꺼진 채로 돈다(SDK 기본값).
             supportsStructuredOutputs: true,
@@ -272,7 +301,7 @@ function modelIdOf(call: LlmCall): string | undefined {
 }
 
 /** 설정의 baseUrl 은 호스트까지다. 버전 경로는 여기서 붙인다. */
-function v1(endpoint: LlmEndpointConfig): string {
+function v1(endpoint: LlmEndpointSettings): string {
   return `${endpoint.baseUrl.replace(/\/+$/, '')}/v1`;
 }
 
@@ -334,4 +363,20 @@ function modelInBody(body: unknown): string | undefined {
     return typeof model === 'string' ? model : undefined;
   }
   return undefined;
+}
+
+/**
+ * 이 키로 부를 수 있는 모델들.
+ *
+ * **허용 목록이 비어 있으면 기본 모델 하나다.** 등록 직후의 흔한 상태에서 "아무것도 못
+ * 부른다" 가 되지 않게 한다 — 목록을 채우는 것은 나중에 해도 되는 일이다.
+ * 기본 모델은 목록에 안 적혀 있어도 늘 포함된다(서버가 그것으로 부르기 때문이다).
+ */
+function allowedOf(endpoint: LlmEndpointSettings): string[] {
+  const listed = endpoint.allowedModels.filter(Boolean);
+  const fallback = endpoint.defaultModel;
+  if (listed.length === 0) return fallback ? [fallback] : [];
+  return fallback && !listed.includes(fallback)
+    ? [fallback, ...listed]
+    : listed;
 }

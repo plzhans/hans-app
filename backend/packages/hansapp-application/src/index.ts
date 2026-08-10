@@ -89,7 +89,12 @@ export type {
 } from './healthcare/healthcare-ai-search.service';
 // LLM 계층은 @hansapp/llm 이 소유한다. 컨트롤러가 예외를 상태코드로 옮기고 프로바이더
 // 이름을 검증하는 데 필요한 것만 여기서 재노출한다 — 서버가 패키지를 직접 물지 않게.
-export { LlmConfigError, LlmError, LlmInvalidCallError } from '@hansapp/llm';
+export {
+  LlmConfigError,
+  LlmError,
+  LlmInvalidCallError,
+  LlmModelNotAllowedError,
+} from '@hansapp/llm';
 export type { LlmProviderName } from '@hansapp/llm';
 
 // 지역(주소)은 도메인 무관이라 healthcare 밑이 아니다. 병원·학교·약국이 같이 쓴다.
@@ -163,3 +168,24 @@ export { HealthService } from './health/health.service';
 export type { HealthCheckResult } from './health/health.service';
 export { matchesAllowedIp, parseIp } from './env/ip-match';
 export type { ParsedIp } from './env/ip-match';
+
+/*
+  외부 API 를 요청마다 부르는 둘. 클라이언트는 팩토리로 만들고(싱글턴 아님) 서비스키는
+  DB(env_setting)에서 읽는다 — 화면에서 바꾸면 재시작 없이 반영된다.
+*/
+export { BusinessService } from './business/business.service';
+export type {
+  VerifyBusinessCommand,
+  BusinessStatusResult,
+  BusinessVerificationResult,
+} from './business/business.service';
+export { NtsClientFactory } from './business/nts-client.factory';
+export { AddressService } from './address/address.service';
+export type {
+  AddressSearchCommand,
+  AddressResult,
+} from './address/address.service';
+export { JusoClientFactory } from './address/juso-client.factory';
+
+/** 서비스 설정(env_setting) 읽기. 이 계층 전용 — DB 만 본다(설정 파일 폴백 없음). */
+export { SettingCache } from './setting/setting-cache.service';

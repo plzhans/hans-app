@@ -10,12 +10,18 @@
       "src": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./auth": {
+      "src": "./src/auth/index.ts",
+      "types": "./dist/auth/index.d.ts",
+      "default": "./dist/auth/index.js"
     }
   },
   "dependencies": {
     "@hansapp/application": "workspace:*",
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",
+    "@hansapp/llm": "workspace:*",
     "@hansapp/search": "workspace:*",
     "@kr-go/juso": "workspace:*",
     "@kr-go/nts": "workspace:*",
@@ -25,13 +31,17 @@
     "@krdata/mois": "workspace:*",
     "@krdata/nmc": "workspace:*",
     "@nestjs/common": "^11.0.1",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/jwt": "^11.0.0",
     "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.2",
     "reflect-metadata": "^0.2.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^24.13.2"
   }
 }

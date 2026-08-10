@@ -4,7 +4,7 @@
 #
 #   scripts/deploy/build.sh <환경> [대상]
 #
-#   scripts/deploy/build.sh develop                 # hansapp-api · hansapp-batch 둘 다
+#   scripts/deploy/build.sh develop                 # 전부
 #   scripts/deploy/build.sh develop hansapp-api     # 하나만
 #
 # 평소에는 CI 가 굽는다(.github/workflows/be-image.yml). 이건 **급할 때 커밋 없이 바로
@@ -32,7 +32,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" # <repo>
 # 도구는 계속 나아지는 물건이라 옛 릴리스에 묶을 이유가 없고, 배포되는 것은 묶을 때로
 # 고정돼야 하기 때문이다. 로컬에서는 둘이 같은 트리에 있어 기본값이 맞는다.
 AREA_DIR="${BACKEND_DIR:-$ROOT_DIR/backend}"
-ALL='hansapp-api hansapp-batch hansapp-cli'
+ALL='hansapp-api hansapp-batch hansapp-cli hansapp-admin'
 
 usage() {
   sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'
@@ -121,11 +121,27 @@ for app in $targets; do
   tags=(-t "$REGISTRY/$app:$APP_ENV")
   [ -z "$dirty" ] && tags+=(-t "$REGISTRY/$app:$APP_ENV-$sha")
 
+  # 기본은 도커 안에서 전부 빌드한다. CI 는 러너에서 만든 산출물을 담는 prebuilt 를 쓰지만,
+  # 맥에서는 그 길을 쓸 수 없다 — pnpm install 이 darwin 바이너리를 깔기 때문이다.
+  target='with-build'
+
+  # **hansapp-admin 만 SPA 를 밖에서 만들어 넣는다.**
+  #
+  # 화면은 frontend/ 에 있고 그쪽은 별개 워크스페이스라 backend 컨텍스트에 없다. 다만
+  # 산출물이 정적파일이라 어디서 만들든 같아서, 여기서 만들어 컨텍스트에 놓고 담는다.
+  # 안 그러면 이 우회로가 화면 없는 콘솔 이미지를 올리게 된다.
+  if [ "$app" = 'hansapp-admin' ]; then
+    echo "· 관리자 콘솔(SPA)을 먼저 빌드한다"
+    APP_ENV="$APP_ENV" "$ROOT_DIR/frontend/ci-build.sh" hansapp-admin
+    rm -rf "$AREA_DIR/out/hansapp-admin-web"
+    mkdir -p "$AREA_DIR/out"
+    cp -R "$ROOT_DIR/frontend/hansapp-admin/dist" "$AREA_DIR/out/hansapp-admin-web"
+    target='with-build-web'
+  fi
+
   docker buildx build \
     --platform "${PLATFORM:-linux/arm64}" \
-    `# 도커 안에서 전부 빌드한다. CI 는 러너에서 만든 산출물을 담는 prebuilt 를 쓰지만,` \
-    `# 맥에서는 그 길을 쓸 수 없다 - pnpm install 이 darwin 바이너리를 깔기 때문이다.` \
-    --target with-build \
+    --target "$target" \
     -f "$AREA_DIR/docker/$app.Dockerfile" \
     --build-arg "GIT_SHA=$sha" \
     --build-arg "GIT_BRANCH=$branch" \

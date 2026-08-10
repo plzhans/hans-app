@@ -131,3 +131,20 @@ export class LlmInvalidCallError extends LlmError {
     this.name = 'LlmInvalidCallError';
   }
 }
+
+/**
+ * 요청한 모델이 그 키의 허용 목록 밖인 경우.
+ *
+ * **위 둘과 나눈 것은 고칠 사람이 또 다르기 때문**이다. 설정도 우리 코드도 멀쩡하고,
+ * 부르는 쪽이 안 되는 이름을 보낸 것이다 — 상위는 400 으로 돌려준다. 503 으로 뭉치면
+ * "서버가 고장났나" 로 읽혀 사람이 기다리게 된다.
+ */
+export class LlmModelNotAllowedError extends LlmError {
+  constructor(
+    readonly model: string,
+    provider: LlmProviderName,
+  ) {
+    super(`model is not allowed for this key: ${model}`, provider);
+    this.name = 'LlmModelNotAllowedError';
+  }
+}

@@ -128,7 +128,7 @@ plan ─┬─ first_notify ─┐
 be.yml deploy → SLACK_DEPLOY_THREAD_TIMESTAMP
   → ci-deploy.sh 가 `docker compose up` 앞에 붙임 (서버 .env 에는 안 남긴다)
     → compose 의 api 서비스 environment (batch·migrate 는 제외)
-      → config.<환경>.yaml 의 slack.deployThreadTimestamp
+      → config.yaml 의 slack.deployThreadTimestamp
 ```
 
 **값은 컨테이너에 구워진다.** 재부팅이나 크래시 재시작에서도 살아남으므로, 사흘 뒤에 그냥
@@ -462,7 +462,8 @@ pull · up          .env 에 IMAGE_TAG 를 쓰고 compose 가 당겨 띄운다
   .env                      IMAGE_TAG · APP_UID · APP_GID   ← 지금 무엇이 어떤 uid 로 떠 있나
   docker-compose.yml
   config/
-    config.<환경>.yaml      600  배포 계정        컨테이너가 직접 읽는다
+    config.yaml             644  배포 계정        정본(모든 설정)
+    config.<환경>.yaml      644  배포 계정        그 환경에서 달라지는 값만
     .env.<환경>             600  배포 계정        도커가 읽어 주입한다(env_file)
     <환경>/                 600  배포 계정        jwt · TLS 키
 ```
@@ -518,15 +519,23 @@ mysql://user:ab#cd@10.0.0.111:3306/prod    →  host=user, port='ab'
 
 ## 컨테이너 안
 
-**이미지는 자기가 어느 환경인지 모른다.** 환경별 파일을 환경 이름 없는 자리에 마운트한다.
+**이미지는 자기가 어느 환경인지 모른다.** yaml 도 굽지 않고 배포가 나른다 — 기본값이
+바뀌었다고 이미지를 다시 말 이유가 없다.
 
 ```
 /app/
   hansapp-api/dist/main.js     이름이 남아 있어 컨테이너 안에서 자기가 뭔지 보인다
   config/
-    config.yaml                ← config.<환경>.yaml
+    config.yaml                정본 — 모든 설정과 그 설명
+    config.<환경>.yaml          그 환경에서 달라지는 값만
     secrets/                   ← config/<환경>/
 ```
+
+앱이 둘을 겹쳐 읽고 뒤가 이긴다. **환경 파일 혼자로는 안 뜬다** — 달라지는 값만 들어
+있어서 `database.url` 부터 없다.
+
+개발 머신에는 `config.<환경>.local.yaml` 한 장이 더 얹힌다(`.env.<환경>.local` 과 같은
+자리·같은 뜻). **커밋도 배포도 하지 않는다** — 서버에는 아예 없는 파일이다.
 
 `APP_ENV` 는 `.env` 에 들어 있고 도커가 환경변수로 주입한다. compose 가 따로 넘기지 않는다.
 

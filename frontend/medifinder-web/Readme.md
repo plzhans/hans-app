@@ -40,6 +40,8 @@ pnpm api:gen      # docs/openapi/hansapp-openapi.json → src/shared/api/schema.
 
 - [앱 출시 준비](docs/app-release.md) — Capacitor 로 스토어에 올릴 때 걸리는 것들.
   아직 착수 전이고, 네이티브 플랫폼(`ios/`·`android/`)도 만들지 않았다.
+- [이용 통계](docs/google-analytics.md) — Google Analytics. **콘솔 설정이 개인정보처리방침의 근거라서**
+  저장소 밖에 있는 값까지 여기에 적어 둔다.
 
 ## 알려진 제약 (TODO)
 

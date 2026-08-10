@@ -1,249 +1,38 @@
-# hansapp production 환경 설정. (yaml=구조·기본값, ${}=env 주입. 자세한 규칙·주석은 config.develop.yaml)
-# **자기완결적** — 공통 base 없이 이 파일 하나가 production 설정 전부다.
-
-# ── DB (Prisma) ───────────────────────────────────────────────────────────────
-# Prisma migrate 는 스키마의 env("...") 로 env 를 직접 읽는다(yaml 아님) — 이름 바꾸면 스키마도 같이.
-database:
-  url: ${DATABASE_URL}
-  logUrl: ${DATABASE_LOG_URL}
-  shadowUrl: ${DATABASE_SHADOW_URL}
-
-redis:
-  url: ${REDIS_URL}
-
-elasticsearch:
-  url: ${ELASTICSEARCH_URL}
-  indexPrefix: ${ELASTICSEARCH_INDEX_PREFIX:production}
-
-# 서버 기동·종료 슬랙 알림. 비면 알림만 꺼지고 서버는 정상으로 뜬다.
-# botToken 이 있어야 종료 알림이 시작 알림의 스레드에 달린다(자세한 설명은 config.develop.yaml).
-slack:
-  botToken: ${SLACK_BOT_TOKEN}
-  channel: ${SLACK_CHANNEL}
-  webhookUrl: ${SLACK_WEBHOOK_URL}
-  # 이 프로세스를 띄운 배포가 만든 슬랙 스레드의 ts. 있으면 기동 알림이 그 스레드에 붙는다.
-  # **배포가 docker compose up 할 때만 넣는다** — .env 에는 없고, 값이 낡으면 앱이 무시한다.
-  deployThreadTimestamp: ${SLACK_DEPLOY_THREAD_TIMESTAMP}
-
-# API 접근(서비스키·클라이언트) 2단 캐시 TTL.
-cache:
-  memoryMaxEntries: 10000
-  memoryTtlSec: 300
-  sharedTtlSec: 600
+# production 에서 config.yaml 과 달라지는 값만.
 
 auth:
-  # 운영 서비스 루트 도메인(앞 점 없이). SSO 쿠키 Domain + 1st-party 판단이 여기서 파생.
-  # 소셜 로그인 흐름(state·흐름 쿠키)의 유효시간(초). **둘이 같은 값을 쓴다.**
-  # provider 화면에서 계정을 고르고 동의하는 시간이라 너무 짧으면 정상 로그인이 실패한다.
-  socialFlowTtlSec: ${AUTH_SOCIAL_FLOW_TTL_SEC:600}
-  # 쿠키에 Secure 를 붙일지. HTTPS 로 서비스하면 켠다.
-  #
-  # **sameSite 와는 별개다** — 그쪽은 lax 로 고정돼 있다(refresh-cookie.ts).
-  # none 으로 열면 아무 사이트나 refresh 쿠키를 태워 /oauth/token 을 부를 수 있고,
-  # rotate 구조라 그것만으로 피해자 세션이 무효화된다(응답을 못 읽어도 목적 달성).
-  cookieSecure: ${AUTH_COOKIE_SECURE:true}
-  # 쿠키 이름 접두사. **환경마다 달라야 한다.**
-  # develop-auth·api 는 develop.plzhans.com 의 서브도메인이 아니라 plzhans.com 의 형제라,
-  # 쿠키 도메인을 양쪽 다 plzhans.com 까지 올려야 한다. 이름까지 같으면 한 환경에서
-  # 로그인할 때마다 다른 환경의 세션 토큰을 덮어쓰고, 그 토큰은 상대 DB 에 없어 거절된다.
-  cookiePrefix: ${AUTH_COOKIE_PREFIX}
-  rootDomain: plzhans.com
-  # bcrypt 비용 계수. 저사양이면 10.
-  bcryptRounds: ${AUTH_BCRYPT_ROUNDS:10}
-  # OAuth2 authorization_endpoint = 프론트(hans-auth) 로그인 URL. discovery 에 실린다.
-  # 인증웹(fe/hans-auth) 외부 주소. 자사 로그인 착지점(/me·/callback)과 discovery 의
-  # authorization_endpoint(/login)가 모두 여기서 파생된다.
   externalUrl: https://auth.plzhans.com
-  # 탈퇴 후 재가입 제한 보존일.
-  withdrawalRetentionDays: 30
   jwt:
-    # access token 발급자(iss).
     issuer: https://api.plzhans.com
-    # 받아들일 iss 허용목록. 자기 issuer 는 코드가 자동 포함한다.
     allowedIssuers:
       - https://api.plzhans.com
-    # 대칭 서명 비밀키(시크릿).
-    secret: ${AUTH_JWT_SECRET}
-    # access token 비대칭(ES256) 키 디렉터리. 없으면 HS256(secret) 폴백.
-    keyDir: ${AUTH_JWT_KEY_DIR}
-    # 만료 3종. 기본값은 코드(auth.config.ts)에 있다 — 운영만 다르게 갈 때 살린다.
-    #accessTokenExpiresIn: 1h
-    #refreshTokenExpiresIn: 7d
-    #authCodeExpiresIn: 5m
-  otp:
-    codeLength: ${AUTH_OTP_CODE_LENGTH:6}
-    ttlSec: ${AUTH_OTP_TTL_SEC:600}
-    maxAttempts: ${AUTH_OTP_MAX_ATTEMPTS:5}
-    resendCooldownSec: ${AUTH_OTP_RESEND_COOLDOWN_SEC:60}
-    maxSendsPerHour: ${AUTH_OTP_MAX_SENDS_PER_HOUR:5}
-    # 코드 해시 pepper(시크릿).
-    hashSecret: ${AUTH_JWT_SECRET}
 
 apps-api:
   name: hansapp
-  # 이 서비스의 외부 주소(포털웹). 메일 템플릿의 링크 base 로 쓴다.
   externalUrl: https://plzhans.com
   web:
-    # HTTP 리슨 포트. 컨테이너가 PORT 로 덮을 수 있다.
-    port: 3000
-    # 대외 공개 URL(메일 템플릿 {{appUrl}} 등).
-    # nginx 의 ssl_certificate / ssl_certificate_key 와 같은 이름·같은 역할이다.
-    # **둘 다 있으면 HTTPS 로, 둘 다 비면 HTTP 로 뜬다.** 한쪽만 있으면 부팅을 거부한다
-    # — 조용히 HTTP 로 떨어지면 평문으로 서비스가 열린다.
-    #
-    # 앞단이 TLS 를 끝내는 구성(nginx·cloudflared tunnel·LB)으로 갈아탈 때는 두 줄을
-    # 비우면 되고 코드는 안 바뀐다. 인프라 교체가 설정 두 줄인 셈이다.
-    #
-    # 발급: backend/ssl-issue.sh <환경> <호스트명>  (Cloudflare Origin CA, 15년)
-    # 배포: .enc 로 커밋되고 ci-deploy.sh 가 풀어 서버에 놓는다 — jwt 키와 같은 경로.
-    # Cloudflare Origin CA 로 발급한 api.plzhans.com 인증서(2041-07 만료).
-    # 경로가 상대경로인 이유: 컨테이너 WORKDIR 이 /app 이고 compose 가 config/production 을
-    # 그 아래로 마운트한다. 로컬에서 돌릴 때도 backend/ 기준이라 같은 경로가 맞는다.
     sslCertificate: ${SSL_CERTIFICATE:config/production/ssl/fullchain.pem}
     sslCertificateKey: ${SSL_CERTIFICATE_KEY:config/production/ssl/privkey.pem}
   proxy:
-    # **토폴로지 확정**: Cloudflare 가 바로 앞이고 그 사이에 다른 프록시가 없다. 홉이 하나라 1.
-    # 위조 XFF 로 IP 한도를 우회하는 것을 막으려면 이 값이 실제 홉 수보다 크면 안 된다.
-    trust: ${TRUST_PROXY:1}
-    # Cloudflare 가 붙이는 진짜 클라이언트 IP. 이걸 안 쓰면 접속 IP 가 전부 CF 로 찍혀
-    # rate limit 과 접근 로그가 무의미해진다.
-    clientIpHeader: ${CLIENT_IP_HEADER:cf-connecting-ip}
-  # API 문서(/docs, /openapi.json) 노출.
-  #
-  # **운영도 켠다.** 대신 env_swagger_allowed_ip 에 등록된 IP 에서만 보인다 — 그 외에는 403.
-  # 판정에 쓰는 IP 는 위 clientIpHeader(cf-connecting-ip)에서 뽑는다.
-  #
-  # ⚠️ 이 설정만으로는 안전하지 않다. 오리진(443)이 직접 노출돼 있으면 공격자가 Cloudflare 를
-  # 우회해 그 헤더를 위조할 수 있다. 방화벽에서 Cloudflare 대역만 받도록 잠가야 전제가 성립한다.
-  #
-  # 목록이 비어 있으면 아무도 못 본다(fail-closed). 켠 직후 최소 한 건은 넣어야 한다.
+    trust: 1
+    clientIpHeader: cf-connecting-ip
   swagger:
-    enabled: ${SWAGGER_ENABLED:true}
-    ipRestricted: ${SWAGGER_IP_RESTRICTED:true}
-  # 에러 추적(Sentry). DSN 은 비밀이 아니라 리터럴로 고정한다(전송 전용 공개 엔드포인트).
-  # environment·release(버전+커밋 sha)는 코드가 부팅 때 붙인다 → instrument.ts. 비우면 Sentry 를 끈다.
+    enabled: true
   sentry:
-    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:기본값} 의 기본값으로 되돌아간다)
-    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:true}
-    dsn: https://30dcd86a5a79770494c2cdb8db9e3cdb@o4507886343159808.ingest.de.sentry.io/4511811369566288
-    # 성능 트레이스 표본 비율. 운영은 요청량이 많아 10% 만 샘플링한다(쿼터·오버헤드).
-    tracesSampleRate: 0.1
+    enabled: true
 
-search:
-  # ES 정본 스키마 JSON 디렉터리. **비워서 패키지 동봉본을 쓴다**
-  # (@hansapp/search 의 elasticsearch/ — files 에 있어 배포 번들에도 실린다).
-  #
-  # 여기에 경로를 적으면 cwd 기준이다. 컨테이너의 cwd 는 /app 이고 compose 는 yaml 하나만
-  # 마운트하므로, config/schema 같은 값을 두면 정본을 못 찾아 ENOENT 로 죽는다.
-  # 서버에서 스키마만 고쳐 재적용할 일이 생기면 그때 디렉터리를 마운트하고 경로를 적는다.
-  schemaDir: ''
-  batchSize: 1000
+admin:
+  jwt:
+    issuer: https://admin.plzhans.com
 
-mail:
-  from: HansApp <no-reply@plzhans.com>
-  provider: smtp
-  smtp:
-    host: ${MAIL_SMTP_HOST}
-    port: ${MAIL_SMTP_PORT:587}
-    secure: ${MAIL_SMTP_SECURE:false}
-    user: ${MAIL_SMTP_USER}
-    password: ${MAIL_SMTP_PASSWORD}
+apps-admin-api:
+  externalUrl: https://admin.plzhans.com
+  proxy:
+    trust: 1
+    clientIpHeader: cf-connecting-ip
+  sentry:
+    enabled: true
 
-# ── 외부 플랫폼 provider (OAuth) — clientId/secret 둘 다 있어야 활성 ──
-google:
-  clientId: ${GOOGLE_CLIENT_ID}
-  clientSecret: ${GOOGLE_CLIENT_SECRET}
-naver:
-  clientId: ${NAVER_CLIENT_ID}
-  clientSecret: ${NAVER_CLIENT_SECRET}
-kakao:
-  clientId: ${KAKAO_CLIENT_ID}
-  clientSecret: ${KAKAO_CLIENT_SECRET}
-line:
-  clientId: ${LINE_CLIENT_ID}
-  clientSecret: ${LINE_CLIENT_SECRET}
-
-# 공공데이터 포털(data.go.kr). NTS 사업자등록도 이 키 공유.
-krdata:
-  serviceKey: ${KRDATA_SERVICE_KEY}
-  maxRetry: 3
-  readTimeoutMs: 60000
-  hiraDetailVersion: ${KRDATA_HIRA_DETAIL_VERSION}
-
-# 국토교통부(vworld). 3D 지도·항공사진. **vworld 서비스키는 공공데이터포털과 별개**.
-molit:
-  vworld:
-    serviceKey: ${KRGO_MOLIT_VWORLD_SERVICE_KEY}
-
-# 도로명주소(juso.go.kr).
-juso:
-  serviceKey: ${KRGO_JUSO_SERVICE_KEY}
-  maxRetry: 3
-  readTimeoutMs: 30000
-
-# 배치 잡. **`batch:` 를 두 번 쓰면 안 된다** — YAML 중복 키는 뒤엣것이 앞엣것을 통째로 덮는다.
 apps-batch:
-  # 앱 이름. 로그·에러 보고 등에 쓰인다.
-  name: hansapp-batch
-  cron: ${BATCH_CRON:0 4 * * *}
-  maxCallsPerRun: ${BATCH_MAX_CALLS_PER_RUN:0}
-  # 에러 추적(Sentry). **apps-api 와 별도 프로젝트**(DSN 이 다르다) — 알림 규칙을 나눈다. 비면 끈다.
   sentry:
-    # 끄개. dsn 을 env 로 비울 수 없어(빈 값은 ${VAR:기본값} 의 기본값으로 되돌아간다)
-    # 따로 둔다. 개인 오버라이드(config/.env.<환경>.local)로 끈다.
-    enabled: ${SENTRY_ENABLED:true}
-    dsn: https://a5e2142ef80fdfd565e7a89133fe3347@o4507886343159808.ingest.de.sentry.io/4511811388244048
-    # 배치는 요청 트레이스가 없다. 크론 실행 트레이스가 필요해지면 올린다.
-    tracesSampleRate: 0
-
-# ── 앱 자격증명 암호화 ─────────────────────────────────────────────────────────
-# 앱이 등록한 외부 자격증명(LLM 업체 키·외부 서비스 키)을 DB 에 잠글 때 쓰는 마스터 키.
-# 32바이트 난수를 base64 로 넣는다.
-#   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-#
-# **표는 나뉘어도 자물쇠는 하나다** — app_llm_key 와 app_external_key 가 이 꾸러미를 같이 쓴다.
-# 나누면 키를 교체할 때 두 벌을 따로 돌려야 하고, 한쪽만 옮긴 채 옛 키를 지우는 사고가 열린다.
-#
-# **교체는 v2 를 더하는 것이지 v1 을 바꾸는 것이 아니다.** 새로 잠그는 값만 v2 로 가고
-# v1 로 잠긴 값은 그대로 남는다 — 다 옮기기 전에 v1 을 지우면 그 값들은 영영 못 연다.
-#
-# 비어 있으면 키 등록 기능만 꺼진다(서버는 정상 기동).
-appSecretEncryption:
-  v1: ${APP_SECRET_ENCRYPTION_KEY_V1}
-
-llm:
-  # anthropic | openai | local. local 은 OpenAI 호환 엔드포인트(ollama·vLLM·LM Studio).
-  defaultProvider: anthropic
-  timeoutSec: 30
-  # 필터 JSON 만 받으므로 크게 잡을 이유가 없다. 넘치면 잘린 JSON 이라 호출이 실패한다.
-  maxTokens: 2048
-  # 프롬프트 파일 자리. 상대경로면 cwd → 워크스페이스 루트 순으로 찾는다.
-  promptDir: data/healthcare/svc-prompts
-  # 질문 끝의 `/test` 를 답변 모드로 받는다. **로그인이 붙기 전까지의 임시 수단**이라
-  # 켜져 있으면 누구나 유료로 팔 답변을 공짜로 받는다 — 운영은 반드시 꺼 둔다.
-  allowTestCommand: ${LLM_ALLOW_TEST_COMMAND:false}
-  # 응답에 원시 사용량(모델 이름·토큰 내역)을 실는다. **운영은 꺼 둔다.**
-  # 사용자에게 파는 단위는 환산 크레딧 하나뿐이고, 어느 모델로 몇 토큰 썼는지가 드러나면
-  # 요금이 역산된다 — 화면에서 감추는 것으로는 안 감춰지므로(응답 JSON) 여기서 끊는다.
-  exposeDebugUsage: ${LLM_EXPOSE_DEBUG_USAGE:false}
-  # 답변 서명 키(HMAC-SHA256). **비어 있으면 답변을 문맥으로 이어받지 않는다.**
-  # 화면이 돌려보내는 직전 답변은 "우리가 이렇게 답했다" 는 주장이라, 서명이 없으면
-  # 아무 문장이나 심어 모델을 유도할 수 있다. 없으면 서명도 안 붙이고 받지도 않는다.
-  answerSigningKey: ${LLM_ANSWER_SIGNING_KEY}
-  # 업체 이름으로 둔다(모델 이름 claude 가 아니라). openai 와 같은 층위여야 읽을 때
-  # 헷갈리지 않고, 한 업체가 모델을 여럿 내도 이 키는 그대로다.
-  anthropic:
-    apiKey: ${ANTHROPIC_API_KEY}
-    # 구독 토큰. **로컬 전용** — 개인 구독이라 사용자 트래픽을 태우면 안 된다.
-    #   claude setup-token 생성
-    # 키와 토큰이 둘 다 있으면 키가 이긴다.
-    authToken: ${ANTHROPIC_AUTH_TOKEN}
-    defaultModel: ${ANTHROPIC_DEFAULT_MODEL:claude-haiku-4-5}
-    # 아직 못 고르는 모델. 화면에 자물쇠와 함께 보인다 — "곧 열린다" 를 미리 알리는 목록이고,
-    # 골라도 요청에는 안 실린다. 유료가 열리면 하나씩 defaultModel 쪽으로 옮겨 온다.
-    lockedModels: [claude-opus-5]
-  openai:
-    apiKey: ${OPENAI_API_KEY}
-    # 모델 이름은 계정마다 다르다. 기본값을 박아두지 않는다.
-    defaultModel: ${OPENAI_DEFAULT_MODEL}
+    enabled: true

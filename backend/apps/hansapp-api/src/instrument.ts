@@ -12,7 +12,7 @@ import { appConfig, buildInfo } from './boot-config';
  * Sentry.init 보다 먼저 require 되면 패치할 대상이 이미 다른 곳에 붙잡혀 있어 **조용히 아무것도
  * 계측되지 않는다**(에러가 나지 않아 더 위험하다). 그래서 이 파일만 따로 두고 맨 위에서 부른다.
  *
- * DSN 은 config/config.<환경>.yaml 의 `apps-api.sentry.dsn` 이다(비밀 아님 — 전송 전용 공개값).
+ * DSN 은 config/config.yaml 의 `apps-api.sentry.dsn` 이다(비밀 아님 — 전송 전용 공개값).
  * **비어 있으면 init 자체를 하지 않는다** — 이후 captureException 등은 전부 no-op 이 된다.
  */
 
@@ -23,11 +23,10 @@ import { appConfig, buildInfo } from './boot-config';
  *
  * 내 머신에서 develop 으로 띄울 때 내 에러가 팀 이슈 스트림에 섞이지 않게 하려는 것이다.
  */
-const enabled = appConfig.getBoolOrDefault('apps-api.sentry.enabled', true);
+const enabled = appConfig.getBoolOrDefault('apps-api.sentry.enabled');
 const dsn = enabled ? appConfig.getStringOrDefault('apps-api.sentry.dsn') : '';
 const tracesSampleRate = appConfig.getNumberOrDefault(
   'apps-api.sentry.tracesSampleRate',
-  0,
 );
 
 if (dsn) {

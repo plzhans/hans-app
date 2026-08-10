@@ -6,25 +6,26 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
-  ActionResult,
+  AuthLogResult,
   AuthProvider,
   EmailVerifyPurpose,
   OAuthProvider,
-  UserAction,
+  AuthLogAction,
   UserStatus,
 } from '@hansapp/data';
+import { resolveUserLocale, type ClientLocaleInput } from '@hansapp/common';
 
 import { AUTH_CONFIG } from '../auth.config';
 import type { AuthConfig } from '../auth.config';
 import { AuthResult, AuthService, RequestMeta } from '../auth.service';
-import { ActionLogService } from '../log/action-log.service';
+import { AuthLogService } from '../log/auth-log.service';
 import { LoginService } from '../login.service';
 import { UserRepository } from '../repository/user.repository';
 import { UserOAuthRepository } from '../repository/user-oauth.repository';
 import { WithdrawalRepository } from '../repository/withdrawal.repository';
 import { AuthTokens, TokenService } from '../token/token.service';
 import { EmailVerificationService } from '../mail/email-verification.service';
-import { MailService } from '../mail/mail.service';
+import { AuthEmailService } from '../mail/auth-email.service';
 import { SocialTicketService } from './social-ticket.service';
 import { ConsentService, type ConsentInput } from '../consent.service';
 import { SocialProfile } from './social.types';
@@ -89,10 +90,10 @@ export class SocialService {
     private readonly authService: AuthService,
     private readonly tokens: TokenService,
     private readonly tickets: SocialTicketService,
-    private readonly log: ActionLogService,
+    private readonly log: AuthLogService,
     private readonly login: LoginService,
     private readonly emailVerification: EmailVerificationService,
-    private readonly mail: MailService,
+    private readonly mail: AuthEmailService,
   ) {}
 
   /**
@@ -189,8 +190,8 @@ export class SocialService {
           });
           await this.log.record({
             userId: active.id,
-            action: UserAction.OAUTH_LINK,
-            result: ActionResult.SUCCESS,
+            action: AuthLogAction.OAUTH_LINK,
+            result: AuthLogResult.SUCCESS,
             provider: toJoinType(profile.provider),
             ...meta,
           });
@@ -286,6 +287,8 @@ export class SocialService {
       email?: string | null;
       code?: string | null;
       consent: ConsentInput;
+      /** 브라우저에서 뽑아 온 지역 설정. 이메일 가입과 같은 규칙으로 좁혀 저장한다. */
+      clientLocale?: ClientLocaleInput;
     },
     meta: RequestMeta,
     locale?: string,
@@ -337,6 +340,7 @@ export class SocialService {
       password: null,
       name: payload.name,
       joinType: toJoinType(payload.provider),
+      ...resolveUserLocale(input.clientLocale ?? {}),
     });
     await this.oauths.create({
       userId: user.id,
@@ -349,8 +353,8 @@ export class SocialService {
 
     await this.log.record({
       userId: user.id,
-      action: UserAction.SIGNUP,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.SIGNUP,
+      result: AuthLogResult.SUCCESS,
       provider: toJoinType(payload.provider),
       ...meta,
     });
@@ -363,7 +367,7 @@ export class SocialService {
     await this.mail.sendAccountNotice({
       to: user.email,
       kind: 'SIGNUP_WELCOME',
-      locale,
+      locale: user.language ?? locale,
       userName: user.name,
     });
 
@@ -452,8 +456,8 @@ export class SocialService {
     await this.oauths.delete(userId, provider);
     await this.log.record({
       userId,
-      action: UserAction.OAUTH_UNLINK,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.OAUTH_UNLINK,
+      result: AuthLogResult.SUCCESS,
       provider: toJoinType(provider),
       ...meta,
     });
@@ -490,8 +494,8 @@ export class SocialService {
     });
     await this.log.record({
       userId,
-      action: UserAction.OAUTH_LINK,
-      result: ActionResult.SUCCESS,
+      action: AuthLogAction.OAUTH_LINK,
+      result: AuthLogResult.SUCCESS,
       provider: toJoinType(profile.provider),
       ...meta,
     });

@@ -98,7 +98,8 @@ export class AiCapabilitiesController {
     */
     return new CapabilitiesResponseDto(
       snapshot.quota,
-      this.models.list(Boolean(authed.user?.userId)),
+      // 모델 목록도 설정(DB)에서 온다 — 그래서 비동기다.
+      await this.models.list(Boolean(authed.user?.userId)),
     );
   }
 }

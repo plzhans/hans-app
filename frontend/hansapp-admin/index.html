@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HansApp 관리자</title>
+    <!--
+      **검색엔진에 올리지 않는다.** 관리자 화면이라 색인될 이유가 없고, 로그인 화면이
+      검색 결과에 뜨면 표적만 알려 주는 셈이다. (공개 앱들과 달리 OG·canonical 도 없다.)
+    -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#2563EB" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- 글꼴은 렌더를 막지 않게 media="print" → onload 로 all 전환 -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
+    <!--
+      **부팅 전 화면.** 인라인이라 문서 도착 즉시 칠해진다. 지우는 코드는 없다 —
+      createRoot 첫 렌더가 컨테이너 자식을 걷어낸다. 모양은 앱의 로딩 화면과 맞춘다.
+    -->
+    <style>
+      html,
+      body,
+      #root {
+        height: 100%;
+        margin: 0;
+      }
+      #boot {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 14px;
+        font-family:
+          'Noto Sans KR',
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"><div id="boot">불러오는 중…</div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

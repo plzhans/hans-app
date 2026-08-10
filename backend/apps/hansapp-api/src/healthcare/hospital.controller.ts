@@ -26,8 +26,7 @@ import type { SupportedLang } from '@hansapp/common';
 import { DETAIL_CACHE_CONTROL } from '../common/cache-control';
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
-import { ApiPageResponse } from '../common/dto/api-page-response.decorator';
-import { PageResponseDto } from '../common/dto/page.response.dto';
+import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
 import { ApiScrollResponse } from '../common/dto/api-scroll-response.decorator';
 import { ScrollResponseDto } from '../common/dto/scroll.response.dto';
 import {
