@@ -470,6 +470,7 @@ pull · up          .env 에 IMAGE_TAG 를 쓰고 compose 가 당겨 띄운다
     redis.conf              644  배포 계정        redis 컨테이너가 마운트한다
   nginx/
     nginx-https.conf        644  배포 계정        **컨테이너 밖** — 호스트 nginx 가 읽는다
+    upgrade-map.conf        644  배포 계정        환경 무관(infra/shared/nginx). 서버당 하나만 건다
 ```
 
 `config/` 밖에 있는 둘은 uid 때문이다. `config/` 는 배포가 0600·배포계정 소유로 잠그는데,
@@ -480,6 +481,9 @@ redis 컨테이너는 uid 가 다르고 nginx 는 아예 컨테이너가 아니�
 
 ```bash
 sudo ln -sf ~/app/hansapp-<환경>/nginx/nginx-https.conf /etc/nginx/sites-enabled/hansapp-admin.conf
+# 업그레이드 map 은 **서버당 하나만** 건다. 두 환경이 한 서버에 있어도 하나로 족하다 —
+# map 은 http 컨텍스트의 변수 선언이라 두 번 걸면 nginx 가 아예 안 뜬다.
+sudo ln -sf ~/app/hansapp-<환경>/nginx/upgrade-map.conf /etc/nginx/conf.d/upgrade-map.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
