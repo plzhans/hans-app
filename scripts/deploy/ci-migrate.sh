@@ -198,15 +198,26 @@ scp "${ssh_opts[@]}" -q "$work/env" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEP
 remote "chmod 600 $BE_HANSAPP_DEPLOY_PATH/config/.env.$APP_ENV"
 echo "  $(basename "$env_enc") → config/.env.$APP_ENV"
 
-# **yaml 도 올린다.** CLI 가 database.url 을 여기서 읽는다(값은 ${DATABASE_URL} 로 env 에서
-# 온다). 없으면 compose 가 마운트 원본을 못 찾아 빈 디렉터리를 만들고, CLI 가 그것을 읽다
-# EISDIR 로 죽는다 — 원인이 전혀 안 보이는 형태로 실패한다.
-yaml_src="$AREA_DIR/config/config.$APP_ENV.yaml"
-[ -f "$yaml_src" ] || die "$yaml_src 가 없다."
-scp "${ssh_opts[@]}" -q "$yaml_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/config/config.$APP_ENV.yaml"
-# 600 이면 된다. 컨테이너가 이 계정과 같은 uid 로 돌기 때문이다(compose 의 user:).
-remote "chmod 600 $BE_HANSAPP_DEPLOY_PATH/config/config.$APP_ENV.yaml"
-echo "  config.$APP_ENV.yaml"
+# **yaml 두 장을 다 올린다.** CLI 가 database.url 을 여기서 읽는다(값은 ${DATABASE_URL} 로
+# env 에서 온다). 없으면 compose 가 마운트 원본을 못 찾아 **빈 디렉터리를 만들고**, CLI 가
+# 그것을 읽다 EISDIR 로 죽는다 — 원인이 전혀 안 보이는 형태로 실패한다.
+#
+# **한 장만 올리면 안 된다.** 환경 파일에는 달라지는 값만 있어서 정본(config.yaml)이 빠지면
+# database.url 부터 없는 반쪽이 된다. 실제로 정본만 빠뜨려 위 EISDIR 로 죽은 적이 있다.
+for yaml_name in 'config.yaml' "config.$APP_ENV.yaml"; do
+  yaml_src="$AREA_DIR/config/$yaml_name"
+  [ -f "$yaml_src" ] || die "$yaml_src 가 없다."
+  yaml_dst="$BE_HANSAPP_DEPLOY_PATH/config/$yaml_name"
+  # **디렉터리로 남아 있으면 치운다.** 마운트 원본이 없는 채로 compose 가 돌면 도커가 그
+  # 자리에 빈 디렉터리를 만든다. 그대로 두면 scp 가 'is a directory' 로 죽고, 지나가더라도
+  # 앱이 그것을 읽다 EISDIR 로 죽는다. 비어 있을 때만 지운다 — 내용이 있으면 우리가 만든
+  # 것이 아니므로 손대지 않고 멈춘다.
+  remote "[ -d '$yaml_dst' ] && rmdir '$yaml_dst' || true"
+  scp "${ssh_opts[@]}" -q "$yaml_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$yaml_dst"
+  # 600 이면 된다. 컨테이너가 이 계정과 같은 uid 로 돌기 때문이다(compose 의 user:).
+  remote "chmod 600 $yaml_dst"
+  echo "  $yaml_name"
+done
 
 if [ -n "${GHCR_TOKEN:-}" ]; then
   phase 'GHCR 로그인'
