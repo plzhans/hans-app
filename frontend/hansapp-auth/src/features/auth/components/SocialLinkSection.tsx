@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   prepareSocialLink,
@@ -59,7 +59,13 @@ function unlinkError(e: unknown): string {
  * 서버가 "로그인" 이 아니라 "이 계정에 붙이기" 로 해석한다. 그래서 provider 를 다녀오는
  * 왕복이 로그인과 똑같고, 돌아온 자리도 같은 콜백이다(linked=1).
  */
-export function SocialLinkSection() {
+export function SocialLinkSection({
+  /** 제목 줄 오른쪽에 붙는 것. 마이페이지가 "비밀번호 변경" 을 여기 건다 —
+      비밀번호도 로그인 수단이라 소셜 연동과 같은 자리에서 보는 편이 낫다. */
+  action,
+}: {
+  action?: ReactNode;
+}) {
   const me = useAuthStore((s) => s.me);
   const refreshMe = useAuthStore((s) => s.refreshMe);
   const [params, setParams] = useSearchParams();
@@ -117,11 +123,16 @@ export function SocialLinkSection() {
   };
 
   return (
-    <section className="mt-4">
-      <h2 className="text-sm font-bold text-gray-900">소셜 계정 연동</h2>
-      <p className="mt-0.5 text-xs text-gray-400">
-        연동하면 그 계정으로도 로그인할 수 있습니다.
-      </p>
+    <section>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-bold text-gray-900">로그인 수단</h2>
+          <p className="mt-0.5 text-xs text-gray-400">
+            연동하면 그 계정으로도 로그인할 수 있습니다.
+          </p>
+        </div>
+        {action}
+      </div>
 
       {linkedNotice && (
         <p className="mt-2 text-xs text-primary">소셜 계정을 연동했습니다.</p>

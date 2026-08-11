@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 import { cn } from '@/shared/lib/cn';
+import { FieldRow } from './FieldRow';
 
 export interface ComboOption {
   value: string;
@@ -131,15 +132,10 @@ export function ComboBox({
   };
 
   return (
+    // 바깥 클릭을 보려면 스스로 바깥 요소를 쥐고 있어야 한다 → FieldRow 는 div 로 쓴다.
     <div className="block" ref={rootRef}>
-      {label && (
-        <span className="mb-1 block text-sm font-medium text-gray-700">
-          {label}
-        </span>
-      )}
-      {hint && <p className="mb-1 -mt-0.5 text-xs text-gray-400">{hint}</p>}
-
-      <div className="relative">
+      <FieldRow label={label} hint={hint} error={error} as="div">
+        <div className="relative">
         <input
           type="text"
           role="combobox"
@@ -161,7 +157,7 @@ export function ComboBox({
           onClick={openList}
           onKeyDown={onKeyDown}
           className={cn(
-            'h-11 w-full rounded-lg border bg-white pr-9 pl-3 text-sm outline-none transition',
+            'h-11 w-full rounded-lg border bg-white pr-9 pl-3 text-sm outline-none transition lg:h-12 lg:pl-4 lg:text-base',
             'focus:border-primary focus:ring-2 focus:ring-primary-100',
             'disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400',
             error ? 'border-red-400' : 'border-gray-300',
@@ -226,9 +222,8 @@ export function ComboBox({
             )}
           </ul>
         )}
-      </div>
-
-      {error && <span className="mt-1 block text-xs text-red-500">{error}</span>}
+        </div>
+      </FieldRow>
     </div>
   );
 }

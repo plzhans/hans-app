@@ -15,6 +15,7 @@ import {
 } from '@/shared/auth/afterLogin';
 import { subscribeAuth } from '@/shared/auth/authChannel';
 import { watchSessionHint } from '@/shared/auth/sessionWatch';
+import { Footer } from '@/shared/ui/Footer';
 import Login from '@/features/auth/pages/Login';
 import Signup from '@/features/auth/pages/Signup';
 import ForgotPassword from '@/features/auth/pages/ForgotPassword';
@@ -134,64 +135,74 @@ export default function App() {
 
   return (
     <BrowserRouter basename={ROUTER_BASE}>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <GuestOnly>
-              <Login />
-            </GuestOnly>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <GuestOnly>
-              <Signup />
-            </GuestOnly>
-          }
-        />
-        <Route
-          path="/forgot-password"
-          element={
-            <GuestOnly>
-              <ForgotPassword />
-            </GuestOnly>
-          }
-        />
-        {/* 소셜 콜백 착지점(1st-party). 백엔드가 이 경로로 code/pending 을 실어 돌려보낸다. */}
-        <Route path="/callback" element={<Callback />} />
-        {/* 로그아웃 착지점. 자사 앱은 자기가 처리하지 않고 여기로 보낸다(공유 세션이라 한 곳에서). */}
-        <Route path="/logout" element={<Logout />} />
-        {/* 내 정보(로그인 필요). 인증웹에 직접 로그인한 사용자용. */}
-        <Route
-          path="/me"
-          element={
-            <RequireAuth>
-              <Home />
-            </RequireAuth>
-          }
-        />
-        {/* 정보 수정. 마이페이지는 읽는 화면이라 고치는 자리를 주소부터 나눈다. */}
-        <Route
-          path="/me/edit"
-          element={
-            <RequireAuth>
-              <ProfileEdit />
-            </RequireAuth>
-          }
-        />
-        {/* 비밀번호는 정보 수정과 부르는 API 가 달라 화면도 나눈다(PasswordEdit 주석 참고). */}
-        <Route
-          path="/me/password"
-          element={
-            <RequireAuth>
-              <PasswordEdit />
-            </RequireAuth>
-          }
-        />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      {/*
+        **푸터를 붙이려고 화면을 세로 flex 로 감싼다.** 본문이 flex-1 이라 내용이 짧아도
+        푸터가 바닥에 붙고, 길면 그냥 아래로 밀린다(fixed 가 아니다 — 긴 폼에서 화면을
+        가리면 안 된다). 각 화면이 쓰는 min-h-full 은 이 flex-1 칸을 기준으로 잡힌다.
+      */}
+      <div className="flex min-h-full flex-col">
+        <div className="flex-1">
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <GuestOnly>
+                  <Login />
+                </GuestOnly>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <GuestOnly>
+                  <Signup />
+                </GuestOnly>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <GuestOnly>
+                  <ForgotPassword />
+                </GuestOnly>
+              }
+            />
+            {/* 소셜 콜백 착지점(1st-party). 백엔드가 이 경로로 code/pending 을 실어 돌려보낸다. */}
+            <Route path="/callback" element={<Callback />} />
+            {/* 로그아웃 착지점. 자사 앱은 자기가 처리하지 않고 여기로 보낸다(공유 세션이라 한 곳에서). */}
+            <Route path="/logout" element={<Logout />} />
+            {/* 내 정보(로그인 필요). 인증웹에 직접 로그인한 사용자용. */}
+            <Route
+              path="/me"
+              element={
+                <RequireAuth>
+                  <Home />
+                </RequireAuth>
+              }
+            />
+            {/* 정보 수정. 마이페이지는 읽는 화면이라 고치는 자리를 주소부터 나눈다. */}
+            <Route
+              path="/me/edit"
+              element={
+                <RequireAuth>
+                  <ProfileEdit />
+                </RequireAuth>
+              }
+            />
+            {/* 비밀번호는 정보 수정과 부르는 API 가 달라 화면도 나눈다(PasswordEdit 주석 참고). */}
+            <Route
+              path="/me/password"
+              element={
+                <RequireAuth>
+                  <PasswordEdit />
+                </RequireAuth>
+              }
+            />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </div>
+        <Footer />
+      </div>
     </BrowserRouter>
   );
 }

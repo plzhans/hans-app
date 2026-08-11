@@ -78,9 +78,9 @@ export function SessionList() {
   if (!sessions || sessions.length === 0) return null;
 
   return (
-    <section className="mt-4">
-      <h2 className="text-sm font-bold text-gray-900">로그인한 기기</h2>
-      <p className="mt-0.5 text-xs text-gray-400">
+    /* 제목은 없다 — 이 목록은 "기기 정보" 탭 안에 들어가고, 그 이름이 곧 제목이다. */
+    <section>
+      <p className="text-xs text-gray-400">
         모르는 기기가 있으면 로그아웃시키고 비밀번호를 바꾸세요.
       </p>
 

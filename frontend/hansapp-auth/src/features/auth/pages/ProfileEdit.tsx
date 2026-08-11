@@ -13,6 +13,7 @@ import {
 } from '@/shared/lib/clientLocale';
 import { Button } from '@/shared/ui/Button';
 import { ComboBox } from '@/shared/ui/ComboBox';
+import { FieldRow } from '@/shared/ui/FieldRow';
 import { SelectField } from '@/shared/ui/SelectField';
 import { TextField } from '@/shared/ui/TextField';
 import { AuthCard } from '../components/AuthCard';
@@ -138,17 +139,23 @@ export default function ProfileEdit() {
           onChange={setTimeZone}
         />
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && (
+          <FieldRow as="div">
+            <p className="text-sm text-red-500">{error}</p>
+          </FieldRow>
+        )}
 
         {/* 바꾼 게 없으면 저장할 것도 없다. */}
-        <Button
-          type="button"
-          loading={busy}
-          disabled={!changed}
-          onClick={() => void save()}
-        >
-          저장
-        </Button>
+        <FieldRow as="div">
+          <Button
+            type="button"
+            loading={busy}
+            disabled={!changed}
+            onClick={() => void save()}
+          >
+            저장
+          </Button>
+        </FieldRow>
       </div>
 
       <button

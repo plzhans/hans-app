@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { requestPasswordReset, resetPassword } from "@/shared/api/auth";
 import { errorMessage } from "@/shared/api/errorMessage";
 import { Button } from "@/shared/ui/Button";
+import { FieldRow } from "@/shared/ui/FieldRow";
 import { TextField } from "@/shared/ui/TextField";
 import { AuthCard } from "../components/AuthCard";
 
@@ -156,13 +157,17 @@ export default function ForgotPassword() {
             })}
           />
           {serverError && (
-            <p className="whitespace-pre-line text-sm text-red-500">
-              {serverError}
-            </p>
+            <FieldRow as="div">
+              <p className="whitespace-pre-line text-sm text-red-500">
+                {serverError}
+              </p>
+            </FieldRow>
           )}
-          <Button type="submit" loading={confirmForm.formState.isSubmitting}>
-            비밀번호 변경
-          </Button>
+          <FieldRow as="div">
+            <Button type="submit" loading={confirmForm.formState.isSubmitting}>
+              비밀번호 변경
+            </Button>
+          </FieldRow>
         </form>
 
         <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
@@ -201,13 +206,17 @@ export default function ForgotPassword() {
           {...reqForm.register("email", { required: "이메일을 입력하세요." })}
         />
         {serverError && (
-          <p className="whitespace-pre-line text-sm text-red-500">
-            {serverError}
-          </p>
+          <FieldRow as="div">
+            <p className="whitespace-pre-line text-sm text-red-500">
+              {serverError}
+            </p>
+          </FieldRow>
         )}
-        <Button type="submit" loading={reqForm.formState.isSubmitting}>
-          인증 코드 받기
-        </Button>
+        <FieldRow as="div">
+          <Button type="submit" loading={reqForm.formState.isSubmitting}>
+            인증 코드 받기
+          </Button>
+        </FieldRow>
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-500">

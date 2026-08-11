@@ -4,6 +4,7 @@ import { updatePassword } from '@/shared/api/auth';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
+import { FieldRow } from '@/shared/ui/FieldRow';
 import { TextField } from '@/shared/ui/TextField';
 import { AuthCard } from '../components/AuthCard';
 
@@ -109,16 +110,22 @@ export default function PasswordEdit() {
           onChange={(e) => setConfirmPassword(e.target.value)}
         />
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && (
+          <FieldRow as="div">
+            <p className="text-sm text-red-500">{error}</p>
+          </FieldRow>
+        )}
 
-        <Button
-          type="button"
-          loading={busy}
-          disabled={!filled}
-          onClick={() => void save()}
-        >
-          {settingNew ? '설정' : '변경'}
-        </Button>
+        <FieldRow as="div">
+          <Button
+            type="button"
+            loading={busy}
+            disabled={!filled}
+            onClick={() => void save()}
+          >
+            {settingNew ? '설정' : '변경'}
+          </Button>
+        </FieldRow>
       </div>
 
       <button
