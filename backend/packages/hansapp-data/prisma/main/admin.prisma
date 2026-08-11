@@ -21,6 +21,17 @@ model AdminUser {
   /// 표시 이름
   name String? @db.VarChar(100)
 
+  /// 관리자 등급.
+  ///
+  /// **기본이 가장 높은 SYSTEM 인 것은 계정을 만드는 통로 때문이다.** CLI 와 부팅
+  /// 부트스트랩은 등급을 받을 자리가 없는데, 그 둘은 서버에 들어갈 수 있는 사람이 쓰는
+  /// 통로라 이미 최고 권한과 다름없다. 콘솔에서 만들 때만 등급을 고른다.
+  ///
+  /// 이 값이 지금 정하는 것은 **관리자 계정을 다루는 권한뿐이다**(자기보다 높은 등급의
+  /// 계정을 만들거나 고칠 수 없다). 설정·회원·앱 화면은 아직 등급을 보지 않는다 —
+  /// 어느 화면을 어느 등급까지 열지는 따로 정해야 하는 문제라 여기서 앞질러 정하지 않는다.
+  role AdminRole @default(SYSTEM)
+
   /// 계정 상태. DISABLED 는 로그인 차단.
   ///
   /// **로그인 실패 잠금을 붙일 자리가 여기다.** 지금은 잠금 정책(횟수·해제 방법)을 정하지
@@ -39,8 +50,8 @@ model AdminUser {
 
   /// 국가(ISO 3166-1 alpha-2 대문자). 집계용으로만 둔다 — 화면에 내보내지도, 고치게 하지도 않는다.
   ///
-  /// **관리자는 가입 화면이 없다.** CLI(`hansapp-cli admin create`)와 부팅 부트스트랩으로만
-  /// 만들어져 브라우저에서 값을 받을 자리가 없다 — 그래서 한국으로 굳힌다.
+  /// **관리자는 가입 화면이 없다.** 이미 있는 관리자가 만들어 주거나(콘솔·CLI), 부팅
+  /// 부트스트랩이 만든다 — 본인이 값을 넣을 자리가 없어 한국으로 굳힌다.
   countryCode String @default("KR") @map("country_code") @db.Char(2)
 
   /// 관리 화면·메일 언어. 지원 언어(ko/en/ja/zh). **관리자가 바꿀 수 있다.**
@@ -58,13 +69,61 @@ model AdminUser {
 
   sessions AdminTokenSession[]
 
+  passwordResets AdminPasswordReset[]
+
   @@map("admin_user")
+}
+
+/// 관리자 비밀번호 재설정 티켓(로그인 화면의 "비밀번호 찾기").
+///
+/// **토큰 원문은 저장하지 않는다.** 메일로 나간 값의 SHA-256 만 두고, 들어온 토큰을 같은
+/// 방식으로 해시해 대조한다 — 이 표가 통째로 새도 남의 계정을 가져갈 수 없어야 한다.
+/// (세션 표 admin_token_session 이 secret 을 다루는 방식과 같다.)
+///
+/// **한 번만 쓰인다.** 쓰고 나면 used_at 을 찍고, 새 요청이 오면 그 계정의 안 쓴 티켓을
+/// 먼저 지운다 — 메일함에 남은 옛 링크가 언제까지나 살아 있으면 안 된다.
+model AdminPasswordReset {
+  id Int @id @default(autoincrement())
+
+  adminId Int @map("admin_id")
+
+  /// 메일로 나간 토큰의 SHA-256(hex 64자).
+  tokenHash String @unique @map("token_hash") @db.Char(64)
+
+  /// 만료 시각. 짧게 잡는다 — 메일함에 오래 살아 있는 링크가 곧 위험이다.
+  expiresAt DateTime @map("expires_at")
+
+  /// 쓴 시각. 있으면 이미 쓴 티켓이다.
+  usedAt DateTime? @map("used_at")
+
+  /// 요청이 어디서 왔는지. 이상한 요청이 몰릴 때 되짚는 값이다.
+  ip        String? @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(255)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// 계정이 지워지면 티켓도 함께 사라진다.
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@map("admin_password_reset")
 }
 
 /// 관리자 계정 상태.
 enum AdminStatus {
   ACTIVE
   DISABLED
+}
+
+/// 관리자 등급. **위에서부터 높은 순으로 적는다** — 값의 서열은 코드(ADMIN_ROLE_RANK)가
+/// 갖고, 여기서는 목록의 차례로만 드러난다.
+enum AdminRole {
+  /// 시스템 관리자. 모든 등급을 만들고 고칠 수 있다.
+  SYSTEM
+  /// 일반 관리자. 자기 이하(일반·운영자)만 다룬다.
+  ADMIN
+  /// 운영자. 관리자 계정을 다루는 권한이 가장 좁다.
+  OPERATOR
 }
 
 /// 관리자 refresh 세션. 불투명 refresh 토큰의 서버측 저장소.

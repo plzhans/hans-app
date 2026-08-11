@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -18,38 +18,35 @@ import {
 } from '@/shared/lib/formatDateTime';
 import { zonedDayBoundary } from '@/shared/lib/timeZone';
 import { Badge } from '@/shared/ui/Badge';
+import {
+  ActionFilter,
+  DetailBlock,
+  DetailField,
+  JsonBlock,
+  PeriodFilter,
+  SearchRow,
+} from '@/shared/components/logUi';
 import { Pagination } from '@/shared/ui/Pagination';
 import { Table } from '@/shared/ui/Table';
 import {
   AUTH_ACTION_ITEMS,
   AUTH_ACTION_LABEL,
 } from '@/shared/lib/authActions';
+import { useSearchCommit } from '@/shared/lib/useSearchCommit';
 import { UserTabs } from '../components/UserTabs';
 
 const PAGE_SIZE = 30;
 
+/**
+ * 조건의 기본값. **전체 기간·전체 액션이다.**
+ *
+ * 값이 전부 비어 있어 커밋해도 URL 에 아무것도 안 남는데, 그래도 된다 — 이 화면은
+ * 커밋 여부와 무관하게 늘 조회한다(아래 `applied` 참고).
+ */
+const DEFAULTS = { from: '', to: '', actions: '' };
+
 const COLUMNS =
   'grid-cols-[150px_130px_72px_minmax(0,1fr)_140px] gap-4 px-6';
-
-/** 기간 빠른 선택. 값은 "며칠 전부터" 이고, 0 은 전체 기간이다. */
-const PERIODS: { days: number; label: string }[] = [
-  { days: 0, label: '전체' },
-  { days: 7, label: '7일' },
-  { days: 30, label: '30일' },
-  { days: 90, label: '90일' },
-];
-
-/** `YYYY-MM-DD` 로. 날짜 입력칸이 쓰는 모양이다. */
-function toDateInput(at: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
-}
-
-function daysAgo(days: number): string {
-  const at = new Date();
-  at.setDate(at.getDate() - days + 1);
-  return toDateInput(at);
-}
 
 /**
  * 회원 인증 기록.
@@ -57,18 +54,25 @@ function daysAgo(days: number): string {
  * **기본은 전체 기간·전체 액션이다.** 이 화면을 여는 이유가 대개 "무슨 일이 있었나" 라서,
  * 처음부터 좁혀 두면 찾으려던 것이 화면 밖에 있다. 좁히는 건 관리자가 한다.
  *
- * 조건은 전부 URL 쿼리에 둔다 — 새로고침해도 보던 화면이 남고, 링크를 그대로 넘길 수 있다.
+ * **조건을 바꾸는 것과 조회하는 것을 가른다.** 로그 표는 한 번이 무거워, 칩을 누를 때마다
+ * 질의가 나가면 기간을 고르고 종류를 좁히는 사이에 서너 번이 나간다. 칩·날짜는 초안만
+ * 바꾸고 검색을 눌러야 나간다(전역 로그 화면과 같은 규칙).
+ *
+ * **다만 들어오자마자는 기본 조건으로 한 번 보여 준다.** 회원 한 명으로 이미 좁혀진
+ * 조회라 무게가 전역 화면과 다르고, 탭을 열자마자 "검색을 누르세요" 만 있으면 이 사람이
+ * 최근에 뭘 했는지 보러 온 사람을 한 번 더 클릭하게 만든다.
+ *
+ * 커밋된 조건은 URL 에 둔다 — 새로고침해도 보던 화면이 남고, 링크를 그대로 넘길 수 있다.
  */
 export default function UserAuthLogs() {
   const { id } = useParams();
   const userId = Number(id);
-  const [params, setParams] = useSearchParams();
 
-  const page = Math.max(1, Number(params.get('page') ?? 1) || 1);
-  const from = params.get('from') ?? '';
-  const to = params.get('to') ?? '';
-  const actions = (params.get('actions')?.split(',').filter(Boolean) ??
-    []) as AuthLogActionType[];
+  const { committed, draft, setDraft, commit, page, goPage, dirty } =
+    useSearchCommit(DEFAULTS);
+
+  // 검색을 누르기 전에도 조회한다 — 그때는 기본 조건(전체)이다.
+  const applied = committed ?? DEFAULTS;
 
   // 상세 탭에서 넘어왔으면 캐시에 이미 있다. 제목(이메일)만 쓰려고 다시 받지 않는다.
   const userQuery = useQuery({
@@ -78,7 +82,7 @@ export default function UserAuthLogs() {
   });
 
   const logQuery = useQuery({
-    queryKey: ['user-auth-logs', userId, { page, from, to, actions }],
+    queryKey: ['user-auth-logs', userId, { page, ...applied }],
     queryFn: () =>
       listUserAuthLogs(userId, {
         page,
@@ -87,43 +91,22 @@ export default function UserAuthLogs() {
           날짜 입력은 시간대가 없는 값이라 **표시 시간대의 하루 경계**로 바꿔 보낸다.
           브라우저 시간대로 계산하면 표에 찍힌 날짜와 걸러지는 경계가 어긋난다.
         */
-        from: from
-          ? zonedDayBoundary(from, 'start', getDisplayTimeZone())
+        from: applied.from
+          ? zonedDayBoundary(applied.from, 'start', getDisplayTimeZone())
           : undefined,
-        to: to ? zonedDayBoundary(to, 'end', getDisplayTimeZone()) : undefined,
-        actions: actions.length ? actions : undefined,
+        to: applied.to
+          ? zonedDayBoundary(applied.to, 'end', getDisplayTimeZone())
+          : undefined,
+        actions: splitActions(applied.actions).length
+          ? splitActions(applied.actions)
+          : undefined,
       }),
     enabled: Number.isFinite(userId),
     placeholderData: keepPreviousData,
   });
 
-  /** 조건을 바꾼다. **페이지는 1로 되돌린다** — 좁힌 결과가 그 페이지까지 없을 수 있다. */
-  const applyFilter = (next: Record<string, string>) => {
-    const merged = new URLSearchParams(params);
-    for (const [key, value] of Object.entries(next)) {
-      if (value) merged.set(key, value);
-      else merged.delete(key);
-    }
-    merged.delete('page');
-    setParams(merged);
-  };
-
-  const toggleAction = (action: AuthLogActionType) => {
-    const next = actions.includes(action)
-      ? actions.filter((a) => a !== action)
-      : [...actions, action];
-    applyFilter({ actions: next.join(',') });
-  };
-
-  const goPage = (next: number) => {
-    const merged = new URLSearchParams(params);
-    merged.set('page', String(next));
-    setParams(merged);
-    window.scrollTo({ top: 0 });
-  };
-
   const data = logQuery.data;
-  const filtered = !!(from || to || actions.length);
+  const filtered = !!(applied.from || applied.to || applied.actions);
 
   return (
     <AdminLayout
@@ -144,64 +127,31 @@ export default function UserAuthLogs() {
     >
       <UserTabs userId={userId} current="authLog" />
 
-      <div className="mb-4 space-y-3">
-        <Filter label="기간">
-          {PERIODS.map((period) => {
-            // "전체" 는 두 칸이 모두 비었을 때만 켜진 것으로 본다.
-            const active =
-              period.days === 0
-                ? !from && !to
-                : from === daysAgo(period.days) && to === toDateInput(new Date());
-            return (
-              <Chip
-                key={period.days}
-                active={active}
-                onClick={() =>
-                  applyFilter(
-                    period.days === 0
-                      ? { from: '', to: '' }
-                      : {
-                          from: daysAgo(period.days),
-                          to: toDateInput(new Date()),
-                        },
-                  )
-                }
-              >
-                {period.label}
-              </Chip>
-            );
-          })}
+      {/*
+        조건 전체를 폼 하나로 묶는다. 어디서 엔터를 쳐도 검색이 나가고, 그 밖에는
+        아무 데를 눌러도 조회가 나가지 않는다.
+      */}
+      <form
+        className="mb-4 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          commit();
+        }}
+      >
+        <PeriodFilter
+          from={draft.from}
+          to={draft.to}
+          onChange={(next) => setDraft(next)}
+        />
 
-          <span className="ml-1 flex items-center gap-1.5">
-            <DateInput
-              value={from}
-              max={to || undefined}
-              onChange={(value) => applyFilter({ from: value })}
-            />
-            <span className="text-sm text-gray-300">~</span>
-            <DateInput
-              value={to}
-              min={from || undefined}
-              onChange={(value) => applyFilter({ to: value })}
-            />
-          </span>
-        </Filter>
+        <ActionFilter
+          items={AUTH_ACTION_ITEMS}
+          value={draft.actions}
+          onChange={(actions) => setDraft({ actions })}
+        />
 
-        <Filter label="종류">
-          <Chip active={actions.length === 0} onClick={() => applyFilter({ actions: '' })}>
-            전체
-          </Chip>
-          {AUTH_ACTION_ITEMS.map((item) => (
-            <Chip
-              key={item.value}
-              active={actions.includes(item.value)}
-              onClick={() => toggleAction(item.value)}
-            >
-              {item.label}
-            </Chip>
-          ))}
-        </Filter>
-      </div>
+        <SearchRow dirty={dirty} />
+      </form>
 
       {logQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600">
@@ -239,6 +189,11 @@ export default function UserAuthLogs() {
       )}
     </AdminLayout>
   );
+}
+
+/** 쉼표로 묶인 액션 목록을 배열로. URL·초안이 같은 모양(문자열)을 쓴다. */
+function splitActions(value: string): AuthLogActionType[] {
+  return value.split(',').filter(Boolean) as AuthLogActionType[];
 }
 
 /**
@@ -357,101 +312,14 @@ function LogDetail({ log }: { log: UserAuthLog }) {
             없음. 아직 이 값을 채우는 이벤트가 없습니다.
           </p>
         ) : (
-          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-900 p-3 font-mono text-xs leading-relaxed text-gray-100">
-            {JSON.stringify(log.detail, null, 2)}
-          </pre>
+          <JsonBlock value={log.detail} />
         )}
       </DetailBlock>
     </div>
   );
 }
 
-function DetailField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex gap-3">
-      <dt className="w-20 shrink-0 text-gray-400">{label}</dt>
-      <dd className="min-w-0 flex-1 break-words text-gray-700">{children}</dd>
-    </div>
-  );
-}
 
-function DetailBlock({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mt-4">
-      <p className="mb-1.5 text-xs font-semibold text-gray-400">{label}</p>
-      {children}
-    </div>
-  );
-}
 
-function Filter({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 w-8 shrink-0 text-xs font-semibold text-gray-400">
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
 
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'rounded-lg px-3 py-1.5 text-sm transition',
-        active
-          ? 'bg-primary-50 font-semibold text-primary-700'
-          : 'text-gray-500 hover:bg-gray-100',
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
-function DateInput({
-  value,
-  min,
-  max,
-  onChange,
-}: {
-  value: string;
-  min?: string;
-  max?: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <input
-      type="date"
-      value={value}
-      min={min}
-      max={max}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-8 rounded-lg border border-gray-300 px-2 text-sm text-gray-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-100"
-    />
-  );
-}

@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { AdminStatus, AdminUser, PrismaService } from '@hansapp/data';
+import {
+  AdminRole,
+  AdminStatus,
+  AdminUser,
+  PrismaService,
+} from '@hansapp/data';
 
 /** 관리자 계정 저장소. */
 @Injectable()
@@ -27,9 +32,15 @@ export class AdminUserRepository {
     email: string;
     password: string;
     name: string | null;
+    role: AdminRole;
     mustChangePassword: boolean;
   }): Promise<AdminUser> {
     return this.prisma.adminUser.create({ data: input });
+  }
+
+  /** 이 등급인 계정 수. **마지막 시스템 관리자를 지키는 데 쓴다.** */
+  countByRole(role: AdminRole): Promise<number> {
+    return this.prisma.adminUser.count({ where: { role } });
   }
 
   /**
@@ -45,6 +56,21 @@ export class AdminUserRepository {
       where: { id },
       data: { password, mustChangePassword },
     });
+  }
+
+  /**
+   * 이메일·표시 이름·등급 변경. 준 항목만 바꾼다.
+   *
+   * **이메일은 로그인 식별자다.** 중복은 DB 의 unique 제약이 마지막으로 막지만, 그 전에
+   * 서비스가 먼저 확인해 사람이 읽을 수 있는 오류로 돌려준다.
+   *
+   * **등급을 누가 어디까지 바꿀 수 있는지는 서비스가 본다** — 저장소는 시키는 대로 쓴다.
+   */
+  updateProfile(
+    id: number,
+    input: { email?: string; name?: string | null; role?: AdminRole },
+  ): Promise<AdminUser> {
+    return this.prisma.adminUser.update({ where: { id }, data: input });
   }
 
   /** 계정 삭제. 세션(admin_token_session)은 FK Cascade 로 함께 지워진다. */

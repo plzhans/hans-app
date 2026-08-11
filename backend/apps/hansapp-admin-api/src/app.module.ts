@@ -12,6 +12,7 @@ import { resolveClientIp } from '@hansapp/http-common';
 
 import { AdminAuthController } from './auth/admin-auth.controller';
 import { AdminBootstrapService } from './auth/admin-bootstrap.service';
+import { AdminAccountController } from './admins/admin-account.controller';
 import { SyncStateController } from './admin/sync-state.controller';
 import { HealthController } from './health/health.controller';
 import { UserController } from './user/user.controller';
@@ -51,6 +52,7 @@ export class AppModule {
       ],
       controllers: [
         AdminAuthController,
+        AdminAccountController,
         HealthController,
         SyncStateController,
         UserController,

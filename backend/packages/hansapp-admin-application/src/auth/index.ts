@@ -7,6 +7,19 @@
 export { AdminAuthModule } from './admin-auth.module';
 
 export { AdminAuthService } from './admin-auth.service';
+// 관리자 계정 관리(콘솔). 조회·등록·삭제만 한다 — 초기화·비활성화는 아직 CLI 뿐이다.
+export { AdminAccountService } from './admin-account.service';
+export type {
+  AdminAccountSummary,
+  AdminAccountDetail,
+  AdminActor,
+} from './admin-account.service';
+// 로그인 화면의 "비밀번호 찾기". 티켓을 내주고, 그 티켓으로 비밀번호를 다시 세운다.
+export { AdminPasswordResetService } from './admin-password-reset.service';
+export type {
+  AdminPasswordResetTicket,
+  AdminPasswordResetTarget,
+} from './admin-password-reset.service';
 export { AdminTokenService } from './admin-token.service';
 export type { AdminAuthTokens, AdminRequestMeta } from './admin-token.service';
 
@@ -36,7 +49,16 @@ export type {
   AdminBootstrapConfig,
 } from './admin-auth.config';
 
+// 등급 서열·판정. **정책이라 코드가 갖는다**(DB 에 두면 화면에서 서열을 바꿀 수 있게 된다).
+export {
+  ADMIN_ROLES,
+  ADMIN_ROLE_RANK,
+  canManageRole,
+  assertCanManageAdmin,
+  assertCanAssignRole,
+} from './admin-role';
+
 // 관리자 계정 모델·상태 enum 을 여기서 다시 내보낸다.
 // 앱·CLI 가 @hansapp/data 를 직접 의존하지 않게 하려는 것이다(기존 계층 규칙과 같다).
-export { AdminStatus } from '@hansapp/data';
+export { AdminStatus, AdminRole } from '@hansapp/data';
 export type { AdminUser } from '@hansapp/data';

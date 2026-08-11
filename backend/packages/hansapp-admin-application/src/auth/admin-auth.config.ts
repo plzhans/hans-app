@@ -15,6 +15,15 @@ export const ADMIN_TOKEN_AUDIENCE = 'hansapp-admin';
 export interface AdminAuthConfig {
   /** access token(JWT) 서명 키(HS256). **공개 API 의 auth.jwt.secret 과 달라야 한다.** */
   readonly jwtSecret: string;
+  /**
+   * 이 서버가 어느 환경인가(local·develop·production).
+   *
+   * **서명 키를 환경마다 갈라 놓는 데 쓴다.** 시크릿은 환경마다 다르게 두는 것이 규칙이지만,
+   * 실수로 같은 값이 들어가는 일이 실제로 일어난다 — 그때 개발에서 발행한 토큰이
+   * 운영에서 통하면 안 된다.
+   */
+  readonly appEnv: string;
+
   /** 발급자. 설정하면 sign 에 박고 verify 에서 대조한다. */
   readonly issuer?: string;
   readonly accessTokenTtlSec: number;
@@ -71,6 +80,7 @@ export function buildAdminAuthConfig(source: ConfigSource): AdminAuthConfig {
 
   return Object.freeze({
     jwtSecret,
+    appEnv: source.env,
     issuer: source.getStringOrDefault('admin.jwt.issuer') || undefined,
     // 5분. 짧게 잡아 계정을 비활성화했을 때 최대 이만큼만 버티게 한다 —
     // access token 은 stateless 라 즉시 폐기가 안 된다.

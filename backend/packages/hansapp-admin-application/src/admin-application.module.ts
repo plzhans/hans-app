@@ -7,8 +7,15 @@ import {
 } from '@hansapp/common';
 import { ApplicationModule } from '@hansapp/application';
 import { DataModule, SettingReadRepository } from '@hansapp/data';
+import { EmailSender, EMAIL_SETTINGS_SOURCE } from '@hansapp/email-sender';
 import { SearchModule } from '@hansapp/search';
 
+import { AdminEmailService } from './mail/admin-email.service';
+import { AdminMailSettingsSource } from './mail/admin-mail-settings.source';
+import {
+  ADMIN_MAIL_CONFIG,
+  buildAdminMailConfig,
+} from './mail/admin-mail.config';
 import { SettingCache } from './setting/setting-cache.service';
 import { SettingAdminService } from './setting/setting-admin.service';
 import { SettingWriteRepository } from './setting/setting-write.repository';
@@ -31,6 +38,8 @@ import { AppReadService } from './app-registry/app-read.service';
 import { AppModerationRepository } from './app-registry/app-moderation.repository';
 import { AppModerationService } from './app-registry/app-moderation.service';
 import { AccessCacheInvalidator } from './app-registry/access-cache-invalidator';
+import { AdminActionLogReadService } from './log/admin-action-log-read.service';
+import { AdminActionLogRepository } from './log/admin-action-log.repository';
 import { AuthLogRepository } from './log/auth-log.repository';
 import { AuthLogService } from './log/auth-log.service';
 import { LlmUsageLogRepository } from './log/llm-usage-log.repository';
@@ -147,6 +156,18 @@ export class AdminApplicationModule {
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         SettingAdminService,
+        /*
+          관리자에게 보내는 메일. **접속 설정은 위 SettingCache(DB)에서 오고**, 본문에 박히는
+          값(서비스 이름·콘솔 주소)만 설정 파일에서 온다 — 회원 메일과 같은 갈래다.
+        */
+        { provide: ADMIN_MAIL_CONFIG, useValue: buildAdminMailConfig(source) },
+        AdminMailSettingsSource,
+        {
+          provide: EMAIL_SETTINGS_SOURCE,
+          useExisting: AdminMailSettingsSource,
+        },
+        EmailSender,
+        AdminEmailService,
         // 서버 LLM 키(env_llm_key). 설정이 아니라 관리 대상 목록이라 CRUD 가 붙는다.
         EnvLlmKeyWriteRepository,
         EnvLlmKeyAdminService,
@@ -164,6 +185,8 @@ export class AdminApplicationModule {
         UserAuthLogRepository,
         LlmUsageLogRepository,
         AuthLogRepository,
+        // 관리자 행위 기록(admin_action_log). 적재는 인증 모듈이 하고 여기서는 읽기만 한다.
+        AdminActionLogRepository,
         AppReadRepository,
         AppModerationRepository,
         HiraNmcMatchRepository,
@@ -232,6 +255,7 @@ export class AdminApplicationModule {
         UserAuthLogService,
         LlmUsageLogService,
         AuthLogService,
+        AdminActionLogReadService,
         AppReadService,
         // 앱 심사(승인·거절). 조회와 갈라 둔다 — 쓰기가 어디에 있는지 드러내기 위해서다.
         AccessCacheInvalidator,
@@ -267,6 +291,7 @@ export class AdminApplicationModule {
       exports: [
         SettingCache,
         SettingAdminService,
+        AdminEmailService,
         EnvLlmKeyAdminService,
         // 서버 LLM 키(env_llm_key). 설정이 아니라 관리 대상 목록이라 CRUD 가 붙는다.
         EnvLlmKeyWriteRepository,
@@ -284,6 +309,7 @@ export class AdminApplicationModule {
         UserAuthLogService,
         LlmUsageLogService,
         AuthLogService,
+        AdminActionLogReadService,
         AppReadService,
         AppModerationService,
         NmcHospitalSyncService,

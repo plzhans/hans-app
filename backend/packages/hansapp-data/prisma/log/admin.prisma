@@ -1,0 +1,91 @@
+// 관리자 행위 로그 모델. 멀티파일 스키마의 한 조각으로, default.prisma 의
+// generator·datasource(로그 DB, DATABASE_LOG_URL)를 공유한다.
+
+/// 관리자 인증·관리 조치 로그.
+///
+/// **회원 로그(user_auth_log)와 표를 나눈 이유는 번호가 다르기 때문이다.** 그쪽의 user_id 는
+/// 메인 DB 의 user.id 인데, 거기에 admin_user.id 를 넣으면 `user_id=1` 이 회원인지 관리자인지
+/// 구별할 방법이 사라진다. 두 번호 공간은 서로 모르는 값이라 한 열에 섞을 수 없다.
+///
+/// **회원 쪽과 달리 인증만 담지 않는다.** 관리자는 남의 계정을 만들고 지우고 비밀번호를
+/// 다시 내는데, 그 조치야말로 나중에 "누가 했나" 를 되짚어야 하는 것들이다. 로그인과
+/// 같은 표에 두는 편이 낫다 — 건수가 적고(관리자는 몇 명뿐이다), 조회 방향도 같다.
+///
+/// 메인 DB 와 별도 client 라 admin_id 는 관계 없이 값만 보관한다.
+/// **계정이 지워져도 로그는 남는다** — 지운 기록 자체가 남아야 하는 것이라 그게 목적이다.
+model AdminActionLog {
+  id BigInt @id @default(autoincrement())
+
+  /// 이 일을 한 관리자 번호. 로그인 실패처럼 계정이 특정되지 않으면 null.
+  adminId Int? @map("admin_id")
+
+  /// 그때의 이메일.
+  ///
+  /// **번호가 있어도 함께 남긴다.** 계정이 지워지면 번호로는 아무것도 되찾을 수 없고,
+  /// 이메일은 바뀔 수 있어서 "그 시점의 값" 이 따로 필요하다.
+  /// 로그인 실패는 이 값만 남는다 — 없는 계정으로 시도한 것도 봐야 한다.
+  email String? @db.VarChar(320)
+
+  /// 조치 종류
+  action AdminLogAction
+
+  /// 결과
+  result AdminLogResult
+
+  /// 조치를 당한 관리자 번호. 계정 관리(생성·수정·삭제·비밀번호 초기화)에서 채워진다.
+  ///
+  /// **로그인·로그아웃에는 없다** — 자기 자신에게 한 일이라 admin_id 와 같은 값이 될 뿐이다.
+  targetAdminId Int? @map("target_admin_id")
+
+  /// 실패 사유(간단 코드). **응답 메시지는 항상 같아야 하므로 여기에만 남는다.**
+  failReason String? @map("fail_reason") @db.VarChar(100)
+
+  /// 발급/폐기된 refresh 세션 식별자
+  sessionId String? @map("session_id") @db.VarChar(64)
+
+  ip        String? @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(255)
+
+  /// 조치별 부가정보(예: 바뀐 이메일, 지워진 계정의 이메일). 모양은 액션마다 다르다.
+  detail Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// "이 관리자가 한 일" — 상세의 기록 탭이 탄다. 정렬까지 인덱스로 해결된다.
+  @@index([adminId, createdAt])
+  /// "이 관리자에게 일어난 일" — 누가 내 계정을 지웠나. 관리자 로그에만 있는 방향이다.
+  @@index([targetAdminId, createdAt])
+  /// 대상을 가리지 않는 전역 조회(기간 기준).
+  @@index([createdAt])
+  @@map("admin_action_log")
+}
+
+/// 관리자 조치 종류.
+///
+/// 토큰 갱신(refresh)은 5분마다 일어나 로그가 폭증하므로 기록하지 않는다 — 회원 쪽과 같다.
+enum AdminLogAction {
+  LOGIN
+  LOGOUT
+  /// 본인이 자기 비밀번호를 바꿨다.
+  PASSWORD_CHANGE
+  /// 관리자 계정을 만들었다.
+  ADMIN_CREATE
+  /// 이메일·이름을 고쳤다.
+  ADMIN_UPDATE
+  /// 관리자 계정을 지웠다.
+  ADMIN_DELETE
+  /// 남의 비밀번호를 다시 냈다. PASSWORD_CHANGE 와 갈라 둔다 — 한쪽은 본인이 한 일이고
+  /// 다른 쪽은 남이 해 준 일이라, 되짚을 때 물어보는 질문이 다르다.
+  ADMIN_PASSWORD_RESET
+  /// 로그인 화면에서 재설정 메일을 보내 달라고 했다. **없는 계정으로의 요청도 남긴다**
+  /// (admin_id 없이 email 만) — 남의 주소를 넣어 보는 시도가 여기서만 보인다.
+  PASSWORD_RESET_REQUEST
+  /// 그 메일의 링크로 본인이 비밀번호를 다시 세웠다.
+  PASSWORD_RESET
+}
+
+/// 조치 결과
+enum AdminLogResult {
+  SUCCESS
+  FAIL
+}

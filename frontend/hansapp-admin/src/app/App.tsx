@@ -4,6 +4,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
 import Login from '@/features/auth/pages/Login';
 import ChangePassword from '@/features/auth/pages/ChangePassword';
+import ForgotPassword from '@/features/auth/pages/ForgotPassword';
+import ResetPassword from '@/features/auth/pages/ResetPassword';
 import Me from '@/features/auth/pages/Me';
 import Users from '@/features/users/pages/Users';
 import UserDetail from '@/features/users/pages/UserDetail';
@@ -13,6 +15,9 @@ import AppDetail from '@/features/apps/pages/AppDetail';
 import MailSettings from '@/features/settings/pages/MailSettings';
 import IntegrationSettings from '@/features/settings/pages/IntegrationSettings';
 import LlmSettings from '@/features/settings/pages/LlmSettings';
+import Admins from '@/features/admins/pages/Admins';
+import AdminDetail from '@/features/admins/pages/AdminDetail';
+import AdminActionLogs from '@/features/admins/pages/AdminActionLogs';
 import AuthLogs from '@/features/logs/pages/AuthLogs';
 import LlmUsageLogs from '@/features/logs/pages/LlmUsageLogs';
 
@@ -88,7 +93,10 @@ export default function App() {
       {status === 'anonymous' ? (
         <Routes>
           <Route path="/login" element={<Login />} />
-          {/* 로그인 전에는 어디로 가든 로그인 화면이다. */}
+          {/* 비밀번호 찾기. **로그인 전에만 갈 수 있는 곳이다.** */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          {/* 그 밖에는 어디로 가든 로그인 화면이다. */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       ) : status === 'mustChange' ? (
@@ -120,6 +128,11 @@ export default function App() {
             element={<IntegrationSettings />}
           />
           <Route path="/settings/llm" element={<LlmSettings />} />
+          {/* 콘솔 자신을 다루는 구역. 이 콘솔에 로그인할 수 있는 계정들이다. */}
+          <Route path="/admins" element={<Admins />} />
+          <Route path="/admins/:id" element={<AdminDetail />} />
+          {/* 관리자 상세의 탭 하나. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          <Route path="/admins/:id/action-logs" element={<AdminActionLogs />} />
           <Route path="/me" element={<Me />} />
           {/* 강제 변경 때와 같은 화면이다. 어느 쪽인지는 status 를 보고 스스로 정한다. */}
           <Route path="/password" element={<ChangePassword />} />

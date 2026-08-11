@@ -3,11 +3,14 @@ import type { ConfigSource } from '@hansapp/common';
 import { DataModule } from '@hansapp/data';
 
 import { ADMIN_AUTH_CONFIG, buildAdminAuthConfig } from './admin-auth.config';
+import { AdminAccountService } from './admin-account.service';
 import { AdminActionLogService } from './admin-action-log.service';
 import { AdminAuthGuard } from './admin-auth.guard';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminJwtService } from './admin-jwt.service';
 import { AdminLoginService } from './admin-login.service';
+import { AdminPasswordResetRepository } from './admin-password-reset.repository';
+import { AdminPasswordResetService } from './admin-password-reset.service';
 import { AdminSessionRepository } from './admin-session.repository';
 import { AdminTokenService } from './admin-token.service';
 import { AdminUserRepository } from './admin-user.repository';
@@ -36,11 +39,16 @@ export class AdminAuthModule {
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         AdminUserRepository,
         AdminSessionRepository,
+        AdminPasswordResetRepository,
         AdminJwtService,
         AdminTokenService,
         AdminActionLogService,
         AdminLoginService,
         AdminAuthService,
+        // 관리자 계정 관리(콘솔). 계정·세션 저장소를 함께 봐야 해서 이 모듈에 둔다.
+        AdminAccountService,
+        // 로그인 화면의 "비밀번호 찾기". 인증 전에 도는 흐름이라 여기 둔다.
+        AdminPasswordResetService,
         // 가드는 providers 와 exports 양쪽에 둔다 — 앱이 APP_GUARD 에 useExisting 으로
         // 같은 인스턴스를 재사용해야 한다(useClass 로 두면 DI 가 앱 스코프에서 다시 풀린다).
         AdminAuthGuard,
@@ -48,6 +56,8 @@ export class AdminAuthModule {
       exports: [
         ADMIN_AUTH_CONFIG,
         AdminAuthService,
+        AdminAccountService,
+        AdminPasswordResetService,
         AdminTokenService,
         AdminActionLogService,
         AdminAuthGuard,

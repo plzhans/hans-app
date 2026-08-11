@@ -68,6 +68,7 @@ function present(admin: AdminUser) {
     id: admin.id,
     email: admin.email,
     name: admin.name,
+    role: admin.role,
     status: admin.status,
     mustChangePassword: admin.mustChangePassword,
     lastLoginAt: admin.lastLoginAt,
@@ -87,7 +88,7 @@ export function adminCommand(source: ConfigSource): Command {
   addExamples(
     admin
       .command('create')
-      .description('관리자 계정을 만든다')
+      .description('관리자 계정을 만든다(등급은 시스템 관리자로 고정)')
       .argument('<email>', '로그인 이메일')
       .option('--name <name>', '표시 이름')
       .option(

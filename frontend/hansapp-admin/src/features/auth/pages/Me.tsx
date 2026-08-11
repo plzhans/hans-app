@@ -12,6 +12,7 @@ import {
   timeZoneDisplayName,
   timeZoneOptions,
 } from '@/shared/lib/timeZone';
+import { ADMIN_ROLE_LABEL } from '@/shared/lib/adminRoles';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { ComboBox } from '@/shared/ui/ComboBox';
@@ -93,6 +94,9 @@ export default function Me() {
             <span className="break-all">{me?.email ?? '—'}</span>
           </Field>
           <Field label="이름">{me?.name ?? '—'}</Field>
+          <Field label="등급">
+            {me ? ADMIN_ROLE_LABEL[me.role] : '—'}
+          </Field>
           <Field label="관리자 번호">
             <span className="font-mono">{me?.id ?? '—'}</span>
           </Field>
@@ -117,12 +121,16 @@ export default function Me() {
             비밀번호 변경
           </Link>
           {/*
-            이름·이메일을 고치는 통로를 두지 않았다. 관리자 계정은 CLI 로만 만들고 지우는데,
-            화면에서 이메일을 바꿀 수 있으면 로그인 식별자가 조용히 갈려 CLI 쪽과 어긋난다.
-            필요해지면 서버에 변경 API 부터 만들고 붙인다.
+            **이 화면에는 이름·이메일을 고치는 칸을 두지 않는다.** 그 둘은 계정을 관리하는
+            값이라 관리자 화면(`/admins/:id`)이 다룬다 — 같은 값을 고치는 자리가 둘이면
+            어느 쪽이 정본인지 흐려진다. 여기는 본인만 정할 수 있는 표시 설정을 맡는다.
           */}
           <p className="mt-3 text-xs text-gray-400">
-            이메일·이름 변경은 운영자에게 요청하세요.
+            이메일·이름은{' '}
+            <Link to={`/admins/${me?.id ?? ''}`} className="underline">
+              관리자
+            </Link>{' '}
+            화면에서 바꿉니다.
           </p>
         </div>
       </section>

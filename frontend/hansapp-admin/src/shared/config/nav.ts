@@ -4,6 +4,7 @@ import {
   Mail,
   Plug,
   ScrollText,
+  ShieldCheck,
   Sparkles,
   Users,
   type LucideIcon,
@@ -61,5 +62,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/settings/integrations', label: '외부 연동', icon: Plug },
       { to: '/settings/llm', label: 'LLM', icon: Sparkles },
     ],
+  },
+  {
+    /*
+      **콘솔 자신을 다루는 자리다.** 회원·앱이 서비스를 들여다보는 화면이라면 여기는
+      "이 콘솔에 누가 들어올 수 있는가" 다 — 설정 구역에 섞으면 값을 고치는 화면들 사이에
+      계정 삭제가 끼어 성격이 흐려진다.
+    */
+    title: '콘솔',
+    items: [{ to: '/admins', label: '관리자', icon: ShieldCheck }],
   },
 ];

@@ -10,7 +10,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
-import { AdminStatus, AdminUser } from '@hansapp/data';
+import { AdminRole, AdminStatus, AdminUser } from '@hansapp/data';
 import {
   normalizeLanguageChoice,
   normalizeTimeZoneChoice,
@@ -19,6 +19,7 @@ import {
 import { ADMIN_AUTH_CONFIG } from './admin-auth.config';
 import type { AdminAuthConfig } from './admin-auth.config';
 import { AdminActionLogService } from './admin-action-log.service';
+import { isEmailLike, normalizeEmail } from './admin-email';
 import { AdminLoginService } from './admin-login.service';
 import { AdminTokenService } from './admin-token.service';
 import type { AdminAuthTokens, AdminRequestMeta } from './admin-token.service';
@@ -202,7 +203,13 @@ export class AdminAuthService {
     );
   }
 
-  // ---- 계정 관리(CLI 전용) ----
+  /*
+    ---- 계정 관리 ----
+
+    **CLI 와 관리 콘솔이 함께 쓴다.** 콘솔 쪽 통로는 AdminAccountService 인데, 그쪽도
+    계정을 만들 때는 여기를 부른다 — 이메일 형식·중복 확인과 "첫 로그인에서 변경 강제" 가
+    두 통로에서 갈리면, 어느 쪽으로 만들었느냐에 따라 계정의 성질이 달라진다.
+  */
 
   /** 관리자 계정 수. 부팅 시 기본 계정을 만들지 정하는 데 쓴다. */
   countAdmins(): Promise<number> {
@@ -210,13 +217,20 @@ export class AdminAuthService {
   }
 
   /**
-   * 관리자 계정을 만든다. **가입 화면은 없다** — CLI 로만 부른다.
+   * 관리자 계정을 만든다. **가입 화면은 없다** — CLI 와 관리 콘솔이 부른다.
    *
    * @param plainPassword 없으면 임시 비밀번호를 만들어 반환한다(호출측이 1회 출력한다).
    */
   async createAdmin(input: {
     email: string;
     name?: string | null;
+    /**
+     * 등급. **주지 않으면 시스템 관리자다.**
+     *
+     * CLI 와 부팅 부트스트랩에는 등급을 받을 자리가 없는데, 그 둘은 서버에 들어갈 수 있는
+     * 사람이 쓰는 통로라 이미 최고 권한과 다름없다. 콘솔에서 만들 때만 골라 보낸다.
+     */
+    role?: AdminRole;
     plainPassword?: string;
   }): Promise<{ admin: AdminUser; generatedPassword?: string }> {
     const email = normalizeEmail(input.email);
@@ -242,6 +256,7 @@ export class AdminAuthService {
       email,
       password: await this.hashPassword(plain),
       name: input.name?.trim() || null,
+      role: input.role ?? AdminRole.SYSTEM,
       /*
         **남이 정해 준 비밀번호는 예외 없이 변경 대상이다.**
         stdin 으로 받은 값이라 해도 운영자가 정해 건네준 것이고, 그 값은 터미널·메신저를
@@ -401,20 +416,6 @@ export class AdminAuthService {
       );
     }
   }
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-/**
- * 로그인 DTO 의 IsEmail 이 통과시킬 모양인지 본다.
- *
- * 완전한 RFC 5322 검사가 아니다 — 그건 여기서 할 일이 아니고, 목적은 "만들어 놓고 로그인이
- * 안 되는 계정" 을 막는 것뿐이다. 공백 없이 `@` 하나, 도메인에 점이 하나 이상이면 된다.
- */
-function isEmailLike(email: string): boolean {
-  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email);
 }
 
 /**

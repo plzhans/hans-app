@@ -53,6 +53,18 @@ export class AdminSessionRepository {
       .then((r) => r.count);
   }
 
+  /**
+   * 이 관리자의 살아 있는 세션 수. **만료된 것은 뺀다.**
+   *
+   * 만료 행은 rotate 나 로그인 때 정리되지 않고 그대로 남아 있어, 세지 않고 다 세면
+   * 몇 달째 안 쓰는 계정이 "지금 로그인 중" 으로 보인다.
+   */
+  countActiveByAdmin(adminId: number, now: Date): Promise<number> {
+    return this.prisma.adminTokenSession.count({
+      where: { adminId, expiresAt: { gt: now } },
+    });
+  }
+
   deleteAllByAdmin(adminId: number): Promise<number> {
     return this.prisma.adminTokenSession
       .deleteMany({ where: { adminId } })

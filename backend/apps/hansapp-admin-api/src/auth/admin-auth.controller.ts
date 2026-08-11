@@ -8,14 +8,22 @@ import {
   NotFoundException,
   Patch,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { AdminEmailService } from '@hansapp/admin-application';
 import {
   AdminAuthService,
+  AdminPasswordResetService,
   AdminPublic,
   AllowDuringPasswordChange,
   CurrentAdmin,
@@ -30,8 +38,11 @@ import {
 } from './admin-cookie';
 import {
   AdminChangePasswordRequestDto,
+  AdminForgotPasswordRequestDto,
   AdminLoginRequestDto,
+  AdminResetPasswordRequestDto,
   AdminMeResponseDto,
+  AdminPasswordResetTargetDto,
   AdminTokenResponseDto,
   AdminUpdateLocaleRequestDto,
 } from './dto/admin-auth.dto';
@@ -46,7 +57,11 @@ import {
 @ApiTags('admin-auth')
 @Controller('auth')
 export class AdminAuthController {
-  constructor(private readonly auth: AdminAuthService) {}
+  constructor(
+    private readonly auth: AdminAuthService,
+    private readonly reset: AdminPasswordResetService,
+    private readonly mail: AdminEmailService,
+  ) {}
 
   @Post('login')
   @AdminPublic()
@@ -139,6 +154,7 @@ export class AdminAuthController {
       name: admin.name,
       lastLoginAt: admin.lastLoginAt?.toISOString() ?? null,
       mustChangePassword: admin.mustChangePassword,
+      role: admin.role,
       language: admin.language,
       timeZone: admin.timeZone,
     };
@@ -156,6 +172,80 @@ export class AdminAuthController {
     @Body() dto: AdminUpdateLocaleRequestDto,
   ): Promise<void> {
     await this.auth.updateOwnLocale(current.adminId, dto);
+  }
+
+  @Post('password/forgot')
+  @AdminPublic()
+  /*
+    **로그인보다 더 조인다.** 메일을 보내는 경로라 한 번이 남의 메일함에 도착하고,
+    폭주하면 그 자체가 괴롭힘이 된다. 계정당 시간 한도는 서비스가 따로 본다(IP 와 계정은
+    다른 축이라 둘 다 필요하다).
+  */
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '비밀번호 찾기(메일 발송)',
+    description:
+      '재설정 링크를 메일로 보낸다. 링크는 **30분·1회용**이고, 새로 요청하면 그 계정의 안 쓴 링크는 죽는다.\n\n' +
+      '**계정이 있든 없든 같은 응답(204)이다** — 이 주소가 관리자인지를 알려 주면 표적을 좁혀 준다. ' +
+      '메일 발송이 꺼져 있으면 아무것도 나가지 않는다(설정 > 메일).',
+  })
+  @ApiNoContentResponse()
+  async forgotPassword(
+    @Body() dto: AdminForgotPasswordRequestDto,
+    @Req() req: Request,
+  ): Promise<void> {
+    const ticket = await this.reset.issue(dto.email, requestMeta(req));
+    /*
+      **티켓이 없으면 조용히 끝낸다.** 없는 계정·비활성 계정·한도 초과가 전부 여기로 오는데,
+      어느 쪽인지 응답에서 갈리면 위에서 숨긴 것이 그대로 새어 나간다. 무슨 일이 있었는지는
+      로그(admin_action_log)에만 남는다.
+    */
+    if (!ticket) return;
+
+    await this.mail.sendPasswordResetLink({
+      email: ticket.email,
+      name: ticket.name,
+      token: ticket.token,
+      expiresAt: ticket.expiresAt,
+    });
+  }
+
+  @Get('password/reset')
+  @AdminPublic()
+  // 토큰을 찍어 맞히려는 시도도 무차별 대입이다. 재설정 자체와 같은 한도를 건다.
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  @ApiOperation({
+    summary: '재설정 링크의 대상',
+    description:
+      '이 링크가 **누구의 것인지**(가린 이메일)와 언제까지 유효한지를 준다. 재설정 화면이 열릴 때 부른다.\n\n' +
+      '링크가 죽었으면 400 이다 — 폼을 다 채우고 누른 뒤에야 만료를 알게 되지 않도록 미리 본다.',
+  })
+  @ApiOkResponse({ type: AdminPasswordResetTargetDto })
+  async resetTarget(
+    @Query('token') token: string,
+  ): Promise<AdminPasswordResetTargetDto> {
+    return new AdminPasswordResetTargetDto(await this.reset.describe(token));
+  }
+
+  @Post('password/reset')
+  @AdminPublic()
+  // 토큰을 찍어 맞히려는 시도도 무차별 대입이다. 로그인과 같은 한도를 건다.
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '비밀번호 찾기(새 비밀번호 설정)',
+    description:
+      '메일로 받은 링크의 토큰으로 비밀번호를 다시 세운다. 링크는 한 번만 쓸 수 있다.\n\n' +
+      '성공하면 **그 계정의 살아 있는 세션이 모두 끊긴다** — 비밀번호를 잃은 이유가 계정을 ' +
+      '빼앗긴 것일 수도 있다. 새 값은 본인이 정한 것이라 첫 로그인에서 다시 바꾸라고 하지 않는다.',
+  })
+  @ApiNoContentResponse()
+  async resetPassword(
+    @Body() dto: AdminResetPasswordRequestDto,
+    @Req() req: Request,
+  ): Promise<void> {
+    await this.reset.consume(dto.token, dto.newPassword, requestMeta(req));
   }
 
   @Post('password')

@@ -11,6 +11,7 @@ import {
 import type { AuthLogActionType } from '@/shared/api/users';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
+import { ActionFilter } from '@/shared/components/logUi';
 import { AUTH_ACTION_ITEMS, AUTH_ACTION_LABEL } from '@/shared/lib/authActions';
 import { cn } from '@/shared/lib/cn';
 import { getDisplayTimeZone, splitDateTime } from '@/shared/lib/formatDateTime';
@@ -83,7 +84,6 @@ export default function AuthLogs() {
 
   const from = draft.from;
   const to = draft.to;
-  const actions = splitActions(draft.actions);
   const result = draft.result;
   const anonymousOnly = draft.anonymous === 'true';
 
@@ -96,13 +96,6 @@ export default function AuthLogs() {
     enabled: !!request,
     placeholderData: keepPreviousData,
   });
-
-  const toggleAction = (action: AuthLogActionType) => {
-    const next = actions.includes(action)
-      ? actions.filter((a) => a !== action)
-      : [...actions, action];
-    setDraft({ actions: next.join(',') });
-  };
 
   const data = query.data;
 
@@ -188,23 +181,11 @@ export default function AuthLogs() {
           </span>
         </Filter>
 
-        <Filter label="종류">
-          <Chip
-            active={actions.length === 0}
-            onClick={() => setDraft({ actions: '' })}
-          >
-            전체
-          </Chip>
-          {AUTH_ACTION_ITEMS.map((item) => (
-            <Chip
-              key={item.value}
-              active={actions.includes(item.value)}
-              onClick={() => toggleAction(item.value)}
-            >
-              {item.label}
-            </Chip>
-          ))}
-        </Filter>
+        <ActionFilter
+          items={AUTH_ACTION_ITEMS}
+          value={draft.actions}
+          onChange={(actions) => setDraft({ actions })}
+        />
 
         <Filter label="대상">
           <TextField

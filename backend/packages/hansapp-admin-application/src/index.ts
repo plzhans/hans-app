@@ -37,6 +37,13 @@ export type { HiraCodeType, HiraCodeResponse } from '@hansapp/application';
 // 직접 의존하게 만들지 않는다(위 HIRA_CODE_TYPES 와 같은 이유).
 export { HealthService } from '@hansapp/application';
 
+/*
+  관리자에게 보내는 메일. **회원 메일(auth 계층)과 통로가 다르다** — 관리자 계층은
+  회원 인증 계층을 의존하지 않으므로, 같은 DB 설정을 읽되 발송기는 따로 세운다.
+*/
+export { AdminEmailService } from './mail/admin-email.service';
+export type { AdminMailOutcome } from './mail/admin-email.service';
+
 // 서비스 설정 관리. 읽기는 공용 계층이 갖고, 관리자 API 가 쓰기 엔드포인트를 연다.
 export { SettingCache } from './setting/setting-cache.service';
 export { SettingAdminService } from './setting/setting-admin.service';
@@ -119,6 +126,17 @@ export type {
 // **user_id 가 null 인 행(없는 계정으로의 시도)은 여기서만 보인다.**
 export { AuthLogService } from './log/auth-log.service';
 export type { AuthLogEntry, AuthLogQuery } from './log/auth-log.service';
+/*
+  관리자 행위 기록(admin_action_log). **회원 로그와 표가 다르다** — 그쪽 user_id 는 메인 DB 의
+  user.id 라 관리자 번호를 섞을 수 없다. 로그인만이 아니라 계정 관리 조치까지 같이 쌓인다.
+*/
+export { AdminActionLogReadService } from './log/admin-action-log-read.service';
+export type {
+  AdminActionLogEntry,
+  AdminActionLogQuery,
+} from './log/admin-action-log-read.service';
+// 화면 필터·DTO 검증이 값으로 쓴다(다른 enum 재노출과 같은 이유).
+export { AdminLogAction, AdminLogResult } from '@hansapp/data';
 // LLM 호출 이력(로그 DB). **합산하지 않는다** — 사용량·정산은 별도 표가 맡는다.
 export { LlmUsageLogService } from './log/llm-usage-log.service';
 export type {
