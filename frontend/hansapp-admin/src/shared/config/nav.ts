@@ -1,5 +1,6 @@
 import {
   Boxes,
+  MessageSquareText,
   KeyRound,
   Mail,
   Plug,
@@ -37,6 +38,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/users', label: '회원', icon: Users },
       { to: '/apps', label: '앱', icon: Boxes },
     ],
+  },
+  {
+    // 커뮤니티. 지금은 게시판 하나뿐이고, 글 관리 화면이 생기면 여기 붙는다.
+    title: '커뮤니티',
+    items: [{ to: '/boards', label: '게시판', icon: MessageSquareText }],
   },
   {
     /*

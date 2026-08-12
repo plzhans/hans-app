@@ -52,8 +52,8 @@ model User {
   /// 같은 오프셋에 여러 나라가 겹쳐 되짚을 수도 없다. 존 ID 를 두고 표시할 때 계산한다.
   timeZone String? @map("time_zone") @db.VarChar(64)
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
   /// 탈퇴 시각(status=WITHDRAWN 이 된 시점). 활성 계정은 null.
   withdrawnAt DateTime? @map("withdrawn_at")
 
@@ -148,9 +148,9 @@ model UserTokenSession {
   ///
   /// 갱신(rotate) 때 쿠키를 다시 심는데, 그 시점에는 요청만 보고 원래 선택을 알 수 없다 —
   /// 브라우저는 쿠키가 영속이었는지 알려 주지 않는다. 그래서 세션에 적어 둔다.
-  persistent Boolean @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  persistent Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -203,7 +203,7 @@ model UserAuthCode {
   secretHash String @map("secret_hash") @db.Char(64)
 
   /// 만료 시각(~30초)
-  expiresAt DateTime @map("expires_at")
+  expiresAt  DateTime  @map("expires_at")
   /// 사용(소비) 시각. 1회용 보장.
   consumedAt DateTime? @map("consumed_at")
   createdAt  DateTime  @default(now()) @map("created_at")

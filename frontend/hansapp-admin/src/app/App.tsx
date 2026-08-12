@@ -15,6 +15,9 @@ import AppDetail from '@/features/apps/pages/AppDetail';
 import MailSettings from '@/features/settings/pages/MailSettings';
 import IntegrationSettings from '@/features/settings/pages/IntegrationSettings';
 import LlmSettings from '@/features/settings/pages/LlmSettings';
+import Boards from '@/features/community/pages/Boards';
+import Posts from '@/features/community/pages/Posts';
+import PostEdit from '@/features/community/pages/PostEdit';
 import Admins from '@/features/admins/pages/Admins';
 import AdminDetail from '@/features/admins/pages/AdminDetail';
 import AdminActionLogs from '@/features/admins/pages/AdminActionLogs';
@@ -128,6 +131,12 @@ export default function App() {
             element={<IntegrationSettings />}
           />
           <Route path="/settings/llm" element={<LlmSettings />} />
+          {/* 커뮤니티. 게시판을 만들고 규칙을 정한다. */}
+          <Route path="/boards" element={<Boards />} />
+          <Route path="/boards/:boardId/posts" element={<Posts />} />
+          {/* 쓰기와 수정은 같은 화면이다. 주소에 글 번호가 있으면 수정. */}
+          <Route path="/boards/:boardId/posts/new" element={<PostEdit />} />
+          <Route path="/posts/:id" element={<PostEdit />} />
           {/* 콘솔 자신을 다루는 구역. 이 콘솔에 로그인할 수 있는 계정들이다. */}
           <Route path="/admins" element={<Admins />} />
           <Route path="/admins/:id" element={<AdminDetail />} />

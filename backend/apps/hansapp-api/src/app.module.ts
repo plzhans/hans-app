@@ -21,6 +21,7 @@ import { SocialController } from './auth/social.controller';
 import { OAuthController } from './oauth/oauth.controller';
 import { UserController } from './users/user.controller';
 import { HealthController } from './health/health.controller';
+import { BoardController } from './community/board.controller';
 import { JwksController } from './oauth/jwks.controller';
 import { AppsController } from './apps/app.controller';
 import { LlmKeyController } from './apps/llm-key.controller';
@@ -94,6 +95,7 @@ export class AppModule {
         OAuthController,
         UserController,
         HealthController,
+        BoardController,
         JwksController,
         AppsController,
         LlmKeyController,

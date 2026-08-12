@@ -189,3 +189,13 @@ export { JusoClientFactory } from './address/juso-client.factory';
 
 /** 서비스 설정(env_setting) 읽기. 이 계층 전용 — DB 만 본다(설정 파일 폴백 없음). */
 export { SettingCache } from './setting/setting-cache.service';
+
+/** 커뮤니티 읽기(포털). 공개된 게시판·글만 나간다. */
+export { BoardReadService } from './community/board-read.service';
+export type {
+  PublicBoard,
+  PublicAuthor,
+  PublicComment,
+  PublicPostSummary,
+  PublicPostDetail,
+} from './community/board-read.service';

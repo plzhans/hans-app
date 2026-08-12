@@ -7,6 +7,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { listPosts } from '@/shared/api/boards';
 import { Gnb } from '@/shared/components/Gnb';
 import { Footer } from '@/shared/components/Footer';
 import { LINKS } from '@/shared/config/links';
@@ -145,16 +147,61 @@ export default function Dashboard() {
         </section>
 
         {/* 공지사항 */}
-        <section>
-          <div className="mb-3">
-            <h2 className="text-lg font-bold text-gray-900">공지사항</h2>
-          </div>
-          <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-gray-200 bg-white text-sm text-gray-400">
-            준비중입니다.
-          </div>
-        </section>
+        <Notices />
       </main>
       <Footer />
     </div>
+  );
+}
+
+
+/** 공지사항 게시판의 이름(board.name). 이 게시판이 없으면 구역 자체를 안 그린다. */
+const NOTICE_BOARD = 'notice';
+
+/**
+ * 공지사항 최근 몇 건.
+ *
+ * **없으면 구역을 통째로 감춘다.** 게시판을 아직 안 만들었거나 글이 없을 때 "준비중입니다"
+ * 같은 빈 상자를 남기면, 그것 자체가 관리되지 않는 화면처럼 보인다.
+ */
+function Notices() {
+  const query = useQuery({
+    queryKey: ['notices'],
+    queryFn: () => listPosts(NOTICE_BOARD, 1, 5),
+    // 게시판이 없으면 404 다. 첫 화면이라 조용히 접는다 — 다시 시도할 것도 없다.
+    retry: false,
+  });
+  const rows = query.data?.items ?? [];
+  if (rows.length === 0) return null;
+
+  return (
+    <section>
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-lg font-bold text-gray-900">공지사항</h2>
+        <Link
+          to={`/board/${NOTICE_BOARD}`}
+          className="text-sm text-gray-500 transition hover:text-gray-900"
+        >
+          전체 보기
+        </Link>
+      </div>
+      <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
+        {rows.map((post) => (
+          <li key={post.id}>
+            <Link
+              to={`/board/${NOTICE_BOARD}/${post.id}`}
+              className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-gray-50"
+            >
+              <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
+                {post.title}
+              </span>
+              <span className="shrink-0 text-xs text-gray-400">
+                {post.publishedAt?.slice(0, 10)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

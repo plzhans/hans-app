@@ -17,3 +17,5 @@ export { StripNullInterceptor } from './strip-null.interceptor';
 // 목록 응답의 모양. 앱마다 따로 두면 프론트가 앱마다 다른 페이징 필드를 다루게 된다.
 export { PageResponseDto } from './page.response.dto';
 export { ApiPageResponse } from './api-page-response.decorator';
+// enum 필드 한 줄(문서·변환·검증). 응답 변환은 ClassSerializerInterceptor 가 실행한다.
+export { EnumField } from './enum-field.decorator';

@@ -21,6 +21,8 @@ import { SettingController } from './setting/setting.controller';
 import { EnvLlmKeyController } from './llm/env-llm-key.controller';
 import { EnvLlmModelController } from './llm/env-llm-model.controller';
 import { AuthLogController } from './logs/auth-log.controller';
+import { BoardController } from './community/board.controller';
+import { BoardPostController } from './community/board-post.controller';
 import { LlmUsageLogController } from './logs/llm-usage-log.controller';
 
 @Module({})
@@ -62,6 +64,8 @@ export class AppModule {
         EnvLlmModelController,
         LlmUsageLogController,
         AuthLogController,
+        BoardController,
+        BoardPostController,
       ],
       providers: [
         // 폭주 요청을 인증 처리 전에 값싸게 쳐내려면 이쪽이 먼저다.

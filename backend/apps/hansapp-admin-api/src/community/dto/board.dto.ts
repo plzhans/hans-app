@@ -1,0 +1,178 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
+import { EnumField } from '@hansapp/http-common';
+import { BoardStatus, BoardWriteRole } from '@hansapp/common';
+import type { BoardSummary } from '@hansapp/admin-application';
+
+/** 이름 규칙. 주소에 그대로 실리므로 소문자·숫자·하이픈만 받는다. */
+const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+
+export class BoardCreateRequestDto {
+  @ApiProperty({
+    description: '주소·API 에서 쓰는 이름. 소문자·숫자·하이픈.',
+    example: 'notice',
+  })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  @Matches(NAME_PATTERN, {
+    message: 'name must contain only lowercase letters, digits, and hyphens.',
+  })
+  readonly name!: string;
+
+  @ApiProperty({ description: '화면에 보이는 이름', example: '공지사항' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  readonly title!: string;
+
+  @ApiPropertyOptional({ description: '게시판 설명', maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  readonly description?: string;
+
+  @EnumField(BoardWriteRole, {
+    optional: true,
+    default: BoardWriteRole.ADMIN,
+    description: '글을 쓸 수 있는 사람',
+  })
+  readonly writeRole?: BoardWriteRole;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: '댓글을 받는 게시판인가',
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly commentEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: '비공개 글을 허용하나',
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly secretPostEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      '비공개 댓글을 허용하나. commentEnabled 가 꺼져 있으면 함께 꺼진다.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly secretCommentEnabled?: boolean;
+
+  @EnumField(BoardStatus, { optional: true, default: BoardStatus.ACTIVE })
+  readonly status?: BoardStatus;
+
+  @ApiPropertyOptional({ default: 0, description: '목록 순서. 작은 값이 앞.' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  readonly sortOrder?: number;
+}
+
+/** 고칠 때. **빠진 값은 그대로 둔다** — 빈 값으로 덮지 않는다. */
+export class BoardUpdateRequestDto {
+  @ApiPropertyOptional({ example: 'notice' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  @Matches(NAME_PATTERN, {
+    message: 'name must contain only lowercase letters, digits, and hyphens.',
+  })
+  readonly name?: string;
+
+  @ApiPropertyOptional({ example: '공지사항' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  readonly title?: string;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  readonly description?: string;
+
+  @EnumField(BoardWriteRole, { optional: true })
+  readonly writeRole?: BoardWriteRole;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  readonly commentEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  readonly secretPostEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  readonly secretCommentEnabled?: boolean;
+
+  @EnumField(BoardStatus, { optional: true })
+  readonly status?: BoardStatus;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  readonly sortOrder?: number;
+}
+
+export class BoardDto {
+  @ApiProperty() readonly id!: number;
+  @ApiProperty({ description: '주소·API 에서 쓰는 이름' })
+  readonly name!: string;
+  @ApiProperty({ description: '화면에 보이는 이름' }) readonly title!: string;
+  @ApiProperty({ nullable: true }) readonly description!: string | null;
+  @EnumField(BoardWriteRole) readonly writeRole!: BoardWriteRole;
+  @ApiProperty() readonly commentEnabled!: boolean;
+  @ApiProperty() readonly secretPostEnabled!: boolean;
+  @ApiProperty() readonly secretCommentEnabled!: boolean;
+  @EnumField(BoardStatus) readonly status!: BoardStatus;
+  @ApiProperty() readonly sortOrder!: number;
+  @ApiProperty({ description: '이 게시판의 글 수(상태 무관)' })
+  readonly postCount!: number;
+  @ApiProperty() readonly createdAt!: string;
+  @ApiProperty() readonly updatedAt!: string;
+
+  /*
+    **클래스 인스턴스로 만든다.** 객체 리터럴을 그대로 돌려주면 ClassSerializerInterceptor
+    가 손댈 것이 없어 @EnumField 의 변환이 실행되지 않는다(레포의 다른 DTO 도 생성자 방식이다).
+  */
+  constructor(board: BoardSummary) {
+    this.id = board.id;
+    this.name = board.name;
+    this.title = board.title;
+    this.description = board.description;
+    this.writeRole = board.writeRole;
+    this.commentEnabled = board.commentEnabled;
+    this.secretPostEnabled = board.secretPostEnabled;
+    this.secretCommentEnabled = board.secretCommentEnabled;
+    this.status = board.status;
+    this.sortOrder = board.sortOrder;
+    this.postCount = board.postCount;
+    this.createdAt = board.createdAt.toISOString();
+    this.updatedAt = board.updatedAt.toISOString();
+  }
+}

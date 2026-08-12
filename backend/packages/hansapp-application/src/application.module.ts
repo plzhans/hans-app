@@ -17,6 +17,8 @@ import {
 } from '@hansapp/search';
 
 import { SettingCache } from './setting/setting-cache.service';
+import { BoardReadRepository } from './community/board-read.repository';
+import { BoardReadService } from './community/board-read.service';
 import { LlmSettingsSource } from './llm/llm-settings.source';
 import { EnvLlmKeyCache } from './llm/env-llm-key.cache';
 import { NtsClientFactory } from './business/nts-client.factory';
@@ -107,6 +109,9 @@ export class ApplicationModule {
         cacheModule,
       ],
       providers: [
+        // 커뮤니티 읽기(포털). 공개된 게시판·글만 나간다.
+        BoardReadRepository,
+        BoardReadService,
         /*
           서비스 설정(env_setting) 읽기. **이 계층 전용이다** — 관리자 계층에도 같은 이름이
           있지만 공유하지 않는다(폴백 정책이 다르다. 이쪽은 DB 만 본다).
@@ -203,6 +208,7 @@ export class ApplicationModule {
         LlmUsageService,
       ],
       exports: [
+        BoardReadService,
         SettingCache,
         LlmService,
         BusinessService,

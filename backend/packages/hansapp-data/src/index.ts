@@ -76,6 +76,10 @@ export {
 // AI 도메인 enum(값으로도 쓴다).
 export { LlmProvider, LlmKeyVerifyState } from '../generated/main';
 
+// 커뮤니티 도메인(게시판·글·댓글).
+// **enum 은 없다** — 값 목록은 @hansapp/common 의 BOARD_* 상수가 정한다(스키마 주석 참고).
+export type { Board, BoardPost, BoardComment } from '../generated/main';
+
 // 로그 DB(log 스키마) 인증 이벤트 로그. Prisma 네임스페이스도 별도 export
 // (main 과 log 는 다른 client 라 Create 입력 타입 등이 서로 다르다).
 export type { UserAuthLog, LlmUsage, AdminActionLog } from '../generated/log';

@@ -240,3 +240,22 @@ export type {
   I18nExportOptions,
   I18nExportResult,
 } from './i18n/hospital-i18n-export.service';
+
+// 커뮤니티(게시판). 콘솔이 게시판을 만들고 규칙을 정한다.
+// **enum 은 없다.** 허용 값은 @hansapp/common 의 BOARD_* 상수가 정한다 — API 앱도 거기서
+// 직접 가져다 쓴다(그 패키지는 앱 계층이 이미 의존한다).
+export { BoardAdminService } from './community/board-admin.service';
+export type {
+  BoardSummary,
+  BoardCreateInput,
+  BoardUpdateInput,
+} from './community/board-admin.service';
+
+export { BoardPostAdminService } from './community/board-post-admin.service';
+export type {
+  PostAuthor,
+  PostSummary,
+  PostDetail,
+  PostListOptions,
+  PostWriteInput,
+} from './community/board-post-admin.service';

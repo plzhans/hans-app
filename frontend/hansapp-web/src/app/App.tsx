@@ -14,6 +14,8 @@ import { trackPageView } from '@/shared/analytics/gtag';
 import Dashboard from '@/features/home/pages/Dashboard';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
+import BoardPosts from '@/features/board/pages/BoardPosts';
+import BoardPost from '@/features/board/pages/BoardPost';
 import Terms from '@/features/legal/pages/Terms';
 import Privacy from '@/features/legal/pages/Privacy';
 
@@ -86,6 +88,9 @@ export default function App() {
           계정 약관·방침. **반드시 공개 라우트다** — 가입 화면(인증웹)이 동의를 받기 전에
           링크하는 곳이라, 로그인을 요구하면 가입하려는 사람이 열 수 없다.
         */}
+        {/* 게시판. **공개 라우트다** — 공지사항은 로그인 없이 보여야 한다. */}
+        <Route path="/board/:name" element={<BoardPosts />} />
+        <Route path="/board/:name/:id" element={<BoardPost />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         {/* 앱 관리(로그인 필요) */}
