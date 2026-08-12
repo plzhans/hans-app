@@ -43,7 +43,7 @@ export function useAdPlacement(): 'side' | 'bottom' {
 export function SideAd() {
   return (
     <aside className="hidden items-center justify-center border-l border-gray-100 p-4 lg:flex lg:w-1/2">
-      <Creative className="h-full min-h-[400px]" />
+      <Creative size="300 x 600" className="h-full min-h-[400px]" />
     </aside>
   );
 }
@@ -52,7 +52,7 @@ export function SideAd() {
 export function BottomAd() {
   return (
     <div className="mt-5 border-t border-gray-100 pt-4 lg:hidden">
-      <Creative className="h-[100px]" />
+      <Creative size="320 x 100" className="h-[100px]" />
     </div>
   );
 }
@@ -60,14 +60,25 @@ export function BottomAd() {
 /**
  * 실을 것. 단위 ID 까지 있으면 진짜 광고, 없으면 자리만 보여준다 — 빈 칸으로 두면 광고가
  * 안 나오는 건지 설정이 덜 된 건지 화면만 봐서는 모른다.
+ *
+ * **적는 것은 권장 크기뿐이다.** "광고 자리" 라고 써 두면 설정이 덜 된 채로 사용자에게
+ * 노출되는 사고가 났을 때 광고를 붙이려다 만 자리로 읽힌다 — 숫자만 있으면 그냥 빈 칸이고,
+ * 소재를 만들 때 필요한 정보는 그 숫자다.
  */
-function Creative({ className }: { className: string }) {
+function Creative({
+  /** 권장 소재 크기(표시용). 상자 자체는 단 폭에 맞춰 늘어난다. */
+  size,
+  className,
+}: {
+  size: string;
+  className: string;
+}) {
   if (!GOOGLE_ADSENSE_SLOT_LOGIN) {
     return (
       <div
         className={`flex w-full items-center justify-center rounded-xl border border-dashed border-gray-300 text-xs text-gray-400 ${className}`}
       >
-        광고 자리
+        {size}
       </div>
     );
   }

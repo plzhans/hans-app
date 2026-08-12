@@ -221,7 +221,7 @@ export default function Callback() {
 
   if (phase === 'processing') {
     return (
-      <div className="flex h-full items-center justify-center text-gray-400">
+      <div className="flex flex-1 items-center justify-center text-gray-400">
         로그인 처리 중…
       </div>
     );

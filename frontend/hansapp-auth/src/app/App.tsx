@@ -64,7 +64,7 @@ function GuestOnly({ children }: { children: ReactNode }) {
  */
 function BadAuthRequest({ reason }: { reason: string }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
       <p className="font-semibold text-gray-700">잘못된 로그인 요청입니다.</p>
       <p className="text-sm text-gray-500">{reason}</p>
     </div>
@@ -101,7 +101,7 @@ function AlreadyLoggedIn() {
 
 function FullScreenSpinner() {
   return (
-    <div className="flex h-full items-center justify-center text-gray-400">
+    <div className="flex flex-1 items-center justify-center text-gray-400">
       불러오는 중…
     </div>
   );
@@ -138,10 +138,14 @@ export default function App() {
       {/*
         **푸터를 붙이려고 화면을 세로 flex 로 감싼다.** 본문이 flex-1 이라 내용이 짧아도
         푸터가 바닥에 붙고, 길면 그냥 아래로 밀린다(fixed 가 아니다 — 긴 폼에서 화면을
-        가리면 안 된다). 각 화면이 쓰는 min-h-full 은 이 flex-1 칸을 기준으로 잡힌다.
+        가리면 안 된다).
       */}
       <div className="flex min-h-full flex-col">
-        <div className="flex-1">
+        {/*
+          **세로 flex 다.** 화면 컴포넌트가 flex-1 로 이 칸을 채워야 그 안에서 가운데
+          정렬이 먹는다 — min-h-full(높이 100%)은 부모 높이가 auto 라 0 으로 풀려 안 통한다.
+        */}
+        <div className="flex flex-1 flex-col">
           <Routes>
             <Route
               path="/login"

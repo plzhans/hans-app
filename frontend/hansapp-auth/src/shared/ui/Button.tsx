@@ -6,11 +6,14 @@ type Variant = 'primary' | 'outline';
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   loading?: boolean;
+  /** 처리 중에 보여줄 말. 화면 언어가 다른 곳(영어인 로그인)에서 바꿔 넘긴다. */
+  loadingText?: string;
 }
 
 export function Button({
   variant = 'primary',
   loading = false,
+  loadingText = '처리 중…',
   className,
   children,
   disabled,
@@ -30,7 +33,7 @@ export function Button({
         className,
       )}
     >
-      {loading ? '처리 중…' : children}
+      {loading ? loadingText : children}
     </button>
   );
 }

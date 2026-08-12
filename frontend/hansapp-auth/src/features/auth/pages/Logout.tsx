@@ -36,7 +36,7 @@ export default function Logout() {
   }, []);
 
   return (
-    <div className="flex h-full items-center justify-center text-gray-400">
+    <div className="flex flex-1 items-center justify-center text-gray-400">
       로그아웃 중…
     </div>
   );

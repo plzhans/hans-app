@@ -19,13 +19,13 @@ const PROVIDERS: Item[] = [
   },
   {
     key: 'kakao',
-    label: '카카오',
+    label: 'Kakao',
     className: 'bg-[#FEE500] text-[#191600] hover:brightness-95',
     icon: <KakaoIcon />,
   },
   {
     key: 'naver',
-    label: '네이버',
+    label: 'Naver',
     className: 'bg-[#03C75A] text-white hover:brightness-95',
     icon: <NaverIcon />,
   },

@@ -17,7 +17,7 @@ import {
  *
  * **광고를 켜면 PC 카드가 두 배(lg:max-w-6xl)가 되고 반으로 갈린다** — 왼쪽이 폼,
  * 오른쪽이 광고다. 폼 쪽 반은 광고가 없을 때의 카드와 같은 폭이라, 광고가 붙어도 입력
- * 줄의 생김새는 달라지지 않는다. 제목도 그 반쪽 위에 맞춰 선다.
+ * 줄의 생김새는 달라지지 않는다(제목도 그 반쪽 안에 있다).
  *
  * 모바일은 카드가 한 단이고, 광고는 그 안 맨 아래(내용 끝)에 붙는다.
  */
@@ -38,30 +38,18 @@ export function AuthCard({
 }) {
   const withAds = ads && SHOW_AD_SLOTS;
   const placement = useAdPlacement();
-  // 제목은 카드 전체가 아니라 **폼이 있는 반쪽** 위에 선다.
+  // 광고를 켜면 폼은 카드의 왼쪽 반만 쓴다. 나머지 반이 광고 단이다.
   const alignedToForm = withAds && 'lg:w-1/2';
 
   return (
-    <div className="flex min-h-full items-center justify-center p-4 lg:p-10">
+    <div className="flex flex-1 items-center justify-center p-3 lg:px-10 lg:py-16">
       <div
         className={cn(
-          'w-full max-w-sm animate-fade-in',
+          // 상한을 낮게 잡으면 폰보다 넓은 화면에서 남는 폭이 전부 좌우 여백이 된다.
+          'w-full max-w-lg animate-fade-in',
           withAds ? 'lg:max-w-6xl' : 'lg:max-w-xl',
         )}
       >
-        {/*
-          제목은 **카드 밖**이다. 안에 두면 카드가 "입력하는 곳" 과 "무슨 화면인지" 를 한
-          덩어리로 묶어 버리는데, 흰 판은 손댈 것들만 담는 편이 어디를 봐야 하는지 분명하다.
-        */}
-        <div className={cn('mb-5 text-center lg:mb-6', alignedToForm)}>
-          <Logo />
-          <h1 className="mt-3 text-xl font-bold text-gray-900 lg:text-2xl">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-1 text-sm text-gray-500 lg:text-base">{subtitle}</p>
-          )}
-        </div>
         <div
           className={cn(
             'rounded-2xl bg-white shadow-sm ring-1 ring-gray-100',
@@ -69,6 +57,18 @@ export function AuthCard({
           )}
         >
           <div className={cn('p-6 lg:p-10', alignedToForm)}>
+            {/* 제목은 카드 안, 내용 맨 위다. 광고를 켠 PC 에서도 폼 쪽 반쪽 안에 있다. */}
+            <div className="mb-6 text-center lg:mb-8">
+              <Logo />
+              <h1 className="mt-3 text-xl font-bold text-gray-900 lg:text-2xl">
+                {title}
+              </h1>
+              {subtitle && (
+                <p className="mt-1 text-sm text-gray-500 lg:text-base">
+                  {subtitle}
+                </p>
+              )}
+            </div>
             {children}
             {/* 모바일 광고. 카드 내용을 다 지나온 자리다(마지막은 비밀번호 찾기 링크). */}
             {withAds && placement === 'bottom' && <BottomAd />}

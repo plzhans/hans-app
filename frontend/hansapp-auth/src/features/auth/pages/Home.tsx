@@ -56,8 +56,8 @@ export default function Home() {
   );
 
   return (
-    <div className="flex min-h-full justify-center p-4 lg:p-10">
-      <div className="w-full max-w-sm animate-fade-in lg:max-w-6xl">
+    <div className="flex flex-1 justify-center p-3 lg:px-10 lg:py-16">
+      <div className="w-full max-w-lg animate-fade-in lg:max-w-6xl">
         {/* 제목은 모바일에서 가운데(다른 인증 화면과 같게), PC 에서는 화면 왼쪽 어깨에 선다. */}
         <header className="mb-5 lg:mb-8 lg:flex lg:items-end lg:justify-between lg:gap-6">
           <div className="text-center lg:text-left">
