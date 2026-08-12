@@ -67,7 +67,10 @@ export class PublicPostSummaryDto {
   @ApiProperty({ type: PublicAuthorDto }) readonly author!: PublicAuthorDto;
   @ApiProperty() readonly pinned!: boolean;
   @ApiProperty({ description: '비공개 글인가' }) readonly secret!: boolean;
-  @ApiProperty() readonly commentEnabled!: boolean;
+  @ApiProperty({ description: '게시판·글 설정을 합친 결과' })
+  readonly commentEnabled!: boolean;
+  @ApiProperty({ description: '게시판·글 설정을 합친 결과' })
+  readonly likeEnabled!: boolean;
   @ApiProperty({ nullable: true }) readonly publishedAt!: string | null;
   @ApiProperty() readonly viewCount!: number;
   @ApiProperty() readonly commentCount!: number;
@@ -80,6 +83,7 @@ export class PublicPostSummaryDto {
     this.pinned = post.pinned;
     this.secret = post.secret;
     this.commentEnabled = post.commentEnabled;
+    this.likeEnabled = post.likeEnabled;
     this.publishedAt = post.publishedAt?.toISOString() ?? null;
     this.viewCount = post.viewCount;
     this.commentCount = post.commentCount;

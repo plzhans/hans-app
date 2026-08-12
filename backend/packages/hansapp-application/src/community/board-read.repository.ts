@@ -14,6 +14,7 @@ const LIST_SELECT = {
   pinned: true,
   secret: true,
   commentEnabled: true,
+  likeEnabled: true,
   publishedAt: true,
   viewCount: true,
   // 목록에도 댓글 수는 보여 준다. DB 가 세므로 글마다 따로 조회하지 않는다(N+1 회피).

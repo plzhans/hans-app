@@ -84,12 +84,22 @@ export class PostWriteRequestDto {
   readonly summary?: string;
 
   @ApiPropertyOptional({
-    default: true,
-    description: '이 글에 댓글을 받을지. 게시판이 댓글을 끄면 함께 꺼진다.',
+    nullable: true,
+    description:
+      '이 글에 댓글을 받을지. **null 이면 게시판 설정을 따른다**(기본). ' +
+      '게시판이 꺼져 있으면 true 로 둬도 실제로는 열리지 않는다.',
   })
   @IsOptional()
   @IsBoolean()
-  readonly commentEnabled?: boolean;
+  readonly commentEnabled?: boolean | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: '이 글에 좋아요를 받을지. null 이면 게시판 설정을 따른다.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly likeEnabled?: boolean | null;
 
   @ApiPropertyOptional({
     default: false,
@@ -114,7 +124,10 @@ export class PostSummaryDto {
   @ApiProperty() readonly title!: string;
   @ApiProperty({ nullable: true }) readonly summary!: string | null;
   @ApiProperty({ type: PostAuthorDto }) readonly author!: PostAuthorDto;
-  @ApiProperty() readonly commentEnabled!: boolean;
+  @ApiProperty({ nullable: true, description: 'null = 게시판 따름' })
+  readonly commentEnabled!: boolean | null;
+  @ApiProperty({ nullable: true, description: 'null = 게시판 따름' })
+  readonly likeEnabled!: boolean | null;
   @ApiProperty() readonly secret!: boolean;
   @ApiProperty() readonly pinned!: boolean;
   @EnumField(PostStatus) readonly status!: PostStatus;
@@ -134,6 +147,7 @@ export class PostSummaryDto {
     this.summary = post.summary;
     this.author = new PostAuthorDto(post.author);
     this.commentEnabled = post.commentEnabled;
+    this.likeEnabled = post.likeEnabled;
     this.secret = post.secret;
     this.pinned = post.pinned;
     this.status = post.status;

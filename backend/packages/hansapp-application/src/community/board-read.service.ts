@@ -71,7 +71,9 @@ export interface PublicPostSummary {
   readonly pinned: boolean;
   /** 비공개 글인가. true 면 본문을 못 보는 사람에게는 content 가 오지 않는다. */
   readonly secret: boolean;
+  /** **계산된 값이다** — 게시판이 켜고 글이 끄지 않았을 때만 true. */
   readonly commentEnabled: boolean;
+  readonly likeEnabled: boolean;
   readonly publishedAt: Date | null;
   readonly viewCount: number;
   readonly commentCount: number;
@@ -129,7 +131,12 @@ export class BoardReadService {
       (page - 1) * size,
       size,
     );
-    return new Page(items.map(toSummary), page, size, totalCount);
+    return new Page(
+      items.map((post) => toSummary(post, board)),
+      page,
+      size,
+      totalCount,
+    );
   }
 
   /**
@@ -166,7 +173,10 @@ export class BoardReadService {
       !post.secret || isSelf(post.authorType, post.authorId, viewerUserId);
 
     const detail: PublicPostDetail = {
-      ...toSummary({ ...post, _count: { comments: post.comments.length } }),
+      ...toSummary(
+        { ...post, _count: { comments: post.comments.length } },
+        board,
+      ),
       content: canRead ? post.content : null,
       comments: post.comments.map((comment) => ({
         id: comment.id,
@@ -254,20 +264,24 @@ function isSelf(type: AuthorType, id: number, viewerUserId?: number): boolean {
   );
 }
 
-function toSummary(post: {
-  id: number;
-  title: string;
-  summary: string | null;
-  authorType: number;
-  authorId: number;
-  authorName: string;
-  pinned: boolean;
-  secret: boolean;
-  commentEnabled: boolean;
-  publishedAt: Date | null;
-  viewCount: number;
-  _count: { comments: number };
-}): PublicPostSummary {
+function toSummary(
+  post: {
+    id: number;
+    title: string;
+    summary: string | null;
+    authorType: number;
+    authorId: number;
+    authorName: string;
+    pinned: boolean;
+    secret: boolean;
+    commentEnabled: boolean | null;
+    likeEnabled: boolean | null;
+    publishedAt: Date | null;
+    viewCount: number;
+    _count: { comments: number };
+  },
+  board: { commentEnabled: boolean; likeEnabled: boolean },
+): PublicPostSummary {
   return {
     id: post.id,
     title: post.title,
@@ -275,7 +289,12 @@ function toSummary(post: {
     author: toAuthor(post.authorType, post.authorId, post.authorName),
     pinned: post.pinned,
     secret: post.secret,
-    commentEnabled: post.commentEnabled,
+    /*
+      **여기가 유효값을 정하는 자리다.** 게시판이 상위 스위치이고, 글은 그 안에서 끌 수만
+      있다 — 글이 null 이면 게시판을 따른다(그래서 게시판을 켜면 옛 글도 함께 열린다).
+    */
+    commentEnabled: board.commentEnabled && (post.commentEnabled ?? true),
+    likeEnabled: board.likeEnabled && (post.likeEnabled ?? true),
     publishedAt: post.publishedAt,
     viewCount: post.viewCount,
     commentCount: post._count.comments,

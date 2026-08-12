@@ -25,6 +25,7 @@ const LIST_SELECT = {
   authorId: true,
   authorName: true,
   commentEnabled: true,
+  likeEnabled: true,
   secret: true,
   pinned: true,
   status: true,

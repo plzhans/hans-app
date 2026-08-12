@@ -28,6 +28,12 @@ export default function BoardPost() {
     queryFn: () => getPost(name, Number(id)),
   });
   const post = query.data;
+  /*
+    **댓글이 열려 있나.** 게시판이 상위 스위치이고 글 설정은 그 안에서만 의미가 있다 —
+    둘 다 켜져 있을 때만 댓글 자리를 그린다. 꺼진 곳에 "댓글 0" 이 보이면 아직 아무도 안 단
+    것인지 못 다는 것인지 알 수 없다.
+  */
+  const commentsOn = Boolean(board?.commentEnabled && post?.commentEnabled);
 
   const copyUrl = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -87,10 +93,12 @@ export default function BoardPost() {
                   </span>
                 </span>
 
-                <span className="flex items-center gap-1 text-sm text-gray-500">
-                  <MessageSquare className="h-4 w-4" />
-                  댓글 {post.commentCount}
-                </span>
+                {commentsOn && (
+                  <span className="flex items-center gap-1 text-sm text-gray-500">
+                    <MessageSquare className="h-4 w-4" />
+                    댓글 {post.commentCount}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => void copyUrl()}
@@ -134,15 +142,17 @@ export default function BoardPost() {
                 <ThumbsUp className="h-4 w-4" />
                 좋아요
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <MessageSquare className="h-4 w-4" />
-                댓글 {post.commentCount}
-              </span>
+              {commentsOn && (
+                <span className="inline-flex items-center gap-1.5">
+                  <MessageSquare className="h-4 w-4" />
+                  댓글 {post.commentCount}
+                </span>
+              )}
             </div>
           )}
 
           {/* 댓글 영역. 게시판이 댓글을 끈 곳에서는 통째로 없다. */}
-          {post && board?.commentEnabled && (
+          {post && commentsOn && (
             <section className="border-t border-gray-100 px-6 py-6 sm:px-8">
               <h2 className="text-sm font-bold text-gray-900">
                 댓글 {post.commentCount}

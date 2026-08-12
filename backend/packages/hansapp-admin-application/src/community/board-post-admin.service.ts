@@ -34,7 +34,9 @@ export interface PostSummary {
   readonly title: string;
   readonly summary: string | null;
   readonly author: PostAuthor;
-  readonly commentEnabled: boolean;
+  /** null = 게시판 설정을 따른다. */
+  readonly commentEnabled: boolean | null;
+  readonly likeEnabled: boolean | null;
   readonly secret: boolean;
   readonly pinned: boolean;
   readonly status: PostStatus;
@@ -61,7 +63,9 @@ export interface PostWriteInput {
   readonly title: string;
   readonly content: string;
   readonly summary?: string | null;
-  readonly commentEnabled?: boolean;
+  /** null = 게시판 따름. 빠지면(undefined) 수정에서는 그대로 둔다. */
+  readonly commentEnabled?: boolean | null;
+  readonly likeEnabled?: boolean | null;
   readonly secret?: boolean;
   readonly pinned?: boolean;
   readonly status?: PostStatus;
@@ -121,7 +125,7 @@ export class BoardPostAdminService {
       status,
       // 공개로 만들면 그 순간이 공개 시각이다. 목록 정렬이 이 값을 본다.
       publishedAt: status === PostStatus.PUBLISHED ? new Date() : null,
-      ...clamp(board, input),
+      ...decided(board, input),
     });
     // 새 글이라 지울 것이 없어 보이지만, 지웠다 다시 만든 번호가 캐시에 남아 있을 수 있다.
     await this.cache.invalidate(board.name, post.id);
@@ -147,8 +151,15 @@ export class BoardPostAdminService {
         status === PostStatus.PUBLISHED && current.publishedAt === null
           ? new Date()
           : undefined,
-      ...clamp(board, {
-        commentEnabled: input.commentEnabled ?? current.commentEnabled,
+      ...decided(board, {
+        commentEnabled:
+          input.commentEnabled === undefined
+            ? current.commentEnabled
+            : input.commentEnabled,
+        likeEnabled:
+          input.likeEnabled === undefined
+            ? current.likeEnabled
+            : input.likeEnabled,
         secret: input.secret ?? current.secret,
       }),
     });
@@ -190,12 +201,27 @@ export class BoardPostAdminService {
   }
 }
 
-/** 게시판이 끈 기능은 글에서도 꺼진 값으로 저장한다. 켤 수 없는 값이 켜진 채 남지 않게. */
-function clamp(
+/**
+ * 글이 고른 값을 **그대로** 저장한다.
+ *
+ * **게시판 값으로 자르지 않는다.** 잘라 두면 나중에 게시판에서 댓글을 켜도 그전 글은 꺼진
+ * 채로 남는다 — 글을 하나하나 고칠 수는 없다. 실제로 열리는지는 읽을 때 계산한다.
+ *
+ * 비공개만 예외로 거절한다 — 이건 "안 열리는 것" 이 아니라 **사고**다(비공개로 쓴 줄 알았는데
+ * 공개로 올라간다). 나머지는 꺼져 있어도 글이 잘못 보이지 않는다.
+ */
+function decided(
   board: Board,
-  input: { commentEnabled?: boolean; secret?: boolean },
-): { commentEnabled: boolean; secret: boolean } {
-  const commentEnabled = input.commentEnabled ?? true;
+  input: {
+    commentEnabled?: boolean | null;
+    likeEnabled?: boolean | null;
+    secret?: boolean;
+  },
+): {
+  commentEnabled: boolean | null;
+  likeEnabled: boolean | null;
+  secret: boolean;
+} {
   const secret = input.secret ?? false;
   if (secret && !board.secretPostEnabled) {
     // 조용히 끄지 않고 거절한다 — 비공개로 쓴 줄 알았는데 공개로 올라가면 사고다.
@@ -204,7 +230,8 @@ function clamp(
     );
   }
   return {
-    commentEnabled: board.commentEnabled && commentEnabled,
+    commentEnabled: input.commentEnabled ?? null,
+    likeEnabled: input.likeEnabled ?? null,
     secret,
   };
 }
@@ -226,6 +253,7 @@ function toSummary(post: PostListItem): PostSummary {
       name: post.authorName,
     },
     commentEnabled: post.commentEnabled,
+    likeEnabled: post.likeEnabled,
     secret: post.secret,
     pinned: post.pinned,
     status: post.status,
