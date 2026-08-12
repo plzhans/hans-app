@@ -26,24 +26,27 @@ export function Footer() {
       화면에서도 푸터가 바닥에 붙는데, 여기에 margin 을 더하면 그만큼 화면을 넘겨
       내용이 없는데도 스크롤바가 생긴다. 본문과의 간격은 main 의 아래 패딩이 맡는다.
     */
-    <footer className="border-t border-gray-200 bg-white">
-      <div className={cn(PAGE_CONTAINER, 'py-6 text-xs text-gray-400')}>
+    /*
+      **어두운 푸터다.** 본문이 흰 바탕이라 경계가 필요하고, 여기 담기는 것(운영 주체·
+      약관·연락처)은 읽고 나가는 자리라 앞의 내용과 대비되는 편이 낫다.
+    */
+    <footer className="bg-gray-900">
+      <div className={cn(PAGE_CONTAINER, 'py-10 text-xs text-gray-400')}>
         {/* 왼쪽 브랜드, 오른쪽 링크. 좁으면 링크가 다음 줄로 내려간다. */}
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
           <p>
-            <span className="font-bold text-gray-500">HansApp</span>
-            <span className="ml-2">직접 만든 서비스들을 한 곳에서</span>
+            <span className="text-base font-extrabold text-white">HansApp</span>
+            <span className="ml-3 text-gray-400">
+              직접 만든 서비스들을 한 곳에서
+            </span>
           </p>
 
           <nav className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Link to="/terms" className="text-gray-500 underline hover:text-gray-900">
+            <Link to="/terms" className="text-gray-400 hover:text-white">
               이용약관
             </Link>
             <Dot />
-            <Link
-              to="/privacy"
-              className="font-bold text-gray-600 underline hover:text-gray-900"
-            >
+            <Link to="/privacy" className="font-bold text-white hover:underline">
               개인정보처리방침
             </Link>
           </nav>
@@ -54,14 +57,14 @@ export function Footer() {
           메일이 열리는 것이 하나 끼어 성격이 어긋난다 — 여기는 "누가 운영하고 어디로
           연락하나" 한 묶음이다.
         */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-gray-100 pt-4">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-white/10 pt-5">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>개인이 운영하는 서비스입니다.</span>
             <span>
               문의:{' '}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="text-gray-500 hover:text-gray-900"
+                className="text-gray-300 hover:text-white"
               >
                 {CONTACT_EMAIL}
               </a>
@@ -139,7 +142,7 @@ function Copyright() {
         © {'2026'} plzhans.com
       </span>
       {shown && (
-        <span className="font-mono text-gray-500">
+        <span className="font-mono text-gray-300">
           <span title="이 화면(프론트) 산출물">web v{APP_RELEASE}</span>
           {' · '}
           <span title="백엔드 산출물">
@@ -161,7 +164,7 @@ function Copyright() {
 /** 항목 사이 구분점. 읽어 줄 내용이 없으니 스크린 리더에서는 숨긴다. */
 function Dot() {
   return (
-    <span aria-hidden className="text-gray-300">
+    <span aria-hidden className="text-gray-600">
       ·
     </span>
   );

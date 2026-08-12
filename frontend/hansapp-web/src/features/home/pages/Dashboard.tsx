@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { listPosts } from '@/shared/api/boards';
 import { Gnb } from '@/shared/components/Gnb';
+import { Hero } from '@/shared/components/Hero';
 import { Footer } from '@/shared/components/Footer';
 import { LINKS } from '@/shared/config/links';
 import { cn } from '@/shared/lib/cn';
@@ -62,23 +63,14 @@ export default function Dashboard() {
     <div className="flex min-h-full flex-col">
       <Gnb />
 
-      <main className={cn(PAGE_CONTAINER, 'flex-1 space-y-12 py-8')}>
-        {/* 히어로 */}
-        <section className="flex min-h-[200px] flex-col justify-center rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 p-8 text-white shadow-sm sm:p-10">
-          <h1 className="text-2xl font-extrabold sm:text-4xl">HansApp</h1>
-          <p className="mt-3 max-w-xl text-sm text-white/90 sm:text-lg">
-            직접 만든 서비스들을 한 곳에서. 하나의 계정으로 연결됩니다.
-          </p>
-        </section>
+      <main className="flex-1">
+        <Hero />
 
         {/* 서비스 */}
-        <section>
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-gray-900">서비스</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              지금 바로 써볼 수 있는 서비스들입니다.
-            </p>
-          </div>
+        <section className={cn(PAGE_CONTAINER, 'py-14')}>
+          <SectionHead
+            title={['지금 바로 써볼 수 있는', '서비스를 모았습니다']}
+          />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {SERVICES.map((s) => (
               <a
@@ -103,9 +95,9 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* 개발자 — Hans API */}
-        <section className="rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        {/* 개발자 — Hans API. **옅은 판을 화면 끝까지 깔아 앞뒤 구역과 가른다.** */}
+        <section className="bg-gray-50">
+          <div className={cn(PAGE_CONTAINER, 'flex flex-col gap-6 py-14 lg:flex-row lg:items-center lg:justify-between')}>
             <div className="max-w-xl">
               <span className="text-xs font-semibold uppercase tracking-wide text-primary-600">
                 개발자
@@ -155,6 +147,40 @@ export default function Dashboard() {
 }
 
 
+/**
+ * 섹션 머리. **제목을 두 줄로 크게, 오른쪽에 전체 보기.**
+ *
+ * 같은 모양을 섹션마다 손으로 쓰면 글자 크기와 여백이 조금씩 어긋난다 — 한 벌로 둔다.
+ */
+function SectionHead({
+  title,
+  to,
+  label = '전체 보기',
+}: {
+  /** 두 줄로 끊어 넘긴다. 어디서 끊을지는 문장이 정한다. */
+  title: [string, string];
+  to?: string;
+  label?: string;
+}) {
+  return (
+    <div className="mb-6 flex items-end justify-between gap-4">
+      <h2 className="text-xl font-extrabold leading-snug text-gray-900 sm:text-2xl">
+        {title[0]}
+        <br />
+        {title[1]}
+      </h2>
+      {to && (
+        <Link
+          to={to}
+          className="inline-flex h-9 shrink-0 items-center rounded-full bg-gray-900 px-4 text-sm font-semibold text-white transition hover:bg-gray-700"
+        >
+          {label}
+        </Link>
+      )}
+    </div>
+  );
+}
+
 /** 공지사항 게시판의 이름(board.name). 이 게시판이 없으면 구역 자체를 안 그린다. */
 const NOTICE_BOARD = 'notice';
 
@@ -175,16 +201,11 @@ function Notices() {
   if (rows.length === 0) return null;
 
   return (
-    <section>
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-lg font-bold text-gray-900">공지사항</h2>
-        <Link
-          to={`/board/${NOTICE_BOARD}`}
-          className="text-sm text-gray-500 transition hover:text-gray-900"
-        >
-          전체 보기
-        </Link>
-      </div>
+    <section className={cn(PAGE_CONTAINER, 'py-14')}>
+      <SectionHead
+        title={['새로 올라온 소식을', '확인하세요']}
+        to={`/board/${NOTICE_BOARD}`}
+      />
       <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
         {rows.map((post) => (
           <li key={post.id}>

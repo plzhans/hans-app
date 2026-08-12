@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft } from 'lucide-react';
 
 import { getUser } from '@/shared/api/users';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
+import { BackLink } from '@/shared/components/BackLink';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
 import { Badge } from '@/shared/ui/Badge';
 import { UserTabs } from '../components/UserTabs';
@@ -31,16 +31,9 @@ export default function UserDetail() {
         { label: '회원', to: '/users' },
         { label: user ? `#${user.id}` : '상세' },
       ]}
-      actions={
-        <Link
-          to="/users"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 transition hover:text-primary"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          목록
-        </Link>
-      }
     >
+      <BackLink to="/users" />
+
       {query.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600">
           {errorMessage(query.error, '회원 정보를 불러오지 못했습니다.')}

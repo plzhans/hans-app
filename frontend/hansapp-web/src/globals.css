@@ -13,7 +13,10 @@ body,
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  /* **바탕은 흰색이다.** 구역을 나누는 것은 배경색이 아니라 섹션마다 번갈아 까는
+     옅은 판(.section-alt)과 얇은 테두리다 — 전체가 회색이면 카드가 떠 보이기만 하고
+     어디가 한 덩어리인지는 안 보인다. */
+  @apply bg-white text-gray-900 antialiased;
   font-family: 'Noto Sans KR', system-ui, sans-serif;
 }
 

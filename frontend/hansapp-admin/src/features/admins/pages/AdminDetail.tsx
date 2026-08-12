@@ -1,12 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, KeyRound, Pencil } from 'lucide-react';
+import { KeyRound, Pencil } from 'lucide-react';
 
 import { deleteAdmin, getAdmin } from '@/shared/api/admins';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { AdminLayout } from '@/shared/components/AdminLayout';
+import { BackLink } from '@/shared/components/BackLink';
 import {
   ADMIN_ROLE_LABEL,
   ADMIN_ROLE_TONE,
@@ -59,16 +60,9 @@ export default function AdminDetail() {
         { label: '관리자', to: '/admins' },
         { label: admin ? `#${admin.id}` : '상세' },
       ]}
-      actions={
-        <Link
-          to="/admins"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 transition hover:text-primary"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          목록
-        </Link>
-      }
     >
+      <BackLink to="/admins" />
+
       {query.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600">
           {errorMessage(query.error, '관리자 정보를 불러오지 못했습니다.')}

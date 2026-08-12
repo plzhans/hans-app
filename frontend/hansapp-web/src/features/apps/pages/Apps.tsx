@@ -11,6 +11,7 @@ import { Button } from '@/shared/ui/Button';
 import { Modal } from '@/shared/ui/Modal';
 import { Tabs } from '@/shared/ui/Tabs';
 import { TextField } from '@/shared/ui/TextField';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { PAGE_CONTAINER } from '@/shared/ui/layout';
 import { cn } from '@/shared/lib/cn';
 import { latinRegister } from '@/shared/lib/latinInput';
@@ -72,17 +73,15 @@ export default function Apps() {
     <div className="flex min-h-full flex-col">
       <Gnb />
       <main className={cn(PAGE_CONTAINER, 'flex-1 py-10')}>
-        <div className="mb-8 flex items-end justify-between gap-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">앱 관리</h1>
-            <p className="mt-1.5 text-sm text-gray-500">
-              API 를 사용할 앱을 등록하고 서비스 키·클라이언트를 관리합니다.
-            </p>
-          </div>
-          <Button className="w-auto shrink-0" onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" /> 앱 등록
-          </Button>
-        </div>
+        <PageHeader
+          title="앱 관리"
+          description="API 를 사용할 앱을 등록하고 서비스 키·클라이언트를 관리합니다."
+          action={
+            <Button className="w-auto shrink-0" onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" /> 앱 등록
+            </Button>
+          }
+        />
 
         <Tabs
           className="mb-4"

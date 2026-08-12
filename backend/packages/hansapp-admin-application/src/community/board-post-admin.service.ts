@@ -7,6 +7,7 @@ import { AuthorType, Page, PostStatus } from '@hansapp/common';
 import type { Board, BoardPost } from '@hansapp/data';
 
 import { BoardRepository } from './board.repository';
+import { BoardPostCacheInvalidator } from './board-post-cache.invalidator';
 import {
   BoardPostRepository,
   type PostListItem,
@@ -77,6 +78,7 @@ export class BoardPostAdminService {
   constructor(
     private readonly posts: BoardPostRepository,
     private readonly boards: BoardRepository,
+    private readonly cache: BoardPostCacheInvalidator,
   ) {}
 
   async list(options: PostListOptions): Promise<Page<PostSummary>> {
@@ -121,6 +123,8 @@ export class BoardPostAdminService {
       publishedAt: status === PostStatus.PUBLISHED ? new Date() : null,
       ...clamp(board, input),
     });
+    // 새 글이라 지울 것이 없어 보이지만, 지웠다 다시 만든 번호가 캐시에 남아 있을 수 있다.
+    await this.cache.invalidate(board.name, post.id);
     return { ...toSummary(post), content: post.content };
   }
 
@@ -148,12 +152,29 @@ export class BoardPostAdminService {
         secret: input.secret ?? current.secret,
       }),
     });
+    await this.cache.invalidate(board.name, post.id);
     return { ...toSummary(post), content: post.content };
   }
 
+  /**
+   * 이 글의 공개 캐시를 손으로 지운다.
+   *
+   * **저장할 때 이미 지운다.** 그래도 통로를 두는 것은, 캐시가 지워졌는지 확신이 안 서는
+   * 순간이 실제로 오기 때문이다 — Redis 가 잠깐 끊겼거나, 글이 아니라 게시판 설정만 바꿔
+   * 보이는 내용이 달라졌거나. 그때 서버를 만지지 않고 화면에서 해결할 수 있어야 한다.
+   */
+  async purgeCache(id: number): Promise<void> {
+    const post = await this.mustFind(id);
+    const board = await this.mustFindBoard(post.boardId);
+    await this.cache.invalidate(board.name, id);
+  }
+
   async remove(id: number): Promise<void> {
-    await this.mustFind(id);
+    const post = await this.mustFind(id);
+    const board = await this.mustFindBoard(post.boardId);
     await this.posts.delete(id);
+    // 지운 뒤에 비운다 — 먼저 비우면 그 사이의 조회가 옛 글을 다시 캐시에 올린다.
+    await this.cache.invalidate(board.name, id);
   }
 
   private async mustFind(id: number): Promise<BoardPost> {

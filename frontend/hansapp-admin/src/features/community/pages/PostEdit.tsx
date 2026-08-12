@@ -6,6 +6,7 @@ import { listBoards, type Board } from '@/shared/api/boards';
 import {
   createPost,
   getPost,
+  purgePostCache,
   updatePost,
   type PostStatus,
 } from '@/shared/api/posts';
@@ -89,9 +90,19 @@ export default function PostEdit() {
     },
     onSuccess: async (saved) => {
       await qc.invalidateQueries({ queryKey: ['posts', saved.boardId] });
-      navigate(`/boards/${saved.boardId}/posts`);
+      await qc.invalidateQueries({ queryKey: ['post', saved.id] });
+      // 고친 글은 바로 확인할 수 있게 보기로, 새 글은 목록으로 보낸다.
+      navigate(
+        editing ? `/posts/${saved.id}` : `/boards/${saved.boardId}/posts`,
+      );
     },
     onError: (e) => setError(errorMessage(e, '저장하지 못했습니다.')),
+  });
+
+  /** 공개 캐시 비우기. 이미 있는 글에만 뜻이 있다. */
+  const purge = useMutation({
+    mutationFn: () => purgePostCache(postId as number),
+    onError: (e) => setError(errorMessage(e, '캐시를 지우지 못했습니다.')),
   });
 
   const ready = title.trim().length > 0 && content.trim().length > 0;
@@ -179,12 +190,36 @@ export default function PostEdit() {
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex items-center justify-end gap-2">
+          {/*
+            **저장과 같은 줄에 두되 왼쪽 끝으로 민다.** 자주 누를 버튼이 아니라서 저장 옆에
+            붙어 있으면 잘못 누르기 쉽다.
+          */}
+          {editing && (
+            <button
+              type="button"
+              onClick={() => purge.mutate()}
+              disabled={purge.isPending}
+              className="mr-auto text-sm text-gray-500 transition hover:text-gray-900 disabled:opacity-50"
+            >
+              {purge.isPending
+                ? '지우는 중…'
+                : purge.isSuccess
+                  ? '캐시 지움'
+                  : '공개 캐시 지우기'}
+            </button>
+          )}
           <Button
             variant="outline"
             className="w-auto px-4"
             onClick={() =>
-              navigate(boardId ? `/boards/${boardId}/posts` : '/boards')
+              navigate(
+                editing
+                  ? `/posts/${postId}`
+                  : boardId
+                    ? `/boards/${boardId}/posts`
+                    : '/boards',
+              )
             }
           >
             취소

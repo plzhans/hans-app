@@ -85,3 +85,12 @@ export const updatePost = (id: number, body: PostWriteBody) =>
 
 export const deletePost = (id: number) =>
   apiFetch<void>(`/api/posts/${id}`, { method: 'DELETE' });
+
+/**
+ * 이 글의 공개 캐시를 지운다.
+ *
+ * 저장할 때 서버가 이미 지우지만, 게시판 설정만 바꿨거나 캐시가 지워졌는지 확신이 안 설 때
+ * 쓰는 통로다.
+ */
+export const purgePostCache = (id: number) =>
+  apiFetch<void>(`/api/posts/${id}/cache/purge`, { method: 'POST' });

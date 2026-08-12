@@ -5,9 +5,11 @@ import { ChevronRight, Link2, MessageSquare, ThumbsUp } from 'lucide-react';
 
 import { getPost, listBoards, type Comment } from '@/shared/api/boards';
 import { Gnb } from '@/shared/components/Gnb';
+import { Hero } from '@/shared/components/Hero';
 import { Footer } from '@/shared/components/Footer';
 import { cn } from '@/shared/lib/cn';
 import { MarkdownViewer } from '@/shared/ui/MarkdownViewer';
+import { Skeleton } from '@/shared/ui/Skeleton';
 import { PAGE_CONTAINER } from '@/shared/ui/layout';
 
 /**
@@ -37,26 +39,37 @@ export default function BoardPost() {
   return (
     <div className="flex min-h-full flex-col">
       <Gnb />
-      <main className={cn(PAGE_CONTAINER, 'flex-1 py-8')}>
+      <Hero />
+
+      <main className={cn(PAGE_CONTAINER, 'flex-1 py-10')}>
         <article className="rounded-2xl border border-gray-200 bg-white">
           <header className="px-6 pt-6 pb-4 sm:px-8">
             {/* 게시판 이름. 누르면 그 게시판 목록으로 돌아간다. */}
-            <Link
-              to={`/board/${name}`}
-              className="inline-flex items-center text-sm font-semibold text-primary hover:underline"
-            >
-              {board?.title ?? '게시판'}
-              <ChevronRight className="h-4 w-4" />
-            </Link>
+            {/* 이름을 받기 전에는 자리만 비워 둔다(임시 글자를 보여 주지 않는다). */}
+            {board ? (
+              <Link
+                to={`/board/${name}`}
+                className="inline-flex items-center text-sm font-semibold text-primary hover:underline"
+              >
+                {board.title}
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <Skeleton className="h-5 w-24" />
+            )}
 
-            <h1 className="mt-2 flex items-start gap-2 text-2xl font-bold text-gray-900">
-              {post?.pinned && (
-                <span className="mt-1 shrink-0 rounded bg-red-50 px-1.5 py-0.5 text-xs font-bold text-red-600">
-                  공지
-                </span>
-              )}
-              <span>{post?.title ?? ''}</span>
-            </h1>
+            {post ? (
+              <h1 className="mt-2 flex items-start gap-2 text-2xl font-bold text-gray-900">
+                {post.pinned && (
+                  <span className="mt-1 shrink-0 rounded bg-red-50 px-1.5 py-0.5 text-xs font-bold text-red-600">
+                    공지
+                  </span>
+                )}
+                <span>{post.title}</span>
+              </h1>
+            ) : (
+              <Skeleton className="mt-2 h-8 w-3/4" />
+            )}
 
             {post && (
               <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -92,9 +105,13 @@ export default function BoardPost() {
 
           <div className="border-t border-gray-100 px-6 py-8 sm:px-8">
             {query.isLoading && (
-              <p className="py-16 text-center text-sm text-gray-400">
-                불러오는 중…
-              </p>
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-11/12" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
             )}
             {/*
               비공개 글이면 본문이 **응답에 아예 없다**. 화면에서 가리는 것이 아니라 서버가

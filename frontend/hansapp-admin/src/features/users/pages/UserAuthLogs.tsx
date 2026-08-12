@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 import {
   getUser,
@@ -11,6 +11,7 @@ import {
 } from '@/shared/api/users';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
+import { BackLink } from '@/shared/components/BackLink';
 import { cn } from '@/shared/lib/cn';
 import {
   getDisplayTimeZone,
@@ -115,16 +116,9 @@ export default function UserAuthLogs() {
         { label: '회원', to: '/users' },
         { label: userQuery.data ? `#${userId}` : '상세' },
       ]}
-      actions={
-        <Link
-          to="/users"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 transition hover:text-primary"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          목록
-        </Link>
-      }
     >
+      <BackLink to="/users" />
+
       <UserTabs userId={userId} current="authLog" />
 
       {/*

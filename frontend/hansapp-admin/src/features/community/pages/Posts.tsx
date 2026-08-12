@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 
 import { listBoards } from '@/shared/api/boards';
 import { deletePost, listPosts, type Post } from '@/shared/api/posts';
@@ -54,13 +54,23 @@ export default function Posts() {
         { label: board?.title ?? String(boardId) },
       ]}
       actions={
-        <Link
-          to={`/boards/${boardId}/posts/new`}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-white transition hover:bg-primary-700"
-        >
-          <Plus className="h-4 w-4" />
-          글쓰기
-        </Link>
+        <>
+          {/* 상위 목록으로 가는 것은 어느 화면이든 `‹ 목록` 하나다(PostView 주석 참고). */}
+          <Link
+            to="/boards"
+            className="mr-auto inline-flex h-9 items-center gap-1 rounded-lg border border-gray-300 bg-white pr-3 pl-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            목록
+          </Link>
+          <Link
+            to={`/boards/${boardId}/posts/new`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-white transition hover:bg-primary-700"
+          >
+            <Plus className="h-4 w-4" />
+            글쓰기
+          </Link>
+        </>
       }
     >
       {error && (
@@ -123,7 +133,7 @@ export default function Posts() {
 
               <span className="flex justify-end gap-2 text-sm">
                 <Link
-                  to={`/posts/${post.id}`}
+                  to={`/posts/${post.id}/edit`}
                   className="text-gray-500 transition hover:text-gray-900"
                 >
                   수정

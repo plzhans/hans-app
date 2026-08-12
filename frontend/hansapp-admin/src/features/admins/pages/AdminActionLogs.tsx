@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 import {
   getAdmin,
@@ -11,6 +11,7 @@ import {
 } from '@/shared/api/admins';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
+import { BackLink } from '@/shared/components/BackLink';
 import {
   ActionFilter,
   DetailBlock,
@@ -103,16 +104,9 @@ export default function AdminActionLogs() {
         { label: '관리자', to: '/admins' },
         { label: adminQuery.data ? `#${adminId}` : '상세' },
       ]}
-      actions={
-        <Link
-          to="/admins"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 transition hover:text-primary"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          목록
-        </Link>
-      }
     >
+      <BackLink to="/admins" />
+
       <AdminTabs adminId={adminId} current="actionLog" />
 
       {/*

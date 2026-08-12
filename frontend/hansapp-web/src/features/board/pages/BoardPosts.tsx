@@ -5,6 +5,9 @@ import { Lock } from 'lucide-react';
 
 import { listBoards, listPosts } from '@/shared/api/boards';
 import { Gnb } from '@/shared/components/Gnb';
+import { Hero } from '@/shared/components/Hero';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { Skeleton } from '@/shared/ui/Skeleton';
 import { Footer } from '@/shared/components/Footer';
 import { cn } from '@/shared/lib/cn';
 import { PAGE_CONTAINER } from '@/shared/ui/layout';
@@ -43,14 +46,25 @@ export default function BoardPosts() {
   return (
     <div className="flex min-h-full flex-col">
       <Gnb />
-      <main className={cn(PAGE_CONTAINER, 'flex-1 py-8')}>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {board?.title ?? '게시판'}
-        </h1>
-        {board?.description && (
-          <p className="mt-1 text-sm text-gray-500">{board.description}</p>
+      <Hero />
+
+      <main className={cn(PAGE_CONTAINER, 'flex-1 py-10')}>
+        {/*
+          게시판을 아직 못 받았으면 이름 자리를 비워 둔다 — '게시판' 같은 임시 글자를
+          보여 주면 곧 다른 이름으로 바뀌어, 한 번 잘못 읽은 셈이 된다.
+        */}
+        {board ? (
+          <PageHeader
+            title={board.title}
+            description={board.description ?? undefined}
+          />
+        ) : (
+          <div className="mb-8">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="mt-2 h-4 w-64" />
+          </div>
         )}
-        <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-gray-500">
             <strong className="font-bold text-gray-900">
               {(query.data?.totalCount ?? 0).toLocaleString()}
@@ -92,7 +106,22 @@ export default function BoardPosts() {
             <span className="hidden text-center sm:block">조회수</span>
           </div>
 
-          {query.isLoading && <Empty>불러오는 중…</Empty>}
+          {query.isLoading &&
+            Array.from({ length: 5 }, (_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'grid items-center border-b border-gray-100 py-4',
+                  COLUMNS,
+                )}
+              >
+                <Skeleton className="mx-auto hidden h-4 w-8 sm:block" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="mx-auto hidden h-4 w-16 sm:block" />
+                <Skeleton className="mx-auto h-4 w-16" />
+                <Skeleton className="mx-auto hidden h-4 w-10 sm:block" />
+              </div>
+            ))}
           {!query.isLoading && rows.length === 0 && (
             <Empty>아직 글이 없습니다.</Empty>
           )}

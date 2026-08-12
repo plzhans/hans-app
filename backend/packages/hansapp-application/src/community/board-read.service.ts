@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import {
   AuthorType,
   BoardStatus,
@@ -11,6 +18,19 @@ import { BoardReadRepository } from './board-read.repository';
 
 /** 운영자 글에 붙는 이름. **관리자 실명을 밖으로 내보내지 않는다.** */
 const OPERATOR_NAME = 'HansApp';
+
+/** 글 상세 캐시 TTL(ms). 1시간. 글이 바뀌면 관리자 쪽이 키를 지우므로 길게 잡아도 된다. */
+const POST_CACHE_TTL_MS = 60 * 60_000;
+
+/**
+ * 글 상세 캐시 키.
+ *
+ * **관리자 계층도 같은 형식을 써야 지운다**(BoardPostCacheInvalidator). 그쪽은 이 계층을
+ * 의존하지 않아 형식을 한 번 더 적어 두었다 — 여기를 고치면 그쪽도 같이 고쳐야 한다.
+ * 환경 네임스페이스(`develop:`)는 CacheModule 이 붙이므로 여기서는 붙이지 않는다.
+ */
+export const boardPostCacheKey = (boardName: string, postId: number) =>
+  `board:post:${boardName}:${postId}`;
 
 export interface PublicAuthor {
   readonly type: AuthorType;
@@ -75,7 +95,10 @@ export interface PublicPostDetail extends PublicPostSummary {
  */
 @Injectable()
 export class BoardReadService {
-  constructor(private readonly boards: BoardReadRepository) {}
+  constructor(
+    private readonly boards: BoardReadRepository,
+    @Optional() @Inject(CACHE_MANAGER) private readonly cache?: Cache,
+  ) {}
 
   /** 공개된 게시판 목록. 포털의 메뉴가 이걸로 그려진다. */
   async listBoards(): Promise<PublicBoard[]> {
@@ -121,6 +144,17 @@ export class BoardReadService {
     viewerUserId?: number,
   ): Promise<PublicPostDetail> {
     const board = await this.mustFindBoard(boardName);
+
+    /*
+      **캐시는 공개 글만 태운다.** 비공개 글은 보는 사람에 따라 본문이 갈리므로 한 사람의
+      응답을 남겨 두면 다음 사람에게 그대로 나간다(Cache-Control 과 같은 이유).
+      TTL 이 한 시간이나 되는 것은 글이 바뀔 때 관리자 쪽이 이 키를 지우기 때문이다 —
+      시간에 기대 낡은 것을 털어 내는 것이 아니라, 바뀐 순간 지운다.
+    */
+    const key = boardPostCacheKey(boardName, postId);
+    const cached = await this.cache?.get<CachedPost>(key);
+    if (cached) return revive(cached);
+
     const post = await this.boards.findPublishedPost(board.id, postId);
     if (!post) throw new NotFoundException(`Post not found: ${postId}`);
 
@@ -131,7 +165,7 @@ export class BoardReadService {
     const canRead =
       !post.secret || isSelf(post.authorType, post.authorId, viewerUserId);
 
-    return {
+    const detail: PublicPostDetail = {
       ...toSummary({ ...post, _count: { comments: post.comments.length } }),
       content: canRead ? post.content : null,
       comments: post.comments.map((comment) => ({
@@ -153,6 +187,11 @@ export class BoardReadService {
         createdAt: comment.createdAt,
       })),
     };
+
+    if (!detail.secret) {
+      await this.cache?.set(key, detail, POST_CACHE_TTL_MS);
+    }
+    return detail;
   }
 
   /** 조회수 +1. **본문을 준 다음에 센다** — 못 본 글을 봤다고 세지 않는다. */
@@ -167,6 +206,28 @@ export class BoardReadService {
     }
     return board;
   }
+}
+
+/**
+ * 캐시에서 꺼낸 값. **Date 가 문자열로 돌아온다** — Redis 에 JSON 으로 담기기 때문이다.
+ * 꺼낼 때 되살리지 않으면 DTO 의 `toISOString()` 에서 터진다.
+ */
+type CachedPost = Omit<PublicPostDetail, 'publishedAt' | 'comments'> & {
+  publishedAt: Date | string | null;
+  comments: (Omit<PublicComment, 'createdAt'> & {
+    createdAt: Date | string;
+  })[];
+};
+
+function revive(cached: CachedPost): PublicPostDetail {
+  return {
+    ...cached,
+    publishedAt: cached.publishedAt ? new Date(cached.publishedAt) : null,
+    comments: cached.comments.map((comment) => ({
+      ...comment,
+      createdAt: new Date(comment.createdAt),
+    })),
+  };
 }
 
 /**

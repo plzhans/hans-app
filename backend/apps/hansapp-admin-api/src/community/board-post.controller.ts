@@ -119,6 +119,19 @@ export class BoardPostController {
     return new PostDetailDto(await this.posts.update(id, body));
   }
 
+  @Post('posts/:id/cache/purge')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '이 글의 공개 캐시 삭제',
+    description:
+      '포털이 쓰는 글 상세 캐시(1시간)를 지운다. 저장할 때 이미 지우지만, ' +
+      '게시판 설정만 바꿨거나 캐시가 지워졌는지 확신이 안 설 때 쓰는 통로다.',
+  })
+  @ApiNoContentResponse()
+  async purgeCache(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    await this.posts.purgeCache(id);
+  }
+
   @Delete('posts/:id')
   @HttpCode(204)
   @ApiOperation({ summary: '게시글 삭제' })
