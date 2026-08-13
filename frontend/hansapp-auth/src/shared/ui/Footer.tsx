@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { accountTermsDoc, privacyDoc, type LegalDoc } from '@hansapp/legal';
 import { CONTACT_EMAIL } from '@/shared/config/contact';
-import { APP_ENV, APP_RELEASE } from '@/shared/config/env';
+import { APP_BUILT_AT, APP_ENV, APP_RELEASE } from '@/shared/config/env';
 import { getServerVersion, type BuildInfo } from '@/shared/api/client';
+import { formatBuildStamp } from '@/shared/lib/buildStamp';
 import { cn } from '@/shared/lib/cn';
 import { LegalModal } from '@/features/auth/components/LegalModal';
 
@@ -166,19 +167,27 @@ function Copyright() {
         © {'2026'} plzhans.com
       </span>
       {shown && (
+        /*
+          **환경 · 화면 · 서버 순이고, 산출물마다 구운 시각이 붙는다**(포털 푸터와 같다).
+          버전만으로는 같은 커밋을 두 번 배포했을 때 구별이 안 돼서 결국 커밋 시각을 뒤지게 된다.
+        */
         <span className="font-mono text-gray-500">
-          <span title="이 화면(인증웹) 산출물">auth v{APP_RELEASE}</span>
+          {APP_ENV}
           {' · '}
-          <span title="백엔드 산출물">
+          <span title={`이 화면(인증웹) 산출물 · ${APP_BUILT_AT}`}>
+            auth v{APP_RELEASE} {formatBuildStamp(APP_BUILT_AT)}
+          </span>
+          {' · '}
+          <span
+            title={server ? `백엔드 산출물 · ${server.builtAt}` : '백엔드 산출물'}
+          >
             api{' '}
             {server
-              ? `v${server.version}`
+              ? `v${server.version} ${formatBuildStamp(server.builtAt)}`
               : serverFailed
                 ? '확인 실패'
                 : '확인 중…'}
           </span>
-          {' · '}
-          {APP_ENV}
         </span>
       )}
     </p>

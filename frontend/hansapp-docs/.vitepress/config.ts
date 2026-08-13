@@ -93,6 +93,13 @@ const gitSha = (process.env.VITE_GIT_SHA ?? process.env.GITHUB_SHA ?? 'dev')
   .trim()
   .slice(0, 7);
 
+/*
+  **이 산출물을 언제 구웠나.** 버전과 sha 만으로는 "지금 뜬 문서가 방금 올린 그것인가" 를
+  못 가린다 — 같은 커밋을 두 번 배포하면 값이 똑같아서, 결국 커밋 시각을 뒤지게 된다.
+  UTC(ISO)로 굽고 펴는 것은 푸터가 한다(theme/Footer.vue).
+*/
+const builtAt = new Date().toISOString();
+
 // 스펙을 빌드 시 파일에서 읽는다. 경로는 OPENAPI_SPEC 환경변수로 오버라이드 가능하다.
 const spec = loadSpec();
 // 빌드 로그에 실제 사용한 스펙 경로를 남긴다(CI 디버깅용).
@@ -700,6 +707,8 @@ export default withMermaid(defineConfig({
       // DSN 은 여기 없다 — .env.<환경> 의 VITE_SENTRY_DSN 을 theme/sentry.ts 가 직접 읽는다.
       __APP_ENV__: JSON.stringify(docsEnv),
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),
+      // 푸터의 숨은 버전 표시에 같이 나온다. Sentry 는 쓰지 않는다.
+      __APP_BUILT_AT__: JSON.stringify(builtAt),
       // 푸터에 노출할 대표 이메일. hansapp-web 의 VITE_CONTACT_EMAIL 과 같은 값을 쓴다
       // (약관·방침 안에 박힌 연락처는 별개다 — 그쪽은 고치면 개정이라 공지 대상이다).
       __CONTACT_EMAIL__: JSON.stringify(

@@ -16,6 +16,7 @@ import { ref } from 'vue';
 */
 declare const __APP_ENV__: string;
 declare const __APP_RELEASE__: string;
+declare const __APP_BUILT_AT__: string;
 declare const __CONTACT_EMAIL__: string;
 
 /*
@@ -25,7 +26,36 @@ declare const __CONTACT_EMAIL__: string;
 */
 const appEnv = __APP_ENV__;
 const appRelease = __APP_RELEASE__;
+const appBuiltAt = __APP_BUILT_AT__;
 const contactEmail = __CONTACT_EMAIL__;
+
+/**
+ * 구운 시각을 `20260813_2324` 로. **KST 고정이다**(다른 앱의 buildStamp 와 같은 규칙).
+ *
+ * 이 값은 산출물의 속성이지 보는 사람이 겪은 사건이 아니다 — 배포를 이야기할 때 쓰는 시각이
+ * 한국 시간 하나뿐이라, 보는 사람마다 다르게 펴지면 "몇 시 배포본이냐" 를 맞춰 볼 수 없다.
+ * 쓰는 시간대가 하나뿐이라 화면에 `KST` 는 적지 않는다.
+ */
+function formatBuildStamp(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return '—';
+  // en-CA 는 `2026-08-13, 23:24` 로 준다 — 어느 브라우저에서도 ISO 순서라 자르기만 하면 된다.
+  const formatted = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(at);
+  const [date, time] = formatted.split(', ');
+  if (!date || !time) return '—';
+  // 자정을 24시로 주는 런타임이 있다.
+  return `${date.replace(/-/g, '')}_${time.replace(/^24:/, '00:').replace(':', '')}`;
+}
+
+const buildStamp = formatBuildStamp(appBuiltAt);
 
 const PORTAL = 'https://plzhans.com';
 
@@ -93,8 +123,9 @@ function onCopyrightClick() {
           <span class="hans-footer-mark" @click="onCopyrightClick">
             © 2026 plzhans.com
           </span>
-          <span v-if="shown" class="hans-footer-version">
-            v{{ appRelease }} · {{ appEnv }}
+          <!-- 환경 · 버전 · 구운 시각 순. 앞에서부터 좁혀 읽힌다(web·auth 푸터와 같다). -->
+          <span v-if="shown" class="hans-footer-version" :title="appBuiltAt">
+            {{ appEnv }} · v{{ appRelease }} {{ buildStamp }}
           </span>
         </p>
       </div>

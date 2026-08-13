@@ -15,6 +15,15 @@ const gitSha = (process.env.VITE_GIT_SHA ?? process.env.GITHUB_SHA ?? 'dev')
   .trim()
   .slice(0, 7);
 
+/*
+  **이 산출물을 언제 구웠나.** 버전과 sha 만으로는 "지금 뜬 화면이 방금 올린 그것인가" 를
+  못 가린다 — 같은 커밋을 두 번 배포하면 값이 똑같아서, 결국 커밋 시각을 뒤지게 된다.
+
+  UTC(ISO)로 굽고 펴는 것은 화면이 한다(백엔드 build-info.json 의 builtAt 과 같은 방식).
+  개발 서버로 띄우면 이 값은 **dev server 를 켠 시각**이다 — 파일을 고쳐도 갱신되지 않는다.
+*/
+const builtAt = new Date().toISOString();
+
 export default defineConfig(({ mode }) => {
   console.log(
     `[vite] mode=${mode}  VITE_HANSAPP_BASE_URL=${process.env.VITE_HANSAPP_BASE_URL ?? '(not set)'}`,
@@ -33,6 +42,7 @@ export default defineConfig(({ mode }) => {
     // 빌드 시점에 상수로 치환된다. Sentry release 문자열을 여기서 굳힌다.
     define: {
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),
+      __APP_BUILT_AT__: JSON.stringify(builtAt),
     },
     resolve: {
       alias: { '@': path.resolve(__dirname, './src') },

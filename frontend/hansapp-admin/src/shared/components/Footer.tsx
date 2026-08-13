@@ -1,4 +1,5 @@
-import { APP_ENV, APP_RELEASE } from '@/shared/config/env';
+import { APP_BUILT_AT, APP_ENV, APP_RELEASE } from '@/shared/config/env';
+import { formatBuildStamp } from '@/shared/lib/buildStamp';
 
 /**
  * 관리 화면 하단 띠.
@@ -28,10 +29,22 @@ export function Footer() {
         </p>
 
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          {/*
+            **환경 · 버전 · 구운 시각 순이다.** 앞에서부터 좁혀 읽힌다 — 어느 환경인지가
+            제일 먼저 갈리고(운영을 개발로 착각하면 나머지는 볼 필요도 없다), 그 안에서
+            어느 산출물인지, 그 산출물을 언제 구웠는지로 좁혀진다.
+
+            **버전만으로는 부족하다.** 같은 커밋을 두 번 배포하면 버전도 sha 도 똑같아서
+            지금 뜬 화면이 방금 올린 것인지 가릴 수 없다 — 결국 커밋 시각을 뒤지게 된다.
+          */}
           <span className="font-mono text-gray-400">
+            <span title="실행 환경">{APP_ENV}</span>
+            {' · '}
             <span title="이 화면(프론트) 산출물">admin v{APP_RELEASE}</span>
             {' · '}
-            <span title="실행 환경">{APP_ENV}</span>
+            <span title={`구운 시각 · ${APP_BUILT_AT}`}>
+              {formatBuildStamp(APP_BUILT_AT)}
+            </span>
           </span>
           <span className="text-gray-400">© 2026 plzhans.com</span>
         </p>
