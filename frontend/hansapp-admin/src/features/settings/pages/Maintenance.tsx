@@ -3,11 +3,14 @@ import { useMutation } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 
 import {
+  countAdminSessions,
   countCache,
   countSessions,
+  purgeAllAdminSessions,
   purgeAllSessions,
   purgeCache,
   type CacheCount,
+  type CacheTarget,
 } from '@/shared/api/maintenance';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
@@ -16,7 +19,13 @@ import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 
 /** 지금 열려 있는 확인 창. 닫혀 있으면 null. */
-type Asking = 'board' | 'userProfile' | 'sessions';
+type Asking = CacheTarget | 'sessions' | 'adminSessions';
+
+/** 세션 갈래는 캐시와 세는 통로가 다르다(DB 한 번). 두 곳에서 같은 판정을 쓰려고 모아 둔다. */
+const SESSION_COUNTERS = {
+  sessions: countSessions,
+  adminSessions: countAdminSessions,
+} as const;
 
 /**
  * 정리하기.
@@ -37,11 +46,13 @@ export default function Maintenance() {
   const [scale, setScale] = useState<CacheCount | null>(null);
 
   const counting = useMutation({
-    mutationFn: (target: Asking): Promise<CacheCount> =>
-      target === 'sessions'
-        ? // 세션은 DB 한 번이라 저장소 연결 여부를 따질 것이 없다.
-          countSessions().then((r) => ({ count: r.count, connected: true }))
-        : countCache(target),
+    mutationFn: (target: Asking): Promise<CacheCount> => {
+      const sessionCounter = SESSION_COUNTERS[target as keyof typeof SESSION_COUNTERS];
+      // 세션은 DB 한 번이라 저장소 연결 여부를 따질 것이 없다.
+      return sessionCounter
+        ? sessionCounter().then((r) => ({ count: r.count, connected: true }))
+        : countCache(target as CacheTarget);
+    },
     onSuccess: setScale,
   });
 
@@ -60,7 +71,7 @@ export default function Maintenance() {
   };
 
   const cache = useMutation({
-    mutationFn: (target: 'board' | 'userProfile') => purgeCache(target),
+    mutationFn: (target: CacheTarget) => purgeCache(target),
     onSuccess: (result) => {
       close();
       setDone(`캐시 ${result.removed}건을 지웠습니다.`);
@@ -88,7 +99,24 @@ export default function Maintenance() {
     },
   });
 
-  const busy = cache.isPending || sessions.isPending;
+  /**
+   * 관리자 전체 로그아웃. **성공 화면을 만들지 않는다** — 이 요청이 끝나는 순간 내 세션도
+   * 없어져서, 다음 요청은 401 이고 화면은 곧 로그인으로 떨어진다. 그 사실을 확인 창에서
+   * 미리 말해 두고, 여기서는 곧장 내보낸다.
+   */
+  const adminSessions = useMutation({
+    mutationFn: purgeAllAdminSessions,
+    onSuccess: () => {
+      close();
+      window.location.assign('/login');
+    },
+    onError: (e) => {
+      close();
+      setError(errorMessage(e, '로그아웃시키지 못했습니다.'));
+    },
+  });
+
+  const busy = cache.isPending || sessions.isPending || adminSessions.isPending;
 
   return (
     <AdminLayout
@@ -132,6 +160,33 @@ export default function Maintenance() {
             action="전체 강제 로그아웃"
             disabled={busy}
             onClick={() => ask('sessions')}
+          />
+        </Section>
+        {/*
+          **관리자 구역은 맨 아래다.** 이 화면을 여는 이유는 대개 서비스 쪽 정리인데,
+          관리자 로그아웃은 누른 사람까지 내보내는 조치라 가장 멀리 둔다.
+        */}
+        <Section title="관리자">
+          <Item
+            label="전체 캐시 초기화"
+            note="모든 관리자의 내 정보(/api/admins/me) 응답 캐시를 비웁니다. 로그인은 유지됩니다."
+            action="초기화"
+            disabled={busy}
+            onClick={() => ask('adminProfile')}
+          />
+          <Item
+            label="인증 캐시 초기화"
+            note="가드가 요청마다 보는 세션 캐시를 비웁니다. 끊는 것이 아니라 다음 요청이 DB 를 다시 읽습니다."
+            action="초기화"
+            disabled={busy}
+            onClick={() => ask('adminSession')}
+          />
+          <Item
+            label="전체 로그아웃"
+            note="모든 관리자의 로그인 세션을 끊습니다. 누른 본인도 함께 나갑니다."
+            action="전체 강제 로그아웃"
+            disabled={busy}
+            onClick={() => ask('adminSessions')}
           />
         </Section>
       </div>
@@ -209,6 +264,81 @@ export default function Maintenance() {
             scale={scale}
             busy={counting.isPending}
             onRefresh={() => counting.mutate('sessions')}
+          />
+        </ConfirmDialog>
+      )}
+
+      {asking === 'adminProfile' && (
+        <ConfirmDialog
+          title="관리자 캐시 초기화"
+          confirmLabel="초기화"
+          tone="danger"
+          loading={counting.isPending || cache.isPending}
+          onConfirm={() => cache.mutate('adminProfile')}
+          onClose={close}
+        >
+          <p>
+            모든 관리자의 내 정보 응답 캐시를 지웁니다.{' '}
+            <b>로그인은 끊기지 않습니다</b> — 다음 조회가 DB 로 내려갈 뿐입니다.
+          </p>
+          <Target
+            scale={scale}
+            busy={counting.isPending}
+            onRefresh={() => counting.mutate('adminProfile')}
+          />
+          <Disconnected scale={scale} />
+        </ConfirmDialog>
+      )}
+
+      {asking === 'adminSession' && (
+        <ConfirmDialog
+          title="관리자 인증 캐시 초기화"
+          confirmLabel="초기화"
+          tone="danger"
+          loading={counting.isPending || cache.isPending}
+          onConfirm={() => cache.mutate('adminSession')}
+          onClose={close}
+        >
+          <p>
+            관리자 API 가 요청마다 보는 세션 캐시를 지웁니다.{' '}
+            <b>끊는 것이 아닙니다</b> — 살아 있는 세션은 다음 요청에서 DB 를 다시
+            읽고 그대로 통과합니다.
+          </p>
+          <p className="mt-2">
+            이미 끊긴 세션의 칸이 남아 있었다면 여기서 사라지므로, 그 기기는 이
+            시점에 막힙니다.
+          </p>
+          <Target
+            scale={scale}
+            busy={counting.isPending}
+            onRefresh={() => counting.mutate('adminSession')}
+          />
+          <Disconnected scale={scale} />
+        </ConfirmDialog>
+      )}
+
+      {asking === 'adminSessions' && (
+        <ConfirmDialog
+          title="모든 관리자 로그아웃"
+          confirmLabel="전체 강제 로그아웃"
+          tone="danger"
+          loading={counting.isPending || adminSessions.isPending}
+          onConfirm={() => adminSessions.mutate()}
+          onClose={close}
+        >
+          <p>
+            관리자의 로그인 세션을 전부 폐기합니다.{' '}
+            <b>지금 이 자리도 함께 끊깁니다</b> — 누르는 순간 로그인 화면으로
+            나가고, 다시 들어오려면 비밀번호가 필요합니다.
+          </p>
+          <p className="mt-2">
+            회원 쪽과 달리 곧바로 막힙니다. 가드가 보는 캐시를 같은 서버에서 함께
+            지웁니다.
+          </p>
+          <Target
+            scale={scale}
+            busy={counting.isPending}
+            onRefresh={() => counting.mutate('adminSessions')}
           />
         </ConfirmDialog>
       )}

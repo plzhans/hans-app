@@ -25,6 +25,11 @@ export { AdminSessionCache } from './admin-session-cache.service';
 export { AdminProfileCache } from './admin-profile-cache.service';
 export type { AdminProfileCacheState } from './admin-profile-cache.service';
 export type { AdminSessionCacheState, CachedAdminSession } from './admin-session-cache.service';
+/* 정비 화면의 "관리자 전체 로그아웃". 회원 쪽 SessionPurgeService 와 짝이다. */
+export { AdminSessionPurgeService } from './admin-session-purge.service';
+export type { AdminSessionPurgeResult } from './admin-session-purge.service';
+/* 정비 화면이 일괄 삭제에 쓰는 전역 패턴. 키 형식은 admin-cache-keys 가 갖는다. */
+export { ALL_ADMIN_PROFILES_MATCH, ALL_ADMIN_SESSIONS_MATCH } from './admin-cache-keys';
 // 로그인 화면의 "비밀번호 찾기". 티켓을 내주고, 그 티켓으로 비밀번호를 다시 세운다.
 export { AdminPasswordResetService } from './admin-password-reset.service';
 export type {

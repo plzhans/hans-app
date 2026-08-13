@@ -7,6 +7,12 @@ import {
   SessionPurgeService,
 } from '@hansapp/admin-application';
 import type { CachePurgeResult, SessionPurgeResult } from '@hansapp/admin-application';
+import {
+  ALL_ADMIN_PROFILES_MATCH,
+  ALL_ADMIN_SESSIONS_MATCH,
+  AdminSessionPurgeService,
+} from '@hansapp/admin-application/auth';
+import type { AdminSessionPurgeResult } from '@hansapp/admin-application/auth';
 
 /**
  * 지울 수 있는 캐시 갈래.
@@ -19,6 +25,15 @@ const CACHE_TARGETS = {
   board: '*board:*',
   /** 모든 회원의 내 정보(`/users/me`) 응답. 세션은 여기 안 걸린다. */
   userProfile: ALL_PROFILES_MATCH,
+  /** 모든 관리자의 내 정보(`/api/admins/me`) 응답. */
+  adminProfile: ALL_ADMIN_PROFILES_MATCH,
+  /**
+   * 모든 관리자의 인증 캐시.
+   *
+   * **로그아웃이 아니다.** 가드가 이 칸을 못 찾으면 DB 를 다시 읽을 뿐이라, 살아 있는
+   * 세션은 그대로 통과한다 — 끊으려면 아래 전체 로그아웃이다.
+   */
+  adminSession: ALL_ADMIN_SESSIONS_MATCH,
 } as const;
 
 type CacheTarget = keyof typeof CACHE_TARGETS;
@@ -36,6 +51,25 @@ export class CachePurgeResultDto {
   constructor(result: CachePurgeResult) {
     this.removed = result.removed;
     this.connected = result.connected;
+  }
+}
+
+export class AdminSessionPurgeResultDto {
+  @ApiProperty({ description: '지운 세션 수' })
+  readonly sessions!: number;
+
+  @ApiProperty({ description: '로그아웃된 관리자 수' })
+  readonly admins!: number;
+
+  @ApiProperty({
+    description: '지우지 못한 캐시 수. 0 이 아니면 그만큼은 만료까지 통과할 수 있다.',
+  })
+  readonly cacheLeft!: number;
+
+  constructor(result: AdminSessionPurgeResult) {
+    this.sessions = result.sessions;
+    this.admins = result.admins;
+    this.cacheLeft = result.cacheLeft;
   }
 }
 
@@ -97,6 +131,7 @@ export class MaintenanceController {
   constructor(
     private readonly caches: CachePurgeService,
     private readonly sessions: SessionPurgeService,
+    private readonly adminSessions: AdminSessionPurgeService,
   ) {}
 
   /*
@@ -127,13 +162,23 @@ export class MaintenanceController {
     return new SessionCountDto(await this.sessions.count());
   }
 
+  @Get('admin-sessions/count')
+  @ApiOperation({
+    summary: '관리자 세션 규모',
+    description: '지금 있는 관리자 로그인 세션 수. 회원 쪽과 마찬가지로 DB 한 번이다.',
+  })
+  @ApiOkResponse({ type: SessionCountDto })
+  async adminSessionCount(): Promise<SessionCountDto> {
+    return new SessionCountDto(await this.adminSessions.count());
+  }
+
   @Post('cache/:target/purge')
   @HttpCode(200)
   @ApiOperation({
     summary: '캐시 일괄 삭제',
     description:
       '`board` 는 게시판 목록·글 상세 캐시를, `userProfile` 은 모든 회원의 `/users/me` ' +
-      '응답 캐시를 지운다.\n\n' +
+      '응답 캐시를, `adminProfile`·`adminSession` 은 관리자의 내 정보·인증 캐시를 지운다.\n\n' +
       '**API 인스턴스의 메모리 캐시는 지우지 못한다.** 공유 캐시(Redis)만 비우고, 각 ' +
       '인스턴스가 앞에 둔 메모리는 상한(기본 1분)까지 남는다.',
   })
@@ -157,6 +202,21 @@ export class MaintenanceController {
   @ApiOkResponse({ type: SessionPurgeResultDto })
   async purgeSessions(): Promise<SessionPurgeResultDto> {
     return new SessionPurgeResultDto(await this.sessions.purgeAll());
+  }
+
+  @Post('admin-sessions/purge')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: '모든 관리자 로그아웃',
+    description:
+      '모든 관리자의 로그인 세션을 폐기하고 그 인증 캐시도 함께 비운다.\n\n' +
+      '**부른 사람도 함께 나간다.** 관리자 세션에 예외를 두지 않는다 — 자기 자리만 남기면 ' +
+      '"전부 끊었다" 가 거짓이 되고, 유출 대응에서는 그 자리가 가장 위험할 수도 있다.\n\n' +
+      '회원 쪽과 달리 **곧바로 막힌다** — 가드가 보는 캐시를 같은 프로세스에서 함께 지운다.',
+  })
+  @ApiOkResponse({ type: AdminSessionPurgeResultDto })
+  async purgeAdminSessions(): Promise<AdminSessionPurgeResultDto> {
+    return new AdminSessionPurgeResultDto(await this.adminSessions.purgeAll());
   }
 }
 

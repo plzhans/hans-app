@@ -18,6 +18,7 @@ import { AdminPasswordResetRepository } from './admin-password-reset.repository'
 import { AdminPasswordResetService } from './admin-password-reset.service';
 import { AdminProfileCache } from './admin-profile-cache.service';
 import { AdminSessionCache } from './admin-session-cache.service';
+import { AdminSessionPurgeService } from './admin-session-purge.service';
 import { AdminSessionRepository } from './admin-session.repository';
 import { AdminTokenService } from './admin-token.service';
 import { AdminUserRepository } from './admin-user.repository';
@@ -60,6 +61,8 @@ export class AdminAuthModule {
         AdminSessionCache,
         // 내 정보 응답 캐시. 값이 바뀌는 자리들이 이걸 직접 지운다.
         AdminProfileCache,
+        // 정비 화면의 "관리자 전체 로그아웃". 세션과 그 캐시를 한 번에 비운다.
+        AdminSessionPurgeService,
         AdminJwtService,
         AdminTokenService,
         AdminActionLogService,
@@ -101,6 +104,7 @@ export class AdminAuthModule {
         // 콘솔의 캐시 화면이 직접 들여다보고 지운다(회원 쪽 UserSessionCacheAdmin 과 같은 자리).
         AdminSessionCache,
         AdminProfileCache,
+        AdminSessionPurgeService,
         AdminSocialService,
         AdminGoogleClient,
         AdminSocialTicketService,

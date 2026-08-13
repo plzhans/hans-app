@@ -97,6 +97,27 @@ export class AdminSessionRepository {
     return rows.map((row) => row.sessionId);
   }
 
+  /** 살아 있는 것까지 포함한 전체 세션 수. 정비 화면이 규모를 보여 주는 데 쓴다. */
+  countAll(): Promise<number> {
+    return this.prisma.adminTokenSession.count();
+  }
+
+  /**
+   * 모든 관리자의 세션을 지운다.
+   *
+   * **지우기 전에 (관리자, 세션) 짝을 받아 둔다.** 캐시 키가 그 짝이라, 행을 지운 뒤에는
+   * 무엇을 비워야 하는지 되물을 방법이 없다.
+   */
+  async deleteAllSessions(): Promise<{ adminId: number; sessionId: number }[]> {
+    const rows = await this.prisma.adminTokenSession.findMany({
+      select: { adminId: true, sessionId: true },
+    });
+    if (rows.length === 0) return [];
+
+    await this.prisma.adminTokenSession.deleteMany({});
+    return rows;
+  }
+
   /**
    * 이 관리자의 세션을 최근 `keep` 개만 남기고 지운다.
    *

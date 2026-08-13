@@ -27,6 +27,12 @@ export const adminProfileKey = (adminId: number): string => `${adminScope(adminI
 export const adminSessionKey = (adminId: number, sessionId: number): string =>
   `${adminScope(adminId)}:sess:${sessionId}`;
 
+/** 모든 관리자의 내 정보 캐시를 고르는 패턴. 정비 화면의 일괄 삭제가 쓴다. */
+export const ALL_ADMIN_PROFILES_MATCH = `*${PREFIX}:*:profile`;
+
+/** 모든 관리자의 세션 캐시를 고르는 패턴. */
+export const ALL_ADMIN_SESSIONS_MATCH = `*${PREFIX}:*:sess:*`;
+
 /** 이 관리자의 세션 캐시를 고르는 패턴. */
 export const adminSessionsMatch = (adminId: number): string => `*${adminScope(adminId)}:sess:*`;
 
