@@ -16,7 +16,16 @@ export type AppDisplayStatus =
   | 'REVIEWING'
   | 'DRAFT';
 
-export function displayStatus(app: AppSummary): AppDisplayStatus {
+/**
+ * 상태를 정하는 네 값만 받는다. **앱 한 줄의 모양이 화면마다 달라서다** — 목록은
+ * AppSummary 를, 회원 상세의 앱 탭은 UserApp 을 그린다.
+ */
+export type AppStatusFields = Pick<
+  AppSummary,
+  'status' | 'reviewRequestedAt' | 'rejectionReason' | 'deletedAt'
+>;
+
+export function displayStatus(app: AppStatusFields): AppDisplayStatus {
   // 삭제가 가장 우선이다 — 지워진 앱의 상태값은 볼 의미가 없다.
   if (app.deletedAt) return 'DELETED';
   if (app.status === 'ACTIVE') return 'ACTIVE';

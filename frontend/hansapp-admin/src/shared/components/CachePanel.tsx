@@ -95,62 +95,47 @@ export function CachePanel({
     },
     onError: (e) => {
       setAsking(false);
-      setError(errorMessage(e, '캐싱을 지우지 못했습니다.'));
+      setError(errorMessage(e, '캐시를 지우지 못했습니다.'));
     },
   });
 
   return (
     <div className="space-y-3">
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error}
-        </p>
-      )}
+      <CacheErrorNote>{error}</CacheErrorNote>
 
-      <div className="rounded-2xl border border-gray-200 bg-white">
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-6 py-4">
-          <span className="mr-auto">
+      <CacheCard
+        title={
+          <>
             <span className="block text-sm font-semibold text-gray-900">
               {query.isLoading
                 ? '읽는 중…'
                 : state?.hit
                   ? '캐시에 들어 있습니다'
-                  : '캐싱 없음'}
+                  : '캐시 없음'}
             </span>
             <span className="block font-mono text-xs text-gray-400">
               {state?.key}
             </span>
-          </span>
-
-          <button
-            type="button"
-            onClick={() => void query.refetch()}
-            disabled={query.isFetching}
-            title="다시 읽기"
-            aria-label="다시 읽기"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${query.isFetching ? 'animate-spin' : ''}`}
+          </>
+        }
+        actions={
+          <>
+            <CacheRefreshButton
+              fetching={query.isFetching}
+              onClick={() => void query.refetch()}
             />
-          </button>
-          {/*
-            **지울 것이 없으면 누를 수 없다.** 눌러도 아무 일이 없는 버튼이 성공한 것처럼
-            보이면, 다음에 정말 지워야 할 때 그 버튼을 믿지 못한다.
-          */}
-          <button
-            type="button"
-            disabled={!state?.hit}
-            onClick={() => {
-              setError(null);
-              setAsking(true);
-            }}
-            className="inline-flex h-9 items-center rounded-lg border border-gray-300 px-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-300 disabled:hover:bg-transparent"
-          >
-            캐싱 초기화
-          </button>
-        </div>
-
+            <CachePurgeButton
+              disabled={!state?.hit}
+              onClick={() => {
+                setError(null);
+                setAsking(true);
+              }}
+            >
+              캐시 초기화
+            </CachePurgeButton>
+          </>
+        }
+      >
         <dl className="px-6 py-4 text-sm">
           <Row label="만료">
             {state?.hit
@@ -163,9 +148,7 @@ export function CachePanel({
 
         {state?.hit && (
           <div className="px-6 pb-4">
-            <p className="mb-1.5 text-xs font-semibold text-gray-400">
-              담겨 있는 값
-            </p>
+            <CacheValueLabel />
             <CacheJsonView value={state.value} />
           </div>
         )}
@@ -175,13 +158,13 @@ export function CachePanel({
           프로세스면 그쪽이 들고 있는 것은 여기서 보이지도, 지워지지도 않는다.
         */}
         {state && !state.shared && (
-          <p className="mx-6 mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
+          <CacheMemoryNote>
             Redis 가 설정되지 않아 프로세스 메모리에 담고 있습니다. 값을 쓰는
             API 가 다른 프로세스에서 돌고 있다면{' '}
             <b>그쪽 캐시는 여기서 보이지도, 지워지지도 않습니다.</b>
-          </p>
+          </CacheMemoryNote>
         )}
-      </div>
+      </CacheCard>
 
       {asking && (
         <ConfirmDialog
@@ -196,6 +179,109 @@ export function CachePanel({
         </ConfirmDialog>
       )}
     </div>
+  );
+}
+
+/**
+ * 캐시 화면의 상자.
+ *
+ * **칸이 하나인 화면(회원·글)과 여럿인 화면(관리자 인증 캐시)이 같은 상자를 쓴다.** 묻는
+ * 것이 같아서다 — 무엇이 들어 있나, 언제 빠지나, 지금 지울까. 상자를 두 벌 들고 있으면
+ * 한쪽만 고쳐지는 날이 온다.
+ */
+export function CacheCard({
+  title,
+  actions,
+  children,
+}: {
+  title: ReactNode;
+  /** 제목 줄 오른쪽. 다시 읽기·초기화 버튼이 온다. */
+  actions: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white">
+      <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-6 py-4">
+        <span className="mr-auto min-w-0">{title}</span>
+        {actions}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** 다시 읽기. 남은 시간이 흘러가는 화면이라 어느 캐시 화면에나 있다. */
+export function CacheRefreshButton({
+  fetching,
+  onClick,
+}: {
+  fetching: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={fetching}
+      title="다시 읽기"
+      aria-label="다시 읽기"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50"
+    >
+      <RefreshCw className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
+    </button>
+  );
+}
+
+/**
+ * 지우기로 들어가는 버튼. 누르면 확인 창이 뜬다.
+ *
+ * **지울 것이 없으면 누를 수 없다.** 눌러도 아무 일이 없는 버튼이 성공한 것처럼 보이면,
+ * 다음에 정말 지워야 할 때 그 버튼을 믿지 못한다.
+ */
+export function CachePurgeButton({
+  disabled,
+  onClick,
+  children,
+}: {
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex h-9 items-center rounded-lg border border-gray-300 px-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-300 disabled:hover:bg-transparent"
+    >
+      {children}
+    </button>
+  );
+}
+
+/** 지우기가 실패했을 때. 상자 위에 붙는다 — 눌렀던 자리 바로 옆이다. */
+export function CacheErrorNote({ children }: { children: string | null }) {
+  if (!children) return null;
+  return (
+    <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+      {children}
+    </p>
+  );
+}
+
+/** Redis 가 아닐 때의 단서. 무엇이 안 보이는지는 화면마다 달라 문구를 받는다. */
+export function CacheMemoryNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="mx-6 mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
+      {children}
+    </p>
+  );
+}
+
+/** 아래 JSON 이 무엇인지 알리는 줄. 캐시 화면들이 같은 자리에 같은 말을 쓴다. */
+export function CacheValueLabel() {
+  return (
+    <p className="mb-1.5 text-xs font-semibold text-gray-400">담겨 있는 값</p>
   );
 }
 

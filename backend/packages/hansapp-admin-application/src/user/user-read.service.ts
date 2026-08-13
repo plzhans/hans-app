@@ -27,6 +27,10 @@ export interface UserOAuthSummary {
 export interface UserDetail extends UserSummary {
   readonly updatedAt: Date;
   readonly withdrawnAt: Date | null;
+  /** 표시·메일 언어(ko/en/ja/zh). 비어 있으면 요청의 Accept-Language 를 따른다. */
+  readonly language: string | null;
+  /** IANA 타임존 ID(예: Asia/Seoul). 비어 있으면 화면 기본값을 따른다. */
+  readonly timeZone: string | null;
   /** 이메일 로그인이 가능한 계정인가. **해시는 내보내지 않고 이 불리언만 준다.** */
   readonly hasPassword: boolean;
   readonly oauths: UserOAuthSummary[];
@@ -71,6 +75,8 @@ export class UserReadService {
       ...toSummary(row.user),
       updatedAt: row.user.updatedAt,
       withdrawnAt: row.user.withdrawnAt,
+      language: row.user.language,
+      timeZone: row.user.timeZone,
       hasPassword: row.user.password !== null,
       oauths: row.oauths.map((o) => ({
         provider: o.provider,

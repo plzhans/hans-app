@@ -10,11 +10,19 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { AuthLogResult, AuthLogAction, UserStatus } from '@hansapp/admin-application';
+import { SUPPORTED_LANGS } from '@hansapp/common';
+import {
+  AppStatus,
+  AuthLogResult,
+  AuthLogAction,
+  UserStatus,
+  UserTier,
+} from '@hansapp/admin-application';
 import type {
   CachedSession,
   ProfileCacheState,
   SessionCacheState,
+  UserAppSummary,
   UserAuthLogEntry,
   UserDetail,
   UserOAuthSummary,
@@ -145,8 +153,8 @@ export class UserAuthLogDto {
 /**
  * 회원 정보 수정 요청. **보낸 항목만 바뀐다.**
  *
- * 지금 고칠 수 있는 것은 표시 이름뿐이다 — 이메일·인증 여부·등급을 왜 안 여는지는
- * UserAdminService 주석에 적어 두었다.
+ * 이메일과 이메일 인증 여부는 여기 없다 — 왜 안 여는지는 UserAdminService 주석에
+ * 적어 두었다.
  */
 export class UpdateUserRequestDto {
   @ApiPropertyOptional({
@@ -157,6 +165,36 @@ export class UpdateUserRequestDto {
   @IsString()
   @MaxLength(50)
   readonly name?: string;
+
+  @ApiPropertyOptional({
+    description: '등급. 앱 생성 한도를 정한다.',
+    enum: UserTier,
+  })
+  @IsOptional()
+  @IsEnum(UserTier)
+  readonly tier?: UserTier;
+
+  @ApiPropertyOptional({
+    description:
+      '표시·메일 언어. 지원하지 않는 값이면 400. ' +
+      '빈 문자열을 보내면 지운다 — 그러면 요청의 Accept-Language 를 따른다.',
+    enum: SUPPORTED_LANGS,
+    example: 'ko',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  readonly language?: string;
+
+  @ApiPropertyOptional({
+    description: 'IANA 타임존 ID. 알아볼 수 없는 값이면 400. 빈 문자열을 보내면 지운다.',
+    maxLength: 64,
+    example: 'Asia/Seoul',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  readonly timeZone?: string;
 }
 
 /**
@@ -359,6 +397,18 @@ export class UserDetailDto extends UserSummaryDto {
   @ApiPropertyOptional({ description: '탈퇴 시각(ISO 8601). 활성 계정은 null' })
   readonly withdrawnAt!: string | null;
 
+  @ApiPropertyOptional({
+    description: '표시·메일 언어. 정한 적이 없으면 null — 그때는 요청의 Accept-Language 를 따른다.',
+    enum: SUPPORTED_LANGS,
+  })
+  readonly language!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'IANA 타임존 ID. 정한 적이 없으면 null.',
+    example: 'Asia/Seoul',
+  })
+  readonly timeZone!: string | null;
+
   @ApiProperty({
     description:
       '이메일 로그인이 가능한 계정인지. 소셜 전용 계정은 false. **해시는 내보내지 않는다.**',
@@ -378,6 +428,8 @@ export class UserDetailDto extends UserSummaryDto {
     super(user);
     this.updatedAt = user.updatedAt.toISOString();
     this.withdrawnAt = user.withdrawnAt?.toISOString() ?? null;
+    this.language = user.language;
+    this.timeZone = user.timeZone;
     this.hasPassword = user.hasPassword;
     this.oauths = user.oauths.map((o) => new UserOAuthDto(o));
     this.activeSessionCount = user.activeSessionCount;
@@ -426,5 +478,54 @@ export class UserSessionListDto {
   constructor(sessions: UserSessionDto[], orphans: OrphanSessionCacheDto[]) {
     this.sessions = sessions;
     this.orphans = orphans;
+  }
+}
+
+/**
+ * 회원이 소유·참여하는 앱 한 줄.
+ *
+ * **앱 목록 한 줄과 다르다.** 소유자는 이미 아는 사람(그 회원)이라 빼고, 대신 그 회원이
+ * 이 앱에서 무엇인지(역할)와 언제 합류했는지를 싣는다. 나머지는 앱 상세에서 본다.
+ */
+export class UserAppDto {
+  @ApiProperty({ description: '앱 id' }) readonly id!: number;
+  @ApiProperty({ description: '앱 이름' }) readonly name!: string;
+  @ApiProperty({ description: '앱 상태', enum: AppStatus })
+  readonly status!: AppStatus;
+
+  @ApiPropertyOptional({
+    description: '심사 요청 시각(ISO 8601). PENDING 일 때만 의미가 있다.',
+  })
+  readonly reviewRequestedAt!: string | null;
+
+  @ApiPropertyOptional({
+    description: '거절 사유. PENDING + 이 값이 있으면 거절된 앱이다.',
+  })
+  readonly rejectionReason!: string | null;
+
+  @ApiPropertyOptional({ description: '삭제 시각(ISO 8601). 살아 있으면 null' })
+  readonly deletedAt!: string | null;
+
+  @ApiProperty({
+    description: '이 회원의 역할. OWNER(소유) / ADMIN(관리) / MEMBER(읽기)',
+  })
+  readonly role!: string;
+
+  @ApiProperty({ description: '이 앱의 멤버가 된 시각(ISO 8601)' })
+  readonly joinedAt!: string;
+
+  @ApiProperty({ description: '앱 등록 시각(ISO 8601)' })
+  readonly createdAt!: string;
+
+  constructor(app: UserAppSummary) {
+    this.id = app.id;
+    this.name = app.name;
+    this.status = app.status;
+    this.reviewRequestedAt = app.reviewRequestedAt?.toISOString() ?? null;
+    this.rejectionReason = app.rejectionReason;
+    this.deletedAt = app.deletedAt?.toISOString() ?? null;
+    this.role = app.role;
+    this.joinedAt = app.joinedAt.toISOString();
+    this.createdAt = app.createdAt.toISOString();
   }
 }

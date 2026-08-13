@@ -14,6 +14,7 @@ import {
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
 import {
+  AppReadService,
   UserAdminService,
   UserProfileCacheAdmin,
   UserSessionCacheAdmin,
@@ -23,6 +24,7 @@ import {
 } from '@hansapp/admin-application';
 
 import {
+  UserAppDto,
   UserAuthLogDto,
   UserAuthLogQueryDto,
   UserDetailDto,
@@ -54,6 +56,12 @@ export class UserController {
     private readonly sessionAdmin: UserSessionAdminService,
     private readonly sessionCache: UserSessionCacheAdmin,
     private readonly logs: UserAuthLogService,
+    /*
+      **앱은 회원의 소유물이 아니라 별개 도메인이다.** 그래도 "이 회원이 무슨 앱을
+      들고 있나" 는 회원을 볼 때 묻는 것이라, 조회는 앱 쪽 서비스를 그대로 빌려 온다 —
+      회원 저장소에 앱 쿼리를 하나 더 만들면 같은 표를 두 곳에서 읽게 된다.
+    */
+    private readonly apps: AppReadService,
   ) {}
 
   @Get()
@@ -83,17 +91,42 @@ export class UserController {
   @ApiOperation({
     summary: '회원 정보 수정',
     description:
-      '표시 이름을 바꾼다. 보낸 항목만 바뀐다.\n\n' +
-      '이메일·이메일 인증 여부·등급은 이 통로로 고칠 수 없다 — ' +
-      '이메일은 로그인 식별자이고, 인증 여부는 우리가 확인했다는 기록이며, ' +
-      '등급은 앱 생성 한도를 바꾸는 값이라 따로 설계할 일이다.',
+      '표시 이름·등급·언어·시간대를 바꾼다. 보낸 항목만 바뀐다.\n\n' +
+      '이메일과 이메일 인증 여부는 이 통로로 고칠 수 없다 — ' +
+      '이메일은 로그인 식별자이고, 인증 여부는 우리가 확인했다는 기록이다.',
   })
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserRequestDto,
   ): Promise<void> {
     // 없는 회원이면 서비스가 404 를 던진다(고칠 행이 없다는 것으로 판단한다).
-    await this.userAdmin.update(id, { name: dto.name });
+    await this.userAdmin.update(id, {
+      name: dto.name,
+      tier: dto.tier,
+      language: dto.language,
+      timeZone: dto.timeZone,
+    });
+  }
+
+  @Get(':id/apps')
+  @ApiOperation({
+    summary: '회원이 소유·참여하는 앱',
+    description:
+      '이 회원이 멤버로 들어 있는 앱을 최근 등록 순으로 돌려준다. 역할(OWNER·ADMIN·MEMBER)과 ' +
+      '합류 시각을 함께 준다.\n\n' +
+      '**삭제된 앱도 포함한다.** 회원 상세의 앱 수와 줄 수가 어긋나지 않게 하려는 것이다 — ' +
+      '지워진 앱인지는 `deletedAt` 으로 가른다.',
+  })
+  @ApiOkResponse({ type: [UserAppDto] })
+  async listApps(@Param('id', ParseIntPipe) id: number): Promise<UserAppDto[]> {
+    // 없는 회원도 빈 목록이 나온다. 주소를 잘못 짚은 것과 구별되게 먼저 확인한다.
+    const user = await this.users.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User not found: ${id}`);
+    }
+
+    const apps = await this.apps.listByUser(id);
+    return apps.map((app) => new UserAppDto(app));
   }
 
   @Get(':id/cache')

@@ -74,6 +74,26 @@ export interface AppDetail extends AppSummary {
   readonly clients: AppClientSummary[];
 }
 
+/**
+ * 회원 한 명이 소유·참여하는 앱 한 줄.
+ *
+ * **목록 한 줄(AppSummary)과 다르다.** 소유자는 이미 아는 사람(그 회원)이라 빼고, 대신
+ * 그 회원이 이 앱에서 무엇인지(역할)와 언제 합류했는지를 싣는다. 키·클라이언트 수는
+ * 앱 상세로 넘어가서 볼 값이라 여기서 세지 않는다.
+ */
+export interface UserAppSummary {
+  readonly id: number;
+  readonly name: string;
+  readonly status: AppStatus;
+  readonly reviewRequestedAt: Date | null;
+  readonly rejectionReason: string | null;
+  readonly deletedAt: Date | null;
+  readonly createdAt: Date;
+  /** 이 회원의 역할. OWNER(소유) / ADMIN(관리) / MEMBER(읽기). */
+  readonly role: string;
+  readonly joinedAt: Date;
+}
+
 export interface AppListQuery extends AppListFilter {
   readonly page: number;
   readonly size: number;
@@ -119,6 +139,23 @@ export class AppReadService {
       query.size,
       total,
     );
+  }
+
+  /** 회원 한 명이 소유·참여하는 앱. 최근 등록 순, 삭제된 앱도 포함한다. */
+  async listByUser(userId: number): Promise<UserAppSummary[]> {
+    const rows = await this.repo.listByMember(userId);
+
+    return rows.map((row) => ({
+      id: row.app.id,
+      name: row.app.name,
+      status: row.app.status,
+      reviewRequestedAt: row.app.reviewRequestedAt,
+      rejectionReason: row.app.rejectionReason,
+      deletedAt: row.app.deletedAt,
+      createdAt: row.app.createdAt,
+      role: row.role,
+      joinedAt: row.joinedAt,
+    }));
   }
 
   async findById(id: number): Promise<AppDetail | null> {

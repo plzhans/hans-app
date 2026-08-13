@@ -2,12 +2,15 @@ import { useNavigate } from 'react-router-dom';
 
 import { Tabs } from '@/shared/ui/Tabs';
 
-export type UserTab = 'overview' | 'session' | 'authLog' | 'cache';
+export type UserTab = 'overview' | 'app' | 'session' | 'authLog' | 'cache';
 
 /**
  * **"활동" 이 아니라 "인증" 이다.** 이 탭이 보여 주는 것은 로그인·비밀번호·소셜연동·탈퇴,
  * 곧 계정에 일어난 일이다. 좋아요·조회 같은 서비스 행위는 별도 표로 가고 탭도 따로 생긴다 —
  * 지금 "활동" 이라고 부르면 그때 이름이 정면으로 충돌한다.
+ *
+ * **앱이 개요 바로 다음이다.** 이 회원이 무엇을 들고 있는지는 계정 정보의 연장이고,
+ * 개발자 문의는 대개 그 앱 이야기라 여기서 앱 상세로 건너간다.
  *
  * **기기가 기록보다 앞이다.** 지금 어디에서 로그인돼 있는지는 "현재 상태" 라 개요의
  * 연장이고, 기록은 지나간 일이다. 문의를 받아 들여다볼 때도 대개 지금부터 본다.
@@ -17,6 +20,7 @@ export type UserTab = 'overview' | 'session' | 'authLog' | 'cache';
  */
 const ITEMS = [
   { value: 'overview' as const, label: '개요' },
+  { value: 'app' as const, label: '앱' },
   { value: 'session' as const, label: '로그인 기기' },
   { value: 'authLog' as const, label: '인증 기록' },
   { value: 'cache' as const, label: '캐시' },
@@ -24,6 +28,7 @@ const ITEMS = [
 
 const PATH: Record<UserTab, (userId: number) => string> = {
   overview: (id) => `/users/${id}`,
+  app: (id) => `/users/${id}/apps`,
   session: (id) => `/users/${id}/sessions`,
   authLog: (id) => `/users/${id}/auth-logs`,
   cache: (id) => `/users/${id}/cache`,
@@ -32,8 +37,8 @@ const PATH: Record<UserTab, (userId: number) => string> = {
 /**
  * 회원 상세의 탭.
  *
- * **탭을 URL 로 가른다**(`/users/:id`, `/users/:id/sessions`, `/users/:id/auth-logs`,
- * `/users/:id/cache`).
+ * **탭을 URL 로 가른다**(`/users/:id`, `/users/:id/apps`, `/users/:id/sessions`,
+ * `/users/:id/auth-logs`, `/users/:id/cache`).
  * 컴포넌트 state 로만 들고 있으면 "이 회원 기록 좀 보세요" 를 링크로 못 주고,
  * 새로고침하면 개요로 돌아간다.
  *

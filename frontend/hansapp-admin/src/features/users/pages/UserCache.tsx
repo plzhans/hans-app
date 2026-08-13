@@ -43,7 +43,7 @@ export default function UserCache() {
         queryKey={['user-cache', userId]}
         fetchState={() => getUserCacheState(userId)}
         purge={() => purgeUserCache(userId)}
-        confirmTitle="캐싱 초기화"
+        confirmTitle="캐시 초기화"
       >
         <p>
           이 회원의 <b>내 정보 캐시</b>를 지웁니다. 지운 직후의{' '}

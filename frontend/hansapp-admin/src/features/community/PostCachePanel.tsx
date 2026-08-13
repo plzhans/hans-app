@@ -13,7 +13,7 @@ export function PostCachePanel({ postId }: { postId: number }) {
       queryKey={['post-cache', postId]}
       fetchState={() => getPostCacheState(postId)}
       purge={() => purgePostCache(postId)}
-      confirmTitle="캐싱 초기화"
+      confirmTitle="캐시 초기화"
     >
       <p>
         이 글의 <b>공개 화면 캐시</b>를 지웁니다. 지운 직후의 조회는 캐시를 타지

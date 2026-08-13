@@ -1,8 +1,12 @@
 import { apiFetch } from '@/shared/api/client';
+import type { AppStatus } from '@/shared/api/apps';
 import type { CacheState } from '@/shared/components/CachePanel';
 
 /** 백엔드 UserStatus 와 같은 값. */
 export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN';
+
+/** 백엔드 UserTier 와 같은 값. 앱 생성 한도를 정한다. */
+export type UserTier = 'BASIC' | 'PRO' | 'UNLIMITED';
 
 /**
  * **null 인 필드는 응답에서 아예 빠진다.** 서버의 StripNullInterceptor 가 값이 없는
@@ -15,7 +19,7 @@ export interface UserSummary {
   name?: string | null;
   status: UserStatus;
   role: string;
-  tier: string;
+  tier: UserTier;
   joinType: string;
   emailVerified: boolean;
   createdAt: string;
@@ -30,6 +34,10 @@ export interface UserOAuth {
 export interface UserDetail extends UserSummary {
   updatedAt: string;
   withdrawnAt?: string | null;
+  /** 표시·메일 언어(ko/en/ja/zh). 정한 적이 없으면 없다 — 요청 헤더를 따른다. */
+  language?: string | null;
+  /** IANA 타임존 ID. 정한 적이 없으면 없다. */
+  timeZone?: string | null;
   /** 이메일 로그인이 가능한 계정인지. **서버는 해시를 내보내지 않는다.** */
   hasPassword: boolean;
   oauths: UserOAuth[];
@@ -70,14 +78,55 @@ export const getUser = (id: number) => apiFetch<UserDetail>(`/api/users/${id}`);
 /**
  * 회원 정보 수정. **보낸 항목만 바뀐다.**
  *
- * 지금 고칠 수 있는 것은 표시 이름뿐이다 — 이메일은 로그인 식별자이고, 이메일 인증 여부는
- * "우리가 확인했다" 는 기록이며, 등급은 앱 생성 한도를 바꾸는 값이라 서버가 열지 않았다.
+ * 이메일과 이메일 인증 여부는 서버가 열지 않았다 — 이메일은 로그인 식별자이고, 인증
+ * 여부는 "우리가 확인했다" 는 기록이다.
+ *
+ * 언어·시간대는 **빈 문자열을 보내면 지워진다**(정한 적 없는 상태로 되돌린다).
  */
-export const updateUser = (id: number, input: { name?: string }) =>
+export const updateUser = (
+  id: number,
+  input: {
+    name?: string;
+    tier?: UserTier;
+    language?: string;
+    timeZone?: string;
+  },
+) =>
   apiFetch<void>(`/api/users/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
   });
+
+/**
+ * 회원이 소유·참여하는 앱 한 줄.
+ *
+ * **앱 목록 한 줄(AppSummary)과 다르다.** 소유자는 이미 아는 사람(이 회원)이라 빠지고,
+ * 대신 이 회원의 역할·합류 시각이 붙는다 — 나머지는 앱 상세에서 본다.
+ */
+export interface UserApp {
+  id: number;
+  name: string;
+  status: AppStatus;
+  /** 심사 요청 시각. status=PENDING 일 때만 의미가 있다. */
+  reviewRequestedAt?: string | null;
+  /** 거절 사유. PENDING + 이 값이 있으면 거절된 앱이다. */
+  rejectionReason?: string | null;
+  /** 삭제 시각. 있으면 소프트 삭제된 앱이다. */
+  deletedAt?: string | null;
+  /** 이 회원의 역할. OWNER(소유) / ADMIN(관리) / MEMBER(읽기). */
+  role: string;
+  joinedAt: string;
+  createdAt: string;
+}
+
+/**
+ * 이 회원이 소유·참여하는 앱. 최근 등록 순.
+ *
+ * **삭제된 앱도 온다.** 개요의 앱 수(멤버 행 수)와 줄 수가 어긋나지 않게 하려는 것이라,
+ * 지워진 앱인지는 화면이 표시로 가른다.
+ */
+export const listUserApps = (id: number) =>
+  apiFetch<UserApp[]>(`/api/users/${id}/apps`);
 
 /**
  * 세션 하나의 인증 캐시.

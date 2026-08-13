@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AppStatus, Prisma, PrismaService } from '@hansapp/data';
-import type { App, AppApiKey, AppClient, User } from '@hansapp/data';
+import type { App, AppApiKey, AppClient, AppRole, User } from '@hansapp/data';
 
 /** 목록 조회 조건. 비어 있는 값은 조건에서 빠진다. */
 export interface AppListFilter {
@@ -22,6 +22,14 @@ export interface AppListRow {
   readonly apiKeyCount: number;
   readonly clientCount: number;
   readonly memberCount: number;
+}
+
+/** 회원 한 명이 소유·참여하는 앱 한 줄. 앱에 그 회원의 역할·합류 시각이 붙는다. */
+export interface AppMembershipRow {
+  readonly app: App;
+  readonly role: AppRole;
+  /** 이 앱의 멤버가 된 시각(app_member.created_at). 앱 등록 시각과 다르다. */
+  readonly joinedAt: Date;
 }
 
 export interface AppDetailRow extends AppListRow {
@@ -118,6 +126,29 @@ export class AppReadRepository {
         user: m.user,
       })),
     };
+  }
+
+  /**
+   * 회원 한 명이 소유·참여하는 앱. 최근 등록 순.
+   *
+   * **삭제된 앱도 준다.** 목록(listPage)은 기본으로 빼지만 여기서는 대상이 한 사람이라
+   * 몇 줄로 끝나고, 회원 상세가 세는 앱 수(app_member 행 수)와 줄 수가 어긋나면
+   * "왜 하나 모자라지" 가 된다 — 지워진 앱인지는 화면이 표시로 가른다.
+   *
+   * 페이지를 나누지 않는다 — 앱은 등급별 생성 한도가 있어 한 사람이 가질 수 있는 수가 적다.
+   */
+  async listByMember(userId: number): Promise<AppMembershipRow[]> {
+    const rows = await this.prisma.appMember.findMany({
+      where: { userId },
+      orderBy: { appId: 'desc' },
+      select: { role: true, createdAt: true, app: true },
+    });
+
+    return rows.map((row) => ({
+      app: row.app,
+      role: row.role,
+      joinedAt: row.createdAt,
+    }));
   }
 }
 

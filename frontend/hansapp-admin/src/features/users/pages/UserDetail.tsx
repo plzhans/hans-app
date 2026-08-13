@@ -8,6 +8,7 @@ import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
 import { BackLink } from '@/shared/components/BackLink';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
+import { languageLabel } from '@/shared/lib/timeZone';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { UserEditModal } from '../UserEditModal';
@@ -96,27 +97,46 @@ export default function UserDetail() {
               {/* 서버는 해시를 내보내지 않는다. 가능 여부만 온다. */}
               {user.hasPassword ? '가능' : '불가 (소셜 전용)'}
             </Field>
+            {/*
+              **표시 설정도 계정 정보다**(관리자 상세와 같은 배치). 정한 적이 없으면 값이
+              비는데, 그때 무엇을 따르는지까지 적어 둔다 — 빈칸만 보이면 "안 나온 것" 과
+              "안 정한 것" 이 구별되지 않는다.
+            */}
+            <Field label="언어">
+              {user.language ? (
+                languageLabel(user.language)
+              ) : (
+                <span className="text-gray-400">
+                  미설정 (요청 헤더를 따름)
+                </span>
+              )}
+            </Field>
+            <Field label="시간대">
+              {user.timeZone ?? (
+                <span className="text-gray-400">미설정</span>
+              )}
+            </Field>
             <Field label="가입일">{formatDateTime(user.createdAt)}</Field>
             <Field label="최종 수정">{formatDateTime(user.updatedAt)}</Field>
             {user.withdrawnAt && (
               <Field label="탈퇴일">{formatDateTime(user.withdrawnAt)}</Field>
             )}
-          </Section>
+            {/*
+              **활동 섹션을 따로 두지 않는다.** 앱 수는 이 계정을 볼 때 같이 읽는 값이라,
+              카드를 갈라 두면 같은 계정을 두 상자에서 훑게 된다. 하나하나는 탭에 있다.
 
-          <Section title="활동">
-            <Field label="로그인 세션">
-              {/* 개수를 보면 다음에 묻는 것은 "어느 기기냐" 다. 그 자리로 바로 보낸다. */}
+              **세션 수는 여기 적지 않는다.** 기기 탭이 그 답을 온전히 들고 있는데, 개요에
+              숫자만 한 줄 더 두면 탭과 어긋날 자리만 늘어난다.
+            */}
+            <Field label="참여 중인 앱">
+              {/* 다음에 묻는 것은 "무슨 앱이냐" 다. 목록은 앱 탭이 그린다. */}
               <Link
-                to={`/users/${user.id}/sessions`}
+                to={`/users/${user.id}/apps`}
                 className="underline decoration-gray-300 underline-offset-2 transition hover:text-primary"
               >
-                {user.activeSessionCount}개
+                {user.appCount}개
               </Link>
-              <span className="ml-1 text-xs text-gray-400">
-                (살아 있는 것만)
-              </span>
             </Field>
-            <Field label="참여 중인 앱">{user.appCount}개</Field>
           </Section>
 
           <Section title="소셜 연동">

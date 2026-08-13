@@ -156,10 +156,11 @@ export type {
   AppApiKeySummary,
   AppClientSummary,
   AppMemberSummary,
+  UserAppSummary,
 } from './app-registry/app-read.service';
 
 // 목록 필터에 쓰는 enum. 앱이 @hansapp/data 를 직접 의존하지 않게 여기서 재노출한다.
-export { UserStatus, AppStatus, AppClientType } from '@hansapp/data';
+export { UserStatus, UserTier, AppStatus, AppClientType } from '@hansapp/data';
 // 인증 기록의 enum(로그 DB). 컨트롤러 DTO 가 검증·문서화에 값으로 쓴다.
 export { AuthLogAction, AuthLogResult } from '@hansapp/data';
 export type { SyncJob, SyncOutcome } from './common/sync-state.service';

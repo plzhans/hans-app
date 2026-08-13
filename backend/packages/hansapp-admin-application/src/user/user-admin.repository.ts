@@ -1,5 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@hansapp/data';
+import type { UserTier } from '@hansapp/data';
+
+/**
+ * 관리자가 고칠 수 있는 칸. 준 것만 바뀌고, null 은 "비운다" 다.
+ *
+ * **읽기 전용으로 잠그지 않는다.** 호출부가 조건에 따라 한 칸씩 채워 넣는 상자다.
+ */
+export interface UserProfilePatch {
+  name?: string | null;
+  tier?: UserTier;
+  language?: string | null;
+  timeZone?: string | null;
+}
 
 /**
  * 관리자용 회원 수정 저장소.
@@ -16,7 +29,7 @@ export class UserAdminRepository {
    * 준 항목만 바꾼다. **없는 회원이면 0 을 돌려준다** — update 는 없을 때 던지는데,
    * 그 예외를 잡아 404 로 바꾸느니 건수를 보고 호출부가 정하는 편이 읽기 쉽다.
    */
-  updateProfile(id: number, data: { name?: string | null }): Promise<number> {
+  updateProfile(id: number, data: UserProfilePatch): Promise<number> {
     return this.prisma.user.updateMany({ where: { id }, data }).then((result) => result.count);
   }
 }

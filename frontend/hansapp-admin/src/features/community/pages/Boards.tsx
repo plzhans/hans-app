@@ -158,7 +158,7 @@ export default function Boards() {
           queryKey={['board-list-cache']}
           fetchState={getBoardListCacheState}
           purge={purgeBoardListCache}
-          confirmTitle="캐싱 초기화"
+          confirmTitle="캐시 초기화"
         >
           <p>
             포털이 쓰는 <b>게시판 목록 캐시</b>를 지웁니다. 메뉴와 게시판 이름이

@@ -9,6 +9,7 @@ import ResetPassword from '@/features/auth/pages/ResetPassword';
 import Me from '@/features/auth/pages/Me';
 import Users from '@/features/users/pages/Users';
 import UserDetail from '@/features/users/pages/UserDetail';
+import UserApps from '@/features/users/pages/UserApps';
 import UserSessions from '@/features/users/pages/UserSessions';
 import UserAuthLogs from '@/features/users/pages/UserAuthLogs';
 import UserCache from '@/features/users/pages/UserCache';
@@ -121,6 +122,7 @@ export default function App() {
           <Route path="/users" element={<Users />} />
           <Route path="/users/:id" element={<UserDetail />} />
           {/* 회원 상세의 탭들. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          <Route path="/users/:id/apps" element={<UserApps />} />
           <Route path="/users/:id/sessions" element={<UserSessions />} />
           <Route path="/users/:id/auth-logs" element={<UserAuthLogs />} />
           <Route path="/users/:id/cache" element={<UserCache />} />
