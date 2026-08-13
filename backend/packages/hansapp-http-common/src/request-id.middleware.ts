@@ -25,11 +25,7 @@ const VALID_ID = /^[A-Za-z0-9_-]{8,64}$/;
  * 값이 겹칠 수 있다는 점은 그대로 둔다 — 클라이언트가 같은 id 를 두 번 보내면 로그가
  * 겹치지만, 그건 그쪽 버그이지 우리가 막을 일이 아니다(서버가 만든 값은 UUID 라 안 겹친다).
  */
-export function requestIdMiddleware(
-  req: Request,
-  _res: unknown,
-  next: NextFunction,
-): void {
+export function requestIdMiddleware(req: Request, _res: unknown, next: NextFunction): void {
   const given = req.headers[REQUEST_ID_HEADER];
   const candidate = Array.isArray(given) ? given[0] : given;
 

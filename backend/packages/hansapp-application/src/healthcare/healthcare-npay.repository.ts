@@ -31,9 +31,7 @@ export class HealthcareNonPaymentRepository {
   }
 
   /** npayCd 목록의 분류코드(중분류) 원본 행. Map 조립·필터는 서비스가 한다. */
-  findNpayCodeMdiv(
-    codes: string[],
-  ): Promise<{ cd: string; mdivCd: string | null }[]> {
+  findNpayCodeMdiv(codes: string[]): Promise<{ cd: string; mdivCd: string | null }[]> {
     return this.prisma.hiraNpayCode.findMany({
       where: { cd: { in: codes } },
       select: { cd: true, mdivCd: true },
@@ -41,10 +39,7 @@ export class HealthcareNonPaymentRepository {
   }
 
   /** 크롤 미러 한 행(기관+op 유니크). 없으면(아직 안 긁음) null. */
-  findWebDetail(
-    ykiho: string,
-    op: string,
-  ): Promise<{ data: Prisma.JsonValue } | null> {
+  findWebDetail(ykiho: string, op: string): Promise<{ data: Prisma.JsonValue } | null> {
     return this.prisma.hiraHospitalDetail.findUnique({
       where: { ykiho_op: { ykiho, op } },
       select: { data: true },

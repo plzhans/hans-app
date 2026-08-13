@@ -9,10 +9,7 @@ export class UserOAuthRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /** (provider, providerId) 로 연동을 조회한다(소셜 로그인 진입점). */
-  findByProvider(
-    provider: OAuthProvider,
-    providerId: string,
-  ): Promise<UserOAuth | null> {
+  findByProvider(provider: OAuthProvider, providerId: string): Promise<UserOAuth | null> {
     return this.prisma.userOAuth.findUnique({
       where: { provider_providerId: { provider, providerId } },
     });
@@ -32,8 +29,6 @@ export class UserOAuthRepository {
   }
 
   delete(userId: number, provider: OAuthProvider): Promise<number> {
-    return this.prisma.userOAuth
-      .deleteMany({ where: { userId, provider } })
-      .then((r) => r.count);
+    return this.prisma.userOAuth.deleteMany({ where: { userId, provider } }).then((r) => r.count);
   }
 }

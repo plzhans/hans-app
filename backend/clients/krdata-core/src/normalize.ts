@@ -38,17 +38,12 @@ export function normalizeKrDataResponse(payload: unknown): void {
 }
 
 /** 응답 헤더를 꺼낸다. 헤더가 없으면 undefined. */
-export function extractResultHeader(
-  payload: unknown,
-): KrDataResultHeader | undefined {
+export function extractResultHeader(payload: unknown): KrDataResultHeader | undefined {
   const header = getRecord(getRecord(payload, 'response'), 'header');
   return header;
 }
 
-function getRecord(
-  value: unknown,
-  key: string,
-): Record<string, unknown> | undefined {
+function getRecord(value: unknown, key: string): Record<string, unknown> | undefined {
   if (!isRecord(value)) {
     return undefined;
   }

@@ -1,11 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  AuthProvider,
-  PrismaService,
-  User,
-  UserStatus,
-  UserTier,
-} from '@hansapp/data';
+import { AuthProvider, PrismaService, User, UserStatus, UserTier } from '@hansapp/data';
 
 /**
  * 회원 저장소. DB 접근·쿼리 조립만 담당한다(캐시·정책은 서비스가).
@@ -60,10 +54,7 @@ export class UserRepository {
    * 집계용 값이라 고칠 경로를 두지 않는다.
    * 준 항목만 바꾼다(둘 다 보낼 필요가 없다).
    */
-  updateLocale(
-    id: number,
-    input: { language?: string; timeZone?: string },
-  ): Promise<User> {
+  updateLocale(id: number, input: { language?: string; timeZone?: string }): Promise<User> {
     return this.prisma.user.update({ where: { id }, data: input });
   }
 

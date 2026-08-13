@@ -128,9 +128,13 @@ redis_conf_src="$AREA_DIR/infra/$APP_ENV/config/redis/redis.conf"
 # 걸면 그 환경의 배포가 통째로 죽는데, nginx 는 컨테이너 기동과 무관하다.
 nginx_conf_src="$AREA_DIR/infra/$APP_ENV/nginx/nginx-https.conf"
 
-# 업그레이드 map. **환경에 안 묶여 shared 에 있다** — 두 환경이 쓸 내용이 똑같다.
-# 서버에서는 이 중 하나만 conf.d 에 링크한다(두 번 걸면 변수 중복으로 nginx 가 안 뜬다).
-nginx_map_src="$AREA_DIR/infra/shared/nginx/upgrade-map.conf"
+# 환경에 안 묶인 설정들(업그레이드 map, 기본 서버 80·443). **디렉터리째 나른다** —
+# 파일 이름을 여기 적어 두면 하나 늘 때마다 이 스크립트를 같이 고쳐야 하고, 빠뜨리면
+# 서버에 도착하지 않는다.
+#
+# 서버에서는 **이 중 하나만** 링크한다 — map 은 두 번 걸면 변수 중복으로, 기본 서버는
+# 두 번 걸면 duplicate default server 로 nginx 가 아예 안 뜬다.
+nginx_shared_dir="$AREA_DIR/infra/shared/nginx"
 
 # redis 서비스의 env(`env_file: .env.redis`). 시크릿이라 암호문으로 확인만 하고,
 # 복호화·전송은 아래 시크릿 단계에서 한다.
@@ -251,10 +255,13 @@ if [ -f "$nginx_conf_src" ]; then
   remote "chmod 644 $BE_HANSAPP_DEPLOY_PATH/nginx/nginx-https.conf"
   echo "  nginx/nginx-https.conf (반영은 사람이 — nginx -t && reload)"
 
-  if [ -f "$nginx_map_src" ]; then
-    scp "${ssh_opts[@]}" -q "$nginx_map_src" "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/nginx/upgrade-map.conf"
-    remote "chmod 644 $BE_HANSAPP_DEPLOY_PATH/nginx/upgrade-map.conf"
-    echo "  nginx/upgrade-map.conf (서버당 하나만 conf.d 로 링크)"
+  # shared 는 통째로. `/.` 를 붙여야 디렉터리가 아니라 **내용**이 들어간다
+  # (안 붙이면 nginx/nginx/ 가 된다).
+  if [ -d "$nginx_shared_dir" ]; then
+    scp "${ssh_opts[@]}" -q -r "$nginx_shared_dir/." "$BE_HANSAPP_DEPLOY_SSH_HOST:$BE_HANSAPP_DEPLOY_PATH/nginx/"
+    # find 로 도는 것은 빈 디렉터리여도 실패하지 않게 하려는 것이다(set -e 라 glob 은 죽는다).
+    remote "find $BE_HANSAPP_DEPLOY_PATH/nginx -type f -exec chmod 644 {} +"
+    echo "  nginx/ ← infra/shared/nginx 전체 (서버당 하나만 링크)"
   fi
 else
   echo "  nginx 설정 없음 — 건너뜀 ($AREA/infra/$APP_ENV/nginx/nginx-https.conf)"

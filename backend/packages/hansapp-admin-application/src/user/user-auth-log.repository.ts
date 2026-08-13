@@ -47,9 +47,7 @@ export class UserAuthLogRepository {
   }
 }
 
-function buildWhere(
-  filter: UserAuthLogFilter,
-): LogPrisma.UserAuthLogWhereInput {
+function buildWhere(filter: UserAuthLogFilter): LogPrisma.UserAuthLogWhereInput {
   const where: LogPrisma.UserAuthLogWhereInput = { userId: filter.userId };
 
   if (filter.from || filter.to) {

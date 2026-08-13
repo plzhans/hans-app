@@ -31,14 +31,8 @@ export class LlmSettingsSource implements Contract {
         **기본값은 LLM_DEFAULTS 하나가 갖는다**(@hansapp/common). 화면의 placeholder 도 같은
         상수를 보므로, 한쪽만 고쳐 "적힌 값과 실제가 다른" 상태가 생기지 않는다.
       */
-      timeoutSec: await this.settings.getNumber(
-        'llm.timeoutSec',
-        LLM_DEFAULTS.timeoutSec,
-      ),
-      maxTokens: await this.settings.getNumber(
-        'llm.maxTokens',
-        LLM_DEFAULTS.maxTokens,
-      ),
+      timeoutSec: await this.settings.getNumber('llm.timeoutSec', LLM_DEFAULTS.timeoutSec),
+      maxTokens: await this.settings.getNumber('llm.maxTokens', LLM_DEFAULTS.maxTokens),
       appDailyTokens: await this.settings.getNumber(
         'llm.appDailyTokens',
         LLM_DEFAULTS.appDailyTokens,
@@ -47,22 +41,13 @@ export class LlmSettingsSource implements Contract {
         'llm.appMonthlyTokens',
         LLM_DEFAULTS.appMonthlyTokens,
       ),
-      userTokens: await this.settings.getNumber(
-        'llm.userTokens',
-        LLM_DEFAULTS.userTokens,
-      ),
+      userTokens: await this.settings.getNumber('llm.userTokens', LLM_DEFAULTS.userTokens),
       /*
         **둘 다 기본은 꺼짐이다.** 설정을 빠뜨린 환경에서 켜져 있는 것이 최악이다 —
         /test 는 유료 답변을 공짜로 내주고, 사용량 노출은 요금을 역산당한다.
       */
-      allowTestCommand: await this.settings.getBoolean(
-        'llm.allowTestCommand',
-        false,
-      ),
-      exposeDebugUsage: await this.settings.getBoolean(
-        'llm.exposeDebugUsage',
-        false,
-      ),
+      allowTestCommand: await this.settings.getBoolean('llm.allowTestCommand', false),
+      exposeDebugUsage: await this.settings.getBoolean('llm.exposeDebugUsage', false),
       /*
         **접속처는 목록(llm_endpoint)에서 온다.** 업체마다 한 자리씩 고정해 두면 같은 업체를
         둘 이상 등록할 수가 없다 — 운영용·개발용 키를 따로 두려는 것이 이 목록의 이유다.

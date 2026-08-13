@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  type OnApplicationBootstrap,
-} from '@nestjs/common';
+import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from '@hansapp/data';
 import { FALLBACK_LANG, type SupportedLang } from '@hansapp/common';
 
@@ -107,9 +103,7 @@ export class HiraAsmCodeCache implements OnApplicationBootstrap {
 
     this.byCode = byCode;
     this.groups = groups;
-    this.logger.log(
-      `hira_code(asm) ${rows.length}건 / 그룹 ${groups.length}개 메모리 로드`,
-    );
+    this.logger.log(`hira_code(asm) ${rows.length}건 / 그룹 ${groups.length}개 메모리 로드`);
   }
 
   /** 항목 하나. 모르는 코드면 undefined. */
@@ -129,17 +123,11 @@ export class HiraAsmCodeCache implements OnApplicationBootstrap {
 }
 
 /** 항목명. 번역이 비어 있으면 한국어로 폴백한다(pickName 규칙). */
-export function asmItemName(
-  item: AsmItem,
-  lang: SupportedLang = FALLBACK_LANG,
-): string {
+export function asmItemName(item: AsmItem, lang: SupportedLang = FALLBACK_LANG): string {
   return pickName(item.name, lang);
 }
 
 /** 그룹명. 같은 규칙. */
-export function asmGroupName(
-  item: AsmItem,
-  lang: SupportedLang = FALLBACK_LANG,
-): string {
+export function asmGroupName(item: AsmItem, lang: SupportedLang = FALLBACK_LANG): string {
   return pickName(item.groupName, lang);
 }

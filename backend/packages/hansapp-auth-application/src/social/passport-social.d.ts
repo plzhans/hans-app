@@ -22,11 +22,7 @@ declare module 'passport-kakao' {
     };
     [key: string]: unknown;
   };
-  export type VerifyCallback = (
-    error: unknown,
-    user?: unknown,
-    info?: unknown,
-  ) => void;
+  export type VerifyCallback = (error: unknown, user?: unknown, info?: unknown) => void;
   export class Strategy {
     constructor(
       options: KakaoStrategyOptions,
@@ -58,11 +54,7 @@ declare module 'passport-line-auth' {
     _json?: { sub?: string; email?: string; name?: string };
     [key: string]: unknown;
   };
-  export type VerifyCallback = (
-    error: unknown,
-    user?: unknown,
-    info?: unknown,
-  ) => void;
+  export type VerifyCallback = (error: unknown, user?: unknown, info?: unknown) => void;
   export class Strategy {
     constructor(
       options: LineStrategyOptions,

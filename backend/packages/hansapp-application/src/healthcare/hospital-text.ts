@@ -40,9 +40,6 @@ export function pickText<T>(source: T | null, translated: T | null): T | null {
  * 주소도 같은 이유로 병기해야 하지만, 주소 번역 자체가 아직 없다(좌표·주소 API 로 풀어야 함).
  * 그때 addrKo 를 같은 규칙으로 붙이면 된다.
  */
-export function annotateKo(
-  source: string,
-  translated: string | null,
-): string | undefined {
+export function annotateKo(source: string, translated: string | null): string | undefined {
   return translated && translated !== source ? source : undefined;
 }

@@ -14,7 +14,10 @@ import { trackPageView } from '@/shared/analytics/gtag';
 import Dashboard from '@/features/home/pages/Dashboard';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
-import Terms from '@/features/legal/pages/Terms';
+import BoardPosts from '@/features/board/pages/BoardPosts';
+import BoardPost from '@/features/board/pages/BoardPost';
+import ServiceTerms from '@/features/legal/pages/ServiceTerms';
+import AppTerms from '@/features/legal/pages/AppTerms';
 import Privacy from '@/features/legal/pages/Privacy';
 
 /**
@@ -82,12 +85,28 @@ export default function App() {
       <Routes>
         {/* 공개 대시보드 */}
         <Route path="/" element={<Dashboard />} />
+        {/* 게시판. **공개 라우트다** — 공지사항은 로그인 없이 보여야 한다. */}
+        <Route path="/board/:name" element={<BoardPosts />} />
+        <Route path="/board/:name/:id" element={<BoardPost />} />
         {/*
-          계정 약관·방침. **반드시 공개 라우트다** — 가입 화면(인증웹)이 동의를 받기 전에
+          약관·방침. **반드시 공개 라우트다** — 가입 화면(인증웹)이 동의를 받기 전에
           링크하는 곳이라, 로그인을 요구하면 가입하려는 사람이 열 수 없다.
+
+          셋 다 /terms 아래 한 단계로 둔다. 문서가 늘어도 규칙이 그대로고, 스토어·심사
+          양식에 적어 넣을 때 접두사가 갈리지 않는다.
         */}
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms/service" element={<ServiceTerms />} />
+        <Route path="/terms/app" element={<AppTerms />} />
+        <Route path="/terms/privacy" element={<Privacy />} />
+        {/* 옛 주소. 이미 나간 링크가 있을 수 있어 남겨 둔다. */}
+        <Route
+          path="/terms"
+          element={<Navigate to="/terms/service" replace />}
+        />
+        <Route
+          path="/privacy"
+          element={<Navigate to="/terms/privacy" replace />}
+        />
         {/* 앱 관리(로그인 필요) */}
         <Route
           path="/apps"

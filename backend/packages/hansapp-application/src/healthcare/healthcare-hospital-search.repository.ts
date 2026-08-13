@@ -132,10 +132,7 @@ const SEARCH_SORT: Sort = [
  * 뒤의 id 는 동거리 동점을 갈라 search_after 커서를 안정시킨다(id 가 유일키다).
  */
 function distanceSort(origin: HospitalCoords): Sort {
-  return [
-    { _geo_distance: { 'location.point': origin, order: 'asc', unit: 'm' } },
-    { id: 'asc' },
-  ];
+  return [{ _geo_distance: { 'location.point': origin, order: 'asc', unit: 'm' } }, { id: 'asc' }];
 }
 
 /** 정렬 지시 → ES sort. 거리순만 다르고 나머지는 기본 정렬이다. */
@@ -386,9 +383,7 @@ export class HealthcareHospitalSearchRepository
         },
       },
       // 점수는 필요 없다. 거리만으로 1등을 뽑는다.
-      sort: [
-        { _geo_distance: { 'location.point': point, order: 'asc', unit: 'm' } },
-      ],
+      sort: [{ _geo_distance: { 'location.point': point, order: 'asc', unit: 'm' } }],
     });
 
     return res.hits.hits[0]?._source?.location?.region_cd ?? null;
@@ -572,11 +567,9 @@ export class HealthcareHospitalSearchRepository
         ...hitToListRow(src, lang),
         // sort[4] = _geo_distance 정렬키. unit:'m' 로 요청했으므로 미터다(위 sort 주석 참고).
         distance_m: Math.round(Number(hit.sort?.[4] ?? 0)),
-        matched_subject_cds: (src.subject_cds ?? []).filter((cd) =>
-          seedSubjects.has(cd),
-        ),
-        matched_specialist_cds: (src.specialist_subject_cds ?? []).filter(
-          (cd) => seedSpecialists.has(cd),
+        matched_subject_cds: (src.subject_cds ?? []).filter((cd) => seedSubjects.has(cd)),
+        matched_specialist_cds: (src.specialist_subject_cds ?? []).filter((cd) =>
+          seedSpecialists.has(cd),
         ),
       };
     });
@@ -591,9 +584,7 @@ export class HealthcareHospitalSearchRepository
    * 각 절을 constant_score 로 감싸 **BM25 를 걷어낸다.** 안 그러면 희소한 과목이 IDF 로 더 높은
    * 점수를 받아 가중치 표(NEARBY_WEIGHT)와 실제 순위가 어긋난다 — 표를 보고 조정할 수 없게 된다.
    */
-  private buildSimilarity(
-    doc: Partial<HealthcareHospitalDoc>,
-  ): QueryDslQueryContainer[] {
+  private buildSimilarity(doc: Partial<HealthcareHospitalDoc>): QueryDslQueryContainer[] {
     const should: QueryDslQueryContainer[] = [
       // 바닥 점수. 겹침이 없어도 거리순으로 물러나게 한다.
       {
@@ -640,10 +631,7 @@ export class HealthcareHospitalSearchRepository
    * 위로** 올리려 name 에 부스트(^3)를 준다("혜화역 정형외과" 에서 이름이 딱 맞는 병원이 상단).
    * best_fields — 이름이든 지명이든 가장 잘 맞는 필드의 점수를 취한다.
    */
-  private keywordQuery(
-    keyword: string,
-    lang: SupportedLang,
-  ): QueryDslQueryContainer {
+  private keywordQuery(keyword: string, lang: SupportedLang): QueryDslQueryContainer {
     // 입력이 **전부 한글 자음(초성)**이면 초성 검색이다 — 색인해둔 name_chosung 에 prefix 로 건다
     // ("ㅅㅇㅂㅇ" → "서울병원"). 공백은 무시한다(name_chosung 은 공백 없이 색인됨).
     const chosung = keyword.replace(/\s+/g, '');
@@ -676,10 +664,7 @@ export class HealthcareHospitalSearchRepository
    * 코드 필터는 filter 컨텍스트라 점수에 관여하지 않고 캐시된다. 키워드만 must(점수 컨텍스트)에
    * 두어 관련도 정렬이 살고, 키워드가 없으면 must 를 빼 순수 필터 질의가 된다.
    */
-  private buildQuery(
-    filter: HospitalSearchFilter,
-    lang: SupportedLang,
-  ): QueryDslQueryContainer {
+  private buildQuery(filter: HospitalSearchFilter, lang: SupportedLang): QueryDslQueryContainer {
     return {
       bool: {
         filter: this.buildFilter(filter),
@@ -691,9 +676,7 @@ export class HealthcareHospitalSearchRepository
     };
   }
 
-  private buildSpecialistBoost(
-    filter: HospitalSearchFilter,
-  ): QueryDslQueryContainer[] {
+  private buildSpecialistBoost(filter: HospitalSearchFilter): QueryDslQueryContainer[] {
     return (filter.subjectCds ?? []).map((cd) => ({
       constant_score: {
         filter: { term: { specialist_subject_cds: cd } },
@@ -797,9 +780,7 @@ export class HealthcareHospitalSearchRepository
  */
 function tierFilter(tier: string | undefined): QueryDslQueryContainer[] {
   if (!tier) {
-    return [
-      { bool: { must_not: [{ terms: { tier: [...INPATIENT_TIERS] } }] } },
-    ];
+    return [{ bool: { must_not: [{ terms: { tier: [...INPATIENT_TIERS] } }] } }];
   }
   return [{ term: { tier } }];
 }
@@ -809,10 +790,7 @@ function tierFilter(tier: string | undefined): QueryDslQueryContainer[] {
  * 서비스가 listRowToSource·toSummary 를 두 경로에 그대로 재사용하게 하려는 것이다.
  * 이름은 원문(ko)을 name 에, 요청 언어 번역을 i18n_name 에 실어 서비스가 골라 쓰게 한다.
  */
-function hitToListRow(
-  doc: Partial<HealthcareHospitalDoc>,
-  lang: SupportedLang,
-): HospitalListRow {
+function hitToListRow(doc: Partial<HealthcareHospitalDoc>, lang: SupportedLang): HospitalListRow {
   const loc = doc.location;
   const stations = doc.subway?.stations;
   return {

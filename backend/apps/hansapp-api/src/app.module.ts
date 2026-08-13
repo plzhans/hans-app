@@ -7,11 +7,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
 import type { ConfigSource } from '@hansapp/common';
 import { ApplicationModule } from '@hansapp/application';
 import { HealthcareMcpServer } from '@hansapp/mcp';
-import {
-  AuthModule,
-  AuthGuard,
-  FirstPartyGuard,
-} from '@hansapp/auth-application';
+import { AuthModule, AuthGuard, FirstPartyGuard } from '@hansapp/auth-application';
 import { resolveClientIp } from '@hansapp/http-common';
 
 import { AppController } from './app.controller';
@@ -21,6 +17,7 @@ import { SocialController } from './auth/social.controller';
 import { OAuthController } from './oauth/oauth.controller';
 import { UserController } from './users/user.controller';
 import { HealthController } from './health/health.controller';
+import { BoardController } from './community/board.controller';
 import { JwksController } from './oauth/jwks.controller';
 import { AppsController } from './apps/app.controller';
 import { LlmKeyController } from './apps/llm-key.controller';
@@ -54,8 +51,7 @@ export class AppModule {
     // 인프라(Cloudflare/CloudFront/OCI/nginx)가 아직 미정이라 provider 별 헤더를 설정으로만 바꾼다.
     //   Cloudflare  → cf-connecting-ip,  범용 프록시 → 비우고 TRUST_PROXY 로 req.ip 사용
     // 비밀 아닌 값이라 config/config.yaml(또는 CLIENT_IP_HEADER 환경변수)로 관리한다.
-    const clientIpHeader =
-      config.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
+    const clientIpHeader = config.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
     return {
       module: AppModule,
       imports: [
@@ -94,6 +90,7 @@ export class AppModule {
         OAuthController,
         UserController,
         HealthController,
+        BoardController,
         JwksController,
         AppsController,
         LlmKeyController,

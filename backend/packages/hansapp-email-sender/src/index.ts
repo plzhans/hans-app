@@ -10,8 +10,4 @@
 export { EmailSender, describeEmailSettings } from './email-sender';
 export type { EmailMessage } from './email-sender';
 export { EMAIL_SETTINGS_SOURCE } from './email-settings';
-export type {
-  EmailSettings,
-  EmailSettingsSource,
-  SmtpSettings,
-} from './email-settings';
+export type { EmailSettings, EmailSettingsSource, SmtpSettings } from './email-settings';

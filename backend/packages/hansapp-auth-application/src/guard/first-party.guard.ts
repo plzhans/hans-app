@@ -34,10 +34,10 @@ export class FirstPartyGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const required = this.reflector.getAllAndOverride<boolean>(
-      FIRST_PARTY_ONLY_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const required = this.reflector.getAllAndOverride<boolean>(FIRST_PARTY_ONLY_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (!required) {
       return true;
     }

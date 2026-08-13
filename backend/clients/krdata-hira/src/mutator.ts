@@ -50,17 +50,11 @@ export interface KrDataRequestInit extends RequestInit {
 /** 같은 설정으로 fetch 를 매번 새로 만들지 않도록 캐시한다. */
 const fetchCache = new WeakMap<HiraConfig, KrDataFetch>();
 
-export function withKrDataConfig(
-  config: HiraConfig,
-  options?: RequestInit,
-): KrDataRequestInit {
+export function withKrDataConfig(config: HiraConfig, options?: RequestInit): KrDataRequestInit {
   return { ...options, krdata: config };
 }
 
-export const krDataMutator = async <T>(
-  url: string,
-  options?: KrDataRequestInit,
-): Promise<T> => {
+export const krDataMutator = async <T>(url: string, options?: KrDataRequestInit): Promise<T> => {
   const config = options?.krdata;
   if (!config) {
     throw new Error(
@@ -77,10 +71,7 @@ export const krDataMutator = async <T>(
   const requestInit: KrDataRequestInit = { ...options };
   delete requestInit.krdata;
 
-  const target = applyDetailVersion(
-    url,
-    config.detailVersion ?? SPEC_DETAIL_VERSION,
-  );
+  const target = applyDetailVersion(url, config.detailVersion ?? SPEC_DETAIL_VERSION);
 
   // orval 의 fetch 클라이언트는 { data, status, headers } 봉투를 기대한다.
   const response = await krDataFetch(target, requestInit);

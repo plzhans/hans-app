@@ -1,9 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '../generated/log';
 import { DB_CONFIG, DbConfig } from './db.config';
 
@@ -17,10 +12,7 @@ import { DB_CONFIG, DbConfig } from './db.config';
  * 파티셔닝·보관·파기 같은 물리 설계는 DBA 가 별도로 관리한다.
  */
 @Injectable()
-export class PrismaLogService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaLogService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(@Inject(DB_CONFIG) config: DbConfig) {
     super({ datasources: { db: { url: config.logUrl } } });
   }

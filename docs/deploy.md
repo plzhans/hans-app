@@ -470,8 +470,13 @@ pull · up          .env 에 IMAGE_TAG 를 쓰고 compose 가 당겨 띄운다
     redis.conf              644  배포 계정        redis 컨테이너가 마운트한다
   nginx/
     nginx-https.conf        644  배포 계정        **컨테이너 밖** — 호스트 nginx 가 읽는다
-    upgrade-map.conf        644  배포 계정        환경 무관(infra/shared/nginx). 서버당 하나만 건다
+    default-upgrade-map.conf   644  배포 계정     환경 무관(infra/shared/nginx). 서버당 하나만 건다
+    default-http.conf          644  배포 계정     이름이 안 맞는 요청을 받는 기본 서버(80)
+    default-https.conf         644  배포 계정     같은 것의 443. 포트마다 default_server 가 따로다
 ```
+
+`default-*` 는 `infra/shared/nginx/` 를 통째로 나른 것이다 — 배포는 그 디렉터리의 내용을
+그대로 놓기만 하므로, 파일이 늘어도 배포 스크립트를 고칠 일이 없다.
 
 `config/` 밖에 있는 둘은 uid 때문이다. `config/` 는 배포가 0600·배포계정 소유로 잠그는데,
 redis 컨테이너는 uid 가 다르고 nginx 는 아예 컨테이너가 아니라 그 안의 파일을 못 읽는다.
@@ -481,9 +486,18 @@ redis 컨테이너는 uid 가 다르고 nginx 는 아예 컨테이너가 아니�
 
 ```bash
 sudo ln -sf ~/app/hansapp-<환경>/nginx/nginx-https.conf /etc/nginx/sites-enabled/hansapp-admin.conf
-# 업그레이드 map 은 **서버당 하나만** 건다. 두 환경이 한 서버에 있어도 하나로 족하다 —
-# map 은 http 컨텍스트의 변수 선언이라 두 번 걸면 nginx 가 아예 안 뜬다.
-sudo ln -sf ~/app/hansapp-<환경>/nginx/upgrade-map.conf /etc/nginx/conf.d/upgrade-map.conf
+
+# 아래 default-* 는 **서버당 하나만** 건다. 두 환경이 한 서버에 있어도 하나로 족하고,
+# 두 번 걸면 nginx 가 아예 안 뜬다 — map 은 변수 중복으로, 기본 서버는 포트마다
+# default_server 가 하나뿐이라 duplicate default server 로 죽는다.
+sudo ln -sf ~/app/hansapp-<환경>/nginx/default-upgrade-map.conf /etc/nginx/conf.d/default-upgrade-map.conf
+
+# 기본 서버(이름이 안 맞는 요청). **Ubuntu 기본 파일을 먼저 치워야 한다** — 그쪽이
+# 이미 default_server 를 들고 있다.
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf ~/app/hansapp-<환경>/nginx/default-http.conf  /etc/nginx/sites-enabled/000-default-http.conf
+sudo ln -sf ~/app/hansapp-<환경>/nginx/default-https.conf /etc/nginx/sites-enabled/000-default-https.conf
+
 sudo nginx -t && sudo systemctl reload nginx
 ```
 

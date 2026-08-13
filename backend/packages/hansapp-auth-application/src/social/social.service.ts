@@ -22,6 +22,7 @@ import { AuthLogService } from '../log/auth-log.service';
 import { LoginService } from '../login.service';
 import { UserRepository } from '../repository/user.repository';
 import { UserOAuthRepository } from '../repository/user-oauth.repository';
+import { ProfileCache } from '../profile-cache.service';
 import { WithdrawalRepository } from '../repository/withdrawal.repository';
 import { AuthTokens, TokenService } from '../token/token.service';
 import { EmailVerificationService } from '../mail/email-verification.service';
@@ -86,6 +87,7 @@ export class SocialService {
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
+    private readonly profileCache: ProfileCache,
     private readonly withdrawals: WithdrawalRepository,
     private readonly authService: AuthService,
     private readonly tokens: TokenService,
@@ -126,17 +128,8 @@ export class SocialService {
     locale?: string,
   ): Promise<CallbackResult> {
     const state = this.tickets.verifyState(stateToken);
-    const existing = await this.oauths.findByProvider(
-      profile.provider,
-      profile.providerId,
-    );
-    const outcome = await this.resolveOutcome(
-      state,
-      profile,
-      existing,
-      meta,
-      locale,
-    );
+    const existing = await this.oauths.findByProvider(profile.provider, profile.providerId);
+    const outcome = await this.resolveOutcome(state, profile, existing, meta, locale);
     return {
       outcome,
       returnTo: state.returnTo,
@@ -165,12 +158,7 @@ export class SocialService {
 
     // 로그인 의도
     if (existing) {
-      return this.completeLogin(
-        existing.userId,
-        state,
-        toJoinType(profile.provider),
-        meta,
-      );
+      return this.completeLogin(existing.userId, state, toJoinType(profile.provider), meta);
     }
 
     // 미연동 → 이메일 충돌 검사 후 자동연동/신규가입
@@ -188,6 +176,8 @@ export class SocialService {
             providerId: profile.providerId,
             email: profile.email,
           });
+          // linkedProviders 가 바뀐다 — /users/me 응답을 이루는 값이다.
+          await this.profileCache.invalidate(active.id);
           await this.log.record({
             userId: active.id,
             action: AuthLogAction.OAUTH_LINK,
@@ -200,27 +190,14 @@ export class SocialService {
             그래서 오히려 더 알려야 한다. 남이 내 이메일로 소셜을 만들어 붙였다면 이 메일이
             유일한 신호다.
           */
-          await this.notifySocialChange(
-            active,
-            'SOCIAL_LINKED',
-            profile.provider,
-            locale,
-          );
-          return this.completeLogin(
-            active.id,
-            state,
-            toJoinType(profile.provider),
-            meta,
-          );
+          await this.notifySocialChange(active, 'SOCIAL_LINKED', profile.provider, locale);
+          return this.completeLogin(active.id, state, toJoinType(profile.provider), meta);
         }
         // 한쪽이라도 미검증이면 자동연동 금지 — 소유가 증명되지 않아 탈취 위험이 있다.
         // (기존 계정에 연동하려면 그 계정으로 로그인해 직접 연동해야 한다.)
         return { kind: 'error', error: 'email_exists' };
       }
-      const withdrawn = await this.withdrawals.findActiveByEmail(
-        email,
-        new Date(),
-      );
+      const withdrawn = await this.withdrawals.findActiveByEmail(email, new Date());
       if (withdrawn) {
         return { kind: 'error', error: 'withdrawn_cooldown' };
       }
@@ -265,13 +242,9 @@ export class SocialService {
       throw new BadRequestException('Email is required.');
     }
     await this.authService.assertEmailAvailable(email);
-    await this.emailVerification.issueAndSend(
-      EmailVerifyPurpose.SIGNUP,
-      email,
-      {
-        locale,
-      },
-    );
+    await this.emailVerification.issueAndSend(EmailVerifyPurpose.SIGNUP, email, {
+      locale,
+    });
   }
 
   /**
@@ -299,10 +272,7 @@ export class SocialService {
     const payload = this.tickets.verifyRegister(input.ticket);
 
     // 이미 연동됐다면(콜백 후 지연 등) 중복 가입을 막는다.
-    const dup = await this.oauths.findByProvider(
-      payload.provider,
-      payload.providerId,
-    );
+    const dup = await this.oauths.findByProvider(payload.provider, payload.providerId);
     if (dup) {
       throw new ConflictException('Social account already linked.');
     }
@@ -315,20 +285,14 @@ export class SocialService {
 
     // provider 가 준 검증 이메일을 그대로 쓸 때만 provider 검증으로 인정한다(사용자 입력은 미검증).
     const providerVerified =
-      !!payload.email &&
-      normalizeEmail(payload.email) === email &&
-      payload.emailVerified;
+      !!payload.email && normalizeEmail(payload.email) === email && payload.emailVerified;
 
     // provider 가 검증하지 않았으면 우리 코드로 소유를 증명해야 한다.
     if (!providerVerified) {
       if (!input.code) {
         throw new BadRequestException('Verification code is required.');
       }
-      const ok = await this.emailVerification.verify(
-        EmailVerifyPurpose.SIGNUP,
-        email,
-        input.code,
-      );
+      const ok = await this.emailVerification.verify(EmailVerifyPurpose.SIGNUP, email, input.code);
       if (!ok) {
         throw new BadRequestException('Invalid or expired verification code.');
       }
@@ -417,12 +381,7 @@ export class SocialService {
     }
     return {
       kind: 'session',
-      tokens: await this.login.complete(
-        user,
-        provider,
-        meta,
-        state.persistent ?? false,
-      ),
+      tokens: await this.login.complete(user, provider, meta, state.persistent ?? false),
     };
   }
 
@@ -449,11 +408,10 @@ export class SocialService {
     }
     // 비밀번호도 없고 이 연동이 유일한 로그인 수단이면 해제 불가.
     if (!user.password && links.length <= 1) {
-      throw new BadRequestException(
-        'Cannot unlink the last sign-in method. Set a password first.',
-      );
+      throw new BadRequestException('Cannot unlink the last sign-in method. Set a password first.');
     }
     await this.oauths.delete(userId, provider);
+    await this.profileCache.invalidate(userId);
     await this.log.record({
       userId,
       action: AuthLogAction.OAUTH_UNLINK,
@@ -492,6 +450,7 @@ export class SocialService {
       providerId: profile.providerId,
       email: profile.email,
     });
+    await this.profileCache.invalidate(userId);
     await this.log.record({
       userId,
       action: AuthLogAction.OAUTH_LINK,
@@ -500,12 +459,7 @@ export class SocialService {
       ...meta,
     });
     // 이미 쓰던 계정에 로그인 수단이 하나 늘었다 — 본인이 한 일이 아니면 알아야 한다.
-    await this.notifySocialChange(
-      user,
-      'SOCIAL_LINKED',
-      profile.provider,
-      locale,
-    );
+    await this.notifySocialChange(user, 'SOCIAL_LINKED', profile.provider, locale);
     return { kind: 'linked' };
   }
 }

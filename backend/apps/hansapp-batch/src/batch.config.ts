@@ -38,11 +38,7 @@ export function buildBatchConfig(source: ConfigSource): BatchConfig {
   // 전부 비밀 아닌 값 → getX(config/config.yaml 또는 환경변수 BATCH_CRON 등).
   return {
     cron: source.getStringOrDefault('apps-batch.cron'),
-    authCleanupCron: source.getStringOrDefault(
-      'apps-batch.authCleanupCron',
-      '30 4 * * *',
-    ),
-    maxCallsPerRun:
-      source.getNumberOrDefault('apps-batch.maxCallsPerRun') || undefined,
+    authCleanupCron: source.getStringOrDefault('apps-batch.authCleanupCron', '30 4 * * *'),
+    maxCallsPerRun: source.getNumberOrDefault('apps-batch.maxCallsPerRun') || undefined,
   };
 }

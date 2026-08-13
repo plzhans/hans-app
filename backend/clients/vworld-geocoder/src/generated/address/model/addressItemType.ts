@@ -27,8 +27,7 @@
 /**
  * **소문자로 온다.** 요청 파라미터(PARCEL/ROAD)와 표기가 다르다.
  */
-export type AddressItemType =
-  (typeof AddressItemType)[keyof typeof AddressItemType];
+export type AddressItemType = (typeof AddressItemType)[keyof typeof AddressItemType];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const AddressItemType = {

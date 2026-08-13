@@ -7,11 +7,7 @@ import type {
   HealthcareHospital as HospitalModel,
   HealthcareHospitalI18n as HospitalI18n,
 } from '@hansapp/data';
-import {
-  FALLBACK_LANG,
-  pickLangName,
-  type SupportedLang,
-} from '@hansapp/common';
+import { FALLBACK_LANG, pickLangName, type SupportedLang } from '@hansapp/common';
 
 import {
   HealthcareHospitalRepository,
@@ -27,16 +23,8 @@ import {
   type HospitalNearbyRow,
   type HospitalNearbyRows,
 } from './healthcare-hospital-search.repository';
-import {
-  HealthcareCodeCache,
-  codeName,
-  type CodeEntry,
-} from './healthcare-code.cache';
-import {
-  HiraAsmCodeCache,
-  asmGroupName,
-  asmItemName,
-} from './hira-asm-code.cache';
+import { HealthcareCodeCache, codeName, type CodeEntry } from './healthcare-code.cache';
+import { HiraAsmCodeCache, asmGroupName, asmItemName } from './hira-asm-code.cache';
 import { RegionCache, regionName } from '../region/region.cache';
 import { annotateKo, pickText } from './hospital-text';
 
@@ -99,9 +87,7 @@ interface SummarySource {
 interface HospitalBase {
   detail: HospitalDetailModel;
   /** 병원평가 등급 원본(HIRA 미러). 릴레이션이 없어 loadBase 가 따로 읽어 담는다. */
-  assessment: Awaited<
-    ReturnType<HealthcareHospitalRepository['findAssessment']>
-  >;
+  assessment: Awaited<ReturnType<HealthcareHospitalRepository['findAssessment']>>;
 }
 
 /**
@@ -206,9 +192,7 @@ export class HealthcareHospitalService {
       );
     }
 
-    const source: HospitalScrollSource = command.db
-      ? this.repo
-      : this.searchRepo;
+    const source: HospitalScrollSource = command.db ? this.repo : this.searchRepo;
 
     const { rows, nextToken } = await source.searchScroll(
       filter,
@@ -288,10 +272,7 @@ export class HealthcareHospitalService {
    *
    * {id} 를 해시태그로 감싸 상세 캐시와 같은 슬롯에 묶는다.
    */
-  private nearbyKey(
-    command: HospitalNearbyCommand,
-    lang: SupportedLang,
-  ): string {
+  private nearbyKey(command: HospitalNearbyCommand, lang: SupportedLang): string {
     const radius = command.radius ?? 'auto';
     return `${CachePrefix.hospital}:{${command.id}}:nearby:${radius}:${command.size}:${lang}`;
   }
@@ -331,9 +312,7 @@ export class HealthcareHospitalService {
     }
     return {
       // 시도 코드가 오면 그 시도의 시군구 전체로 편다(시군구 코드면 자신뿐이라 등가).
-      regionCds: command.regionCd
-        ? this.regions.selfAndChildren(command.regionCd)
-        : undefined,
+      regionCds: command.regionCd ? this.regions.selfAndChildren(command.regionCd) : undefined,
       classCds: command.classCds,
       tiers: command.tiers,
       name: command.name,
@@ -341,9 +320,7 @@ export class HealthcareHospitalService {
       baby: command.baby,
       // 아는 코드만 통과시킨다 — 저장소가 이 코드로 컬럼명(DB)이나 텀(ES)을 만들므로
       // 검증이 인젝션을 막는다. 1등급 값·컬럼 조립은 저장소가 자기 방식으로 한다.
-      asmExcellentCds: command.asmItemCds?.filter((code) =>
-        this.asmCodes.get(code),
-      ),
+      asmExcellentCds: command.asmItemCds?.filter((code) => this.asmCodes.get(code)),
       specialtyCds: command.specialtyCds,
       specialCds: command.specialCds,
       equipmentCds: command.equipmentCds,
@@ -364,9 +341,7 @@ export class HealthcareHospitalService {
   private buildOrder(command: HospitalFilterCommand): HospitalSearchOrder {
     if (command.sort !== 'distance') return DEFAULT_SEARCH_ORDER;
     if (!command.origin) {
-      throw new BadRequestException(
-        'sort=distance requires origin coordinates (lat, lon).',
-      );
+      throw new BadRequestException('sort=distance requires origin coordinates (lat, lon).');
     }
     return { by: 'distance', origin: command.origin };
   }
@@ -381,10 +356,7 @@ export class HealthcareHospitalService {
    * {id} 를 해시태그 {}로 감싸 클러스터에서도 base·i18n 이 같은 슬롯에 묶이게 한다(멀티키 mget/mdel 안전).
    * 캐시는 best-effort — Redis 가 죽어도 DB 로 살아난다. 없는 병원은 캐싱하지 않는다.
    */
-  async get(
-    id: number,
-    lang: SupportedLang = FALLBACK_LANG,
-  ): Promise<HospitalDetail | null> {
+  async get(id: number, lang: SupportedLang = FALLBACK_LANG): Promise<HospitalDetail | null> {
     const baseKey = this.baseKey(id);
     const i18nKey = this.i18nKey(id, lang);
 
@@ -446,9 +418,7 @@ export class HealthcareHospitalService {
     if (!detail) {
       return null;
     }
-    const assessment = detail.ykiho
-      ? await this.repo.findAssessment(detail.ykiho)
-      : null;
+    const assessment = detail.ykiho ? await this.repo.findAssessment(detail.ykiho) : null;
     return { detail, assessment };
   }
 
@@ -471,8 +441,7 @@ export class HealthcareHospitalService {
     const parkNote = this.text(row.parkNote, i18n?.parkNote ?? null);
 
     // 전문병원 지정분야는 capabilities(tp='specialty')에서 뽑는다 — 어차피 전량 딸려왔다.
-    const specialtyCd =
-      row.capabilities.find((c) => c.tp === 'specialty')?.cd ?? null;
+    const specialtyCd = row.capabilities.find((c) => c.tp === 'specialty')?.cd ?? null;
 
     return {
       ...this.toSummary(this.detailToSource(row, i18n, specialtyCd), lang),
@@ -498,9 +467,7 @@ export class HealthcareHospitalService {
       intro: this.text(row.intro, i18n?.intro ?? null),
       notice: this.text(row.notice, i18n?.notice ?? null),
       directions: this.text(row.directions, i18n?.directions ?? null),
-      transport: this.transport(
-        pickText(row.transport, i18n?.transport ?? null),
-      ),
+      transport: this.transport(pickText(row.transport, i18n?.transport ?? null)),
       parking:
         row.parkQty !== null || parkNote !== undefined
           ? {
@@ -632,9 +599,7 @@ export class HealthcareHospitalService {
     const byGroup = new Map<string, HospitalAssessmentGroup>();
 
     for (const code of this.asmCodes.codes()) {
-      const grade = (row as unknown as Record<string, string | null>)[
-        `asm_${code}`
-      ];
+      const grade = (row as unknown as Record<string, string | null>)[`asm_${code}`];
       // NULL = 평가대상이 아니다. 목록에 넣지 않는다.
       if (grade === null || grade === undefined) {
         continue;
@@ -681,8 +646,7 @@ export class HealthcareHospitalService {
       .sort(
         (a, b) =>
           a.tp.localeCompare(b.tp) ||
-          (a.entry?.sort ?? Number.MAX_SAFE_INTEGER) -
-            (b.entry?.sort ?? Number.MAX_SAFE_INTEGER) ||
+          (a.entry?.sort ?? Number.MAX_SAFE_INTEGER) - (b.entry?.sort ?? Number.MAX_SAFE_INTEGER) ||
           a.cd.localeCompare(b.cd),
       )
       .map(({ tp, cd, entry }) => ({
@@ -700,9 +664,7 @@ export class HealthcareHospitalService {
   private toSummary(src: SummarySource, lang: SupportedLang): HospitalSummary {
     // 지역·시도 이름은 조인이 아니라 캐시에서 붙인다. 시도 코드도 SQL 이 아니라
     // 지역 캐시가 아는 parent 다. 모르는 코드는 이름 대신 코드를 그대로 보여준다(빈칸보다 낫다).
-    const regionEntry = src.regionCd
-      ? this.regions.get(src.regionCd)
-      : undefined;
+    const regionEntry = src.regionCd ? this.regions.get(src.regionCd) : undefined;
     const sidoCd = regionEntry?.parentCode ?? undefined;
 
     // 역 이름을 못 뽑으면("2번출구" 처럼 역이 안 적힌 하차지점) 노선도 같이 버린다.
@@ -725,9 +687,7 @@ export class HealthcareHospitalService {
       specialty: src.specialtyCd
         ? {
             code: src.specialtyCd,
-            name:
-              this.codes.name('specialty', src.specialtyCd, lang) ??
-              src.specialtyCd,
+            name: this.codes.name('specialty', src.specialtyCd, lang) ?? src.specialtyCd,
           }
         : undefined,
       tel: src.tel ?? undefined,
@@ -839,10 +799,7 @@ export class HealthcareHospitalService {
    * 하드코딩했는데, 이름이 두 곳에 있으면 반드시 어긋난다.
    * 모르는 코드면 코드를 그대로 보여준다 — 빈칸보다 낫다.
    */
-  private tier(
-    code: string,
-    lang: SupportedLang,
-  ): { code: string; name: string } {
+  private tier(code: string, lang: SupportedLang): { code: string; name: string } {
     const name = TIER_NAMES[code as keyof typeof TIER_NAMES];
     return { code, name: name ? pickLangName(name, lang) : code };
   }

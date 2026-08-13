@@ -85,7 +85,8 @@ export class LlmService {
    * "곧 열린다" 를 미리 보여 주되, 골라도 요청에 실리지 않는다(유료가 열릴 때 푼다).
    */
   async listModels(): Promise<LlmModelChoice[]> {
-    const endpoint = (await this.settings.load()).endpoint;
+    const settings = await this.settings.load();
+    const endpoint = settings.endpoint;
     // 등록된 키가 없으면 고를 것도 없다.
     if (!endpoint) return [];
     return allowedOf(endpoint).map((id) => ({
@@ -95,7 +96,8 @@ export class LlmService {
   }
 
   async prepare(input: LlmPrepareInput): Promise<LlmCall> {
-    const endpoint = (await this.settings.load()).endpoint;
+    const settings = await this.settings.load();
+    const endpoint = settings.endpoint;
     if (!endpoint) {
       throw new LlmConfigError(
         'No LLM endpoint is registered (관리자 → 설정 → AI 접속처)',
@@ -129,13 +131,9 @@ export class LlmService {
         {
           role: 'system',
           content: input.system,
-          ...(resolved.systemOptions
-            ? { providerOptions: resolved.systemOptions }
-            : {}),
+          ...(resolved.systemOptions ? { providerOptions: resolved.systemOptions } : {}),
         },
-        ...(input.appendSystem
-          ? [{ role: 'system' as const, content: input.appendSystem }]
-          : []),
+        ...(input.appendSystem ? [{ role: 'system' as const, content: input.appendSystem }] : []),
       ],
     };
   }
@@ -179,10 +177,7 @@ export class LlmService {
           provider,
         );
         if (!endpoint.secret) {
-          throw new LlmConfigError(
-            'endpoint secret is not configured',
-            provider,
-          );
+          throw new LlmConfigError('endpoint secret is not configured', provider);
         }
         /*
           **키 유형이 헤더를 정한다.** SDK 는 apiKey 와 authToken 을 둘 다 주면 거절하므로
@@ -198,9 +193,7 @@ export class LlmService {
               }
             : { apiKey: endpoint.secret };
         return {
-          model: createAnthropic({ ...credentials, baseURL: v1(endpoint) })(
-            model,
-          ),
+          model: createAnthropic({ ...credentials, baseURL: v1(endpoint) })(model),
           // 최상위 업체 옵션은 쓰지 않는다(effort 는 설정에서 걷어냈다 — llm.config 주석).
           providerOptions: undefined,
           // 안 붙어도 에러는 없다. 요금만 10배 나온다(usage.cacheReadTokens 로 확인).
@@ -260,10 +253,7 @@ export class LlmService {
  */
 function assertCallable(call: LlmCall): void {
   const bad = (what: string): never => {
-    throw new LlmInvalidCallError(
-      `llm call is not ready: ${what}`,
-      call.provider,
-    );
+    throw new LlmInvalidCallError(`llm call is not ready: ${what}`, call.provider);
   };
 
   if (!call.model) {
@@ -306,11 +296,7 @@ function v1(endpoint: LlmEndpointSettings): string {
 }
 
 /** 없으면 어느 설정 키가 비었는지 밝히고 던진다. */
-function required(
-  value: string | undefined,
-  key: string,
-  provider: LlmProviderName,
-): string {
+function required(value: string | undefined, key: string, provider: LlmProviderName): string {
   if (!value) {
     throw new LlmConfigError(`${key} is not configured`, provider);
   }
@@ -376,7 +362,5 @@ function allowedOf(endpoint: LlmEndpointSettings): string[] {
   const listed = endpoint.allowedModels.filter(Boolean);
   const fallback = endpoint.defaultModel;
   if (listed.length === 0) return fallback ? [fallback] : [];
-  return fallback && !listed.includes(fallback)
-    ? [fallback, ...listed]
-    : listed;
+  return fallback && !listed.includes(fallback) ? [fallback, ...listed] : listed;
 }

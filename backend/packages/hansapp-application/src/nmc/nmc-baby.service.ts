@@ -17,9 +17,7 @@ import { NmcBabyRepository } from './nmc-baby.repository';
 export class NmcBabyService {
   constructor(private readonly repo: NmcBabyRepository) {}
 
-  async listBabyHospitals(
-    command: MirrorListCommand,
-  ): Promise<BabyHospitalListResponse> {
+  async listBabyHospitals(command: MirrorListCommand): Promise<BabyHospitalListResponse> {
     const [rows, totalCount] = await Promise.all([
       this.repo.list(command.page, command.size),
       this.repo.count(),

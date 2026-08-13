@@ -11,6 +11,40 @@ export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
  */
 export const ACCESS_CACHE_CONFIG = Symbol('ACCESS_CACHE_CONFIG');
 
+/** 세션 캐시 설정 주입 토큰. SessionCache 도 AuthConfig 전체가 아니라 이 조각만 받는다. */
+export const SESSION_CACHE_CONFIG = Symbol('SESSION_CACHE_CONFIG');
+
+/** 내 정보 캐시 설정 주입 토큰. */
+export const PROFILE_CACHE_CONFIG = Symbol('PROFILE_CACHE_CONFIG');
+
+/**
+ * 로그인 세션 캐시 TTL. 구조는 API 접근 캐시와 같다(메모리 → Redis → DB).
+ *
+ * **값을 따로 두는 이유가 있다.** 이 TTL 은 "관리자가 세션을 끊고 나서 실제로 막히기까지"
+ * 의 시간이다. 서비스 키 캐시가 5분 늦는 것과 폐기된 세션이 5분 더 사는 것은 무게가 다르다.
+ *
+ * **두 단을 같은 값으로 둔다.** 폐기는 이벤트로 즉시 퍼지지만, 큐가 죽어 이벤트가
+ * 유실되면 남는 것은 TTL 뿐이다. Redis 를 길게 잡으면 그 최악이 곧 Redis TTL 이 된다 —
+ * 같은 값이면 어느 경로로 실패하든 지연이 이 한 값을 넘지 않는다.
+ */
+export interface SessionCacheConfig {
+  /** 프로세스 메모리 TTL(초). 기본 60. */
+  readonly memoryTtlSec: number;
+  /** 공유 캐시(Redis) TTL(초). 기본 60. */
+  readonly sharedTtlSec: number;
+  /** 메모리 캐시 상한. 모르는 sid 조회도 "없음" 으로 캐싱되므로 상한이 필요하다. */
+  readonly memoryMaxEntries: number;
+}
+
+/**
+ * `/users/me` 응답 캐시 TTL. 구조는 세션 캐시와 같다.
+ *
+ * **TTL 은 안전망이다.** 이 응답을 이루는 값(이름·언어·소셜 연동·비밀번호 유무…)이 바뀔 때
+ * 쓰기 경로가 캐시를 비우는 것이 정석이고, TTL 은 그중 하나를 빠뜨렸을 때 스스로 낫는
+ * 시간이다. 짧게 잡는 이유가 그것이라 세션 캐시와 같은 값을 쓴다.
+ */
+export type ProfileCacheConfig = SessionCacheConfig;
+
 /**
  * API 접근 캐시(서비스 키·클라이언트) TTL. 인증마다 DB 를 때리지 않으려는 2단 캐시의 설정이다.
  *   프로세스 메모리(memoryTtlSec) → 공유 캐시 Redis(sharedTtlSec) → DB
@@ -51,6 +85,8 @@ export interface AccessCacheConfig {
 export interface ConsentVersions {
   readonly terms: string;
   readonly privacy: string;
+  /** API 이용약관. 가입이 아니라 앱 등록에서 받는다. */
+  readonly apiTerms: string;
 }
 
 export interface AuthConfig {
@@ -118,6 +154,12 @@ export interface AuthConfig {
   /** API 접근 캐시(서비스 키·클라이언트) TTL 설정. */
   readonly accessCache: AccessCacheConfig;
 
+  /** 로그인 세션 캐시 TTL 설정. */
+  readonly sessionCache: SessionCacheConfig;
+
+  /** 내 정보 응답 캐시 TTL 설정. */
+  readonly profileCache: ProfileCacheConfig;
+
   /**
    * 서비스 루트 도메인(APP_ROOT_DOMAIN, 예: `plzhans.com`, 앞 점 없이). **설정 하나로 파생되는 값들:**
    *  - SSO refresh/hint 쿠키의 Domain (서브도메인 공유; refresh-cookie.ts)
@@ -182,8 +224,7 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
   // 로그인 UI 가 별도 서브도메인(hans-auth)으로 분리돼 있어 명시 설정한다(자동 파생 없음).
   // 뒤에 경로를 붙여 쓰므로 끝의 / 는 떼어 둔다.
   const externalUrl =
-    source.getStringOrDefault('auth.externalUrl').replace(/\/+$/, '') ||
-    undefined;
+    source.getStringOrDefault('auth.externalUrl').replace(/\/+$/, '') || undefined;
   const authorizeUrl = externalUrl ? `${externalUrl}/login` : undefined;
   return Object.freeze({
     jwtSecret: source.getString('auth.jwt.secret'),
@@ -196,27 +237,28 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     // **기본값은 여기가 원천이다** — yaml 에서는 주석으로 가려 두고, 환경마다 다르게
     // 가져갈 때만 그 줄을 살린다. 예전엔 필수였는데, 그러면 yaml 에 한 줄만 빠져도
     // 부팅이 죽었다(환경 yaml 은 서로 상속하지 않아 세 파일에 다 적어야 했다).
-    accessTokenTtlSec: source.getDurationSecOrDefault(
-      'auth.jwt.accessTokenExpiresIn',
-    ),
-    refreshTokenTtlSec: source.getDurationSecOrDefault(
-      'auth.jwt.refreshTokenExpiresIn',
-    ),
-    authCodeTtlSec: source.getDurationSecOrDefault(
-      'auth.jwt.authCodeExpiresIn',
-    ),
+    accessTokenTtlSec: source.getDurationSecOrDefault('auth.jwt.accessTokenExpiresIn'),
+    refreshTokenTtlSec: source.getDurationSecOrDefault('auth.jwt.refreshTokenExpiresIn'),
+    authCodeTtlSec: source.getDurationSecOrDefault('auth.jwt.authCodeExpiresIn'),
     accessCache: Object.freeze({
       memoryTtlSec: source.getNumberOrDefault('cache.memoryTtlSec'),
       memoryMaxEntries: source.getNumberOrDefault('cache.memoryMaxEntries'),
       sharedTtlSec: source.getNumberOrDefault('cache.sharedTtlSec'),
     }),
-    withdrawalRetentionDays: source.getNumberOrDefault(
-      'auth.withdrawalRetentionDays',
-    ),
+    sessionCache: Object.freeze({
+      memoryTtlSec: source.getNumberOrDefault('auth.sessionCache.memoryTtlSec'),
+      sharedTtlSec: source.getNumberOrDefault('auth.sessionCache.sharedTtlSec'),
+      // 상한은 접근 캐시와 같은 값을 쓴다. 성격이 같고 따로 조절할 이유가 없다.
+      memoryMaxEntries: source.getNumberOrDefault('cache.memoryMaxEntries'),
+    }),
+    profileCache: Object.freeze({
+      memoryTtlSec: source.getNumberOrDefault('auth.profileCache.memoryTtlSec'),
+      sharedTtlSec: source.getNumberOrDefault('auth.profileCache.sharedTtlSec'),
+      memoryMaxEntries: source.getNumberOrDefault('cache.memoryMaxEntries'),
+    }),
+    withdrawalRetentionDays: source.getNumberOrDefault('auth.withdrawalRetentionDays'),
     // 앞 점 제거·트림 후, IP·점없는 라벨(localhost 등)이면 경고 후 무시(빈값). 도메인만 통과.
-    rootDomain: normalizeRootDomain(
-      source.getStringOrDefault('auth.rootDomain'),
-    ),
+    rootDomain: normalizeRootDomain(source.getStringOrDefault('auth.rootDomain')),
     cookieSecure: source.getBoolOrDefault('auth.cookieSecure'),
     socialFlowTtlSec: source.getNumberOrDefault('auth.socialFlowTtlSec'),
     bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds'),
@@ -224,6 +266,7 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     consentVersions: Object.freeze({
       terms: source.getStringOrDefault('auth.consent.termsVersion'),
       privacy: source.getStringOrDefault('auth.consent.privacyVersion'),
+      apiTerms: source.getStringOrDefault('auth.consent.apiTermsVersion'),
     }),
   });
 }

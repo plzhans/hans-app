@@ -13,6 +13,14 @@ export const LANGUAGE_OPTIONS = [
   { value: 'zh', label: '中文' },
 ] as const;
 
+/**
+ * 언어 코드를 사람이 읽는 이름으로. **모르는 코드는 그대로 돌려준다** — 고르는 자리와
+ * 읽는 자리가 같은 말을 쓰게 하려는 것이지, 값을 감추려는 것이 아니다.
+ */
+export function languageLabel(code: string): string {
+  return LANGUAGE_OPTIONS.find((option) => option.value === code)?.label ?? code;
+}
+
 /** 이 브라우저의 IANA 타임존. 못 구하면 undefined. */
 export function detectTimeZone(): string | undefined {
   try {

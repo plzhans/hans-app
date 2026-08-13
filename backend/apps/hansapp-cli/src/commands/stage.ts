@@ -67,9 +67,7 @@ function parseOps(values: string[] | undefined): readonly string[] | undefined {
   if (!values || values.length === 0) {
     return undefined;
   }
-  const unknown = values.filter(
-    (op) => !(HIRA_ALL_OPS as readonly string[]).includes(op),
-  );
+  const unknown = values.filter((op) => !(HIRA_ALL_OPS as readonly string[]).includes(op));
   if (unknown.length > 0) {
     throw new Error(
       `알 수 없는 오퍼레이션: ${unknown.join(', ')}\n사용 가능: ${HIRA_ALL_OPS.join(', ')}`,
@@ -82,9 +80,7 @@ function parseOps(values: string[] | undefined): readonly string[] | undefined {
 function parseStage<T extends number>(value: string, stages: readonly T[]): T {
   const stage = Number(value);
   if (!stages.includes(stage as T)) {
-    throw new Error(
-      `알 수 없는 단계: ${value}\n사용 가능: ${stages.join(', ')}`,
-    );
+    throw new Error(`알 수 없는 단계: ${value}\n사용 가능: ${stages.join(', ')}`);
   }
   return stage as T;
 }
@@ -100,10 +96,7 @@ const STAGE_HELP: Record<DataProvider, Record<number, string>> = {
  *
  * 실행 로직은 admin-application 의 StageService 가 갖는다. CLI 는 옵션 파싱과 출력만 한다.
  */
-export function stageSyncCommand(
-  provider: DataProvider,
-  source: ConfigSource,
-): Command {
+export function stageSyncCommand(provider: DataProvider, source: ConfigSource): Command {
   // --op 는 HIRA 상세 단계 전용이다. 나머지 기관은 오퍼레이션을 나눌 일이 없다.
   const isHira = provider === 'hira';
   const help = STAGE_HELP[provider];
@@ -122,10 +115,7 @@ export function stageSyncCommand(
       '오늘 이미 성공한 단계도 다시 돌린다. 개별 조회 단계에서는 받은 병원도 다시 받는다',
     )
     .option('--quiet', '진행 로그를 숨긴다')
-    .option(
-      '--debug',
-      '병원 하나하나의 호출 로그까지 낸다. 무엇이 몇 행 왔는지 본다',
-    );
+    .option('--debug', '병원 하나하나의 호출 로그까지 낸다. 무엇이 몇 행 왔는지 본다');
 
   if (isHira) {
     command.option(
@@ -154,16 +144,12 @@ export function stageSyncCommand(
               .get(MoisStageService)
               .run(parseStage(options.stage, MOIS_STAGES), common);
           case 'nmc':
-            return context
-              .get(NmcStageService)
-              .run(parseStage(options.stage, NMC_STAGES), common);
+            return context.get(NmcStageService).run(parseStage(options.stage, NMC_STAGES), common);
           case 'hira':
-            return context
-              .get(HiraStageService)
-              .run(parseStage(options.stage, HIRA_STAGES), {
-                ...common,
-                ops: parseOps(options.op),
-              });
+            return context.get(HiraStageService).run(parseStage(options.stage, HIRA_STAGES), {
+              ...common,
+              ops: parseOps(options.op),
+            });
         }
       },
       { verbose: !options.quiet, debug: options.debug },
@@ -178,28 +164,18 @@ export function stageSyncCommand(
   return addExamples(command, [
     `hansapp-cli ${provider} sync --stage 1              # 매일 도는 벌크`,
     ...(hasDetailStages
-      ? [
-          `hansapp-cli ${provider} sync --stage 2 --limit 500  # 개별 조회를 500콜까지만`,
-        ]
+      ? [`hansapp-cli ${provider} sync --stage 2 --limit 500  # 개별 조회를 500콜까지만`]
       : []),
     `hansapp-cli ${provider} sync --stage 1 --force      # 오늘 이미 성공했어도 다시`,
     ...(isHira
-      ? [
-          `hansapp-cli hira sync --stage 2 --op transport   # 교통정보만 (병원당 1콜)`,
-        ]
+      ? [`hansapp-cli hira sync --stage 2 --op transport   # 교통정보만 (병원당 1콜)`]
       : []),
   ]);
 }
 
-function printStageResult(
-  label: string,
-  stage: number,
-  result: StageResult,
-): void {
+function printStageResult(label: string, stage: number, result: StageResult): void {
   if (result.skipped) {
-    console.log(
-      `${label} ${stage}단계 건너뜀 — ${result.skipReason}. (--force 로 강제 실행)`,
-    );
+    console.log(`${label} ${stage}단계 건너뜀 — ${result.skipReason}. (--force 로 강제 실행)`);
     return;
   }
 

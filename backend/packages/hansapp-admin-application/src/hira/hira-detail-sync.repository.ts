@@ -65,11 +65,7 @@ export class HiraDetailSyncRepository {
    * 원본 응답을 통째로 보관한다. 1행짜리(info, facility)는 객체로, 여러 행은 배열로 넣는다.
    * 결과가 0건이어도 행을 만든다. 안 그러면 매번 다시 조회한다(전문병원이 아닌 병원의 specialty 등).
    */
-  async storeDetail(
-    ykiho: string,
-    op: string,
-    items: Record<string, unknown>[],
-  ): Promise<void> {
+  async storeDetail(ykiho: string, op: string, items: Record<string, unknown>[]): Promise<void> {
     const data = items.length === 1 ? items[0] : items;
 
     await this.prisma.$executeRaw(
@@ -90,10 +86,7 @@ export class HiraDetailSyncRepository {
     rows: { cd: string; nm: string | null; cnt: number | null }[],
   ): Promise<void> {
     const values = Prisma.join(
-      rows.map(
-        (row) =>
-          Prisma.sql`(${ykiho}, ${row.cd}, ${row.nm}, ${row.cnt}, NOW())`,
-      ),
+      rows.map((row) => Prisma.sql`(${ykiho}, ${row.cd}, ${row.nm}, ${row.cnt}, NOW())`),
     );
 
     await this.prisma.$executeRaw(
@@ -113,9 +106,7 @@ export class HiraDetailSyncRepository {
     rows: { cd: string; nm: string | null }[],
   ): Promise<void> {
     const values = Prisma.join(
-      rows.map(
-        (row) => Prisma.sql`(${ykiho}, ${tp}, ${row.cd}, ${row.nm}, NOW())`,
-      ),
+      rows.map((row) => Prisma.sql`(${ykiho}, ${tp}, ${row.cd}, ${row.nm}, NOW())`),
     );
 
     await this.prisma.$executeRaw(
@@ -163,10 +154,7 @@ export class HiraDetailSyncRepository {
   }
 
   /** 등급 조건. cl_cd 는 generated column 이라 JSON 을 열지 않는다. */
-  private scope(
-    clCd: string | undefined,
-    excludeClCds: readonly string[] | undefined,
-  ): Prisma.Sql {
+  private scope(clCd: string | undefined, excludeClCds: readonly string[] | undefined): Prisma.Sql {
     if (clCd) {
       return Prisma.sql`h.cl_cd = ${clCd}`;
     }

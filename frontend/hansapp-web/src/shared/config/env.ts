@@ -49,6 +49,13 @@ export const SENTRY_TRACES_SAMPLE_RATE =
 
 /** 이 산출물의 신원. vite define 이 빌드 때 박는다(→ vite.config.ts). Sentry release 로 쓴다. */
 export const APP_RELEASE = __APP_RELEASE__;
+/**
+ * 이 산출물을 구운 시각(ISO·UTC). 같은 define 이 넣는다.
+ *
+ * 개발 서버로 띄웠으면 **dev server 를 켠 시각**이다 — 코드를 고쳐도 갱신되지 않는다.
+ */
+export const APP_BUILT_AT = __APP_BUILT_AT__;
+
 
 /**
  * AI/LLM 업체 키(BYOK) 등록 기능을 여나.

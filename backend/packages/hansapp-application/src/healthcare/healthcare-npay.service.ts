@@ -92,9 +92,7 @@ export class HealthcareNonPaymentService {
     // 상세(Dtl)엔 분류코드가 없다. 코드마스터에서 npayCd → 중분류코드를 끌어와 붙인다.
     // (크롤 경로는 분류코드가 응답에 있어 조회가 필요 없다.)
     const codeMdiv = await this.codeToMdiv(
-      items
-        .map((item) => asString(item.npayCd))
-        .filter((cd): cd is string => !!cd),
+      items.map((item) => asString(item.npayCd)).filter((cd): cd is string => !!cd),
     );
 
     return {
@@ -160,8 +158,7 @@ function groupHira(
 
   for (const item of items) {
     const name = (item.npayKorNm ?? '').split('/')[0] || '';
-    const byCode: ByCode =
-      categories.get(name) ?? new Map<string, NonPaymentDetailItem[]>();
+    const byCode: ByCode = categories.get(name) ?? new Map<string, NonPaymentDetailItem[]>();
     /*
       **npayCd 는 number 와 string 이 섞여 온다** — 코드가 전부 숫자면 JSON number 로 뭉개진다
       (480510000 vs 'ABZ010001'). 문자열로 맞추지 않으면 같은 항목이 두 줄로 갈라진다.
@@ -223,10 +220,7 @@ function toDetail(item: NonPaymentDetailItem): NonPaymentPriceDetail {
  */
 function groupWeb(items: NpayWebItem[]): NonPaymentCategory[] {
   // 크롤은 분류코드가 응답에 있어(npayMdivCd) 조회가 필요 없다 — 그대로 담는다.
-  const categories = new Map<
-    string,
-    { mdivCd?: string; list: NonPaymentItem[] }
-  >();
+  const categories = new Map<string, { mdivCd?: string; list: NonPaymentItem[] }>();
 
   // 원본이 매긴 게시 순서. 공개 API 의 sno 와 같은 역할이다.
   for (const item of [...items].sort((a, b) => a.sortOrd - b.sortOrd)) {

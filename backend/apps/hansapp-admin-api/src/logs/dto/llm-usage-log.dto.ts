@@ -57,8 +57,7 @@ export class LlmUsageLogQueryDto {
   readonly to?: string;
 
   @ApiPropertyOptional({
-    description:
-      '추적 id(X-Request-Id) 정확 일치. 애플리케이션 로그에서 본 값으로 바로 찾는다.',
+    description: '추적 id(X-Request-Id) 정확 일치. 애플리케이션 로그에서 본 값으로 바로 찾는다.',
   })
   @IsOptional()
   @IsString()
@@ -72,14 +71,11 @@ export class LlmUsageLogQueryDto {
   readonly feature?: string;
 
   @ApiPropertyOptional({
-    description:
-      '우리 Redis 캐시에서 나온 답만(true) 또는 실제 호출만(false). 없으면 둘 다.',
+    description: '우리 Redis 캐시에서 나온 답만(true) 또는 실제 호출만(false). 없으면 둘 다.',
   })
   @IsOptional()
   // 쿼리스트링은 문자열로 온다. 'true'/'false' 만 값으로 보고 나머지는 안 보낸 것으로 둔다.
-  @Transform(({ value }) =>
-    value === 'true' ? true : value === 'false' ? false : undefined,
-  )
+  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : undefined))
   @IsBoolean()
   readonly cached?: boolean;
 
@@ -126,14 +122,12 @@ export class LlmUsageLogDto {
   readonly promptName!: string;
 
   @ApiProperty({
-    description:
-      '프롬프트의 판(sha256 앞 16자). 프롬프트를 고치면 값이 갈린다.',
+    description: '프롬프트의 판(sha256 앞 16자). 프롬프트를 고치면 값이 갈린다.',
   })
   readonly promptHash!: string;
 
   @ApiProperty({
-    description:
-      '정규화한 질문의 해시. **원문은 복원할 수 없다** — 반복을 세는 용도다.',
+    description: '정규화한 질문의 해시. **원문은 복원할 수 없다** — 반복을 세는 용도다.',
   })
   readonly questionHash!: string;
 

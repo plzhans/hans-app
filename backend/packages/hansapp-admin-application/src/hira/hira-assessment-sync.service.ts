@@ -34,9 +34,7 @@ export class HiraAssessmentSyncService {
     let upserted = 0;
     let calls = 0;
 
-    for await (const response of this.client.paginateHospitalAssessments(
-      PAGE_SIZE,
-    )) {
+    for await (const response of this.client.paginateHospitalAssessments(PAGE_SIZE)) {
       const body = response.response?.body;
       const items = body?.items?.item ?? [];
       totalCount = body?.totalCount ?? 0;
@@ -45,9 +43,7 @@ export class HiraAssessmentSyncService {
       upserted += await this.upsert(items);
       fetched += items.length;
 
-      this.logger.log(
-        `HIRA 병원평가 ${fetched.toLocaleString()}/${totalCount.toLocaleString()}`,
-      );
+      this.logger.log(`HIRA 병원평가 ${fetched.toLocaleString()}/${totalCount.toLocaleString()}`);
     }
 
     return { total: totalCount, processed: upserted, calls };

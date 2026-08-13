@@ -91,16 +91,12 @@ export type getHospitalLocationListResponse200 = {
   status: 200;
 };
 
-export type getHospitalLocationListResponseSuccess =
-  getHospitalLocationListResponse200 & {
-    headers: Headers;
-  };
-export type getHospitalLocationListResponse =
-  getHospitalLocationListResponseSuccess;
+export type getHospitalLocationListResponseSuccess = getHospitalLocationListResponse200 & {
+  headers: Headers;
+};
+export type getHospitalLocationListResponse = getHospitalLocationListResponseSuccess;
 
-export const getGetHospitalLocationListUrl = (
-  params: GetHospitalLocationListParams,
-) => {
+export const getGetHospitalLocationListUrl = (params: GetHospitalLocationListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -120,13 +116,10 @@ export const getHospitalLocationList = async (
   params: GetHospitalLocationListParams,
   options?: RequestInit,
 ): Promise<getHospitalLocationListResponse> => {
-  return krDataMutator<getHospitalLocationListResponse>(
-    getGetHospitalLocationListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getHospitalLocationListResponse>(getGetHospitalLocationListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -138,15 +131,12 @@ export type getHospitalBasisInfoResponse200 = {
   status: 200;
 };
 
-export type getHospitalBasisInfoResponseSuccess =
-  getHospitalBasisInfoResponse200 & {
-    headers: Headers;
-  };
+export type getHospitalBasisInfoResponseSuccess = getHospitalBasisInfoResponse200 & {
+  headers: Headers;
+};
 export type getHospitalBasisInfoResponse = getHospitalBasisInfoResponseSuccess;
 
-export const getGetHospitalBasisInfoUrl = (
-  params: GetHospitalBasisInfoParams,
-) => {
+export const getGetHospitalBasisInfoUrl = (params: GetHospitalBasisInfoParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -166,13 +156,10 @@ export const getHospitalBasisInfo = async (
   params: GetHospitalBasisInfoParams,
   options?: RequestInit,
 ): Promise<getHospitalBasisInfoResponse> => {
-  return krDataMutator<getHospitalBasisInfoResponse>(
-    getGetHospitalBasisInfoUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getHospitalBasisInfoResponse>(getGetHospitalBasisInfoUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -185,15 +172,12 @@ export type getBabyHospitalListResponse200 = {
   status: 200;
 };
 
-export type getBabyHospitalListResponseSuccess =
-  getBabyHospitalListResponse200 & {
-    headers: Headers;
-  };
+export type getBabyHospitalListResponseSuccess = getBabyHospitalListResponse200 & {
+  headers: Headers;
+};
 export type getBabyHospitalListResponse = getBabyHospitalListResponseSuccess;
 
-export const getGetBabyHospitalListUrl = (
-  params?: GetBabyHospitalListParams,
-) => {
+export const getGetBabyHospitalListUrl = (params?: GetBabyHospitalListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -213,13 +197,10 @@ export const getBabyHospitalList = async (
   params?: GetBabyHospitalListParams,
   options?: RequestInit,
 ): Promise<getBabyHospitalListResponse> => {
-  return krDataMutator<getBabyHospitalListResponse>(
-    getGetBabyHospitalListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getBabyHospitalListResponse>(getGetBabyHospitalListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -232,16 +213,12 @@ export type getBabyHospitalLocationListResponse200 = {
   status: 200;
 };
 
-export type getBabyHospitalLocationListResponseSuccess =
-  getBabyHospitalLocationListResponse200 & {
-    headers: Headers;
-  };
-export type getBabyHospitalLocationListResponse =
-  getBabyHospitalLocationListResponseSuccess;
+export type getBabyHospitalLocationListResponseSuccess = getBabyHospitalLocationListResponse200 & {
+  headers: Headers;
+};
+export type getBabyHospitalLocationListResponse = getBabyHospitalLocationListResponseSuccess;
 
-export const getGetBabyHospitalLocationListUrl = (
-  params: GetBabyHospitalLocationListParams,
-) => {
+export const getGetBabyHospitalLocationListUrl = (params: GetBabyHospitalLocationListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -279,15 +256,12 @@ export type getHospitalFullDownResponse200 = {
   status: 200;
 };
 
-export type getHospitalFullDownResponseSuccess =
-  getHospitalFullDownResponse200 & {
-    headers: Headers;
-  };
+export type getHospitalFullDownResponseSuccess = getHospitalFullDownResponse200 & {
+  headers: Headers;
+};
 export type getHospitalFullDownResponse = getHospitalFullDownResponseSuccess;
 
-export const getGetHospitalFullDownUrl = (
-  params?: GetHospitalFullDownParams,
-) => {
+export const getGetHospitalFullDownUrl = (params?: GetHospitalFullDownParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -307,13 +281,10 @@ export const getHospitalFullDown = async (
   params?: GetHospitalFullDownParams,
   options?: RequestInit,
 ): Promise<getHospitalFullDownResponse> => {
-  return krDataMutator<getHospitalFullDownResponse>(
-    getGetHospitalFullDownUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getHospitalFullDownResponse>(getGetHospitalFullDownUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -343,9 +314,7 @@ export const getGetCodeInfoListUrl = (params?: GetCodeInfoListParams) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0
-    ? `/CodeMast/info?${stringifiedParams}`
-    : `/CodeMast/info`;
+  return stringifiedParams.length > 0 ? `/CodeMast/info?${stringifiedParams}` : `/CodeMast/info`;
 };
 
 export const getCodeInfoList = async (

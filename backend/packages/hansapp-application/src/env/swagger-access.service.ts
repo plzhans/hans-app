@@ -67,9 +67,7 @@ export class SwaggerAccessService {
       this.expiresAt = Date.now() + CACHE_TTL_MS;
       this.logger.error(
         `Failed to load Swagger IP allowlist${
-          this.patterns === undefined
-            ? ' (no cached list — denying all)'
-            : ' (keeping cached list)'
+          this.patterns === undefined ? ' (no cached list — denying all)' : ' (keeping cached list)'
         }`,
         error instanceof Error ? error.stack : undefined,
       );

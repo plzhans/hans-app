@@ -1,9 +1,12 @@
 import {
   Boxes,
+  Brush,
+  MessageSquareText,
   KeyRound,
   Mail,
   Plug,
   ScrollText,
+  ShieldCheck,
   Sparkles,
   Users,
   type LucideIcon,
@@ -38,6 +41,11 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    // 커뮤니티. 지금은 게시판 하나뿐이고, 글 관리 화면이 생기면 여기 붙는다.
+    title: '커뮤니티',
+    items: [{ to: '/boards', label: '게시판', icon: MessageSquareText }],
+  },
+  {
     /*
       **읽는 화면들의 자리다.** 설정이 값을 고치는 곳이라면 여기는 쌓인 것을 들여다보는
       곳이다 — `설정 > LLM`(키·모델을 고친다)과 `로그 > LLM 사용`(호출을 본다)이 이름은
@@ -60,6 +68,17 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/settings/mail', label: '메일', icon: Mail },
       { to: '/settings/integrations', label: '외부 연동', icon: Plug },
       { to: '/settings/llm', label: 'LLM', icon: Sparkles },
+      // 값을 고치는 화면들과 성격이 다르지만(지우는 화면), 서비스 전체를 다룬다는 점이 같다.
+      { to: '/settings/maintenance', label: '정리하기', icon: Brush },
     ],
+  },
+  {
+    /*
+      **콘솔 자신을 다루는 자리다.** 회원·앱이 서비스를 들여다보는 화면이라면 여기는
+      "이 콘솔에 누가 들어올 수 있는가" 다 — 설정 구역에 섞으면 값을 고치는 화면들 사이에
+      계정 삭제가 끼어 성격이 흐려진다.
+    */
+    title: '콘솔',
+    items: [{ to: '/admins', label: '관리자', icon: ShieldCheck }],
   },
 ];

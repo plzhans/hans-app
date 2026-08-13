@@ -6,6 +6,7 @@ import { errorMessage } from "@/shared/api/errorMessage";
 import { goAfterLogin, readAfterLoginParams } from "@/shared/auth/afterLogin";
 import { useAuthStore } from "@/shared/auth/authStore";
 import { Button } from "@/shared/ui/Button";
+import { FieldRow } from "@/shared/ui/FieldRow";
 import { TextField } from "@/shared/ui/TextField";
 import { AuthCard } from "../components/AuthCard";
 import {
@@ -144,13 +145,17 @@ export default function Signup() {
             error={codeError ?? undefined}
           />
           {serverError && (
-            <p className="whitespace-pre-line text-sm text-red-500">
-              {serverError}
-            </p>
+            <FieldRow as="div">
+              <p className="whitespace-pre-line text-sm text-red-500">
+                {serverError}
+              </p>
+            </FieldRow>
           )}
-          <Button type="button" loading={submitting} onClick={onConfirm}>
-            가입 완료
-          </Button>
+          <FieldRow as="div">
+            <Button type="button" loading={submitting} onClick={onConfirm}>
+              가입 완료
+            </Button>
+          </FieldRow>
         </div>
 
         <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
@@ -228,22 +233,28 @@ export default function Signup() {
           만들지 않지만, 여기서 막는 편이 낫다 — 코드 단계까지 갔다가 되돌리면 이미 메일이
           나간 뒤다.
         */}
-        <ConsentFields
-          value={consent}
-          onChange={(next) => {
-            setConsent(next);
-            if (consentError) setConsentError(null);
-          }}
-          error={consentError ?? undefined}
-        />
+        <FieldRow as="div">
+          <ConsentFields
+            value={consent}
+            onChange={(next) => {
+              setConsent(next);
+              if (consentError) setConsentError(null);
+            }}
+            error={consentError ?? undefined}
+          />
+        </FieldRow>
         {serverError && (
-          <p className="whitespace-pre-line text-sm text-red-500">
-            {serverError}
-          </p>
+          <FieldRow as="div">
+            <p className="whitespace-pre-line text-sm text-red-500">
+              {serverError}
+            </p>
+          </FieldRow>
         )}
-        <Button type="submit" loading={isSubmitting}>
-          인증 코드 받기
-        </Button>
+        <FieldRow as="div">
+          <Button type="submit" loading={isSubmitting}>
+            인증 코드 받기
+          </Button>
+        </FieldRow>
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-500">

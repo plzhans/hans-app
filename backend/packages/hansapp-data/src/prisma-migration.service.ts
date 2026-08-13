@@ -29,11 +29,7 @@ export class PrismaMigrationService {
 
   /** 스키마 변경분으로 마이그레이션을 만들고 적용한다. 개발용. shadow DB 가 필요하다. */
   migrate(target: DbTarget, options: MigrationOptions = {}): void {
-    this.run(target, [
-      'migrate',
-      'dev',
-      ...(options.name ? ['--name', options.name] : []),
-    ]);
+    this.run(target, ['migrate', 'dev', ...(options.name ? ['--name', options.name] : [])]);
   }
 
   /**
@@ -64,22 +60,16 @@ export class PrismaMigrationService {
   }
 
   private run(target: DbTarget, args: string[]): void {
-    const result = spawnSync(
-      'npx',
-      ['prisma', ...args, '--schema', this.schemaPath(target)],
-      {
-        cwd: this.packageDir,
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          DATABASE_URL: this.config.url,
-          DATABASE_LOG_URL: this.config.logUrl,
-          ...(this.config.shadowUrl
-            ? { DATABASE_SHADOW_URL: this.config.shadowUrl }
-            : {}),
-        },
+    const result = spawnSync('npx', ['prisma', ...args, '--schema', this.schemaPath(target)], {
+      cwd: this.packageDir,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        DATABASE_URL: this.config.url,
+        DATABASE_LOG_URL: this.config.logUrl,
+        ...(this.config.shadowUrl ? { DATABASE_SHADOW_URL: this.config.shadowUrl } : {}),
       },
-    );
+    });
 
     if (result.error) {
       throw result.error;

@@ -52,9 +52,7 @@ export const getGetAddressUrl = (params: GetAddressParams) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0
-    ? `/req/address?${stringifiedParams}`
-    : `/req/address`;
+  return stringifiedParams.length > 0 ? `/req/address?${stringifiedParams}` : `/req/address`;
 };
 
 export const getAddress = async (

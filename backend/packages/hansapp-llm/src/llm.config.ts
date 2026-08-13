@@ -41,7 +41,6 @@ export function buildLlmConfig(cfg: ConfigSource): LlmConfig {
   return Object.freeze({
     // 기본값을 두지 않는다. 코드에 박힌 키는 없는 것과 같다.
     answerSigningKey: cfg.getStringOrDefault('llm.answerSigningKey') || '',
-    promptDir:
-      cfg.getStringOrDefault('llm.promptDir') || 'data/healthcare/svc-prompts',
+    promptDir: cfg.getStringOrDefault('llm.promptDir') || 'data/healthcare/svc-prompts',
   });
 }

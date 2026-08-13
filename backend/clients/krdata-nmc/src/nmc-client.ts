@@ -67,13 +67,8 @@ export class NmcClient {
   constructor(private readonly config: NmcConfig) {}
 
   /** 병·의원 목록정보 조회 (주소·진료과목 등으로 필터) */
-  async getHospitalList(
-    params: GetHospitalListParams = {},
-  ): Promise<HospitalListResponse> {
-    const { data } = await getHospitalList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getHospitalList(params: GetHospitalListParams = {}): Promise<HospitalListResponse> {
+    const { data } = await getHospitalList(params, withKrDataConfig(this.config));
     return fillRegion(data);
   }
 
@@ -81,10 +76,7 @@ export class NmcClient {
   async getHospitalLocations(
     params: GetHospitalLocationListParams,
   ): Promise<HospitalLocationResponse> {
-    const { data } = await getHospitalLocationList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getHospitalLocationList(params, withKrDataConfig(this.config));
     return fillRegion(data);
   }
 
@@ -104,10 +96,7 @@ export class NmcClient {
   async getBabyHospitalList(
     params: GetBabyHospitalListParams = {},
   ): Promise<BabyHospitalListResponse> {
-    const { data } = await getBabyHospitalList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getBabyHospitalList(params, withKrDataConfig(this.config));
     return fillRegion(data);
   }
 
@@ -115,10 +104,7 @@ export class NmcClient {
   async getBabyHospitalLocations(
     params: GetBabyHospitalLocationListParams,
   ): Promise<BabyHospitalLocationResponse> {
-    const { data } = await getBabyHospitalLocationList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getBabyHospitalLocationList(params, withKrDataConfig(this.config));
     return fillRegion(data);
   }
 
@@ -126,21 +112,13 @@ export class NmcClient {
   async getHospitalFullDown(
     params: GetHospitalFullDownParams = {},
   ): Promise<HospitalFullDownResponse> {
-    const { data } = await getHospitalFullDown(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getHospitalFullDown(params, withKrDataConfig(this.config));
     return fillRegion(data);
   }
 
   /** 코드마스터 목록 조회 */
-  async getCodeList(
-    params: GetCodeInfoListParams = {},
-  ): Promise<CodeInfoResponse> {
-    const { data } = await getCodeInfoList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getCodeList(params: GetCodeInfoListParams = {}): Promise<CodeInfoResponse> {
+    const { data } = await getCodeInfoList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -151,9 +129,7 @@ export class NmcClient {
    * 데이터 갱신주기가 일 1회이므로 배치도 하루 한 번이면 충분하다.
    * 30 TPS 제한이 있으니 호출 간격 제어가 필요하면 호출부에서 처리하라.
    */
-  async *paginateHospitalFullDown(
-    numOfRows = 10_000,
-  ): AsyncGenerator<HospitalFullDownResponse> {
+  async *paginateHospitalFullDown(numOfRows = 10_000): AsyncGenerator<HospitalFullDownResponse> {
     let pageNo = 1;
     let fetched = 0;
 

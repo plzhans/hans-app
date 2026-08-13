@@ -43,6 +43,7 @@ interface AuthState {
     language?: string;
     timeZone?: string;
   }) => Promise<void>;
+  refreshMe: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -135,6 +136,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     await apiUpdateMyLocale(input);
     const me = await loadMe();
     set({ me });
+  },
+
+  /**
+   * 내 정보를 서버에서 다시 읽는다.
+   *
+   * **관리자 화면에서 자기 계정을 고쳤을 때 부른다.** 그쪽은 계정 목록의 한 줄로 다루는
+   * 화면이라 로그인 상태를 모르는데, 고친 것이 나였다면 상단바와 내정보가 옛 이메일을
+   * 그대로 들고 있게 된다.
+   */
+  refreshMe: async () => {
+    set({ me: await loadMe() });
   },
 
   signOut: async () => {

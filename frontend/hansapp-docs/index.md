@@ -4,6 +4,7 @@
 # 대신 문서 레이아웃에 홈 조각(VPHomeHero·VPHomeFeatures)을 얹어 디자인은 그대로 둔다.
 # 아래 hero·features 는 그 컴포넌트들이 읽는 값이다.
 title: Hans API
+description: 전국 병원 검색, 지역 코드·영문 주소, 사업자등록 조회를 하나의 REST API 로 제공합니다. 인증과 응답 규칙은 도메인과 무관하게 같습니다.
 pageClass: home-page
 aside: false
 outline: false

@@ -73,10 +73,7 @@ export class EnvLlmKeyCache {
 
   private async refresh(): Promise<void> {
     try {
-      const [rows, models] = await Promise.all([
-        this.repository.findAll(),
-        this.models.findAll(),
-      ]);
+      const [rows, models] = await Promise.all([this.repository.findAll(), this.models.findAll()]);
       const usable = rows.filter(
         (r) => r.status === EnvLlmKeyStatus.ACTIVE && PROVIDER[r.provider],
       );
@@ -95,9 +92,7 @@ export class EnvLlmKeyCache {
       this.expiresAt = Date.now() + CACHE_TTL_MS;
     } catch (error) {
       // 직전 값을 그대로 쓴다. DB 가 순간 흔들릴 때마다 AI 가 멎는 편이 더 나쁘다.
-      this.logger.error(
-        `LLM 키를 읽지 못했다. 직전 값을 유지한다: ${String(error)}`,
-      );
+      this.logger.error(`LLM 키를 읽지 못했다. 직전 값을 유지한다: ${String(error)}`);
       this.expiresAt = Date.now() + 10_000;
     }
   }
@@ -109,10 +104,7 @@ export class EnvLlmKeyCache {
    * 쓴다 — 모델을 하나만 등록하고 기본 지정을 안 한 흔한 상태에서 "왜 안 되지" 가 되지
    * 않게 한다.
    */
-  private toSettings(
-    row: EnvLlmKey,
-    models: readonly EnvLlmModel[],
-  ): LlmEndpointSettings {
+  private toSettings(row: EnvLlmKey, models: readonly EnvLlmModel[]): LlmEndpointSettings {
     const preferred = models.find((m) => m.isDefault) ?? models[0];
     return {
       provider: PROVIDER[row.provider],
@@ -128,9 +120,7 @@ export class EnvLlmKeyCache {
   private reveal(raw: string | null, where: string): string | undefined {
     if (!raw) return undefined;
     if (!this.keyring) {
-      this.logger.error(
-        `${where}: appSecretEncryption 키가 없어 복호화하지 못했다.`,
-      );
+      this.logger.error(`${where}: appSecretEncryption 키가 없어 복호화하지 못했다.`);
       return undefined;
     }
     return open(raw, this.keyring);

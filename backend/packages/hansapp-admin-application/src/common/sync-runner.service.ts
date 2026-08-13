@@ -1,21 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import {
-  HIRA_STAGES,
-  HiraStage,
-  HiraStageService,
-} from '../hira/hira-stage.service';
-import {
-  NMC_STAGES,
-  NmcStage,
-  NmcStageService,
-  StageResult,
-} from '../nmc/nmc-stage.service';
-import {
-  MOIS_STAGES,
-  MoisStage,
-  MoisStageService,
-} from '../mois/mois-stage.service';
+import { HIRA_STAGES, HiraStage, HiraStageService } from '../hira/hira-stage.service';
+import { NMC_STAGES, NmcStage, NmcStageService, StageResult } from '../nmc/nmc-stage.service';
+import { MOIS_STAGES, MoisStage, MoisStageService } from '../mois/mois-stage.service';
 import { DataProvider } from './provider';
 
 /** 한 단계의 실행 결과 */
@@ -68,18 +55,14 @@ export class SyncRunnerService {
     private readonly hira: HiraStageService,
   ) {}
 
-  async runAll(
-    provider: DataProvider,
-    options: RunAllOptions = {},
-  ): Promise<RunAllResult> {
+  async runAll(provider: DataProvider, options: RunAllOptions = {}): Promise<RunAllResult> {
     const stages: readonly number[] = STAGES_BY_PROVIDER[provider];
 
     const runs: StageRun[] = [];
     let spent = 0;
 
     for (const stage of stages) {
-      const remaining =
-        options.budget === undefined ? undefined : options.budget - spent;
+      const remaining = options.budget === undefined ? undefined : options.budget - spent;
 
       if (remaining !== undefined && remaining <= 0) {
         this.logger.log(

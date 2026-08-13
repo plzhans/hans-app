@@ -15,11 +15,7 @@ export class MirrorHospitalResult {
   /** 마지막으로 동기화된 시각 */
   readonly syncedAt: Date;
 
-  constructor(params: {
-    id: string;
-    data: Record<string, unknown>;
-    syncedAt: Date;
-  }) {
+  constructor(params: { id: string; data: Record<string, unknown>; syncedAt: Date }) {
     this.id = params.id;
     this.data = params.data;
     this.syncedAt = params.syncedAt;

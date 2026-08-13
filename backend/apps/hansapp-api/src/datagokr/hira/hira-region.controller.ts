@@ -1,10 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { HiraRegionService, HiraSubjectService } from '@hansapp/application';
 
 import { Auth } from '../../auth/auth.decorator';
@@ -47,8 +42,7 @@ export class HiraRegionController {
   @Get('hospitals/:ykiho/subjects')
   @ApiOperation({
     summary: '병원 진료과목 조회',
-    description:
-      '해당 병원이 진료하는 과목 목록. 응답 구조는 원본 API(진료과목정보)와 동일하다.',
+    description: '해당 병원이 진료하는 과목 목록. 응답 구조는 원본 API(진료과목정보)와 동일하다.',
   })
   @ApiParam({ name: 'ykiho', description: '암호화된 요양기호' })
   @ApiOkResponse({ schema: krDataSchemaRef('HiraSubjectInfoResponse') })

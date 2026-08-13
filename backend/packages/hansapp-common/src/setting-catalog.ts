@@ -18,7 +18,28 @@ export type SettingFieldType =
   | 'boolean'
   | 'select'
   /** 값을 절대 내보내지 않는다. 화면에는 "설정됨 ****abcd" 만 간다. */
-  | 'secret';
+  | 'secret'
+  /** 저장하지 않는다. 서버가 만들어 보여 주기만 하는 값이다(`derived` 참고). */
+  | 'readonly';
+
+/**
+ * 표시 전용 값을 어디서 만드는가. `type: 'readonly'` 필드만 갖는다.
+ *
+ * **리디렉션 주소를 사람이 옮겨 적게 두면 안 된다.** 오타 하나가 `redirect_uri_mismatch` 로
+ * 돌아오는데, 그 화면에는 무엇이 틀렸는지 안 적힌다. 서버가 인가 요청에 실을 때 쓰는 규칙과
+ * 같은 규칙(오리진 + 경로)으로 조립해 보여 주고, 발급처 콘솔에는 그것을 그대로 붙여 넣는다.
+ */
+export interface SettingDerived {
+  /**
+   * 로그인 흐름이 돌아오는 서버.
+   *  - `service`: 서비스 API(`apps-api.externalUrl`)
+   *  - `admin`: 관리자 API. 콘솔 SPA 가 아니라 **이 요청이 들어온 오리진**이다 —
+   *    로컬은 콘솔(5275)과 API(3001)가 갈라져 있어 설정 주소로는 맞출 수 없다.
+   */
+  readonly origin: 'service' | 'admin';
+  /** 그 서버 안의 콜백 경로. `/` 로 시작한다. */
+  readonly path: string;
+}
 
 export interface SettingField {
   /** 설정 경로. DB 의 기본키이자 폴백으로 읽을 ConfigSource 경로다. */
@@ -42,12 +63,30 @@ export interface SettingField {
   readonly section?: string;
 
   /**
+   * 구역 제목 아래 한 줄. **구역 안 아무 필드에나 한 번만 적는다**(화면이 찾아서 쓴다).
+   *
+   * 필드마다 붙는 `help` 와 다르다 — 이건 "이 구역이 무엇을 정하는가" 다.
+   */
+  readonly sectionHelp?: string;
+
+  /**
+   * 이 구역을 **눈에 띄게 갈라 그린다.** 같은 카드 안에 성격이 다른 값이 있을 때만 쓴다.
+   *
+   * 구글 하나에 서비스 로그인과 관리자 콘솔 로그인이 같이 있는데, 둘은 생김새가 똑같아
+   * 어느 쪽을 만지는지 헷갈린다 — 잘못 넣으면 지금 보고 있는 이 콘솔의 입구가 막힌다.
+   */
+  readonly sectionTone?: 'notice';
+
+  /**
    * 옆에 나란히 세울 묶음 이름. **연달아 있고 이름이 같은 필드끼리 한 줄에 놓인다.**
    *
    * 같은 단위를 기간만 달리해 받는 값(일일·월간)처럼, 한쪽만 보면 판단이 안 되는 것들을
    * 붙여 둔다. 값이 없으면 한 줄에 하나다.
    */
   readonly row?: string;
+
+  /** `type: 'readonly'` 일 때 값을 만들 원본. 다른 타입에는 없다. */
+  readonly derived?: SettingDerived;
 }
 
 /**
@@ -93,12 +132,8 @@ export interface SettingGroup {
   readonly fields: readonly SettingField[];
 }
 
-/** OAuth provider 는 전부 같은 모양이다. 네 번 적지 않는다. */
-function oauthGroup(
-  id: string,
-  label: string,
-  consoles: readonly SettingConsole[],
-): SettingGroup {
+/** OAuth provider 는 대개 같은 모양이다. 세 번 적지 않는다(구글만 클라이언트가 둘이라 따로 적는다). */
+function oauthGroup(id: string, label: string, consoles: readonly SettingConsole[]): SettingGroup {
   return {
     id,
     label,
@@ -107,7 +142,29 @@ function oauthGroup(
     fields: [
       { key: `${id}.clientId`, label: 'Client ID', type: 'string' },
       { key: `${id}.clientSecret`, label: 'Client Secret', type: 'secret' },
+      // 서비스 로그인은 서비스 API 로 돌아온다: {apps-api.externalUrl}/auth/:provider/callback
+      redirectField(`${id}.redirectUri`, 'service', `/auth/${id}/callback`),
     ],
+  };
+}
+
+/**
+ * 발급처 콘솔에 등록해야 하는 리디렉션 주소. **Client Secret 바로 아래에 둔다** — 키를 넣으러
+ * 콘솔을 여는 그 순간에 같이 등록해야 하는 값이라, 다른 화면에 적어 두면 반드시 빠뜨린다.
+ */
+function redirectField(
+  key: string,
+  origin: SettingDerived['origin'],
+  path: string,
+  section?: string,
+): SettingField {
+  return {
+    key,
+    label: 'Redirect URI',
+    type: 'readonly',
+    section,
+    derived: { origin, path },
+    help: '발급처 콘솔의 리디렉션 URI 목록에 이 주소를 그대로 등록하세요.',
   };
 }
 
@@ -219,9 +276,58 @@ export const SETTING_GROUPS: readonly SettingGroup[] = [
     다만 **발급처 이름은 각 업체가 부르는 그대로 쓴다.** 관리자가 그 사이트에 닿았을 때
     화면 제목과 같은 말이어야 제대로 왔는지 안다 — 옮겨 적으면 그 확인이 안 된다.
   */
-  oauthGroup('google', '구글', [
-    { label: 'Google Cloud Console', url: 'https://console.cloud.google.com/' },
-  ]),
+  /*
+    **구글만 클라이언트가 둘이다.** 서비스 로그인과 관리자 콘솔 로그인은 같은 구글이지만
+    OAuth 클라이언트를 갈라 쓴다 — 승인된 리디렉션 URI 목록이 곧 로그인 입구라, 한 클라이언트에
+    둘을 얹으면 서비스 쪽 키를 만지는 일이 관리자 콘솔 입구를 만지는 일이 된다.
+    시크릿을 잘못 넣었을 때 한쪽만 멈추는 것도 갈라 두는 이유다.
+  */
+  {
+    id: 'google',
+    label: '구글',
+    category: 'oauth',
+    consoles: [{ label: 'Google Cloud Console', url: 'https://console.cloud.google.com/' }],
+    fields: [
+      {
+        key: 'google.clientId',
+        label: 'Client ID',
+        type: 'string',
+        section: '서비스 로그인',
+        // 대비를 위해 이쪽에도 한 줄 둔다. 한쪽만 설명이 있으면 나머지가 무엇인지 되레 흐려진다.
+        sectionHelp: '회원이 서비스(앱·포털)에 구글로 로그인할 때 쓰입니다.',
+      },
+      {
+        key: 'google.clientSecret',
+        label: 'Client Secret',
+        type: 'secret',
+        section: '서비스 로그인',
+      },
+      redirectField('google.redirectUri', 'service', '/auth/google/callback', '서비스 로그인'),
+      {
+        key: 'admin.google.clientId',
+        label: 'Client ID',
+        type: 'string',
+        section: '관리자 콘솔 로그인',
+        // 화면이 이 구역만 갈라 그린다. 서비스 로그인 값과 생김새가 같아 헷갈리는 자리다.
+        sectionTone: 'notice',
+        sectionHelp:
+          '지금 보고 있는 이 콘솔의 구글 로그인입니다. 값이 틀리면 구글로는 못 들어옵니다(비밀번호 로그인은 그대로 됩니다).',
+      },
+      {
+        key: 'admin.google.clientSecret',
+        label: 'Client Secret',
+        type: 'secret',
+        section: '관리자 콘솔 로그인',
+      },
+      // 관리자 로그인은 관리자 API 로 돌아온다(콘솔 SPA 가 아니다).
+      redirectField(
+        'admin.google.redirectUri',
+        'admin',
+        '/auth/social/google/callback',
+        '관리자 콘솔 로그인',
+      ),
+    ],
+  },
   /*
     **네이버만 발급처가 둘이다.** 어느 쪽에서 받은 키인지 모르면 콘솔을 두 번 뒤지게 되니
     둘 다 띄운다.

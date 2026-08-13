@@ -1,12 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { HiraNmcMatchRepository } from './hira-nmc-match.repository';
-import {
-  distanceMeters,
-  nameSimilarity,
-  normalizeName,
-  normalizeTel,
-} from './similarity';
+import { distanceMeters, nameSimilarity, normalizeName, normalizeTel } from './similarity';
 
 /**
  * 판정 임계값. 전부 실측으로 잡았다.
@@ -122,9 +117,7 @@ export class HiraNmcMatchService {
         .map((link) => link.hpid),
     );
     // 거부는 (ykiho, hpid) 쌍이다. 다른 후보가 생기면 다시 검토된다.
-    const rejectedPairs = new Set(
-      rejected.map((row) => `${row.ykiho}|${row.hpid ?? ''}`),
-    );
+    const rejectedPairs = new Set(rejected.map((row) => `${row.ykiho}|${row.hpid ?? ''}`));
 
     const targets = hira.filter((row) => !skipYkiho.has(row.ykiho));
 
@@ -160,13 +153,7 @@ export class HiraNmcMatchService {
     const claimed = new Set<string>();
 
     for (const target of targets) {
-      const candidates = this.findCandidates(
-        target,
-        byTel,
-        byGrid,
-        rejectedPairs,
-        claimed,
-      );
+      const candidates = this.findCandidates(target, byTel, byGrid, rejectedPairs, claimed);
       const decision = this.decide(target, candidates);
 
       if (decision.status === 'auto' && decision.hpid) {
@@ -228,19 +215,14 @@ export class HiraNmcMatchService {
 
       const nameSim = nameSimilarity(target.name, row.name);
       const distance =
-        target.lat !== null &&
-        target.lon !== null &&
-        row.lat !== null &&
-        row.lon !== null
+        target.lat !== null && target.lon !== null && row.lat !== null && row.lon !== null
           ? Math.round(distanceMeters(target.lat, target.lon, row.lat, row.lon))
           : null;
       const telMatch = target.tel !== '' && target.tel === row.tel;
 
       // 거리 점수: 100m 이내면 1점, 1km 넘으면 0점.
       const near =
-        distance === null
-          ? 0
-          : Math.max(0, 1 - Math.max(0, distance - NEAR_METERS) / 900);
+        distance === null ? 0 : Math.max(0, 1 - Math.max(0, distance - NEAR_METERS) / 900);
 
       const score = 0.5 * nameSim + 0.3 * near + (telMatch ? 0.2 : 0);
       scored.push({ hpid: row.hpid, score, nameSim, distance, telMatch });
@@ -264,10 +246,7 @@ export class HiraNmcMatchService {
    * 그건 거부가 아니라 **후보 없음**이다. 거부로 기록하면 나중에 진짜 후보가 생겨도
    * 그 쌍이 영원히 배제된다.
    */
-  private decide(
-    _target: HiraRow,
-    candidates: Scored[],
-  ): Omit<MatchDecision, 'ykiho'> {
+  private decide(_target: HiraRow, candidates: Scored[]): Omit<MatchDecision, 'ykiho'> {
     const none = {
       hpid: null,
       status: 'no_candidate',

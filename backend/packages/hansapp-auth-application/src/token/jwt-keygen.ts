@@ -1,9 +1,4 @@
-import {
-  createHash,
-  createPrivateKey,
-  createPublicKey,
-  generateKeyPairSync,
-} from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync } from 'node:crypto';
 
 /**
  * access token 서명 키의 생성·식별 공용 유틸.
@@ -29,29 +24,17 @@ export function jwkThumbprint(jwk: Record<string, string>): string {
     jwk.kty === 'EC'
       ? JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y })
       : JSON.stringify({ e: jwk.e, kty: jwk.kty, n: jwk.n });
-  return createHash('sha256')
-    .update(canonical)
-    .digest('base64url')
-    .slice(0, KID_LEN);
+  return createHash('sha256').update(canonical).digest('base64url').slice(0, KID_LEN);
 }
 
 /** PEM(개인 또는 공개)에서 **공개** JWK 를 뽑는다. 개인키면 d(개인 스칼라)를 제거한다. */
-export function publicJwkFromPem(
-  pem: string,
-  isPrivate: boolean,
-): Record<string, string> {
+export function publicJwkFromPem(pem: string, isPrivate: boolean): Record<string, string> {
   if (isPrivate) {
-    const jwk = createPrivateKey(pem).export({ format: 'jwk' }) as Record<
-      string,
-      string
-    >;
+    const jwk = createPrivateKey(pem).export({ format: 'jwk' }) as Record<string, string>;
     delete jwk.d;
     return jwk;
   }
-  return createPublicKey(pem).export({ format: 'jwk' }) as Record<
-    string,
-    string
-  >;
+  return createPublicKey(pem).export({ format: 'jwk' }) as Record<string, string>;
 }
 
 /**

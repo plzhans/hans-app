@@ -101,9 +101,7 @@ export class SvcPromptRepository {
       schemaRaw = readFileSync(schemaPath, 'utf8');
     } catch (cause) {
       // 원인이 대개 "배포에 data/ 가 안 올라갔다" 라 어느 자리를 봤는지가 중요하다.
-      throw new Error(
-        `prompt "${name}" not found under ${this.dir}: ${String(cause)}`,
-      );
+      throw new Error(`prompt "${name}" not found under ${this.dir}: ${String(cause)}`);
     }
 
     const parsed = JSON.parse(schemaRaw) as {
@@ -111,18 +109,12 @@ export class SvcPromptRepository {
       schema?: Record<string, unknown>;
     };
     if (!parsed.schema) {
-      throw new Error(
-        `prompt schema "${name}" has no "schema" field (${schemaPath})`,
-      );
+      throw new Error(`prompt schema "${name}" has no "schema" field (${schemaPath})`);
     }
 
     // 스키마까지 넣어 해싱한다 — 출력 필드가 바뀌어도 응답 모양이 달라지므로,
     // 시스템 프롬프트만 보면 스키마만 고친 변경이 캐시를 안 지나간다.
-    const hash = createHash('sha256')
-      .update(system)
-      .update(schemaRaw)
-      .digest('hex')
-      .slice(0, 16);
+    const hash = createHash('sha256').update(system).update(schemaRaw).digest('hex').slice(0, 16);
 
     this.logger.log(`loaded svc prompt: ${name} #${hash} (${this.dir})`);
     return {

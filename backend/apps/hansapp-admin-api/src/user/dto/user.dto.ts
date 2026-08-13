@@ -10,15 +10,24 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { SUPPORTED_LANGS } from '@hansapp/common';
 import {
+  AppStatus,
   AuthLogResult,
   AuthLogAction,
   UserStatus,
+  UserTier,
 } from '@hansapp/admin-application';
 import type {
+  CachedSession,
+  ProfileCacheState,
+  SessionCacheState,
+  UserAppSummary,
   UserAuthLogEntry,
+  UserConsentSummary,
   UserDetail,
   UserOAuthSummary,
+  UserSession,
   UserSummary,
 } from '@hansapp/admin-application';
 
@@ -120,8 +129,7 @@ export class UserAuthLogDto {
   readonly userAgent!: string | null;
 
   @ApiPropertyOptional({
-    description:
-      '액션별 부가정보. **모양이 액션마다 다르다** — 정해진 필드가 없고, 없으면 빠진다.',
+    description: '액션별 부가정보. **모양이 액션마다 다르다** — 정해진 필드가 없고, 없으면 빠진다.',
     type: 'object',
     additionalProperties: true,
   })
@@ -140,6 +148,93 @@ export class UserAuthLogDto {
     this.userAgent = entry.userAgent;
     this.detail = entry.detail;
     this.createdAt = entry.createdAt.toISOString();
+  }
+}
+
+/**
+ * 회원 정보 수정 요청. **보낸 항목만 바뀐다.**
+ *
+ * 이메일과 이메일 인증 여부는 여기 없다 — 왜 안 여는지는 UserAdminService 주석에
+ * 적어 두었다.
+ */
+export class UpdateUserRequestDto {
+  @ApiPropertyOptional({
+    description: '표시 이름. 빈 문자열을 보내면 지운다.',
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  readonly name?: string;
+
+  @ApiPropertyOptional({
+    description: '등급. 앱 생성 한도를 정한다.',
+    enum: UserTier,
+  })
+  @IsOptional()
+  @IsEnum(UserTier)
+  readonly tier?: UserTier;
+
+  @ApiPropertyOptional({
+    description:
+      '표시·메일 언어. 지원하지 않는 값이면 400. ' +
+      '빈 문자열을 보내면 지운다 — 그러면 요청의 Accept-Language 를 따른다.',
+    enum: SUPPORTED_LANGS,
+    example: 'ko',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  readonly language?: string;
+
+  @ApiPropertyOptional({
+    description: 'IANA 타임존 ID. 알아볼 수 없는 값이면 400. 빈 문자열을 보내면 지운다.',
+    maxLength: 64,
+    example: 'Asia/Seoul',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  readonly timeZone?: string;
+}
+
+/**
+ * 캐시 한 칸의 상태. **내 정보 캐시와 세션 캐시가 같이 쓴다** — 글 캐시(PostCacheStateDto)와도
+ * 같은 모양이라 콘솔이 하나의 패널로 본다.
+ */
+export class CacheStateDto {
+  @ApiProperty({ description: '캐시 키. 환경 접두어는 빠져 있다.' })
+  readonly key!: string;
+
+  @ApiProperty({ description: '지금 캐시에 들어 있나' })
+  readonly hit!: boolean;
+
+  @ApiProperty({ nullable: true, description: '만료 시각' })
+  readonly expiresAt!: string | null;
+
+  @ApiProperty({ nullable: true, description: '남은 시간(ms)' })
+  readonly remainingMs!: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: '캐시에 담긴 값 그대로. 없으면 null.',
+  })
+  readonly value!: unknown;
+
+  @ApiProperty({
+    description:
+      'Redis 처럼 프로세스 밖에서 공유되는 캐시인가. false 면 이 프로세스의 메모리라, ' +
+      '회원 API 가 다른 프로세스면 그쪽 캐시는 여기서 보이지도 지워지지도 않는다.',
+  })
+  readonly shared!: boolean;
+
+  constructor(state: ProfileCacheState) {
+    this.key = state.key;
+    this.hit = state.hit;
+    this.expiresAt = state.expiresAt?.toISOString() ?? null;
+    this.remainingMs = state.remainingMs;
+    this.value = state.value;
+    this.shared = state.shared;
   }
 }
 
@@ -219,12 +314,135 @@ export class UserOAuthDto {
   }
 }
 
+/**
+ * 동의 한 줄.
+ *
+ * **IP·기기까지 싣는다.** 이 기록의 쓸모가 "동의를 받았음" 의 입증이라, 접속 정보를 빼면
+ * 관리자가 보는 것이 본인 화면(종류·판·시각)과 같아져 볼 이유가 없어진다.
+ */
+export class UserConsentDto {
+  @ApiProperty({
+    description: '동의 항목. TERMS·PRIVACY 는 가입 때, API_TERMS 는 앱 등록 때 받는다.',
+    enum: ['TERMS', 'PRIVACY', 'AGE_14', 'API_TERMS'],
+  })
+  readonly type!: string;
+
+  @ApiProperty({ description: '동의한 문서의 판(시행일)', example: '2026-08-14' })
+  readonly version!: string;
+
+  @ApiProperty({ description: '동의 시각(ISO 8601)' })
+  readonly agreedAt!: string;
+
+  @ApiPropertyOptional({ description: '동의 시점의 접속 IP' })
+  readonly ip!: string | null;
+
+  @ApiPropertyOptional({ description: '동의 시점의 User-Agent' })
+  readonly userAgent!: string | null;
+
+  constructor(consent: UserConsentSummary) {
+    this.type = consent.type;
+    this.version = consent.version;
+    this.agreedAt = consent.agreedAt.toISOString();
+    this.ip = consent.ip;
+    this.userAgent = consent.userAgent;
+  }
+}
+
+/**
+ * 세션 하나의 인증 캐시.
+ *
+ * **값(value)은 싣지 않는다.** 담겨 있는 것이 만료 시각 하나뿐이라 펼쳐 봐야 얻을 것이
+ * 없고, 목록 한 줄에 넣기에도 무겁다 — 여기서 알고 싶은 것은 "캐시에 올라가 있나" 다.
+ */
+export class SessionCacheDto {
+  @ApiProperty({ description: '지금 캐시에 들어 있나' })
+  readonly hit!: boolean;
+
+  @ApiProperty({ nullable: true, description: '남은 시간(ms)' })
+  readonly remainingMs!: number | null;
+
+  constructor(state: SessionCacheState) {
+    this.hit = state.hit;
+    this.remainingMs = state.remainingMs;
+  }
+}
+
+/**
+ * 로그인해 둔 기기 한 줄.
+ *
+ * **세션 식별자를 담는다.** 관리자가 기기 한 대를 끊을 수 있어야 해서다 — 끊을 대상을
+ * 가리키는 값이 없으면 "전부 끊기" 밖에 못 한다.
+ *
+ * 이 값만으로는 로그인할 수 없다. refresh token 은 `sid + secret` 인데 secret 은 해시로만
+ * 저장되고 어디에도 나가지 않는다(token.service 의 rotateRefreshToken 참고).
+ */
+export class UserSessionDto {
+  @ApiProperty({
+    description:
+      '세션 식별자(난수). 이 기기를 끊을 때 쓴다. **회원 안에서만 유일하다** — 회원번호와 짝으로만 의미가 있다.',
+  })
+  readonly sessionId!: number;
+
+  @ApiPropertyOptional({ description: '접속 기기의 브라우저·운영체제 정보' })
+  readonly userAgent!: string | null;
+
+  @ApiPropertyOptional({ description: '접속 IP' })
+  readonly ip!: string | null;
+
+  @ApiProperty({
+    description: '"로그인 상태 유지" 를 켜고 만든 세션인지',
+  })
+  readonly persistent!: boolean;
+
+  @ApiProperty({ description: '이 기기에서 로그인한 시각(ISO 8601)' })
+  readonly createdAt!: string;
+
+  @ApiProperty({
+    description: '마지막 갱신 시각(ISO 8601). 사실상 최근 활동 시각이다.',
+  })
+  readonly updatedAt!: string;
+
+  @ApiProperty({ description: '만료 시각(ISO 8601)' })
+  readonly expiresAt!: string;
+
+  @ApiProperty({
+    description:
+      '이 세션의 인증 캐시 상태. **가드가 요청마다 보는 자리라 실제 통과 여부를 정한다** — ' +
+      '목록 자체는 DB 를 보고 그리므로 둘이 어긋날 수 있다.',
+    type: () => SessionCacheDto,
+  })
+  readonly cache!: SessionCacheDto;
+
+  constructor(session: UserSession, cache: SessionCacheState) {
+    this.cache = new SessionCacheDto(cache);
+    this.sessionId = session.sessionId;
+    this.userAgent = session.userAgent;
+    this.ip = session.ip;
+    this.persistent = session.persistent;
+    this.createdAt = session.createdAt.toISOString();
+    this.updatedAt = session.updatedAt.toISOString();
+    this.expiresAt = session.expiresAt.toISOString();
+  }
+}
+
 export class UserDetailDto extends UserSummaryDto {
   @ApiProperty({ description: '최종 수정 시각(ISO 8601)' })
   readonly updatedAt!: string;
 
   @ApiPropertyOptional({ description: '탈퇴 시각(ISO 8601). 활성 계정은 null' })
   readonly withdrawnAt!: string | null;
+
+  @ApiPropertyOptional({
+    description: '표시·메일 언어. 정한 적이 없으면 null — 그때는 요청의 Accept-Language 를 따른다.',
+    enum: SUPPORTED_LANGS,
+  })
+  readonly language!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'IANA 타임존 ID. 정한 적이 없으면 null.',
+    example: 'Asia/Seoul',
+  })
+  readonly timeZone!: string | null;
 
   @ApiProperty({
     description:
@@ -241,13 +459,112 @@ export class UserDetailDto extends UserSummaryDto {
   @ApiProperty({ description: '소유·참여 중인 앱 수' })
   readonly appCount!: number;
 
+  @ApiProperty({ description: '받아 둔 동의 기록', type: [UserConsentDto] })
+  readonly consents!: UserConsentDto[];
+
   constructor(user: UserDetail) {
     super(user);
     this.updatedAt = user.updatedAt.toISOString();
     this.withdrawnAt = user.withdrawnAt?.toISOString() ?? null;
+    this.language = user.language;
+    this.timeZone = user.timeZone;
     this.hasPassword = user.hasPassword;
     this.oauths = user.oauths.map((o) => new UserOAuthDto(o));
     this.activeSessionCount = user.activeSessionCount;
     this.appCount = user.appCount;
+    this.consents = user.consents.map((c) => new UserConsentDto(c));
+  }
+}
+
+/**
+ * DB 에는 없는데 캐시에만 남아 있는 세션.
+ *
+ * **잘못된 데이터다.** 기기를 끊을 때 캐시 삭제가 실패하면 생긴다 — 가드는 이 캐시를 보고
+ * 통과시키므로, 끊은 기기가 캐시 만료까지 계속 통한다. 정리 배치가 주기적으로 치우지만
+ * 그 전에 눈으로 확인하고 지울 수 있어야 한다.
+ */
+export class OrphanSessionCacheDto {
+  @ApiProperty({ description: '세션 식별자(난수)' })
+  readonly sessionId!: number;
+
+  @ApiProperty({
+    description: '캐시에 담긴 세션 만료 시각(ISO 8601). 이 시각까지 통과한다.',
+  })
+  readonly expiresAt!: string;
+
+  constructor(entry: CachedSession) {
+    this.sessionId = entry.sessionId;
+    this.expiresAt = new Date(entry.expiresAt).toISOString();
+  }
+}
+
+/**
+ * 기기 목록 응답.
+ *
+ * **두 곳에서 따로 읽어 합친다.** 목록은 DB 가 정본이지만 요청을 실제로 통과시키는 것은
+ * 캐시라, 둘이 어긋나는 쪽을 감추면 "끊었는데 왜 아직 되지" 를 영영 못 짚는다.
+ */
+export class UserSessionListDto {
+  @ApiProperty({ description: 'DB 에 있는 세션. 캐시 상태를 함께 싣는다.', type: [UserSessionDto] })
+  readonly sessions!: UserSessionDto[];
+
+  @ApiProperty({
+    description: 'DB 에는 없는데 캐시에만 남은 것. 비어 있는 것이 정상이다.',
+    type: [OrphanSessionCacheDto],
+  })
+  readonly orphans!: OrphanSessionCacheDto[];
+
+  constructor(sessions: UserSessionDto[], orphans: OrphanSessionCacheDto[]) {
+    this.sessions = sessions;
+    this.orphans = orphans;
+  }
+}
+
+/**
+ * 회원이 소유·참여하는 앱 한 줄.
+ *
+ * **앱 목록 한 줄과 다르다.** 소유자는 이미 아는 사람(그 회원)이라 빼고, 대신 그 회원이
+ * 이 앱에서 무엇인지(역할)와 언제 합류했는지를 싣는다. 나머지는 앱 상세에서 본다.
+ */
+export class UserAppDto {
+  @ApiProperty({ description: '앱 id' }) readonly id!: number;
+  @ApiProperty({ description: '앱 이름' }) readonly name!: string;
+  @ApiProperty({ description: '앱 상태', enum: AppStatus })
+  readonly status!: AppStatus;
+
+  @ApiPropertyOptional({
+    description: '심사 요청 시각(ISO 8601). PENDING 일 때만 의미가 있다.',
+  })
+  readonly reviewRequestedAt!: string | null;
+
+  @ApiPropertyOptional({
+    description: '거절 사유. PENDING + 이 값이 있으면 거절된 앱이다.',
+  })
+  readonly rejectionReason!: string | null;
+
+  @ApiPropertyOptional({ description: '삭제 시각(ISO 8601). 살아 있으면 null' })
+  readonly deletedAt!: string | null;
+
+  @ApiProperty({
+    description: '이 회원의 역할. OWNER(소유) / ADMIN(관리) / MEMBER(읽기)',
+  })
+  readonly role!: string;
+
+  @ApiProperty({ description: '이 앱의 멤버가 된 시각(ISO 8601)' })
+  readonly joinedAt!: string;
+
+  @ApiProperty({ description: '앱 등록 시각(ISO 8601)' })
+  readonly createdAt!: string;
+
+  constructor(app: UserAppSummary) {
+    this.id = app.id;
+    this.name = app.name;
+    this.status = app.status;
+    this.reviewRequestedAt = app.reviewRequestedAt?.toISOString() ?? null;
+    this.rejectionReason = app.rejectionReason;
+    this.deletedAt = app.deletedAt?.toISOString() ?? null;
+    this.role = app.role;
+    this.joinedAt = app.joinedAt.toISOString();
+    this.createdAt = app.createdAt.toISOString();
   }
 }

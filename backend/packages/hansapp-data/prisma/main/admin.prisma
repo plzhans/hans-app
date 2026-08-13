@@ -12,14 +12,25 @@ model AdminUser {
   /// 관리자 번호
   id Int @id @default(autoincrement())
 
-  /// 로그인 식별자. 전역 유일.
-  email String @unique @db.VarChar(320)
+  /// 로그인 식별자. **살아 있는 계정 안에서 유일하다**(→ deletedSeq).
+  email String @db.VarChar(320)
 
   /// bcrypt 해시(60자). **null 을 허용하지 않는다** — 비밀번호 없는 관리자는 없다.
   password String @db.VarChar(60)
 
   /// 표시 이름
   name String? @db.VarChar(100)
+
+  /// 관리자 등급.
+  ///
+  /// **기본이 가장 높은 SYSTEM 인 것은 계정을 만드는 통로 때문이다.** CLI 와 부팅
+  /// 부트스트랩은 등급을 받을 자리가 없는데, 그 둘은 서버에 들어갈 수 있는 사람이 쓰는
+  /// 통로라 이미 최고 권한과 다름없다. 콘솔에서 만들 때만 등급을 고른다.
+  ///
+  /// 이 값이 지금 정하는 것은 **관리자 계정을 다루는 권한뿐이다**(자기보다 높은 등급의
+  /// 계정을 만들거나 고칠 수 없다). 설정·회원·앱 화면은 아직 등급을 보지 않는다 —
+  /// 어느 화면을 어느 등급까지 열지는 따로 정해야 하는 문제라 여기서 앞질러 정하지 않는다.
+  role AdminRole @default(SYSTEM)
 
   /// 계정 상태. DISABLED 는 로그인 차단.
   ///
@@ -39,8 +50,8 @@ model AdminUser {
 
   /// 국가(ISO 3166-1 alpha-2 대문자). 집계용으로만 둔다 — 화면에 내보내지도, 고치게 하지도 않는다.
   ///
-  /// **관리자는 가입 화면이 없다.** CLI(`hansapp-cli admin create`)와 부팅 부트스트랩으로만
-  /// 만들어져 브라우저에서 값을 받을 자리가 없다 — 그래서 한국으로 굳힌다.
+  /// **관리자는 가입 화면이 없다.** 이미 있는 관리자가 만들어 주거나(콘솔·CLI), 부팅
+  /// 부트스트랩이 만든다 — 본인이 값을 넣을 자리가 없어 한국으로 굳힌다.
   countryCode String @default("KR") @map("country_code") @db.Char(2)
 
   /// 관리 화면·메일 언어. 지원 언어(ko/en/ja/zh). **관리자가 바꿀 수 있다.**
@@ -56,9 +67,102 @@ model AdminUser {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  /// 지운 시각. **null 이면 살아 있다.**
+  ///
+  /// **행을 지우지 않는다.** 관리자 계정은 그 자체가 기록의 일부다 — 조치 로그가 가리키는
+  /// 대상(target_admin_id)이고, "누가 이 계정을 만들었나·언제 있었나" 를 되짚을 자리가
+  /// 여기뿐이다. 행이 사라지면 남는 것은 로그의 이메일 한 줄뿐이다.
+  ///
+  /// 지운 계정은 **로그인할 수 없다** — 조회하는 자리가 전부 `deletedAt: null` 을 조건에
+  /// 넣는다(콘솔의 목록·상세만 예외로 지운 것을 함께 본다).
+  deletedAt DateTime? @map("deleted_at")
+
+  /// 이메일 유일성을 **살아 있는 계정 안으로** 좁히는 값. 살아 있으면 0, 지우면 그 번호(id).
+  ///
+  /// **MySQL 에는 부분 유니크 인덱스가 없다.** `WHERE deleted_at IS NULL` 을 인덱스에 걸 수
+  /// 없고, `@@unique([email, deletedAt])` 은 NULL 끼리 서로 다른 값으로 쳐서 살아 있는 계정이
+  /// 여럿 생긴다 — 그래서 NULL 이 아닌 값으로 가른다. 지운 뒤 같은 주소로 다시 만들 수
+  /// 있어야 하기 때문이다(사람은 나갔다 돌아온다).
+  deletedSeq Int @default(0) @map("deleted_seq")
+
   sessions AdminTokenSession[]
 
+  passwordResets AdminPasswordReset[]
+
+  oauths AdminOAuth[]
+
+  @@unique([email, deletedSeq])
   @@map("admin_user")
+}
+
+/// 관리자 계정 ↔ 외부 소셜 연동.
+///
+/// **비밀번호를 대체하지 않고 옆에 선다.** admin_user.password 는 여전히 NOT NULL 이라,
+/// 구글로 들어오는 관리자도 비밀번호로 들어올 수 있고 연동을 풀어도 통로가 남는다.
+///
+/// **provider enum 은 auth.prisma 의 것을 같이 쓴다.** 계정도 세션도 갈라 뒀지만 provider
+/// 이름은 바깥 세상의 사실이라 두 벌로 적을 이유가 없다. 실제로 쓰는 값은 GOOGLE 하나다.
+model AdminOAuth {
+  id Int @id @default(autoincrement())
+
+  adminId Int @map("admin_id")
+
+  provider OAuthProvider
+
+  /// provider 가 준 고유 식별자(OIDC subject).
+  ///
+  /// **이메일이 아니라 이 값이 신원이다.** 구글 계정의 이메일은 바뀔 수 있지만 sub 는 바뀌지
+  /// 않는다 — 이메일로만 대조하면 계정을 넘겨받은 사람이 남의 관리자 자리에 들어온다.
+  providerId String @map("provider_id") @db.VarChar(191)
+
+  /// 연동 시점에 provider 가 준 이메일. **대조에 쓰지 않는다** — 화면에서 "어느 계정을
+  /// 붙였는지" 를 알아보는 용도다.
+  email String? @db.VarChar(320)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  /// 한 소셜 계정이 관리자 둘에 붙지 않는다.
+  @@unique([provider, providerId])
+  /// 한 관리자는 provider 마다 하나만 붙인다.
+  @@unique([adminId, provider])
+  @@map("admin_oauth")
+}
+
+/// 관리자 비밀번호 재설정 티켓(로그인 화면의 "비밀번호 찾기").
+///
+/// **토큰 원문은 저장하지 않는다.** 메일로 나간 값의 SHA-256 만 두고, 들어온 토큰을 같은
+/// 방식으로 해시해 대조한다 — 이 표가 통째로 새도 남의 계정을 가져갈 수 없어야 한다.
+/// (세션 표 admin_token_session 이 secret 을 다루는 방식과 같다.)
+///
+/// **한 번만 쓰인다.** 쓰고 나면 used_at 을 찍고, 새 요청이 오면 그 계정의 안 쓴 티켓을
+/// 먼저 지운다 — 메일함에 남은 옛 링크가 언제까지나 살아 있으면 안 된다.
+model AdminPasswordReset {
+  id Int @id @default(autoincrement())
+
+  adminId Int @map("admin_id")
+
+  /// 메일로 나간 토큰의 SHA-256(hex 64자).
+  tokenHash String @unique @map("token_hash") @db.Char(64)
+
+  /// 만료 시각. 짧게 잡는다 — 메일함에 오래 살아 있는 링크가 곧 위험이다.
+  expiresAt DateTime @map("expires_at")
+
+  /// 쓴 시각. 있으면 이미 쓴 티켓이다.
+  usedAt DateTime? @map("used_at")
+
+  /// 요청이 어디서 왔는지. 이상한 요청이 몰릴 때 되짚는 값이다.
+  ip        String? @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(255)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// 계정이 지워지면 티켓도 함께 사라진다.
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@map("admin_password_reset")
 }
 
 /// 관리자 계정 상태.
@@ -67,14 +171,31 @@ enum AdminStatus {
   DISABLED
 }
 
+/// 관리자 등급. **위에서부터 높은 순으로 적는다** — 값의 서열은 코드(ADMIN_ROLE_RANK)가
+/// 갖고, 여기서는 목록의 차례로만 드러난다.
+enum AdminRole {
+  /// 시스템 관리자. 모든 등급을 만들고 고칠 수 있다.
+  SYSTEM
+  /// 일반 관리자. 자기 이하(일반·운영자)만 다룬다.
+  ADMIN
+  /// 운영자. 관리자 계정을 다루는 권한이 가장 좁다.
+  OPERATOR
+}
+
 /// 관리자 refresh 세션. 불투명 refresh 토큰의 서버측 저장소.
 /// 토큰 원문은 저장하지 않고 secret 의 SHA-256 해시만 둔다. rotate 시 만료를 연장한다(sliding).
 ///
 /// **UserTokenSession 의 persistent 가 여기엔 없다.** 관리자에게는 "로그인 상태 유지" 를
 /// 두지 않기로 했다 — 쿠키는 항상 세션 쿠키이고 브라우저를 닫으면 사라진다.
 model AdminTokenSession {
-  /// 세션 식별자. refresh 토큰에 내장돼 조회 키로 쓰인다.
-  sessionId String @id @map("session_id") @db.VarChar(64)
+  /// 세션 식별자(난수). **관리자 안에서만 유일하다** — 키가 (관리자, 세션) 복합키다.
+  ///
+  /// 이 값 자체는 비밀이 아니다. refresh 는 secret 이, access 는 서명이 지키고, 조회·캐시가
+  /// 모두 관리자와 묶여 있어 이 숫자만으로는 아무것도 가리키지 못한다. 그래서 길 필요가 없다.
+  ///
+  /// **순번이 아니라 난수다.** 순번은 그 계정의 발급량을 드러내고, 옆 번호를 짚어 보게 한다.
+  /// (회원 세션 UserTokenSession 과 같은 규칙이다.)
+  sessionId Int @map("session_id")
 
   adminId Int @map("admin_id")
 
@@ -93,6 +214,7 @@ model AdminTokenSession {
 
   admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
-  @@index([adminId])
+  /// 복합키의 앞자리가 admin_id 라 "이 관리자의 세션" 조회도 이 키로 해결된다.
+  @@id([adminId, sessionId])
   @@map("admin_token_session")
 }

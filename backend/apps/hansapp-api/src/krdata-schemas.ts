@@ -83,10 +83,7 @@ function prefixRefs(value: unknown, prefix: string): unknown {
   const result: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value)) {
     if (key === '$ref' && typeof child === 'string') {
-      result[key] = child.replace(
-        '#/components/schemas/',
-        `#/components/schemas/${prefix}`,
-      );
+      result[key] = child.replace('#/components/schemas/', `#/components/schemas/${prefix}`);
       continue;
     }
     result[key] = prefixRefs(child, prefix);
@@ -100,17 +97,10 @@ export function mergeKrDataSchemas(document: OpenAPIObject): OpenAPIObject {
   document.components.schemas ??= {};
 
   for (const { pkg, file, prefix } of SPECS) {
-    const spec = JSON.parse(
-      readFileSync(specPath(pkg, file), 'utf-8'),
-    ) as OpenApiSpec;
+    const spec = JSON.parse(readFileSync(specPath(pkg, file), 'utf-8')) as OpenApiSpec;
 
-    for (const [name, schema] of Object.entries(
-      spec.components?.schemas ?? {},
-    )) {
-      document.components.schemas[`${prefix}${name}`] = prefixRefs(
-        schema,
-        prefix,
-      ) as never;
+    for (const [name, schema] of Object.entries(spec.components?.schemas ?? {})) {
+      document.components.schemas[`${prefix}${name}`] = prefixRefs(schema, prefix) as never;
     }
   }
 

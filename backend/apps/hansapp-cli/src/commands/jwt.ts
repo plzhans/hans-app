@@ -1,11 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Command } from 'commander';
@@ -53,12 +46,7 @@ interface KeyInfo {
 /** 디렉터리의 키를 훑어 kid(내용 기준)·alg·역할을 뽑는다. 파일명 kid 와 일치하는지도 본다. */
 function scan(dir: string): KeyInfo[] {
   const out: KeyInfo[] = [];
-  const read = (
-    d: string,
-    ext: string,
-    role: 'active' | 'retired',
-    isPrivate: boolean,
-  ) => {
+  const read = (d: string, ext: string, role: 'active' | 'retired', isPrivate: boolean) => {
     if (!existsSync(d)) return;
     for (const f of readdirSync(d)) {
       if (!f.endsWith(ext)) continue;
@@ -68,9 +56,7 @@ function scan(dir: string): KeyInfo[] {
       const alg = sep > 0 ? stem.slice(sep + 1) : '?';
       let kid = '?';
       try {
-        kid = jwkThumbprint(
-          publicJwkFromPem(readFileSync(join(d, f), 'utf8'), isPrivate),
-        );
+        kid = jwkThumbprint(publicJwkFromPem(readFileSync(join(d, f), 'utf8'), isPrivate));
       } catch {
         // 파싱 실패는 kid='?' 로 표시만 하고 넘어간다.
       }
@@ -84,16 +70,12 @@ function scan(dir: string): KeyInfo[] {
 
 function printNextSteps(dir: string): void {
   console.log('다음:');
-  console.log(
-    '  1) sh env-encrypt.sh                 # .key → .key.enc (커밋 대상)',
-  );
+  console.log('  1) sh env-encrypt.sh                 # .key → .key.enc (커밋 대상)');
   console.log(`  2) env: AUTH_JWT_KEY_DIR=${dir}  (+ AUTH_ISSUER)`);
 }
 
 export function jwtCommand(source: ConfigSource): Command {
-  const jwt = new Command('jwt').description(
-    'access token 서명 키 관리 (ES256, 파일 기반)',
-  );
+  const jwt = new Command('jwt').description('access token 서명 키 관리 (ES256, 파일 기반)');
 
   addExamples(
     jwt
@@ -133,9 +115,7 @@ export function jwtCommand(source: ConfigSource): Command {
         }
         for (const k of keys) {
           const flag = k.match ? '' : '   [!] 파일명 kid ≠ thumbprint';
-          console.log(
-            `${k.role.padEnd(7)} kid=${k.kid}  alg=${k.alg}  ${k.file}${flag}`,
-          );
+          console.log(`${k.role.padEnd(7)} kid=${k.kid}  alg=${k.alg}  ${k.file}${flag}`);
         }
       }),
     ['hansapp-cli jwt list --env develop'],

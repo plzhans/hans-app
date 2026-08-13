@@ -8,22 +8,11 @@ import {
   isSpecialtySubject,
   type MedicalField,
 } from '@hansapp/data/seed';
-import {
-  SUBWAY_STATIONS,
-  SUBWAY_STATION_SOURCE,
-} from '@hansapp/data/reference';
-import {
-  FALLBACK_LANG,
-  pickLangName,
-  type SupportedLang,
-} from '@hansapp/common';
+import { SUBWAY_STATIONS, SUBWAY_STATION_SOURCE } from '@hansapp/data/reference';
+import { FALLBACK_LANG, pickLangName, type SupportedLang } from '@hansapp/common';
 
 import { HealthcareCodeCache, codeName } from './healthcare-code.cache';
-import {
-  HiraAsmCodeCache,
-  asmGroupName,
-  asmItemName,
-} from './hira-asm-code.cache';
+import { HiraAsmCodeCache, asmGroupName, asmItemName } from './hira-asm-code.cache';
 
 /** 코드 항목 */
 export interface MetaCode {
@@ -296,12 +285,7 @@ export class HealthcareMetaService {
     return `"${SUBWAY_RESPONSE_FORMAT}-${SUBWAY_STATION_SOURCE.version}"`;
   }
 
-  private codeNames(
-    tp: MetaCodeType,
-    lang: SupportedLang,
-  ): Map<string, string> {
-    return new Map(
-      this.codes.list(tp).map((entry) => [entry.code, codeName(entry, lang)]),
-    );
+  private codeNames(tp: MetaCodeType, lang: SupportedLang): Map<string, string> {
+    return new Map(this.codes.list(tp).map((entry) => [entry.code, codeName(entry, lang)]));
   }
 }

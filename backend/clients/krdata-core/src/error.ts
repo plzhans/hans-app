@@ -41,12 +41,7 @@ export class KrDataError extends Error {
  * 배치는 이 예외를 **실패가 아니라 "오늘은 여기까지"** 로 다룬다. 다음 날 이어받는다.
  */
 export class KrDataQuotaError extends KrDataError {
-  constructor(
-    message: string,
-    errorCode: string,
-    responseBody?: string,
-    endpoint?: string,
-  ) {
+  constructor(message: string, errorCode: string, responseBody?: string, endpoint?: string) {
     super(message, errorCode, { responseBody, endpoint });
     this.name = 'KrDataQuotaError';
   }
@@ -68,7 +63,6 @@ export function isQuotaExceeded(code: string, body?: string): boolean {
     return false;
   }
   return (
-    body.includes('LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS') ||
-    /quota exceeded/i.test(body)
+    body.includes('LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS') || /quota exceeded/i.test(body)
   );
 }

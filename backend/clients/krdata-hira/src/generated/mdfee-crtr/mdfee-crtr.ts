@@ -31,15 +31,12 @@ export type getPharmacyMdfeeListResponse200 = {
   status: 200;
 };
 
-export type getPharmacyMdfeeListResponseSuccess =
-  getPharmacyMdfeeListResponse200 & {
-    headers: Headers;
-  };
+export type getPharmacyMdfeeListResponseSuccess = getPharmacyMdfeeListResponse200 & {
+  headers: Headers;
+};
 export type getPharmacyMdfeeListResponse = getPharmacyMdfeeListResponseSuccess;
 
-export const getGetPharmacyMdfeeListUrl = (
-  params?: GetPharmacyMdfeeListParams,
-) => {
+export const getGetPharmacyMdfeeListUrl = (params?: GetPharmacyMdfeeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -59,13 +56,10 @@ export const getPharmacyMdfeeList = async (
   params?: GetPharmacyMdfeeListParams,
   options?: RequestInit,
 ): Promise<getPharmacyMdfeeListResponse> => {
-  return krDataMutator<getPharmacyMdfeeListResponse>(
-    getGetPharmacyMdfeeListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getPharmacyMdfeeListResponse>(getGetPharmacyMdfeeListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -77,15 +71,12 @@ export type getOrientalMdfeeListResponse200 = {
   status: 200;
 };
 
-export type getOrientalMdfeeListResponseSuccess =
-  getOrientalMdfeeListResponse200 & {
-    headers: Headers;
-  };
+export type getOrientalMdfeeListResponseSuccess = getOrientalMdfeeListResponse200 & {
+  headers: Headers;
+};
 export type getOrientalMdfeeListResponse = getOrientalMdfeeListResponseSuccess;
 
-export const getGetOrientalMdfeeListUrl = (
-  params?: GetOrientalMdfeeListParams,
-) => {
+export const getGetOrientalMdfeeListUrl = (params?: GetOrientalMdfeeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -105,13 +96,10 @@ export const getOrientalMdfeeList = async (
   params?: GetOrientalMdfeeListParams,
   options?: RequestInit,
 ): Promise<getOrientalMdfeeListResponse> => {
-  return krDataMutator<getOrientalMdfeeListResponse>(
-    getGetOrientalMdfeeListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getOrientalMdfeeListResponse>(getGetOrientalMdfeeListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -125,16 +113,12 @@ export type getDiagnosisMdfeeListResponse200 = {
   status: 200;
 };
 
-export type getDiagnosisMdfeeListResponseSuccess =
-  getDiagnosisMdfeeListResponse200 & {
-    headers: Headers;
-  };
-export type getDiagnosisMdfeeListResponse =
-  getDiagnosisMdfeeListResponseSuccess;
+export type getDiagnosisMdfeeListResponseSuccess = getDiagnosisMdfeeListResponse200 & {
+  headers: Headers;
+};
+export type getDiagnosisMdfeeListResponse = getDiagnosisMdfeeListResponseSuccess;
 
-export const getGetDiagnosisMdfeeListUrl = (
-  params?: GetDiagnosisMdfeeListParams,
-) => {
+export const getGetDiagnosisMdfeeListUrl = (params?: GetDiagnosisMdfeeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -154,11 +138,8 @@ export const getDiagnosisMdfeeList = async (
   params?: GetDiagnosisMdfeeListParams,
   options?: RequestInit,
 ): Promise<getDiagnosisMdfeeListResponse> => {
-  return krDataMutator<getDiagnosisMdfeeListResponse>(
-    getGetDiagnosisMdfeeListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getDiagnosisMdfeeListResponse>(getGetDiagnosisMdfeeListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };

@@ -1,10 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import {
-  open,
-  SETTING_KEYRING,
-  type SecretBoxKeys,
-  type SettingReader,
-} from '@hansapp/common';
+import { open, SETTING_KEYRING, type SecretBoxKeys, type SettingReader } from '@hansapp/common';
 import { SettingReadRepository } from '@hansapp/data';
 
 /**
@@ -75,7 +70,8 @@ export class SettingCache implements SettingReader {
 
   /** DB 에 값이 들어 있는 키 목록. 관리 화면이 "어디서 온 값인가" 를 표시하는 데 쓴다. */
   async storedKeys(): Promise<Set<string>> {
-    return new Set((await this.load()).keys());
+    const stored = await this.load();
+    return new Set(stored.keys());
   }
 
   /** 저장 직후 캐시를 버린다. 방금 바꾼 값이 5분간 안 먹으면 화면이 거짓말을 한다. */
@@ -85,7 +81,8 @@ export class SettingCache implements SettingReader {
 
   /** DB 에 담긴 값. 없으면 undefined(설정 파일로 폴백하라는 뜻). */
   private async getStored(key: string): Promise<string | undefined> {
-    return (await this.load()).get(key);
+    const stored = await this.load();
+    return stored.get(key);
   }
 
   private async load(): Promise<Map<string, string>> {

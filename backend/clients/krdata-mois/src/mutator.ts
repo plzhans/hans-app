@@ -19,17 +19,11 @@ export interface KrDataRequestInit extends RequestInit {
 /** 같은 설정으로 fetch 를 매번 새로 만들지 않도록 캐시한다. */
 const fetchCache = new WeakMap<MoisConfig, KrDataFetch>();
 
-export function withKrDataConfig(
-  config: MoisConfig,
-  options?: RequestInit,
-): KrDataRequestInit {
+export function withKrDataConfig(config: MoisConfig, options?: RequestInit): KrDataRequestInit {
   return { ...options, krdata: config };
 }
 
-export const krDataMutator = async <T>(
-  url: string,
-  options?: KrDataRequestInit,
-): Promise<T> => {
+export const krDataMutator = async <T>(url: string, options?: KrDataRequestInit): Promise<T> => {
   const config = options?.krdata;
   if (!config) {
     throw new Error(

@@ -4,10 +4,7 @@
  * 건강보험심사평가원(HIRA) 우수기관병원평가정보서비스
  * OpenAPI spec version: 1.0.0
  */
-import type {
-  ExcellentAssessmentResponse,
-  GetExcellentAssessmentListParams,
-} from './model';
+import type { ExcellentAssessmentResponse, GetExcellentAssessmentListParams } from './model';
 
 import { krDataMutator } from '../../mutator';
 
@@ -20,16 +17,12 @@ export type getExcellentAssessmentListResponse200 = {
   status: 200;
 };
 
-export type getExcellentAssessmentListResponseSuccess =
-  getExcellentAssessmentListResponse200 & {
-    headers: Headers;
-  };
-export type getExcellentAssessmentListResponse =
-  getExcellentAssessmentListResponseSuccess;
+export type getExcellentAssessmentListResponseSuccess = getExcellentAssessmentListResponse200 & {
+  headers: Headers;
+};
+export type getExcellentAssessmentListResponse = getExcellentAssessmentListResponseSuccess;
 
-export const getGetExcellentAssessmentListUrl = (
-  params?: GetExcellentAssessmentListParams,
-) => {
+export const getGetExcellentAssessmentListUrl = (params?: GetExcellentAssessmentListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {

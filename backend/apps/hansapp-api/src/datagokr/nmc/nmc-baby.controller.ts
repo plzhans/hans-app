@@ -28,9 +28,7 @@ export class NmcBabyController {
       '로컬 DB 에 미러링한 달빛어린이병원·소아전문센터. 응답 구조는 원본 API 와 동일하다.',
   })
   @ApiOkResponse({ schema: krDataSchemaRef('NmcBabyHospitalListResponse') })
-  async list(
-    @Query() request: MirrorListRequestDto,
-  ): Promise<BabyHospitalListResponse> {
+  async list(@Query() request: MirrorListRequestDto): Promise<BabyHospitalListResponse> {
     return this.babyService.listBabyHospitals({
       page: request.page,
       size: request.size,

@@ -33,9 +33,9 @@ export interface BuildInfo {
 function devBuildInfo(baseDir: string): BuildInfo {
   let semver = '0.0.0';
   try {
-    const pkg = JSON.parse(
-      readFileSync(resolve(baseDir, '../package.json'), 'utf-8'),
-    ) as { version?: string };
+    const pkg = JSON.parse(readFileSync(resolve(baseDir, '../package.json'), 'utf-8')) as {
+      version?: string;
+    };
     semver = pkg.version ?? semver;
   } catch {
     // package.json 을 못 찾아도 버전 조회 때문에 죽지는 않는다.
@@ -68,9 +68,7 @@ export function loadBuildInfo(baseDir: string): BuildInfo {
 
   let info: BuildInfo;
   try {
-    info = JSON.parse(
-      readFileSync(resolve(baseDir, 'build-info.json'), 'utf-8'),
-    ) as BuildInfo;
+    info = JSON.parse(readFileSync(resolve(baseDir, 'build-info.json'), 'utf-8')) as BuildInfo;
   } catch {
     info = devBuildInfo(baseDir);
   }

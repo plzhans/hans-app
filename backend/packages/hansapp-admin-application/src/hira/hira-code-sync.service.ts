@@ -5,11 +5,7 @@ import {
   HIRA_CODE_TYPES,
   type HiraCodeType,
 } from '@hansapp/application';
-import {
-  CodeSyncOptions,
-  CodeSyncResult,
-  DEFAULT_CODE_SYNC_ROWS,
-} from '../common/code-sync.types';
+import { CodeSyncOptions, CodeSyncResult, DEFAULT_CODE_SYNC_ROWS } from '../common/code-sync.types';
 import { CodeRow } from '../common/code-upsert';
 import { HiraCodeSyncRepository } from './hira-code-sync.repository';
 import { HIRA_CODE_FETCHERS } from './hira-code.fetchers';
@@ -53,10 +49,7 @@ export class HiraCodeSyncService {
     return results;
   }
 
-  private async syncType(
-    tp: HiraCodeType,
-    rows?: number,
-  ): Promise<CodeSyncResult> {
+  private async syncType(tp: HiraCodeType, rows?: number): Promise<CodeSyncResult> {
     const numOfRows = rows ?? DEFAULT_CODE_SYNC_ROWS;
     const fetcher = HIRA_CODE_FETCHERS[tp];
     const { tpNm } = HIRA_CODE_TYPE_DEFS[tp];
@@ -102,11 +95,7 @@ export class HiraCodeSyncService {
     };
   }
 
-  private async upsert(
-    tp: HiraCodeType,
-    tpNm: string,
-    items: unknown[],
-  ): Promise<number> {
+  private async upsert(tp: HiraCodeType, tpNm: string, items: unknown[]): Promise<number> {
     const { toValues } = HIRA_CODE_FETCHERS[tp];
     const rows: CodeRow[] = [];
 

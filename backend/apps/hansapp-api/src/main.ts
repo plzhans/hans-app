@@ -13,31 +13,16 @@ import { SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
 import { logConfigSummary, resolveConfigPath } from '@hansapp/common';
-import {
-  isFirstPartyOrigin,
-  normalizeRootDomain,
-} from '@hansapp/auth-application';
-import {
-  HealthService,
-  SlackNotifyService,
-  SwaggerAccessService,
-} from '@hansapp/application';
-import {
-  HttpErrorFilter,
-  StripNullInterceptor,
-  requestIdMiddleware,
-} from '@hansapp/http-common';
+import { isFirstPartyOrigin, normalizeRootDomain } from '@hansapp/auth-application';
+import { HealthService, SlackNotifyService, SwaggerAccessService } from '@hansapp/application';
+import { HttpErrorFilter, StripNullInterceptor, requestIdMiddleware } from '@hansapp/http-common';
 
 import { AppModule } from './app.module';
 import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initRefreshCookie } from './auth/refresh-cookie';
 import { createSwaggerAccessMiddleware } from './common/swagger-access.middleware';
-import {
-  OPENAPI_JSON_PATH,
-  SWAGGER_PATH,
-  buildOpenApiDocument,
-} from './swagger';
+import { OPENAPI_JSON_PATH, SWAGGER_PATH, buildOpenApiDocument } from './swagger';
 
 // --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
 // Sentry.init 이 DSN·환경·버전을 먼저 알아야 해서 모든 import 보다 앞서 돌아야 하기 때문이다.
@@ -126,10 +111,7 @@ function readCertFile(configPath: string, value: string): Buffer {
  *
  * 실패해도 결과를 전부 찍는다. 첫 실패에서 멈추면 재시작을 세 번 해야 문제 세 개를 안다.
  */
-async function verifyInfrastructure(
-  app: NestExpressApplication,
-  logger: Logger,
-): Promise<void> {
+async function verifyInfrastructure(app: NestExpressApplication, logger: Logger): Promise<void> {
   const results = await app.get(HealthService).checkAll();
   for (const { name, status, reason } of results) {
     const line = `${name}: ${status}${reason ? ` — ${reason}` : ''}`;
@@ -144,9 +126,7 @@ async function verifyInfrastructure(
 
   const failed = results.filter((r) => r.status === 'failed');
   if (failed.length > 0) {
-    throw new Error(
-      `인프라 접속 실패: ${failed.map((r) => r.name).join(', ')}`,
-    );
+    throw new Error(`인프라 접속 실패: ${failed.map((r) => r.name).join(', ')}`);
   }
 }
 
@@ -177,9 +157,7 @@ async function bootstrap() {
   // 1st-party(자사) 판별 기준 = 서비스 루트 도메인(APP_ROOT_DOMAIN). 자사 오리진은 credentials(쿠키)를
   // 허용한다. 별도 오리진 목록을 두지 않는다 — rootDomain 범위(자신·서브도메인)면 자사, 미설정(로컬)이면
   // 루프백만 자사. isFirstPartyOrigin 이 소셜 가드·FirstPartyGuard·토큰 서비스와 동일 규칙을 공유한다.
-  const rootDomain = normalizeRootDomain(
-    appConfig.getStringOrDefault('auth.rootDomain'),
-  );
+  const rootDomain = normalizeRootDomain(appConfig.getStringOrDefault('auth.rootDomain'));
 
   // CORS. **인가가 아니라 최소 관문**이다 — 실제 검증(키/클라 status·오리진)은 AuthGuard 가 한다.
   //  - Origin 없음(서버·curl·네이티브): CORS 대상 아님 → 통과
@@ -193,38 +171,33 @@ async function bootstrap() {
   // 10분으로 두면 그 구간 동안 프리플라이트를 건너뛴다(정책을 바꿔도 최대 10분 뒤 반영된다는 뜻).
   const CORS_MAX_AGE_SEC = 600;
 
-  app.enableCors(
-    (
-      req: Request,
-      callback: (err: Error | null, options: CorsOptions) => void,
-    ) => {
-      const origin = req.headers.origin;
-      if (!origin) {
-        callback(null, { origin: true, maxAge: CORS_MAX_AGE_SEC });
-        return;
-      }
+  app.enableCors((req: Request, callback: (err: Error | null, options: CorsOptions) => void) => {
+    const origin = req.headers.origin;
+    if (!origin) {
+      callback(null, { origin: true, maxAge: CORS_MAX_AGE_SEC });
+      return;
+    }
 
-      if (isFirstPartyOrigin(origin, rootDomain)) {
-        callback(null, {
-          origin,
-          credentials: true,
-          maxAge: CORS_MAX_AGE_SEC,
-        });
-        return;
-      }
-
-      const asked = String(req.headers['access-control-request-headers'] ?? '');
-      const hasAuthKey =
-        /x-client-id|authorization/i.test(asked) ||
-        !!req.headers['x-client-id'] ||
-        !!req.headers.authorization;
-
+    if (isFirstPartyOrigin(origin, rootDomain)) {
       callback(null, {
-        origin: hasAuthKey ? origin : false,
+        origin,
+        credentials: true,
         maxAge: CORS_MAX_AGE_SEC,
       });
-    },
-  );
+      return;
+    }
+
+    const asked = String(req.headers['access-control-request-headers'] ?? '');
+    const hasAuthKey =
+      /x-client-id|authorization/i.test(asked) ||
+      !!req.headers['x-client-id'] ||
+      !!req.headers.authorization;
+
+    callback(null, {
+      origin: hasAuthKey ? origin : false,
+      maxAge: CORS_MAX_AGE_SEC,
+    });
+  });
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   // 응답에서 값이 없는(null) 프로퍼티를 제거한다(스프링 non_null 정책과 통일).
@@ -238,9 +211,7 @@ async function bootstrap() {
   //   production    : 켜되 env_swagger_allowed_ip 에 등록된 IP 만 (아래 미들웨어)
   const swaggerEnabled = appConfig.getBoolOrDefault('apps-api.swagger.enabled');
   // 켠 뒤의 기본은 잠근 쪽이다. 목록을 채워야 열리는 게 불편한 환경이 yaml 에서 푼다.
-  const swaggerIpRestricted = appConfig.getBoolOrDefault(
-    'apps-api.swagger.ipRestricted',
-  );
+  const swaggerIpRestricted = appConfig.getBoolOrDefault('apps-api.swagger.ipRestricted');
 
   if (swaggerEnabled) {
     if (swaggerIpRestricted) {
@@ -252,8 +223,7 @@ async function bootstrap() {
           // rate limit 과 같은 헤더를 쓴다(production: cf-connecting-ip). 판정 기준이
           // 두 군데서 갈리면 "왜 한쪽만 막히지" 가 된다.
           clientIpHeader:
-            appConfig.getStringOrDefault('apps-api.proxy.clientIpHeader') ||
-            undefined,
+            appConfig.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined,
         }),
       );
     }
@@ -308,9 +278,7 @@ async function bootstrap() {
     // 링크만 있으면 제한이 꺼진 채 뜬 것을 아무도 눈치채지 못한다.
     logger.log(
       `📚 Swagger UI: ${baseUrl}/${SWAGGER_PATH}${
-        swaggerIpRestricted
-          ? ' (IP restricted — env_swagger_allowed_ip)'
-          : ' (open to everyone)'
+        swaggerIpRestricted ? ' (IP restricted — env_swagger_allowed_ip)' : ' (open to everyone)'
       }`,
     );
   } else {
@@ -319,9 +287,7 @@ async function bootstrap() {
 
   // 부팅 시퀀스의 **마지막 라인** — 여기까지 찍혔으면 요청을 받을 준비가 끝났다는 신호다.
   // 위 로그들이 중간에 끊기면 준비 전에 죽은 것이므로, 이 한 줄을 준비 완료의 기준으로 삼는다.
-  logger.log(
-    `✅ ${appConfig.env} 서버 부팅 완료 — ${baseUrl} (pid ${process.pid})`,
-  );
+  logger.log(`✅ ${appConfig.env} 서버 부팅 완료 — ${baseUrl} (pid ${process.pid})`);
 
   // 슬랙 알림은 부팅 완료 로그 **뒤에** 보낸다. 준비가 끝났다고 알리는 메시지이므로
   // 그 판정 기준이 되는 로그보다 앞설 이유가 없고, 슬랙이 느려도 부팅 로그는 제때 찍힌다.

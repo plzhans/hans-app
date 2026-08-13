@@ -153,16 +153,12 @@ export type getNonPaymentItemCodesResponse200 = {
   status: 200;
 };
 
-export type getNonPaymentItemCodesResponseSuccess =
-  getNonPaymentItemCodesResponse200 & {
-    headers: Headers;
-  };
-export type getNonPaymentItemCodesResponse =
-  getNonPaymentItemCodesResponseSuccess;
+export type getNonPaymentItemCodesResponseSuccess = getNonPaymentItemCodesResponse200 & {
+  headers: Headers;
+};
+export type getNonPaymentItemCodesResponse = getNonPaymentItemCodesResponseSuccess;
 
-export const getGetNonPaymentItemCodesUrl = (
-  params?: GetNonPaymentItemCodesParams,
-) => {
+export const getGetNonPaymentItemCodesUrl = (params?: GetNonPaymentItemCodesParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -182,13 +178,10 @@ export const getNonPaymentItemCodes = async (
   params?: GetNonPaymentItemCodesParams,
   options?: RequestInit,
 ): Promise<getNonPaymentItemCodesResponse> => {
-  return krDataMutator<getNonPaymentItemCodesResponse>(
-    getGetNonPaymentItemCodesUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getNonPaymentItemCodesResponse>(getGetNonPaymentItemCodesUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -202,16 +195,12 @@ export type getNonPaymentClassStatsResponse200 = {
   status: 200;
 };
 
-export type getNonPaymentClassStatsResponseSuccess =
-  getNonPaymentClassStatsResponse200 & {
-    headers: Headers;
-  };
-export type getNonPaymentClassStatsResponse =
-  getNonPaymentClassStatsResponseSuccess;
+export type getNonPaymentClassStatsResponseSuccess = getNonPaymentClassStatsResponse200 & {
+  headers: Headers;
+};
+export type getNonPaymentClassStatsResponse = getNonPaymentClassStatsResponseSuccess;
 
-export const getGetNonPaymentClassStatsUrl = (
-  params?: GetNonPaymentClassStatsParams,
-) => {
+export const getGetNonPaymentClassStatsUrl = (params?: GetNonPaymentClassStatsParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -231,13 +220,10 @@ export const getNonPaymentClassStats = async (
   params?: GetNonPaymentClassStatsParams,
   options?: RequestInit,
 ): Promise<getNonPaymentClassStatsResponse> => {
-  return krDataMutator<getNonPaymentClassStatsResponse>(
-    getGetNonPaymentClassStatsUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getNonPaymentClassStatsResponse>(getGetNonPaymentClassStatsUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -251,16 +237,12 @@ export type getNonPaymentRegionStatsResponse200 = {
   status: 200;
 };
 
-export type getNonPaymentRegionStatsResponseSuccess =
-  getNonPaymentRegionStatsResponse200 & {
-    headers: Headers;
-  };
-export type getNonPaymentRegionStatsResponse =
-  getNonPaymentRegionStatsResponseSuccess;
+export type getNonPaymentRegionStatsResponseSuccess = getNonPaymentRegionStatsResponse200 & {
+  headers: Headers;
+};
+export type getNonPaymentRegionStatsResponse = getNonPaymentRegionStatsResponseSuccess;
 
-export const getGetNonPaymentRegionStatsUrl = (
-  params?: GetNonPaymentRegionStatsParams,
-) => {
+export const getGetNonPaymentRegionStatsUrl = (params?: GetNonPaymentRegionStatsParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -280,11 +262,8 @@ export const getNonPaymentRegionStats = async (
   params?: GetNonPaymentRegionStatsParams,
   options?: RequestInit,
 ): Promise<getNonPaymentRegionStatsResponse> => {
-  return krDataMutator<getNonPaymentRegionStatsResponse>(
-    getGetNonPaymentRegionStatsUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getNonPaymentRegionStatsResponse>(getGetNonPaymentRegionStatsUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };

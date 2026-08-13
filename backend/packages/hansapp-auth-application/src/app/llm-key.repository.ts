@@ -1,11 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  AppLlmKey,
-  LlmKeyVerifyState,
-  LlmProvider,
-  Prisma,
-  PrismaService,
-} from '@hansapp/data';
+import { AppLlmKey, LlmKeyVerifyState, LlmProvider, Prisma, PrismaService } from '@hansapp/data';
 
 /**
  * 목록·상세에 내려도 되는 열만 고른 프로젝션.
@@ -65,10 +59,7 @@ export class LlmKeyRepository {
     return this.prisma.appLlmKey.create({ data, select: VIEW_SELECT });
   }
 
-  update(
-    id: number,
-    data: Prisma.AppLlmKeyUncheckedUpdateInput,
-  ): Promise<LlmKeyView> {
+  update(id: number, data: Prisma.AppLlmKeyUncheckedUpdateInput): Promise<LlmKeyView> {
     return this.prisma.appLlmKey.update({
       where: { id },
       data,
@@ -77,9 +68,7 @@ export class LlmKeyRepository {
   }
 
   delete(id: number): Promise<void> {
-    return this.prisma.appLlmKey
-      .delete({ where: { id } })
-      .then(() => undefined);
+    return this.prisma.appLlmKey.delete({ where: { id } }).then(() => undefined);
   }
 
   /**

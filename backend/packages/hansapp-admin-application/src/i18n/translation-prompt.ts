@@ -113,9 +113,7 @@ export const TRANSLATION_OUTPUT_SCHEMA = {
  * 읽히므로 입력 비용이 1/10 로 떨어진다. **여기에 날짜·배치번호 같은 변하는 값을 넣으면
  * 캐시가 통째로 깨진다** — 넣지 마라.
  */
-export function buildTranslationSystemPrompt(
-  glossary: GlossaryEntry[],
-): string {
+export function buildTranslationSystemPrompt(glossary: GlossaryEntry[]): string {
   return `당신은 한국 의료기관 데이터 전문 번역가다. 한국어 원문을 영어(en)와 일본어(ja)로 번역한다.
 이 번역은 외국인 환자가 병원을 고르는 데 쓰인다. 오역은 사람이 엉뚱한 병원에 가게 만든다.
 
@@ -351,7 +349,4 @@ function countLines(text: string): number {
 }
 
 /** 번역 대상 언어. 원본이 한국어라 ko 는 채울 게 없다. */
-export const TARGET_LANGS: readonly Exclude<SupportedLang, 'ko'>[] = [
-  'en',
-  'ja',
-] as const;
+export const TARGET_LANGS: readonly Exclude<SupportedLang, 'ko'>[] = ['en', 'ja'] as const;

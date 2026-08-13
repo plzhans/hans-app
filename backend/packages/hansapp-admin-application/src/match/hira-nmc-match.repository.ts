@@ -104,9 +104,7 @@ export class HiraNmcMatchRepository {
    */
   async upsertLinks(confirmed: MatchDecision[]): Promise<void> {
     const linkValues = Prisma.join(
-      confirmed.map(
-        (d) => Prisma.sql`(${d.ykiho}, ${d.hpid}, 'auto', ${d.rule}, NOW())`,
-      ),
+      confirmed.map((d) => Prisma.sql`(${d.ykiho}, ${d.hpid}, 'auto', ${d.rule}, NOW())`),
     );
     await this.prisma.$executeRaw(Prisma.sql`
       INSERT INTO hira_nmc_link (ykiho, hpid, confirmed_by, rule, linked_at)

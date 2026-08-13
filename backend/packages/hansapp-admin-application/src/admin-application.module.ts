@@ -1,14 +1,20 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import {
   buildSettingKeyring,
+  buildSettingOrigins,
   SETTING_KEYRING,
+  SETTING_ORIGINS,
   type ConfigSource,
   type SecretBoxKeys,
 } from '@hansapp/common';
 import { ApplicationModule } from '@hansapp/application';
 import { DataModule, SettingReadRepository } from '@hansapp/data';
+import { EmailSender, EMAIL_SETTINGS_SOURCE } from '@hansapp/email-sender';
 import { SearchModule } from '@hansapp/search';
 
+import { AdminEmailService } from './mail/admin-email.service';
+import { AdminMailSettingsSource } from './mail/admin-mail-settings.source';
+import { ADMIN_MAIL_CONFIG, buildAdminMailConfig } from './mail/admin-mail.config';
 import { SettingCache } from './setting/setting-cache.service';
 import { SettingAdminService } from './setting/setting-admin.service';
 import { SettingWriteRepository } from './setting/setting-write.repository';
@@ -16,6 +22,13 @@ import { EnvLlmKeyWriteRepository } from './llm/env-llm-key-write.repository';
 import { EnvLlmKeyAdminService } from './llm/env-llm-key-admin.service';
 import { EnvLlmModelWriteRepository } from './llm/env-llm-model-write.repository';
 import { EnvLlmModelAdminService } from './llm/env-llm-model-admin.service';
+import { BoardRepository } from './community/board.repository';
+import { BoardAdminService } from './community/board-admin.service';
+import { BoardPostRepository } from './community/board-post.repository';
+import { BoardPostAdminService } from './community/board-post-admin.service';
+import { BoardPostCacheInvalidator } from './community/board-post-cache.invalidator';
+import { BoardCacheInvalidator } from './community/board-cache.invalidator';
+import { CacheSweeper } from './community/cache-sweeper';
 import { HiraCodeReadService } from './hira/hira-code-read.service';
 import { HiraCodeSeedService } from './hira/hira-code-seed.service';
 import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
@@ -31,6 +44,8 @@ import { AppReadService } from './app-registry/app-read.service';
 import { AppModerationRepository } from './app-registry/app-moderation.repository';
 import { AppModerationService } from './app-registry/app-moderation.service';
 import { AccessCacheInvalidator } from './app-registry/access-cache-invalidator';
+import { AdminActionLogReadService } from './log/admin-action-log-read.service';
+import { AdminActionLogRepository } from './log/admin-action-log.repository';
 import { AuthLogRepository } from './log/auth-log.repository';
 import { AuthLogService } from './log/auth-log.service';
 import { LlmUsageLogRepository } from './log/llm-usage-log.repository';
@@ -38,6 +53,14 @@ import { LlmUsageLogService } from './log/llm-usage-log.service';
 import { UserAuthLogRepository } from './user/user-auth-log.repository';
 import { UserAuthLogService } from './user/user-auth-log.service';
 import { UserReadRepository } from './user/user-read.repository';
+import { UserAdminRepository } from './user/user-admin.repository';
+import { UserAdminService } from './user/user-admin.service';
+import { UserProfileCacheAdmin } from './user/user-profile-cache.admin';
+import { UserSessionCacheAdmin } from './user/user-session-cache.admin';
+import { SessionPurgeService } from './user/session-purge.service';
+import { CachePurgeService } from './common/cache-purge.service';
+import { UserSessionAdminRepository } from './user/user-session-admin.repository';
+import { UserSessionAdminService } from './user/user-session-admin.service';
 import { UserReadService } from './user/user-read.service';
 import { HiraNmcMatchRepository } from './match/hira-nmc-match.repository';
 import { HospitalI18nExportRepository } from './i18n/hospital-i18n-export.repository';
@@ -74,11 +97,7 @@ import {
   type KrDataAppConfig,
 } from './krdata.config';
 import { krDataProviders } from './krdata.providers';
-import {
-  buildJusoConfig,
-  JUSO_CONFIG,
-  type JusoAppConfig,
-} from './juso.config';
+import { buildJusoConfig, JUSO_CONFIG, type JusoAppConfig } from './juso.config';
 import { jusoProviders } from './juso.providers';
 import { ntsProviders } from './nts.providers';
 import { NmcCodeReadService } from './nmc/nmc-code-read.service';
@@ -137,21 +156,44 @@ export class AdminApplicationModule {
           `.env` 의 주석 한 줄이 풀리는 것만으로 화면이 파일 값을 다시 집는다.
         */
         { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
+        /*
+          발급처 콘솔에 등록할 리디렉션 주소를 만들 외부 주소. **값이 아니라 화면에 보여 줄
+          안내다** — 설정 카탈로그의 `readonly` 줄이 이것으로 채워진다.
+        */
+        { provide: SETTING_ORIGINS, useValue: buildSettingOrigins(source) },
         SettingWriteRepository,
         {
           provide: SettingCache,
-          useFactory: (
-            repo: SettingReadRepository,
-            keyring: SecretBoxKeys | undefined,
-          ) => new SettingCache(repo, keyring),
+          useFactory: (repo: SettingReadRepository, keyring: SecretBoxKeys | undefined) =>
+            new SettingCache(repo, keyring),
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         SettingAdminService,
+        /*
+          관리자에게 보내는 메일. **접속 설정은 위 SettingCache(DB)에서 오고**, 본문에 박히는
+          값(서비스 이름·콘솔 주소)만 설정 파일에서 온다 — 회원 메일과 같은 갈래다.
+        */
+        { provide: ADMIN_MAIL_CONFIG, useValue: buildAdminMailConfig(source) },
+        AdminMailSettingsSource,
+        {
+          provide: EMAIL_SETTINGS_SOURCE,
+          useExisting: AdminMailSettingsSource,
+        },
+        EmailSender,
+        AdminEmailService,
         // 서버 LLM 키(env_llm_key). 설정이 아니라 관리 대상 목록이라 CRUD 가 붙는다.
         EnvLlmKeyWriteRepository,
         EnvLlmKeyAdminService,
         EnvLlmModelWriteRepository,
         EnvLlmModelAdminService,
+        // 커뮤니티: 게시판. 글·댓글은 이 다음이다.
+        BoardRepository,
+        BoardAdminService,
+        BoardPostRepository,
+        BoardPostAdminService,
+        BoardPostCacheInvalidator,
+        BoardCacheInvalidator,
+        CacheSweeper,
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         HiraHospitalSyncRepository,
         NmcBasicSyncRepository,
@@ -161,9 +203,13 @@ export class AdminApplicationModule {
         NmcSubjectSyncRepository,
         SyncStateRepository,
         UserReadRepository,
+        UserAdminRepository,
+        UserSessionAdminRepository,
         UserAuthLogRepository,
         LlmUsageLogRepository,
         AuthLogRepository,
+        // 관리자 행위 기록(admin_action_log). 적재는 인증 모듈이 하고 여기서는 읽기만 한다.
+        AdminActionLogRepository,
         AppReadRepository,
         AppModerationRepository,
         HiraNmcMatchRepository,
@@ -192,23 +238,18 @@ export class AdminApplicationModule {
         */
         {
           provide: KRDATA_CONFIG,
-          useFactory: async (
-            settings: SettingCache,
-          ): Promise<KrDataAppConfig> => ({
+          useFactory: async (settings: SettingCache): Promise<KrDataAppConfig> => ({
             ...config,
             serviceKey: (await settings.getString('krdata.serviceKey')) ?? '',
             hiraDetailVersion:
-              (await settings.getString('krdata.hiraDetailVersion')) ||
-              DEFAULT_HIRA_DETAIL_VERSION,
+              (await settings.getString('krdata.hiraDetailVersion')) || DEFAULT_HIRA_DETAIL_VERSION,
           }),
           inject: [SettingCache],
         },
         ...krDataProviders,
         {
           provide: JUSO_CONFIG,
-          useFactory: async (
-            settings: SettingCache,
-          ): Promise<JusoAppConfig> => ({
+          useFactory: async (settings: SettingCache): Promise<JusoAppConfig> => ({
             ...jusoConfig,
             confmKey: (await settings.getString('juso.serviceKey')) ?? '',
           }),
@@ -229,9 +270,16 @@ export class AdminApplicationModule {
         HiraCodeReadService,
         SyncStateService,
         UserReadService,
+        UserAdminService,
+        UserProfileCacheAdmin,
+        UserSessionCacheAdmin,
+        SessionPurgeService,
+        CachePurgeService,
+        UserSessionAdminService,
         UserAuthLogService,
         LlmUsageLogService,
         AuthLogService,
+        AdminActionLogReadService,
         AppReadService,
         // 앱 심사(승인·거절). 조회와 갈라 둔다 — 쓰기가 어디에 있는지 드러내기 위해서다.
         AccessCacheInvalidator,
@@ -267,12 +315,21 @@ export class AdminApplicationModule {
       exports: [
         SettingCache,
         SettingAdminService,
+        AdminEmailService,
         EnvLlmKeyAdminService,
         // 서버 LLM 키(env_llm_key). 설정이 아니라 관리 대상 목록이라 CRUD 가 붙는다.
         EnvLlmKeyWriteRepository,
         EnvLlmKeyAdminService,
         EnvLlmModelWriteRepository,
         EnvLlmModelAdminService,
+        // 커뮤니티: 게시판. 글·댓글은 이 다음이다.
+        BoardRepository,
+        BoardAdminService,
+        BoardPostRepository,
+        BoardPostAdminService,
+        BoardPostCacheInvalidator,
+        BoardCacheInvalidator,
+        CacheSweeper,
         /*
           **모듈을 통째로 다시 내보낸다.** Nest 는 provider 를 전이적으로 노출하지 않아서,
           이걸 안 하면 이 모듈을 import 한 앱의 컨트롤러가 ApplicationModule 의 서비스
@@ -281,9 +338,16 @@ export class AdminApplicationModule {
         */
         ApplicationModule,
         UserReadService,
+        UserAdminService,
+        UserProfileCacheAdmin,
+        UserSessionCacheAdmin,
+        SessionPurgeService,
+        CachePurgeService,
+        UserSessionAdminService,
         UserAuthLogService,
         LlmUsageLogService,
         AuthLogService,
+        AdminActionLogReadService,
         AppReadService,
         AppModerationService,
         NmcHospitalSyncService,

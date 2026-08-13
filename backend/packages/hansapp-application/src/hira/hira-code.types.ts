@@ -45,11 +45,7 @@ export interface HiraCodeRow {
 
 /** 코드 종류별 원본 item 타입. tp 에 따라 필드명이 다르다. */
 export type HiraCodeItem =
-  | AddressCodeItem
-  | InstitutionClassCodeItem
-  | SubjectCodeItem
-  | EquipmentCodeItem
-  | SearchCodeItem;
+  AddressCodeItem | InstitutionClassCodeItem | SubjectCodeItem | EquipmentCodeItem | SearchCodeItem;
 
 /** 코드 종류별 원본 응답 타입. 구조는 같고 item 만 다르다. */
 export type HiraCodeResponse =

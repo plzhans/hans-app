@@ -169,9 +169,7 @@ export function buildHealthcareHospitalDoc(
 
     subject_cds: uniq(h.subjects.map((s) => s.subjectCd)),
     specialist_subject_cds: uniq(
-      h.subjects
-        .filter((s) => (s.specialistCnt ?? 0) > 0)
-        .map((s) => s.subjectCd),
+      h.subjects.filter((s) => (s.specialistCnt ?? 0) > 0).map((s) => s.subjectCd),
     ),
     equipment_cds: uniq(h.equipments.map((e) => e.equipmentCd)),
     specialty_cds: capByTp('specialty'),
@@ -201,12 +199,8 @@ export function buildHealthcareHospitalDoc(
       breakStart: x.breakStart ?? undefined,
       breakEnd: x.breakEnd ?? undefined,
     })),
-    staff: h.staff
-      ? compact(h.staff as unknown as Record<string, number | null>)
-      : undefined,
-    beds: h.beds
-      ? compact(h.beds as unknown as Record<string, number | null>)
-      : undefined,
+    staff: h.staff ? compact(h.staff as unknown as Record<string, number | null>) : undefined,
+    beds: h.beds ? compact(h.beds as unknown as Record<string, number | null>) : undefined,
     parking: buildParking(h),
 
     homepage: h.homepage ?? undefined,
@@ -214,9 +208,7 @@ export function buildHealthcareHospitalDoc(
 
     intro: emptyToUndef(langText({ ko: h.intro }, row.i18n, 'intro')),
     notice: emptyToUndef(langText({ ko: h.notice }, row.i18n, 'notice')),
-    directions: emptyToUndef(
-      langText({ ko: h.directions }, row.i18n, 'directions'),
-    ),
+    directions: emptyToUndef(langText({ ko: h.directions }, row.i18n, 'directions')),
 
     transport: buildTransport(h.transport, row.i18n),
 
@@ -281,9 +273,7 @@ function buildLocation(
   };
 }
 
-function buildParking(
-  h: HealthcareHospitalBaseRow,
-): HealthcareHospitalDoc['parking'] {
+function buildParking(h: HealthcareHospitalBaseRow): HealthcareHospitalDoc['parking'] {
   const capacity = numOrUndef(h.parkQty);
   const paid = h.parkPaid === null ? undefined : Boolean(h.parkPaid);
   if (capacity === undefined && paid === undefined) {
@@ -312,10 +302,7 @@ function langText(
 }
 
 /** 지하철 역이름(언어별) + 호선(정확 필터). 역명은 번역, 호선은 원문 표기 그대로. */
-function buildSubway(
-  transportKo: unknown,
-  i18n: I18nRow[],
-): HealthcareHospitalDoc['subway'] {
+function buildSubway(transportKo: unknown, i18n: I18nRow[]): HealthcareHospitalDoc['subway'] {
   const ko = subwayFrom(transportKo);
   const stations: LangListMap = {};
   if (ko.stations.length) {
@@ -348,32 +335,21 @@ function subwayFrom(transport: unknown): {
 } {
   const subway = readSubwayArray(transport);
   return {
-    stations: uniq(
-      subway.map((s) => cleanStr(s.arrival)).filter((v): v is string => !!v),
-    ),
-    lines: uniq(
-      subway.map((s) => cleanStr(s.line)).filter((v): v is string => !!v),
-    ),
+    stations: uniq(subway.map((s) => cleanStr(s.arrival)).filter((v): v is string => !!v)),
+    lines: uniq(subway.map((s) => cleanStr(s.line)).filter((v): v is string => !!v)),
   };
 }
 
-function readSubwayArray(
-  transport: unknown,
-): { arrival?: unknown; line?: unknown }[] {
+function readSubwayArray(transport: unknown): { arrival?: unknown; line?: unknown }[] {
   if (!transport || typeof transport !== 'object') {
     return [];
   }
   const subway = (transport as { subway?: unknown }).subway;
-  return Array.isArray(subway)
-    ? (subway as { arrival?: unknown; line?: unknown }[])
-    : [];
+  return Array.isArray(subway) ? (subway as { arrival?: unknown; line?: unknown }[]) : [];
 }
 
 /** 상세 표시용 transport(언어별 원본 JSON 그대로). 색인 안 함(enabled:false). */
-function buildTransport(
-  transportKo: unknown,
-  i18n: I18nRow[],
-): HealthcareHospitalDoc['transport'] {
+function buildTransport(transportKo: unknown, i18n: I18nRow[]): HealthcareHospitalDoc['transport'] {
   const out: Partial<Record<Lang, unknown>> = {};
   if (transportKo) {
     out.ko = transportKo;
@@ -398,8 +374,7 @@ function asmExcellent(asm: Record<string, string | null> | null): string[] {
       continue;
     }
     const code = match[1];
-    const excellent =
-      code === ASTHMA_ASM_CODE ? value === '양호' : value === '1';
+    const excellent = code === ASTHMA_ASM_CODE ? value === '양호' : value === '1';
     if (excellent) {
       codes.push(code);
     }
@@ -475,9 +450,7 @@ function numericGrade(code: string, value: string): number | undefined {
     return 1;
   }
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5
-    ? parsed
-    : undefined;
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : undefined;
 }
 
 // ── 소도구 ────────────────────────────────────────────────────────────────

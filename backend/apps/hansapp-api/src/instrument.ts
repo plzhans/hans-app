@@ -25,9 +25,7 @@ import { appConfig, buildInfo } from './boot-config';
  */
 const enabled = appConfig.getBoolOrDefault('apps-api.sentry.enabled');
 const dsn = enabled ? appConfig.getStringOrDefault('apps-api.sentry.dsn') : '';
-const tracesSampleRate = appConfig.getNumberOrDefault(
-  'apps-api.sentry.tracesSampleRate',
-);
+const tracesSampleRate = appConfig.getNumberOrDefault('apps-api.sentry.tracesSampleRate');
 
 if (dsn) {
   Sentry.init({

@@ -342,10 +342,7 @@ export class HealthcareDetailBuildService {
    */
   private async recordMismatches(
     rows: { id: number; cd: string }[],
-    byId: Map<
-      number,
-      { classCd: string | null; ykiho: string | null; hpid: string | null }
-    >,
+    byId: Map<number, { classCd: string | null; ykiho: string | null; hpid: string | null }>,
   ): Promise<void> {
     if (rows.length === 0) {
       return;
@@ -423,19 +420,14 @@ export class HealthcareDetailBuildService {
 
     const values: BuildRow[] = [];
 
-    const push = (
-      id: number,
-      kind: 'general' | 'baby',
-      data: Record<string, unknown>,
-    ): void => {
+    const push = (id: number, kind: 'general' | 'baby', data: Record<string, unknown>): void => {
       for (let day = 1; day <= 8; day++) {
         const open = asString(data[`dutyTime${day}s`]);
         const close = asString(data[`dutyTime${day}c`]);
         if (!open && !close) continue;
 
         // 점심·접수는 일반 진료에만 붙인다. 달빛은 야간 소아진료라 점심시간이 없다.
-        const extra =
-          kind === 'general' ? extras.get(`${id}|${day}`) : undefined;
+        const extra = kind === 'general' ? extras.get(`${id}|${day}`) : undefined;
 
         values.push({
           hospitalId: id,
@@ -549,10 +541,7 @@ export class HealthcareDetailBuildService {
   }
 
   /** 장비. HIRA 상세 equipment. */
-  private async buildEquipments(
-    mapper: CodeMapper,
-    byYkiho: Map<string, number>,
-  ): Promise<number> {
+  private async buildEquipments(mapper: CodeMapper, byYkiho: Map<string, number>): Promise<number> {
     const values: BuildRow[] = [];
     const seen = new Set<string>();
 
@@ -573,11 +562,7 @@ export class HealthcareDetailBuildService {
       });
     }
 
-    await this.replace(
-      'healthcare_hospital_equipment',
-      '(hospital_id, equipment_cd, cnt)',
-      values,
-    );
+    await this.replace('healthcare_hospital_equipment', '(hospital_id, equipment_cd, cnt)', values);
     return values.length;
   }
 
@@ -640,11 +625,7 @@ export class HealthcareDetailBuildService {
       push(id, r.tp, cd ?? r.srchCd);
     }
 
-    await this.replace(
-      'healthcare_hospital_capability',
-      '(hospital_id, tp, cd)',
-      values,
-    );
+    await this.replace('healthcare_hospital_capability', '(hospital_id, tp, cd)', values);
     return values.length;
   }
 
@@ -670,16 +651,10 @@ export class HealthcareDetailBuildService {
     }
   }
 
-  private async replace(
-    table: RebuildTable,
-    columns: string,
-    rows: BuildRow[],
-  ): Promise<void> {
+  private async replace(table: RebuildTable, columns: string, rows: BuildRow[]): Promise<void> {
     this.assertRebuildable(table);
 
-    const locked = rows.filter((r) =>
-      this.locks.isRowLocked(table, r.hospitalId, r.key),
-    );
+    const locked = rows.filter((r) => this.locks.isRowLocked(table, r.hospitalId, r.key));
 
     if (locked.length === 0) {
       await this.repo.deleteAll(table);
@@ -694,17 +669,11 @@ export class HealthcareDetailBuildService {
           .filter((r) => this.locks.isRowLocked(table, hospitalId, r.key))
           .map((r) => r.key);
 
-        await this.repo.deleteHospitalRowsNotMatching(
-          table,
-          hospitalId,
-          lockedKeys,
-        );
+        await this.repo.deleteHospitalRowsNotMatching(table, hospitalId, lockedKeys);
       }
     }
 
-    const lockedSet = new Set(
-      locked.map((r) => `${r.hospitalId}|${JSON.stringify(r.key)}`),
-    );
+    const lockedSet = new Set(locked.map((r) => `${r.hospitalId}|${JSON.stringify(r.key)}`));
     const insertable = rows.filter(
       (r) => !lockedSet.has(`${r.hospitalId}|${JSON.stringify(r.key)}`),
     );
@@ -762,17 +731,14 @@ export class HealthcareDetailBuildService {
     const gotOp = (op: string, ykiho: string | null): boolean =>
       ykiho !== null && (detail.get(op)?.has(ykiho) ?? false);
 
-    const gotBasic = new Set(
-      (await this.repo.loadBasicHpids()).map((r) => r.hpid),
-    );
+    const basicRows = await this.repo.loadBasicHpids();
+    const gotBasic = new Set(basicRows.map((r) => r.hpid));
 
     // 역조회 미러의 병원 집합. subject 는 출처가 합집합이라 양쪽을 따로 든다.
-    const hiraSubject = new Set(
-      (await this.repo.loadHiraSubjectYkihos()).map((r) => r.ykiho),
-    );
-    const nmcSubject = new Set(
-      (await this.repo.loadNmcSubjectHpids()).map((r) => r.hpid),
-    );
+    const hiraSubjectRows = await this.repo.loadHiraSubjectYkihos();
+    const nmcSubjectRows = await this.repo.loadNmcSubjectHpids();
+    const hiraSubject = new Set(hiraSubjectRows.map((r) => r.ykiho));
+    const nmcSubject = new Set(nmcSubjectRows.map((r) => r.hpid));
 
     // 값이 실제로 들어갔나. **원본이 아니라 우리 테이블에 묻는다.**
     const has = await this.repo.loadBuiltValues();
@@ -792,10 +758,7 @@ export class HealthcareDetailBuildService {
       });
     };
 
-    const ids = new Map<
-      number,
-      { ykiho: string | null; hpid: string | null }
-    >();
+    const ids = new Map<number, { ykiho: string | null; hpid: string | null }>();
     for (const [ykiho, id] of byYkiho) {
       ids.set(id, { ykiho, hpid: ids.get(id)?.hpid ?? null });
     }
@@ -842,10 +805,7 @@ export class HealthcareDetailBuildService {
    * 그래서 확인된 섹션은 전부 now 다 — 값이 그대로여도 매번 갱신하는 게 규약이다.
    * 예외는 역조회 3종이다. 그건 1단계가 성공한 시각이 곧 확인 시각이라 그걸 쓴다.
    */
-  private judgeSection(
-    section: SectionName,
-    c: SectionContext,
-  ): [Date | null, string | null] {
+  private judgeSection(section: SectionName, c: SectionContext): [Date | null, string | null] {
     const { id, ykiho, hpid, now, has } = c;
 
     switch (section) {
@@ -873,9 +833,7 @@ export class HealthcareDetailBuildService {
 
       // 개별 조회. 그 병원의 미러 행이 있냐로 본다.
       case 'parking':
-        return c.gotOp('info', ykiho)
-          ? [now, has.parking.has(id) ? 'hira' : null]
-          : [null, null];
+        return c.gotOp('info', ykiho) ? [now, has.parking.has(id) ? 'hira' : null] : [null, null];
       case 'hours_break':
         return c.gotOp('info', ykiho)
           ? [now, has.hoursBreak.has(id) ? 'hira' : null]
@@ -885,9 +843,7 @@ export class HealthcareDetailBuildService {
           ? [now, has.transport.has(id) ? 'hira' : null]
           : [null, null];
       case 'bed':
-        return c.gotOp('facility', ykiho)
-          ? [now, has.bed.has(id) ? 'hira' : null]
-          : [null, null];
+        return c.gotOp('facility', ykiho) ? [now, has.bed.has(id) ? 'hira' : null] : [null, null];
       case 'specialist':
         return c.gotOp('specialist', ykiho)
           ? [now, has.specialist.has(id) ? 'hira' : null]
@@ -915,21 +871,16 @@ export class HealthcareDetailBuildService {
         return [at, null];
       }
       case 'specialty':
-        return c.hiraBulk
-          ? [c.hiraBulk, has.specialty.has(id) ? 'hira' : null]
-          : [null, null];
+        return c.hiraBulk ? [c.hiraBulk, has.specialty.has(id) ? 'hira' : null] : [null, null];
       case 'baby':
-        return c.nmcBulk
-          ? [c.nmcBulk, has.baby.has(id) ? 'nmc' : null]
-          : [null, null];
+        return c.nmcBulk ? [c.nmcBulk, has.baby.has(id) ? 'nmc' : null] : [null, null];
     }
   }
 
   /** 상세 JSON 은 1행짜리면 객체, 여러 행이면 배열이다. */
   private items(data: unknown): Record<string, unknown>[] {
     if (Array.isArray(data)) return data as Record<string, unknown>[];
-    if (data && typeof data === 'object')
-      return [data as Record<string, unknown>];
+    if (data && typeof data === 'object') return [data as Record<string, unknown>];
     return [];
   }
 

@@ -3,10 +3,7 @@ import { Prisma, PrismaService } from '@hansapp/data';
 
 import { CodeMapper } from './code-mapper';
 import { HospitalLocks } from './hospital-lock';
-import type {
-  BuiltValues,
-  HospitalKey,
-} from './healthcare-detail-build.service';
+import type { BuiltValues, HospitalKey } from './healthcare-detail-build.service';
 
 const CHUNK = 1_000;
 
@@ -42,9 +39,7 @@ export class HealthcareDetailBuildRepository {
   // --- buildSubjects ---
 
   /** HIRA 신고 과목(역조회). */
-  loadHiraSubjects(): Promise<
-    { ykiho: string; dgsbjtCd: string; sdrCnt: number | null }[]
-  > {
+  loadHiraSubjects(): Promise<{ ykiho: string; dgsbjtCd: string; sdrCnt: number | null }[]> {
     return this.prisma.hiraHospitalSubject.findMany({
       select: { ykiho: true, dgsbjtCd: true, sdrCnt: true },
     });
@@ -171,9 +166,7 @@ export class HealthcareDetailBuildRepository {
   // --- buildEquipments ---
 
   /** HIRA 상세(equipment). 장비 보유. */
-  loadEquipments(): Promise<
-    { ykiho: string; oftCd: string; oftCnt: number | null }[]
-  > {
+  loadEquipments(): Promise<{ ykiho: string; oftCd: string; oftCnt: number | null }[]> {
     return this.prisma.hiraHospitalEquipment.findMany({
       select: { ykiho: true, oftCd: true, oftCnt: true },
     });
@@ -190,9 +183,7 @@ export class HealthcareDetailBuildRepository {
   }
 
   /** HIRA 전문병원·특수진료 검색결과. */
-  loadHiraSrch(): Promise<
-    { ykiho: string; tp: string; srchCd: string; srchNm: string | null }[]
-  > {
+  loadHiraSrch(): Promise<{ ykiho: string; tp: string; srchCd: string; srchNm: string | null }[]> {
     return this.prisma.hiraHospitalSrch.findMany({
       select: { ykiho: true, tp: true, srchCd: true, srchNm: true },
     });
@@ -233,8 +224,7 @@ export class HealthcareDetailBuildRepository {
              (key) =>
                Prisma.sql`(${Prisma.join(
                  Object.entries(key).map(
-                   ([col, val]) =>
-                     Prisma.sql`${Prisma.raw(col)} = ${val as string | number}`,
+                   ([col, val]) => Prisma.sql`${Prisma.raw(col)} = ${val as string | number}`,
                  ),
                  ' AND ',
                )})`,
@@ -245,18 +235,12 @@ export class HealthcareDetailBuildRepository {
   }
 
   /** 갈아엎은 테이블에 새 행을 채운다. value 는 컬럼 순서대로의 스칼라 배열이다. */
-  async insertRows(
-    table: string,
-    columns: string,
-    rows: { value: unknown[] }[],
-  ): Promise<void> {
+  async insertRows(table: string, columns: string, rows: { value: unknown[] }[]): Promise<void> {
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
       await this.prisma.$executeRaw(Prisma.sql`
         INSERT INTO ${Prisma.raw(table)} ${Prisma.raw(columns)}
-        VALUES ${Prisma.join(
-          chunk.map((r) => Prisma.sql`(${Prisma.join(r.value)})`),
-        )}
+        VALUES ${Prisma.join(chunk.map((r) => Prisma.sql`(${Prisma.join(r.value)})`))}
       `);
     }
   }
@@ -264,9 +248,7 @@ export class HealthcareDetailBuildRepository {
   // --- buildSections ---
 
   /** 1단계(전수 역조회) 성공 상태. */
-  loadBulkSyncState(): Promise<
-    { job: string; status: string; lastSuccessAt: Date | null }[]
-  > {
+  loadBulkSyncState(): Promise<{ job: string; status: string; lastSuccessAt: Date | null }[]> {
     return this.prisma.syncState.findMany({
       where: { stage: 1, job: { in: ['hira.1', 'nmc.1'] } },
       select: { job: true, status: true, lastSuccessAt: true },
@@ -311,10 +293,10 @@ export class HealthcareDetailBuildRepository {
    * 파싱하면 규칙이 두 벌이 되고 언젠가 어긋난다.
    */
   async loadBuiltValues(): Promise<BuiltValues> {
-    const ids = async (sql: Prisma.Sql): Promise<Set<number>> =>
-      new Set(
-        (await this.prisma.$queryRaw<{ id: number }[]>(sql)).map((r) => r.id),
-      );
+    const ids = async (sql: Prisma.Sql): Promise<Set<number>> => {
+      const rows = await this.prisma.$queryRaw<{ id: number }[]>(sql);
+      return new Set(rows.map((r) => r.id));
+    };
 
     const [
       description,
@@ -344,19 +326,13 @@ export class HealthcareDetailBuildRepository {
           JOIN nmc_hospital n ON n.hpid = h.hpid
          WHERE JSON_UNQUOTE(JSON_EXTRACT(n.data, '$.dutyMapimg')) > ''
       `),
-      ids(
-        Prisma.sql`SELECT id FROM healthcare_hospital WHERE directions IS NOT NULL`,
-      ),
+      ids(Prisma.sql`SELECT id FROM healthcare_hospital WHERE directions IS NOT NULL`),
       ids(Prisma.sql`
         SELECT id FROM healthcare_hospital
          WHERE park_qty IS NOT NULL OR park_paid IS NOT NULL OR park_note IS NOT NULL
       `),
-      ids(
-        Prisma.sql`SELECT id FROM healthcare_hospital WHERE transport IS NOT NULL`,
-      ),
-      ids(
-        Prisma.sql`SELECT id FROM healthcare_hospital WHERE emergency_yn = 1`,
-      ),
+      ids(Prisma.sql`SELECT id FROM healthcare_hospital WHERE transport IS NOT NULL`),
+      ids(Prisma.sql`SELECT id FROM healthcare_hospital WHERE emergency_yn = 1`),
       ids(
         Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_hours WHERE kind = 'general' AND open_time IS NOT NULL`,
       ),
@@ -374,9 +350,7 @@ export class HealthcareDetailBuildRepository {
       ),
       ids(Prisma.sql`SELECT hospital_id AS id FROM healthcare_hospital_bed`),
       ids(Prisma.sql`SELECT hospital_id AS id FROM healthcare_hospital_staff`),
-      ids(
-        Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_equipment`,
-      ),
+      ids(Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_equipment`),
       ids(
         Prisma.sql`SELECT DISTINCT hospital_id AS id FROM healthcare_hospital_capability WHERE tp = 'severe'`,
       ),

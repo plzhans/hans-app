@@ -24,17 +24,13 @@ interface RegionSyncCommandOptions {
 /** --mode 값 검증. 오타를 조용히 넘기면 의도와 다른 정책으로 2만 행을 덮어쓴다. */
 function parseMode(value: string): RegionSyncMode {
   if (!(REGION_SYNC_MODES as readonly string[]).includes(value)) {
-    throw new Error(
-      `알 수 없는 모드: ${value}\n사용 가능: ${REGION_SYNC_MODES.join(', ')}`,
-    );
+    throw new Error(`알 수 없는 모드: ${value}\n사용 가능: ${REGION_SYNC_MODES.join(', ')}`);
   }
   return value as RegionSyncMode;
 }
 
 export function moisCommand(source: ConfigSource): Command {
-  const mois = new Command('mois').description(
-    '행정안전부(MOIS) 행정표준코드 — 법정동코드',
-  );
+  const mois = new Command('mois').description('행정안전부(MOIS) 행정표준코드 — 법정동코드');
 
   // 단계 배치. 배치(hansapp-batch)가 도는 것과 같은 경로다 — sync_state 에 기록되고
   // 신선도·잠금 판정을 그대로 받는다.
@@ -152,9 +148,7 @@ function printRegionSyncResult(result: RegionSyncResult): void {
   // 세종은 시도 행이 없어 시군구로 잡힌다. 시도가 15개인 게 정상이라는 걸 모르면
   // 매번 "하나 빠졌나" 를 의심하게 된다.
   if (result.levels.sido > 0) {
-    lines.push(
-      '  * 세종특별자치시는 원본에 시도 행이 없어 시군구로 집계된다 (시도 15개가 정상)',
-    );
+    lines.push('  * 세종특별자치시는 원본에 시도 행이 없어 시군구로 집계된다 (시도 15개가 정상)');
   }
 
   console.log(lines.join('\n'));

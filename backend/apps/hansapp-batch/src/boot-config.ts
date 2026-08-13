@@ -30,8 +30,4 @@ export const buildInfo: BuildInfo = loadBuildInfo(__dirname);
 
 // 설정 접근자(ConfigSource). config/config.yaml + config.<환경>.yaml 위에 계층형 .env 를 얹어 경로 게터로 읽고,
 // EnvSource 를 확장하므로 시크릿을 flat env 로 읽는 기존 계층에도 그대로 넘어간다.
-export const appConfig: ConfigSource = createConfigSource(
-  __dirname,
-  appEnv,
-  config,
-);
+export const appConfig: ConfigSource = createConfigSource(__dirname, appEnv, config);

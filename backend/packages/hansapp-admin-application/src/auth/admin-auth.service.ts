@@ -10,16 +10,15 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
-import { AdminStatus, AdminUser } from '@hansapp/data';
-import {
-  normalizeLanguageChoice,
-  normalizeTimeZoneChoice,
-} from '@hansapp/common';
+import { AdminRole, AdminStatus, AdminUser } from '@hansapp/data';
+import { normalizeLanguageChoice, normalizeTimeZoneChoice } from '@hansapp/common';
 
 import { ADMIN_AUTH_CONFIG } from './admin-auth.config';
 import type { AdminAuthConfig } from './admin-auth.config';
 import { AdminActionLogService } from './admin-action-log.service';
+import { isEmailLike, normalizeEmail } from './admin-email';
 import { AdminLoginService } from './admin-login.service';
+import { AdminProfileCache } from './admin-profile-cache.service';
 import { AdminTokenService } from './admin-token.service';
 import type { AdminAuthTokens, AdminRequestMeta } from './admin-token.service';
 import { AdminUserRepository } from './admin-user.repository';
@@ -37,6 +36,11 @@ export class AdminAuthService {
     private readonly admins: AdminUserRepository,
     private readonly tokens: AdminTokenService,
     private readonly loginFlow: AdminLoginService,
+    /*
+      **내 정보 응답이 담고 있는 값이 여기서 바뀐다** — 변경 강제 플래그(비밀번호),
+      계정 상태(비활성화), 언어·시간대. 바꾼 자리마다 캐시를 비운다.
+    */
+    private readonly profileCache: AdminProfileCache,
     private readonly log: AdminActionLogService,
   ) {}
 
@@ -58,10 +62,7 @@ export class AdminAuthService {
       응답이 그만큼(코스트 10 기준 ~80ms) 빨리 돌아오고, 그 시간차가 "이 이메일은 관리자다" 를
       말해 준다 — 메시지를 똑같이 맞춰 둔 의미가 없어진다.
     */
-    const matched = await bcrypt.compare(
-      input.password,
-      admin?.password ?? this.getDummyHash(),
-    );
+    const matched = await bcrypt.compare(input.password, admin?.password ?? this.getDummyHash());
 
     const failReason = !admin
       ? 'admin_not_found'
@@ -87,7 +88,12 @@ export class AdminAuthService {
     // 평문을 손에 쥐는 유일한 순간이라 여기서 해 둔다.
     await this.rehashIfStale(admin, input.password);
 
-    return this.loginFlow.complete(admin, meta);
+    /*
+      **무엇으로 들어왔는지 명시해 남긴다.** 값이 없으면 "비밀번호로 들어왔다" 와
+      "이 값을 남기기 전의 기록" 이 구분되지 않는다 — 없는 것을 비밀번호로 단정하면
+      옛 기록 전부가 비밀번호 로그인으로 둔갑한다.
+    */
+    return this.loginFlow.complete(admin, meta, { via: 'password' });
   }
 
   /** refresh token 으로 access token 을 갱신한다. refresh 도 rotate 된다. */
@@ -96,29 +102,25 @@ export class AdminAuthService {
 
     /*
       **갱신 때마다 계정 상태를 다시 본다.** access token 은 stateless 라 발급 뒤 폐기가
-      안 되는데, 갱신을 막으면 최대 access TTL(5분) 뒤에는 실제로 끊긴다. 이게 계정
-      비활성화가 실효를 갖는 유일한 경로다.
+      안 되는데, 갱신을 막으면 최대 access TTL 뒤에는 실제로 끊긴다.
+
+      **다만 이 경로에 매달리지 않는다.** 비활성화·삭제는 세션까지 함께 지우므로, 가드가
+      세션 캐시에서 먼저 잡아낸다(그 경로가 캐시를 직접 지운다) — 여기는 그것마저
+      놓쳤을 때의 마지막 그물이다.
     */
     const admin = await this.admins.findById(rotated.adminId);
     if (!admin || admin.status !== AdminStatus.ACTIVE) {
-      await this.tokens.revokeSession(rotated.sessionId);
+      await this.tokens.revokeOwnedSession(rotated.adminId, rotated.sessionId);
       throw new UnauthorizedException('Account is not active.');
     }
 
     // **여기서 DB 값을 다시 읽어 싣는다.** 비밀번호를 바꾸면 다음 갱신에서 플래그가
     // 자연히 풀리고, 반대로 운영자가 초기화하면 다음 갱신부터 다시 막힌다.
-    return this.tokens.buildTokens(
-      rotated.adminId,
-      rotated,
-      admin.mustChangePassword,
-    );
+    return this.tokens.buildTokens(rotated.adminId, rotated, admin.mustChangePassword);
   }
 
   /** 로그아웃. **자격증명을 요구하지 않는다** — 잘못된 토큰이면 지울 것이 없을 뿐이다. */
-  async logout(
-    refreshToken: string | undefined,
-    meta: AdminRequestMeta,
-  ): Promise<void> {
+  async logout(refreshToken: string | undefined, meta: AdminRequestMeta): Promise<void> {
     if (!refreshToken) return;
     const revoked = await this.tokens.revokeByRefreshToken(refreshToken);
     if (!revoked) return;
@@ -167,9 +169,7 @@ export class AdminAuthService {
 
     // 같은 값으로 바꾸면 강제 변경을 형식적으로 통과하는 셈이라 막는다.
     if (await bcrypt.compare(input.newPassword, admin.password)) {
-      throw new BadRequestException(
-        'New password must differ from the current one.',
-      );
+      throw new BadRequestException('New password must differ from the current one.');
     }
 
     await this.admins.updatePassword(
@@ -179,6 +179,7 @@ export class AdminAuthService {
       false,
     );
     await this.tokens.revokeAllByAdmin(admin.id);
+    await this.profileCache.purge(admin.id);
 
     await this.log.record({
       adminId: admin.id,
@@ -196,13 +197,20 @@ export class AdminAuthService {
       mustChangePassword 가 아직 true 다. 그대로 넘기면 방금 비밀번호를 바꿨는데도
       새 토큰에 chg 클레임이 실려 계속 막힌다.
     */
-    return this.loginFlow.complete(
-      { ...admin, mustChangePassword: false },
-      meta,
-    );
+    // **여기도 password 다.** 이 요청은 현재 비밀번호를 대조하고 통과한 것이라,
+    // 새로 난 세션은 비밀번호로 증명된 세션이 맞다.
+    return this.loginFlow.complete({ ...admin, mustChangePassword: false }, meta, {
+      via: 'password',
+    });
   }
 
-  // ---- 계정 관리(CLI 전용) ----
+  /*
+    ---- 계정 관리 ----
+
+    **CLI 와 관리 콘솔이 함께 쓴다.** 콘솔 쪽 통로는 AdminAccountService 인데, 그쪽도
+    계정을 만들 때는 여기를 부른다 — 이메일 형식·중복 확인과 "첫 로그인에서 변경 강제" 가
+    두 통로에서 갈리면, 어느 쪽으로 만들었느냐에 따라 계정의 성질이 달라진다.
+  */
 
   /** 관리자 계정 수. 부팅 시 기본 계정을 만들지 정하는 데 쓴다. */
   countAdmins(): Promise<number> {
@@ -210,13 +218,20 @@ export class AdminAuthService {
   }
 
   /**
-   * 관리자 계정을 만든다. **가입 화면은 없다** — CLI 로만 부른다.
+   * 관리자 계정을 만든다. **가입 화면은 없다** — CLI 와 관리 콘솔이 부른다.
    *
    * @param plainPassword 없으면 임시 비밀번호를 만들어 반환한다(호출측이 1회 출력한다).
    */
   async createAdmin(input: {
     email: string;
     name?: string | null;
+    /**
+     * 등급. **주지 않으면 시스템 관리자다.**
+     *
+     * CLI 와 부팅 부트스트랩에는 등급을 받을 자리가 없는데, 그 둘은 서버에 들어갈 수 있는
+     * 사람이 쓰는 통로라 이미 최고 권한과 다름없다. 콘솔에서 만들 때만 골라 보낸다.
+     */
+    role?: AdminRole;
     plainPassword?: string;
   }): Promise<{ admin: AdminUser; generatedPassword?: string }> {
     const email = normalizeEmail(input.email);
@@ -227,9 +242,7 @@ export class AdminAuthService {
       두 통로가 같은 기준을 쓰도록 계정을 만드는 이 자리에서 막는다.
     */
     if (!isEmailLike(email)) {
-      throw new BadRequestException(
-        `Not a valid email address: ${input.email}`,
-      );
+      throw new BadRequestException(`Not a valid email address: ${input.email}`);
     }
     if (await this.admins.findByEmail(email)) {
       throw new ConflictException('Email already registered.');
@@ -242,6 +255,7 @@ export class AdminAuthService {
       email,
       password: await this.hashPassword(plain),
       name: input.name?.trim() || null,
+      role: input.role ?? AdminRole.SYSTEM,
       /*
         **남이 정해 준 비밀번호는 예외 없이 변경 대상이다.**
         stdin 으로 받은 값이라 해도 운영자가 정해 건네준 것이고, 그 값은 터미널·메신저를
@@ -260,6 +274,18 @@ export class AdminAuthService {
   async resetPassword(
     email: string,
     plainPassword?: string,
+    /**
+     * 뒤처리를 어디까지 할지. **둘 다 기본은 켜짐이다** — 안전한 쪽이 기본이어야 하고,
+     * CLI 처럼 값을 안 주는 통로가 예전과 같이 동작해야 한다.
+     *
+     * `revokeSessions`: 비밀번호를 다시 내는 이유가 유출일 수 있고, 그때 열려 있던 세션을
+     * 남기면 값을 바꾼 의미가 없다. 반대로 본인이 잊어버린 것뿐이라면 지금 일하고 있는
+     * 사람을 밖으로 내보내는 셈이라, 부르는 쪽이 정한다.
+     *
+     * `mustChangePassword`: 남이 정해 준 값이 그대로 남으면 그 값을 아는 사람이 둘이 된다.
+     * 끄는 것은 본인과 함께 앉아 값을 정한 경우다.
+     */
+    options?: { revokeSessions?: boolean; mustChangePassword?: boolean },
   ): Promise<{ admin: AdminUser; generatedPassword?: string }> {
     const admin = await this.requireByEmail(email);
     const plain = plainPassword ?? generatePassword();
@@ -268,32 +294,36 @@ export class AdminAuthService {
     const updated = await this.admins.updatePassword(
       admin.id,
       await this.hashPassword(plain),
-      // 운영자가 정해 준 값이다. 본인이 다시 바꿔야 한다.
-      true,
+      options?.mustChangePassword ?? true,
     );
-    // 비밀번호를 바꾼 이유가 유출일 수 있다. 살아 있는 세션을 남겨 두면 바꾼 의미가 없다.
-    await this.tokens.revokeAllByAdmin(admin.id);
+    if (options?.revokeSessions ?? true) {
+      await this.tokens.revokeAllByAdmin(admin.id);
+    }
+    await this.profileCache.purge(admin.id);
     return { admin: updated, generatedPassword: generated };
   }
 
   /** 계정을 비활성화한다. 살아 있는 세션도 함께 끊는다. */
   async disable(email: string): Promise<AdminUser> {
     const admin = await this.requireByEmail(email);
-    const updated = await this.admins.updateStatus(
-      admin.id,
-      AdminStatus.DISABLED,
-    );
+    const updated = await this.admins.updateStatus(admin.id, AdminStatus.DISABLED);
     await this.tokens.revokeAllByAdmin(admin.id);
+    await this.profileCache.purge(admin.id);
     return updated;
   }
 
   async enable(email: string): Promise<AdminUser> {
     const admin = await this.requireByEmail(email);
-    return this.admins.updateStatus(admin.id, AdminStatus.ACTIVE);
+    const updated = await this.admins.updateStatus(admin.id, AdminStatus.ACTIVE);
+    await this.profileCache.purge(admin.id);
+    return updated;
   }
 
   /**
-   * 계정을 지운다. 세션은 FK Cascade 로 함께 사라진다.
+   * 계정을 지운다. **행은 남기고 지운 표시만 한다**(소프트 삭제) — 계정 행이 조치 기록이
+   * 가리키는 대상이라, 지워 버리면 그 번호가 누구였는지 아는 자리가 없어진다.
+   *
+   * 세션은 여기서 끊는다. 행이 남으므로 FK Cascade 가 돌지 않는다.
    *
    * **마지막 남은 계정은 지우지 않는다.** 지우고 나면 로그인할 수단이 없어지고, 관리자
    * 계정을 만드는 통로는 이 CLI 뿐이라 서버에 다시 들어가야 풀린다. 부팅 자동 생성은
@@ -306,7 +336,9 @@ export class AdminAuthService {
         'Cannot remove the last admin account — no one could sign in afterwards.',
       );
     }
-    await this.admins.delete(admin.id);
+    await this.tokens.revokeAllByAdmin(admin.id);
+    await this.admins.softDelete(admin.id, new Date());
+    await this.profileCache.purge(admin.id);
     return admin;
   }
 
@@ -354,7 +386,9 @@ export class AdminAuthService {
     if (Object.keys(data).length === 0) {
       return current;
     }
-    return this.admins.updateLocale(adminId, data);
+    const updated = await this.admins.updateLocale(adminId, data);
+    await this.profileCache.purge(adminId);
+    return updated;
   }
 
   // ---- 내부 ----
@@ -396,25 +430,9 @@ export class AdminAuthService {
         admin.mustChangePassword,
       );
     } catch (error) {
-      this.logger.warn(
-        `Failed to rehash password for admin ${admin.id}: ${String(error)}`,
-      );
+      this.logger.warn(`Failed to rehash password for admin ${admin.id}: ${String(error)}`);
     }
   }
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-/**
- * 로그인 DTO 의 IsEmail 이 통과시킬 모양인지 본다.
- *
- * 완전한 RFC 5322 검사가 아니다 — 그건 여기서 할 일이 아니고, 목적은 "만들어 놓고 로그인이
- * 안 되는 계정" 을 막는 것뿐이다. 공백 없이 `@` 하나, 도메인에 점이 하나 이상이면 된다.
- */
-function isEmailLike(email: string): boolean {
-  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email);
 }
 
 /**

@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { KeyRound } from 'lucide-react';
 
 import { errorMessage } from '@/shared/api/errorMessage';
+import {
+  getMySocialLinks,
+  getSocialProviders,
+  socialErrorMessage,
+  startGoogleLink,
+  unlinkGoogle,
+  type SocialLink,
+} from '@/shared/api/social';
+import { GoogleIcon } from '../components/GoogleButton';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { AdminLayout } from '@/shared/components/AdminLayout';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
@@ -12,6 +21,7 @@ import {
   timeZoneDisplayName,
   timeZoneOptions,
 } from '@/shared/lib/timeZone';
+import { ADMIN_ROLE_LABEL } from '@/shared/lib/adminRoles';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { ComboBox } from '@/shared/ui/ComboBox';
@@ -93,6 +103,9 @@ export default function Me() {
             <span className="break-all">{me?.email ?? '—'}</span>
           </Field>
           <Field label="이름">{me?.name ?? '—'}</Field>
+          <Field label="등급">
+            {me ? ADMIN_ROLE_LABEL[me.role] : '—'}
+          </Field>
           <Field label="관리자 번호">
             <span className="font-mono">{me?.id ?? '—'}</span>
           </Field>
@@ -117,15 +130,21 @@ export default function Me() {
             비밀번호 변경
           </Link>
           {/*
-            이름·이메일을 고치는 통로를 두지 않았다. 관리자 계정은 CLI 로만 만들고 지우는데,
-            화면에서 이메일을 바꿀 수 있으면 로그인 식별자가 조용히 갈려 CLI 쪽과 어긋난다.
-            필요해지면 서버에 변경 API 부터 만들고 붙인다.
+            **이 화면에는 이름·이메일을 고치는 칸을 두지 않는다.** 그 둘은 계정을 관리하는
+            값이라 관리자 화면(`/admins/:id`)이 다룬다 — 같은 값을 고치는 자리가 둘이면
+            어느 쪽이 정본인지 흐려진다. 여기는 본인만 정할 수 있는 표시 설정을 맡는다.
           */}
           <p className="mt-3 text-xs text-gray-400">
-            이메일·이름 변경은 운영자에게 요청하세요.
+            이메일·이름은{' '}
+            <Link to={`/admins/${me?.id ?? ''}`} className="underline">
+              관리자
+            </Link>{' '}
+            화면에서 바꿉니다.
           </p>
         </div>
       </section>
+
+      <SocialSection />
 
       <section className="mt-6 max-w-2xl rounded-2xl border border-gray-200 bg-white p-6">
         <h2 className="text-sm font-semibold text-gray-900">표시 설정</h2>
@@ -171,6 +190,128 @@ export default function Me() {
         </div>
       </section>
     </AdminLayout>
+  );
+}
+
+/**
+ * 소셜 연동. 지금은 구글 하나다.
+ *
+ * **연동은 fetch 로 끝나지 않는다** — 시작 주소를 받아 브라우저째 구글로 떠났다가, 콜백이
+ * 이 화면으로 돌려보낸다. 그래서 결과가 응답이 아니라 쿼리(`social`·`social_error`)로 온다.
+ *
+ * **해제에는 확인을 묻지 않는다.** 비밀번호가 항상 살아 있어 되돌리기 어려운 일이 아니고,
+ * 다시 연동하는 데 두 번 누르면 된다.
+ */
+function SocialSection() {
+  const [params, setParams] = useSearchParams();
+  const [links, setLinks] = useState<SocialLink[] | null>(null);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const google = links?.find((l) => l.provider === 'GOOGLE') ?? null;
+
+  const reload = () => {
+    void getMySocialLinks()
+      .then(setLinks)
+      .catch(() => setLinks([]));
+  };
+
+  useEffect(() => {
+    reload();
+    void getSocialProviders()
+      .then((p) => setGoogleReady(p.google))
+      .catch(() => setGoogleReady(false));
+  }, []);
+
+  // 구글에서 돌아온 결과. 읽고 나서 주소를 비운다 — 새로고침에 되살아나면 안 된다.
+  useEffect(() => {
+    const linked = params.get('social');
+    const failed = params.get('social_error');
+    if (!linked && !failed) return;
+    if (linked === 'linked') setNotice('구글 계정을 연동했습니다.');
+    if (failed) setError(socialErrorMessage(failed));
+    setParams({}, { replace: true });
+  }, [params, setParams]);
+
+  const link = async () => {
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      const { startUrl } = await startGoogleLink();
+      // 티켓이 3분짜리라 받자마자 떠난다. 여기서 화면 상태를 되돌릴 일은 없다.
+      window.location.assign(startUrl);
+    } catch (e) {
+      setError(errorMessage(e, '연동을 시작하지 못했습니다.'));
+      setBusy(false);
+    }
+  };
+
+  const unlink = async () => {
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await unlinkGoogle();
+      setNotice('구글 연동을 해제했습니다.');
+      reload();
+    } catch (e) {
+      setError(errorMessage(e, '해제하지 못했습니다.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="mt-6 max-w-2xl rounded-2xl border border-gray-200 bg-white p-6">
+      <h2 className="text-sm font-semibold text-gray-900">소셜 연동</h2>
+      <p className="mt-1 text-xs text-gray-400">
+        연동해도 비밀번호 로그인은 그대로 쓸 수 있고, 해제해도 계정이 잠기지 않습니다.
+      </p>
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <GoogleIcon />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800">구글</p>
+            <p className="truncate text-xs text-gray-400">
+              {google
+                ? `${google.email ?? '연동됨'} · ${formatDateTime(google.linkedAt)}`
+                : googleReady
+                  ? '연동되지 않음'
+                  : '이 서버에는 구글 로그인이 설정돼 있지 않습니다.'}
+            </p>
+          </div>
+        </div>
+
+        {google ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-auto"
+            loading={busy}
+            onClick={() => void unlink()}
+          >
+            해제
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="w-auto"
+            loading={busy}
+            disabled={!googleReady}
+            onClick={() => void link()}
+          >
+            연동
+          </Button>
+        )}
+      </div>
+
+      {notice && <p className="mt-3 text-sm text-green-600">{notice}</p>}
+      {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+    </section>
   );
 }
 

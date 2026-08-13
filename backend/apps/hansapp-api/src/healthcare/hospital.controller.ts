@@ -8,12 +8,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   HealthcareHospitalService,
   HealthcareNonPaymentService,
@@ -38,10 +33,7 @@ import {
   HospitalSearchRequestDto,
   HospitalSummaryDto,
 } from './dto/hospital.dto';
-import {
-  HospitalNonPaymentDto,
-  NonPaymentRequestResultDto,
-} from './dto/npay.dto';
+import { HospitalNonPaymentDto, NonPaymentRequestResultDto } from './dto/npay.dto';
 
 /**
  * 통합 병원 API.
@@ -64,8 +56,7 @@ export class HealthcareHospitalController {
   @Get()
   @ApiOperation({
     summary: '병원 검색',
-    description:
-      '지역·종별·진료과목·병원명으로 검색한다. 응급실 운영, 달빛어린이병원 필터도 있다.',
+    description: '지역·종별·진료과목·병원명으로 검색한다. 응급실 운영, 달빛어린이병원 필터도 있다.',
   })
   @ApiPageResponse(HospitalSummaryDto)
   async search(
@@ -209,9 +200,7 @@ export class HealthcareHospitalController {
   })
   @ApiParam({ name: 'id', description: '통합 병원 id' })
   @ApiOkResponse({ type: HospitalNonPaymentDto })
-  async nonPayments(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<HospitalNonPaymentDto> {
+  async nonPayments(@Param('id', ParseIntPipe) id: number): Promise<HospitalNonPaymentDto> {
     const npay = await this.npay.get(id);
     if (!npay) {
       throw new NotFoundException(`Hospital not found: ${id}`);
@@ -239,9 +228,7 @@ export class HealthcareHospitalController {
     }
     if (result === 'unavailable') {
       // HIRA 연동이 없는 병원. 큐에 넣어봐야 배치가 할 수 있는 게 없다.
-      throw new NotFoundException(
-        `Hospital has no HIRA link, non-payment data unavailable: ${id}`,
-      );
+      throw new NotFoundException(`Hospital has no HIRA link, non-payment data unavailable: ${id}`);
     }
     return { result };
   }
@@ -273,9 +260,7 @@ function bboxOf(request: HospitalFilterRequestDto): HospitalBbox | undefined {
  * 거리 계산 기준점. **둘 다 와야 한다** — 위도만으로는 잴 수 없다.
  * 하나만 온 경우 여기서 버리면, sort=distance 였을 때 서비스가 400 으로 막아 준다.
  */
-function originOf(
-  request: HospitalFilterRequestDto,
-): HospitalCoords | undefined {
+function originOf(request: HospitalFilterRequestDto): HospitalCoords | undefined {
   const { lat, lon } = request;
   return lat !== undefined && lon !== undefined ? { lat, lon } : undefined;
 }

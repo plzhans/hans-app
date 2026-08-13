@@ -5,7 +5,9 @@ export type SettingFieldType =
   | 'number'
   | 'boolean'
   | 'select'
-  | 'secret';
+  | 'secret'
+  /** 서버가 만들어 보여 주기만 하는 값(리디렉션 주소). 고칠 수도 지울 수도 없다. */
+  | 'readonly';
 
 /** 값이 있는가. 출처는 DB 하나뿐이다 — 설정 파일 폴백은 걷어냈다. */
 export type SettingSource = 'db' | 'none';
@@ -23,6 +25,10 @@ export interface SettingField {
   help?: string;
   /** 카드 안에서 다시 갈라 놓을 구역 이름. 없으면 맨 위 묶음이다. */
   section?: string;
+  /** 구역 제목 아래 한 줄. 구역 안 아무 필드에나 한 번만 실려 온다. */
+  sectionHelp?: string;
+  /** notice 면 그 구역만 따로 감싸 그린다. 성격이 다른 값이라는 표시다. */
+  sectionTone?: 'notice';
   /** 현재 값. **secret 은 언제나 null** — 서버가 원문을 안 내려보낸다. */
   value: string | null;
   hasValue: boolean;

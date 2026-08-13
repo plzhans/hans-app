@@ -83,9 +83,7 @@ export class SearchSchemaService {
   templateFiles(): string[] {
     return [
       path.join(this.schemaDir, COMPONENT_TEMPLATE_FILENAME),
-      ...INDEX_DEFINITIONS.map((d) =>
-        path.join(this.schemaDir, d.templateFilename),
-      ),
+      ...INDEX_DEFINITIONS.map((d) => path.join(this.schemaDir, d.templateFilename)),
     ];
   }
 
@@ -166,9 +164,7 @@ export class SearchSchemaService {
    */
   async swapAlias(name: string, toIndex: string): Promise<string[]> {
     const alias = aliasOf(name, this.indexPrefix);
-    const actions: estypes.IndicesUpdateAliasesAction[] = [
-      { add: { index: toIndex, alias } },
-    ];
+    const actions: estypes.IndicesUpdateAliasesAction[] = [{ add: { index: toIndex, alias } }];
     const previous: string[] = [];
     if (await this.client.indices.existsAlias({ name: alias })) {
       const got = await this.client.indices.getAlias({ name: alias });
@@ -233,21 +229,14 @@ export class SearchSchemaService {
   private async putComponentTemplate(): Promise<void> {
     await this.client.cluster.putComponentTemplate({
       name: COMPONENT_TEMPLATE_NAME,
-      ...(await readTemplate(
-        path.join(this.schemaDir, COMPONENT_TEMPLATE_FILENAME),
-      )),
+      ...(await readTemplate(path.join(this.schemaDir, COMPONENT_TEMPLATE_FILENAME))),
     } as estypes.ClusterPutComponentTemplateRequest);
     this.logger.log(`component template '${COMPONENT_TEMPLATE_NAME}' 적용`);
   }
 
-  private async putIndexTemplate(def: {
-    name: string;
-    templateFilename: string;
-  }): Promise<void> {
+  private async putIndexTemplate(def: { name: string; templateFilename: string }): Promise<void> {
     const templateName = aliasOf(def.name, this.indexPrefix);
-    const body = await readTemplate(
-      path.join(this.schemaDir, def.templateFilename),
-    );
+    const body = await readTemplate(path.join(this.schemaDir, def.templateFilename));
     // 물리 인덱스가 env 접두사를 가지므로, 템플릿의 index_patterns 도 그 패턴으로 덮어쓴다.
     // (정본 파일엔 논리이름 `name-v*` 로 두고, 적용 시점에 `<env>-name-v*` 로 맞춘다.)
     body.index_patterns = [indexPatternOf(def.name, this.indexPrefix)];
@@ -256,9 +245,7 @@ export class SearchSchemaService {
   }
 
   /** alias 가 없으면 name-v1 생성 후 연결. 있으면 그대로 둔다. 생성 시에만 createdIndex 채운다. */
-  private async createIndexIfMissing(def: {
-    name: string;
-  }): Promise<IndexImportRow> {
+  private async createIndexIfMissing(def: { name: string }): Promise<IndexImportRow> {
     const alias = aliasOf(def.name, this.indexPrefix);
     if (await this.client.indices.existsAlias({ name: alias })) {
       this.logger.log(`alias '${alias}' 이미 존재 — 인덱스는 그대로 둔다`);
@@ -336,10 +323,7 @@ export class SearchSchemaService {
       // 여기서 잡힌다 — 예전엔 name-v* 만 봐서 그 잔재를 못 지웠다.
       const found = await this.client.indices.get(
         {
-          index: [
-            aliasOf(def.name, this.indexPrefix),
-            indexPatternOf(def.name, this.indexPrefix),
-          ],
+          index: [aliasOf(def.name, this.indexPrefix), indexPatternOf(def.name, this.indexPrefix)],
         },
         { ignore: [404] },
       );
@@ -348,10 +332,7 @@ export class SearchSchemaService {
       }
 
       if (names.size > 0) {
-        await this.client.indices.delete(
-          { index: [...names] },
-          { ignore: [404] },
-        );
+        await this.client.indices.delete({ index: [...names] }, { ignore: [404] });
         deletedIndices += names.size;
       }
 
@@ -365,9 +346,7 @@ export class SearchSchemaService {
       { name: COMPONENT_TEMPLATE_NAME },
       { ignore: [404] },
     );
-    this.logger.log(
-      `스키마 삭제 완료(인덱스 ${deletedIndices}개 + 템플릿 삭제)`,
-    );
+    this.logger.log(`스키마 삭제 완료(인덱스 ${deletedIndices}개 + 템플릿 삭제)`);
   }
 
   /** 현황: 등록된 인덱스별로 alias→인덱스·템플릿·문서 수를 모은다. */

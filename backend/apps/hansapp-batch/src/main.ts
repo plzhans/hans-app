@@ -39,15 +39,10 @@ async function bootstrap(): Promise<void> {
   const force = process.argv.includes('--force');
   const debug = process.argv.includes('--debug');
 
-  const app = await NestFactory.createApplicationContext(
-    AppModule.forRoot(source),
-    {
-      // debug 레벨에 병원 단위 진행이 찍힌다. 기본은 단계·페이지 단위(log)만 본다.
-      logger: debug
-        ? ['error', 'warn', 'log', 'debug']
-        : ['error', 'warn', 'log'],
-    },
-  );
+  const app = await NestFactory.createApplicationContext(AppModule.forRoot(source), {
+    // debug 레벨에 병원 단위 진행이 찍힌다. 기본은 단계·페이지 단위(log)만 본다.
+    logger: debug ? ['error', 'warn', 'log', 'debug'] : ['error', 'warn', 'log'],
+  });
 
   if (once) {
     try {

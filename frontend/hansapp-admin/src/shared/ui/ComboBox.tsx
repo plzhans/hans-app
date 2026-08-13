@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 import { cn } from '@/shared/lib/cn';
+import { INLINE_GRID, INLINE_SUB } from './TextField';
 
 export interface ComboOption {
   value: string;
@@ -26,6 +27,8 @@ interface Props {
   disabled?: boolean;
   placeholder?: string;
   emptyText?: string;
+  /** 라벨을 왼쪽에 둔다. TextField 의 같은 이름과 같은 뜻이고, 격자도 같은 값을 쓴다. */
+  inline?: boolean;
 }
 
 /**
@@ -47,6 +50,7 @@ export function ComboBox({
   disabled,
   placeholder,
   emptyText = '검색 결과가 없습니다.',
+  inline,
 }: Props) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -131,13 +135,20 @@ export function ComboBox({
   };
 
   return (
-    <div className="block" ref={rootRef}>
+    <div className={cn('block', inline && INLINE_GRID)} ref={rootRef}>
       {label && (
-        <span className="mb-1 block text-sm font-medium text-gray-700">
+        <span
+          className={cn(
+            'text-sm font-medium text-gray-700',
+            !inline && 'mb-1 block',
+          )}
+        >
           {label}
         </span>
       )}
-      {hint && <p className="mb-1 -mt-0.5 text-xs text-gray-400">{hint}</p>}
+      {!inline && hint && (
+        <p className="mb-1 -mt-0.5 text-xs text-gray-400">{hint}</p>
+      )}
 
       <div className="relative">
         <input
@@ -228,7 +239,19 @@ export function ComboBox({
         )}
       </div>
 
-      {error && <span className="mt-1 block text-xs text-red-500">{error}</span>}
+      {inline && hint && (
+        <p className={cn('text-xs text-gray-400', INLINE_SUB)}>{hint}</p>
+      )}
+      {error && (
+        <span
+          className={cn(
+            'block text-xs text-red-500',
+            inline ? INLINE_SUB : 'mt-1',
+          )}
+        >
+          {error}
+        </span>
+      )}
     </div>
   );
 }

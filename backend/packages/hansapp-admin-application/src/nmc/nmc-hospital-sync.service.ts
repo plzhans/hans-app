@@ -3,11 +3,7 @@ import type { HospitalFullDownItem, NmcClient } from '@krdata/nmc';
 
 import { NmcHospitalSyncRepository } from './nmc-hospital-sync.repository';
 import { NMC_CLIENT } from '../krdata.providers';
-import {
-  resolveSyncOptions,
-  SyncOptions,
-  SyncResult,
-} from '../common/sync.types';
+import { resolveSyncOptions, SyncOptions, SyncResult } from '../common/sync.types';
 
 /**
  * NMC 병원 목록을 로컬 DB(nmc_hospital)에 미러링한다.
@@ -68,9 +64,7 @@ export class NmcHospitalSyncService {
 
     // 지역 목록은 병원 데이터의 집계다. 적재가 끝났으니 다시 만든다.
     const regions = await this.repo.rebuildRegions();
-    this.logger.log(
-      `NMC 지역 갱신: 시도 ${regions.sidos}종 / 시군구 조합 ${regions.regions}건`,
-    );
+    this.logger.log(`NMC 지역 갱신: 시도 ${regions.sidos}종 / 시군구 조합 ${regions.regions}건`);
 
     return {
       totalCount,

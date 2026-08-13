@@ -4,15 +4,30 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuthStore } from '@/shared/auth/authStore';
 import Login from '@/features/auth/pages/Login';
 import ChangePassword from '@/features/auth/pages/ChangePassword';
+import ForgotPassword from '@/features/auth/pages/ForgotPassword';
+import ResetPassword from '@/features/auth/pages/ResetPassword';
 import Me from '@/features/auth/pages/Me';
 import Users from '@/features/users/pages/Users';
 import UserDetail from '@/features/users/pages/UserDetail';
+import UserApps from '@/features/users/pages/UserApps';
+import UserSessions from '@/features/users/pages/UserSessions';
 import UserAuthLogs from '@/features/users/pages/UserAuthLogs';
+import UserCache from '@/features/users/pages/UserCache';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
 import MailSettings from '@/features/settings/pages/MailSettings';
 import IntegrationSettings from '@/features/settings/pages/IntegrationSettings';
 import LlmSettings from '@/features/settings/pages/LlmSettings';
+import Maintenance from '@/features/settings/pages/Maintenance';
+import Boards from '@/features/community/pages/Boards';
+import Posts from '@/features/community/pages/Posts';
+import PostView from '@/features/community/pages/PostView';
+import PostEdit from '@/features/community/pages/PostEdit';
+import Admins from '@/features/admins/pages/Admins';
+import AdminDetail from '@/features/admins/pages/AdminDetail';
+import AdminSessions from '@/features/admins/pages/AdminSessions';
+import AdminCache from '@/features/admins/pages/AdminCache';
+import AdminActionLogs from '@/features/admins/pages/AdminActionLogs';
 import AuthLogs from '@/features/logs/pages/AuthLogs';
 import LlmUsageLogs from '@/features/logs/pages/LlmUsageLogs';
 
@@ -88,7 +103,10 @@ export default function App() {
       {status === 'anonymous' ? (
         <Routes>
           <Route path="/login" element={<Login />} />
-          {/* 로그인 전에는 어디로 가든 로그인 화면이다. */}
+          {/* 비밀번호 찾기. **로그인 전에만 갈 수 있는 곳이다.** */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          {/* 그 밖에는 어디로 가든 로그인 화면이다. */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       ) : status === 'mustChange' ? (
@@ -105,8 +123,11 @@ export default function App() {
         <Routes>
           <Route path="/users" element={<Users />} />
           <Route path="/users/:id" element={<UserDetail />} />
-          {/* 회원 상세의 탭 하나. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          {/* 회원 상세의 탭들. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          <Route path="/users/:id/apps" element={<UserApps />} />
+          <Route path="/users/:id/sessions" element={<UserSessions />} />
           <Route path="/users/:id/auth-logs" element={<UserAuthLogs />} />
+          <Route path="/users/:id/cache" element={<UserCache />} />
           <Route path="/apps" element={<Apps />} />
           <Route path="/apps/:id" element={<AppDetail />} />
           {/* 같은 화면이다. clientId 가 있으면 그 위에 모달이 뜬다. */}
@@ -120,6 +141,23 @@ export default function App() {
             element={<IntegrationSettings />}
           />
           <Route path="/settings/llm" element={<LlmSettings />} />
+          {/* 값을 고치는 화면이 아니라 지우는 화면이다. 대상은 늘 서비스 전체다. */}
+          <Route path="/settings/maintenance" element={<Maintenance />} />
+          {/* 커뮤니티. 게시판을 만들고 규칙을 정한다. */}
+          <Route path="/boards" element={<Boards />} />
+          <Route path="/boards/:boardId/posts" element={<Posts />} />
+          {/* 쓰기와 수정은 같은 화면이다. 주소에 글 번호가 있으면 수정. */}
+          <Route path="/boards/:boardId/posts/new" element={<PostEdit />} />
+          {/* 목록에서 누르면 보기, 거기서 수정을 누르면 편집이다. */}
+          <Route path="/posts/:id" element={<PostView />} />
+          <Route path="/posts/:id/edit" element={<PostEdit />} />
+          {/* 콘솔 자신을 다루는 구역. 이 콘솔에 로그인할 수 있는 계정들이다. */}
+          <Route path="/admins" element={<Admins />} />
+          <Route path="/admins/:id" element={<AdminDetail />} />
+          {/* 관리자 상세의 탭들. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          <Route path="/admins/:id/sessions" element={<AdminSessions />} />
+          <Route path="/admins/:id/cache" element={<AdminCache />} />
+          <Route path="/admins/:id/action-logs" element={<AdminActionLogs />} />
           <Route path="/me" element={<Me />} />
           {/* 강제 변경 때와 같은 화면이다. 어느 쪽인지는 status 를 보고 스스로 정한다. */}
           <Route path="/password" element={<ChangePassword />} />

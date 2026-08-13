@@ -2057,8 +2057,7 @@ const SPECIAL: HealthcareCodeSeed[] = [
     tp: 'special',
     cd: 'SQ',
     nm: '선천성 악안면 기형의 치과교정 및 악정형 치료 실시기관',
-    title_en:
-      'Congenital Maxillofacial Anomaly Orthodontic/Orthognathic Treatment',
+    title_en: 'Congenital Maxillofacial Anomaly Orthodontic/Orthognathic Treatment',
     title_ja: '先天性顎顔面奇形の歯科矯正・顎矯正治療実施機関',
     title_zh: '先天性颌面畸形口腔正畸及颌骨矫正治疗实施机构',
     hira_cd: ['SQ'],

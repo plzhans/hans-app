@@ -61,9 +61,7 @@ export function userCommand(source: ConfigSource): Command {
       .description('사용자의 등급과 앱 사용량을 본다')
       .requiredOption('--email <email>', '대상 사용자 이메일')
       .action(async (options: { email: string }) => {
-        const info = await run(source, options.email, (apps, userId) =>
-          apps.getUserTier(userId),
-        );
+        const info = await run(source, options.email, (apps, userId) => apps.getUserTier(userId));
         printJson(present(info), true);
       }),
     ['hansapp-cli user show --email me@example.com'],
@@ -79,9 +77,7 @@ export function userCommand(source: ConfigSource): Command {
         // enum 값과 정확히 맞춰야 Prisma 가 받는다. 대소문자만 관대하게 처리한다.
         const tier = options.tier.trim().toUpperCase() as UserTier;
         if (!TIERS.includes(tier)) {
-          throw new Error(
-            `알 수 없는 --tier: ${options.tier} (${TIERS.join(' | ')})`,
-          );
+          throw new Error(`알 수 없는 --tier: ${options.tier} (${TIERS.join(' | ')})`);
         }
         const info = await run(source, options.email, (apps, userId) =>
           apps.setUserTier(userId, tier),

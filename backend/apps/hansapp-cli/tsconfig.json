@@ -22,8 +22,5 @@
   // 아무도 import 하지 않아 CLI 프로그램에 안 들어온다 → "선언 파일을 찾을 수 없음" 오류.
   // 소스에 삼중슬래시 참조를 넣는 방법도 있으나 lint 규칙(triple-slash-reference)에 걸린다.
   // .d.ts 는 emit 대상이 아니라서 rootDir 밖에 있어도 문제되지 않는다.
-  "include": [
-    "src",
-    "../../packages/hansapp-auth-application/src/social/passport-social.d.ts"
-  ]
+  "include": ["src", "../../packages/hansapp-auth-application/src/social/passport-social.d.ts"]
 }

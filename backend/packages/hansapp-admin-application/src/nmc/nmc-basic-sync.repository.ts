@@ -12,11 +12,7 @@ export class NmcBasicSyncRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /** 아직 basic 을 안 받은(또는 force 면 전체) 대상 병원 수. */
-  async countPending(
-    divs: readonly string[],
-    clinics: boolean,
-    force: boolean,
-  ): Promise<number> {
+  async countPending(divs: readonly string[], clinics: boolean, force: boolean): Promise<number> {
     const { scope, notDone } = this.buildFilter(divs, clinics, force);
     const rows = await this.prisma.$queryRaw<{ c: bigint }[]>(
       Prisma.sql`SELECT COUNT(*) c FROM nmc_hospital WHERE ${scope} AND ${notDone}`,
@@ -66,9 +62,7 @@ export class NmcBasicSyncRepository {
   }
 
   /** 과목명 → 코드마스터(D000) 매칭. */
-  findSubjectCodes(
-    names: string[],
-  ): Promise<{ cmSid: string; cmSnm: string | null }[]> {
+  findSubjectCodes(names: string[]): Promise<{ cmSid: string; cmSnm: string | null }[]> {
     return this.prisma.nmcCode.findMany({
       where: { cmMid: 'D000', cmSnm: { in: names } },
       select: { cmSid: true, cmSnm: true },
@@ -84,10 +78,7 @@ export class NmcBasicSyncRepository {
     codes: { cmSid: string; cmSnm: string | null }[],
   ): Promise<void> {
     const values = Prisma.join(
-      codes.map(
-        (code) =>
-          Prisma.sql`(${hpid}, ${code.cmSid}, ${code.cmSnm}, 'basic', NOW())`,
-      ),
+      codes.map((code) => Prisma.sql`(${hpid}, ${code.cmSid}, ${code.cmSnm}, 'basic', NOW())`),
     );
 
     await this.prisma.$executeRaw(
@@ -116,9 +107,7 @@ export class NmcBasicSyncRepository {
       ? // 규모기관이 아닌 전부 (의원·치과의원·한의원·보건소 등)
         Prisma.sql`(duty_div IS NULL OR duty_div NOT IN (${order}))`
       : Prisma.sql`duty_div IN (${order})`;
-    const notDone = force
-      ? Prisma.sql`1 = 1`
-      : Prisma.sql`basic_synced_at IS NULL`;
+    const notDone = force ? Prisma.sql`1 = 1` : Prisma.sql`basic_synced_at IS NULL`;
     return { scope, notDone, order };
   }
 }

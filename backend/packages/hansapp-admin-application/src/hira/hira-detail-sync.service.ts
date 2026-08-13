@@ -108,23 +108,18 @@ export class HiraDetailSyncService {
     for (;;) {
       if (alive.size === 0) {
         limitReached = true;
-        this.logger.warn(
-          'HIRA 오퍼레이션 전부 일일 한도에 걸렸다. 내일 이어받는다.',
-        );
+        this.logger.warn('HIRA 오퍼레이션 전부 일일 한도에 걸렸다. 내일 이어받는다.');
         break;
       }
 
       const activeOps = ops.filter((op) => alive.has(op));
-      const budget =
-        options.limit === undefined ? Infinity : options.limit - calls;
+      const budget = options.limit === undefined ? Infinity : options.limit - calls;
 
       // 병원 하나를 진행하려면 살아있는 오퍼레이션 수만큼 콜이 필요하다.
       if (budget < activeOps.length) {
         limitReached = total > processed;
         if (limitReached) {
-          this.logger.log(
-            `콜 한도(${options.limit})에 도달했다. 다음 실행에서 이어받는다.`,
-          );
+          this.logger.log(`콜 한도(${options.limit})에 도달했다. 다음 실행에서 이어받는다.`);
         }
         break;
       }
@@ -145,20 +140,15 @@ export class HiraDetailSyncService {
       // (--limit 5 로 돌렸을 때 카운터는 5, 실제 콜은 15였다. 최대 동시성 배까지 어긋난다.)
       // --limit 은 일 10,000 한도를 지키는 유일한 가드라 어긋나면 한도를 넘겨 버린다.
       // 워커는 자기 콜 수만 반환하고, 합산은 모두 끝난 뒤 여기서 한 번에 한다.
-      const callsPerHospital = await mapWithConcurrency(
-        targets,
-        CONCURRENCY,
-        (ykiho) =>
-          this.fetchHospital(ykiho, activeOps, options.force === true, alive),
+      const callsPerHospital = await mapWithConcurrency(targets, CONCURRENCY, (ykiho) =>
+        this.fetchHospital(ykiho, activeOps, options.force === true, alive),
       );
       calls += callsPerHospital.reduce((sum, n) => sum + n, 0);
 
       processed += targets.length;
 
       if (alive.size < before) {
-        this.logger.warn(
-          `일일 한도 초과 — 남은 오퍼레이션: ${[...alive].join(', ') || '없음'}`,
-        );
+        this.logger.warn(`일일 한도 초과 — 남은 오퍼레이션: ${[...alive].join(', ') || '없음'}`);
       }
 
       this.logger.log(
@@ -227,9 +217,7 @@ export class HiraDetailSyncService {
         calls += 1;
 
         // --debug 로만 보인다. 병원 하나에 11줄이 찍힌다.
-        this.logger.debug(
-          `${ykiho.slice(0, 10)}… ${op.padEnd(10)} ${items.length}행`,
-        );
+        this.logger.debug(`${ykiho.slice(0, 10)}… ${op.padEnd(10)} ${items.length}행`);
       } catch (error) {
         if (error instanceof KrDataQuotaError) {
           alive.delete(op);
@@ -257,10 +245,7 @@ export class HiraDetailSyncService {
   }
 
   /** 오퍼레이션 하나 호출. 응답 item 을 배열로 정규화해 돌려준다. */
-  private async call(
-    op: HiraDetailOp,
-    ykiho: string,
-  ): Promise<Record<string, unknown>[]> {
+  private async call(op: HiraDetailOp, ykiho: string): Promise<Record<string, unknown>[]> {
     const response = await this.dispatch(op, ykiho);
     const body = (
       response as {
@@ -305,19 +290,15 @@ export class HiraDetailSyncService {
     }
   }
 
-  private async storeEquipment(
-    ykiho: string,
-    items: Record<string, unknown>[],
-  ): Promise<void> {
+  private async storeEquipment(ykiho: string, items: Record<string, unknown>[]): Promise<void> {
     const rows = items
       .map((item) => ({
         cd: asString(item.oftCd),
         nm: asString(item.oftCdNm),
         cnt: asNumber(item.oftCnt),
       }))
-      .filter(
-        (row): row is { cd: string; nm: string | null; cnt: number | null } =>
-          Boolean(row.cd),
+      .filter((row): row is { cd: string; nm: string | null; cnt: number | null } =>
+        Boolean(row.cd),
       );
 
     if (rows.length === 0) {
@@ -337,9 +318,7 @@ export class HiraDetailSyncService {
         cd: asString(item.srchCd),
         nm: asString(item.srchCdNm),
       }))
-      .filter((row): row is { cd: string; nm: string | null } =>
-        Boolean(row.cd),
-      );
+      .filter((row): row is { cd: string; nm: string | null } => Boolean(row.cd));
 
     if (rows.length === 0) {
       return;
@@ -352,10 +331,7 @@ export class HiraDetailSyncService {
    * 진료과목 매핑을 갱신한다. 매핑 자체는 1단계 역조회로 이미 있고,
    * 여기서 추가되는 것은 **과목별 전문의수(dgsbjtPrSdrCnt)** 뿐이다.
    */
-  private async storeSubjects(
-    ykiho: string,
-    items: Record<string, unknown>[],
-  ): Promise<void> {
+  private async storeSubjects(ykiho: string, items: Record<string, unknown>[]): Promise<void> {
     const rows = items
       .map((item) => ({
         cd: asString(item.dgsbjtCd),

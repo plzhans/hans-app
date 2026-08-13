@@ -42,9 +42,7 @@ export class HealthcareCodeSeedService {
     // 시드에서 빠진 코드는 지운다. 시드가 원본이므로 DB 에만 있는 코드는 유령이다.
     const keep = HEALTHCARE_CODES.map((c) => `${c.tp}|${c.cd}`);
     const existing = await this.repo.findExistingCodes();
-    const stale = existing.filter(
-      (row) => !keep.includes(`${row.tp}|${row.cd}`),
-    );
+    const stale = existing.filter((row) => !keep.includes(`${row.tp}|${row.cd}`));
 
     for (const row of stale) {
       await this.repo.deleteCode(row.tp, row.cd);
@@ -110,21 +108,13 @@ export class HealthcareCodeSeedService {
     }
 
     const ignored = (tp: string, src: string): readonly string[] =>
-      (
-        IGNORED_SOURCE_CODES as Record<
-          string,
-          Record<string, readonly string[]>
-        >
-      )[tp]?.[src] ?? [];
+      (IGNORED_SOURCE_CODES as Record<string, Record<string, readonly string[]>>)[tp]?.[src] ?? [];
 
     const unmapped: CodeSeedResult['unmapped'] = [];
 
     const hira = await this.repo.findHiraCodes();
     for (const row of hira) {
-      if (
-        !mapped.has(`${row.tp}|hira|${row.cd}`) &&
-        !ignored(row.tp, 'hira').includes(row.cd)
-      ) {
+      if (!mapped.has(`${row.tp}|hira|${row.cd}`) && !ignored(row.tp, 'hira').includes(row.cd)) {
         unmapped.push({
           tp: row.tp,
           src: 'hira',
@@ -142,10 +132,7 @@ export class HealthcareCodeSeedService {
     for (const [cmMid, tp] of nmcGroups) {
       const rows = await this.repo.findNmcCodes(cmMid);
       for (const row of rows) {
-        if (
-          !mapped.has(`${tp}|nmc|${row.cmSid}`) &&
-          !ignored(tp, 'nmc').includes(row.cmSid)
-        ) {
+        if (!mapped.has(`${tp}|nmc|${row.cmSid}`) && !ignored(tp, 'nmc').includes(row.cmSid)) {
           unmapped.push({
             tp,
             src: 'nmc',

@@ -32,10 +32,7 @@
 - 잘못된 키는 XML 이 아니라 JSON(OpenAPI_ServiceResponse.cmmMsgHeader)으로 떨어진다.
  * OpenAPI spec version: 1.0.0
  */
-import type {
-  GetStandardRegionCodeListParams,
-  StandardRegionCodeResponse,
-} from './model';
+import type { GetStandardRegionCodeListParams, StandardRegionCodeResponse } from './model';
 
 import { krDataMutator } from '../../mutator';
 
@@ -52,16 +49,12 @@ export type getStandardRegionCodeListResponse200 = {
   status: 200;
 };
 
-export type getStandardRegionCodeListResponseSuccess =
-  getStandardRegionCodeListResponse200 & {
-    headers: Headers;
-  };
-export type getStandardRegionCodeListResponse =
-  getStandardRegionCodeListResponseSuccess;
+export type getStandardRegionCodeListResponseSuccess = getStandardRegionCodeListResponse200 & {
+  headers: Headers;
+};
+export type getStandardRegionCodeListResponse = getStandardRegionCodeListResponseSuccess;
 
-export const getGetStandardRegionCodeListUrl = (
-  params?: GetStandardRegionCodeListParams,
-) => {
+export const getGetStandardRegionCodeListUrl = (params?: GetStandardRegionCodeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -81,11 +74,8 @@ export const getStandardRegionCodeList = async (
   params?: GetStandardRegionCodeListParams,
   options?: RequestInit,
 ): Promise<getStandardRegionCodeListResponse> => {
-  return krDataMutator<getStandardRegionCodeListResponse>(
-    getGetStandardRegionCodeListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getStandardRegionCodeListResponse>(getGetStandardRegionCodeListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };

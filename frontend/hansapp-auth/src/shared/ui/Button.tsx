@@ -6,11 +6,14 @@ type Variant = 'primary' | 'outline';
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   loading?: boolean;
+  /** 처리 중에 보여줄 말. 화면 언어가 다른 곳(영어인 로그인)에서 바꿔 넘긴다. */
+  loadingText?: string;
 }
 
 export function Button({
   variant = 'primary',
   loading = false,
+  loadingText = '처리 중…',
   className,
   children,
   disabled,
@@ -21,7 +24,8 @@ export function Button({
       {...rest}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition',
+        // 입력칸과 같은 치수로 움직인다(TextField 참고) — 둘 중 하나만 커지면 줄이 어긋난다.
+        'inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition lg:h-12 lg:text-base',
         'disabled:cursor-not-allowed disabled:opacity-60',
         variant === 'primary' && 'bg-primary text-white hover:bg-primary-700',
         variant === 'outline' &&
@@ -29,7 +33,7 @@ export function Button({
         className,
       )}
     >
-      {loading ? '처리 중…' : children}
+      {loading ? loadingText : children}
     </button>
   );
 }

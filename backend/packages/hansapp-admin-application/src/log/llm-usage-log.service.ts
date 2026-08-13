@@ -57,9 +57,7 @@ export class LlmUsageLogService {
       유일한 예외다 — 애플리케이션 로그에서 id 만 들고 넘어오는 길을 막으면 안 된다.
     */
     if (!query.from && !query.requestId) {
-      throw new BadRequestException(
-        'Either a start time (from) or a requestId is required.',
-      );
+      throw new BadRequestException('Either a start time (from) or a requestId is required.');
     }
 
     const [rows, total] = await this.repo.listPage(

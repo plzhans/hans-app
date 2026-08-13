@@ -1,5 +1,6 @@
 import { forwardRef, type SelectHTMLAttributes } from 'react';
 import { cn } from '@/shared/lib/cn';
+import { FieldRow } from './FieldRow';
 
 interface Option {
   value: string;
@@ -17,16 +18,12 @@ interface Props extends SelectHTMLAttributes<HTMLSelectElement> {
 export const SelectField = forwardRef<HTMLSelectElement, Props>(
   ({ label, hint, error, options, className, ...rest }, ref) => {
     return (
-      <label className="block">
-        <span className="mb-1 block text-sm font-medium text-gray-700">
-          {label}
-        </span>
-        {hint && <p className="mb-1 -mt-0.5 text-xs text-gray-400">{hint}</p>}
+      <FieldRow label={label} hint={hint} error={error}>
         <select
           ref={ref}
           {...rest}
           className={cn(
-            'h-11 w-full rounded-lg border bg-white px-3 text-sm outline-none transition',
+            'h-11 w-full rounded-lg border bg-white px-3 text-sm outline-none transition lg:h-12 lg:px-4 lg:text-base',
             'focus:border-primary focus:ring-2 focus:ring-primary-100',
             error ? 'border-red-400' : 'border-gray-300',
             className,
@@ -38,10 +35,7 @@ export const SelectField = forwardRef<HTMLSelectElement, Props>(
             </option>
           ))}
         </select>
-        {error && (
-          <span className="mt-1 block text-xs text-red-500">{error}</span>
-        )}
-      </label>
+      </FieldRow>
     );
   },
 );

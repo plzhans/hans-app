@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KrDataQuotaError } from '@krdata/core';
 
-import {
-  SyncJob,
-  SyncOutcome,
-  SyncStateService,
-} from '../common/sync-state.service';
+import { SyncJob, SyncOutcome, SyncStateService } from '../common/sync-state.service';
 import { NmcBabySyncService } from './nmc-baby-sync.service';
 import { NmcBasicSyncService } from './nmc-basic-sync.service';
 import { NmcCodeSyncService } from './nmc-code-sync.service';
@@ -82,18 +78,12 @@ export const DEFAULT_FRESHNESS_HOURS = 24;
  * 다른 기관 적재가 이 정본을 기준으로 지역을 매긴다. 주 1회로 두면 행정구역이 바뀐 주에
  * 최대 6일간 새 지역의 병원이 지역 없이 쌓인다.
  */
-export const PROVIDER_FRESHNESS_HOURS: Record<
-  string,
-  Record<number, number>
-> = {
+export const PROVIDER_FRESHNESS_HOURS: Record<string, Record<number, number>> = {
   mois: { 1: 24 },
 };
 
 export function freshnessHours(stage: number, provider?: string): number {
-  const override =
-    provider === undefined
-      ? undefined
-      : PROVIDER_FRESHNESS_HOURS[provider]?.[stage];
+  const override = provider === undefined ? undefined : PROVIDER_FRESHNESS_HOURS[provider]?.[stage];
   return override ?? STAGE_FRESHNESS_HOURS[stage] ?? DEFAULT_FRESHNESS_HOURS;
 }
 
@@ -118,9 +108,7 @@ export async function skipReason(
   const hours = freshnessHours(stage, job.provider);
   if (await state.isFresh(job, hours)) {
     const days = hours / 24;
-    return days >= 1
-      ? `최근 ${days}일 이내에 성공했다`
-      : `최근 ${hours}시간 이내에 성공했다`;
+    return days >= 1 ? `최근 ${days}일 이내에 성공했다` : `최근 ${hours}시간 이내에 성공했다`;
   }
   return undefined;
 }
@@ -162,10 +150,7 @@ export class NmcStageService {
    * 다시 받으므로 문제가 없다(전량 덮어쓰기라 멱등하다). 개별 조회(2·3단계)는 서비스 안에서
    * 이미 부분 결과를 들고 나오므로 여기까지 오지 않는다.
    */
-  private async guard(
-    stage: NmcStage,
-    options: StageRunOptions,
-  ): Promise<SyncOutcome> {
+  private async guard(stage: NmcStage, options: StageRunOptions): Promise<SyncOutcome> {
     try {
       return await this.execute(stage, options);
     } catch (error) {
@@ -179,10 +164,7 @@ export class NmcStageService {
     }
   }
 
-  private async execute(
-    stage: NmcStage,
-    options: StageRunOptions,
-  ): Promise<SyncOutcome> {
+  private async execute(stage: NmcStage, options: StageRunOptions): Promise<SyncOutcome> {
     switch (stage) {
       case 1:
         return this.stage1();

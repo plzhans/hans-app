@@ -26,9 +26,7 @@ export class AuthLogController {
       '`from` 은 **필수다** — 대상을 안 가리는 조회라 기간이 없으면 표를 통째로 읽는다.',
   })
   @ApiPageResponse(AuthLogDto)
-  async auth(
-    @Query() query: AuthLogQueryDto,
-  ): Promise<PageResponseDto<AuthLogDto>> {
+  async auth(@Query() query: AuthLogQueryDto): Promise<PageResponseDto<AuthLogDto>> {
     const page = await this.logs.list({
       page: query.page,
       size: query.size,
@@ -41,9 +39,6 @@ export class AuthLogController {
       userEmail: query.userEmail,
       anonymousOnly: query.anonymousOnly,
     });
-    return new PageResponseDto(
-      page,
-      page.items.map((entry) => new AuthLogDto(entry)),
-    );
+    return PageResponseDto.from(page.map((entry) => new AuthLogDto(entry)));
   }
 }

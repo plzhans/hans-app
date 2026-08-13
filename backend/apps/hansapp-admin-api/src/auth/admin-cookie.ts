@@ -1,9 +1,6 @@
 import type { Request, Response } from 'express';
 import type { ConfigSource } from '@hansapp/common';
-import type {
-  AdminAuthTokens,
-  AdminRequestMeta,
-} from '@hansapp/admin-application/auth';
+import type { AdminAuthTokens, AdminRequestMeta } from '@hansapp/admin-application/auth';
 import { resolveClientIp } from '@hansapp/http-common';
 
 import type { AdminTokenResponseDto } from './dto/admin-auth.dto';
@@ -54,8 +51,7 @@ function resolveCookiePrefix(cfg: ConfigSource, env: string): string {
 /** 부팅 시점에 설정을 한 번 읽어 고정한다(main 부트스트랩에서 호출). */
 export function initAdminCookie(cfg: ConfigSource, env: string): void {
   secure = cfg.getBoolOrDefault('auth.cookieSecure');
-  clientIpHeader =
-    cfg.getStringOrDefault('apps-admin-api.proxy.clientIpHeader') || undefined;
+  clientIpHeader = cfg.getStringOrDefault('apps-admin-api.proxy.clientIpHeader') || undefined;
 
   const prefix = resolveCookiePrefix(cfg, env);
   REFRESH_COOKIE = prefix + REFRESH_COOKIE_BASE;
@@ -119,10 +115,7 @@ export function readRefreshCookie(req: Request): string | undefined {
  * 위해 바디에도 실어 주지만, 관리자 클라이언트는 같은 오리진의 SPA 하나뿐이라 쿠키로 충분하다.
  * 바디에 실으면 JS 가 만질 수 있는 자리가 생기고, 그게 유일한 유출 경로가 된다.
  */
-export function respondTokens(
-  res: Response,
-  tokens: AdminAuthTokens,
-): AdminTokenResponseDto {
+export function respondTokens(res: Response, tokens: AdminAuthTokens): AdminTokenResponseDto {
   setAdminCookies(res, tokens);
   return {
     accessToken: tokens.accessToken,

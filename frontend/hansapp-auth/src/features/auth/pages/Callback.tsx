@@ -11,6 +11,7 @@ import { isFirstPartyReturn } from '@/shared/auth/returnTo';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
+import { FieldRow } from '@/shared/ui/FieldRow';
 import { TextField } from '@/shared/ui/TextField';
 import { socialErrorMessage } from '../socialError';
 import { AuthCard } from '../components/AuthCard';
@@ -220,7 +221,7 @@ export default function Callback() {
 
   if (phase === 'processing') {
     return (
-      <div className="flex h-full items-center justify-center text-gray-400">
+      <div className="flex flex-1 items-center justify-center text-gray-400">
         로그인 처리 중…
       </div>
     );
@@ -262,30 +263,38 @@ export default function Callback() {
             />
           )}
 
-          <ConsentFields
-            value={consent}
-            onChange={(next) => {
-              setConsent(next);
-              if (consentError) setConsentError(null);
-            }}
-            error={consentError ?? undefined}
-          />
+          <FieldRow as="div">
+            <ConsentFields
+              value={consent}
+              onChange={(next) => {
+                setConsent(next);
+                if (consentError) setConsentError(null);
+              }}
+              error={consentError ?? undefined}
+            />
+          </FieldRow>
 
-          {message && <p className="text-sm text-red-500">{message}</p>}
+          {message && (
+            <FieldRow as="div">
+              <p className="text-sm text-red-500">{message}</p>
+            </FieldRow>
+          )}
 
           {/*
             코드 인증이 필요 없는 provider(구글)는 발송 단계가 없다 — 동의만 하면 바로 가입이다.
             필요한 쪽은 [인증 코드 받기] → [가입 완료] 두 단계를 그대로 지난다.
           */}
-          {codeNeeded && !codeSent ? (
-            <Button type="button" loading={busy} onClick={onRequestCode}>
-              인증 코드 받기
-            </Button>
-          ) : (
-            <Button type="button" loading={busy} onClick={onConfirm}>
-              가입 완료
-            </Button>
-          )}
+          <FieldRow as="div">
+            {codeNeeded && !codeSent ? (
+              <Button type="button" loading={busy} onClick={onRequestCode}>
+                인증 코드 받기
+              </Button>
+            ) : (
+              <Button type="button" loading={busy} onClick={onConfirm}>
+                가입 완료
+              </Button>
+            )}
+          </FieldRow>
         </div>
 
         {codeNeeded && codeSent && (

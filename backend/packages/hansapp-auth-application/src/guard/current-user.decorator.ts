@@ -1,8 +1,4 @@
-import {
-  createParamDecorator,
-  ExecutionContext,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { createParamDecorator, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthUser } from './auth-user';
 
@@ -14,9 +10,7 @@ import { AuthUser } from './auth-user';
  */
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AuthUser => {
-    const request = ctx
-      .switchToHttp()
-      .getRequest<Request & { user?: AuthUser }>();
+    const request = ctx.switchToHttp().getRequest<Request & { user?: AuthUser }>();
     if (!request.user) {
       throw new UnauthorizedException('No authentication context.');
     }

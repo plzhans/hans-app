@@ -41,6 +41,24 @@ export const APP_ROOT_DOMAIN =
     .trim() ?? '';
 
 /**
+ * Google AdSense 게시자 ID(`ca-pub-…`). 비밀이 아니다 — 광고 태그에 그대로 실려 나간다.
+ *
+ * **비면 광고 영역을 아예 그리지 않는다.** 광고 단이 빠지면 카드도 원래 폭으로 돌아간다
+ * (→ AuthCard). 값을 받기 전까지는 모든 환경이 비어 있다.
+ */
+export const GOOGLE_ADSENSE_CLIENT_ID =
+  (import.meta.env.VITE_GOOGLE_ADSENSE_CLIENT_ID as string | undefined) || '';
+
+/**
+ * 로그인 화면에 넣을 광고 단위 ID(AdSense 의 data-ad-slot).
+ *
+ * 게시자 ID 와 **따로 받는다** — 게시자 ID 는 계정 하나에 하나지만 단위 ID 는 광고 자리마다
+ * 새로 만든다. 비어 있으면 광고 단은 자리만 잡고 아무것도 싣지 않는다.
+ */
+export const GOOGLE_ADSENSE_SLOT_LOGIN =
+  (import.meta.env.VITE_GOOGLE_ADSENSE_SLOT_LOGIN as string | undefined) || '';
+
+/**
  * Sentry DSN. 비밀이 아니다 — 이벤트 전송 전용 공개 엔드포인트라 어차피 번들에 구워진다.
  * **비면 Sentry 를 아예 켜지 않는다**(로컬 기본값).
  */
@@ -53,3 +71,10 @@ export const SENTRY_TRACES_SAMPLE_RATE =
 
 /** 이 산출물의 신원. vite define 이 빌드 때 박는다(→ vite.config.ts). Sentry release 로 쓴다. */
 export const APP_RELEASE = __APP_RELEASE__;
+/**
+ * 이 산출물을 구운 시각(ISO·UTC). 같은 define 이 넣는다.
+ *
+ * 개발 서버로 띄웠으면 **dev server 를 켠 시각**이다 — 코드를 고쳐도 갱신되지 않는다.
+ */
+export const APP_BUILT_AT = __APP_BUILT_AT__;
+

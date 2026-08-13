@@ -77,20 +77,14 @@ export function nameSimilarity(a: string, b: string): number {
 }
 
 /** 두 좌표 사이 거리 (m). Haversine. */
-export function distanceMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
+export function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6_371_000;
   const rad = Math.PI / 180;
   const dLat = (lat2 - lat1) * rad;
   const dLon = (lon2 - lon1) * rad;
 
   const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
 
   return 2 * R * Math.asin(Math.sqrt(h));
 }

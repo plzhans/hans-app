@@ -79,9 +79,7 @@ export class EmailSender {
     });
   }
 
-  private resolveTransporter(
-    smtp: SmtpSettings | null,
-  ): Transporter | undefined {
+  private resolveTransporter(smtp: SmtpSettings | null): Transporter | undefined {
     if (!smtp) {
       // 접속 정보가 사라졌다. 들고 있던 것도 버린다 — 다시 채우면 그때 새로 맺는다.
       this.close();
@@ -99,9 +97,7 @@ export class EmailSender {
       host: smtp.host,
       port: smtp.port,
       secure: smtp.secure,
-      auth: smtp.user
-        ? { user: smtp.user, pass: smtp.password ?? '' }
-        : undefined,
+      auth: smtp.user ? { user: smtp.user, pass: smtp.password ?? '' } : undefined,
     });
     return this.transporter;
   }
@@ -116,13 +112,7 @@ export class EmailSender {
 
 /** 접속에 영향을 주는 값만 모은다. from 이나 enabled 가 바뀐다고 다시 맺을 이유가 없다. */
 function signatureOf(smtp: SmtpSettings): string {
-  return JSON.stringify([
-    smtp.host,
-    smtp.port,
-    smtp.secure,
-    smtp.user ?? '',
-    smtp.password ?? '',
-  ]);
+  return JSON.stringify([smtp.host, smtp.port, smtp.secure, smtp.user ?? '', smtp.password ?? '']);
 }
 
 /** 설정에서 발송 가능 여부만 판정한다. 부팅 로그 등 "왜 안 나가나" 를 알리는 자리에 쓴다. */

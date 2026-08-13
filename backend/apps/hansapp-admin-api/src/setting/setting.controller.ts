@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Req } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { SettingAdminService } from '@hansapp/admin-application';
 import { CurrentAdmin } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
 
+import { externalBaseUrl } from '../auth/admin-social-flow';
 import { SettingGroupDto, SettingSaveRequestDto } from './dto/setting.dto';
 
 /**
@@ -25,11 +27,17 @@ export class SettingController {
   @ApiOperation({
     summary: '설정 목록',
     description:
-      '카탈로그(어떤 설정이 있는지)와 현재 값을 함께 준다. secret 값은 내려보내지 않는다.',
+      '카탈로그(어떤 설정이 있는지)와 현재 값을 함께 준다. secret 값은 내려보내지 않는다. ' +
+      'readonly 값(리디렉션 주소)은 저장된 값이 아니라 서버가 만들어 준 것이다.',
   })
   @ApiOkResponse({ type: [SettingGroupDto] })
-  async list(): Promise<SettingGroupDto[]> {
-    const groups = await this.settings.list();
+  async list(@Req() req: Request): Promise<SettingGroupDto[]> {
+    /*
+      **요청이 들어온 오리진을 같이 넘긴다.** 관리자 콘솔 로그인의 리디렉션 주소가 여기서
+      만들어지는데, 소셜 로그인도 같은 값으로 redirect_uri 를 조립한다(admin-social-flow) —
+      설정에 적힌 콘솔 주소를 쓰면 콘솔과 API 가 갈리는 로컬에서 엉뚱한 주소를 안내하게 된다.
+    */
+    const groups = await this.settings.list(externalBaseUrl(req));
     return groups.map((g) => new SettingGroupDto(g));
   }
 
@@ -45,12 +53,14 @@ export class SettingController {
     @Param('groupId') groupId: string,
     @Body() dto: SettingSaveRequestDto,
     @CurrentAdmin() admin: AdminAuthUser,
+    @Req() req: Request,
   ): Promise<SettingGroupDto[]> {
     // 누가 바꿨는지 남긴다 — 설정이 조용히 바뀌면 원인을 찾을 단서가 이것뿐이다.
     const groups = await this.settings.saveGroup(
       groupId,
       dto.values,
       admin.adminId,
+      externalBaseUrl(req),
     );
     return groups.map((g) => new SettingGroupDto(g));
   }

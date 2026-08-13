@@ -19,13 +19,13 @@ const PROVIDERS: Item[] = [
   },
   {
     key: 'kakao',
-    label: '카카오',
+    label: 'Kakao',
     className: 'bg-[#FEE500] text-[#191600] hover:brightness-95',
     icon: <KakaoIcon />,
   },
   {
     key: 'naver',
-    label: '네이버',
+    label: 'Naver',
     className: 'bg-[#03C75A] text-white hover:brightness-95',
     icon: <NaverIcon />,
   },
@@ -90,7 +90,8 @@ export function SocialButtons({
   };
 
   return (
-    <div className="grid grid-cols-2 gap-2">
+    // PC 는 카드가 넓어 네 개가 한 줄에 들어간다. 모바일은 2×2 그대로.
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
       {PROVIDERS.map((p) => (
         <button
           key={p.key}
@@ -98,7 +99,7 @@ export function SocialButtons({
           onClick={() => {
             void start(p.key);
           }}
-          className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${p.className}`}
+          className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition lg:h-12 lg:text-base ${p.className}`}
         >
           {p.icon}
           {p.label}

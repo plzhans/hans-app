@@ -49,13 +49,10 @@ export class HiraHospitalController {
   @Get()
   @ApiOperation({
     summary: '병원 목록 조회',
-    description:
-      '로컬 DB 에 미러링한 HIRA 병원 목록. 응답 구조는 원본 API 와 동일하다.',
+    description: '로컬 DB 에 미러링한 HIRA 병원 목록. 응답 구조는 원본 API 와 동일하다.',
   })
   @ApiOkResponse({ schema: krDataSchemaRef(RESPONSE_SCHEMA) })
-  async list(
-    @Query() request: MirrorListRequestDto,
-  ): Promise<HospitalListResponse> {
+  async list(@Query() request: MirrorListRequestDto): Promise<HospitalListResponse> {
     return this.hiraHospitalService.listHospitals({
       page: request.page,
       size: request.size,
@@ -66,8 +63,7 @@ export class HiraHospitalController {
   @Header('Cache-Control', DETAIL_CACHE_CONTROL)
   @ApiOperation({
     summary: '병원 상세 조회',
-    description:
-      '암호화된 요양기호로 1건 조회. 없으면 items 가 빈 배열이고 totalCount 가 0 이다.',
+    description: '암호화된 요양기호로 1건 조회. 없으면 items 가 빈 배열이고 totalCount 가 0 이다.',
   })
   @ApiParam({
     name: 'ykiho',
@@ -123,9 +119,7 @@ export class HiraHospitalController {
       '암호화된 요양기호. 통합 병원 상세(/healthcare/hospitals/:id)의 ykiho 를 그대로 쓴다.',
   })
   @ApiOkResponse({ schema: krDataSchemaRef(ASM_SCHEMA) })
-  async getAssessment(
-    @Param('ykiho') ykiho: string,
-  ): Promise<HospitalAssessmentResponse> {
+  async getAssessment(@Param('ykiho') ykiho: string): Promise<HospitalAssessmentResponse> {
     return this.hiraHospitalService.getAssessment(ykiho);
   }
 
@@ -146,9 +140,7 @@ export class HiraHospitalController {
   @Get(':ykiho/clinic-top5')
   @ApiExcludeEndpoint()
   @ApiOkResponse({ schema: krDataSchemaRef(CLINIC_TOP5_SCHEMA) })
-  async getClinicTop5(
-    @Param('ykiho') ykiho: string,
-  ): Promise<ClinicTop5Response> {
+  async getClinicTop5(@Param('ykiho') ykiho: string): Promise<ClinicTop5Response> {
     return this.hiraHospitalService.getClinicTop5(ykiho);
   }
 }

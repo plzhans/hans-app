@@ -2,11 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import {
-  createConfigSource,
-  envNameOf,
-  requireSettings,
-} from './config-source';
+import { createConfigSource, envNameOf, requireSettings } from './config-source';
 import type { ConfigSource } from './config-source';
 import { APP_ENVS } from './env';
 import type { AppEnv } from './env';
@@ -95,10 +91,7 @@ describe('환경변수 오버레이', () => {
     );
     process.env.AUTH_JWT_ALLOWED_ISSUERS = 'https://c, https://d';
 
-    expect(load().getStringArray('auth.jwt.allowedIssuers')).toEqual([
-      'https://c',
-      'https://d',
-    ]);
+    expect(load().getStringArray('auth.jwt.allowedIssuers')).toEqual(['https://c', 'https://d']);
   });
 
   it('섹션(객체)은 통째로 못 덮는다', () => {
@@ -161,26 +154,22 @@ describe('yaml 에 없는 경로', () => {
     writeConfig('config.develop', 'llm:\n  timeoutSec: 30\n');
     process.env.LLM_OPENAI_BASE_URL = 'https://vllm.internal/v1';
 
-    expect(load().getString('llm.openai.baseUrl')).toBe(
-      'https://vllm.internal/v1',
-    );
+    expect(load().getString('llm.openai.baseUrl')).toBe('https://vllm.internal/v1');
   });
 
   it('섹션 밑에서도 마찬가지다', () => {
     writeConfig('config.develop', 'llm:\n  timeoutSec: 30\n');
     process.env.LLM_OPENAI_BASE_URL = 'https://vllm.internal/v1';
 
-    expect(
-      load().getSection('llm').getSection('openai').getString('baseUrl'),
-    ).toBe('https://vllm.internal/v1');
+    expect(load().getSection('llm').getSection('openai').getString('baseUrl')).toBe(
+      'https://vllm.internal/v1',
+    );
   });
 
   it('환경변수도 없으면 기본값으로 떨어진다', () => {
     writeConfig('config.develop', 'llm:\n  timeoutSec: 30\n');
 
-    expect(load().getStringOrDefault('llm.openai.baseUrl', '(없음)')).toBe(
-      '(없음)',
-    );
+    expect(load().getStringOrDefault('llm.openai.baseUrl', '(없음)')).toBe('(없음)');
   });
 });
 
@@ -195,9 +184,7 @@ describe('섹션', () => {
     process.env.SECRET = '잎 이름';
 
     const cfg = load();
-    expect(cfg.getSection('auth').getSection('jwt').getString('secret')).toBe(
-      'from-env',
-    );
+    expect(cfg.getSection('auth').getSection('jwt').getString('secret')).toBe('from-env');
     expect(cfg.getSection('auth').getString('jwt.secret')).toBe('from-env');
     expect(cfg.getSection('auth:jwt').getString('secret')).toBe('from-env');
     expect(cfg.getString('auth.jwt.secret')).toBe('from-env');
@@ -213,17 +200,15 @@ describe('섹션', () => {
   it('없는 섹션을 열어도 터지지 않는다', () => {
     writeConfig('config.develop', yaml);
 
-    expect(
-      load().getSection('nope.nothing').getStringOrDefault('x', '(기본값)'),
-    ).toBe('(기본값)');
+    expect(load().getSection('nope.nothing').getStringOrDefault('x', '(기본값)')).toBe('(기본값)');
   });
 
   it('끝값을 섹션으로 열어도 터지지 않는다', () => {
     writeConfig('config.develop', yaml);
 
-    expect(
-      load().getSection('auth.jwt.secret').getStringOrDefault('x', '(기본값)'),
-    ).toBe('(기본값)');
+    expect(load().getSection('auth.jwt.secret').getStringOrDefault('x', '(기본값)')).toBe(
+      '(기본값)',
+    );
   });
 });
 
@@ -231,19 +216,13 @@ describe('환경변수 이름 충돌', () => {
   it('두 경로가 같은 이름으로 접히면 부팅을 거부한다', () => {
     // `apps.api.port` 와 `apps-api.port` 는 둘 다 APPS_API_PORT 다. 환경변수로 구별할
     // 방법이 없으므로 값이 주입되기를 기다리지 않고 설정을 읽는 순간 잡는다.
-    writeConfig(
-      'config.develop',
-      'apps:\n  api:\n    port: 1\napps-api:\n  port: 2\n',
-    );
+    writeConfig('config.develop', 'apps:\n  api:\n    port: 1\napps-api:\n  port: 2\n');
 
     expect(() => load()).toThrow(/APPS_API_PORT/);
   });
 
   it('환경변수가 실제로 없어도 거부한다', () => {
-    writeConfig(
-      'config.develop',
-      'apps:\n  api:\n    port: 1\napps-api:\n  port: 2\n',
-    );
+    writeConfig('config.develop', 'apps:\n  api:\n    port: 1\napps-api:\n  port: 2\n');
     delete process.env.APPS_API_PORT;
 
     expect(() => load()).toThrow(/같은 환경변수 이름/);
@@ -253,10 +232,7 @@ describe('환경변수 이름 충돌', () => {
 describe('yaml 병합', () => {
   it('config.yaml 위에 config.<환경>.yaml 이 이긴다', () => {
     // 컨테이너는 환경 이름 없는 config.yaml 로 마운트받고, 로컬은 환경별 파일을 쓴다.
-    writeConfig(
-      'config',
-      'apps-api:\n  name: base\n  externalUrl: https://base\n',
-    );
+    writeConfig('config', 'apps-api:\n  name: base\n  externalUrl: https://base\n');
     writeConfig('config.develop', 'apps-api:\n  name: develop\n');
 
     const cfg = load();
@@ -267,10 +243,7 @@ describe('yaml 병합', () => {
 
   it('config.<환경>.local.yaml 이 가장 세다', () => {
     // .env.<환경>.local 과 같은 자리다 — 개인 오버라이드라 커밋하지 않는다(.gitignore).
-    writeConfig(
-      'config',
-      'apps-api:\n  name: base\n  externalUrl: https://base\n',
-    );
+    writeConfig('config', 'apps-api:\n  name: base\n  externalUrl: https://base\n');
     writeConfig('config.develop', 'apps-api:\n  name: develop\n');
     writeConfig('config.develop.local', 'apps-api:\n  name: 내것\n');
 
@@ -298,9 +271,9 @@ describe('값 읽기', () => {
     // 섹션 기준 이름(`secret`)만 찍히면 어느 줄을 고쳐야 하는지 알 수 없다.
     writeConfig('config.develop', 'auth:\n  jwt:\n    secret:\n');
 
-    expect(() =>
-      load().getSection('auth').getSection('jwt').getString('secret'),
-    ).toThrow('필수 설정이 없다: auth.jwt.secret');
+    expect(() => load().getSection('auth').getSection('jwt').getString('secret')).toThrow(
+      '필수 설정이 없다: auth.jwt.secret',
+    );
   });
 
   it('숫자가 아니면 던진다', () => {
@@ -312,10 +285,7 @@ describe('값 읽기', () => {
   });
 
   it('환경변수로 들어온 문자열도 타입으로 읽는다', () => {
-    writeConfig(
-      'config.develop',
-      'auth:\n  cookieSecure: true\n  otp:\n    ttlSec: 600\n',
-    );
+    writeConfig('config.develop', 'auth:\n  cookieSecure: true\n  otp:\n    ttlSec: 600\n');
     process.env.AUTH_COOKIE_SECURE = 'false';
     process.env.AUTH_OTP_TTL_SEC = '900';
 
@@ -325,10 +295,7 @@ describe('값 읽기', () => {
   });
 
   it('기간 문자열을 초로 바꾼다', () => {
-    writeConfig(
-      'config.develop',
-      'auth:\n  jwt:\n    accessTokenExpiresIn: 1h\n',
-    );
+    writeConfig('config.develop', 'auth:\n  jwt:\n    accessTokenExpiresIn: 1h\n');
 
     expect(load().getDurationSec('auth.jwt.accessTokenExpiresIn')).toBe(3600);
   });
@@ -365,9 +332,7 @@ describe('requireSettings — 필수 설정 방어', () => {
     // 시크릿을 빈값으로 두는 것은 끄겠다는 뜻이 아니라 실수다.
     writeConfig('config.develop', "auth:\n  jwt:\n    secret: ''\n");
 
-    expect(() => requireSettings(load(), ['auth.jwt.secret'])).toThrow(
-      /AUTH_JWT_SECRET/,
-    );
+    expect(() => requireSettings(load(), ['auth.jwt.secret'])).toThrow(/AUTH_JWT_SECRET/);
   });
 
   it('다 있으면 조용히 지나간다', () => {

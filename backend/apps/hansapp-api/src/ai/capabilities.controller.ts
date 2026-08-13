@@ -1,16 +1,8 @@
-import {
-  Controller,
-  Get,
-  Req,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Controller, Get, Req, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
-import {
-  AiModelService,
-  HealthcareAiSearchService,
-} from '@hansapp/application';
+import { AiModelService, HealthcareAiSearchService } from '@hansapp/application';
 
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';

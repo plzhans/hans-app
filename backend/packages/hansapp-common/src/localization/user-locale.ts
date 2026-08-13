@@ -8,11 +8,7 @@
  * 공개 인증과 admin 이 같은 규칙을 써야 해서 common 에 둔다.
  */
 
-import {
-  resolveLang,
-  SUPPORTED_LANGS,
-  type SupportedLang,
-} from './accept-language';
+import { resolveLang, SUPPORTED_LANGS, type SupportedLang } from './accept-language';
 import { countryOfTimeZone, isValidTimeZone } from './time-zone';
 
 /** 브라우저에서 뽑아 보내는 원본. 둘 다 없을 수 있다(구형 브라우저·비브라우저 클라이언트). */
@@ -48,11 +44,8 @@ export function isSupportedLang(value: string): value is SupportedLang {
  * 쓰지 않는 것은 그게 위치가 아니라 **언어 설정**이기 때문이다 — 해외에서 한국어를 쓰는
  * 사람이 전부 KR 로 잡힌다.
  */
-export function resolveUserLocale(
-  input: ClientLocaleInput,
-): ResolvedUserLocale {
-  const timeZone =
-    input.timeZone && isValidTimeZone(input.timeZone) ? input.timeZone : null;
+export function resolveUserLocale(input: ClientLocaleInput): ResolvedUserLocale {
+  const timeZone = input.timeZone && isValidTimeZone(input.timeZone) ? input.timeZone : null;
 
   return {
     countryCode: timeZone ? countryOfTimeZone(timeZone) : null,

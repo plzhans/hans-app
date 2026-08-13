@@ -8,7 +8,9 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiCreatedResponse,
   ApiExcludeController,
@@ -20,15 +22,13 @@ import {
   AppService,
   Auth,
   AuthType,
+  ConsentService,
   CurrentUser,
   reviewStateOf,
 } from '@hansapp/auth-application';
-import type {
-  App,
-  AppApiKey,
-  AppClient,
-  AuthUser,
-} from '@hansapp/auth-application';
+import type { App, AppApiKey, AppClient, AuthUser } from '@hansapp/auth-application';
+
+import { requestMeta } from '../auth/refresh-cookie';
 
 import {
   ApiKeySummaryDto,
@@ -61,7 +61,10 @@ import {
 @Auth(AuthType.Jwt)
 @Controller('apps')
 export class AppsController {
-  constructor(private readonly apps: AppService) {}
+  constructor(
+    private readonly apps: AppService,
+    private readonly consent: ConsentService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: '내 앱 목록' })
@@ -74,14 +77,22 @@ export class AppsController {
   @Post()
   @ApiOperation({
     summary: '앱 등록',
-    description: '등급별 생성 한도를 초과하면 403.',
+    description: 'API 이용약관 동의가 필요하다. 등급별 생성 한도를 초과하면 403.',
   })
   @ApiCreatedResponse({ type: AppSummaryDto })
   async create(
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateAppDto,
+    @Req() req: Request,
   ): Promise<AppSummaryDto> {
-    return toAppSummary(await this.apps.createApp(user.userId, dto.name));
+    // **앱을 만들기 전에 막는다.** 통과 못 하면 아무것도 생기지 않는다.
+    this.consent.assertApiTerms(dto.apiTermsVersion);
+
+    const app = await this.apps.createApp(user.userId, dto.name);
+    // 기록이 실패해도 앱을 되돌리지 않는다 — 이미 만들어진 뒤라 되돌리면 사용자는 "등록이
+    // 안 된" 것으로 보는데, 실제로 잃은 것은 우리 쪽 증빙이다(ConsentService.record 와 같다).
+    await this.consent.recordApiTerms(user.userId, dto.apiTermsVersion, requestMeta(req));
+    return toAppSummary(app);
   }
 
   @Get(':id')
@@ -165,11 +176,7 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateApiKeyDto,
   ): Promise<CreatedApiKeyDto> {
-    const { apiKey, plainKey } = await this.apps.createApiKey(
-      user.userId,
-      id,
-      dto.name,
-    );
+    const { apiKey, plainKey } = await this.apps.createApiKey(user.userId, id, dto.name);
     return {
       id: apiKey.id,
       name: apiKey.name,
@@ -192,11 +199,7 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
     @Param('keyId', ParseIntPipe) keyId: number,
   ): Promise<CreatedApiKeyDto> {
-    const { apiKey, plainKey } = await this.apps.regenerateApiKey(
-      user.userId,
-      id,
-      keyId,
-    );
+    const { apiKey, plainKey } = await this.apps.regenerateApiKey(user.userId, id, keyId);
     return {
       id: apiKey.id,
       name: apiKey.name,
@@ -213,7 +216,8 @@ export class AppsController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ApiKeySummaryDto[]> {
-    return (await this.apps.listApiKeys(user.userId, id)).map(toApiKeySummary);
+    const keys = await this.apps.listApiKeys(user.userId, id);
+    return keys.map(toApiKeySummary);
   }
 
   @Delete(':id/api-keys/:keyId')
@@ -241,21 +245,17 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateClientDto,
   ): Promise<CreatedClientDto> {
-    const { client, plainSecret } = await this.apps.createClient(
-      user.userId,
-      id,
-      {
-        type: dto.type,
-        name: dto.name,
-        clientId: dto.clientId,
-        origins: dto.origins,
-        redirectUris: dto.redirectUris,
-        bundleId: dto.bundleId,
-        teamId: dto.teamId,
-        packageName: dto.packageName,
-        fingerprints: dto.fingerprints,
-      },
-    );
+    const { client, plainSecret } = await this.apps.createClient(user.userId, id, {
+      type: dto.type,
+      name: dto.name,
+      clientId: dto.clientId,
+      origins: dto.origins,
+      redirectUris: dto.redirectUris,
+      bundleId: dto.bundleId,
+      teamId: dto.teamId,
+      packageName: dto.packageName,
+      fingerprints: dto.fingerprints,
+    });
     return { ...toClient(client), secret: plainSecret };
   }
 
@@ -263,8 +263,7 @@ export class AppsController {
   @HttpCode(200)
   @ApiOperation({
     summary: '클라이언트 보안 비밀번호 재발급',
-    description:
-      '기존 시크릿은 즉시 무효화된다. 새 원문은 이 응답에서만 확인 가능하다.',
+    description: '기존 시크릿은 즉시 무효화된다. 새 원문은 이 응답에서만 확인 가능하다.',
   })
   @ApiOkResponse({ type: SecretResponseDto })
   async regenerateSecret(
@@ -272,11 +271,7 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
     @Param('clientPk', ParseIntPipe) clientPk: number,
   ): Promise<SecretResponseDto> {
-    const secret = await this.apps.regenerateClientSecret(
-      user.userId,
-      id,
-      clientPk,
-    );
+    const secret = await this.apps.regenerateClientSecret(user.userId, id, clientPk);
     return { secret };
   }
 
@@ -287,7 +282,8 @@ export class AppsController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ClientDto[]> {
-    return (await this.apps.listClients(user.userId, id)).map(toClient);
+    const clients = await this.apps.listClients(user.userId, id);
+    return clients.map(toClient);
   }
 
   @Patch(':id/clients/:clientPk')

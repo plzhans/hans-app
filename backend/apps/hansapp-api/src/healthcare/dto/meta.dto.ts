@@ -16,8 +16,7 @@ export class MetaCodeDto {
 export class MetaSubjectDto extends MetaCodeDto {
   @ApiProperty({
     enum: ['med', 'dent', 'km'],
-    description:
-      '면허 계열. med(의과) · dent(치과) · km(한방). 화면이 이걸로 그룹핑한다.',
+    description: '면허 계열. med(의과) · dent(치과) · km(한방). 화면이 이걸로 그룹핑한다.',
   })
   readonly field!: string;
 

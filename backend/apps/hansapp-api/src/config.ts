@@ -9,10 +9,6 @@ import type { AppEnv, ConfigSource, DotenvLoader } from '@hansapp/common';
  * 반환한 접근자에서 **필요한 값은 부팅 시점에 한 번 읽어 고정**해 쓴다. 요청마다 getX 를
  * 부르지 않는다(경로 탐색 비용). 모듈 레벨 유틸은 init 함수로 값을 넘겨받아 굳힌다.
  */
-export function loadServerConfig(
-  appDir: string,
-  env: AppEnv,
-  loader: DotenvLoader,
-): ConfigSource {
+export function loadServerConfig(appDir: string, env: AppEnv, loader: DotenvLoader): ConfigSource {
   return createConfigSource(appDir, env, loader);
 }

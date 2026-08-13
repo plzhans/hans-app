@@ -47,9 +47,7 @@ export class HiraNpaySyncService {
     let upserted = 0;
     let calls = 0;
 
-    for await (const response of this.client.paginateNonPaymentDetails(
-      PAGE_SIZE,
-    )) {
+    for await (const response of this.client.paginateNonPaymentDetails(PAGE_SIZE)) {
       const body = response.response?.body;
       const items = body?.items?.item ?? [];
       totalCount = body?.totalCount ?? 0;
@@ -58,18 +56,14 @@ export class HiraNpaySyncService {
       upserted += await this.upsert(items);
       fetched += items.length;
 
-      this.logger.log(
-        `HIRA 비급여 ${fetched.toLocaleString()}/${totalCount.toLocaleString()}`,
-      );
+      this.logger.log(`HIRA 비급여 ${fetched.toLocaleString()}/${totalCount.toLocaleString()}`);
     }
 
     // 전수를 다 받은 뒤에만 지운다. 중간에 실패해서 일부만 받았다면 살아 있는 행을 대량으로
     // 지우게 되므로, 순회가 끝까지 갔을 때(= for await 가 정상 종료) 여기 도달하는 것에 의존한다.
     const deleted = await this.deleteStale(startedAt);
     if (deleted > 0) {
-      this.logger.log(
-        `원본에서 사라진 비급여 ${deleted.toLocaleString()}건 삭제`,
-      );
+      this.logger.log(`원본에서 사라진 비급여 ${deleted.toLocaleString()}건 삭제`);
     }
 
     return { total: totalCount, processed: upserted, calls };
@@ -84,9 +78,7 @@ export class HiraNpaySyncService {
   private async upsert(items: NonPaymentDetailItem[]): Promise<number> {
     const rows = items.filter(
       (item): item is NonPaymentDetailItem & { ykiho: string; sno: number } =>
-        typeof item.ykiho === 'string' &&
-        item.ykiho.length > 0 &&
-        typeof item.sno === 'number',
+        typeof item.ykiho === 'string' && item.ykiho.length > 0 && typeof item.sno === 'number',
     );
 
     const skipped = items.length - rows.length;

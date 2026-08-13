@@ -1,12 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsEmail,
-  IsNotEmptyObject,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
+import { IsEmail, IsNotEmptyObject, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 import { ClientLocaleDto, ConsentDto } from './auth.dto';
 
@@ -24,8 +18,7 @@ export class SocialRegisterRequestDto {
   readonly email?: string;
 
   @ApiPropertyOptional({
-    description:
-      'provider 가 이메일을 검증하지 않은 경우(code_required) 메일로 받은 인증 코드',
+    description: 'provider 가 이메일을 검증하지 않은 경우(code_required) 메일로 받은 인증 코드',
   })
   @IsOptional()
   @IsString()

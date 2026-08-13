@@ -42,8 +42,7 @@ export class HospitalFilterRequestDto {
   readonly region?: string;
 
   @ApiPropertyOptional({
-    description:
-      '종별 코드. 쉼표로 여러 개(OR). /healthcare/meta/classes 참조.',
+    description: '종별 코드. 쉼표로 여러 개(OR). /healthcare/meta/classes 참조.',
     example: 'CLINIC,HOSPITAL',
   })
   @IsOptional()
@@ -116,8 +115,7 @@ export class HospitalFilterRequestDto {
   readonly assessment?: string;
 
   @ApiPropertyOptional({
-    description:
-      '전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조.',
+    description: '전문병원 지정분야 코드. 쉼표로 여러 개(OR). /healthcare/meta/specialties 참조.',
     example: 'SPINE,JOINT',
   })
   @IsOptional()
@@ -125,16 +123,14 @@ export class HospitalFilterRequestDto {
   readonly specialty?: string;
 
   @ApiPropertyOptional({
-    description:
-      '특수진료 코드. 쉼표로 여러 개(OR). /healthcare/meta/specials 참조.',
+    description: '특수진료 코드. 쉼표로 여러 개(OR). /healthcare/meta/specials 참조.',
   })
   @IsOptional()
   @IsString()
   readonly special?: string;
 
   @ApiPropertyOptional({
-    description:
-      '보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조.',
+    description: '보유장비 코드. 쉼표로 여러 개(OR). /healthcare/meta/equipments 참조.',
     example: 'CT,MRI',
   })
   @IsOptional()
@@ -210,8 +206,7 @@ export class HospitalFilterRequestDto {
   readonly lat?: number;
 
   @ApiPropertyOptional({
-    description:
-      '거리 계산 기준 경도. `sort=distance` 일 때만 쓴다(lat 설명 참고).',
+    description: '거리 계산 기준 경도. `sort=distance` 일 때만 쓴다(lat 설명 참고).',
     example: 127.0,
   })
   @IsOptional()
@@ -430,8 +425,7 @@ export class HospitalSummaryDto {
 
   @ApiPropertyOptional({
     type: CodeDto,
-    description:
-      '전문병원 지정분야(관절·척추·심장 …). 보건복지부 지정이라 병원당 최대 1건이다.',
+    description: '전문병원 지정분야(관절·척추·심장 …). 보건복지부 지정이라 병원당 최대 1건이다.',
   })
   readonly specialty?: CodeDto;
 
@@ -557,8 +551,7 @@ export class SubjectDto {
 
   @ApiPropertyOptional({
     type: Number,
-    description:
-      '과목별 전문의수. 0보다 크면 **표시과목**이다. 상세 수집이 끝난 병원만 값이 있다.',
+    description: '과목별 전문의수. 0보다 크면 **표시과목**이다. 상세 수집이 끝난 병원만 값이 있다.',
   })
   readonly specialistCount?: number;
 }
@@ -781,8 +774,7 @@ export class TransportRouteDto {
   @ApiPropertyOptional({
     type: String,
     example: '5분~10분 소요',
-    description:
-      '거리 **또는 소요시간**. 표기가 일정하지 않아 계산에 쓰지 않는다',
+    description: '거리 **또는 소요시간**. 표기가 일정하지 않아 계산에 쓰지 않는다',
   })
   readonly distance?: string;
 

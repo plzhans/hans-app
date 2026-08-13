@@ -27,11 +27,7 @@ export interface IndexResult {
  * 색인 진행 콜백. target 은 지금 색인 중인 **실제 인덱스명**이다 — reindex 는 매번 새 버전
  * 인덱스(name-vN)에 넣으므로, 어디에 색인 중인지 화면에 보여줄 수 있게 넘긴다.
  */
-export type IndexProgress = (
-  processed: number,
-  total: number,
-  target: string,
-) => void;
+export type IndexProgress = (processed: number, total: number, target: string) => void;
 
 /** blue-green 재색인 결과. IndexResult(색인 통계) + 스왑/정리 정보. */
 export interface ReindexResult extends IndexResult {
@@ -109,9 +105,7 @@ export class HealthcareIndexService {
     const result = await this.indexAll(newIndex, onProgress);
 
     // 3) 가드: 활성 대상의 대부분이 실제로 색인됐을 때만 스왑한다.
-    const healthy =
-      result.total > 0 &&
-      result.indexed >= result.total * SWAP_MIN_SUCCESS_RATIO;
+    const healthy = result.total > 0 && result.indexed >= result.total * SWAP_MIN_SUCCESS_RATIO;
     if (!healthy) {
       this.logger.error(
         `재색인 결과 비정상(indexed=${result.indexed}/${result.total}, failed=${result.failed}, skipped=${result.skipped}) — alias 스왑 중단. 새 인덱스 ${newIndex} 를 삭제하고 라이브는 옛 인덱스로 유지한다.`,
@@ -145,10 +139,7 @@ export class HealthcareIndexService {
    * 예외: DB 읽기 실패(loadBatch throw)는 건너뛰지 않는다 — 그건 특정 행이 아니라 연결·쿼리 문제라
    * 계속해봐야 같은 실패다. 그대로 던져 전체를 멈춘다.
    */
-  private async indexAll(
-    target: string,
-    onProgress?: IndexProgress,
-  ): Promise<IndexResult> {
+  private async indexAll(target: string, onProgress?: IndexProgress): Promise<IndexResult> {
     const batchSize = this.config.batchSize;
     const [grandTotal, regionParents] = await Promise.all([
       this.repo.countActive(),

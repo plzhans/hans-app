@@ -1,9 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  HiraCodeService,
-  type HiraCodeResponse,
-  type HiraCodeType,
-} from '@hansapp/application';
+import { HiraCodeService, type HiraCodeResponse, type HiraCodeType } from '@hansapp/application';
 
 import { DataSource } from '../common/data-source';
 import { HIRA_CODE_FETCHERS } from './hira-code.fetchers';

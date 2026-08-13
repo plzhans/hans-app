@@ -185,13 +185,10 @@ export const getTransportInfo = async (
   params: GetTransportInfoParams,
   options?: RequestInit,
 ): Promise<getTransportInfoResponse> => {
-  return krDataMutator<getTransportInfoResponse>(
-    getGetTransportInfoUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getTransportInfoResponse>(getGetTransportInfoUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -228,13 +225,10 @@ export const getEquipmentInfo = async (
   params: GetEquipmentInfoParams,
   options?: RequestInit,
 ): Promise<getEquipmentInfoResponse> => {
-  return krDataMutator<getEquipmentInfoResponse>(
-    getGetEquipmentInfoUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getEquipmentInfoResponse>(getGetEquipmentInfoUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -246,15 +240,12 @@ export type getNursingGradeInfoResponse200 = {
   status: 200;
 };
 
-export type getNursingGradeInfoResponseSuccess =
-  getNursingGradeInfoResponse200 & {
-    headers: Headers;
-  };
+export type getNursingGradeInfoResponseSuccess = getNursingGradeInfoResponse200 & {
+  headers: Headers;
+};
 export type getNursingGradeInfoResponse = getNursingGradeInfoResponseSuccess;
 
-export const getGetNursingGradeInfoUrl = (
-  params: GetNursingGradeInfoParams,
-) => {
+export const getGetNursingGradeInfoUrl = (params: GetNursingGradeInfoParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -274,13 +265,10 @@ export const getNursingGradeInfo = async (
   params: GetNursingGradeInfoParams,
   options?: RequestInit,
 ): Promise<getNursingGradeInfoResponse> => {
-  return krDataMutator<getNursingGradeInfoResponse>(
-    getGetNursingGradeInfoUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getNursingGradeInfoResponse>(getGetNursingGradeInfoUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -332,16 +320,12 @@ export type getSpecialDiagnosisInfoResponse200 = {
   status: 200;
 };
 
-export type getSpecialDiagnosisInfoResponseSuccess =
-  getSpecialDiagnosisInfoResponse200 & {
-    headers: Headers;
-  };
-export type getSpecialDiagnosisInfoResponse =
-  getSpecialDiagnosisInfoResponseSuccess;
+export type getSpecialDiagnosisInfoResponseSuccess = getSpecialDiagnosisInfoResponse200 & {
+  headers: Headers;
+};
+export type getSpecialDiagnosisInfoResponse = getSpecialDiagnosisInfoResponseSuccess;
 
-export const getGetSpecialDiagnosisInfoUrl = (
-  params: GetSpecialDiagnosisInfoParams,
-) => {
+export const getGetSpecialDiagnosisInfoUrl = (params: GetSpecialDiagnosisInfoParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -361,13 +345,10 @@ export const getSpecialDiagnosisInfo = async (
   params: GetSpecialDiagnosisInfoParams,
   options?: RequestInit,
 ): Promise<getSpecialDiagnosisInfoResponse> => {
-  return krDataMutator<getSpecialDiagnosisInfoResponse>(
-    getGetSpecialDiagnosisInfoUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getSpecialDiagnosisInfoResponse>(getGetSpecialDiagnosisInfoUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -384,8 +365,7 @@ export type getSpecialtyHospitalFieldListResponseSuccess =
   getSpecialtyHospitalFieldListResponse200 & {
     headers: Headers;
   };
-export type getSpecialtyHospitalFieldListResponse =
-  getSpecialtyHospitalFieldListResponseSuccess;
+export type getSpecialtyHospitalFieldListResponse = getSpecialtyHospitalFieldListResponseSuccess;
 
 export const getGetSpecialtyHospitalFieldListUrl = (
   params: GetSpecialtyHospitalFieldListParams,
@@ -427,16 +407,12 @@ export type getSpecialistCountInfoResponse200 = {
   status: 200;
 };
 
-export type getSpecialistCountInfoResponseSuccess =
-  getSpecialistCountInfoResponse200 & {
-    headers: Headers;
-  };
-export type getSpecialistCountInfoResponse =
-  getSpecialistCountInfoResponseSuccess;
+export type getSpecialistCountInfoResponseSuccess = getSpecialistCountInfoResponse200 & {
+  headers: Headers;
+};
+export type getSpecialistCountInfoResponse = getSpecialistCountInfoResponseSuccess;
 
-export const getGetSpecialistCountInfoUrl = (
-  params: GetSpecialistCountInfoParams,
-) => {
+export const getGetSpecialistCountInfoUrl = (params: GetSpecialistCountInfoParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -456,13 +432,10 @@ export const getSpecialistCountInfo = async (
   params: GetSpecialistCountInfoParams,
   options?: RequestInit,
 ): Promise<getSpecialistCountInfoResponse> => {
-  return krDataMutator<getSpecialistCountInfoResponse>(
-    getGetSpecialistCountInfoUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getSpecialistCountInfoResponse>(getGetSpecialistCountInfoUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**

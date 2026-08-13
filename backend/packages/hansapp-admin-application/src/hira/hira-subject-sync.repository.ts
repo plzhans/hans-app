@@ -25,19 +25,12 @@ export class HiraSubjectSyncRepository {
    * source='list' 로 적재한다. 나중에 getSubjectInfo 가 전문의수까지 채우며 덮어쓴다.
    * 이미 'subject' 로 채워진 행은 역조회가 되돌리지 않는다(전문의수를 날리지 않기 위해).
    */
-  async upsertSubjects(
-    ykihos: string[],
-    dgsbjtCd: string,
-    dgsbjtNm: string | null,
-  ): Promise<void> {
+  async upsertSubjects(ykihos: string[], dgsbjtCd: string, dgsbjtNm: string | null): Promise<void> {
     for (let i = 0; i < ykihos.length; i += CHUNK_SIZE) {
       const chunk = ykihos.slice(i, i + CHUNK_SIZE);
 
       const values = Prisma.join(
-        chunk.map(
-          (ykiho) =>
-            Prisma.sql`(${ykiho}, ${dgsbjtCd}, ${dgsbjtNm}, 'list', NOW())`,
-        ),
+        chunk.map((ykiho) => Prisma.sql`(${ykiho}, ${dgsbjtCd}, ${dgsbjtNm}, 'list', NOW())`),
       );
 
       await this.prisma.$executeRaw(

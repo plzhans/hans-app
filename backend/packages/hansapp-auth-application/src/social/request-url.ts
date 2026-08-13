@@ -13,8 +13,7 @@ function first(value: string | string[] | undefined): string | undefined {
  * redirect_uri 를 별도 env 없이 요청 도메인 그대로 구성하는 데 쓴다.
  */
 export function externalBaseUrl(req: Request): string {
-  const proto =
-    first(req.headers['x-forwarded-proto']) ?? req.protocol ?? 'https';
+  const proto = first(req.headers['x-forwarded-proto']) ?? req.protocol ?? 'https';
   const host = first(req.headers['x-forwarded-host']) ?? req.get('host') ?? '';
   return `${proto}://${host}`;
 }

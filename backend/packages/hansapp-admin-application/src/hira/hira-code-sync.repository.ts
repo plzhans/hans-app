@@ -19,12 +19,6 @@ export class HiraCodeSyncRepository {
 
   /** hira_code 에 (tp, cd) 키로 벌크 upsert. 처리한 행 수를 반환한다. */
   upsertCodes(rows: CodeRow[]): Promise<number> {
-    return upsertCodeRows(
-      this.prisma,
-      'hira_code',
-      KEY_COLUMNS,
-      VALUE_COLUMNS,
-      rows,
-    );
+    return upsertCodeRows(this.prisma, 'hira_code', KEY_COLUMNS, VALUE_COLUMNS, rows);
   }
 }

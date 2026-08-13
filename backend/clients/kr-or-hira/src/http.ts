@@ -57,10 +57,7 @@ export function resolveConfig(config: HiraWebConfig = {}): ResolvedConfig {
  * 외부 도메인을 넣어도 응답이 같다). 그럼에도 항상 붙인다. 브라우저가 실제로 밟는 경로를 그대로
  * 흉내내려는 것이고, 검사하지 않는다는 이유로 이걸 빼는 '최적화'를 하지 않는다.
  */
-export function hospitalPageUrl(
-  baseUrl: string,
-  encryptedYkiho: string,
-): string {
+export function hospitalPageUrl(baseUrl: string, encryptedYkiho: string): string {
   return `${baseUrl}/ra/hosp/hospInfoAjax.do?ykiho=${encodeURIComponent(encryptedYkiho)}`;
 }
 

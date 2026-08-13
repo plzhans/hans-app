@@ -22,23 +22,20 @@ function colorize(json: string): string {
   const token =
     /("(?:\\.|[^"\\])*")(\s*:)?|\b(?:true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
 
-  return json.replace(
-    token,
-    (match, quoted: string | undefined, colon: string | undefined) => {
-      if (quoted !== undefined) {
-        return colon
-          ? `${COLOR.key}${quoted}${COLOR.reset}${colon}`
-          : `${COLOR.string}${quoted}${COLOR.reset}`;
-      }
-      if (match === 'null') {
-        return `${COLOR.null}${match}${COLOR.reset}`;
-      }
-      if (match === 'true' || match === 'false') {
-        return `${COLOR.boolean}${match}${COLOR.reset}`;
-      }
-      return `${COLOR.number}${match}${COLOR.reset}`;
-    },
-  );
+  return json.replace(token, (match, quoted: string | undefined, colon: string | undefined) => {
+    if (quoted !== undefined) {
+      return colon
+        ? `${COLOR.key}${quoted}${COLOR.reset}${colon}`
+        : `${COLOR.string}${quoted}${COLOR.reset}`;
+    }
+    if (match === 'null') {
+      return `${COLOR.null}${match}${COLOR.reset}`;
+    }
+    if (match === 'true' || match === 'false') {
+      return `${COLOR.boolean}${match}${COLOR.reset}`;
+    }
+    return `${COLOR.number}${match}${COLOR.reset}`;
+  });
 }
 
 /**
@@ -106,9 +103,7 @@ export function printSimple(response: unknown, columns: string[]): void {
     return;
   }
 
-  const rows = items.map((item) =>
-    columns.map((column) => toCell(item[column])),
-  );
+  const rows = items.map((item) => columns.map((column) => toCell(item[column])));
 
   const widths = columns.map((column, i) =>
     Math.max(displayWidth(column), ...rows.map((row) => displayWidth(row[i]))),

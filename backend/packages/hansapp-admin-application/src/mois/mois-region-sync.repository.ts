@@ -131,10 +131,7 @@ export class MoisRegionSyncRepository {
  * synced_at 은 매번 갱신한다 — 스윕이 이 값으로 "이번에 안 온 행"을 고른다.
  * removed_at 은 NULL 로 되돌린다. 폐지됐다가 되살아난 코드가 죽은 채로 남으면 안 된다.
  */
-async function upsertRows(
-  client: SqlClient,
-  rows: readonly RegionCodeRow[],
-): Promise<number> {
+async function upsertRows(client: SqlClient, rows: readonly RegionCodeRow[]): Promise<number> {
   const self = Prisma.raw('mois_region_code');
   let processed = 0;
 
@@ -146,27 +143,20 @@ async function upsertRows(
       chunk.map(
         (row) =>
           Prisma.sql`(${Prisma.join(
-            ALL_COLUMNS.map(
-              (column) =>
-                Prisma.sql`${row[column as keyof RegionCodeRow] ?? null}`,
-            ),
+            ALL_COLUMNS.map((column) => Prisma.sql`${row[column as keyof RegionCodeRow] ?? null}`),
           )}, NOW(), NOW(), NOW())`,
       ),
     );
 
     const unchanged = Prisma.join(
       VALUE_COLUMNS.map(
-        (column) =>
-          Prisma.sql`${self}.${Prisma.raw(column)} <=> new.${Prisma.raw(column)}`,
+        (column) => Prisma.sql`${self}.${Prisma.raw(column)} <=> new.${Prisma.raw(column)}`,
       ),
       ' AND ',
     );
 
     const assignments = Prisma.join(
-      VALUE_COLUMNS.map(
-        (column) =>
-          Prisma.sql`${Prisma.raw(column)} = new.${Prisma.raw(column)}`,
-      ),
+      VALUE_COLUMNS.map((column) => Prisma.sql`${Prisma.raw(column)} = new.${Prisma.raw(column)}`),
     );
 
     // SET 절은 왼쪽부터 평가된다. updated_at 을 값 대입보다 **앞에** 둬야

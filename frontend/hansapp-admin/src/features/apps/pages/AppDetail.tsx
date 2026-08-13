@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 import { getApp } from '@/shared/api/apps';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
+import { BackLink } from '@/shared/components/BackLink';
 import { cn } from '@/shared/lib/cn';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -80,16 +81,9 @@ export default function AppDetail() {
         { label: '앱', to: '/apps' },
         { label: app ? `#${app.id}` : '상세' },
       ]}
-      actions={
-        <Link
-          to="/apps"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 transition hover:text-primary"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          목록
-        </Link>
-      }
     >
+      <BackLink to="/apps" />
+
       {query.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600">
           {errorMessage(query.error, '앱 정보를 불러오지 못했습니다.')}

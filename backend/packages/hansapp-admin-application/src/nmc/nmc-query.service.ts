@@ -32,15 +32,11 @@ import { NMC_CLIENT } from '../krdata.providers';
 export class NmcQueryService {
   constructor(@Inject(NMC_CLIENT) private readonly client: NmcClient) {}
 
-  getHospitalList(
-    params: GetHospitalListParams = {},
-  ): Promise<HospitalListResponse> {
+  getHospitalList(params: GetHospitalListParams = {}): Promise<HospitalListResponse> {
     return this.client.getHospitalList(params);
   }
 
-  getHospitalLocations(
-    params: GetHospitalLocationListParams,
-  ): Promise<HospitalLocationResponse> {
+  getHospitalLocations(params: GetHospitalLocationListParams): Promise<HospitalLocationResponse> {
     return this.client.getHospitalLocations(params);
   }
 
@@ -51,15 +47,11 @@ export class NmcQueryService {
     return this.client.getHospitalBasisInfo(hpid, params);
   }
 
-  getHospitalFullDown(
-    params: GetHospitalFullDownParams = {},
-  ): Promise<HospitalFullDownResponse> {
+  getHospitalFullDown(params: GetHospitalFullDownParams = {}): Promise<HospitalFullDownResponse> {
     return this.client.getHospitalFullDown(params);
   }
 
-  getBabyHospitalList(
-    params: GetBabyHospitalListParams = {},
-  ): Promise<BabyHospitalListResponse> {
+  getBabyHospitalList(params: GetBabyHospitalListParams = {}): Promise<BabyHospitalListResponse> {
     return this.client.getBabyHospitalList(params);
   }
 

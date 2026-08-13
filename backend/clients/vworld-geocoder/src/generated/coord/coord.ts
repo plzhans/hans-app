@@ -65,9 +65,7 @@ export const getGetCoordUrl = (params: GetCoordParams) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0
-    ? `/req/address?${stringifiedParams}`
-    : `/req/address`;
+  return stringifiedParams.length > 0 ? `/req/address?${stringifiedParams}` : `/req/address`;
 };
 
 export const getCoord = async (

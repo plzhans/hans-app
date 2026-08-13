@@ -44,6 +44,8 @@ export type {
   // 관리자(admin.prisma) 도메인 모델. 회원(User)과 계정도 세션도 갈라져 있다.
   AdminUser,
   AdminTokenSession,
+  AdminPasswordReset,
+  AdminOAuth,
   // 개발자 플랫폼(app.prisma) 도메인 모델
   App,
   AppMember,
@@ -69,20 +71,23 @@ export {
   ConsentType,
   EmailVerifyPurpose,
   AdminStatus,
+  AdminRole,
 } from '../generated/main';
 
 // AI 도메인 enum(값으로도 쓴다).
 export { LlmProvider, LlmKeyVerifyState } from '../generated/main';
 
+// 커뮤니티 도메인(게시판·글·댓글).
+// **enum 은 없다** — 값 목록은 @hansapp/common 의 BOARD_* 상수가 정한다(스키마 주석 참고).
+export type { Board, BoardPost, BoardComment } from '../generated/main';
+
 // 로그 DB(log 스키마) 인증 이벤트 로그. Prisma 네임스페이스도 별도 export
 // (main 과 log 는 다른 client 라 Create 입력 타입 등이 서로 다르다).
-export type { UserAuthLog, LlmUsage } from '../generated/log';
+export type { UserAuthLog, LlmUsage, AdminActionLog } from '../generated/log';
 export { Prisma as LogPrisma } from '../generated/log';
-export {
-  AuthLogAction,
-  AuthLogResult,
-  AuthProvider as LogAuthProvider,
-} from '../generated/log';
+export { AuthLogAction, AuthLogResult, AuthProvider as LogAuthProvider } from '../generated/log';
+// 관리자 행위 로그(admin.prisma). 회원 로그와 번호 공간이 달라 표도 enum 도 갈라져 있다.
+export { AdminLogAction, AdminLogResult } from '../generated/log';
 
 export { PrismaLogService } from './prisma-log.service';
 export { PrismaMigrationService, DB_TARGETS } from './prisma-migration.service';

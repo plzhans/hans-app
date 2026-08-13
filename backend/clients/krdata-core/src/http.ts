@@ -1,9 +1,4 @@
-import {
-  KrDataConfig,
-  maskServiceKey,
-  resolveConfig,
-  ResolvedKrDataConfig,
-} from './config';
+import { KrDataConfig, maskServiceKey, resolveConfig, ResolvedKrDataConfig } from './config';
 import { isQuotaExceeded, KrDataError, KrDataQuotaError } from './error';
 
 /**
@@ -15,10 +10,7 @@ export interface KrDataResponse<T = unknown> {
   headers: Headers;
 }
 
-export type KrDataFetch = (
-  url: string,
-  options?: RequestInit,
-) => Promise<KrDataResponse>;
+export type KrDataFetch = (url: string, options?: RequestInit) => Promise<KrDataResponse>;
 
 /**
  * 공공데이터포털 호출용 fetch 를 만든다. orval 의 custom mutator 로 주입한다.
@@ -108,21 +100,14 @@ async function sendWithRetry(
           // 403 은 한도가 아니라 **권한 거부**다. 키마다 API 별로 활용신청·승인이 따로라,
           // 어느 키로 거부됐는지 모르면 원인을 못 짚는다. 키 앞 5글자를 함께 남긴다.
           const who =
-            response.status === 403
-              ? ` (service key: ${maskServiceKey(config.serviceKey)})`
-              : '';
+            response.status === 403 ? ` (service key: ${maskServiceKey(config.serviceKey)})` : '';
           const message = `KR-DATA API returned non-OK response (status=${response.status})${who}: ${body}`;
 
           // 한도 초과는 **HTTP 429** 로도 온다 ("API token quota exceeded").
           // 실측(2026-07)에서 이 경로로 왔다. resultCode 22 만 보면 놓친다.
           // 장애가 아니라 "오늘은 여기까지"이므로 따로 구분한다. 재시도하지 않는다(콜만 버린다).
           if (isQuotaExceeded(String(response.status), body)) {
-            throw new KrDataQuotaError(
-              message,
-              String(response.status),
-              body,
-              endpoint,
-            );
+            throw new KrDataQuotaError(message, String(response.status), body, endpoint);
           }
 
           throw new KrDataError(message, String(response.status), {
@@ -154,18 +139,12 @@ async function sendWithRetry(
       { cause: lastError, endpoint },
     );
   }
-  throw new KrDataError(
-    `KR-DATA API request failed after ${config.maxRetry} attempts`,
-    'UNKNOWN',
-    { endpoint },
-  );
+  throw new KrDataError(`KR-DATA API request failed after ${config.maxRetry} attempts`, 'UNKNOWN', {
+    endpoint,
+  });
 }
 
-function parseBody(
-  config: ResolvedKrDataConfig,
-  requestUrl: string,
-  body: string,
-): unknown {
+function parseBody(config: ResolvedKrDataConfig, requestUrl: string, body: string): unknown {
   const endpoint = toEndpoint(requestUrl);
 
   // _type=json 을 줘도 서비스키 오류 등 일부 에러는 XML 로 온다.
@@ -185,15 +164,11 @@ function parseBody(
   try {
     payload = JSON.parse(body);
   } catch (error) {
-    throw new KrDataError(
-      'Failed to parse KR-DATA API response',
-      'PARSE_ERROR',
-      {
-        cause: error,
-        responseBody: body,
-        endpoint,
-      },
-    );
+    throw new KrDataError('Failed to parse KR-DATA API response', 'PARSE_ERROR', {
+      cause: error,
+      responseBody: body,
+      endpoint,
+    });
   }
 
   // 게이트웨이 인증 에러가 **JSON 으로도 온다.** XML 만 보면 놓친다.
@@ -213,10 +188,7 @@ function parseBody(
   }
 
   const header = config.envelope.readHeader(payload);
-  if (
-    header?.resultCode !== undefined &&
-    !config.envelope.isSuccess(header.resultCode)
-  ) {
+  if (header?.resultCode !== undefined && !config.envelope.isSuccess(header.resultCode)) {
     const message = `KR-DATA API returned an error: ${header.resultMsg ?? 'unknown'}`;
 
     // 한도 초과는 장애가 아니다. 배치가 "오늘은 여기까지"로 다룰 수 있게 따로 구분한다.
@@ -235,9 +207,7 @@ function parseBody(
 }
 
 /** 게이트웨이가 JSON 으로 준 인증·서비스 에러. 정상 응답이면 undefined. */
-function extractGatewayError(
-  payload: unknown,
-): { code: string; message: string } | undefined {
+function extractGatewayError(payload: unknown): { code: string; message: string } | undefined {
   if (typeof payload !== 'object' || payload === null) {
     return undefined;
   }
@@ -277,15 +247,9 @@ function extractXmlErrorMessage(body: string): string {
 }
 
 function extractXmlErrorCode(body: string): string {
-  return (
-    matchTag(body, 'returnReasonCode') ??
-    matchTag(body, 'resultCode') ??
-    'XML_ERROR'
-  );
+  return matchTag(body, 'returnReasonCode') ?? matchTag(body, 'resultCode') ?? 'XML_ERROR';
 }
 
 function matchTag(body: string, tag: string): string | undefined {
-  return (
-    new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(body)?.[1]?.trim() || undefined
-  );
+  return new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(body)?.[1]?.trim() || undefined;
 }

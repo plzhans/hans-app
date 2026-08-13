@@ -31,6 +31,19 @@ export class Page<T> {
   ) {
     this.totalPages = size > 0 ? Math.ceil(totalCount / size) : 0;
   }
+
+  /**
+   * 항목만 바꾼 같은 페이지. `Page<엔티티>` → `Page<DTO>`.
+   *
+   * **조회한 자리에 변환을 매단다.** 그러지 않으면 부르는 쪽이 items 를 꺼내 옮기고 쪽수
+   * 정보를 따로 챙겨 다시 조립해야 하는데, 그 과정에서 총 개수는 이 페이지 것이고 항목은
+   * 저 페이지 것인 물건이 만들어질 수 있다. 여기서는 쪽수가 그대로 따라온다.
+   *
+   * (Spring Data 의 Page.map 과 같은 자리다.)
+   */
+  map<U>(toItem: (item: T) => U): Page<U> {
+    return new Page<U>(this.items.map(toItem), this.page, this.size, this.totalCount);
+  }
 }
 
 // 되돌릴 수 있게 잠그는 비밀 상자(AES-256-GCM). 남의 업체 키처럼 원문이 필요한 값에 쓴다.
@@ -60,6 +73,7 @@ export {
 export type {
   SettingField,
   SettingFieldType,
+  SettingDerived,
   SettingGroup,
   SettingCategory,
   SettingConsole,
@@ -70,3 +84,9 @@ export type {
   SettingReader,
 } from './setting-catalog';
 export { SETTING_KEYRING, buildSettingKeyring } from './setting-keyring';
+export { SETTING_ORIGINS, buildSettingOrigins, trimTrailingSlash } from './setting-origins';
+export type { SettingOrigins } from './setting-origins';
+
+// 커뮤니티(게시판·글·댓글). **enum 값이 곧 DB 값이다** — 이름으로 바꾸는 것은 HTTP 경계의
+// @EnumField 가 한다(board-codes.ts 주석 참고).
+export { AuthorType, PostStatus, CommentStatus, BoardWriteRole, BoardStatus } from './board-codes';

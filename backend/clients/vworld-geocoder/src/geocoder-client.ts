@@ -1,9 +1,5 @@
 import { getCoord } from './generated/coord/coord';
-import type {
-  CoordResponse,
-  GetCoordParams,
-  RefinedAddress,
-} from './generated/coord/model';
+import type { CoordResponse, GetCoordParams, RefinedAddress } from './generated/coord/model';
 import { getAddress } from './generated/address/address';
 import type { AddressItem, GetAddressParams } from './generated/address/model';
 import { VworldConfig } from './http';
@@ -48,10 +44,7 @@ export class VworldGeocoderClient {
    * 기본값을 두지 않는 이유다. 호출부가 어떤 주소인지 알고 있어야 한다.
    */
   async geocode(params: GetCoordParams): Promise<Coordinate | null> {
-    const { data } = await getCoord(
-      params,
-      withVworldConfig(this.config, OP_COORD),
-    );
+    const { data } = await getCoord(params, withVworldConfig(this.config, OP_COORD));
     return toCoordinate(data);
   }
 
@@ -62,10 +55,7 @@ export class VworldGeocoderClient {
    * type=BOTH(기본)면 지번·도로명 두 건이 배열로 온다. 못 찾으면 빈 배열이다.
    */
   async reverseGeocode(params: GetAddressParams): Promise<AddressItem[]> {
-    const { data } = await getAddress(
-      params,
-      withVworldConfig(this.config, OP_ADDRESS),
-    );
+    const { data } = await getAddress(params, withVworldConfig(this.config, OP_ADDRESS));
     return data.response?.result ?? [];
   }
 

@@ -1,9 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import type {
-  DomainEventName,
-  DomainEventPayloads,
-} from '@hansapp/event-contract';
+import type { DomainEventName, DomainEventPayloads } from '@hansapp/event-contract';
 
 /**
  * 도메인 이벤트 발행기.
@@ -24,10 +21,7 @@ export class EventPublisher {
 
   constructor(private readonly queue: Queue | null) {}
 
-  publish<N extends DomainEventName>(
-    name: N,
-    payload: DomainEventPayloads[N],
-  ): void {
+  publish<N extends DomainEventName>(name: N, payload: DomainEventPayloads[N]): void {
     if (!this.queue) {
       this.logger.warn(`큐가 없어 이벤트를 버린다 — ${name}`);
       return;

@@ -10,19 +10,9 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiExcludeController,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiExcludeController, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import {
-  FirstPartyOnly,
-  Public,
-  SocialAuthGuard,
-  SocialService,
-} from '@hansapp/auth-application';
+import { FirstPartyOnly, Public, SocialAuthGuard, SocialService } from '@hansapp/auth-application';
 import type { CallbackOutcome, SocialProfile } from '@hansapp/auth-application';
 import type { SupportedLang } from '@hansapp/common';
 import { AUTH_CONFIG } from '@hansapp/auth-application';
@@ -31,10 +21,7 @@ import type { AuthConfig } from '@hansapp/auth-application';
 import { Lang } from '../common/lang.decorator';
 
 import { TokenResponseDto } from './dto/auth.dto';
-import {
-  SocialRegisterCodeRequestDto,
-  SocialRegisterRequestDto,
-} from './dto/social.dto';
+import { SocialRegisterCodeRequestDto, SocialRegisterRequestDto } from './dto/social.dto';
 import { requestMeta, respondTokens, setLoginCookies } from './refresh-cookie';
 
 /**
@@ -135,8 +122,12 @@ export class SocialController {
       throw new BadRequestException('Social profile is unavailable.');
     }
     const state = typeof req.query.state === 'string' ? req.query.state : '';
-    const { outcome, returnTo, clientState, clientId } =
-      await this.social.handleCallback(profile, state, requestMeta(req), lang);
+    const { outcome, returnTo, clientState, clientId } = await this.social.handleCallback(
+      profile,
+      state,
+      requestMeta(req),
+      lang,
+    );
     // **자사 로그인은 여기서 끝난다.** 쿠키를 심고 원래 있던 자리로 돌려보낸다 —
     // 인가코드를 만들어 프론트가 교환하게 하는 왕복이 없다.
     if (outcome.kind === 'session') {
@@ -171,10 +162,7 @@ export class SocialController {
    * 인증웹 주소를 모르면(설정 누락) null 을 돌려 예전 동작으로 물러난다 — 보낼 데가 없는데
    * 실패까지 삼키면 사용자는 빈 화면만 본다.
    */
-  private errorLandingUrl(
-    error: string,
-    returnTo: string | undefined,
-  ): string | null {
+  private errorLandingUrl(error: string, returnTo: string | undefined): string | null {
     const base = this.authConfig.externalUrl;
     if (!base) return null;
     const url = new URL(`${base}/login`);
@@ -223,9 +211,7 @@ export class SocialController {
       if (landing) return landing;
     }
     if (!returnTo) {
-      throw new BadRequestException(
-        'Missing return_to. Provide return_to when starting sign-in.',
-      );
+      throw new BadRequestException('Missing return_to. Provide return_to when starting sign-in.');
     }
     const url = new URL(returnTo);
     // 클라이언트가 보낸 state 를 그대로 반환한다(RFC 6749 §4.1.2). 그 앱이 CSRF 대조와

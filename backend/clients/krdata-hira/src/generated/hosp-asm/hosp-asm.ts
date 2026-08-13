@@ -4,10 +4,7 @@
  * 건강보험심사평가원(HIRA) 병원평가정보서비스
  * OpenAPI spec version: 1.0.0
  */
-import type {
-  GetHospitalAssessmentListParams,
-  HospitalAssessmentResponse,
-} from './model';
+import type { GetHospitalAssessmentListParams, HospitalAssessmentResponse } from './model';
 
 import { krDataMutator } from '../../mutator';
 
@@ -20,16 +17,12 @@ export type getHospitalAssessmentListResponse200 = {
   status: 200;
 };
 
-export type getHospitalAssessmentListResponseSuccess =
-  getHospitalAssessmentListResponse200 & {
-    headers: Headers;
-  };
-export type getHospitalAssessmentListResponse =
-  getHospitalAssessmentListResponseSuccess;
+export type getHospitalAssessmentListResponseSuccess = getHospitalAssessmentListResponse200 & {
+  headers: Headers;
+};
+export type getHospitalAssessmentListResponse = getHospitalAssessmentListResponseSuccess;
 
-export const getGetHospitalAssessmentListUrl = (
-  params?: GetHospitalAssessmentListParams,
-) => {
+export const getGetHospitalAssessmentListUrl = (params?: GetHospitalAssessmentListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -49,11 +42,8 @@ export const getHospitalAssessmentList = async (
   params?: GetHospitalAssessmentListParams,
   options?: RequestInit,
 ): Promise<getHospitalAssessmentListResponse> => {
-  return krDataMutator<getHospitalAssessmentListResponse>(
-    getGetHospitalAssessmentListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getHospitalAssessmentListResponse>(getGetHospitalAssessmentListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };

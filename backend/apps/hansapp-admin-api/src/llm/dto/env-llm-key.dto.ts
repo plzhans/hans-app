@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 import {
   EnvLlmKeyStatus,
   LlmKeyType,
@@ -86,8 +80,7 @@ export class EnvLlmKeySaveRequestDto {
   readonly provider?: LlmProvider;
 
   @ApiPropertyOptional({
-    description:
-      '이름. **LOCAL 은 필수, 그 밖에는 무시된다**(업체가 신원이다).',
+    description: '이름. **LOCAL 은 필수, 그 밖에는 무시된다**(업체가 신원이다).',
   })
   @IsOptional()
   @IsString()

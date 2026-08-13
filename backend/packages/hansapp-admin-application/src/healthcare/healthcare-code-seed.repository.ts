@@ -87,9 +87,7 @@ export class HealthcareCodeSeedRepository {
   }
 
   /** 통합 코드 전체의 매핑(hira_cd·nmc_cd). 원본 코드가 이미 매핑됐는지 판정한다. */
-  findMappedCodes(): Promise<
-    { tp: string; hiraCd: Prisma.JsonValue; nmcCd: Prisma.JsonValue }[]
-  > {
+  findMappedCodes(): Promise<{ tp: string; hiraCd: Prisma.JsonValue; nmcCd: Prisma.JsonValue }[]> {
     return this.prisma.healthcareCode.findMany({
       select: { tp: true, hiraCd: true, nmcCd: true },
     });
@@ -106,9 +104,7 @@ export class HealthcareCodeSeedRepository {
   }
 
   /** 미매핑 검사 대상 NMC 코드. 대분류코드(cmMid)로 종류가 갈린다. */
-  findNmcCodes(
-    cmMid: string,
-  ): Promise<{ cmSid: string; cmSnm: string | null }[]> {
+  findNmcCodes(cmMid: string): Promise<{ cmSid: string; cmSnm: string | null }[]> {
     return this.prisma.nmcCode.findMany({
       where: { cmMid: cmMid },
       select: { cmSid: true, cmSnm: true },

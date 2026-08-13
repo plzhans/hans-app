@@ -86,8 +86,7 @@ export class BusinessStatusDto {
   readonly bno!: string;
 
   @ApiProperty({
-    description:
-      '국세청에 등록된 사업자인지. false 면 나머지 상태값은 비어 있다.',
+    description: '국세청에 등록된 사업자인지. false 면 나머지 상태값은 비어 있다.',
     example: true,
   })
   readonly registered!: boolean;
@@ -111,8 +110,7 @@ export class BusinessStatusDto {
   readonly taxTypeCode?: string;
 
   @ApiPropertyOptional({
-    description:
-      '과세유형 명칭. 미등록이면 "국세청에 등록되지 않은 사업자등록번호입니다".',
+    description: '과세유형 명칭. 미등록이면 "국세청에 등록되지 않은 사업자등록번호입니다".',
     example: '부가가치세 일반과세자',
   })
   readonly taxType?: string;
@@ -134,8 +132,7 @@ export class BusinessVerificationDto {
   readonly bno!: string;
 
   @ApiProperty({
-    description:
-      '진위확인 결과. 입력한 정보가 국세청 등록정보와 일치하면 true.',
+    description: '진위확인 결과. 입력한 정보가 국세청 등록정보와 일치하면 true.',
     example: true,
   })
   readonly valid!: boolean;

@@ -25,12 +25,7 @@
 - 날짜는 전부 문자열 YYYYMMDD. 숫자로 다루지 마라.
  * OpenAPI spec version: 1.1.0
  */
-import type {
-  StatusRequest,
-  StatusResponse,
-  ValidateRequest,
-  ValidateResponse,
-} from './model';
+import type { StatusRequest, StatusResponse, ValidateRequest, ValidateResponse } from './model';
 
 import { ntsMutator } from '../mutator';
 

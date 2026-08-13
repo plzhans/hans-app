@@ -37,9 +37,7 @@ export class NmcBabySyncService {
 
     const rows = items
       .map((item) => ({ key: asString(item.hpid), data: item }))
-      .filter((row): row is { key: string; data: HospitalListItem } =>
-        Boolean(row.key),
-      );
+      .filter((row): row is { key: string; data: HospitalListItem } => Boolean(row.key));
 
     const processed = await this.repo.upsertMirror(rows);
 

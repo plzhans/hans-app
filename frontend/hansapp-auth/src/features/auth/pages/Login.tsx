@@ -6,6 +6,7 @@ import { errorMessage } from '@/shared/api/errorMessage';
 import { goAfterLogin, readAfterLoginParams } from '@/shared/auth/afterLogin';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
+import { FieldRow } from '@/shared/ui/FieldRow';
 import { TextField } from '@/shared/ui/TextField';
 import { socialErrorMessage } from '../socialError';
 import { AuthCard } from '../components/AuthCard';
@@ -68,12 +69,16 @@ export default function Login() {
       if (await goAfterLogin(after)) return;
       navigate('/me', { replace: true });
     } catch (e) {
-      setServerError(errorMessage(e, '로그인에 실패했습니다.'));
+      setServerError(errorMessage(e, 'Sign-in failed.'));
     }
   });
 
   return (
-    <AuthCard title="로그인" subtitle="HansApp 계정으로 로그인하기">
+    <AuthCard
+      title="Sign in"
+      // 광고를 켜는 화면은 지금 여기 하나다. PC 에서 카드가 두 배가 되고 오른쪽이 광고 단이다.
+      ads
+    >
       {socialError && (
         <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {socialErrorMessage(socialError)}
@@ -81,58 +86,54 @@ export default function Login() {
       )}
       <form onSubmit={onSubmit} className="space-y-3">
         <TextField
-          label="이메일"
+          label="Email"
           type="email"
           autoComplete="email"
           placeholder="you@example.com"
           error={errors.email?.message}
-          {...register('email', { required: '이메일을 입력하세요.' })}
+          {...register('email', { required: 'Enter your email.' })}
         />
         <TextField
-          label="비밀번호"
+          label="Password"
           type="password"
           autoComplete="current-password"
           placeholder="••••••••"
           error={errors.password?.message}
-          {...register('password', { required: '비밀번호를 입력하세요.' })}
+          {...register('password', { required: 'Enter your password.' })}
         />
         {/*
           로그인 상태 유지. **기본은 꺼짐이다** — 공용 PC 에서 실수로 남는 쪽보다, 원하는
           사람이 한 번 더 누르는 쪽이 낫다. 켜면 브라우저를 닫아도 로그인이 남는다.
         */}
-        <div className="flex items-center justify-between gap-3">
+        {/* 레이블 없는 줄들. PC 에서 입력칸과 왼쪽 끝을 맞추려고 같은 껍데기를 쓴다. */}
+        <FieldRow as="div">
           <label className="flex items-center gap-2 text-sm text-gray-600">
             <input
               type="checkbox"
               className="h-4 w-4 shrink-0 accent-primary"
               {...register('rememberMe')}
             />
-            <span>로그인 상태 유지</span>
+            <span>Keep me signed in</span>
           </label>
-          <Link
-            to={relayLink(
-              '/forgot-password',
-              returnTo,
-              clientId,
-              codeChallenge,
-              clientState,
-            )}
-            className="shrink-0 text-sm text-gray-500 hover:text-primary hover:underline"
-          >
-            비밀번호를 잊으셨나요?
-          </Link>
-        </div>
+        </FieldRow>
         {serverError && (
-          <p className="whitespace-pre-line text-sm text-red-500">{serverError}</p>
+          <FieldRow as="div">
+            <p className="whitespace-pre-line text-sm text-red-500">
+              {serverError}
+            </p>
+          </FieldRow>
         )}
-        <Button type="submit" loading={isSubmitting}>
-          로그인
-        </Button>
+        <FieldRow as="div">
+          <Button type="submit" loading={isSubmitting} loadingText="Signing in…">
+            Sign in
+          </Button>
+        </FieldRow>
       </form>
 
+      {/* 번역이 갈리지 않는 단어는 영어로 둔다(레이블도 같은 이유로 Email·Password 다). */}
       <div className="my-5 flex items-center gap-3 text-xs text-gray-400">
         <span className="h-px flex-1 bg-gray-200" />
-        또는
+        or
         <span className="h-px flex-1 bg-gray-200" />
       </div>
       <SocialButtons
@@ -145,14 +146,33 @@ export default function Login() {
       />
 
       <p className="mt-6 text-center text-sm text-gray-500">
-        계정이 없으신가요?{' '}
+        Don&apos;t have an account?{' '}
         <Link
           to={
             relayLink('/signup', returnTo, clientId, codeChallenge, clientState)
           }
           className="font-semibold text-primary hover:underline"
         >
-          회원가입
+          Sign up
+        </Link>
+      </p>
+      {/*
+        비밀번호 찾기. **가입 링크 아래, 내용의 맨 끝이다.** 로그인하러 온 사람의 길(입력 →
+        로그인 → 소셜 → 없으면 가입)을 다 지나온 자리라, 여기 두면 그 흐름을 끊지 않는다.
+        모바일·PC 가 같은 자리다 — 화면마다 다른 데 있으면 찾는 데 시간이 든다.
+      */}
+      <p className="mt-2 text-center text-sm">
+        <Link
+          to={relayLink(
+            '/forgot-password',
+            returnTo,
+            clientId,
+            codeChallenge,
+            clientState,
+          )}
+          className="text-gray-500 hover:text-primary hover:underline"
+        >
+          Forgot your password?
         </Link>
       </p>
     </AuthCard>

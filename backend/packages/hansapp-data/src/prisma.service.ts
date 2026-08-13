@@ -1,9 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '../generated/main';
 import { DB_CONFIG, DbConfig } from './db.config';
 
@@ -17,10 +12,7 @@ import { DB_CONFIG, DbConfig } from './db.config';
  * 로그 DB 는 보존기간이 달라 분리돼 있다. PrismaLogService 를 쓴다.
  */
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(@Inject(DB_CONFIG) config: DbConfig) {
     super({ datasources: { db: { url: config.url } } });
   }

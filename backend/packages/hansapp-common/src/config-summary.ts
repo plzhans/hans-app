@@ -10,10 +10,7 @@ import type { ConfigSource } from './config-source';
  *
  * log 콜백을 받아 출력 대상을 앱이 정한다(서버/배치=NestJS Logger, CLI=stderr 로 stdout 오염 방지).
  */
-export function logConfigSummary(
-  cfg: ConfigSource,
-  log: (line: string) => void,
-): void {
+export function logConfigSummary(cfg: ConfigSource, log: (line: string) => void): void {
   const endpoint = (raw: string): string => {
     if (!raw) return '(empty)';
     try {
@@ -47,9 +44,7 @@ export function logConfigSummary(
     화면에서 아무리 켜도 메일이 안 나가서 "왜 안 오지" 를 가장 오래 헤매게 되는 자리다.
   */
   if (cfg.getBoolOrDefault('mail.forceDisabled')) {
-    log(
-      'Config Mail : ⚠️ 강제 차단(mail.forceDisabled) — DB 설정과 무관하게 안 나간다',
-    );
+    log('Config Mail : ⚠️ 강제 차단(mail.forceDisabled) — DB 설정과 무관하게 안 나간다');
   }
   /*
     **OAuth 도 여기서 안 찍는다.** 메일·서비스키와 같은 이유다 — 값이 DB(env_setting)에

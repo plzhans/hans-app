@@ -70,7 +70,7 @@ export function WithdrawSection() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-6 block w-full text-center text-xs text-gray-400 hover:text-gray-600 hover:underline"
+        className="mt-6 block w-full text-center text-xs text-gray-400 hover:text-gray-600 hover:underline lg:mt-0"
       >
         회원 탈퇴
       </button>
@@ -78,7 +78,7 @@ export function WithdrawSection() {
   }
 
   return (
-    <section className="mt-6 rounded-lg border border-red-200 bg-red-50/50 p-4">
+    <section className="mt-6 rounded-lg border border-red-200 bg-red-50/50 p-4 lg:mt-0">
       <h2 className="text-sm font-bold text-gray-900">회원 탈퇴</h2>
 
       <ul className="mt-2 space-y-1 pl-4 text-xs leading-relaxed text-gray-600">

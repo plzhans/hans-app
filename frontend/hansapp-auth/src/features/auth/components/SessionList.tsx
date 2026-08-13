@@ -21,7 +21,8 @@ export function SessionList() {
   const signOut = useAuthStore((s) => s.signOut);
   const [sessions, setSessions] = useState<Session[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  /** 지금 처리 중인 대상. 세션 하나면 그 식별자, 전체 로그아웃이면 `'all'`. */
+  const [busy, setBusy] = useState<number | 'all' | null>(null);
   /**
    * "모든 기기에서 로그아웃" 재확인 단계인가.
    *
@@ -43,7 +44,7 @@ export function SessionList() {
     void load();
   }, [load]);
 
-  const revoke = async (sessionId: string) => {
+  const revoke = async (sessionId: number) => {
     setError(null);
     setBusy(sessionId);
     try {
@@ -78,9 +79,9 @@ export function SessionList() {
   if (!sessions || sessions.length === 0) return null;
 
   return (
-    <section className="mt-4">
-      <h2 className="text-sm font-bold text-gray-900">로그인한 기기</h2>
-      <p className="mt-0.5 text-xs text-gray-400">
+    /* 제목은 없다 — 이 목록은 "기기 정보" 탭 안에 들어가고, 그 이름이 곧 제목이다. */
+    <section>
+      <p className="text-xs text-gray-400">
         모르는 기기가 있으면 로그아웃시키고 비밀번호를 바꾸세요.
       </p>
 

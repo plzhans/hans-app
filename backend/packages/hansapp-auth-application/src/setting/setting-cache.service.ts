@@ -1,10 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import {
-  open,
-  SETTING_KEYRING,
-  type SecretBoxKeys,
-  type SettingReader,
-} from '@hansapp/common';
+import { open, SETTING_KEYRING, type SecretBoxKeys, type SettingReader } from '@hansapp/common';
 import { SettingReadRepository } from '@hansapp/data';
 
 /**
@@ -78,7 +73,8 @@ export class SettingCache implements SettingReader {
   }
 
   private async getStored(key: string): Promise<string | undefined> {
-    return (await this.load()).get(key);
+    const stored = await this.load();
+    return stored.get(key);
   }
 
   private async load(): Promise<Map<string, string>> {
@@ -105,9 +101,7 @@ export class SettingCache implements SettingReader {
           continue;
         }
         if (!this.keyring) {
-          this.logger.error(
-            `${row.key}: appSecretEncryption 키가 없어 복호화하지 못했다.`,
-          );
+          this.logger.error(`${row.key}: appSecretEncryption 키가 없어 복호화하지 못했다.`);
           continue;
         }
         next.set(row.key, open(row.value, this.keyring));
@@ -116,9 +110,7 @@ export class SettingCache implements SettingReader {
       this.expiresAt = Date.now() + CACHE_TTL_MS;
     } catch (error) {
       // 직전 값을 그대로 쓴다. 한 번도 못 읽었으면 비어 있는 채로 둔다.
-      this.logger.error(
-        `설정을 읽지 못했다. 직전 값을 유지한다: ${String(error)}`,
-      );
+      this.logger.error(`설정을 읽지 못했다. 직전 값을 유지한다: ${String(error)}`);
       this.expiresAt = Date.now() + 10_000;
     }
   }

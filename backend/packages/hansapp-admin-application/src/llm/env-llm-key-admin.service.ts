@@ -1,16 +1,5 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  open,
-  seal,
-  suffixOf,
-  SETTING_KEYRING,
-  type SecretBoxKeys,
-} from '@hansapp/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { open, seal, suffixOf, SETTING_KEYRING, type SecretBoxKeys } from '@hansapp/common';
 import { fetchVendorModels } from '@hansapp/llm';
 import {
   EnvLlmKeyReadRepository,
@@ -65,11 +54,7 @@ const ADAPTER: Record<string, 'anthropic' | 'openai' | 'local'> = {
 };
 
 /** 우리 SDK 어댑터가 있는 업체. GOOGLE 은 enum 에 있지만 아직 못 부른다. */
-const CALLABLE: LlmProvider[] = [
-  LlmProvider.ANTHROPIC,
-  LlmProvider.OPENAI,
-  LlmProvider.LOCAL,
-];
+const CALLABLE: LlmProvider[] = [LlmProvider.ANTHROPIC, LlmProvider.OPENAI, LlmProvider.LOCAL];
 
 /**
  * 여러 대를 붙일 수 있는 업체. **이름으로 구별한다.**
@@ -89,22 +74,18 @@ export class EnvLlmKeyAdminService {
   ) {}
 
   async list(): Promise<EnvLlmKeyView[]> {
-    return (await this.read.findAll()).map((row) => toView(row));
+    const rows = await this.read.findAll();
+    return rows.map((row) => toView(row));
   }
 
   async get(id: number): Promise<EnvLlmKeyView> {
     return toView(await this.require(id));
   }
 
-  async create(
-    input: EnvLlmKeyInput,
-    adminId: number | null,
-  ): Promise<EnvLlmKeyView> {
+  async create(input: EnvLlmKeyInput, adminId: number | null): Promise<EnvLlmKeyView> {
     const provider = input.provider;
     if (!provider || !CALLABLE.includes(provider)) {
-      throw new BadRequestException(
-        `provider must be one of ${CALLABLE.join(', ')}.`,
-      );
+      throw new BadRequestException(`provider must be one of ${CALLABLE.join(', ')}.`);
     }
     const keyType = input.keyType ?? LlmKeyType.API_KEY;
     this.assertKeyType(provider, keyType);
@@ -133,17 +114,11 @@ export class EnvLlmKeyAdminService {
    * 고친다. **요청에 없는 필드는 건드리지 않는다** — 화면이 마스킹된 값을 되돌려 보내
    * 실수로 지우는 일이 없게 한다(설정 저장과 같은 규칙).
    */
-  async update(
-    id: number,
-    input: EnvLlmKeyInput,
-    adminId: number | null,
-  ): Promise<EnvLlmKeyView> {
+  async update(id: number, input: EnvLlmKeyInput, adminId: number | null): Promise<EnvLlmKeyView> {
     const current = await this.require(id);
     const provider = input.provider ?? current.provider;
     if (!CALLABLE.includes(provider)) {
-      throw new BadRequestException(
-        `provider must be one of ${CALLABLE.join(', ')}.`,
-      );
+      throw new BadRequestException(`provider must be one of ${CALLABLE.join(', ')}.`);
     }
     const keyType = input.keyType ?? current.keyType;
     this.assertKeyType(provider, keyType);
@@ -151,16 +126,11 @@ export class EnvLlmKeyAdminService {
       업체가 바뀌면 이름의 의미도 바뀐다 — LOCAL 에서 ANTHROPIC 으로 옮기면 이름이 쓸모가
       없어지고, 반대로 오면 이름이 있어야 한다. 그래서 이름은 늘 다시 판정한다.
     */
-    const name = resolveName(
-      provider,
-      input.name !== undefined ? input.name : current.name,
-    );
-    const baseUrl =
-      input.baseUrl === undefined ? current.baseUrl : trimOrNull(input.baseUrl);
+    const name = resolveName(provider, input.name !== undefined ? input.name : current.name);
+    const baseUrl = input.baseUrl === undefined ? current.baseUrl : trimOrNull(input.baseUrl);
     assertBaseUrl(provider, baseUrl);
 
-    const secret =
-      input.secret === undefined ? undefined : this.lock(input.secret);
+    const secret = input.secret === undefined ? undefined : this.lock(input.secret);
 
     return toView(
       await this.guard(() =>
@@ -200,9 +170,7 @@ export class EnvLlmKeyAdminService {
     const row = await this.require(id);
     // 꺼 둔 것을 기본으로 만들면 호출이 곧장 막힌다. 켠 뒤에 지정하게 한다.
     if (row.status !== EnvLlmKeyStatus.ACTIVE) {
-      throw new BadRequestException(
-        'Enable the key before making it the default.',
-      );
+      throw new BadRequestException('Enable the key before making it the default.');
     }
     await this.write.setDefault(id, adminId);
   }
@@ -226,9 +194,7 @@ export class EnvLlmKeyAdminService {
     const row = input.id === undefined ? null : await this.require(input.id);
     const provider = input.provider ?? row?.provider;
     if (!provider || !CALLABLE.includes(provider)) {
-      throw new BadRequestException(
-        `provider must be one of ${CALLABLE.join(', ')}.`,
-      );
+      throw new BadRequestException(`provider must be one of ${CALLABLE.join(', ')}.`);
     }
     /*
       화면이 새 키를 보냈으면 그것으로, 안 보냈으면 저장된 것을 연다 — 마스킹된 값을
@@ -237,8 +203,7 @@ export class EnvLlmKeyAdminService {
     const secret = input.secret?.trim()
       ? input.secret.trim()
       : this.reveal(row?.secretEncrypted ?? null);
-    const baseUrl =
-      (input.baseUrl ?? row?.baseUrl ?? '').trim() || BASE_URL[provider] || '';
+    const baseUrl = (input.baseUrl ?? row?.baseUrl ?? '').trim() || BASE_URL[provider] || '';
     if (!baseUrl) {
       throw new BadRequestException('baseUrl is required.');
     }
@@ -246,10 +211,7 @@ export class EnvLlmKeyAdminService {
     try {
       return await fetchVendorModels({
         provider: ADAPTER[provider],
-        keyType:
-          (input.keyType ?? row?.keyType) === LlmKeyType.AUTH_TOKEN
-            ? 'authToken'
-            : 'apiKey',
+        keyType: (input.keyType ?? row?.keyType) === LlmKeyType.AUTH_TOKEN ? 'authToken' : 'apiKey',
         secret,
         baseUrl,
         allowedModels: [],
@@ -284,10 +246,7 @@ export class EnvLlmKeyAdminService {
    * 있다 해도 헤더가 다르다.
    */
   private assertKeyType(provider: LlmProvider, keyType: LlmKeyType): void {
-    if (
-      keyType === LlmKeyType.AUTH_TOKEN &&
-      provider !== LlmProvider.ANTHROPIC
-    ) {
+    if (keyType === LlmKeyType.AUTH_TOKEN && provider !== LlmProvider.ANTHROPIC) {
       throw new BadRequestException('AUTH_TOKEN is only for ANTHROPIC.');
     }
   }
@@ -304,9 +263,7 @@ export class EnvLlmKeyAdminService {
     if (!value) return {};
     if (!this.keyring) {
       // 평문으로 저장하는 우회는 두지 않는다. 저장 자체를 거절한다.
-      throw new BadRequestException(
-        'appSecretEncryption 키가 없어 저장할 수 없습니다.',
-      );
+      throw new BadRequestException('appSecretEncryption 키가 없어 저장할 수 없습니다.');
     }
     return { encrypted: seal(value, this.keyring), suffix: suffixOf(value) };
   }
@@ -321,11 +278,7 @@ export class EnvLlmKeyAdminService {
     try {
       return await fn();
     } catch (error) {
-      if (
-        error &&
-        typeof error === 'object' &&
-        (error as { code?: string }).code === 'P2002'
-      ) {
+      if (error && typeof error === 'object' && (error as { code?: string }).code === 'P2002') {
         throw new BadRequestException(
           'Already registered. Hosted providers allow only one key; use a different name for local endpoints.',
         );
@@ -357,10 +310,7 @@ function toView(row: EnvLlmKey): EnvLlmKeyView {
  * **여러 대를 붙일 수 있는 업체만 이름을 갖는다.** 호스팅 업체는 하나뿐이라 업체가 곧
  * 신원이고, 빈 문자열이 DB 유니크와 짝이 되어 두 번째 행을 막는다.
  */
-function resolveName(
-  provider: LlmProvider,
-  raw: string | null | undefined,
-): string {
+function resolveName(provider: LlmProvider, raw: string | null | undefined): string {
   if (!MULTI.includes(provider)) return '';
   const name = (raw ?? '').trim();
   if (!name) {

@@ -19,7 +19,13 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      /*
+        TOAST UI Editor 는 타입 파일을 갖고 있지만 package.json 의 exports 에 걸어 두지
+        않아 bundler 해석으로는 찾지 못한다(패키지 쪽 문제). 경로를 직접 가리켜 쓴다 —
+        d.ts 를 직접 쓰면 진짜 타입을 잃는다.
+      */
+      "@toast-ui/editor": ["./node_modules/@toast-ui/editor/types/index.d.ts"]
     }
   },
   "include": ["src"]

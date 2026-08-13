@@ -31,10 +31,7 @@ interface Wrapped<T> {
  */
 @Injectable()
 export class AccessCache {
-  private readonly internalMap = new Map<
-    string,
-    { w: Wrapped<unknown>; exp: number }
-  >();
+  private readonly internalMap = new Map<string, { w: Wrapped<unknown>; exp: number }>();
 
   /**
    * 진행 중인 조회(single-flight). 같은 키를 동시에 여러 요청이 물으면 **한 번만 조회**하고
@@ -80,10 +77,7 @@ export class AccessCache {
    * internalMap → cache → DB 순으로 읽고, 읽은 값을 아래에서 위로 채운다.
    * 메모리 히트가 아니면 single-flight 로 묶어 같은 키의 동시 조회를 1회로 합친다.
    */
-  private read<T>(
-    key: string,
-    load: () => Promise<T | null>,
-  ): Promise<T | null> {
+  private read<T>(key: string, load: () => Promise<T | null>): Promise<T | null> {
     const hit = this.internalMap.get(key);
     if (hit) {
       if (hit.exp > Date.now()) {
@@ -106,10 +100,7 @@ export class AccessCache {
   }
 
   /** 공유 캐시 → DB 순으로 실제로 읽어 오고, 읽은 값을 위 계층에 채운다. */
-  private async load<T>(
-    key: string,
-    fromDb: () => Promise<T | null>,
-  ): Promise<T | null> {
+  private async load<T>(key: string, fromDb: () => Promise<T | null>): Promise<T | null> {
     const cached = await this.cache?.get<Wrapped<T>>(key);
     if (cached) {
       this.putInternal(key, cached);

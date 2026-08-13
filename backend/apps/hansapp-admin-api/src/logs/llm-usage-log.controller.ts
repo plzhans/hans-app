@@ -29,9 +29,7 @@ export class LlmUsageLogController {
       '인덱스가 시각 기준이라 기간 없는 조회는 표를 통째로 훑기 때문이다.',
   })
   @ApiPageResponse(LlmUsageLogDto)
-  async llm(
-    @Query() query: LlmUsageLogQueryDto,
-  ): Promise<PageResponseDto<LlmUsageLogDto>> {
+  async llm(@Query() query: LlmUsageLogQueryDto): Promise<PageResponseDto<LlmUsageLogDto>> {
     const page = await this.logs.list({
       page: query.page,
       size: query.size,
@@ -43,9 +41,6 @@ export class LlmUsageLogController {
       appId: query.appId,
       userId: query.userId,
     });
-    return new PageResponseDto(
-      page,
-      page.items.map((entry) => new LlmUsageLogDto(entry)),
-    );
+    return PageResponseDto.from(page.map((entry) => new LlmUsageLogDto(entry)));
   }
 }

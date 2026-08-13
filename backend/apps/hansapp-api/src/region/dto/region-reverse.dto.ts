@@ -38,8 +38,7 @@ export class RegionPointDto {
 
   @ApiPropertyOptional({
     type: RegionDto,
-    description:
-      '시군구. **없을 수 있다** — 세종특별자치시처럼 시군구가 없는 시도가 있다.',
+    description: '시군구. **없을 수 있다** — 세종특별자치시처럼 시군구가 없는 시도가 있다.',
   })
   readonly region?: RegionDto;
 }

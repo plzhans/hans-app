@@ -1,10 +1,4 @@
-import {
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+import { Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 // catch() 가 데코레이터를 달면서 emitDecoratorMetadata 대상이 됐다. 시그니처에 쓰는 타입은
 // `import type` 이어야 한다(isolatedModules + emitDecoratorMetadata 조합의 요구, TS1272).
 import type { ArgumentsHost } from '@nestjs/common';
@@ -39,9 +33,7 @@ export class HttpErrorFilter implements ExceptionFilter {
     const req = ctx.getRequest<Request>();
 
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     if (status >= 500) {
       this.logger.error(
@@ -69,9 +61,7 @@ export class HttpErrorFilter implements ExceptionFilter {
 function wantsHtml(req: Request): boolean {
   const accept = String(req.headers['accept'] ?? '');
   const dest = String(req.headers['sec-fetch-dest'] ?? '');
-  const xhr =
-    String(req.headers['x-requested-with'] ?? '').toLowerCase() ===
-    'xmlhttprequest';
+  const xhr = String(req.headers['x-requested-with'] ?? '').toLowerCase() === 'xmlhttprequest';
   if (xhr) return false;
   return dest === 'document' || accept.includes('text/html');
 }
@@ -80,9 +70,7 @@ function wantsHtml(req: Request): boolean {
 function jsonBody(exception: unknown, status: number): unknown {
   if (exception instanceof HttpException) {
     const resp = exception.getResponse();
-    return typeof resp === 'string'
-      ? { statusCode: status, message: resp }
-      : resp;
+    return typeof resp === 'string' ? { statusCode: status, message: resp } : resp;
   }
   return { statusCode: status, message: 'Internal server error' };
 }

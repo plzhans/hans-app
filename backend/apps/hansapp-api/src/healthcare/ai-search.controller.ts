@@ -143,8 +143,7 @@ export class HealthcareAiSearchController {
     if (cause instanceof AiSearchQuotaError) {
       this.logger.error(cause.message);
       return new ServiceUnavailableException(
-        QUOTA_MESSAGE[`${cause.owner ?? ''}:${cause.window ?? ''}`] ??
-          QUOTA_MESSAGE[''],
+        QUOTA_MESSAGE[`${cause.owner ?? ''}:${cause.window ?? ''}`] ?? QUOTA_MESSAGE[''],
       );
     }
     if (!(cause instanceof LlmError)) {

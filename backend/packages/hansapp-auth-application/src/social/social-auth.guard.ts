@@ -148,14 +148,8 @@ export class SocialAuthGuard implements CanActivate {
    *  - link_token: 연동 의도(현재 로그인 사용자에 연동)
    *  - return_to: 로그인 성공 후 백엔드가 코드를 실어 돌려보낼 프론트 URL(허용목록 검증)
    */
-  private async buildState(
-    req: Request,
-    context: ExecutionContext,
-  ): Promise<string> {
-    const linkToken =
-      typeof req.query.link_token === 'string'
-        ? req.query.link_token
-        : undefined;
+  private async buildState(req: Request, context: ExecutionContext): Promise<string> {
+    const linkToken = typeof req.query.link_token === 'string' ? req.query.link_token : undefined;
     const { returnTo, clientId } = await this.resolveReturnTo(req);
 
     if (linkToken) {
@@ -176,9 +170,7 @@ export class SocialAuthGuard implements CanActivate {
     // 로그인은 끝에서 인가코드가 나오므로 challenge 가 있어야 한다.
     // 여기서 안 받으면 콜백에서 코드를 만들 때 붙일 값이 없다(그 요청엔 쿼리가 없다).
     const codeChallenge =
-      typeof req.query.code_challenge === 'string'
-        ? req.query.code_challenge
-        : undefined;
+      typeof req.query.code_challenge === 'string' ? req.query.code_challenge : undefined;
     // **외부 앱만 PKCE 를 요구한다.** 그쪽은 인가코드를 받아 교환하는데 client_secret 을
     // 숨길 수 없어서 verifier 로 대신 증명해야 한다.
     //
@@ -190,9 +182,7 @@ export class SocialAuthGuard implements CanActivate {
     // 클라이언트의 state 는 우리가 해석하지 않는다. 최종 리다이렉트에 그대로 돌려주기 위해
     // 왕복시킬 뿐이다. 크기를 남이 정하므로 상한을 둔다 — 안 두면 우리 state·URL 이 같이 부푼다.
     const clientState =
-      typeof req.query.client_state === 'string'
-        ? req.query.client_state
-        : undefined;
+      typeof req.query.client_state === 'string' ? req.query.client_state : undefined;
     if (clientState && clientState.length > 512) {
       throw new BadRequestException('client_state is too long (max 512).');
     }
@@ -225,17 +215,11 @@ export class SocialAuthGuard implements CanActivate {
    * 여기서 정한 clientId 가 state 에 실려 콜백까지 가고, 발급되는 인가코드에 박힌다.
    * 그래야 토큰 교환 때 "이 코드는 누구 것"을 서버가 알 수 있다.
    */
-  private async resolveReturnTo(
-    req: Request,
-  ): Promise<{ returnTo?: string; clientId?: string }> {
-    const raw =
-      typeof req.query.redirect_uri === 'string'
-        ? req.query.redirect_uri
-        : undefined;
+  private async resolveReturnTo(req: Request): Promise<{ returnTo?: string; clientId?: string }> {
+    const raw = typeof req.query.redirect_uri === 'string' ? req.query.redirect_uri : undefined;
     if (!raw) return {};
 
-    const clientId =
-      typeof req.query.client_id === 'string' ? req.query.client_id : undefined;
+    const clientId = typeof req.query.client_id === 'string' ? req.query.client_id : undefined;
 
     if (clientId) {
       const client = await this.access.getClient(clientId);
@@ -244,9 +228,7 @@ export class SocialAuthGuard implements CanActivate {
       }
       const allowed = (client.redirectUris as string[] | null) ?? [];
       if (!allowed.includes(raw)) {
-        throw new BadRequestException(
-          'redirect_uri is not a registered redirect URI.',
-        );
+        throw new BadRequestException('redirect_uri is not a registered redirect URI.');
       }
       return { returnTo: raw, clientId: client.clientId };
     }
@@ -315,9 +297,7 @@ export class SocialAuthGuard implements CanActivate {
     const a = Buffer.from(seen ?? '');
     const b = Buffer.from(nonce);
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      throw new BadRequestException(
-        'Sign-in flow does not belong to this browser.',
-      );
+      throw new BadRequestException('Sign-in flow does not belong to this browser.');
     }
   }
 }

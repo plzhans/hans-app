@@ -1,3 +1,7 @@
+---
+description: Hans API 공통 규칙 — 서비스 키 인증, OAuth 2.0 + PKCE 로그인 연동, 토큰 만료와 JWT 검증, Accept-Language 다국어 응답.
+---
+
 # 공통
 
 모든 API 에 똑같이 적용되는 규칙입니다. **요청에 인증 헤더가 필요합니다**(언어 헤더는 선택).

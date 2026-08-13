@@ -14,19 +14,13 @@ import * as path from 'node:path';
  * package.json 의 files 에 "elasticsearch" 가 있어 배포 번들에도 실린다.
  * (env 처럼 앱↔백엔드를 **가로지르는** 깊이가 아니라 패키지 안에서 닫혀 있어 재배치에 안 흔들린다.)
  */
-export const DEFAULT_SCHEMA_DIR = path.join(
-  __dirname,
-  '..',
-  '..',
-  'elasticsearch',
-);
+export const DEFAULT_SCHEMA_DIR = path.join(__dirname, '..', '..', 'elasticsearch');
 
 /** 공유 분석기 컴포넌트 템플릿 이름(병원 전용이 아니라 공유라 도메인명을 안 붙인다). */
 export const COMPONENT_TEMPLATE_NAME = 'hansapp-analysis';
 
 /** 공유 분석기 정본 파일명. */
-export const COMPONENT_TEMPLATE_FILENAME =
-  'component-template.hansapp-analysis.json';
+export const COMPONENT_TEMPLATE_FILENAME = 'component-template.hansapp-analysis.json';
 
 /** 통합 병원 alias. 병원 데이터 색인(HealthcareHospitalIndexer)이 이 이름으로 upsert 한다. */
 export const HEALTHCARE_HOSPITAL_ALIAS = 'healthcare_hospital';
@@ -65,18 +59,13 @@ export const resolveSchemaDir = (override?: string): string =>
  *
  * 접두사는 설정에서 온다(ELASTICSEARCH_INDEX_PREFIX → SearchConfig.indexPrefix).
  */
-const withPrefix = (name: string, prefix: string): string =>
-  `${prefix}-${name}`;
+const withPrefix = (name: string, prefix: string): string => `${prefix}-${name}`;
 
 /** alias 이름(물리). 앱·색인은 이 이름으로만 접근한다. */
-export const aliasOf = (name: string, prefix: string): string =>
-  withPrefix(name, prefix);
+export const aliasOf = (name: string, prefix: string): string => withPrefix(name, prefix);
 /** 특정 버전 인덱스 이름(물리). */
-export const versionIndexOf = (
-  name: string,
-  prefix: string,
-  version: number,
-): string => `${withPrefix(name, prefix)}-v${version}`;
+export const versionIndexOf = (name: string, prefix: string, version: number): string =>
+  `${withPrefix(name, prefix)}-v${version}`;
 /** 최초 생성 버전 인덱스. */
 export const initialIndexOf = (name: string, prefix: string): string =>
   versionIndexOf(name, prefix, 1);

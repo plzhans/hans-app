@@ -10,10 +10,7 @@ import { buildOpenApiDocument, parseServersSpec } from './swagger';
 // 스펙을 내보낼 기본 경로. 레포 루트 기준 docs/openapi/hansapp-openapi.json 이다.
 // __dirname 은 dev(src)/prod(dist) 모두 backend/apps/hansapp-api/{src|dist} 이므로
 // 4단계 상위가 레포 루트가 된다.
-const DEFAULT_OUT = resolve(
-  __dirname,
-  '../../../../docs/openapi/hansapp-openapi.json',
-);
+const DEFAULT_OUT = resolve(__dirname, '../../../../docs/openapi/hansapp-openapi.json');
 
 /**
  * 출력 경로/파일명을 결정한다(옵셔널, 다음 준비용).

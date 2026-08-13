@@ -11,13 +11,7 @@ import {
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import {
-  Auth,
-  AuthType,
-  CurrentUser,
-  OAuthTokenService,
-  Public,
-} from '@hansapp/auth-application';
+import { Auth, AuthType, CurrentUser, OAuthTokenService, Public } from '@hansapp/auth-application';
 import type { AuthTokens, AuthUser } from '@hansapp/auth-application';
 
 import {
@@ -76,8 +70,7 @@ export class OAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
-    const origin =
-      typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
 
     let tokens: AuthTokens;
     if (dto.grant_type === 'authorization_code') {
@@ -148,14 +141,8 @@ export class OAuthController {
       '현재 세션(refresh 쿠키)을 폐기하고 인증 쿠키를 지운다. ' +
       '자격증명이 없거나 만료됐어도 쿠키는 지운다.',
   })
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<void> {
-    await this.grants.logoutByRefreshToken(
-      readRefreshCookie(req),
-      requestMeta(req),
-    );
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
+    await this.grants.logoutByRefreshToken(readRefreshCookie(req), requestMeta(req));
     clearRefreshCookie(res);
   }
 }

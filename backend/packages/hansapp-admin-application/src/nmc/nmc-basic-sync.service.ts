@@ -69,24 +69,18 @@ export class NmcBasicSyncService {
     let limitReached = false;
 
     for (;;) {
-      const remaining =
-        options.limit === undefined ? BATCH_SIZE : options.limit - calls;
+      const remaining = options.limit === undefined ? BATCH_SIZE : options.limit - calls;
 
       // 병원 하나가 1콜이다. 1콜도 못 쓰면 더 진행할 수 없다.
       if (remaining < 1) {
         limitReached = total > processed;
         if (limitReached) {
-          this.logger.log(
-            `콜 한도(${options.limit})에 도달했다. 다음 실행에서 이어받는다.`,
-          );
+          this.logger.log(`콜 한도(${options.limit})에 도달했다. 다음 실행에서 이어받는다.`);
         }
         break;
       }
 
-      const targets = await this.nextTargets(
-        options,
-        Math.min(BATCH_SIZE, remaining),
-      );
+      const targets = await this.nextTargets(options, Math.min(BATCH_SIZE, remaining));
       if (targets.length === 0) {
         break;
       }
@@ -124,10 +118,7 @@ export class NmcBasicSyncService {
   }
 
   /** 작업 큐 한 배치. divs/clinics/force 를 풀어 저장소에 넘긴다. */
-  private nextTargets(
-    options: BasicSyncOptions,
-    take: number,
-  ): Promise<string[]> {
+  private nextTargets(options: BasicSyncOptions, take: number): Promise<string[]> {
     return this.repo.pickPending(
       options.divs ?? NMC_MAJOR_DIVS,
       options.clinics ?? false,
@@ -175,10 +166,7 @@ export class NmcBasicSyncService {
    * source='basic' 으로 남긴다. 1단계 역조회(source='list')가 나중에 이걸 되돌리지 않도록,
    * 역조회 쪽 upsert 가 'basic' 이면 source 를 유지한다.
    */
-  private async upsertSubjects(
-    hpid: string,
-    item: HospitalBasisInfoItem,
-  ): Promise<void> {
+  private async upsertSubjects(hpid: string, item: HospitalBasisInfoItem): Promise<void> {
     const names = (asString(item.dgidIdName) ?? '')
       .split(',')
       .map((name) => name.trim())
@@ -198,9 +186,7 @@ export class NmcBasicSyncService {
 
     const missing = names.length - codes.length;
     if (missing > 0) {
-      this.logger.warn(
-        `${hpid}: 코드마스터(D000)에 없는 과목명 ${missing}건 — ${names.join(',')}`,
-      );
+      this.logger.warn(`${hpid}: 코드마스터(D000)에 없는 과목명 ${missing}건 — ${names.join(',')}`);
     }
   }
 }

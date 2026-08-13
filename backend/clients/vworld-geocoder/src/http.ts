@@ -35,10 +35,7 @@ export interface VworldResponse<T = unknown> {
   headers: Headers;
 }
 
-export type VworldFetch = (
-  url: string,
-  options?: RequestInit,
-) => Promise<VworldResponse>;
+export type VworldFetch = (url: string, options?: RequestInit) => Promise<VworldResponse>;
 
 /**
  * 브이월드 호출용 fetch 를 만든다. orval 의 custom mutator 로 주입한다.
@@ -50,10 +47,7 @@ export type VworldFetch = (
  *
  * **request 는 호출부가 정한다.** 같은 경로에서 오퍼레이션이 갈리기 때문이다.
  */
-export function createVworldFetch(
-  config: VworldConfig,
-  operation: string,
-): VworldFetch {
+export function createVworldFetch(config: VworldConfig, operation: string): VworldFetch {
   const serviceKey = config.serviceKey?.trim();
   if (!serviceKey) {
     throw new Error('VWORLD service key is not set');
@@ -89,12 +83,7 @@ export function createVworldFetch(
  * 섞여 나갈 수 있고, 값이 매 호출 같아서 스펙에 있을 이유가 없다.
  * service·version·format 도 고정값이라 여기서 붙인다.
  */
-function buildUrl(
-  baseUrl: string,
-  url: string,
-  serviceKey: string,
-  operation: string,
-): string {
+function buildUrl(baseUrl: string, url: string, serviceKey: string, operation: string): string {
   const separator = url.includes('?') ? '&' : '?';
   const fixed = new URLSearchParams({
     service: 'address',
@@ -175,15 +164,11 @@ function parseBody(body: string, operation: string): unknown {
   try {
     payload = JSON.parse(body);
   } catch (error) {
-    throw new VworldError(
-      'Failed to parse VWORLD API response',
-      'PARSE_ERROR',
-      {
-        cause: error,
-        responseBody: body,
-        operation,
-      },
-    );
+    throw new VworldError('Failed to parse VWORLD API response', 'PARSE_ERROR', {
+      cause: error,
+      responseBody: body,
+      operation,
+    });
   }
 
   const response = asRecord(asRecord(payload)?.response);

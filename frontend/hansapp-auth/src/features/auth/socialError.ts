@@ -10,11 +10,13 @@
  */
 const SOCIAL_ERROR_MESSAGES: Record<string, string> = {
   email_exists:
-    '이미 가입된 이메일입니다. 아래에서 이메일로 로그인한 뒤 마이페이지에서 연동하세요.',
-  withdrawn_cooldown: '탈퇴 후 재가입 제한기간입니다. 잠시 후 다시 시도하세요.',
-  already_linked_other: '이 소셜 계정은 다른 회원에 이미 연동돼 있습니다.',
-  link_requires_login: '연동은 로그인 상태에서만 가능합니다.',
-  invalid_account: '유효하지 않은 계정입니다.',
+    'This email is already registered. Sign in with your email below, then link this account from your account page.',
+  withdrawn_cooldown:
+    'This email was withdrawn recently and cannot be used yet. Try again later.',
+  already_linked_other:
+    'This social account is already linked to another user.',
+  link_requires_login: 'You must be signed in to link an account.',
+  invalid_account: 'This account is not valid.',
 };
 
 /**
@@ -22,5 +24,5 @@ const SOCIAL_ERROR_MESSAGES: Record<string, string> = {
  * 원인을 감추면 사용자도 우리도 무엇이 일어났는지 알 수 없다.
  */
 export function socialErrorMessage(code: string): string {
-  return SOCIAL_ERROR_MESSAGES[code] ?? `로그인 실패: ${code}`;
+  return SOCIAL_ERROR_MESSAGES[code] ?? `Sign-in failed: ${code}`;
 }

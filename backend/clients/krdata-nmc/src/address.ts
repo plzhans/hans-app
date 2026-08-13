@@ -79,10 +79,7 @@ export function parseNmcRegion(dutyAddr: unknown): NmcRegion {
   }
 
   const third = tokens[2];
-  const sgguNm =
-    /시$/.test(second) && third && /구$/.test(third)
-      ? `${second} ${third}`
-      : second;
+  const sgguNm = /시$/.test(second) && third && /구$/.test(third) ? `${second} ${third}` : second;
 
   return { sidoNm, sgguNm };
 }

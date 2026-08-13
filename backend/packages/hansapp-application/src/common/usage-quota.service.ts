@@ -134,9 +134,7 @@ export class UsageQuotaService implements OnModuleDestroy {
     const full = states.find((s) => s.used >= s.limit);
     if (full) {
       // 넘긴 뒤로는 매 요청 찍히므로 한 줄로 짧게 남긴다.
-      this.logger.warn(
-        `quota exhausted: ${scope} ${full.window} (${full.used}/${full.limit})`,
-      );
+      this.logger.warn(`quota exhausted: ${scope} ${full.window} (${full.used}/${full.limit})`);
       return { allowed: false, blocked: full.window, states };
     }
     return { allowed: true, states };
@@ -148,11 +146,7 @@ export class UsageQuotaService implements OnModuleDestroy {
    * 실패는 삼킨다 — 이미 요금은 나갔고, 여기서 던져 봐야 사용자가 답을 못 받을 뿐이다.
    * 대신 로그로 남긴다(계수가 조용히 새면 상한이 헐거워진다).
    */
-  async add(
-    scope: string,
-    amount: number,
-    buckets: QuotaBucket[],
-  ): Promise<QuotaState[]> {
+  async add(scope: string, amount: number, buckets: QuotaBucket[]): Promise<QuotaState[]> {
     const active = buckets.filter((b) => b.limit > 0);
     const step = Math.round(amount);
     if (step <= 0 || active.length === 0 || !this.url) {
@@ -194,10 +188,7 @@ export class UsageQuotaService implements OnModuleDestroy {
    * 또는 Redis 를 안 쓰는 구성)이고 undefined 는 "모른다"(계수기가 죽었다)다. 부르는 쪽이
    * 그 둘을 같게 다루면, 한도 없이 도는 배포와 계수기가 죽은 배포가 화면에서 똑같아진다.
    */
-  async peek(
-    scope: string,
-    buckets: QuotaBucket[],
-  ): Promise<QuotaState[] | undefined> {
+  async peek(scope: string, buckets: QuotaBucket[]): Promise<QuotaState[] | undefined> {
     const active = buckets.filter((b) => b.limit > 0);
     if (active.length === 0 || !this.url) {
       return [];
@@ -209,18 +200,13 @@ export class UsageQuotaService implements OnModuleDestroy {
    * 통들을 한 번에 읽는다. 못 읽었으면 undefined 다 — **빈 배열과 구분해야 한다.**
    * 부르는 쪽이 "0 이다" 와 "모른다" 를 다르게 다뤄야 하기 때문이다(fail-closed).
    */
-  private async read(
-    scope: string,
-    buckets: QuotaBucket[],
-  ): Promise<QuotaState[] | undefined> {
+  private async read(scope: string, buckets: QuotaBucket[]): Promise<QuotaState[] | undefined> {
     try {
       const client = await this.connect();
       if (!client) {
         return undefined;
       }
-      const raw = await client.mGet(
-        buckets.map((b) => this.keyFor(scope, b.window)),
-      );
+      const raw = await client.mGet(buckets.map((b) => this.keyFor(scope, b.window)));
       const states = buckets.map((bucket, i) => ({
         window: bucket.window,
         used: Number(raw[i] ?? 0),
@@ -235,11 +221,7 @@ export class UsageQuotaService implements OnModuleDestroy {
   }
 
   /** 수명 걸기. 실패해도 계수 자체는 이미 됐으므로 조용히 넘긴다. */
-  private async setTtl(
-    client: RedisClientType,
-    scope: string,
-    window: QuotaWindow,
-  ): Promise<void> {
+  private async setTtl(client: RedisClientType, scope: string, window: QuotaWindow): Promise<void> {
     const ttl = TTL_SEC[window];
     if (ttl === undefined) {
       return;

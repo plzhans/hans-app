@@ -20,6 +20,7 @@ body {
 /* 이메일(아이디) 입력창은 한글 IME 대신 영문으로 시작하게 한다.
    ime-mode 는 표준에서 빠졌지만 지원 브라우저(Firefox 등)에서 적용된다.
    모바일은 type=email + inputmode 로 라틴 키보드가 뜬다. Chrome 데스크톱은 강제 불가(한계). */
-input[type='email'] {
+input[type='email'],
+.input-latin {
   ime-mode: disabled;
 }

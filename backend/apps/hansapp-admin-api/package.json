@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@hansapp/admin-application": "workspace:*",
+    "@hansapp/event-publisher": "workspace:*",
     "@hansapp/common": "workspace:*",
     "@hansapp/http-common": "workspace:*",
     "@nestjs/common": "^11.1.27",

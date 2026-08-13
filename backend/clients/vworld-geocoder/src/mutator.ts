@@ -24,10 +24,7 @@ export function withVworldConfig(
   return { ...options, vworld: config, operation };
 }
 
-export const vworldMutator = async <T>(
-  url: string,
-  options?: VworldRequestInit,
-): Promise<T> => {
+export const vworldMutator = async <T>(url: string, options?: VworldRequestInit): Promise<T> => {
   const config = options?.vworld;
   const operation = options?.operation;
   if (!config || !operation) {

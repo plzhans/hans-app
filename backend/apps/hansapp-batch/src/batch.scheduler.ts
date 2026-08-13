@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/nestjs';
 import { BATCH_CONFIG, BatchConfig } from './batch.config';
 import { BatchService } from './batch.service';
 import { AuthCleanupService } from './auth-cleanup.service';
+import { SessionCacheSweeper } from './session-cache-sweeper.service';
 
 /**
  * 이 크론 잡의 이름. SchedulerRegistry 등록명과 Sentry 태그가 **같은 상수를 본다** —
@@ -41,6 +42,7 @@ export class BatchScheduler {
   constructor(
     private readonly batch: BatchService,
     private readonly authCleanup: AuthCleanupService,
+    private readonly sessionCacheSweeper: SessionCacheSweeper,
     private readonly registry: SchedulerRegistry,
     @Inject(BATCH_CONFIG) private readonly config: BatchConfig,
   ) {}
@@ -67,20 +69,25 @@ export class BatchScheduler {
       적재가 길어지거나 실패할 때 정리까지 밀린다.
     */
     const cleanupJob = new CronJob(this.config.authCleanupCron, () => {
-      void this.authCleanup.run().catch((error: unknown) => {
-        // 테이블별 실패는 서비스가 이미 삼킨다. 여기까지 오면 잡 자체의 버그다.
-        this.logger.error('인증 정리 중 처리되지 않은 오류', error);
-        Sentry.captureException(error, {
-          tags: { job: AUTH_CLEANUP_JOB_NAME },
+      /*
+        **캐시 정리를 DB 정리에 붙여 둔다.** 고아 캐시는 DB 행이 사라진 세션의 것이라,
+        만료 행을 치운 직후가 훑기 좋은 시점이다 — 방금 지운 것들도 함께 걸린다.
+      */
+      void this.authCleanup
+        .run()
+        .then(() => this.sessionCacheSweeper.run())
+        .catch((error: unknown) => {
+          // 테이블별 실패는 서비스가 이미 삼킨다. 여기까지 오면 잡 자체의 버그다.
+          this.logger.error('인증 정리 중 처리되지 않은 오류', error);
+          Sentry.captureException(error, {
+            tags: { job: AUTH_CLEANUP_JOB_NAME },
+          });
         });
-      });
     });
 
     this.registry.addCronJob(AUTH_CLEANUP_JOB_NAME, cleanupJob);
     cleanupJob.start();
 
-    this.logger.log(
-      `크론 등록 — ${AUTH_CLEANUP_JOB_NAME} ${this.config.authCleanupCron}`,
-    );
+    this.logger.log(`크론 등록 — ${AUTH_CLEANUP_JOB_NAME} ${this.config.authCleanupCron}`);
   }
 }

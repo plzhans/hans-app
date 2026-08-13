@@ -5,3 +5,6 @@
 
 /** 산출물 신원. `<package.json version>-<git sha 7자리>` (로컬 빌드면 sha 자리가 dev). */
 declare const __APP_RELEASE__: string;
+
+/** 산출물을 구운 시각. ISO(UTC) 로 굽고 화면에서 편다. */
+declare const __APP_BUILT_AT__: string;

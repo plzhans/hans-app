@@ -11,10 +11,7 @@
 **검색 파라미터를 하나도 안 주면 `totalCount: 0` 이다**(2026-07 실측). 필터가 사실상 필수인 검색형 API다. 전량을 받으려면 `gnlNmCd=%` 처럼 **와일드카드 `%`** 를 준다.
  * OpenAPI spec version: 1.0.0
  */
-import type {
-  GetMajorComponentCodeListParams,
-  MajorComponentCodeResponse,
-} from './model';
+import type { GetMajorComponentCodeListParams, MajorComponentCodeResponse } from './model';
 
 import { krDataMutator } from '../../mutator';
 
@@ -27,16 +24,12 @@ export type getMajorComponentCodeListResponse200 = {
   status: 200;
 };
 
-export type getMajorComponentCodeListResponseSuccess =
-  getMajorComponentCodeListResponse200 & {
-    headers: Headers;
-  };
-export type getMajorComponentCodeListResponse =
-  getMajorComponentCodeListResponseSuccess;
+export type getMajorComponentCodeListResponseSuccess = getMajorComponentCodeListResponse200 & {
+  headers: Headers;
+};
+export type getMajorComponentCodeListResponse = getMajorComponentCodeListResponseSuccess;
 
-export const getGetMajorComponentCodeListUrl = (
-  params?: GetMajorComponentCodeListParams,
-) => {
+export const getGetMajorComponentCodeListUrl = (params?: GetMajorComponentCodeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -56,11 +49,8 @@ export const getMajorComponentCodeList = async (
   params?: GetMajorComponentCodeListParams,
   options?: RequestInit,
 ): Promise<getMajorComponentCodeListResponse> => {
-  return krDataMutator<getMajorComponentCodeListResponse>(
-    getGetMajorComponentCodeListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getMajorComponentCodeListResponse>(getGetMajorComponentCodeListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };

@@ -54,9 +54,7 @@ async function run<T>(
   }
   // 값이 어디서 왔는지 밝힌다(옵션 우선, 없으면 환경변수).
   const from =
-    email === process.env.HANSAPP_CLI_OWNER?.trim()
-      ? 'HANSAPP_CLI_OWNER 환경변수'
-      : '--owner 옵션';
+    email === process.env.HANSAPP_CLI_OWNER?.trim() ? 'HANSAPP_CLI_OWNER 환경변수' : '--owner 옵션';
 
   return withAuthContext(source, async (context) => {
     const apps = context.get(AppService);
@@ -135,33 +133,23 @@ export function appCommand(source: ConfigSource): Command {
         .command('create')
         .description('앱을 등록한다(CLI 는 관리자라 기본 승인됨)')
         .requiredOption('--name <name>', '앱 이름(영어·하이픈만)')
-        .option(
-          '--pending',
-          '미승인(PENDING) 상태로 만든다. 콘솔 사용자 흐름 재현용',
-        ),
-    ).action(
-      async (options: OwnerOptions & { name: string; pending?: boolean }) => {
-        // CLI 로 만든다는 건 관리자 손을 탔다는 뜻이라 기본 ACTIVE 다.
-        // 미승인 상태가 필요하면 --pending 을 명시한다.
-        const status = options.pending ? AppStatus.PENDING : AppStatus.ACTIVE;
-        const created = await run(source, options.owner, (apps, userId) =>
-          apps.createApp(userId, options.name, status),
-        );
-        printJson(
-          { id: created.id, name: created.name, status: created.status },
-          true,
-        );
-      },
-    ),
+        .option('--pending', '미승인(PENDING) 상태로 만든다. 콘솔 사용자 흐름 재현용'),
+    ).action(async (options: OwnerOptions & { name: string; pending?: boolean }) => {
+      // CLI 로 만든다는 건 관리자 손을 탔다는 뜻이라 기본 ACTIVE 다.
+      // 미승인 상태가 필요하면 --pending 을 명시한다.
+      const status = options.pending ? AppStatus.PENDING : AppStatus.ACTIVE;
+      const created = await run(source, options.owner, (apps, userId) =>
+        apps.createApp(userId, options.name, status),
+      );
+      printJson({ id: created.id, name: created.name, status: created.status }, true);
+    }),
     ['hansapp-cli app create --name medifinder --owner me@example.com'],
   );
 
   addExamples(
     app
       .command('approve')
-      .description(
-        '앱을 승인한다(PENDING→ACTIVE, 하위 PENDING 키·클라이언트도 함께). 운영자용',
-      )
+      .description('앱을 승인한다(PENDING→ACTIVE, 하위 PENDING 키·클라이언트도 함께). 운영자용')
       .requiredOption('--app <id>', '승인할 앱 id', Number)
       .action(async (options: { app: number }) => {
         // 승인은 소유자가 아니라 운영자 행위다 — withOwner 를 붙이지 않는다.
@@ -198,23 +186,16 @@ export function appCommand(source: ConfigSource): Command {
   addExamples(
     app
       .command('reject')
-      .description(
-        '앱 심사를 거절한다(사유 필수). 사용자가 고쳐 재요청한다. 운영자용',
-      )
+      .description('앱 심사를 거절한다(사유 필수). 사용자가 고쳐 재요청한다. 운영자용')
       .requiredOption('--app <id>', '거절할 앱 id', Number)
       .requiredOption('--reason <text>', '거절 사유(사용자에게 노출된다)')
       .action(async (options: { app: number; reason: string }) => {
         const app = await withAuthContext(source, (context) =>
           context.get(AppService).rejectApp(options.app, options.reason),
         );
-        printJson(
-          { id: app.id, name: app.name, rejectionReason: app.rejectionReason },
-          true,
-        );
+        printJson({ id: app.id, name: app.name, rejectionReason: app.rejectionReason }, true);
       }),
-    [
-      'hansapp-cli app reject --app 10005 --reason "오리진에 운영 도메인이 없습니다"',
-    ],
+    ['hansapp-cli app reject --app 10005 --reason "오리진에 운영 도메인이 없습니다"'],
   );
 
   app
@@ -235,22 +216,18 @@ export function appCommand(source: ConfigSource): Command {
       );
     });
 
-  withOwner(app.command('list').description('내 앱 목록')).action(
-    async (options: OwnerOptions) => {
-      const apps = await run(source, options.owner, (svc, userId) =>
-        svc.listApps(userId),
-      );
-      printJson(
-        apps.map((a) => ({
-          id: a.id,
-          name: a.name,
-          status: a.status,
-          deletedAt: a.deletedAt ?? undefined,
-        })),
-        true,
-      );
-    },
-  );
+  withOwner(app.command('list').description('내 앱 목록')).action(async (options: OwnerOptions) => {
+    const apps = await run(source, options.owner, (svc, userId) => svc.listApps(userId));
+    printJson(
+      apps.map((a) => ({
+        id: a.id,
+        name: a.name,
+        status: a.status,
+        deletedAt: a.deletedAt ?? undefined,
+      })),
+      true,
+    );
+  });
 
   withOwner(
     app
@@ -286,33 +263,26 @@ export function appCommand(source: ConfigSource): Command {
         .description('앱을 삭제한다(소프트 삭제 — 하위 키·클라이언트도 비활성)')
         .option('--app <id>', '삭제할 앱 id', Number)
         .option('--all', '내 앱을 **전부** 삭제한다'),
-    ).action(
-      async (options: OwnerOptions & { app?: number; all?: boolean }) => {
-        if (!options.all && options.app === undefined) {
-          throw new Error('--app <id> 또는 --all 중 하나를 지정하라.');
-        }
-        const deleted = await run(
-          source,
-          options.owner,
-          async (svc, userId) => {
-            // 대상 결정. --all 은 이미 삭제된 앱을 건너뛴다(중복 호출 방지).
-            const targets = options.all
-              ? (await svc.listApps(userId))
-                  .filter((a) => !a.deletedAt)
-                  .map((a) => ({ id: a.id, name: a.name }))
-              : [{ id: options.app as number, name: undefined }];
+    ).action(async (options: OwnerOptions & { app?: number; all?: boolean }) => {
+      if (!options.all && options.app === undefined) {
+        throw new Error('--app <id> 또는 --all 중 하나를 지정하라.');
+      }
+      const deleted = await run(source, options.owner, async (svc, userId) => {
+        // 대상 결정. --all 은 이미 삭제된 앱을 건너뛴다(중복 호출 방지).
+        const apps = options.all ? await svc.listApps(userId) : [];
+        const targets = options.all
+          ? apps.filter((a) => !a.deletedAt).map((a) => ({ id: a.id, name: a.name }))
+          : [{ id: options.app as number, name: undefined }];
 
-            const done: { id: number; name?: string }[] = [];
-            for (const t of targets) {
-              await svc.deleteApp(userId, t.id);
-              done.push(t);
-            }
-            return done;
-          },
-        );
-        printJson({ deleted: deleted.length, apps: deleted }, true);
-      },
-    ),
+        const done: { id: number; name?: string }[] = [];
+        for (const t of targets) {
+          await svc.deleteApp(userId, t.id);
+          done.push(t);
+        }
+        return done;
+      });
+      printJson({ deleted: deleted.length, apps: deleted }, true);
+    }),
     [
       'hansapp-cli app delete --app 4 --owner me@example.com',
       'hansapp-cli app delete --all --owner me@example.com',
@@ -328,15 +298,10 @@ export function appCommand(source: ConfigSource): Command {
         .requiredOption('--app <id>', '앱 id', Number)
         .requiredOption('--name <name>', '키 이름(용도 구분)'),
     ).action(async (options: OwnerOptions & { app: number; name: string }) => {
-      const { apiKey, plainKey } = await run(
-        source,
-        options.owner,
-        (svc, userId) => svc.createApiKey(userId, options.app, options.name),
+      const { apiKey, plainKey } = await run(source, options.owner, (svc, userId) =>
+        svc.createApiKey(userId, options.app, options.name),
       );
-      printJson(
-        { id: apiKey.id, name: apiKey.name, keyPrefix: apiKey.keyPrefix },
-        true,
-      );
+      printJson({ id: apiKey.id, name: apiKey.name, keyPrefix: apiKey.keyPrefix }, true);
       printSecret('서비스 키', plainKey);
     }),
     ['hansapp-cli app key --app 10000 --name server-prod'],
@@ -352,27 +317,12 @@ export function appCommand(source: ConfigSource): Command {
         .requiredOption('--name <name>', '클라이언트 이름(영어·하이픈만)')
         .option('--type <type>', '플랫폼: web | ios | android', 'web')
         .option('--client-id <id>', 'Client ID 직접 지정(비우면 자동 발급)')
-        .option(
-          '--origin <url>',
-          '[web] 승인된 JavaScript 원본(반복 가능)',
-          collect,
-          [],
-        )
-        .option(
-          '--redirect <url>',
-          '[web] 승인된 리디렉션 URI(반복 가능)',
-          collect,
-          [],
-        )
+        .option('--origin <url>', '[web] 승인된 JavaScript 원본(반복 가능)', collect, [])
+        .option('--redirect <url>', '[web] 승인된 리디렉션 URI(반복 가능)', collect, [])
         .option('--bundle-id <id>', '[ios] Bundle ID')
         .option('--team-id <id>', '[ios] Apple Team ID')
         .option('--package <name>', '[android] 패키지명')
-        .option(
-          '--fingerprint <sha256>',
-          '[android] SHA-256 지문(반복 가능)',
-          collect,
-          [],
-        ),
+        .option('--fingerprint <sha256>', '[android] SHA-256 지문(반복 가능)', collect, []),
     ).action(
       async (
         options: OwnerOptions & {
@@ -390,9 +340,7 @@ export function appCommand(source: ConfigSource): Command {
       ) => {
         const type = options.type.toUpperCase();
         if (!['WEB', 'IOS', 'ANDROID'].includes(type)) {
-          throw new Error(
-            `알 수 없는 --type: ${options.type} (web|ios|android)`,
-          );
+          throw new Error(`알 수 없는 --type: ${options.type} (web|ios|android)`);
         }
         const input = {
           type,
@@ -406,10 +354,8 @@ export function appCommand(source: ConfigSource): Command {
           fingerprints: options.fingerprint,
         } as unknown as CreateClientInput;
 
-        const { client, plainSecret } = await run(
-          source,
-          options.owner,
-          (svc, userId) => svc.createClient(userId, options.app, input),
+        const { client, plainSecret } = await run(source, options.owner, (svc, userId) =>
+          svc.createClient(userId, options.app, input),
         );
         printJson(briefClient(client), true);
         if (plainSecret) {
@@ -427,23 +373,15 @@ export function appCommand(source: ConfigSource): Command {
     withOwner(
       app
         .command('client-delete')
-        .description(
-          '클라이언트를 삭제한다(하드 삭제 — 앱 삭제와 달리 행이 사라진다)',
-        )
+        .description('클라이언트를 삭제한다(하드 삭제 — 앱 삭제와 달리 행이 사라진다)')
         .requiredOption('--app <id>', '앱 id', Number)
-        .requiredOption(
-          '--client <pk>',
-          '클라이언트 id(내부 pk, app show 로 확인)',
-          Number,
-        ),
-    ).action(
-      async (options: OwnerOptions & { app: number; client: number }) => {
-        await run(source, options.owner, (svc, userId) =>
-          svc.deleteClient(userId, options.app, options.client),
-        );
-        printJson({ deleted: options.client }, true);
-      },
-    ),
+        .requiredOption('--client <pk>', '클라이언트 id(내부 pk, app show 로 확인)', Number),
+    ).action(async (options: OwnerOptions & { app: number; client: number }) => {
+      await run(source, options.owner, (svc, userId) =>
+        svc.deleteClient(userId, options.app, options.client),
+      );
+      printJson({ deleted: options.client }, true);
+    }),
     ['hansapp-cli app client-delete --app 10002 --client 100008'],
   );
 
@@ -456,23 +394,17 @@ export function appCommand(source: ConfigSource): Command {
         .requiredOption('--app <id>', '앱 id', Number)
         .requiredOption('--client <pk>', '클라이언트 id(내부 pk)', Number)
         .option('--add <url>', '추가할 오리진(반복 가능)', collect, []),
-    ).action(
-      async (
-        options: OwnerOptions & { app: number; client: number; add: string[] },
-      ) => {
-        await appendToClient(
-          source,
-          options.owner,
-          options.app,
-          options.client,
-          'origins',
-          options.add,
-        );
-      },
-    ),
-    [
-      'hansapp-cli app origin --app 10000 --client 100000 --add https://develop.medifinder.kr',
-    ],
+    ).action(async (options: OwnerOptions & { app: number; client: number; add: string[] }) => {
+      await appendToClient(
+        source,
+        options.owner,
+        options.app,
+        options.client,
+        'origins',
+        options.add,
+      );
+    }),
+    ['hansapp-cli app origin --app 10000 --client 100000 --add https://develop.medifinder.kr'],
   );
 
   addExamples(
@@ -483,20 +415,16 @@ export function appCommand(source: ConfigSource): Command {
         .requiredOption('--app <id>', '앱 id', Number)
         .requiredOption('--client <pk>', '클라이언트 id(내부 pk)', Number)
         .option('--add <url>', '추가할 리디렉션 URI(반복 가능)', collect, []),
-    ).action(
-      async (
-        options: OwnerOptions & { app: number; client: number; add: string[] },
-      ) => {
-        await appendToClient(
-          source,
-          options.owner,
-          options.app,
-          options.client,
-          'redirectUris',
-          options.add,
-        );
-      },
-    ),
+    ).action(async (options: OwnerOptions & { app: number; client: number; add: string[] }) => {
+      await appendToClient(
+        source,
+        options.owner,
+        options.app,
+        options.client,
+        'redirectUris',
+        options.add,
+      );
+    }),
     [
       'hansapp-cli app redirect --app 10000 --client 100000 --add https://develop.medifinder.kr/auth/callback',
     ],

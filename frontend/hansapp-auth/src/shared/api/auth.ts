@@ -226,7 +226,7 @@ export function withdraw(): Promise<void> {
 
 /** 로그인한 기기 한 대. 토큰 해시는 서버가 내보내지 않는다. */
 export interface Session {
-  sessionId: string;
+  sessionId: number;
   userAgent?: string | null;
   ip?: string | null;
   createdAt: string;
@@ -241,9 +241,9 @@ export function getMySessions(): Promise<Session[]> {
 }
 
 /** 기기 하나를 로그아웃시킨다. */
-export function revokeSession(sessionId: string): Promise<void> {
+export function revokeSession(sessionId: number): Promise<void> {
   return apiFetch(
-    `/users/me/sessions/${encodeURIComponent(sessionId)}`,
+    `/users/me/sessions/${sessionId}`,
     { method: 'DELETE' },
     { auth: true },
   );

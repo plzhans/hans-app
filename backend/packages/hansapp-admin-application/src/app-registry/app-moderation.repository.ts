@@ -64,10 +64,7 @@ export class AppModerationRepository {
    * 앱만 내리면 API 호출이 그대로 통과한다.
    */
   block(appId: number): Promise<void> {
-    return this.setStatus(appId, AppStatus.DISABLED, [
-      AppStatus.PENDING,
-      AppStatus.ACTIVE,
-    ]);
+    return this.setStatus(appId, AppStatus.DISABLED, [AppStatus.PENDING, AppStatus.ACTIVE]);
   }
 
   /** 차단 해제: 앱과 그 하위 DISABLED 키·클라이언트를 ACTIVE 로 되돌린다(트랜잭션). */

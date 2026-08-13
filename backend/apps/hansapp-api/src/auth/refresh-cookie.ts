@@ -71,8 +71,7 @@ function resolveCookiePrefix(cfg: ConfigSource, env: string): string {
 export function initRefreshCookie(cfg: ConfigSource, env: string): void {
   secure = cfg.getBoolOrDefault('auth.cookieSecure');
   cookieDomain = cfg.getStringOrDefault('auth.rootDomain') || undefined;
-  clientIpHeader =
-    cfg.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
+  clientIpHeader = cfg.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined;
 
   const prefix = resolveCookiePrefix(cfg, env);
   REFRESH_COOKIE = prefix + REFRESH_COOKIE_BASE;
@@ -122,11 +121,7 @@ export function clearRefreshCookie(res: Response): void {
 }
 
 /** 로그인 힌트 쿠키(읽을 수 있는 flag)를 refresh 쿠키와 같은 수명·도메인으로 세팅한다. */
-function setSessionHint(
-  res: Response,
-  expiresAt: Date,
-  persistent: boolean,
-): void {
+function setSessionHint(res: Response, expiresAt: Date, persistent: boolean): void {
   res.cookie(SESSION_HINT_COOKIE, '1', {
     httpOnly: false, // 프론트 JS 가 읽어 refresh 호출 여부를 판단한다
     secure,
@@ -155,12 +150,7 @@ export function readRefreshCookie(req: Request): string | undefined {
  * 도착한 앱이 이 쿠키로 /oauth/token 을 한 번 불러 채운다(hansapp-web 의 authStore.bootstrap).
  */
 export function setLoginCookies(res: Response, tokens: AuthTokens): void {
-  setRefreshCookie(
-    res,
-    tokens.refreshToken,
-    tokens.refreshExpiresAt,
-    tokens.persistent,
-  );
+  setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt, tokens.persistent);
   setSessionHint(res, tokens.refreshExpiresAt, tokens.persistent);
 }
 
@@ -168,10 +158,7 @@ export function setLoginCookies(res: Response, tokens: AuthTokens): void {
  * 발급 토큰을 응답으로 변환한다. refresh 를 httpOnly 쿠키로 세팅(웹 보호)하는 동시에
  * 바디에도 담아(모바일·크로스플랫폼 스토리지) 어느 클라이언트든 쓸 수 있게 한다.
  */
-export function respondTokens(
-  res: Response,
-  tokens: AuthTokens,
-): TokenResponseDto {
+export function respondTokens(res: Response, tokens: AuthTokens): TokenResponseDto {
   setLoginCookies(res, tokens);
   return {
     accessToken: tokens.accessToken,

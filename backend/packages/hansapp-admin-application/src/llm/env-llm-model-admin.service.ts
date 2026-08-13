@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EnvLlmModelReadRepository, type EnvLlmModel } from '@hansapp/data';
 
 import { EnvLlmKeyAdminService } from './env-llm-key-admin.service';
@@ -46,17 +42,15 @@ export class EnvLlmModelAdminService {
 
   /** 전부. 화면이 키별로 묶는다. */
   async list(): Promise<EnvLlmModelView[]> {
-    return (await this.read.findAll()).map(toView);
+    const rows = await this.read.findAll();
+    return rows.map(toView);
   }
 
   /**
    * 더한다. **첫 모델은 자동으로 기본이 된다** — 하나뿐인데 기본이 아니면 그 키로는 아무것도
    * 부를 수 없고, 그 사실이 실제 호출이 실패할 때까지 드러나지 않는다.
    */
-  async create(
-    input: EnvLlmModelInput,
-    adminId: number | null,
-  ): Promise<EnvLlmModelView> {
+  async create(input: EnvLlmModelInput, adminId: number | null): Promise<EnvLlmModelView> {
     const keyId = input.keyId;
     if (keyId === undefined) {
       throw new BadRequestException('keyId is required.');
@@ -142,12 +136,11 @@ export class EnvLlmModelAdminService {
     const siblings = await this.write.findByKey(keyId);
     const known = new Set(siblings.map((m) => m.id));
     if (ids.length !== known.size || ids.some((id) => !known.has(id))) {
-      throw new BadRequestException(
-        'ids must list every model of this key exactly once.',
-      );
+      throw new BadRequestException('ids must list every model of this key exactly once.');
     }
     await this.write.reorder(ids, adminId);
-    return (await this.write.findByKey(keyId)).map(toView);
+    const rows = await this.write.findByKey(keyId);
+    return rows.map(toView);
   }
 
   /** 기본으로 삼는다. 같은 키 안에서 하나만 기본이다. */
@@ -172,9 +165,7 @@ export class EnvLlmModelAdminService {
         error !== null &&
         (error as { code?: string }).code === 'P2002'
       ) {
-        throw new BadRequestException(
-          'That model is already registered for this key.',
-        );
+        throw new BadRequestException('That model is already registered for this key.');
       }
       throw error;
     }

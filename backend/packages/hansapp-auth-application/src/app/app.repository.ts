@@ -34,11 +34,7 @@ export class AppRepository {
   }
 
   /** 앱 + 생성자를 OWNER 멤버로 한 번에 만든다(트랜잭션). */
-  createAppWithOwner(
-    userId: number,
-    name: string,
-    status: AppStatus,
-  ): Promise<App> {
+  createAppWithOwner(userId: number, name: string, status: AppStatus): Promise<App> {
     return this.prisma.app.create({
       data: {
         name,
@@ -101,10 +97,7 @@ export class AppRepository {
   }
 
   /** 앱 수정(이름·상태). */
-  updateApp(
-    appId: number,
-    data: { name?: string; status?: AppStatus },
-  ): Promise<App> {
+  updateApp(appId: number, data: { name?: string; status?: AppStatus }): Promise<App> {
     return this.prisma.app.update({ where: { id: appId }, data });
   }
 
@@ -168,9 +161,7 @@ export class AppRepository {
 
   /** 하드 삭제(행 제거, Cascade). 배치의 완전 정리용. */
   delete(appId: number): Promise<void> {
-    return this.prisma.app
-      .delete({ where: { id: appId } })
-      .then(() => undefined);
+    return this.prisma.app.delete({ where: { id: appId } }).then(() => undefined);
   }
 
   // ---- AppApiKey ----
@@ -238,16 +229,12 @@ export class AppRepository {
   }
 
   deleteApiKey(appId: number, keyId: number): Promise<number> {
-    return this.prisma.appApiKey
-      .deleteMany({ where: { id: keyId, appId } })
-      .then((r) => r.count);
+    return this.prisma.appApiKey.deleteMany({ where: { id: keyId, appId } }).then((r) => r.count);
   }
 
   /** 앱의 API 키 전부 삭제(발급/재발급 시 교체용). */
   deleteAllApiKeys(appId: number): Promise<number> {
-    return this.prisma.appApiKey
-      .deleteMany({ where: { appId } })
-      .then((r) => r.count);
+    return this.prisma.appApiKey.deleteMany({ where: { appId } }).then((r) => r.count);
   }
 
   // ---- AppClient ----
@@ -364,9 +351,7 @@ interface ClientCreateFields {
 }
 
 /** ClientCreateFields → Prisma create data. undefined 필드는 넣지 않아 컬럼이 null 로 남는다. */
-function buildClientData(
-  input: ClientCreateFields,
-): Prisma.AppClientCreateManyInput {
+function buildClientData(input: ClientCreateFields): Prisma.AppClientCreateManyInput {
   return {
     appId: input.appId,
     clientId: input.clientId,
@@ -375,13 +360,9 @@ function buildClientData(
     status: input.status,
     ...(input.origins ? { origins: input.origins } : {}),
     ...(input.redirectUris ? { redirectUris: input.redirectUris } : {}),
-    ...(input.clientSecretHash
-      ? { clientSecretHash: input.clientSecretHash }
-      : {}),
+    ...(input.clientSecretHash ? { clientSecretHash: input.clientSecretHash } : {}),
     ...(input.secretSuffix ? { secretSuffix: input.secretSuffix } : {}),
-    ...(input.secretCreatedAt
-      ? { secretCreatedAt: input.secretCreatedAt }
-      : {}),
+    ...(input.secretCreatedAt ? { secretCreatedAt: input.secretCreatedAt } : {}),
     ...(input.config ? { config: input.config as Prisma.InputJsonValue } : {}),
   };
 }

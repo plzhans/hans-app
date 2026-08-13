@@ -1,10 +1,4 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  randomInt,
-  timingSafeEqual,
-} from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 /**
  * 인증 토큰(refresh·인가코드)의 공통 암호 유틸.
@@ -62,49 +56,55 @@ export function timingSafeEqualHex(a: string, b: string): boolean {
 const SIGNED_TAG_HEX_LEN = 24;
 
 /**
- * HMAC 태그를 붙여 조립한다: `<id>.<secret>.<tag>`.
- * tag = HMAC-SHA256(key, `<id>.<secret>`) 의 앞 24자.
+ * HMAC 태그를 붙여 조립한다: `<id...>.<secret>.<tag>`.
+ * tag = HMAC-SHA256(key, `<id...>.<secret>`) 의 앞 24자.
  *
  * **DB 조회 전에 위조·변조·정크 토큰을 인메모리(상수시간)로 걸러내기 위한 사전 관문이다.**
  * 보안 경계는 여전히 DB 의 secretHash — 태그는 값싼 필터라 잘라 써도 된다.
+ *
+ * **식별자가 여러 조각일 수 있다.** refresh 토큰은 회원번호와 세션 식별자를 함께 싣는다 —
+ * 세션을 찾을 때 (회원, 세션) 쌍으로 찾기 위해서다. 조각 수는 부르는 쪽이 정하고,
+ * 분해할 때 같은 수를 알려 준다.
  */
 export function composeSignedToken(
-  id: string,
+  id: string | readonly string[],
   secret: string,
   key: string,
 ): string {
-  const body = `${id}.${secret}`;
+  const body = `${[id].flat().join('.')}.${secret}`;
   const tag = hmacSha256hex(body, key).slice(0, SIGNED_TAG_HEX_LEN);
   return `${body}.${tag}`;
 }
 
 /**
- * `<prefix><id>.<secret>.<tag>` 를 분해하고 HMAC 태그를 상수시간 검증한다.
+ * `<prefix><id...>.<secret>.<tag>` 를 분해하고 HMAC 태그를 상수시간 검증한다.
  * 형식 오류·태그 불일치는 null → 호출측이 **DB 조회 없이** 거절한다.
- * id·secret 은 base64url 이라 '.' 을 포함하지 않으므로 3분할이 안전하다.
+ *
+ * id·secret 은 base64url 이라 '.' 을 포함하지 않으므로 조각 수를 세어 나누는 것이 안전하다.
+ * `idParts` 는 조립할 때 넘긴 식별자 조각 수와 같아야 한다.
  */
 export function parseSignedToken(
   raw: string,
   prefix: string,
   key: string,
-): { id: string; secret: string } | null {
+  idParts = 1,
+): { ids: string[]; secret: string } | null {
   if (!raw.startsWith(prefix)) {
     return null;
   }
   const parts = raw.slice(prefix.length).split('.');
-  if (parts.length !== 3) {
+  if (parts.length !== idParts + 2) {
     return null;
   }
-  const [id, secret, tag] = parts;
-  if (!id || !secret || !tag) {
+  const ids = parts.slice(0, idParts);
+  const secret = parts[idParts];
+  const tag = parts[idParts + 1];
+  if (ids.some((part) => !part) || !secret || !tag) {
     return null;
   }
-  const expected = hmacSha256hex(`${id}.${secret}`, key).slice(
-    0,
-    SIGNED_TAG_HEX_LEN,
-  );
+  const expected = hmacSha256hex(`${ids.join('.')}.${secret}`, key).slice(0, SIGNED_TAG_HEX_LEN);
   if (!timingSafeEqualHex(expected, tag)) {
     return null;
   }
-  return { id, secret };
+  return { ids, secret };
 }

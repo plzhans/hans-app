@@ -5,9 +5,7 @@ elasticsearch:
   indexPrefix: local
 
 auth:
-  # IP 는 쿠키 Domain 으로 못 쓴다.
   rootDomain:
-  # http 로 뜬다.
   cookieSecure: false
   externalUrl: http://127.0.0.1:5173
   jwt:
@@ -27,7 +25,9 @@ admin:
     issuer: http://127.0.0.1:3001
 
 apps-admin-api:
-  externalUrl: http://127.0.0.1:3001
+  # 관리자 콘솔의 주소. 메일에 실리는 링크가 이 값으로 만들어진다.
+  # 로컬은 콘솔이 Vite dev server 로 따로 뜨므로 API(3001)가 아니라 5275 다.
+  externalUrl: http://127.0.0.1:5275
   cors:
     # 관리자 SPA 의 Vite dev server(5273 auth · 5274 web · 5275 admin).
     origins:

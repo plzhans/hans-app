@@ -81,10 +81,14 @@ const auth = { auth: true } as const;
 // ---- 앱 ----
 export const listApps = () => apiFetch<AppSummary[]>('/apps', {}, auth);
 
-export const createApp = (name: string) =>
+/**
+ * 앱 등록. **API 이용약관의 판을 함께 보낸다** — 화면이 실제로 보여준 조문이 무엇인지
+ * 서버가 기록해야 해서다. 서버의 현재 판과 다르면 400 이고, 그때는 새로고침해야 한다.
+ */
+export const createApp = (name: string, apiTermsVersion: string) =>
   apiFetch<AppSummary>(
     '/apps',
-    { method: 'POST', body: JSON.stringify({ name }) },
+    { method: 'POST', body: JSON.stringify({ name, apiTermsVersion }) },
     auth,
   );
 

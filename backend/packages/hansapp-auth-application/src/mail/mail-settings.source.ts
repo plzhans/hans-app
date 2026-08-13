@@ -61,11 +61,8 @@ export class MailSettingsSource implements EmailSettingsSource {
             host,
             port: await this.settings.getNumber('mail.smtp.port', 587),
             secure: await this.settings.getBoolean('mail.smtp.secure', false),
-            user:
-              (await this.settings.getString('mail.smtp.user')) || undefined,
-            password:
-              (await this.settings.getString('mail.smtp.password')) ||
-              undefined,
+            user: (await this.settings.getString('mail.smtp.user')) || undefined,
+            password: (await this.settings.getString('mail.smtp.password')) || undefined,
           }
         : null,
     };

@@ -11,10 +11,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import {
-  AppStatus,
-  REJECTION_REASON_MAX_LENGTH,
-} from '@hansapp/admin-application';
+import { AppStatus, REJECTION_REASON_MAX_LENGTH } from '@hansapp/admin-application';
 import type {
   AppApiKeySummary,
   AppClientSummary,
@@ -170,8 +167,7 @@ class AppClientDto {
   @ApiProperty({ description: '복귀 허용 경로(WEB)', type: [String] })
   readonly redirectUris!: string[];
   @ApiPropertyOptional({
-    description:
-      'client secret 뒤 4자(마스킹 표기용). 해시는 내보내지 않는다. 네이티브는 null',
+    description: 'client secret 뒤 4자(마스킹 표기용). 해시는 내보내지 않는다. 네이티브는 null',
   })
   readonly secretSuffix!: string | null;
   @ApiPropertyOptional({

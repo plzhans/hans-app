@@ -1,17 +1,6 @@
-import {
-  ApiHideProperty,
-  ApiProperty,
-  ApiPropertyOptional,
-} from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import {
-  IsArray,
-  IsObject,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsArray, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { QuotaDto } from '../../ai/dto/capabilities.dto';
 import type {
   AiSearchFilter,
@@ -89,9 +78,7 @@ export class AiSearchRequestDto {
 
     브라우저는 보내기 전에 이미 trim 하지만 curl 은 안 한다. 경계에서 막는 게 맞다.
   */
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(2)
   @MaxLength(MAX_QUESTION_LENGTH)
@@ -104,8 +91,7 @@ export class AiSearchRequestDto {
     고를 수 있는 것은 /ai/capabilities 가 내려준다(locked=false 인 것들).
   */
   @ApiPropertyOptional({
-    description:
-      '쓸 모델. 안 보내면 서버 기본 모델. 허용 목록 밖이면 거절한다.',
+    description: '쓸 모델. 안 보내면 서버 기본 모델. 허용 목록 밖이면 거절한다.',
     example: 'claude-haiku-4-5',
   })
   @IsOptional()
@@ -208,16 +194,8 @@ class AiSearchUsageDto implements AiSearchUsage {
 /** 잡힌 조건 한 묶음. **코드가 아니라 이름이다.** */
 class AiSearchConditionDto implements AiSearchCondition {
   @ApiProperty({
-    enum: [
-      'subject',
-      'specialist',
-      'assessment',
-      'specialty',
-      'equipment',
-      'class',
-    ],
-    description:
-      '묶음 이름. 화면이 이 값으로 "진료과"/"장비" 같은 앞말을 고른다.',
+    enum: ['subject', 'specialist', 'assessment', 'specialty', 'equipment', 'class'],
+    description: '묶음 이름. 화면이 이 값으로 "진료과"/"장비" 같은 앞말을 고른다.',
   })
   readonly group!: AiSearchConditionGroup;
 
@@ -320,8 +298,7 @@ export class AiSearchResponseDto {
 
   @ApiProperty({
     type: [String],
-    description:
-      '검증에서 제외된 값(`subject:XX` 꼴). 비어 있는 것이 정상이다.',
+    description: '검증에서 제외된 값(`subject:XX` 꼴). 비어 있는 것이 정상이다.',
   })
   readonly dropped!: string[];
 
@@ -337,8 +314,7 @@ export class AiSearchResponseDto {
   readonly provider!: LlmProviderName;
 
   @ApiProperty({
-    description:
-      '실제로 응답한 모델. 요청에 실은 이름이 아니라 확정된 버전이다.',
+    description: '실제로 응답한 모델. 요청에 실은 이름이 아니라 확정된 버전이다.',
   })
   readonly model!: string;
 

@@ -82,8 +82,7 @@ export interface NonPaymentCategory {
  *   unavailable 요청할 수 없다. ykiho 가 없는 병원(NMC 에만 있는 병원)은 크롤 자체가 불가능하다
  *               — 크롤 step1 이 암호화 요양기호를 요구한다.
  */
-export type NonPaymentSource =
-  'hira' | 'web' | 'none' | 'requestable' | 'unavailable';
+export type NonPaymentSource = 'hira' | 'web' | 'none' | 'requestable' | 'unavailable';
 
 /** 갱신 요청의 진행 상태. 요청한 적 없으면 없다. */
 export type NonPaymentRequestStatus = 'pending' | 'running' | 'failed';

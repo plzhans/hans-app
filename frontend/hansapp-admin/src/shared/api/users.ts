@@ -1,7 +1,12 @@
 import { apiFetch } from '@/shared/api/client';
+import type { AppStatus } from '@/shared/api/apps';
+import type { CacheState } from '@/shared/components/CachePanel';
 
 /** 백엔드 UserStatus 와 같은 값. */
 export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN';
+
+/** 백엔드 UserTier 와 같은 값. 앱 생성 한도를 정한다. */
+export type UserTier = 'BASIC' | 'PRO' | 'UNLIMITED';
 
 /**
  * **null 인 필드는 응답에서 아예 빠진다.** 서버의 StripNullInterceptor 가 값이 없는
@@ -14,7 +19,7 @@ export interface UserSummary {
   name?: string | null;
   status: UserStatus;
   role: string;
-  tier: string;
+  tier: UserTier;
   joinType: string;
   emailVerified: boolean;
   createdAt: string;
@@ -29,11 +34,31 @@ export interface UserOAuth {
 export interface UserDetail extends UserSummary {
   updatedAt: string;
   withdrawnAt?: string | null;
+  /** 표시·메일 언어(ko/en/ja/zh). 정한 적이 없으면 없다 — 요청 헤더를 따른다. */
+  language?: string | null;
+  /** IANA 타임존 ID. 정한 적이 없으면 없다. */
+  timeZone?: string | null;
   /** 이메일 로그인이 가능한 계정인지. **서버는 해시를 내보내지 않는다.** */
   hasPassword: boolean;
   oauths: UserOAuth[];
   activeSessionCount: number;
   appCount: number;
+  consents: UserConsent[];
+}
+
+/**
+ * 받아 둔 동의 한 줄.
+ *
+ * TERMS·PRIVACY 는 가입할 때, API_TERMS 는 앱을 등록할 때 받는다 — 그래서 앱을 만든
+ * 계정에는 API_TERMS 가 앱 수만큼 쌓인다.
+ */
+export interface UserConsent {
+  type: string;
+  /** 동의한 문서의 판(시행일). 문서가 없는 항목은 '-'. */
+  version: string;
+  agreedAt: string;
+  ip?: string | null;
+  userAgent?: string | null;
 }
 
 /** 백엔드 PageResponseDto 와 같은 모양. */
@@ -65,6 +90,157 @@ export function listUsers(params: UserListParams) {
 }
 
 export const getUser = (id: number) => apiFetch<UserDetail>(`/api/users/${id}`);
+
+/**
+ * 회원 정보 수정. **보낸 항목만 바뀐다.**
+ *
+ * 이메일과 이메일 인증 여부는 서버가 열지 않았다 — 이메일은 로그인 식별자이고, 인증
+ * 여부는 "우리가 확인했다" 는 기록이다.
+ *
+ * 언어·시간대는 **빈 문자열을 보내면 지워진다**(정한 적 없는 상태로 되돌린다).
+ */
+export const updateUser = (
+  id: number,
+  input: {
+    name?: string;
+    tier?: UserTier;
+    language?: string;
+    timeZone?: string;
+  },
+) =>
+  apiFetch<void>(`/api/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+
+/**
+ * 회원이 소유·참여하는 앱 한 줄.
+ *
+ * **앱 목록 한 줄(AppSummary)과 다르다.** 소유자는 이미 아는 사람(이 회원)이라 빠지고,
+ * 대신 이 회원의 역할·합류 시각이 붙는다 — 나머지는 앱 상세에서 본다.
+ */
+export interface UserApp {
+  id: number;
+  name: string;
+  status: AppStatus;
+  /** 심사 요청 시각. status=PENDING 일 때만 의미가 있다. */
+  reviewRequestedAt?: string | null;
+  /** 거절 사유. PENDING + 이 값이 있으면 거절된 앱이다. */
+  rejectionReason?: string | null;
+  /** 삭제 시각. 있으면 소프트 삭제된 앱이다. */
+  deletedAt?: string | null;
+  /** 이 회원의 역할. OWNER(소유) / ADMIN(관리) / MEMBER(읽기). */
+  role: string;
+  joinedAt: string;
+  createdAt: string;
+}
+
+/**
+ * 이 회원이 소유·참여하는 앱. 최근 등록 순.
+ *
+ * **삭제된 앱도 온다.** 개요의 앱 수(멤버 행 수)와 줄 수가 어긋나지 않게 하려는 것이라,
+ * 지워진 앱인지는 화면이 표시로 가른다.
+ */
+export const listUserApps = (id: number) =>
+  apiFetch<UserApp[]>(`/api/users/${id}/apps`);
+
+/**
+ * 세션 하나의 인증 캐시.
+ *
+ * **가드가 요청마다 보는 자리라 실제 통과 여부를 정한다.** 기기 목록 자체는 DB 를 보고
+ * 그리므로 둘이 어긋날 수 있다 — "끊었는데 왜 아직 되지" 가 그 어긋남이다.
+ */
+export interface SessionCache {
+  hit: boolean;
+  /** 남은 시간(ms). 만료 시각을 모르면 없다. */
+  remainingMs?: number | null;
+}
+
+/** 로그인해 둔 기기 한 줄. */
+export interface UserSession {
+  /**
+   * 이 기기를 끊을 때 쓴다(난수). **회원 안에서만 유일하다** — 회원번호와 짝으로만
+   * 의미가 있고, 이 값만으로는 로그인할 수 없다(secret 은 해시로만 저장된다).
+   */
+  sessionId: number;
+  userAgent?: string | null;
+  ip?: string | null;
+  /** "로그인 상태 유지" 를 켜고 만든 세션인지. */
+  persistent: boolean;
+  createdAt: string;
+  /** 마지막 갱신 시각. 사실상 최근 활동 시각이다. */
+  updatedAt: string;
+  expiresAt: string;
+  cache: SessionCache;
+}
+
+/**
+ * `/users/me` 응답 캐시의 상태.
+ *
+ * **글 캐시(PostCacheState)와 같은 모양이다** — 콘솔이 같은 패널(CachePanel)로 보여 준다.
+ */
+export type ProfileCacheState = CacheState;
+
+export const getUserCacheState = (id: number) =>
+  apiFetch<ProfileCacheState>(`/api/users/${id}/cache`);
+
+/** Redis 를 지우고, 각 API 인스턴스가 자기 메모리 캐시를 비우도록 알린다. */
+export const purgeUserCache = (id: number) =>
+  apiFetch<void>(`/api/users/${id}/cache/purge`, { method: 'POST' });
+
+/**
+ * DB 에는 없는데 캐시에만 남아 있는 세션. **잘못된 데이터다.**
+ *
+ * 기기를 끊을 때 캐시 삭제가 실패하면 생긴다 — 가드는 이 캐시를 보고 통과시키므로,
+ * 끊은 기기가 캐시 만료까지 계속 통한다.
+ */
+export interface OrphanSessionCache {
+  sessionId: number;
+  /** 캐시에 담긴 만료 시각. 이때까지 통과한다. */
+  expiresAt: string;
+}
+
+/**
+ * 회원 한 명의 로그인 기기.
+ *
+ * **DB 와 캐시를 따로 읽어 합친 결과다.** 목록의 정본은 DB 지만 요청을 실제로 통과시키는
+ * 것은 캐시라, 어긋나는 쪽(`orphans`)을 감추면 원인을 짚을 수 없다.
+ */
+export interface UserSessionList {
+  sessions: UserSession[];
+  orphans: OrphanSessionCache[];
+}
+
+export const listUserSessions = (id: number) =>
+  apiFetch<UserSessionList>(`/api/users/${id}/sessions`);
+
+/**
+ * 기기 한 대를 끊는다.
+ *
+ * **바로 막히지는 않는다.** 서버가 세션 캐시를 갱신하기까지(기본 60초) 이미 발급된
+ * access token 은 통한다 — 화면 문구도 그렇게 적어야 한다.
+ */
+export const revokeUserSession = (id: number, sessionId: number) =>
+  apiFetch<void>(`/api/users/${id}/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+
+/** 이 세션의 인증 캐시에 담긴 값. 고아 캐시(DB 행 없음)도 조회된다. */
+export const getUserSessionCacheState = (id: number, sessionId: number) =>
+  apiFetch<CacheState>(`/api/users/${id}/sessions/${sessionId}/cache`);
+
+/**
+ * 이 세션의 인증 캐시만 지운다. **세션을 끊는 것이 아니다** — 다음 요청이 DB 를 다시
+ * 읽을 뿐이라, 살아 있는 세션이면 그대로 통과한다.
+ */
+export const purgeUserSessionCache = (id: number, sessionId: number) =>
+  apiFetch<void>(`/api/users/${id}/sessions/${sessionId}/cache/purge`, {
+    method: 'POST',
+  });
+
+/** 이 회원의 모든 기기를 끊는다. 반영 시점은 개별 끊기와 같다. */
+export const revokeAllUserSessions = (id: number) =>
+  apiFetch<void>(`/api/users/${id}/sessions`, { method: 'DELETE' });
 
 /**
  * 인증 기록의 이벤트 종류. 백엔드 AuthLogAction 과 같은 값이다.

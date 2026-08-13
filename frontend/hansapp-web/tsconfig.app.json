@@ -19,7 +19,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      // TOAST UI 는 타입 파일을 exports 에 안 걸어 둬 bundler 해석으로 못 찾는다(패키지 쪽 문제).
+      "@toast-ui/editor": ["./node_modules/@toast-ui/editor/types/index.d.ts"]
     }
   },
   "include": ["src"]

@@ -66,9 +66,7 @@ export class AuthLogService {
     */
     let userId = query.userId;
     if (userId === undefined && query.userEmail) {
-      const found = await this.users.findIdByEmail(
-        query.userEmail.trim().toLowerCase(),
-      );
+      const found = await this.users.findIdByEmail(query.userEmail.trim().toLowerCase());
       if (found === null) {
         return new Page([], query.page, query.size, 0);
       }
@@ -95,20 +93,16 @@ export class AuthLogService {
       쿼리 하나로 끝낸다.
     */
     const ids = [
-      ...new Set(
-        rows.map((row) => row.userId).filter((id): id is number => id !== null),
-      ),
+      ...new Set(rows.map((row) => row.userId).filter((id): id is number => id !== null)),
     ];
-    const emails = new Map(
-      (await this.users.findEmailsByIds(ids)).map((row) => [row.id, row.email]),
-    );
+    const users = await this.users.findEmailsByIds(ids);
+    const emails = new Map(users.map((user) => [user.id, user.email]));
 
     return new Page(
       rows.map((row) => ({
         id: row.id.toString(),
         userId: row.userId,
-        userEmail:
-          row.userId !== null ? (emails.get(row.userId) ?? null) : null,
+        userEmail: row.userId !== null ? (emails.get(row.userId) ?? null) : null,
         action: row.action,
         result: row.result,
         provider: row.provider,

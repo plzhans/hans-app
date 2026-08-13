@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  type OnApplicationBootstrap,
-} from '@nestjs/common';
+import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from '@hansapp/data';
 import { FALLBACK_LANG, type SupportedLang } from '@hansapp/common';
 

@@ -1,9 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  AppClientType,
-  AppReviewState,
-  AppStatus,
-} from '@hansapp/auth-application';
+import { AppClientType, AppReviewState, AppStatus } from '@hansapp/auth-application';
 import {
   ArrayMaxSize,
   IsArray,
@@ -21,9 +17,15 @@ import {
 const NAME_PATTERN = /^[a-zA-Z-]+$/;
 const APP_NAME_PATTERN = NAME_PATTERN;
 const APP_NAME_MESSAGE = '앱 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
-const CLIENT_NAME_MESSAGE =
-  '클라이언트 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
+const CLIENT_NAME_MESSAGE = '클라이언트 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
 
+/**
+ * 앱 등록. **API 이용약관 동의가 반드시 실린다** — 없으면 서버가 거절한다.
+ *
+ * 가입 동의(ConsentDto)와 같은 이유다. 화면에서만 막으면 API 를 직접 부르는 경로가 남고,
+ * 그러면 "동의를 안 받고 만들어 준" 앱이 생긴다. 판(version)을 함께 받아 화면이 실제로
+ * 보여준 조문을 기록한다 — 서버의 현재 판과 다르면 거절한다(ConsentService 주석 참고).
+ */
 export class CreateAppDto {
   @ApiProperty({ description: '앱 이름(영어·하이픈)', example: 'my-service' })
   @IsString()
@@ -31,6 +33,14 @@ export class CreateAppDto {
   @MaxLength(100)
   @Matches(APP_NAME_PATTERN, { message: APP_NAME_MESSAGE })
   readonly name!: string;
+
+  @ApiProperty({
+    description: '동의한 API 이용약관의 판(시행일)',
+    example: '2026-08-14',
+  })
+  @IsString()
+  @MaxLength(20)
+  readonly apiTermsVersion!: string;
 }
 
 export class UpdateAppDto {
@@ -209,8 +219,7 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-z0-9][a-z0-9-]{1,29}$/, {
-    message:
-      'Client ID 는 소문자·숫자·하이픈만, 2~30자, 하이픈으로 시작할 수 없습니다.',
+    message: 'Client ID 는 소문자·숫자·하이픈만, 2~30자, 하이픈으로 시작할 수 없습니다.',
   })
   readonly clientId?: string;
 

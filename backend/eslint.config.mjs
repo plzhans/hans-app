@@ -52,6 +52,26 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
+      /*
+        **await 결과에 바로 `.` 을 붙이지 못하게 한다.**
+
+        `(await this.boards.list()).map(...)` 는 읽는 순서가 뒤집힌다 — 눈이 먼저 만나는
+        것은 괄호 안의 기다림이고, 이 줄이 무엇을 하는지(.map)는 괄호를 닫은 뒤에야
+        나온다. 한 줄에서 "기다린다" 와 "변환한다" 를 동시에 붙잡아야 한다.
+
+        결과를 변수로 받으면 순서가 제자리로 오고 이름도 하나 생긴다.
+          const boards = await this.boards.list();
+          return boards.map(...);
+
+        `toDto(await x)` 처럼 감싸는 것은 막지 않는다 — 그쪽은 왼쪽부터 읽힌다.
+      */
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'MemberExpression > AwaitExpression.object',
+          message: 'await 결과에 바로 . 을 붙이지 말 것. 변수로 받은 뒤 쓰면 읽는 순서가 맞는다.',
+        },
+      ],
     },
   },
 );

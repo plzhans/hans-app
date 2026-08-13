@@ -47,10 +47,7 @@ export class LangText<T = string> {
    *
    * @example LangText.from({ ko: "사과", en: "apple" })
    */
-  static from<T>(
-    map: LangTextMap<T>,
-    defaultLang: Lang = DEFAULT_LANG,
-  ): LangText<T> {
+  static from<T>(map: LangTextMap<T>, defaultLang: Lang = DEFAULT_LANG): LangText<T> {
     const text = new LangText<T>(defaultLang);
     Object.assign(text.values, map);
     return text;
@@ -137,9 +134,7 @@ export function localize<T>(node: T, lang?: Lang): Localized<T> {
     // Array.isArray 는 제네릭 T 를 any[] 로 좁힌다. 그대로 두면 원소가 any 가 되어
     // 반환값까지 any 로 새어 나가므로 unknown[] 으로 받는다.
     // (아래 as 캐스팅은 남는다. 재귀 조건부 타입이라 컴파일러가 결과 타입을 증명하지 못한다.)
-    return (node as unknown[]).map((item) =>
-      localize(item, lang),
-    ) as Localized<T>;
+    return (node as unknown[]).map((item) => localize(item, lang)) as Localized<T>;
   }
   if (node !== null && typeof node === 'object') {
     return Object.fromEntries(
