@@ -9,7 +9,8 @@ export class SettingFieldDto {
   @ApiProperty({ description: '표시 이름' }) readonly label!: string;
 
   @ApiProperty({
-    description: 'string · number · boolean · select · secret',
+    description:
+      'string · number · boolean · select · secret · readonly(서버가 만들어 보여 주기만 하는 값)',
   })
   readonly type!: string;
 
@@ -28,12 +29,24 @@ export class SettingFieldDto {
   readonly section?: string;
 
   @ApiPropertyOptional({
+    description: '구역 제목 아래 한 줄. 구역 안 아무 필드에나 한 번만 실린다.',
+  })
+  readonly sectionHelp?: string;
+
+  @ApiPropertyOptional({
+    description: '구역을 눈에 띄게 갈라 그릴지. notice 면 따로 감싼다.',
+  })
+  readonly sectionTone?: string;
+
+  @ApiPropertyOptional({
     description: '옆에 나란히 세울 묶음 이름. 연달아 있고 이름이 같은 필드끼리 한 줄에 놓인다.',
   })
   readonly row?: string;
 
   @ApiPropertyOptional({
-    description: '현재 값. **secret 은 언제나 null 이다** — 원문은 내려보내지 않는다.',
+    description:
+      '현재 값. **secret 은 언제나 null 이다** — 원문은 내려보내지 않는다. ' +
+      'readonly 는 서버가 만든 값이라 저장할 수 없다.',
   })
   readonly value!: string | null;
 
@@ -56,6 +69,8 @@ export class SettingFieldDto {
     this.placeholder = field.placeholder;
     this.help = field.help;
     this.section = field.section;
+    this.sectionHelp = field.sectionHelp;
+    this.sectionTone = field.sectionTone;
     this.row = field.row;
     this.value = field.value;
     this.hasValue = field.hasValue;

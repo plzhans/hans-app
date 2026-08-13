@@ -73,6 +73,7 @@ export {
 export type {
   SettingField,
   SettingFieldType,
+  SettingDerived,
   SettingGroup,
   SettingCategory,
   SettingConsole,
@@ -83,6 +84,8 @@ export type {
   SettingReader,
 } from './setting-catalog';
 export { SETTING_KEYRING, buildSettingKeyring } from './setting-keyring';
+export { SETTING_ORIGINS, buildSettingOrigins, trimTrailingSlash } from './setting-origins';
+export type { SettingOrigins } from './setting-origins';
 
 // 커뮤니티(게시판·글·댓글). **enum 값이 곧 DB 값이다** — 이름으로 바꾸는 것은 HTTP 경계의
 // @EnumField 가 한다(board-codes.ts 주석 참고).

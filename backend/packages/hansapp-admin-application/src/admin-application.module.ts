@@ -1,7 +1,9 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import {
   buildSettingKeyring,
+  buildSettingOrigins,
   SETTING_KEYRING,
+  SETTING_ORIGINS,
   type ConfigSource,
   type SecretBoxKeys,
 } from '@hansapp/common';
@@ -154,6 +156,11 @@ export class AdminApplicationModule {
           `.env` 의 주석 한 줄이 풀리는 것만으로 화면이 파일 값을 다시 집는다.
         */
         { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
+        /*
+          발급처 콘솔에 등록할 리디렉션 주소를 만들 외부 주소. **값이 아니라 화면에 보여 줄
+          안내다** — 설정 카탈로그의 `readonly` 줄이 이것으로 채워진다.
+        */
+        { provide: SETTING_ORIGINS, useValue: buildSettingOrigins(source) },
         SettingWriteRepository,
         {
           provide: SettingCache,

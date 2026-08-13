@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Copy, ExternalLink, RotateCcw, Trash2 } from 'lucide-react';
 
 import {
   saveSettingGroup,
@@ -9,6 +9,7 @@ import {
   type SettingValues,
 } from '@/shared/api/settings';
 import { errorMessage } from '@/shared/api/errorMessage';
+import { writeClipboard } from '@/shared/lib/clipboard';
 import { cn } from '@/shared/lib/cn';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -67,8 +68,7 @@ export function SettingGroupCard({ group }: { group: SettingGroup }) {
         <SectionForm
           key={section.title ?? i}
           groupId={group.id}
-          title={section.title}
-          fields={section.fields}
+          section={section}
           restartRequired={group.restartRequired}
         />
       ))}
@@ -84,15 +84,14 @@ export function SettingGroupCard({ group }: { group: SettingGroup }) {
  */
 function SectionForm({
   groupId,
-  title,
-  fields,
+  section,
   restartRequired,
 }: {
   groupId: string;
-  title?: string;
-  fields: SettingField[];
+  section: Section;
   restartRequired?: boolean;
 }) {
+  const { title, help, tone, fields } = section;
   const qc = useQueryClient();
   /** 사용자가 만진 값만 담는다. 여기 없는 키는 저장 요청에 실리지 않는다. */
   const [draft, setDraft] = useState<SettingValues>({});
@@ -156,12 +155,46 @@ function SectionForm({
     setConfirming(false);
   };
 
+  /*
+    **`notice` 구역은 통째로 감싼다.** 선 하나로 가르는 것으로는 부족한 자리가 있다 —
+    구글은 서비스 로그인과 관리자 콘솔 로그인이 한 카드에 있고 줄 생김새가 똑같아서,
+    지금 만지는 것이 회원의 입구인지 내 입구인지가 제목 한 줄에만 걸린다.
+  */
+  const notice = tone === 'notice';
+
   return (
-    <div>
+    <div
+      className={cn(
+        notice &&
+          'mt-3 rounded-xl border border-amber-200 bg-amber-50/40 px-3 pb-3',
+      )}
+    >
       {title && (
         // 구역이 갈리는 자리에 선을 긋는다. 같은 카드라도 성격이 다른 값들이다.
-        <div className="mb-1 mt-3 border-t border-gray-100 pt-3">
-          <span className="text-xs font-semibold text-gray-500">{title}</span>
+        <div
+          className={cn(
+            'mb-1 mt-3 pt-3',
+            notice ? 'pt-0' : 'border-t border-gray-100',
+          )}
+        >
+          <span
+            className={cn(
+              'text-xs font-semibold',
+              notice ? 'text-amber-900' : 'text-gray-500',
+            )}
+          >
+            {title}
+          </span>
+          {help && (
+            <p
+              className={cn(
+                'mt-0.5 text-xs',
+                notice ? 'text-amber-800' : 'text-gray-400',
+              )}
+            >
+              {help}
+            </p>
+          )}
         </div>
       )}
 
@@ -454,6 +487,8 @@ function FieldRow({
             <div className="flex h-9 items-center rounded-lg border border-dashed border-gray-300 px-3 text-xs text-gray-400">
               저장하면 지워집니다
             </div>
+          ) : field.type === 'readonly' ? (
+            <DerivedValue value={field.value} />
           ) : masked ? (
             /*
               **원문을 받아 온 적이 없다.** 값을 채운 입력칸을 보여 주면 거짓말이 된다.
@@ -525,6 +560,62 @@ function FieldRow({
   );
 }
 
+/**
+ * 서버가 만들어 준 값(리디렉션 주소). **고칠 수 없고, 옮겨 적을 것도 없다** — 발급처 콘솔에
+ * 붙여 넣는 것이 전부라 복사 버튼 하나만 둔다.
+ *
+ * 값 자체는 `select-all` 이라 클릭 한 번으로 전체가 잡힌다. 복사가 막히는 환경에서 남는
+ * 길이 그것뿐이라, 실패했을 때도 그 사실을 말한다(조용히 삼키면 복사한 줄 알고 넘어간다).
+ */
+function DerivedValue({ value }: { value: string | null }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
+
+  if (!value) {
+    /*
+      **주소를 지어내지 않는다.** 서버의 외부 주소(externalUrl)가 비어 있으면 만들 수 있는
+      값이 없다 — 그럴듯한 것을 보여 주면 그것을 콘솔에 등록한 뒤 로그인이 막히는 자리에서야
+      드러난다.
+    */
+    return (
+      <div className="flex h-9 items-center rounded-lg border border-dashed border-gray-300 px-3 text-xs text-gray-400">
+        서버 외부 주소가 설정되지 않아 만들 수 없습니다
+      </div>
+    );
+  }
+
+  const copy = async () => {
+    const ok = await writeClipboard(value);
+    setState(ok ? 'copied' : 'failed');
+    if (ok) setTimeout(() => setState('idle'), 2000);
+  };
+
+  return (
+    <div className="flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3">
+      <code className="min-w-0 flex-1 select-all truncate font-mono text-xs text-gray-700">
+        {value}
+      </code>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        title={state === 'failed' ? '복사하지 못했습니다' : '복사'}
+        aria-label="복사"
+        className={cn(
+          'shrink-0 transition',
+          state === 'failed'
+            ? 'text-amber-600'
+            : 'text-gray-400 hover:text-gray-700',
+        )}
+      >
+        {state === 'copied' ? (
+          <Check className="h-3.5 w-3.5 text-green-600" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </button>
+    </div>
+  );
+}
+
 /** 타입별 입력칸. 높이를 h-10 으로 맞춰 한 줄 안에서 어긋나지 않게 둔다. */
 function FieldInput({
   field,
@@ -537,8 +628,9 @@ function FieldInput({
   touched: boolean;
   onChange: (value: Value) => void;
 }) {
+  // 배경을 명시한다 — 구역이 색을 깔고 있으면(notice) 투명한 입력칸이 그 색을 그대로 비친다.
   const box =
-    'h-9 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-100';
+    'h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-100';
 
   if (field.type === 'boolean') {
     /*
@@ -673,21 +765,32 @@ function StatusTag({
   );
 }
 
+/** 한 구역. 제목·설명·톤은 구역 안의 필드들이 들고 온 것을 모은 값이다. */
+interface Section {
+  title?: string;
+  help?: string;
+  tone?: 'notice';
+  fields: SettingField[];
+}
+
 /**
  * 필드를 구역(section)별로 묶는다. **카탈로그에 적힌 순서를 그대로 지킨다** —
  * 같은 이름이 떨어져 나오면 별개 묶음이 된다(정렬하지 않는다).
+ *
+ * 구역의 설명·톤은 **아무 필드에 적혀 있어도 집는다**. 첫 필드만 본다면 그 앞에 한 줄
+ * 끼워 넣는 순간 설명이 조용히 사라진다.
  */
-function groupBySection(
-  fields: SettingField[],
-): { title?: string; fields: SettingField[] }[] {
-  const sections: { title?: string; fields: SettingField[] }[] = [];
+function groupBySection(fields: SettingField[]): Section[] {
+  const sections: Section[] = [];
   for (const field of fields) {
     const last = sections[sections.length - 1];
-    if (last && last.title === field.section) {
-      last.fields.push(field);
-    } else {
-      sections.push({ title: field.section, fields: [field] });
+    if (!last || last.title !== field.section) {
+      sections.push({ title: field.section, fields: [] });
     }
+    const section = sections[sections.length - 1];
+    section.fields.push(field);
+    section.help ??= field.sectionHelp;
+    section.tone ??= field.sectionTone;
   }
   return sections;
 }

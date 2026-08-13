@@ -2,14 +2,17 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import {
   seal,
   suffixOf,
+  trimTrailingSlash,
   SETTING_GROUPS,
   SETTING_KEYRING,
+  SETTING_ORIGINS,
   findSettingGroup,
   type SecretBoxKeys,
   type SettingField,
   type SettingFieldView,
   type SettingGroupView,
   type SettingInput,
+  type SettingOrigins,
 } from '@hansapp/common';
 
 import { SettingCache } from './setting-cache.service';
@@ -34,16 +37,38 @@ export class SettingAdminService {
     private readonly settings: SettingCache,
     @Inject(SETTING_KEYRING)
     private readonly keyring: SecretBoxKeys | undefined,
+    @Inject(SETTING_ORIGINS)
+    private readonly origins: SettingOrigins,
   ) {}
 
-  /** 카탈로그 전체 + 현재 값. 화면은 이것만 받아 그린다. */
-  async list(): Promise<SettingGroupView[]> {
+  /**
+   * 카탈로그 전체 + 현재 값. 화면은 이것만 받아 그린다.
+   *
+   * @param adminOrigin 이 요청이 들어온 관리자 API 오리진(`{scheme}://{host}`). 관리자 콘솔
+   *   로그인의 리디렉션 주소가 여기서 만들어진다 — 소셜 로그인도 같은 값으로 `redirect_uri` 를
+   *   조립하므로(admin-social-flow), 설정 주소와 접속 주소가 갈리는 로컬에서도 어긋나지 않는다.
+   *   없으면 설정(`apps-admin-api.externalUrl`)으로 물러선다.
+   */
+  async list(adminOrigin?: string): Promise<SettingGroupView[]> {
     const stored = await this.settings.storedKeys();
     const groups: SettingGroupView[] = [];
 
     for (const group of SETTING_GROUPS) {
       const fields: SettingFieldView[] = [];
       for (const field of group.fields) {
+        if (field.type === 'readonly') {
+          // DB 를 보지 않는다. 저장된 적이 없는 값이고, 저장할 수도 없다(saveGroup 참고).
+          const derived = this.derive(field, adminOrigin);
+          fields.push({
+            ...field,
+            value: derived,
+            hasValue: derived !== null,
+            suffix: null,
+            source: 'none',
+          });
+          continue;
+        }
+
         const inDb = stored.has(field.key);
         const raw = await this.settings.getString(field.key);
         /*
@@ -83,6 +108,7 @@ export class SettingAdminService {
     groupId: string,
     input: SettingInput,
     adminId: number | null,
+    adminOrigin?: string,
   ): Promise<SettingGroupView[]> {
     const group = findSettingGroup(groupId);
     if (!group) {
@@ -93,8 +119,14 @@ export class SettingAdminService {
     for (const key of Object.keys(input)) {
       // 카탈로그에 없는 키를 받으면 DB 에 쓰레기가 쌓이고, 남의 그룹 값을 이 화면에서
       // 덮어쓸 수도 있다. 그룹에 속한 키만 받는다.
-      if (!allowed.has(key)) {
+      const field = allowed.get(key);
+      if (!field) {
         throw new BadRequestException(`Key does not belong to group "${groupId}": ${key}`);
+      }
+      // 표시 전용 줄은 서버가 만들어 낸 값이다. 받아서 저장하면 화면이 보여 주는 것과 서버가
+      // 실제로 쓰는 값이 갈리고, 그 뒤로는 어느 쪽이 맞는지 알 수 없다.
+      if (field.type === 'readonly') {
+        throw new BadRequestException(`Read-only setting: ${key}`);
       }
     }
 
@@ -109,7 +141,20 @@ export class SettingAdminService {
 
     // 방금 바꾼 값이 5분간 안 먹으면 화면이 거짓말을 한다.
     this.settings.invalidate();
-    return this.list();
+    return this.list(adminOrigin);
+  }
+
+  /**
+   * 표시 전용 값을 만든다. 오리진이 비어 있으면 `null` 이다 — 화면은 "주소가 없다" 고 말하고,
+   * 지어낸 주소를 콘솔에 등록하는 일이 없다.
+   */
+  private derive(field: SettingField, adminOrigin?: string): string | null {
+    if (!field.derived) return null;
+    const base =
+      field.derived.origin === 'admin'
+        ? trimTrailingSlash(adminOrigin) || this.origins.admin
+        : this.origins.service;
+    return base ? `${base}${field.derived.path}` : null;
   }
 
   /**
