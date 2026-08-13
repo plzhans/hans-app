@@ -286,6 +286,18 @@ export default withMermaid(defineConfig({
   // 완전 정적 사이트(vitepress build). 둘은 반드시 같이 움직인다(위 docsOutDir 주석 참고).
   base: docsBase,
   outDir: docsOutDir,
+  /*
+    주소에서 .html 을 뗀다. **취향이 아니라 호스팅에 맞추는 것이다.**
+
+    Workers 정적 자산은 html_handling 기본값이 auto-trailing-slash 라, /docs/common.html 로
+    들어오면 307 로 /docs/common 에 보내고 거기서 응답한다. 이걸 끄지 않는 한 실제 주소는
+    확장자 없는 쪽이다.
+
+    그런데 cleanUrls 가 false 면 canonical 과 sitemap 이 .html 주소를 가리킨다 —
+    **정본이라고 선언한 주소가 정작 리다이렉트되는** 모순이 생긴다.
+    산출물 파일명은 그대로 foo.html 이고 링크 표기만 바뀌므로, 배치는 건드리지 않는다.
+  */
+  cleanUrls: true,
   // 검색엔진에 넘길 페이지 목록. hostname 은 필수다(절대 URL 규격).
   // 경로까지 준다 — 여기에 각 페이지의 상대 경로가 이어 붙어 /docs/apis/x.html 이 된다.
   sitemap: { hostname: siteUrl },
@@ -324,9 +336,10 @@ export default withMermaid(defineConfig({
    */
   transformHead({ pageData, title, description }) {
     // relativePath: 'index.md' | 'common.md' | 'apis/healthcare.md'
+    // cleanUrls 를 켰으므로 확장자를 뗀다(sitemap 도 같은 규칙으로 만든다).
     const path = pageData.relativePath
       .replace(/(^|\/)index\.md$/, '$1')
-      .replace(/\.md$/, '.html');
+      .replace(/\.md$/, '');
     // siteUrl 이 이미 / 로 끝난다. sitemap 이 만드는 주소와 **글자까지 같아야** 한다 —
     // 어긋나면 정본이 둘인 셈이 되어 canonical 이 하는 일이 없어진다.
     const url = `${siteUrl}${path}`;
