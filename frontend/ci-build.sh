@@ -128,10 +128,15 @@ case "$project" in
     # (Sentry 의 environment 태그가 이 값이다 → .vitepress/config.ts).
     export DOCS_ENV="$APP_ENV"
 
-    # 환경마다 Worker 가 따로라 사이트가 각자 자기 도메인을 갖는다. GH Pages 시절 한
-    # 사이트에 두 환경을 서브패스(/ 와 /develop/)로 욱여넣느라 base 를 흔들던 이유가
-    # 사라졌다. 항상 루트다.
-    export DOCS_BASE='/'
+    # 문서는 포털 도메인의 **/docs 밑**에 놓인다(plzhans.com/docs · develop.plzhans.com/docs).
+    # 서브도메인(docs.plzhans.com)을 따로 두지 않고 포털 하나로 모으기 때문이다.
+    #
+    # **이 값이 곧 산출물에 구워진다.** VitePress 는 HTML 에 /docs/assets/... 처럼 절대경로를
+    # 박으므로, base 가 틀리면 페이지는 뜨는데 CSS·JS 를 못 받아 화면이 깨진다.
+    # CDN 이나 라우팅으로는 못 고친다 — 파일 안에 적힌 주소라서.
+    #
+    # 환경 구분은 base 가 아니라 도메인이 한다(환경마다 Worker 가 따로다). 그래서 둘 다 /docs/ 다.
+    export DOCS_BASE='/docs/'
 
     group "install ($project)"
     pnpm install --frozen-lockfile

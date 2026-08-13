@@ -1,5 +1,10 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import { join, resolve } from 'node:path';
 import { defineConfig } from 'vitepress';
 import { withMermaid } from 'vitepress-plugin-mermaid';
 import { loadSpec, sortOperations, specPath } from './openapi-spec';
@@ -12,6 +17,42 @@ import { loadSpec, sortOperations, specPath } from './openapi-spec';
  * 그래서 배포 스크립트(scripts/ci/build-frontend.sh)가 DOCS_BASE 와 같이 DOCS_ENV 를 넘겨준다.
  */
 const docsEnv = process.env.DOCS_ENV ?? 'local';
+
+/**
+ * 문서가 얹히는 포털 도메인. 문서는 이 도메인의 /docs 밑에 산다(서브도메인을 두지 않는다).
+ * 환경 구분은 경로가 아니라 도메인이 한다 — 환경마다 Worker 가 따로다.
+ */
+const DOCS_ORIGINS: Record<string, string> = {
+  production: 'https://plzhans.com',
+  develop: 'https://develop.plzhans.com',
+  local: 'http://localhost:8801',
+};
+const docsOrigin = DOCS_ORIGINS[docsEnv] ?? DOCS_ORIGINS.local;
+
+/**
+ * 사이트가 놓이는 경로. 배포 경로를 아는 쪽(frontend/ci-build.sh)이 '/docs/' 로 넘겨준다.
+ * 로컬 개발 서버는 안 넘기므로 루트로 뜬다.
+ */
+const docsBase = process.env.DOCS_BASE ?? '/';
+
+/**
+ * 산출물을 쌓을 자리. **base 에서 유도한다.**
+ *
+ * Workers 정적 자산은 nginx 의 alias 같은 접두사 제거가 없다 — 요청 경로 그대로 파일을 찾는다.
+ * 그래서 /docs/apis/x.html 로 들어오면 산출물도 docs/apis/x.html 에 있어야 한다.
+ * 손으로 따로 적으면 base 만 바꾸고 여기를 잊는 순간 전부 404 가 되므로 같이 움직이게 묶는다.
+ *   '/'       → .vitepress/dist
+ *   '/docs/'  → .vitepress/dist/docs
+ */
+const docsOutDir = `.vitepress/dist${docsBase}`.replace(/\/$/, '');
+
+/**
+ * 사이트의 절대 주소(도메인 + 경로). canonical·sitemap·og:image 가 모두 이걸 기준으로 만든다.
+ * **끝의 / 를 지우지 말 것** — sitemap 이 상대 경로('apis/x.html')를 여기에 이어 붙인다.
+ */
+const siteUrl = `${docsOrigin}${docsBase}`;
+// 운영만 색인을 허용한다. develop 이 색인되면 같은 내용이 두 도메인에 뜨는 중복 콘텐츠가 된다.
+const indexable = docsEnv === 'production';
 
 /**
  * Sentry release 로 쓸 산출물 신원. 숫자 버전만으로는 어느 커밋인지 모른다.
@@ -65,6 +106,79 @@ function collectTags(): Map<string, Array<{ operationId: string; summary: string
 
 const byTag = collectTags();
 const allTags = [...byTag.keys()];
+
+/**
+ * mermaid 가 만들어 내는 청크. 다이어그램 종류마다 하나씩이라 30 개가 넘고, 합쳐서 1MB 에 가깝다.
+ *
+ * 이름을 열거하는 대신 패턴으로 거르는 이유는 **틀렸을 때 지금 동작으로 되돌아가게** 하려고다 —
+ * mermaid 가 판을 바꿔 새 청크 이름을 내놓으면 여기 안 걸리고 그냥 preload 로 남는다(현상 유지).
+ * 반대로 열거식이면 새 청크를 놓친 걸 아무도 모른다.
+ */
+const MERMAID_CHUNK_RE =
+  /(diagram|mermaid|katex|dagre|cose-bilkent|swimlanes|-definition)/i;
+
+/**
+ * ```mermaid 코드펜스가 실제로 들어 있는 페이지. shouldPreload 의 `page` 인자와 같은 형식이다
+ * ('common.md', 'apis/ai.md').
+ *
+ * 소스를 직접 읽어 판정한다. 목록을 손으로 적어 두면 다이어그램을 새로 넣은 사람이
+ * 여기를 고칠 이유를 모르고, 그 페이지만 조용히 느려진다.
+ */
+function pagesWithMermaid(): Set<string> {
+  const root = resolve(__dirname, '..');
+  const has = (path: string) =>
+    existsSync(path) && readFileSync(path, 'utf-8').includes('```mermaid');
+
+  const pages = new Set<string>();
+  // 최상위 마크다운(index.md·common.md 등)은 파일 하나가 페이지 하나다.
+  for (const name of readdirSync(root)) {
+    if (name.endsWith('.md') && has(resolve(root, name))) pages.add(name);
+  }
+  // 태그 페이지(/apis/:tag)는 파일이 아니라 apis/notes/*.md 를 조립해 만든다
+  // (apis/[tag].paths.js). 노트 이름은 태그 · 태그.after · operationId 셋 중 하나다.
+  const notes = resolve(root, 'apis/notes');
+  for (const [tag, ops] of byTag) {
+    const names = [tag, `${tag}.after`, ...ops.map((op) => op.operationId)];
+    if (names.some((name) => has(resolve(notes, `${name}.md`)))) {
+      pages.add(`apis/${tag}.md`);
+    }
+  }
+  return pages;
+}
+
+/**
+ * 태그 페이지(/apis/:tag)의 검색 결과 스니펫.
+ *
+ * **페이지마다 달라야 한다.** 비워 두면 전부 사이트 기본값("Hans API 명세 문서")을 물려받아
+ * 검색 결과에 같은 문장이 열 줄 뜨고, 검색엔진도 페이지를 구분할 근거를 잃는다.
+ *
+ * 사람이 검색창에 칠 법한 말을 앞에 둔다("병원 검색", "사업자등록번호 조회").
+ * 태그를 새로 만들었다면 여기에도 한 줄 적을 것 — 없으면 조용히 기본값으로 떨어진다.
+ */
+const TAG_DESCRIPTIONS: Record<string, string> = {
+  healthcare:
+    '전국 병원·의원 검색 API. 지역·진료과목·종별로 찾고 진료시간·응급실·병상·장비·평가등급을 한 번에 받습니다.',
+  'healthcare-meta':
+    '병원 검색 조건에 넣는 코드표 API. 진료과목·병원 종별·의료장비 코드 목록을 내려받습니다.',
+  ai: '자연어 질문을 병원 검색 조건으로 바꾸는 AI 검색 API 와 MCP 엔드포인트. 남은 사용량과 고를 수 있는 모델도 조회합니다.',
+  oauth:
+    'OAuth 2.0 토큰 발급·갱신 API. Authorization Code + PKCE(S256) 로 인가코드를 accessToken 으로 교환합니다.',
+  account:
+    '로그인한 사용자의 정보를 조회하는 API. 서비스 키가 아니라 access token 으로 호출합니다.',
+  address:
+    '시도·시군구 지역 코드 조회와 한글 주소의 공식 영문 표기 변환 API. 좌표로 지역 코드를 찾을 수도 있습니다.',
+  business:
+    '국세청 사업자등록번호 상태조회·진위확인 API. 계속·휴업·폐업 여부와 과세유형을 확인합니다.',
+  transport:
+    '지하철역 목록 API. 한국어·영어·일본어 역명을 제공합니다.',
+  hira: '건강보험심사평가원(HIRA) 원본 데이터 API. 요양기관기호(ykiho) 기준 병원 목록·상세, 비급여 진료비, 병원평가 등급을 조회합니다.',
+  nmc: '국립중앙의료원(NMC) 원본 데이터 API. 기관 ID(hpid) 기준 병원 목록·상세와 달빛어린이병원 목록을 조회합니다.',
+};
+
+const mermaidPages = pagesWithMermaid();
+console.log(
+  `[hansapp-docs] mermaid pages: ${[...mermaidPages].join(', ') || '(none)'}`,
+);
 // '정부데이터 원본' 그룹에 매핑할 태그(명시적 화이트리스트).
 const ORIGIN_TAGS = ['hira', 'nmc'];
 // '헬스케어' 그룹에 매핑할 태그. origin(hira/nmc)을 통합한 상위 API 이므로
@@ -156,7 +270,10 @@ export default withMermaid(defineConfig({
   description: 'Hans API 명세 문서',
   lang: 'ko-KR',
   // apis/notes/*.md 는 개별 페이지가 아니라 태그 페이지에 주입되는 조각이므로 라우팅에서 제외한다.
-  srcExclude: ['apis/notes/**'],
+  //
+  // README.md 는 이 프로젝트를 고치는 사람에게 쓴 개발 문서다. 빼지 않으면 /README.html 로
+  // 배포되어 검색에 잡힌다 — 대외 문서 사이트에 내부 빌드 설명이 노출된다.
+  srcExclude: ['apis/notes/**', 'README.md'],
   // 다크/라이트 토글은 유지하되 기본값은 다크다.
   //
   // 'dark' 는 'force-dark' 와 다르다 — 토글은 그대로 있고, 저장된 선택이 없을 때만
@@ -166,15 +283,139 @@ export default withMermaid(defineConfig({
   // 지금은 VitePress 가 넣는 인라인 스크립트가 폴백을 'dark' 로 잡아 주므로 시드가 필요 없다.
   // (직접 시드하면 사용자가 고른 값을 덮어써서 토글이 먹지 않는다)
   appearance: 'dark',
-  // 완전 정적 사이트(vitepress build). base 는 배포 경로에 맞춰 조정한다.
-  //
-  // 하나의 Pages 사이트가 여러 환경을 담는다.
-  //   production  →  /          (docs.plzhans.com)
-  //   develop     →  /develop/  (docs.plzhans.com/develop/)
-  //
-  // base 가 틀리면 페이지는 뜨는데 CSS·JS 경로가 어긋나 화면이 깨진다.
-  // 그래서 배포 경로를 아는 쪽(scripts/ci/build-frontend.sh)이 넘겨준다.
-  base: process.env.DOCS_BASE ?? '/',
+  // 완전 정적 사이트(vitepress build). 둘은 반드시 같이 움직인다(위 docsOutDir 주석 참고).
+  base: docsBase,
+  outDir: docsOutDir,
+  // 검색엔진에 넘길 페이지 목록. hostname 은 필수다(절대 URL 규격).
+  // 경로까지 준다 — 여기에 각 페이지의 상대 경로가 이어 붙어 /docs/apis/x.html 이 된다.
+  sitemap: { hostname: siteUrl },
+  /**
+   * 다이어그램이 없는 페이지에서 mermaid 청크를 preload 에서 뺀다.
+   *
+   * mermaid 는 테마에 전역 등록되어 **모든 페이지의 import 그래프에 잡힌다**. 그래서
+   * 다이어그램이 하나도 없는 페이지까지 1MB 어치를 최우선순위로 받느라 첫 화면이 밀렸다
+   * (실제로 다이어그램을 쓰는 건 common.md 한 곳뿐이다).
+   *
+   * false 를 주면 사라지는 게 아니라 prefetch 로 내려간다 — 브라우저가 한가할 때 받으므로
+   * 첫 화면 렌더와 경쟁하지 않는다. **판정이 틀려도 다이어그램은 그대로 그려진다**, 조금 늦을 뿐이다.
+   */
+  shouldPreload(link, page) {
+    if (!MERMAID_CHUNK_RE.test(link)) return true;
+    return mermaidPages.has(page);
+  },
+  /**
+   * 태그 페이지에 개별 description 을 심는다.
+   *
+   * 태그 페이지는 파일이 아니라 [tag].md 하나를 동적 라우트로 찍어 내는 것이라
+   * frontmatter 로는 페이지마다 다른 값을 못 준다. 그래서 params.tag 를 보고 여기서 넣는다.
+   * (index.md·common.md 처럼 실제 파일이 있는 페이지는 frontmatter 에 직접 적는다)
+   */
+  transformPageData(pageData) {
+    const tag = (pageData.params as { tag?: string } | undefined)?.tag;
+    const description = tag ? TAG_DESCRIPTIONS[tag] : undefined;
+    if (description) pageData.description = description;
+  },
+  /**
+   * 페이지마다 정본 주소(canonical)와 공유용 메타(og·twitter)를 넣는다.
+   *
+   * canonical 이 필요한 이유: Cloudflare 가 `/apis/healthcare` 와 `/apis/healthcare.html` 을
+   * **둘 다** 서빙한다. 검색엔진에는 같은 내용의 주소가 둘로 보이므로 하나를 정본으로 못박는다.
+   * 형식은 sitemap 과 맞춘다(`.html` 붙은 쪽) — 둘이 어긋나면 정본이 두 개인 셈이 된다.
+   */
+  transformHead({ pageData, title, description }) {
+    // relativePath: 'index.md' | 'common.md' | 'apis/healthcare.md'
+    const path = pageData.relativePath
+      .replace(/(^|\/)index\.md$/, '$1')
+      .replace(/\.md$/, '.html');
+    // siteUrl 이 이미 / 로 끝난다. sitemap 이 만드는 주소와 **글자까지 같아야** 한다 —
+    // 어긋나면 정본이 둘인 셈이 되어 canonical 이 하는 일이 없어진다.
+    const url = `${siteUrl}${path}`;
+
+    const tags: Array<[string, Record<string, string>]> = [
+      ['link', { rel: 'canonical', href: url }],
+      ['meta', { property: 'og:type', content: 'website' }],
+      ['meta', { property: 'og:site_name', content: 'Hans API' }],
+      ['meta', { property: 'og:locale', content: 'ko_KR' }],
+      ['meta', { property: 'og:url', content: url }],
+      ['meta', { property: 'og:title', content: title }],
+      ['meta', { property: 'og:description', content: description }],
+      // 미리보기 카드 이미지. **절대 URL 이어야 한다** — 카드를 그리는 쪽(슬랙·카카오·X)은
+      // 우리 사이트 밖이라 상대 경로를 풀 기준이 없다.
+      // 원본은 .vitepress/og-source.html (헤드리스 크롬으로 1200×630 스크린샷).
+      ['meta', { property: 'og:image', content: `${siteUrl}og.png` }],
+      ['meta', { property: 'og:image:width', content: '1200' }],
+      ['meta', { property: 'og:image:height', content: '630' }],
+      ['meta', { property: 'og:image:alt', content: 'Hans API 문서' }],
+      // summary 는 작은 정사각 썸네일, summary_large_image 는 1200×630 을 꽉 채운다.
+      ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ];
+
+    /*
+      운영이 아니면 색인을 막는다.
+
+      robots.txt 의 Disallow 만으로는 부족하다 — 그건 **크롤링**을 막을 뿐이라, 외부 어딘가에
+      develop 주소 링크가 있으면 내용을 안 읽은 채로 주소만 검색결과에 올린다.
+      noindex 는 페이지를 읽은 크롤러에게 직접 빼라고 말하는 것이라 확실하다.
+    */
+    if (!indexable) {
+      tags.push(['meta', { name: 'robots', content: 'noindex, nofollow' }]);
+    }
+    return tags;
+  },
+  /**
+   * robots.txt 를 산출물에 직접 쓴다.
+   *
+   * public/robots.txt 로 두지 않는 이유는 **내용이 환경마다 달라서**다 —
+   * 운영은 전체 허용 + sitemap 위치를, develop 은 전체 차단을 내보내야 하는데
+   * 정적 파일 하나로는 못 가른다.
+   *
+   * **다만 문서가 /docs 밑에 있으면 우리가 낼 수 없다.** 크롤러는 도메인 루트의
+   * /robots.txt 만 읽는다 — /docs/robots.txt 는 쳐다보지 않는다. 그 자리는 포털
+   * (frontend/hansapp-web)의 것이라, 여기서는 내용만 알려 주고 파일은 만들지 않는다.
+   * 있으나 마나 한 파일을 놔두면 "robots 는 처리했다" 고 착각하게 된다.
+   *
+   * develop 색인 차단은 robots.txt 가 아니라 transformHead 의 noindex 메타가 맡는다.
+   * 그쪽은 페이지마다 붙으므로 문서가 어느 경로에 있든 동작한다.
+   */
+  buildEnd(siteConfig) {
+    const body = indexable
+      ? `User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}sitemap.xml\n`
+      : `User-agent: *\nDisallow: /\n`;
+
+    if (docsBase !== '/') {
+      /*
+        워커 루트로 들어온 요청을 문서 첫 화면으로 보낸다.
+
+        산출물이 docs/ 밑으로 내려가면서 워커 루트에는 파일이 하나도 없다. 그래서 워커
+        자기 도메인(workers.dev·남아 있는 커스텀 도메인)으로 들어오면 404 만 보인다 —
+        배포가 깨진 것처럼 보이지만 멀쩡한 상태다. 그 혼동을 없애는 안전장치다.
+
+        운영 경로(plzhans.com/docs*)로는 애초에 여기 안 걸린다. Route 가 /docs* 만
+        이 워커로 보내고 / 는 포털이 가져가기 때문이다.
+
+        **정적 자산 디렉터리 루트**에 둬야 한다(outDir 이 아니라 wrangler 가 올리는 곳).
+        301 이 아니라 302 를 쓴다 — 안전장치일 뿐이라 브라우저에 영구 캐시될 이유가 없고,
+        base 가 바뀌면 낡은 301 이 남아 되레 방해가 된다.
+      */
+      const assetsRoot = resolve(__dirname, 'dist');
+      writeFileSync(
+        join(assetsRoot, '_redirects'),
+        `# 워커 루트 → 문서 첫 화면 (.vitepress/config.ts 가 생성한다)\n/\t${docsBase}\t302\n`,
+        'utf-8',
+      );
+      console.log(`[hansapp-docs] _redirects: / → ${docsBase} (302)`);
+      console.log(
+        `[hansapp-docs] robots.txt: 생략 — 문서가 ${docsBase} 밑이라 우리가 낼 수 없다.` +
+          `\n  ${docsOrigin}/robots.txt 를 포털(hansapp-web)이 내야 한다. 필요한 내용:\n` +
+          body.replace(/^/gm, '    '),
+      );
+      return;
+    }
+    writeFileSync(join(siteConfig.outDir, 'robots.txt'), body, 'utf-8');
+    console.log(
+      `[hansapp-docs] robots.txt: ${indexable ? 'allow' : 'disallow'} (${docsEnv})`,
+    );
+  },
   themeConfig: {
     nav: [
       { text: '소개', link: '/' },

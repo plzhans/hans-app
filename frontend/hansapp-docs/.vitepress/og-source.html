@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    background: #1b1b1f;
+    font-family: "Pretendard", "Apple SD Gothic Neo", -apple-system, "Helvetica Neue", sans-serif;
+    position: relative;
+    overflow: hidden;
+  }
+  /* 우상단 은은한 인디고 글로우 — 브랜드색(--vp-c-brand-1 dark: #a8b1ff) */
+  .glow {
+    position: absolute;
+    top: -280px; right: -220px;
+    width: 820px; height: 820px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(168,177,255,.20) 0%, rgba(168,177,255,.07) 42%, rgba(168,177,255,0) 70%);
+  }
+  /* 격자 — 아주 옅게, 문서/데이터 느낌만 */
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: linear-gradient(105deg, #000 0%, transparent 80%);
+    -webkit-mask-image: linear-gradient(105deg, #000 0%, transparent 80%);
+  }
+  /* 머리말은 위에 두고, 본문은 남은 자리 한가운데 놓는다.
+     flex 축소로 얇은 요소(.rule)가 0 이 되지 않게 flex:none 을 준다. */
+  .frame {
+    position: relative;
+    height: 100%;
+    padding: 66px 88px;
+    display: flex;
+    flex-direction: column;
+  }
+  header { flex: none; }
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-family: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 24px;
+  }
+  .eyebrow { color: #a8b1ff; letter-spacing: .12em; }
+  .host { color: rgba(235,235,245,.42); }
+
+  h1 {
+    font-size: 116px;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: -.035em;
+    color: #fff;
+  }
+  .rule {
+    flex: none;
+    width: 92px; height: 5px; border-radius: 3px;
+    background: #a8b1ff;
+    margin: 32px 0 28px;
+  }
+  p {
+    font-size: 36px;
+    line-height: 1.42;
+    font-weight: 500;
+    color: rgba(235,235,245,.66);
+    letter-spacing: -.015em;
+  }
+  main > * { flex: none; }
+
+  /* 엔드포인트 경로는 넣지 않는다. 경로가 바뀔 때마다 이미지를 다시 굽고
+     공유 캐시가 풀리기를 기다려야 하는데, 그 관리 비용을 감당할 이유가 없다. */
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="grid"></div>
+  <div class="frame">
+    <header>
+      <span class="eyebrow">API DOCS</span>
+      <span class="host">plzhans.com</span>
+    </header>
+
+    <main>
+      <h1>Hans API</h1>
+      <div class="rule"></div>
+      <p>유용한 정보를 하나의 REST API 로</p>
+    </main>
+  </div>
+</body>
+</html>
