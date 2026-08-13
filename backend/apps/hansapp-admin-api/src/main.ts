@@ -18,6 +18,7 @@ import { AppModule } from './app.module';
 import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initAdminCookie } from './auth/admin-cookie';
+import { initAdminSocial } from './auth/admin-social-flow';
 import { serveAdminSpa } from './static-spa';
 import { OPENAPI_JSON_PATH, SWAGGER_PATH, buildOpenApiDocument } from './swagger';
 
@@ -25,6 +26,8 @@ import { OPENAPI_JSON_PATH, SWAGGER_PATH, buildOpenApiDocument } from './swagger
 
 // 요청마다 도는 유틸(admin-cookie)이 쓸 값을 부팅 시점에 한 번 읽어 고정한다.
 initAdminCookie(appConfig, appEnv);
+// 소셜 흐름이 쓸 값(콘솔 주소·쿠키 secure)도 같은 이유로 여기서 굳힌다.
+initAdminSocial(appConfig);
 
 /** hansapp-api 와 같은 규칙. 프록시 뒤일 때만 켠다(XFF 위조로 IP 한도를 우회당하지 않게). */
 function parseTrustProxy(raw?: string): boolean | number | string | undefined {

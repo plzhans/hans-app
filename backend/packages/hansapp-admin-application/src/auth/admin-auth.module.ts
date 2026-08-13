@@ -1,6 +1,11 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import type { ConfigSource } from '@hansapp/common';
-import { DataModule } from '@hansapp/data';
+import {
+  buildSettingKeyring,
+  SETTING_KEYRING,
+  type ConfigSource,
+  type SecretBoxKeys,
+} from '@hansapp/common';
+import { DataModule, SettingReadRepository } from '@hansapp/data';
 
 import { ADMIN_AUTH_CONFIG, buildAdminAuthConfig } from './admin-auth.config';
 import { AdminAccountService } from './admin-account.service';
@@ -14,6 +19,11 @@ import { AdminPasswordResetService } from './admin-password-reset.service';
 import { AdminSessionRepository } from './admin-session.repository';
 import { AdminTokenService } from './admin-token.service';
 import { AdminUserRepository } from './admin-user.repository';
+import { SettingCache } from '../setting/setting-cache.service';
+import { AdminGoogleClient } from './social/admin-google.client';
+import { AdminOAuthRepository } from './social/admin-oauth.repository';
+import { AdminSocialService } from './social/admin-social.service';
+import { AdminSocialTicketService } from './social/admin-social-ticket.service';
 
 /**
  * 관리자 인증 모듈.
@@ -52,6 +62,23 @@ export class AdminAuthModule {
         // 가드는 providers 와 exports 양쪽에 둔다 — 앱이 APP_GUARD 에 useExisting 으로
         // 같은 인스턴스를 재사용해야 한다(useClass 로 두면 DI 가 앱 스코프에서 다시 풀린다).
         AdminAuthGuard,
+        /*
+          소셜 로그인(구글). **설정 캐시를 이 모듈이 직접 든다** — 자격증명이 DB(env_setting)에
+          있는데, AdminApplicationModule 을 끌어오면 이 모듈을 갈라 둔 이유(배치·CLI 가 인증
+          의존성을 지지 않게 한다)가 무너진다. 캐시는 DB 사본을 5분 들고 있을 뿐이라
+          인스턴스가 하나 더 생겨도 값이 갈리지 않는다.
+        */
+        { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
+        {
+          provide: SettingCache,
+          useFactory: (repo: SettingReadRepository, keyring: SecretBoxKeys | undefined) =>
+            new SettingCache(repo, keyring),
+          inject: [SettingReadRepository, SETTING_KEYRING],
+        },
+        AdminOAuthRepository,
+        AdminGoogleClient,
+        AdminSocialTicketService,
+        AdminSocialService,
       ],
       exports: [
         ADMIN_AUTH_CONFIG,
@@ -61,6 +88,9 @@ export class AdminAuthModule {
         AdminTokenService,
         AdminActionLogService,
         AdminAuthGuard,
+        AdminSocialService,
+        AdminGoogleClient,
+        AdminSocialTicketService,
       ],
     };
   }

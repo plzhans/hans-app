@@ -71,7 +71,44 @@ model AdminUser {
 
   passwordResets AdminPasswordReset[]
 
+  oauths AdminOAuth[]
+
   @@map("admin_user")
+}
+
+/// 관리자 계정 ↔ 외부 소셜 연동.
+///
+/// **비밀번호를 대체하지 않고 옆에 선다.** admin_user.password 는 여전히 NOT NULL 이라,
+/// 구글로 들어오는 관리자도 비밀번호로 들어올 수 있고 연동을 풀어도 통로가 남는다.
+///
+/// **provider enum 은 auth.prisma 의 것을 같이 쓴다.** 계정도 세션도 갈라 뒀지만 provider
+/// 이름은 바깥 세상의 사실이라 두 벌로 적을 이유가 없다. 실제로 쓰는 값은 GOOGLE 하나다.
+model AdminOAuth {
+  id Int @id @default(autoincrement())
+
+  adminId Int @map("admin_id")
+
+  provider OAuthProvider
+
+  /// provider 가 준 고유 식별자(OIDC subject).
+  ///
+  /// **이메일이 아니라 이 값이 신원이다.** 구글 계정의 이메일은 바뀔 수 있지만 sub 는 바뀌지
+  /// 않는다 — 이메일로만 대조하면 계정을 넘겨받은 사람이 남의 관리자 자리에 들어온다.
+  providerId String @map("provider_id") @db.VarChar(191)
+
+  /// 연동 시점에 provider 가 준 이메일. **대조에 쓰지 않는다** — 화면에서 "어느 계정을
+  /// 붙였는지" 를 알아보는 용도다.
+  email String? @db.VarChar(320)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  /// 한 소셜 계정이 관리자 둘에 붙지 않는다.
+  @@unique([provider, providerId])
+  /// 한 관리자는 provider 마다 하나만 붙인다.
+  @@unique([adminId, provider])
+  @@map("admin_oauth")
 }
 
 /// 관리자 비밀번호 재설정 티켓(로그인 화면의 "비밀번호 찾기").

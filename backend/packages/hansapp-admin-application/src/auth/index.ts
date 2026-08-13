@@ -19,6 +19,14 @@ export type {
 export { AdminTokenService } from './admin-token.service';
 export type { AdminAuthTokens, AdminRequestMeta } from './admin-token.service';
 
+// 소셜 로그인(구글). 자격증명은 DB 설정(admin.google.*)에서 오고, 계정은 만들지 않는다.
+export { AdminSocialService, AdminSocialError } from './social/admin-social.service';
+export type { AdminSocialErrorCode, AdminSocialLink } from './social/admin-social.service';
+export { AdminGoogleClient } from './social/admin-google.client';
+export type { AdminGoogleProfile } from './social/admin-google.client';
+export { AdminSocialTicketService } from './social/admin-social-ticket.service';
+export type { AdminOAuthState } from './social/admin-social-ticket.service';
+
 export { AdminActionLogService } from './admin-action-log.service';
 export type {
   AdminAction,

@@ -82,6 +82,10 @@ enum AdminLogAction {
   PASSWORD_RESET_REQUEST
   /// 그 메일의 링크로 본인이 비밀번호를 다시 세웠다.
   PASSWORD_RESET
+  /// 자기 계정에 소셜(구글)을 붙였다. 어느 provider·어느 이메일인지는 detail 에 남는다.
+  SOCIAL_LINK
+  /// 붙여 둔 소셜을 떼었다.
+  SOCIAL_UNLINK
 }
 
 /// 조치 결과

@@ -9,6 +9,7 @@ import { AdminAuthGuard, AdminAuthModule } from '@hansapp/admin-application/auth
 import { resolveClientIp } from '@hansapp/http-common';
 
 import { AdminAuthController } from './auth/admin-auth.controller';
+import { AdminSocialController } from './auth/admin-social.controller';
 import { AdminBootstrapService } from './auth/admin-bootstrap.service';
 import { AdminAccountController } from './admins/admin-account.controller';
 import { SyncStateController } from './admin/sync-state.controller';
@@ -57,6 +58,9 @@ export class AppModule {
       ],
       controllers: [
         AdminAuthController,
+        // 소셜 로그인. **AdminAuthController 뒤에 둔다** — 라우트가 겹치지는 않지만
+        // `/auth` 아래의 인증 경로가 한자리에 모여 있어야 읽힌다.
+        AdminSocialController,
         AdminAccountController,
         HealthController,
         SyncStateController,

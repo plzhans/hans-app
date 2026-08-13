@@ -21,9 +21,14 @@ export class AdminLoginService {
     private readonly log: AdminActionLogService,
   ) {}
 
+  /**
+   * @param detail 무엇으로 들어왔는지 같은 부가정보. **로그인 종류를 action 으로 늘리지 않고
+   *   여기 남긴다** — "언제 로그인했나" 를 묻는 조회가 값 하나만 알면 되게 하려는 것이다.
+   */
   async complete(
     admin: Pick<AdminUser, 'id' | 'email' | 'mustChangePassword'>,
     meta: AdminRequestMeta,
+    detail?: Record<string, string | number | boolean | null>,
   ): Promise<AdminAuthTokens> {
     const session = await this.tokens.createSession(admin.id, meta);
     // 강제 변경 여부가 access token 클레임으로 실린다 — 가드가 이 값으로 업무 API 를 막는다.
@@ -41,6 +46,7 @@ export class AdminLoginService {
       sessionId: tokens.sessionId,
       ip: meta.ip,
       userAgent: meta.userAgent,
+      detail: detail ?? null,
     });
 
     return tokens;

@@ -45,6 +45,7 @@ export type {
   AdminUser,
   AdminTokenSession,
   AdminPasswordReset,
+  AdminOAuth,
   // 개발자 플랫폼(app.prisma) 도메인 모델
   App,
   AppMember,
