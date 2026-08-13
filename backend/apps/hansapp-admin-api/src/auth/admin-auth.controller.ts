@@ -5,14 +5,17 @@ import {
   Delete,
   Get,
   HttpCode,
-  NotFoundException,
-  Patch,
   Post,
   Query,
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiExcludeController,
+} from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AdminEmailService } from '@hansapp/admin-application';
@@ -31,10 +34,8 @@ import {
   AdminForgotPasswordRequestDto,
   AdminLoginRequestDto,
   AdminResetPasswordRequestDto,
-  AdminMeResponseDto,
   AdminPasswordResetTargetDto,
   AdminTokenResponseDto,
-  AdminUpdateLocaleRequestDto,
 } from './dto/admin-auth.dto';
 
 /**
@@ -44,7 +45,12 @@ import {
  * 이 컨트롤러의 경로가 `/auth/*` 인 것은 refresh 쿠키의 path 와 맞추기 위해서다 —
  * 업무 API 는 `/api/*` 아래에 둬서 쿠키가 실리지 않게 한다.
  */
-@ApiTags('admin-auth')
+/*
+  **스웨거에 싣지 않는다.** 이 문서가 답하는 질문은 "콘솔이 부르는 업무 API 가 무엇인가"
+  인데, `/auth/*` 는 그 콘솔에 들어가기 위한 흐름(쿠키·리다이렉트·티켓)이라 성격이 다르다 —
+  섞어 두면 목록이 길어질 뿐 아니라, 문서를 보고 부를 수 있는 것처럼 읽힌다.
+*/
+@ApiExcludeController()
 @Controller('auth')
 export class AdminAuthController {
   constructor(
@@ -118,43 +124,6 @@ export class AdminAuthController {
     */
     await this.auth.logout(readRefreshCookie(req), requestMeta(req));
     clearAdminCookies(res);
-  }
-
-  @Get('me')
-  // 비밀번호를 바꿔야 하는 상태에서도 자기 정보는 읽을 수 있어야 한다 —
-  // 변경 화면이 "누구로 로그인했는지" 를 보여준다.
-  @AllowDuringPasswordChange()
-  @ApiOperation({ summary: '현재 로그인한 관리자' })
-  @ApiOkResponse({ type: AdminMeResponseDto })
-  async me(@CurrentAdmin() current: AdminAuthUser): Promise<AdminMeResponseDto> {
-    const admin = await this.auth.findById(current.adminId);
-    if (!admin) {
-      // 토큰은 유효한데 계정이 사라졌다. 세션 정리가 못 따라온 경우다.
-      throw new NotFoundException('Admin not found.');
-    }
-    return {
-      id: admin.id,
-      email: admin.email,
-      name: admin.name,
-      lastLoginAt: admin.lastLoginAt?.toISOString() ?? null,
-      mustChangePassword: admin.mustChangePassword,
-      role: admin.role,
-      language: admin.language,
-      timeZone: admin.timeZone,
-    };
-  }
-
-  @Patch('me')
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '내 언어·타임존 변경',
-    description: '관리 화면과 메일에 쓰는 언어·타임존을 바꾼다. 보낸 항목만 바뀐다.',
-  })
-  async updateMe(
-    @CurrentAdmin() current: AdminAuthUser,
-    @Body() dto: AdminUpdateLocaleRequestDto,
-  ): Promise<void> {
-    await this.auth.updateOwnLocale(current.adminId, dto);
   }
 
   @Post('password/forgot')

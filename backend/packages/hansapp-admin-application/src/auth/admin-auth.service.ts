@@ -18,6 +18,7 @@ import type { AdminAuthConfig } from './admin-auth.config';
 import { AdminActionLogService } from './admin-action-log.service';
 import { isEmailLike, normalizeEmail } from './admin-email';
 import { AdminLoginService } from './admin-login.service';
+import { AdminProfileCache } from './admin-profile-cache.service';
 import { AdminTokenService } from './admin-token.service';
 import type { AdminAuthTokens, AdminRequestMeta } from './admin-token.service';
 import { AdminUserRepository } from './admin-user.repository';
@@ -35,6 +36,11 @@ export class AdminAuthService {
     private readonly admins: AdminUserRepository,
     private readonly tokens: AdminTokenService,
     private readonly loginFlow: AdminLoginService,
+    /*
+      **내 정보 응답이 담고 있는 값이 여기서 바뀐다** — 변경 강제 플래그(비밀번호),
+      계정 상태(비활성화), 언어·시간대. 바꾼 자리마다 캐시를 비운다.
+    */
+    private readonly profileCache: AdminProfileCache,
     private readonly log: AdminActionLogService,
   ) {}
 
@@ -96,12 +102,15 @@ export class AdminAuthService {
 
     /*
       **갱신 때마다 계정 상태를 다시 본다.** access token 은 stateless 라 발급 뒤 폐기가
-      안 되는데, 갱신을 막으면 최대 access TTL(5분) 뒤에는 실제로 끊긴다. 이게 계정
-      비활성화가 실효를 갖는 유일한 경로다.
+      안 되는데, 갱신을 막으면 최대 access TTL 뒤에는 실제로 끊긴다.
+
+      **다만 이 경로에 매달리지 않는다.** 비활성화·삭제는 세션까지 함께 지우므로, 가드가
+      세션 캐시에서 먼저 잡아낸다(그 경로가 캐시를 직접 지운다) — 여기는 그것마저
+      놓쳤을 때의 마지막 그물이다.
     */
     const admin = await this.admins.findById(rotated.adminId);
     if (!admin || admin.status !== AdminStatus.ACTIVE) {
-      await this.tokens.revokeSession(rotated.sessionId);
+      await this.tokens.revokeOwnedSession(rotated.adminId, rotated.sessionId);
       throw new UnauthorizedException('Account is not active.');
     }
 
@@ -170,6 +179,7 @@ export class AdminAuthService {
       false,
     );
     await this.tokens.revokeAllByAdmin(admin.id);
+    await this.profileCache.purge(admin.id);
 
     await this.log.record({
       adminId: admin.id,
@@ -264,6 +274,18 @@ export class AdminAuthService {
   async resetPassword(
     email: string,
     plainPassword?: string,
+    /**
+     * 뒤처리를 어디까지 할지. **둘 다 기본은 켜짐이다** — 안전한 쪽이 기본이어야 하고,
+     * CLI 처럼 값을 안 주는 통로가 예전과 같이 동작해야 한다.
+     *
+     * `revokeSessions`: 비밀번호를 다시 내는 이유가 유출일 수 있고, 그때 열려 있던 세션을
+     * 남기면 값을 바꾼 의미가 없다. 반대로 본인이 잊어버린 것뿐이라면 지금 일하고 있는
+     * 사람을 밖으로 내보내는 셈이라, 부르는 쪽이 정한다.
+     *
+     * `mustChangePassword`: 남이 정해 준 값이 그대로 남으면 그 값을 아는 사람이 둘이 된다.
+     * 끄는 것은 본인과 함께 앉아 값을 정한 경우다.
+     */
+    options?: { revokeSessions?: boolean; mustChangePassword?: boolean },
   ): Promise<{ admin: AdminUser; generatedPassword?: string }> {
     const admin = await this.requireByEmail(email);
     const plain = plainPassword ?? generatePassword();
@@ -272,11 +294,12 @@ export class AdminAuthService {
     const updated = await this.admins.updatePassword(
       admin.id,
       await this.hashPassword(plain),
-      // 운영자가 정해 준 값이다. 본인이 다시 바꿔야 한다.
-      true,
+      options?.mustChangePassword ?? true,
     );
-    // 비밀번호를 바꾼 이유가 유출일 수 있다. 살아 있는 세션을 남겨 두면 바꾼 의미가 없다.
-    await this.tokens.revokeAllByAdmin(admin.id);
+    if (options?.revokeSessions ?? true) {
+      await this.tokens.revokeAllByAdmin(admin.id);
+    }
+    await this.profileCache.purge(admin.id);
     return { admin: updated, generatedPassword: generated };
   }
 
@@ -285,16 +308,22 @@ export class AdminAuthService {
     const admin = await this.requireByEmail(email);
     const updated = await this.admins.updateStatus(admin.id, AdminStatus.DISABLED);
     await this.tokens.revokeAllByAdmin(admin.id);
+    await this.profileCache.purge(admin.id);
     return updated;
   }
 
   async enable(email: string): Promise<AdminUser> {
     const admin = await this.requireByEmail(email);
-    return this.admins.updateStatus(admin.id, AdminStatus.ACTIVE);
+    const updated = await this.admins.updateStatus(admin.id, AdminStatus.ACTIVE);
+    await this.profileCache.purge(admin.id);
+    return updated;
   }
 
   /**
-   * 계정을 지운다. 세션은 FK Cascade 로 함께 사라진다.
+   * 계정을 지운다. **행은 남기고 지운 표시만 한다**(소프트 삭제) — 계정 행이 조치 기록이
+   * 가리키는 대상이라, 지워 버리면 그 번호가 누구였는지 아는 자리가 없어진다.
+   *
+   * 세션은 여기서 끊는다. 행이 남으므로 FK Cascade 가 돌지 않는다.
    *
    * **마지막 남은 계정은 지우지 않는다.** 지우고 나면 로그인할 수단이 없어지고, 관리자
    * 계정을 만드는 통로는 이 CLI 뿐이라 서버에 다시 들어가야 풀린다. 부팅 자동 생성은
@@ -307,7 +336,9 @@ export class AdminAuthService {
         'Cannot remove the last admin account — no one could sign in afterwards.',
       );
     }
-    await this.admins.delete(admin.id);
+    await this.tokens.revokeAllByAdmin(admin.id);
+    await this.admins.softDelete(admin.id, new Date());
+    await this.profileCache.purge(admin.id);
     return admin;
   }
 
@@ -355,7 +386,9 @@ export class AdminAuthService {
     if (Object.keys(data).length === 0) {
       return current;
     }
-    return this.admins.updateLocale(adminId, data);
+    const updated = await this.admins.updateLocale(adminId, data);
+    await this.profileCache.purge(adminId);
+    return updated;
   }
 
   // ---- 내부 ----

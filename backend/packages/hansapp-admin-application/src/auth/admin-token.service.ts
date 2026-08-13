@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import {
   composeSignedToken,
@@ -12,6 +13,7 @@ import { ADMIN_AUTH_CONFIG } from './admin-auth.config';
 import type { AdminAuthConfig } from './admin-auth.config';
 import type { AdminAccessTokenPayload } from './admin-auth-user';
 import { AdminJwtService } from './admin-jwt.service';
+import { AdminSessionCache } from './admin-session-cache.service';
 import { AdminSessionRepository } from './admin-session.repository';
 
 /**
@@ -22,9 +24,42 @@ import { AdminSessionRepository } from './admin-session.repository';
  */
 const ADMIN_REFRESH_PREFIX = 'art_';
 
+/**
+ * refresh 토큰이 싣는 식별자 조각 수: `<관리자번호>.<세션식별자>`.
+ *
+ * **관리자번호를 함께 싣는다.** 세션을 (관리자, 세션) 쌍으로 찾기 위해서다 — 캐시 키도
+ * 같은 규칙으로 묶여 있어, 식별자 하나만 아는 것으로는 어느 계정도 가리킬 수 없다.
+ */
+const REFRESH_ID_PARTS = 2;
+
+/** 토큰이 실어 온 관리자번호. 숫자가 아니면 조작이므로 없는 계정(0)으로 떨어뜨린다. */
+function ownerOf(ids: string[]): number {
+  return positiveIntOf(ids[0]);
+}
+
+/** 토큰이 실어 온 세션 식별자. 위와 같은 규칙이다. */
+function sessionIdOf(ids: string[]): number {
+  return positiveIntOf(ids[1]);
+}
+
+function positiveIntOf(raw: string | undefined): number {
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : 0;
+}
+
+/**
+ * 세션 식별자. **관리자 안에서만 유일하면 된다**(키가 복합키다).
+ *
+ * MySQL INT 상한 안에서 뽑는다 — 계정당 세션이 몇 개뿐이라 이 공간이면 겹칠 일이 없고,
+ * 겹치더라도 create 가 키 충돌로 떨어져 조용히 덮어쓰는 일은 없다(회원 세션과 같은 규칙).
+ */
+function randomSessionId(): number {
+  return randomInt(1, 2_147_483_647);
+}
+
 /** 세션 발급/갱신 결과. access token 은 호출측이 따로 얹는다. */
 export interface IssuedAdminSession {
-  readonly sessionId: string;
+  readonly sessionId: number;
   readonly refreshToken: string;
   readonly expiresAt: Date;
 }
@@ -48,7 +83,7 @@ export interface AdminAuthTokens {
    * 감사 로그가 "이번에 만든 세션" 을 가리키는 데 쓴다(비밀값도 아니다 — access token 에
    * sid 로 이미 들어 있다).
    */
-  readonly sessionId: string;
+  readonly sessionId: number;
   /** 비밀번호를 바꾸기 전까지 다른 API 가 막혀 있는가. 프론트가 변경 화면으로 보낼 때 쓴다. */
   readonly mustChangePassword: boolean;
 }
@@ -61,8 +96,12 @@ export interface AdminRequestMeta {
 
 /**
  * 관리자 토큰 발급·검증·저장.
- * - access token: JWT(HS256), stateless. 서명·만료만으로 검증한다.
+ * - access token: JWT(HS256). 서명·만료를 보고, 가드가 세션 캐시로 폐기 여부를 한 번 더 본다.
  * - refresh token: 불투명 토큰. 서버는 secret 해시만 저장하고 rotate 시 교체·만료 연장(sliding).
+ *
+ * **폐기는 전부 여기를 지난다.** 세션 행을 지우는 자리마다 캐시도 함께 비운다 — 부르는
+ * 쪽(로그아웃·비밀번호 초기화·콘솔의 기기 끊기)이 캐시를 알아야 한다면, 한 곳만 빠뜨려도
+ * 끊은 기기가 상한만큼 그대로 통한다.
  */
 @Injectable()
 export class AdminTokenService {
@@ -80,13 +119,14 @@ export class AdminTokenService {
     @Inject(ADMIN_AUTH_CONFIG) private readonly config: AdminAuthConfig,
     private readonly jwt: AdminJwtService,
     private readonly sessions: AdminSessionRepository,
+    private readonly sessionCache: AdminSessionCache,
   ) {
     this.refreshTagKey = hmacSha256hex(config.jwtSecret, 'admin-refresh-token-tag-v1');
   }
 
   // ---- access token (JWT) ----
 
-  issueAccessToken(adminId: number, sessionId: string, mustChangePassword = false): string {
+  issueAccessToken(adminId: number, sessionId: number, mustChangePassword = false): string {
     const payload: AdminAccessTokenPayload = {
       sub: String(adminId),
       sid: sessionId,
@@ -108,7 +148,7 @@ export class AdminTokenService {
 
   /** 새 refresh 세션을 만들고 refresh token 을 반환한다. */
   async createSession(adminId: number, meta: AdminRequestMeta): Promise<IssuedAdminSession> {
-    const sessionId = randomToken(18);
+    const sessionId = randomSessionId();
     const secret = randomToken(24);
     const expiresAt = new Date(Date.now() + this.config.refreshTokenTtlSec * 1000);
     await this.sessions.create({
@@ -125,7 +165,8 @@ export class AdminTokenService {
     return {
       sessionId,
       refreshToken:
-        ADMIN_REFRESH_PREFIX + composeSignedToken(sessionId, secret, this.refreshTagKey),
+        ADMIN_REFRESH_PREFIX +
+        composeSignedToken([String(adminId), String(sessionId)], secret, this.refreshTagKey),
       expiresAt,
     };
   }
@@ -136,16 +177,22 @@ export class AdminTokenService {
    */
   async rotateRefreshToken(refreshToken: string): Promise<RotatedAdminSession> {
     // HMAC 태그부터 본다. 위조·변조·정크 토큰은 여기서 DB 조회 없이 탈락한다.
-    const parsed = parseSignedToken(refreshToken, ADMIN_REFRESH_PREFIX, this.refreshTagKey);
+    const parsed = parseSignedToken(
+      refreshToken,
+      ADMIN_REFRESH_PREFIX,
+      this.refreshTagKey,
+      REFRESH_ID_PARTS,
+    );
     if (!parsed) {
       throw new UnauthorizedException('Invalid refresh token.');
     }
-    const session = await this.sessions.findById(parsed.ids[0]);
+    const session = await this.sessions.findOwned(ownerOf(parsed.ids), sessionIdOf(parsed.ids));
     if (!session) {
       throw new UnauthorizedException('Session not found.');
     }
     if (session.expiresAt.getTime() <= Date.now()) {
-      await this.sessions.delete(session.sessionId);
+      await this.sessions.deleteOwned(session.adminId, session.sessionId);
+      await this.sessionCache.invalidate(session.adminId, [session.sessionId]);
       throw new UnauthorizedException('Session expired. Please sign in again.');
     }
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
@@ -154,12 +201,17 @@ export class AdminTokenService {
 
     const newSecret = randomToken(24);
     const expiresAt = new Date(Date.now() + this.config.refreshTokenTtlSec * 1000);
-    await this.sessions.rotate(session.sessionId, sha256hex(newSecret), expiresAt);
+    await this.sessions.rotate(session.adminId, session.sessionId, sha256hex(newSecret), expiresAt);
     return {
       adminId: session.adminId,
       sessionId: session.sessionId,
       refreshToken:
-        ADMIN_REFRESH_PREFIX + composeSignedToken(session.sessionId, newSecret, this.refreshTagKey),
+        ADMIN_REFRESH_PREFIX +
+        composeSignedToken(
+          [String(session.adminId), String(session.sessionId)],
+          newSecret,
+          this.refreshTagKey,
+        ),
       expiresAt,
     };
   }
@@ -196,25 +248,42 @@ export class AdminTokenService {
    */
   async revokeByRefreshToken(
     refreshToken: string,
-  ): Promise<{ sessionId: string; adminId: number } | null> {
-    const parsed = parseSignedToken(refreshToken, ADMIN_REFRESH_PREFIX, this.refreshTagKey);
+  ): Promise<{ sessionId: number; adminId: number } | null> {
+    const parsed = parseSignedToken(
+      refreshToken,
+      ADMIN_REFRESH_PREFIX,
+      this.refreshTagKey,
+      REFRESH_ID_PARTS,
+    );
     if (!parsed) return null;
-    const session = await this.sessions.findById(parsed.ids[0]);
+    const session = await this.sessions.findOwned(ownerOf(parsed.ids), sessionIdOf(parsed.ids));
     if (!session) return null;
     // secret 까지 맞아야 남의 세션을 못 지운다. 만료 여부는 안 본다 — 만료된 세션도 치운다.
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
       return null;
     }
-    await this.sessions.delete(session.sessionId);
+    await this.sessions.deleteOwned(session.adminId, session.sessionId);
+    await this.sessionCache.invalidate(session.adminId, [session.sessionId]);
     return { sessionId: session.sessionId, adminId: session.adminId };
   }
 
-  revokeSession(sessionId: string): Promise<void> {
-    return this.sessions.delete(sessionId);
+  /** 이 관리자의 세션을 전부 폐기한다. @returns 폐기한 세션 수. */
+  async revokeAllByAdmin(adminId: number): Promise<number> {
+    const removed = await this.sessions.deleteAllByAdmin(adminId);
+    await this.sessionCache.invalidate(adminId, removed);
+    return removed.length;
   }
 
-  revokeAllByAdmin(adminId: number): Promise<number> {
-    return this.sessions.deleteAllByAdmin(adminId);
+  /** 세션 하나를 폐기한다. 그 관리자의 것이 아니면 아무것도 지우지 않는다. */
+  async revokeOwnedSession(adminId: number, sessionId: number): Promise<boolean> {
+    const removed = await this.sessions.deleteOwned(adminId, sessionId);
+    /*
+      **지운 것이 없어도 캐시는 비운다.** 행은 없는데 캐시만 남은 세션(고아)이 바로 그
+      경우인데, 그 캐시가 남아 있는 한 그 기기는 계속 통과한다 — 여기서 손대지 않으면
+      끊을 방법이 콘솔의 캐시 화면밖에 없다.
+    */
+    await this.sessionCache.invalidate(adminId, [sessionId]);
+    return removed > 0;
   }
 
   /** 세션 수 상한을 넘으면 오래된 것부터 정리한다. 0 이하 설정이면 끈 것으로 본다. */
@@ -222,9 +291,10 @@ export class AdminTokenService {
     const keep = this.config.maxSessionsPerAdmin;
     if (keep <= 0) return;
     const removed = await this.sessions.trimToLimit(adminId, keep);
-    if (removed > 0) {
+    if (removed.length > 0) {
+      await this.sessionCache.invalidate(adminId, removed);
       this.logger.log(
-        `admin session trimmed: adminId=${adminId} removed=${removed} (limit ${keep})`,
+        `admin session trimmed: adminId=${adminId} removed=${removed.length} (limit ${keep})`,
       );
     }
   }

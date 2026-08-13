@@ -1,26 +1,50 @@
 import { Injectable } from '@nestjs/common';
 import { AdminRole, AdminStatus, AdminUser, PrismaService } from '@hansapp/data';
 
-/** 관리자 계정 저장소. */
+/** 지운 계정을 빼는 조건. 조회하는 자리마다 다시 적지 않는다. */
+const LIVE = { deletedAt: null };
+
+/**
+ * 관리자 계정 저장소.
+ *
+ * **기본이 "살아 있는 계정" 이다.** 지운 계정도 행으로 남아 있어서(소프트 삭제), 조건을
+ * 빠뜨린 조회 하나가 곧바로 "지운 사람이 로그인된다" 가 된다 — 그래서 지운 것까지 보는
+ * 메서드만 이름에 그 사실을 적는다(`…WithDeleted`). 그걸 쓰는 곳은 콘솔의 목록·상세뿐이다.
+ */
 @Injectable()
 export class AdminUserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findByEmail(email: string): Promise<AdminUser | null> {
-    return this.prisma.adminUser.findUnique({ where: { email } });
+    // 이제 email 만으로는 유일하지 않다(지운 계정이 같은 주소를 들고 남는다).
+    return this.prisma.adminUser.findFirst({ where: { email, ...LIVE } });
   }
 
   findById(id: number): Promise<AdminUser | null> {
+    return this.prisma.adminUser.findFirst({ where: { id, ...LIVE } });
+  }
+
+  /** 지운 계정도 찾는다. **콘솔의 상세 화면 전용이다** — 인증 경로에서는 쓰지 않는다. */
+  findByIdWithDeleted(id: number): Promise<AdminUser | null> {
     return this.prisma.adminUser.findUnique({ where: { id } });
   }
 
+  /** 살아 있는 계정. 번호 순. */
   listAll(): Promise<AdminUser[]> {
-    return this.prisma.adminUser.findMany({ orderBy: { id: 'asc' } });
+    return this.prisma.adminUser.findMany({ where: LIVE, orderBy: { id: 'asc' } });
+  }
+
+  /** 지운 계정만. **최근에 지운 것이 앞이다** — 되짚을 때 찾는 것이 대개 방금 지운 계정이다. */
+  listDeleted(): Promise<AdminUser[]> {
+    return this.prisma.adminUser.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+    });
   }
 
   /** 계정이 하나라도 있는가. 부팅 시 기본 계정 생성 여부를 정하는 데 쓴다. */
   count(): Promise<number> {
-    return this.prisma.adminUser.count();
+    return this.prisma.adminUser.count({ where: LIVE });
   }
 
   create(input: {
@@ -35,7 +59,7 @@ export class AdminUserRepository {
 
   /** 이 등급인 계정 수. **마지막 시스템 관리자를 지키는 데 쓴다.** */
   countByRole(role: AdminRole): Promise<number> {
-    return this.prisma.adminUser.count({ where: { role } });
+    return this.prisma.adminUser.count({ where: { role, ...LIVE } });
   }
 
   /**
@@ -59,14 +83,31 @@ export class AdminUserRepository {
    */
   updateProfile(
     id: number,
-    input: { email?: string; name?: string | null; role?: AdminRole },
+    input: {
+      email?: string;
+      name?: string | null;
+      role?: AdminRole;
+      language?: string;
+      timeZone?: string;
+    },
   ): Promise<AdminUser> {
     return this.prisma.adminUser.update({ where: { id }, data: input });
   }
 
-  /** 계정 삭제. 세션(admin_token_session)은 FK Cascade 로 함께 지워진다. */
-  delete(id: number): Promise<void> {
-    return this.prisma.adminUser.deleteMany({ where: { id } }).then(() => undefined);
+  /**
+   * 계정을 지운다. **행은 남기고 지운 표시만 한다.**
+   *
+   * **세션은 함께 사라지지 않는다** — FK Cascade 는 행이 지워질 때 도는 것이라, 부르는
+   * 쪽이 먼저 끊어 놓아야 한다(AdminAccountService.remove).
+   *
+   * `deletedSeq` 에 자기 번호를 박아 (email, deletedSeq) 유일 제약에서 빠져나온다 —
+   * 같은 주소로 계정을 다시 만들 수 있어야 하기 때문이다.
+   */
+  softDelete(id: number, at: Date): Promise<AdminUser> {
+    return this.prisma.adminUser.update({
+      where: { id },
+      data: { deletedAt: at, deletedSeq: id },
+    });
   }
 
   updateStatus(id: number, status: AdminStatus): Promise<AdminUser> {

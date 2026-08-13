@@ -9,7 +9,22 @@ export { AdminAuthModule } from './admin-auth.module';
 export { AdminAuthService } from './admin-auth.service';
 // 관리자 계정 관리(콘솔). 조회·등록·삭제만 한다 — 초기화·비활성화는 아직 CLI 뿐이다.
 export { AdminAccountService } from './admin-account.service';
-export type { AdminAccountSummary, AdminAccountDetail, AdminActor } from './admin-account.service';
+export type {
+  AdminAccountSummary,
+  AdminAccountDetail,
+  AdminActor,
+  AdminOAuthSummary,
+  AdminSessionSummary,
+} from './admin-account.service';
+/*
+  로그인 세션 캐시. **가드가 요청마다 보는 자리라 실제 통과 여부를 정한다** —
+  콘솔이 이걸 들여다보고 지운다(기기 목록은 DB 를 보고 그리므로 둘이 어긋날 수 있다).
+*/
+export { AdminSessionCache } from './admin-session-cache.service';
+/* 내 정보(`/api/admins/me`) 응답 캐시. 콘솔의 캐시 탭이 이걸 들여다보고 지운다. */
+export { AdminProfileCache } from './admin-profile-cache.service';
+export type { AdminProfileCacheState } from './admin-profile-cache.service';
+export type { AdminSessionCacheState, CachedAdminSession } from './admin-session-cache.service';
 // 로그인 화면의 "비밀번호 찾기". 티켓을 내주고, 그 티켓으로 비밀번호를 다시 세운다.
 export { AdminPasswordResetService } from './admin-password-reset.service';
 export type {

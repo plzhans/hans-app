@@ -152,7 +152,7 @@ admin:
     issuer:
     # 관리자 전용 서명 비밀키(시크릿).
     secret:
-    #accessTokenExpiresIn: 5m
+    #accessTokenExpiresIn: 1h
     #refreshTokenExpiresIn: 8h
   # bcrypt 비용 계수. default: 10
   #bcryptRounds: 10

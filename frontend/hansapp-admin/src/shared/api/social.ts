@@ -20,7 +20,7 @@ export interface SocialProviders {
 export const getSocialProviders = () =>
   apiFetch<SocialProviders>('/auth/social/providers', {}, { auth: false });
 
-export const getMySocialLinks = () => apiFetch<SocialLink[]>('/auth/me/social');
+export const getMySocialLinks = () => apiFetch<SocialLink[]>('/api/admins/me/social');
 
 /**
  * 구글 로그인 시작 주소.
@@ -39,13 +39,13 @@ export function googleLoginUrl(returnTo?: string): string {
  * 연동 시작 주소를 받아 온다. 주소에 3분짜리 티켓이 박혀 있어 **받은 즉시 이동해야 한다.**
  */
 export const startGoogleLink = () =>
-  apiFetch<{ startUrl: string }>('/auth/me/social/google/link', {
+  apiFetch<{ startUrl: string }>('/api/admins/me/social/google/link', {
     method: 'POST',
   });
 
 /** 구글 연동 해제. 붙어 있지 않아도 성공이다. */
 export const unlinkGoogle = () =>
-  apiFetch<void>('/auth/me/social/google', { method: 'DELETE' });
+  apiFetch<void>('/api/admins/me/social/google', { method: 'DELETE' });
 
 /**
  * 콜백이 실패를 실어 보낼 때 쓰는 코드 → 화면 문구.

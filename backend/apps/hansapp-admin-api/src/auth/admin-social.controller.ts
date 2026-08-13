@@ -1,5 +1,5 @@
-import { Controller, Delete, Get, HttpCode, Logger, Post, Query, Req, Res } from '@nestjs/common';
-import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Logger, Query, Req, Res } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiExcludeController } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
@@ -8,23 +8,17 @@ import {
   AdminSocialError,
   AdminSocialService,
   AdminSocialTicketService,
-  CurrentAdmin,
 } from '@hansapp/admin-application/auth';
-import type { AdminAuthUser, AdminSocialErrorCode } from '@hansapp/admin-application/auth';
+import type { AdminSocialErrorCode } from '@hansapp/admin-application/auth';
 
 import { requestMeta, setAdminCookies } from './admin-cookie';
 import {
   consoleUrl,
-  externalBaseUrl,
   googleCallbackUrl,
   issueFlowNonce,
   verifyFlowNonce,
 } from './admin-social-flow';
-import {
-  AdminSocialLinkDto,
-  AdminSocialLinkStartResponseDto,
-  AdminSocialProviderResponseDto,
-} from './dto/admin-social.dto';
+import { AdminSocialProviderResponseDto } from './dto/admin-social.dto';
 
 /** 연동을 마치고 돌아가는 화면. 마이 페이지다. */
 const LINK_RETURN_PATH = '/me';
@@ -38,7 +32,12 @@ const LINK_RETURN_PATH = '/me';
  * 로그인이 성립하면 **여기서 로그인 쿠키를 심고** 콘솔로 보낸다. 화면은 평소의 부팅 경로
  * (세션 힌트 쿠키를 보고 `/auth/token` 호출)를 그대로 타므로 새 교환 절차가 없다.
  */
-@ApiTags('admin-auth')
+/*
+  **스웨거에 싣지 않는다.** 이 문서가 답하는 질문은 "콘솔이 부르는 업무 API 가 무엇인가"
+  인데, `/auth/*` 는 그 콘솔에 들어가기 위한 흐름(쿠키·리다이렉트·티켓)이라 성격이 다르다 —
+  섞어 두면 목록이 길어질 뿐 아니라, 문서를 보고 부를 수 있는 것처럼 읽힌다.
+*/
+@ApiExcludeController()
 @Controller('auth')
 export class AdminSocialController {
   private readonly logger = new Logger(AdminSocialController.name);
@@ -176,41 +175,6 @@ export class AdminSocialController {
       this.logger.warn(`구글 소셜 흐름 실패(code=${errorCode}): ${String(raw)}`);
       res.redirect(consoleUrl(failPath, { social_error: errorCode }));
     }
-  }
-
-  @Post('me/social/google/link')
-  @ApiOperation({
-    summary: '구글 연동 시작 주소 발급',
-    description: '3분짜리 티켓을 박은 시작 주소를 내준다. 화면은 이 주소로 이동만 하면 된다.',
-  })
-  @ApiOkResponse({ type: AdminSocialLinkStartResponseDto })
-  linkStart(
-    @CurrentAdmin() current: AdminAuthUser,
-    @Req() req: Request,
-  ): AdminSocialLinkStartResponseDto {
-    const ticket = this.tickets.signLinkTicket(current.adminId);
-    return {
-      startUrl: `${externalBaseUrl(req)}/auth/social/google?link_token=${encodeURIComponent(ticket)}`,
-    };
-  }
-
-  @Get('me/social')
-  @ApiOperation({ summary: '내 소셜 연동 목록' })
-  @ApiOkResponse({ type: AdminSocialLinkDto, isArray: true })
-  async list(@CurrentAdmin() current: AdminAuthUser): Promise<AdminSocialLinkDto[]> {
-    return this.social.list(current.adminId);
-  }
-
-  @Delete('me/social/google')
-  @HttpCode(204)
-  @ApiOperation({
-    summary: '구글 연동 해제',
-    description:
-      '붙어 있지 않아도 204 다. **비밀번호 로그인은 그대로 남으므로** 해제로 계정이 잠기지 않는다.',
-  })
-  @ApiNoContentResponse()
-  async unlink(@CurrentAdmin() current: AdminAuthUser, @Req() req: Request): Promise<void> {
-    await this.social.unlink(current.adminId, requestMeta(req));
   }
 }
 

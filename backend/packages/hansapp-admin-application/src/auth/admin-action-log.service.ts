@@ -17,7 +17,13 @@ export interface AdminActionLogInput {
   readonly targetAdminId?: number | null;
   /** 실패 사유. **로그에만 남긴다** — 응답 메시지는 항상 같아야 한다. */
   readonly failReason?: string | null;
-  readonly sessionId?: string | null;
+  /**
+   * 발급·폐기된 세션 식별자. **숫자로 받아 문자열로 적는다.**
+   *
+   * 세션 키는 숫자지만 로그 칸은 VarChar 다 — 로그는 오래 남고 형식이 바뀌어도 옛 줄을
+   * 고쳐 쓸 수 없어서, 넓은 쪽으로 받아 둔다(회원 인증 로그와 같은 규칙).
+   */
+  readonly sessionId?: string | number | null;
   readonly ip?: string | null;
   readonly userAgent?: string | null;
   /** 조치별 부가정보. 모양이 액션마다 다르다. */
@@ -50,7 +56,7 @@ export class AdminActionLogService {
         result: input.result,
         targetAdminId: input.targetAdminId ?? null,
         failReason: input.failReason ?? null,
-        sessionId: input.sessionId ?? null,
+        sessionId: input.sessionId == null ? null : String(input.sessionId),
         ip: input.ip ?? null,
         userAgent: input.userAgent ?? null,
       };

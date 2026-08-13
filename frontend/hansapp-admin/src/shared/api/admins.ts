@@ -1,4 +1,5 @@
 import { apiFetch } from '@/shared/api/client';
+import type { CacheState } from '@/shared/components/CachePanel';
 // 페이지 응답의 모양은 화면을 가리지 않는다 — 회원 쪽에서 정의한 것을 그대로 쓴다.
 import type { PageResponse } from '@/shared/api/users';
 
@@ -31,12 +32,34 @@ export interface AdminAccount {
   timeZone: string;
   lastLoginAt?: string | null;
   createdAt: string;
+  /**
+   * 지운 시각. **없으면 살아 있다.**
+   *
+   * 지운 계정도 행으로 남는다(소프트 삭제) — 로그인은 못 하고, 고칠 수도 없다.
+   */
+  deletedAt?: string | null;
+}
+
+/**
+ * 붙어 있는 소셜 하나.
+ *
+ * **연동되지 않은 provider 는 오지 않는다.** 무엇을 붙일 수 있는지는 화면이 알고 있어야
+ * 하고(SOCIAL_PROVIDERS), 이 목록은 실제로 붙어 있는 것만 담는다.
+ */
+export interface AdminOAuth {
+  /** 백엔드 OAuthProvider 와 같은 값(`GOOGLE`). */
+  provider: string;
+  /** 연동 시점에 provider 가 준 이메일. 관리자 계정의 이메일과 다를 수 있다. */
+  email?: string | null;
+  connectedAt: string;
 }
 
 export interface AdminAccountDetail extends AdminAccount {
   updatedAt: string;
   /** 살아 있는 로그인 세션 수(만료된 것은 뺀다). */
   activeSessionCount: number;
+  /** 붙어 있는 소셜 연동. **비어 있는 것이 정상이다.** */
+  oauths: AdminOAuth[];
 }
 
 export interface AdminCreateInput {
@@ -60,8 +83,14 @@ export interface AdminCreated {
   emailFailReason?: AdminMailFailReason | null;
 }
 
-/** 전체 목록. 페이징이 없다 — 계정 수가 적어 나눌 것이 없다. */
-export const listAdmins = () => apiFetch<AdminAccount[]>('/api/admins');
+/**
+ * 목록. 페이징이 없다 — 계정 수가 적어 나눌 것이 없다.
+ *
+ * **두 목록이 섞이지 않는다.** 기본은 살아 있는 계정만이고, `deleted` 를 켜면 지운 계정만
+ * 온다(지운 시각 최근 순).
+ */
+export const listAdmins = (deleted = false) =>
+  apiFetch<AdminAccount[]>(`/api/admins${deleted ? '?deleted=true' : ''}`);
 
 export const getAdmin = (id: number) =>
   apiFetch<AdminAccountDetail>(`/api/admins/${id}`);
@@ -79,6 +108,10 @@ export interface AdminUpdateInput {
   role?: AdminRole;
   /** 빈 문자열로 보내면 이름을 지운다. */
   name?: string;
+  /** 관리 화면·메일 언어. 지원하지 않는 값이면 400. */
+  language?: string;
+  /** IANA 타임존 ID. 알아볼 수 없는 값이면 400. */
+  timeZone?: string;
 }
 
 /** 보낸 항목만 바뀐다. 응답이 갱신된 상세다. */
@@ -92,12 +125,16 @@ export interface AdminPasswordResetInput {
   password: string;
   /** 새 비밀번호를 본인에게 메일로 알린다. */
   sendEmail?: boolean;
+  /** 살아 있는 세션을 함께 끊는다. **안 주면 끊는다.** */
+  revokeSessions?: boolean;
+  /** 첫 로그인에서 비밀번호를 다시 바꾸게 만든다. **안 주면 강제한다.** */
+  mustChangePassword?: boolean;
 }
 
 /**
  * 비밀번호를 다시 낸다. **본인이 값을 잃어버렸을 때 다른 관리자가 부르는 경로다.**
  *
- * 이 계정의 살아 있는 세션이 모두 끊기고, 본인이 첫 로그인에서 다시 바꿔야 한다.
+ * 기본은 **첫 로그인에서 변경을 강제하고 살아 있는 세션도 끊는** 것이고, 둘 다 끌 수 있다.
  * 자기 자신에게는 쓸 수 없다(서버가 막는다) — 본인 것은 비밀번호 변경 화면으로 바꾼다.
  */
 export const resetAdminPassword = (
@@ -115,6 +152,101 @@ export const resetAdminPassword = (
 /** 계정과 그 세션을 지운다. 자기 자신과 마지막 계정은 서버가 막는다. */
 export const deleteAdmin = (id: number) =>
   apiFetch<void>(`/api/admins/${id}`, { method: 'DELETE' });
+
+/**
+ * 세션 하나의 인증 캐시. **목록에 실리는 요약이다.**
+ *
+ * 가드가 요청마다 보는 자리라 실제 통과 여부를 정한다. 기기 목록 자체는 DB 를 보고
+ * 그리므로 둘이 어긋날 수 있다 — "끊었는데 왜 아직 되지" 가 그 어긋남이다.
+ */
+export interface AdminSessionCache {
+  hit: boolean;
+  /** 남은 시간(ms). 만료 시각을 모르면 없다. */
+  remainingMs?: number | null;
+}
+
+/** 관리자가 로그인해 둔 기기 한 줄. */
+export interface AdminSession {
+  /**
+   * 이 기기를 끊을 때 쓴다(난수). **계정 안에서만 유일하다** — 관리자번호와 짝으로만
+   * 의미가 있고, 이 값만으로는 로그인할 수 없다.
+   */
+  sessionId: number;
+  /** 지금 이 콘솔이 쓰고 있는 세션인가. 본인 계정을 볼 때만 true 가 될 수 있다. */
+  current: boolean;
+  userAgent?: string | null;
+  ip?: string | null;
+  createdAt: string;
+  /** 마지막 갱신 시각. 사실상 최근 활동 시각이다. */
+  updatedAt: string;
+  expiresAt: string;
+  cache: AdminSessionCache;
+}
+
+/**
+ * 이 관리자의 `GET /api/admins/me` 응답 캐시 상태.
+ *
+ * **세션 캐시와 다른 것이다.** 그쪽은 가드가 요청마다 보는 판단이라 기기 목록에 붙어 있고,
+ * 이쪽은 화면에 뿌리는 값이라 틀리면 옛 값이 보인다(회원 상세의 캐시 탭과 같은 자리).
+ */
+export const getAdminCache = (id: number) =>
+  apiFetch<CacheState>(`/api/admins/${id}/cache`);
+
+/** 내 정보 캐시를 비운다. 값이 바뀔 때 서버가 이미 지우므로 평소에는 누를 일이 없다. */
+export const purgeAdminCache = (id: number) =>
+  apiFetch<void>(`/api/admins/${id}/cache/purge`, { method: 'POST' });
+
+/**
+ * DB 에는 없는데 캐시에만 남아 있는 세션. **잘못된 데이터다.**
+ *
+ * 기기를 끊을 때 캐시 삭제가 실패하면 생긴다 — 가드는 이 캐시를 보고 통과시키므로,
+ * 끊은 기기가 캐시 만료까지 계속 통한다.
+ */
+export interface OrphanAdminSessionCache {
+  sessionId: number;
+  /** 캐시에 담긴 만료 시각. 이때까지 통과한다. */
+  expiresAt: string;
+}
+
+/**
+ * 관리자 한 명의 로그인 기기.
+ *
+ * **DB 와 캐시를 따로 읽어 합친 결과다.** 목록의 정본은 DB 지만 요청을 실제로 통과시키는
+ * 것은 캐시라, 어긋나는 쪽(`orphans`)을 감추면 원인을 짚을 수 없다.
+ */
+export interface AdminSessionList {
+  sessions: AdminSession[];
+  orphans: OrphanAdminSessionCache[];
+}
+
+/** 살아 있는 세션만. 최근 활동 순. 고아 캐시는 따로 온다. */
+export const listAdminSessions = (id: number) =>
+  apiFetch<AdminSessionList>(`/api/admins/${id}/sessions`);
+
+/**
+ * 기기 한 대를 끊는다. **캐시도 함께 비우므로 곧바로 막힌다.**
+ *
+ * 자기 자신에게도 쓸 수 있다 — 지금 쓰는 세션을 끊으면 그 자리에서 로그인 화면으로 나간다.
+ */
+export const revokeAdminSession = (id: number, sessionId: number) =>
+  apiFetch<void>(`/api/admins/${id}/sessions/${sessionId}`, { method: 'DELETE' });
+
+/** 이 관리자의 모든 기기를 끊는다. */
+export const revokeAllAdminSessions = (id: number) =>
+  apiFetch<void>(`/api/admins/${id}/sessions`, { method: 'DELETE' });
+
+/** 이 세션의 인증 캐시에 담긴 값. 고아 캐시(DB 행 없음)도 조회된다. */
+export const getAdminSessionCacheState = (id: number, sessionId: number) =>
+  apiFetch<CacheState>(`/api/admins/${id}/sessions/${sessionId}/cache`);
+
+/**
+ * 이 세션의 인증 캐시만 지운다. **세션을 끊는 것이 아니다** — 다음 요청이 DB 를 다시
+ * 읽을 뿐이라, 살아 있는 세션이면 그대로 통과한다.
+ */
+export const purgeAdminSessionCache = (id: number, sessionId: number) =>
+  apiFetch<void>(`/api/admins/${id}/sessions/${sessionId}/cache/purge`, {
+    method: 'POST',
+  });
 
 /**
  * 관리자 기록의 종류. 백엔드 AdminLogAction 과 같은 값이다.

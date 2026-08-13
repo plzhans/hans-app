@@ -87,9 +87,45 @@ export const CONFIG_DEFAULTS = {
 
   // ── 관리자 인증 ─────────────────────────────────────────────────────────────
   'admin.bcryptRounds': 10,
-  'admin.jwt.accessTokenExpiresIn': '5m',
+  /*
+    관리자 access token. **1시간이다.**
+
+    한동안 5분이었다. stateless 토큰이라 발급 뒤 폐기가 안 되니, 계정을 막아야 할 때
+    버티는 시간을 그 값으로 묶어 둔 것이었다. 지금은 가드가 요청마다 세션 캐시를 보고
+    폐기를 잡아내므로(admin.sessionCache.ttlSec) 그 근거가 없어졌다 — 끊기·비활성화·계정
+    삭제는 전부 세션과 그 캐시 칸을 함께 지우므로, 반영은 이 값과 무관하게 곧바로다.
+
+    남는 것은 비밀번호 변경 강제(`chg`)뿐이다. 그 플래그만 토큰 클레임이라, 초기화하면서
+    세션을 남겨 두면 최대 이만큼 뒤에 변경 화면으로 밀린다.
+  */
+  'admin.jwt.accessTokenExpiresIn': '1h',
   'admin.jwt.refreshTokenExpiresIn': '8h',
   'admin.maxSessionsPerAdmin': 5,
+  /*
+    관리자 세션 캐시. 가드가 요청마다 보는 자리다.
+
+    **여기 값은 상한이고, 실제 수명은 그 요청이 들고 온 access token 의 남은 시간에서
+    나온다** — 둘 중 짧은 쪽이 쓰인다. 토큰의 만료는 발급 때 정해져 바뀌지 않고, 그 시각이
+    지나면 갱신을 거치며 어차피 DB 를 다시 보기 때문이다.
+
+    그래서 상한을 access token 수명(1시간)에 맞춘다. 회원 세션 캐시(auth.sessionCache)와
+    같은 규칙이다 — 짧게 잡으면 아끼려던 DB 조회를 그 주기로 도로 하게 되고, 콘솔 화면에는
+    토큰과 무관한 시계가 하나 더 생겨 "1분 뒤에 뭔가 끊기나" 로 읽힌다.
+
+    폐기 경로가 이 키를 직접 지우므로 상한이 실제로 쓰이는 때는 그 삭제를 놓쳤을 때뿐이고,
+    그때는 콘솔의 캐시 화면에 남은 칸으로 드러난다.
+  */
+  'admin.sessionCache.ttlSec': 3600,
+  /*
+    관리자 내 정보(`/api/admins/me`) 응답 캐시.
+
+    **세션 캐시와 성격이 다르다.** 그쪽은 가드의 판단이라 틀리면 막히거나 열리지만, 이쪽은
+    화면에 뿌리는 값이라 틀리면 옛 값이 보인다 — 그래서 이 값은 "무효화를 빠뜨렸을 때
+    얼마나 빨리 낫나" 다. 값이 바뀌는 경로는 전부 이 키를 직접 지운다(AdminProfileCache 주석).
+
+    회원 쪽(auth.profileCache.sharedTtlSec)과 같은 10분이다.
+  */
+  'admin.profileCache.ttlSec': 600,
   // 첫 관리자 자동 생성. 켤 환경이 명시로 켠다(운영은 켜도 코드가 거부한다).
   'admin.bootstrap.enabled': false,
   'admin.bootstrap.name': '관리자',

@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsISO8601,
   IsOptional,
@@ -16,7 +17,14 @@ import {
 import { AdminLogAction, AdminLogResult } from '@hansapp/admin-application';
 import type { AdminActionLogEntry, AdminMailOutcome } from '@hansapp/admin-application';
 import { AdminRole, AdminStatus } from '@hansapp/admin-application/auth';
-import type { AdminAccountDetail, AdminAccountSummary } from '@hansapp/admin-application/auth';
+import type {
+  AdminAccountDetail,
+  AdminAccountSummary,
+  AdminOAuthSummary,
+  AdminSessionCacheState,
+  AdminSessionSummary,
+  CachedAdminSession,
+} from '@hansapp/admin-application/auth';
 import { SUPPORTED_LANGS } from '@hansapp/common';
 
 /**
@@ -194,6 +202,14 @@ export class AdminAccountSummaryDto {
   @ApiProperty({ description: '생성 시각(ISO 8601)' })
   readonly createdAt!: string;
 
+  @ApiPropertyOptional({
+    description:
+      '지운 시각(ISO 8601). **null 이면 살아 있다.**\n\n' +
+      '지운 계정은 행으로 남지만 로그인할 수 없고 고칠 수도 없다 — 계정 행이 조치 기록이 ' +
+      '가리키는 대상이라 지우지 않는다.',
+  })
+  readonly deletedAt!: string | null;
+
   constructor(admin: AdminAccountSummary) {
     this.id = admin.id;
     this.email = admin.email;
@@ -205,7 +221,49 @@ export class AdminAccountSummaryDto {
     this.timeZone = admin.timeZone;
     this.lastLoginAt = admin.lastLoginAt?.toISOString() ?? null;
     this.createdAt = admin.createdAt.toISOString();
+    this.deletedAt = admin.deletedAt?.toISOString() ?? null;
   }
+}
+
+/**
+ * 붙어 있는 소셜 하나.
+ *
+ * **연동되지 않은 provider 는 여기 없다.** 무엇을 붙일 수 있는지는 서버 설정이 정하고
+ * 화면이 알고 있으므로, 이 목록은 "실제로 붙어 있는 것" 만 담는다(회원 상세와 같은 규칙).
+ */
+export class AdminOAuthDto {
+  @ApiProperty({ description: '소셜 provider', example: 'GOOGLE' })
+  readonly provider!: string;
+
+  @ApiPropertyOptional({
+    description: '연동 시점에 provider 가 준 이메일. 관리자 계정의 이메일과 다를 수 있다.',
+  })
+  readonly email!: string | null;
+
+  @ApiProperty({ description: '연동 시각(ISO 8601)' })
+  readonly connectedAt!: string;
+
+  constructor(oauth: AdminOAuthSummary) {
+    this.provider = oauth.provider;
+    this.email = oauth.email;
+    this.connectedAt = oauth.connectedAt.toISOString();
+  }
+}
+
+/** 목록 조회 조건. */
+export class AdminListQueryDto {
+  @ApiPropertyOptional({
+    description:
+      '지운 계정만 본다. 기본은 **살아 있는 계정만**이다.\n\n' +
+      '두 목록을 섞지 않는 이유는, 이 목록을 여는 질문이 "지금 누가 들어올 수 있나" 라서다 — ' +
+      '들어올 수 없는 계정이 같은 표에 있으면 그 답이 흐려진다.',
+    default: false,
+  })
+  @IsOptional()
+  // 쿼리스트링은 문자열로 온다. `?deleted` 처럼 값 없이 오는 것도 켠 것으로 본다.
+  @Transform(({ value }) => value === true || value === 'true' || value === '')
+  @IsBoolean()
+  readonly deleted: boolean = false;
 }
 
 export class AdminAccountDetailDto extends AdminAccountSummaryDto {
@@ -215,10 +273,182 @@ export class AdminAccountDetailDto extends AdminAccountSummaryDto {
   @ApiProperty({ description: '살아 있는 로그인 세션 수' })
   readonly activeSessionCount!: number;
 
+  @ApiProperty({
+    description: '붙어 있는 소셜 연동. **비어 있는 것이 정상이다.**',
+    type: [AdminOAuthDto],
+  })
+  readonly oauths!: AdminOAuthDto[];
+
   constructor(admin: AdminAccountDetail) {
     super(admin);
     this.updatedAt = admin.updatedAt.toISOString();
     this.activeSessionCount = admin.activeSessionCount;
+    this.oauths = admin.oauths.map((oauth) => new AdminOAuthDto(oauth));
+  }
+}
+
+/**
+ * 세션 하나의 인증 캐시. **목록 한 줄에 실리는 요약이다.**
+ *
+ * 담긴 값까지 줄마다 싣지 않는다 — 만료 시각 하나뿐이라 펼쳐 봐야 얻을 것이 없고,
+ * 값을 볼 자리는 캐시 화면(`GET :id/cache`)이 따로 있다.
+ */
+export class AdminSessionCacheDto {
+  @ApiProperty({ description: '지금 캐시에 들어 있나' })
+  readonly hit!: boolean;
+
+  @ApiProperty({ nullable: true, description: '남은 시간(ms)' })
+  readonly remainingMs!: number | null;
+
+  constructor(state: AdminSessionCacheState) {
+    this.hit = state.hit;
+    this.remainingMs = state.remainingMs;
+  }
+}
+
+/**
+ * 로그인해 둔 기기 한 줄.
+ *
+ * **세션 식별자를 담는다.** 기기 한 대를 끊으려면 대상을 가리키는 값이 있어야 한다.
+ * 이 값만으로는 로그인할 수 없다 — refresh token 은 `sid + secret` 인데 secret 은
+ * 해시로만 저장되고 어디에도 나가지 않는다.
+ */
+export class AdminSessionDto {
+  @ApiProperty({
+    description:
+      '세션 식별자(난수). 이 기기를 끊을 때 쓴다. **계정 안에서만 유일하다** — ' +
+      '관리자번호와 짝으로만 의미가 있고, 이 값만으로는 로그인할 수 없다.',
+  })
+  readonly sessionId!: number;
+
+  @ApiProperty({
+    description:
+      '지금 이 요청을 보낸 세션인가. **본인 계정을 볼 때만 true 가 될 수 있다** — ' +
+      '이 줄을 끊으면 그 자리에서 로그인 화면으로 나간다.',
+  })
+  readonly current!: boolean;
+
+  @ApiPropertyOptional({ description: '접속 기기의 브라우저·운영체제 정보' })
+  readonly userAgent!: string | null;
+
+  @ApiPropertyOptional({ description: '접속 IP' })
+  readonly ip!: string | null;
+
+  @ApiProperty({ description: '이 기기에서 로그인한 시각(ISO 8601)' })
+  readonly createdAt!: string;
+
+  @ApiProperty({ description: '마지막 갱신 시각(ISO 8601). 사실상 최근 활동 시각이다.' })
+  readonly updatedAt!: string;
+
+  @ApiProperty({ description: '만료 시각(ISO 8601)' })
+  readonly expiresAt!: string;
+
+  @ApiProperty({
+    description:
+      '이 세션의 인증 캐시 상태. **가드가 요청마다 보는 자리라 실제 통과 여부를 정한다** — ' +
+      '목록 자체는 DB 를 보고 그리므로 둘이 어긋날 수 있다.',
+    type: () => AdminSessionCacheDto,
+  })
+  readonly cache!: AdminSessionCacheDto;
+
+  constructor(session: AdminSessionSummary, cache: AdminSessionCacheState, current: boolean) {
+    this.sessionId = session.sessionId;
+    this.current = current;
+    this.userAgent = session.userAgent;
+    this.ip = session.ip;
+    this.createdAt = session.createdAt.toISOString();
+    this.updatedAt = session.updatedAt.toISOString();
+    this.expiresAt = session.expiresAt.toISOString();
+    this.cache = new AdminSessionCacheDto(cache);
+  }
+}
+
+/**
+ * DB 에는 없는데 캐시에만 남은 세션. **잘못된 데이터다.**
+ *
+ * 기기를 끊을 때 캐시 삭제가 실패하면 생긴다 — 가드는 이 캐시를 보고 통과시키므로,
+ * 끊은 기기가 캐시 만료까지 계속 통한다. 비어 있는 것이 정상이다.
+ */
+export class OrphanAdminSessionCacheDto {
+  @ApiProperty({ description: '세션 식별자(난수)' })
+  readonly sessionId!: number;
+
+  @ApiProperty({
+    description: '캐시에 담긴 세션 만료 시각(ISO 8601). 이 시각까지 통과한다.',
+  })
+  readonly expiresAt!: string;
+
+  constructor(entry: CachedAdminSession) {
+    this.sessionId = entry.sessionId;
+    this.expiresAt = new Date(entry.expiresAt).toISOString();
+  }
+}
+
+/**
+ * 기기 목록 응답.
+ *
+ * **두 곳에서 따로 읽어 합친다.** 목록은 DB 가 정본이지만 요청을 실제로 통과시키는 것은
+ * 캐시라, 둘이 어긋나는 쪽을 감추면 "끊었는데 왜 아직 되지" 를 영영 못 짚는다.
+ */
+export class AdminSessionListDto {
+  @ApiProperty({
+    description: 'DB 에 있는 세션. 캐시 상태를 함께 싣는다.',
+    type: [AdminSessionDto],
+  })
+  readonly sessions!: AdminSessionDto[];
+
+  @ApiProperty({
+    description: 'DB 에는 없는데 캐시에만 남은 것. 비어 있는 것이 정상이다.',
+    type: [OrphanAdminSessionCacheDto],
+  })
+  readonly orphans!: OrphanAdminSessionCacheDto[];
+
+  constructor(sessions: AdminSessionDto[], orphans: OrphanAdminSessionCacheDto[]) {
+    this.sessions = sessions;
+    this.orphans = orphans;
+  }
+}
+
+/**
+ * 캐시 한 칸의 상태. **담긴 값까지 싣는다.**
+ *
+ * 회원 쪽 CacheStateDto 와 같은 모양이라 콘솔이 같은 패널로 본다 — 묻는 것이 같아서다:
+ * 무엇이 들어 있나, 언제 빠지나.
+ */
+export class AdminCacheStateDto {
+  @ApiProperty({ description: '캐시 키. 환경 접두어는 빠져 있다.' })
+  readonly key!: string;
+
+  @ApiProperty({ description: '지금 캐시에 들어 있나' })
+  readonly hit!: boolean;
+
+  @ApiProperty({ nullable: true, description: '이 칸이 캐시에서 빠지는 시각' })
+  readonly expiresAt!: string | null;
+
+  @ApiProperty({ nullable: true, description: '남은 시간(ms)' })
+  readonly remainingMs!: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      '담긴 값 그대로. 바깥의 `v` 는 캐시 미스와 "조회했는데 없음" 을 가르려고 서버가 씌운 껍데기다.',
+  })
+  readonly value!: unknown;
+
+  @ApiProperty({
+    description:
+      'Redis 처럼 프로세스 밖에서 공유되는 캐시인가. false 면 이 프로세스의 메모리라, ' +
+      '관리자 API 가 여러 대면 나머지 캐시는 여기서 보이지도 지워지지도 않는다.',
+  })
+  readonly shared!: boolean;
+
+  constructor(state: AdminSessionCacheState) {
+    this.key = state.key;
+    this.hit = state.hit;
+    this.expiresAt = state.expiresAt?.toISOString() ?? null;
+    this.remainingMs = state.remainingMs;
+    this.value = state.value;
+    this.shared = state.shared;
   }
 }
 
@@ -299,6 +529,26 @@ export class AdminAccountUpdateRequestDto {
   @IsString()
   @MaxLength(100)
   readonly name?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '관리 화면·메일 언어. 본인 화면(`PATCH /auth/me`)에도 같은 값이 있다 — ' +
+      '본인이 콘솔에 못 들어오는 동안에도 손볼 수 있게 이 통로를 함께 연다.',
+    enum: SUPPORTED_LANGS,
+    example: 'ko',
+  })
+  @IsOptional()
+  @IsIn(SUPPORTED_LANGS)
+  readonly language?: string;
+
+  @ApiPropertyOptional({
+    description: '화면의 시각 표기에 쓰는 IANA 타임존 ID. 알아볼 수 없는 값이면 400.',
+    example: 'Asia/Seoul',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  readonly timeZone?: string;
 }
 
 /**
@@ -325,6 +575,32 @@ export class AdminPasswordResetRequestDto {
   @IsOptional()
   @IsBoolean()
   readonly sendEmail?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      '이 계정의 살아 있는 세션을 함께 끊는다. **기본은 끊는다.**\n\n' +
+      '값이 새어 나가 다시 내주는 것이라면 열려 있던 세션을 남기는 순간 비밀번호를 바꾼 ' +
+      '의미가 없다. 반대로 본인이 값을 잊어버린 것뿐이라면, 지금 콘솔에서 일하고 있는 ' +
+      '사람을 이유 없이 밖으로 내보내게 된다 — 그때 `false` 로 남긴다.',
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly revokeSessions?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      '첫 로그인에서 비밀번호를 다시 바꾸게 만든다. **기본은 강제한다.**\n\n' +
+      '남이 정해 준 값이 그대로 남으면 그 값을 아는 사람이 둘이 된다. ' +
+      '`false` 는 본인과 함께 앉아 값을 정한 경우다.\n\n' +
+      '**강제 상태에서는 다른 API 가 403 이다** — 다만 이 플래그는 access token 클레임이라, ' +
+      '세션을 남겨 두면 그 토큰이 만료될 때까지(기본 1시간) 늦게 걸린다. ' +
+      '곧바로 밀어내려면 `revokeSessions` 를 함께 켠다.',
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly mustChangePassword?: boolean;
 }
 
 /** 메일이 나갔는지만 알려 준다. 계정 값은 바뀐 것이 없다(해시는 내보내지 않는다). */

@@ -40,7 +40,7 @@ export interface AdminOAuthState {
  * access token 자리에 들어가거나 그 반대가 되면 안 된다. 검증할 때 그 값을 반드시 확인한다.
  *
  * AdminJwtService 를 쓰지 않고 JwtService 를 따로 드는 이유는 만료 때문이다. 그쪽은 access
- * token 용이라 5분으로 굳어 있는데, state 와 연동 티켓은 서로 다른 수명이 필요하다.
+ * token 용이라 그쪽 TTL 로 굳어 있는데, state 와 연동 티켓은 서로 다른 수명이 필요하다.
  */
 @Injectable()
 export class AdminSocialTicketService {

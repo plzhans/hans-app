@@ -9,7 +9,7 @@ import type { AdminAuthConfig } from './admin-auth.config';
  *
  * 공개 API 는 ES256 키파일과 JWKS 공개를 지원하는데, 그건 "다른 서비스가 공개키로 검증한다" 를
  * 위한 장치다. admin access token 의 소비자는 hansapp-admin-api 하나뿐이라 키 발급·로테이션·
- * 배포 마운트 절차만 늘고 얻는 것이 없다. TTL 도 5분이라 노출 창이 짧다.
+ * 배포 마운트 절차만 늘고 얻는 것이 없다.
  *
  * JwtModule 을 import 하지 않고 인스턴스를 직접 들고 있는다 — 전역 JwtService 설정(공개 API 쪽)과
  * 섞이지 않게, 키를 매 호출 옵션으로 넘긴다.

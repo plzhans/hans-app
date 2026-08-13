@@ -77,7 +77,11 @@ export class AdminSocialService {
 
     if (linked) {
       const known = await this.admins.findById(linked.adminId);
-      // 계정이 지워졌는데 연동만 남는 일은 FK Cascade 가 막지만, 그래도 방어한다.
+      /*
+        **지운 계정을 여기서 막는다.** 계정 삭제는 행을 남기는 소프트 삭제라 연동 기록도
+        같이 남는다 — 조회가 살아 있는 계정만 보기 때문에 지운 사람의 구글로는 여기서 끝난다.
+        (비밀번호 통로도 같은 규칙이다. AdminUserRepository 주석 참고.)
+      */
       if (!known) throw await this.reject(profile, meta, 'not_registered');
       return this.complete(known, meta, false);
     }

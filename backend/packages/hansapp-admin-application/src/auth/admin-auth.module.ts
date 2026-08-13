@@ -16,6 +16,8 @@ import { AdminJwtService } from './admin-jwt.service';
 import { AdminLoginService } from './admin-login.service';
 import { AdminPasswordResetRepository } from './admin-password-reset.repository';
 import { AdminPasswordResetService } from './admin-password-reset.service';
+import { AdminProfileCache } from './admin-profile-cache.service';
+import { AdminSessionCache } from './admin-session-cache.service';
 import { AdminSessionRepository } from './admin-session.repository';
 import { AdminTokenService } from './admin-token.service';
 import { AdminUserRepository } from './admin-user.repository';
@@ -50,6 +52,14 @@ export class AdminAuthModule {
         AdminUserRepository,
         AdminSessionRepository,
         AdminPasswordResetRepository,
+        /*
+          세션 캐시. **가드와 토큰 서비스가 같은 인스턴스를 봐야 한다** — 한쪽이 끊으면서
+          지운 칸을 다른 쪽이 곧바로 못 보면, 끊긴 토큰이 캐시 수명만큼 그대로 통과한다.
+          CacheModule 이 없는 프로세스에서는 캐시 없이 돈다(@Optional CACHE_MANAGER).
+        */
+        AdminSessionCache,
+        // 내 정보 응답 캐시. 값이 바뀌는 자리들이 이걸 직접 지운다.
+        AdminProfileCache,
         AdminJwtService,
         AdminTokenService,
         AdminActionLogService,
@@ -88,6 +98,9 @@ export class AdminAuthModule {
         AdminTokenService,
         AdminActionLogService,
         AdminAuthGuard,
+        // 콘솔의 캐시 화면이 직접 들여다보고 지운다(회원 쪽 UserSessionCacheAdmin 과 같은 자리).
+        AdminSessionCache,
+        AdminProfileCache,
         AdminSocialService,
         AdminGoogleClient,
         AdminSocialTicketService,

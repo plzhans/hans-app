@@ -10,10 +10,10 @@ import { errorMessage } from '@/shared/api/errorMessage';
 import { Button } from '@/shared/ui/Button';
 import { Modal } from '@/shared/ui/Modal';
 import {
+  CheckboxField,
   MAIL_FAIL_MESSAGE,
   PasswordFields,
   SecretBox,
-  SendEmailCheckbox,
   passwordReady,
 } from './PasswordFields';
 
@@ -39,20 +39,47 @@ export function AdminPasswordResetModal({
   const [confirm, setConfirm] = useState('');
   const [sendEmail, setSendEmail] = useState(true);
   /**
+   * 열려 있던 세션을 끊을지. **꺼 놓고 연다.**
+   *
+   * 이 창을 여는 대부분은 "본인이 값을 잊어버렸다" 이고, 그 사람은 지금 콘솔에서 일하고
+   * 있을 수 있다 — 기본으로 끊으면 비밀번호를 내주면서 하던 일을 같이 끊는 셈이다.
+   * 유출이 의심될 때 켠다.
+   */
+  const [revokeSessions, setRevokeSessions] = useState(false);
+  /**
+   * 첫 로그인에서 비밀번호를 다시 바꾸게 할지. **켠 채로 연다.**
+   *
+   * 남이 정해 준 값이 그대로 남으면 그 값을 아는 사람이 둘이 된다. 끄는 것은 본인과 함께
+   * 앉아 값을 정한 경우다.
+   */
+  const [mustChange, setMustChange] = useState(true);
+  /**
    * 바뀌었지만 **메일이 나가지 않았다.** 이때만 창을 붙잡아 둔다 — 값을 잃어버린 사람에게
    * 닿을 통로가 메일뿐이었는데 그게 실패했으면, 이 화면이 값을 넘길 마지막 자리다.
    */
   const [undelivered, setUndelivered] = useState<AdminMailFailReason | null>();
 
   const done = () => {
-    // 세션 수가 0으로 떨어진다(전부 끊었다). 상세를 다시 받아 그 값을 맞춘다.
+    /*
+      끊었다면 세션이 0으로 떨어지고 그 캐시 칸도 사라진다. 상세·기기·캐시를 다시 받아
+      맞춘다 — 안 끊었어도 다시 받는 비용이 얼마 안 되고, 어느 쪽인지 분기하면 한쪽만
+      고쳐지는 날이 온다.
+    */
     void qc.invalidateQueries({ queryKey: ['admin', admin.id] });
+    void qc.invalidateQueries({ queryKey: ['admin-sessions', admin.id] });
+    void qc.invalidateQueries({ queryKey: ['admin-cache', admin.id] });
     void qc.invalidateQueries({ queryKey: ['admins'] });
     onClose();
   };
 
   const submit = useMutation({
-    mutationFn: () => resetAdminPassword(admin.id, { password, sendEmail }),
+    mutationFn: () =>
+      resetAdminPassword(admin.id, {
+        password,
+        sendEmail,
+        revokeSessions,
+        mustChangePassword: mustChange,
+      }),
     onSuccess: (result) => {
       if (sendEmail && !result.emailSent) {
         setUndelivered(result.emailFailReason ?? null);
@@ -76,10 +103,13 @@ export function AdminPasswordResetModal({
         </p>
         <SecretBox value={password} />
 
-        <p className="mt-3 text-xs text-gray-400">
-          본인이 첫 로그인에서 비밀번호를 바꾸기 전까지는 다른 화면을 열 수
-          없습니다.
-        </p>
+        {/* 강제 변경을 꺼 놓고 초기화했으면 이 문장은 사실이 아니다. */}
+        {mustChange && (
+          <p className="mt-3 text-xs text-gray-400">
+            본인이 첫 로그인에서 비밀번호를 바꾸기 전까지는 다른 화면을 열 수
+            없습니다.
+          </p>
+        )}
 
         <div className="mt-5 border-t border-gray-100 pt-4">
           <Button type="button" className="w-auto px-4" onClick={done}>
@@ -103,14 +133,10 @@ export function AdminPasswordResetModal({
           )}
         </div>
 
-        <p className="text-sm text-gray-600">
-          이 관리자의 비밀번호를 새 값으로 바꿉니다.{' '}
-          <b className="text-gray-900">
-            로그인 중인 세션({admin.activeSessionCount}개)이 모두 끊기고
-          </b>
-          , 본인이 첫 로그인에서 비밀번호를 다시 바꿔야 합니다.
-        </p>
-
+        {/*
+          **무엇을 하는 창인지 다시 적지 않는다.** 제목이 "비밀번호 초기화" 이고 바로 위에
+          대상 계정이 있어, 한 줄 더 두면 읽히지 않는 문장이 자리만 차지한다.
+        */}
         <PasswordFields
           label="새 패스워드"
           password={password}
@@ -119,12 +145,32 @@ export function AdminPasswordResetModal({
           onConfirm={setConfirm}
         />
 
-        <SendEmailCheckbox
-          label="사용자에게 이메일 보내기"
-          checked={sendEmail}
-          onChange={setSendEmail}
-          hint="새 비밀번호를 본인에게 보냅니다. 메일 설정(설정 > 메일)이 켜져 있어야 나갑니다."
-        />
+        {/*
+          **세 가지를 켜고 끄는 것으로 묻는다.** 무엇을 하는 항목인지는 이름만으로 아는
+          값이라 줄마다 설명을 달지 않는다 — 셋을 붙여 두면 이 창에서 정할 것이 한눈에 든다.
+
+          **켜져 있는 것부터, 그 계정을 세게 건드리는 것이 아래로 간다.** 마지막 줄이 하던
+          일을 끊는 항목이라, 그것만 꺼져 있으면 눈이 거기서 한 번 멈춘다.
+        */}
+        <div className="space-y-2 border-t border-gray-100 pt-3">
+          <CheckboxField
+            label="사용자에게 알림 이메일 보내기"
+            checked={sendEmail}
+            onChange={setSendEmail}
+          />
+
+          <CheckboxField
+            label="다음 로그인에서 비밀번호 변경 강제"
+            checked={mustChange}
+            onChange={setMustChange}
+          />
+
+          <CheckboxField
+            label="로그인 중인 세션 끊기"
+            checked={revokeSessions}
+            onChange={setRevokeSessions}
+          />
+        </div>
       </div>
 
       {submit.error != null && (

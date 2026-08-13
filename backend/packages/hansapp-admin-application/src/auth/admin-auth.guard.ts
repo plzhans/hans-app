@@ -11,6 +11,7 @@ import type { Request } from 'express';
 import type { AdminAuthUser } from './admin-auth-user';
 import { ALLOW_DURING_PASSWORD_CHANGE_KEY } from './allow-password-change.decorator';
 import { IS_ADMIN_PUBLIC_KEY } from './admin-public.decorator';
+import { AdminSessionCache } from './admin-session-cache.service';
 import { AdminTokenService } from './admin-token.service';
 
 type AdminRequest = Request & { admin?: AdminAuthUser };
@@ -21,15 +22,20 @@ type AdminRequest = Request & { admin?: AdminAuthUser };
  * - `@AdminPublic()` 라우트는 우회한다(로그인·갱신·로그아웃·헬스체크).
  * - refresh token 은 여기서 다루지 않는다 — 토큰 엔드포인트에서만 교환된다.
  * - API 키/서비스 키 같은 대체 자격은 없다. 관리자 API 를 부르는 것은 관리자 SPA 뿐이다.
+ *
+ * **서명 검증만으로 끝나지 않는다.** 서명이 맞아도 그 세션이 아직 살아 있는지를 한 번 더
+ * 본다(AdminSessionCache). 그러지 않으면 기기를 끊어도 access token 이 만료될 때까지(기본
+ * 1시간) 그대로 통한다 — 캐시를 사이에 둬서 DB 는 거의 보지 않는다.
  */
 @Injectable()
 export class AdminAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tokens: AdminTokenService,
+    private readonly sessions: AdminSessionCache,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_ADMIN_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -45,9 +51,21 @@ export class AdminAuthGuard implements CanActivate {
     }
 
     const payload = this.tokens.verifyAccessToken(token);
+    const adminId = Number(payload.sub);
+
+    /*
+      **끊긴 세션의 토큰인지 본다.** 서명은 폐기를 알지 못한다 — 다른 관리자가 이 기기를
+      끊었거나, 비밀번호가 초기화돼 세션이 전부 날아갔으면 여기서 막힌다.
+
+      토큰의 `exp` 를 함께 넘긴다 — 캐시가 그 시각을 넘겨 판단을 들고 있지 않게 한다.
+    */
+    if (!(await this.sessions.isLive(adminId, payload.sid, payload.exp))) {
+      throw new UnauthorizedException('Session is no longer valid.');
+    }
+
     const mustChangePassword = payload.chg === true;
     request.admin = {
-      adminId: Number(payload.sub),
+      adminId,
       sessionId: payload.sid,
       mustChangePassword,
     };

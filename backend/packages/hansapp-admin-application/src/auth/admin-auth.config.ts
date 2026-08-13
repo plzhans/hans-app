@@ -33,6 +33,19 @@ export interface AdminAuthConfig {
   readonly cookieSecure: boolean;
   /** 관리자 한 명이 동시에 가질 수 있는 세션 수. 0 이하면 제한하지 않는다. */
   readonly maxSessionsPerAdmin: number;
+  /**
+   * 세션 캐시 상한(초). 가드가 요청마다 보는 자리의 수명이다.
+   *
+   * **상한일 뿐이다** — 실제 수명은 그 요청이 들고 온 access token 의 남은 시간과 견줘
+   * 짧은 쪽이다. 그래서 access token 수명과 같은 값으로 두면 캐시 칸이 토큰과 같이 늙는다
+   * (회원 세션 캐시와 같은 규칙).
+   */
+  readonly sessionCacheTtlSec: number;
+  /**
+   * 내 정보 캐시 수명(초). **안전망이다** — 값이 바뀌는 경로가 캐시를 직접 지우므로,
+   * 이 값이 실제로 쓰이는 때는 그중 하나를 빠뜨렸을 때뿐이다.
+   */
+  readonly profileCacheTtlSec: number;
   readonly bootstrap: AdminBootstrapConfig;
 }
 
@@ -82,14 +95,17 @@ export function buildAdminAuthConfig(source: ConfigSource): AdminAuthConfig {
     jwtSecret,
     appEnv: source.env,
     issuer: source.getStringOrDefault('admin.jwt.issuer') || undefined,
-    // 5분. 짧게 잡아 계정을 비활성화했을 때 최대 이만큼만 버티게 한다 —
-    // access token 은 stateless 라 즉시 폐기가 안 된다.
+    // 1시간. 폐기는 가드가 세션 캐시로 잡으므로 이 값에 매달 이유가 없다(config-defaults 주석 참고).
     accessTokenTtlSec: source.getDurationSecOrDefault('admin.jwt.accessTokenExpiresIn'),
     // 8시간. 하루 근무를 덮으므로 작업 중 재로그인이 없고, 퇴근 뒤에는 자연히 끊긴다.
     refreshTokenTtlSec: source.getDurationSecOrDefault('admin.jwt.refreshTokenExpiresIn'),
     bcryptRounds: source.getNumberOrDefault('admin.bcryptRounds'),
     cookieSecure: source.getBoolOrDefault('auth.cookieSecure'),
     maxSessionsPerAdmin: source.getNumberOrDefault('admin.maxSessionsPerAdmin'),
+    // access token 수명과 같은 값(1시간). 캐시 칸이 그 토큰보다 오래 살지 않는다.
+    sessionCacheTtlSec: source.getNumberOrDefault('admin.sessionCache.ttlSec'),
+    // 10분. 무효화를 빠뜨렸을 때 스스로 낫는 시간이다.
+    profileCacheTtlSec: source.getNumberOrDefault('admin.profileCache.ttlSec'),
     bootstrap: Object.freeze({
       // **기본은 꺼짐이다.** 켜는 것을 명시적으로 적게 한다 — 자동으로 계정이 생기는
       // 동작은 설정 파일만 보고도 알 수 있어야 한다.

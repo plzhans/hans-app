@@ -25,6 +25,8 @@ import PostView from '@/features/community/pages/PostView';
 import PostEdit from '@/features/community/pages/PostEdit';
 import Admins from '@/features/admins/pages/Admins';
 import AdminDetail from '@/features/admins/pages/AdminDetail';
+import AdminSessions from '@/features/admins/pages/AdminSessions';
+import AdminCache from '@/features/admins/pages/AdminCache';
 import AdminActionLogs from '@/features/admins/pages/AdminActionLogs';
 import AuthLogs from '@/features/logs/pages/AuthLogs';
 import LlmUsageLogs from '@/features/logs/pages/LlmUsageLogs';
@@ -152,7 +154,9 @@ export default function App() {
           {/* 콘솔 자신을 다루는 구역. 이 콘솔에 로그인할 수 있는 계정들이다. */}
           <Route path="/admins" element={<Admins />} />
           <Route path="/admins/:id" element={<AdminDetail />} />
-          {/* 관리자 상세의 탭 하나. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          {/* 관리자 상세의 탭들. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          <Route path="/admins/:id/sessions" element={<AdminSessions />} />
+          <Route path="/admins/:id/cache" element={<AdminCache />} />
           <Route path="/admins/:id/action-logs" element={<AdminActionLogs />} />
           <Route path="/me" element={<Me />} />
           {/* 강제 변경 때와 같은 화면이다. 어느 쪽인지는 status 를 보고 스스로 정한다. */}

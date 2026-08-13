@@ -11,6 +11,7 @@ import { resolveClientIp } from '@hansapp/http-common';
 import { AdminAuthController } from './auth/admin-auth.controller';
 import { AdminSocialController } from './auth/admin-social.controller';
 import { AdminBootstrapService } from './auth/admin-bootstrap.service';
+import { AdminMeController } from './admins/admin-me.controller';
 import { AdminAccountController } from './admins/admin-account.controller';
 import { SyncStateController } from './admin/sync-state.controller';
 import { MaintenanceController } from './admin/maintenance.controller';
@@ -61,6 +62,12 @@ export class AppModule {
         // 소셜 로그인. **AdminAuthController 뒤에 둔다** — 라우트가 겹치지는 않지만
         // `/auth` 아래의 인증 경로가 한자리에 모여 있어야 읽힌다.
         AdminSocialController,
+        /*
+          **AdminAccountController 보다 먼저 등록한다.** 두 컨트롤러가 같은 접두사를
+          쓰는데(`/api/admins`), 라우트는 등록 순서대로 매칭되므로 뒤에 서면
+          `/api/admins/me` 가 그쪽의 `:id` 에 잡혀 400 이 된다.
+        */
+        AdminMeController,
         AdminAccountController,
         HealthController,
         SyncStateController,

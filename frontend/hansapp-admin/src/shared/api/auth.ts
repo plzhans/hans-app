@@ -95,7 +95,7 @@ export const login = (email: string, password: string) =>
     { auth: false },
   );
 
-export const getMe = () => apiFetch<AdminMe>('/auth/me');
+export const getMe = () => apiFetch<AdminMe>('/api/admins/me');
 
 /**
  * 본인의 언어·시간대 변경. 보낸 항목만 바뀐다.
@@ -107,7 +107,7 @@ export const updateMyLocale = (input: {
   language?: string;
   timeZone?: string;
 }) =>
-  apiFetch<void>('/auth/me', {
+  apiFetch<void>('/api/admins/me', {
     method: 'PATCH',
     body: JSON.stringify(input),
   });

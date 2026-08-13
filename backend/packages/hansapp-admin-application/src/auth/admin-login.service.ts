@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { AdminUser } from '@hansapp/data';
 
 import { AdminActionLogService } from './admin-action-log.service';
+import { AdminProfileCache } from './admin-profile-cache.service';
 import { AdminTokenService } from './admin-token.service';
 import type { AdminAuthTokens, AdminRequestMeta } from './admin-token.service';
 import { AdminUserRepository } from './admin-user.repository';
@@ -18,6 +19,8 @@ export class AdminLoginService {
   constructor(
     private readonly tokens: AdminTokenService,
     private readonly admins: AdminUserRepository,
+    // 마지막 로그인 시각과 변경 강제 플래그가 내 정보 응답에 실린다 — 여기서 비운다.
+    private readonly profileCache: AdminProfileCache,
     private readonly log: AdminActionLogService,
   ) {}
 
@@ -35,6 +38,7 @@ export class AdminLoginService {
     const tokens = this.tokens.buildTokens(admin.id, session, admin.mustChangePassword);
 
     await this.admins.touchLastLogin(admin.id, new Date());
+    await this.profileCache.purge(admin.id);
     // 상한을 넘은 오래된 세션 정리. 방금 만든 세션이 가장 최근이라 살아남는다.
     await this.tokens.trimSessions(admin.id);
 
