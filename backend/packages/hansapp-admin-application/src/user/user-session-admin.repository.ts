@@ -19,7 +19,7 @@ export class UserSessionAdminRepository {
    * 세션 하나를 지운다. **userId 를 조건에 함께 넣는다** — 식별자만으로 지우면 남의
    * 세션 id 를 넣어 끊을 수 있다. 없으면 빈 배열이다(호출부가 404 로 가른다).
    */
-  async deleteOne(userId: number, sessionId: string): Promise<string[]> {
+  async deleteOne(userId: number, sessionId: number): Promise<number[]> {
     const { count } = await this.prisma.userTokenSession.deleteMany({
       where: { sessionId, userId },
     });
@@ -32,7 +32,7 @@ export class UserSessionAdminRepository {
    * **만료된 것까지 지운다.** 목록에는 살아 있는 것만 보이지만, 여기서 남겨 둘 이유가 없다 —
    * 어차피 정리 배치가 치울 행이고, 조건을 하나 더 두면 "전부" 가 전부가 아니게 된다.
    */
-  async deleteAll(userId: number): Promise<string[]> {
+  async deleteAll(userId: number): Promise<number[]> {
     const rows = await this.prisma.userTokenSession.findMany({
       where: { userId },
       select: { sessionId: true },

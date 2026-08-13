@@ -125,8 +125,10 @@ export class MeResponseDto {
  * 쓸 일이 없다 — 응답에 실을 이유가 없는 값은 싣지 않는다.
  */
 export class SessionDto {
-  @ApiProperty({ description: '세션 식별자. 개별 로그아웃에 쓴다.' })
-  readonly sessionId!: string;
+  @ApiProperty({
+    description: '세션 식별자(난수). 개별 로그아웃에 쓴다. **본인 계정 안에서만 유일하다.**',
+  })
+  readonly sessionId!: number;
 
   @ApiPropertyOptional({ description: '접속 기기의 브라우저·운영체제 정보' })
   readonly userAgent?: string | null;

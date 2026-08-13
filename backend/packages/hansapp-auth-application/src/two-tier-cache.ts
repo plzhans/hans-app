@@ -38,8 +38,14 @@ export class TwoTierCache<T> {
     private readonly logger: Logger,
   ) {}
 
-  /** 메모리 → Redis → 원천 순으로 읽고, 읽은 값을 아래에서 위로 채운다. */
-  read(key: string, load: () => Promise<T | null>): Promise<T | null> {
+  /**
+   * 메모리 → Redis → 원천 순으로 읽고, 읽은 값을 아래에서 위로 채운다.
+   *
+   * `maxAliveSec` 은 **이 항목이 쓸모 있는 최대 시간**이다. 넘기면 각 단이 자기 상한과
+   * 견줘 짧은 쪽을 쓴다 — 세션 캐시가 access token 의 남은 수명을 넘겨 들고 있지 않으려고
+   * 쓴다(그 시각 뒤에는 어차피 갱신을 거쳐 DB 를 다시 본다).
+   */
+  read(key: string, load: () => Promise<T | null>, maxAliveSec?: number): Promise<T | null> {
     const hit = this.memory.get(key);
     if (hit) {
       if (hit.exp > Date.now()) {
@@ -55,7 +61,7 @@ export class TwoTierCache<T> {
     const running = this.inflight.get(key);
     if (running) return running;
 
-    const loading = this.load(key, load).finally(() => this.inflight.delete(key));
+    const loading = this.load(key, load, maxAliveSec).finally(() => this.inflight.delete(key));
     this.inflight.set(key, loading);
     return loading;
   }
@@ -82,26 +88,30 @@ export class TwoTierCache<T> {
     }
   }
 
-  private async load(key: string, fromSource: () => Promise<T | null>): Promise<T | null> {
+  private async load(
+    key: string,
+    fromSource: () => Promise<T | null>,
+    maxAliveSec?: number,
+  ): Promise<T | null> {
     const cached = await this.shared?.get<{ v: T | null }>(key);
     if (cached) {
-      this.putMemory(key, cached.v);
+      this.putMemory(key, cached.v, maxAliveSec);
       return cached.v;
     }
 
     const value = await fromSource();
-    this.putMemory(key, value);
+    this.putMemory(key, value, maxAliveSec);
     // 한 겹 감싸서 넣는다 — 그래야 꺼낼 때 miss 와 "없음" 이 갈린다.
-    await this.shared?.set(key, { v: value }, this.config.sharedTtlSec * 1000);
+    await this.shared?.set(key, { v: value }, ttlOf(this.config.sharedTtlSec, maxAliveSec) * 1000);
     return value;
   }
 
   /** 메모리 캐시에 넣는다. 상한을 넘으면 가장 오래 안 쓴 것부터 버린다(LRU). */
-  private putMemory(key: string, value: T | null): void {
+  private putMemory(key: string, value: T | null, maxAliveSec?: number): void {
     this.memory.delete(key);
     this.memory.set(key, {
       value,
-      exp: Date.now() + this.config.memoryTtlSec * 1000,
+      exp: Date.now() + ttlOf(this.config.memoryTtlSec, maxAliveSec) * 1000,
     });
 
     while (this.memory.size > this.config.memoryMaxEntries) {
@@ -110,4 +120,16 @@ export class TwoTierCache<T> {
       this.memory.delete(oldest);
     }
   }
+}
+
+/**
+ * 이 단이 쓸 TTL(초). **단의 상한과 항목의 쓸모 중 짧은 쪽이다.**
+ *
+ * 상한은 "무효화를 놓쳤을 때 얼마나 빨리 낫나" 이고, 쓸모는 "언제까지 의미가 있나" 다 —
+ * 둘 다 넘지 않아야 한다. 항목 쪽이 이미 지났으면(0 이하) 캐시에 넣을 이유가 없지만,
+ * 0 을 그대로 주면 저장소에 따라 "무제한" 으로 해석될 수 있어 1초로 바닥을 둔다.
+ */
+function ttlOf(tierMaxSec: number, maxAliveSec?: number): number {
+  if (maxAliveSec === undefined) return tierMaxSec;
+  return Math.max(1, Math.min(tierMaxSec, Math.floor(maxAliveSec)));
 }

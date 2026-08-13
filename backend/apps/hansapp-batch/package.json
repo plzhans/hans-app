@@ -13,6 +13,8 @@
     "@hansapp/admin-application": "workspace:*",
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",
+    "@nestjs/cache-manager": "^3.1.3",
+    "cache-manager": "^7.2.9",
     "@nestjs/common": "^11.1.27",
     "@nestjs/core": "^11.1.27",
     "@nestjs/schedule": "^6.0.1",

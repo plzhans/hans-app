@@ -79,10 +79,25 @@ export const updateUser = (id: number, input: { name?: string }) =>
     body: JSON.stringify(input),
   });
 
+/**
+ * 세션 하나의 인증 캐시.
+ *
+ * **가드가 요청마다 보는 자리라 실제 통과 여부를 정한다.** 기기 목록 자체는 DB 를 보고
+ * 그리므로 둘이 어긋날 수 있다 — "끊었는데 왜 아직 되지" 가 그 어긋남이다.
+ */
+export interface SessionCache {
+  hit: boolean;
+  /** 남은 시간(ms). 만료 시각을 모르면 없다. */
+  remainingMs?: number | null;
+}
+
 /** 로그인해 둔 기기 한 줄. */
 export interface UserSession {
-  /** 이 기기를 끊을 때 쓴다. 이 값만으로는 로그인할 수 없다(secret 은 해시로만 저장된다). */
-  sessionId: string;
+  /**
+   * 이 기기를 끊을 때 쓴다(난수). **회원 안에서만 유일하다** — 회원번호와 짝으로만
+   * 의미가 있고, 이 값만으로는 로그인할 수 없다(secret 은 해시로만 저장된다).
+   */
+  sessionId: number;
   userAgent?: string | null;
   ip?: string | null;
   /** "로그인 상태 유지" 를 켜고 만든 세션인지. */
@@ -91,6 +106,7 @@ export interface UserSession {
   /** 마지막 갱신 시각. 사실상 최근 활동 시각이다. */
   updatedAt: string;
   expiresAt: string;
+  cache: SessionCache;
 }
 
 /**
@@ -107,9 +123,31 @@ export const getUserCacheState = (id: number) =>
 export const purgeUserCache = (id: number) =>
   apiFetch<void>(`/api/users/${id}/cache/purge`, { method: 'POST' });
 
-/** 회원 한 명이 로그인해 둔 기기들. 살아 있는 것만, 최근 활동 순. 페이지가 없다. */
+/**
+ * DB 에는 없는데 캐시에만 남아 있는 세션. **잘못된 데이터다.**
+ *
+ * 기기를 끊을 때 캐시 삭제가 실패하면 생긴다 — 가드는 이 캐시를 보고 통과시키므로,
+ * 끊은 기기가 캐시 만료까지 계속 통한다.
+ */
+export interface OrphanSessionCache {
+  sessionId: number;
+  /** 캐시에 담긴 만료 시각. 이때까지 통과한다. */
+  expiresAt: string;
+}
+
+/**
+ * 회원 한 명의 로그인 기기.
+ *
+ * **DB 와 캐시를 따로 읽어 합친 결과다.** 목록의 정본은 DB 지만 요청을 실제로 통과시키는
+ * 것은 캐시라, 어긋나는 쪽(`orphans`)을 감추면 원인을 짚을 수 없다.
+ */
+export interface UserSessionList {
+  sessions: UserSession[];
+  orphans: OrphanSessionCache[];
+}
+
 export const listUserSessions = (id: number) =>
-  apiFetch<UserSession[]>(`/api/users/${id}/sessions`);
+  apiFetch<UserSessionList>(`/api/users/${id}/sessions`);
 
 /**
  * 기기 한 대를 끊는다.
@@ -117,9 +155,22 @@ export const listUserSessions = (id: number) =>
  * **바로 막히지는 않는다.** 서버가 세션 캐시를 갱신하기까지(기본 60초) 이미 발급된
  * access token 은 통한다 — 화면 문구도 그렇게 적어야 한다.
  */
-export const revokeUserSession = (id: number, sessionId: string) =>
+export const revokeUserSession = (id: number, sessionId: number) =>
   apiFetch<void>(`/api/users/${id}/sessions/${sessionId}`, {
     method: 'DELETE',
+  });
+
+/** 이 세션의 인증 캐시에 담긴 값. 고아 캐시(DB 행 없음)도 조회된다. */
+export const getUserSessionCacheState = (id: number, sessionId: number) =>
+  apiFetch<CacheState>(`/api/users/${id}/sessions/${sessionId}/cache`);
+
+/**
+ * 이 세션의 인증 캐시만 지운다. **세션을 끊는 것이 아니다** — 다음 요청이 DB 를 다시
+ * 읽을 뿐이라, 살아 있는 세션이면 그대로 통과한다.
+ */
+export const purgeUserSessionCache = (id: number, sessionId: number) =>
+  apiFetch<void>(`/api/users/${id}/sessions/${sessionId}/cache/purge`, {
+    method: 'POST',
   });
 
 /** 이 회원의 모든 기기를 끊는다. 반영 시점은 개별 끊기와 같다. */

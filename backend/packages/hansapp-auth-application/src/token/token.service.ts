@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto';
+
 import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { AuthProvider, UserRole } from '@hansapp/data';
 import {
@@ -19,12 +21,45 @@ import { JwtKeyService } from './jwt-key.service';
 
 /** refresh token 접두사 */
 const REFRESH_PREFIX = 'rt_';
+
+/**
+ * refresh 토큰이 싣는 식별자 조각 수: `<회원번호>.<세션식별자>`.
+ *
+ * **회원번호를 함께 싣는다.** 세션을 (회원, 세션) 쌍으로 찾기 위해서다 — 캐시 키도 같은
+ * 규칙으로 묶여 있어, 식별자 하나만 아는 것으로는 어느 계정도 가리킬 수 없다.
+ */
+const REFRESH_ID_PARTS = 2;
+
+/** 토큰이 실어 온 회원번호. 숫자가 아니면 조작이므로 없는 회원(0)으로 떨어뜨린다. */
+function ownerOf(ids: string[]): number {
+  return positiveIntOf(ids[0]);
+}
+
+/** 토큰이 실어 온 세션 식별자. 위와 같은 규칙이다. */
+function sessionIdOf(ids: string[]): number {
+  return positiveIntOf(ids[1]);
+}
+
+function positiveIntOf(raw: string | undefined): number {
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : 0;
+}
+
+/**
+ * 세션 식별자. **회원 안에서만 유일하면 된다**(키가 복합키다).
+ *
+ * MySQL INT 상한 안에서 뽑는다 — 계정당 세션이 열 개 남짓이라 이 공간이면 겹칠 일이 없고,
+ * 겹치더라도 create 가 키 충돌로 떨어져 조용히 덮어쓰는 일은 없다.
+ */
+function randomSessionId(): number {
+  return randomInt(1, 2_147_483_647);
+}
 /** 인가코드(릴레이) 접두사 */
 const AUTH_CODE_PREFIX = 'ac_';
 
 /** 세션 발급/갱신 결과. access token 은 호출측이 issueAccessToken 으로 별도 발급한다. */
 export interface IssuedSession {
-  readonly sessionId: string;
+  readonly sessionId: number;
   readonly refreshToken: string;
   readonly expiresAt: Date;
   /** "로그인 상태 유지" 선택. 쿠키를 영속으로 심을지 정한다. */
@@ -57,7 +92,7 @@ export interface AuthTokens {
    * 로그인 이벤트를 발행할 때 "이번에 만든 세션" 을 가리키는 데 쓴다(비밀값도 아니다 —
    * access token 에 sid 로 이미 들어 있다).
    */
-  readonly sessionId: string;
+  readonly sessionId: number;
 }
 
 /** 소비된 인가코드의 내용. clientId 가 null 이면 1st-party(hansapp-web) 발급이다. */
@@ -102,7 +137,7 @@ export class TokenService {
 
   // ---- access token (JWT) ----
 
-  issueAccessToken(userId: number, role: UserRole, sessionId: string): string {
+  issueAccessToken(userId: number, role: UserRole, sessionId: number): string {
     const payload: AccessTokenPayload = {
       sub: String(userId),
       role,
@@ -131,7 +166,16 @@ export class TokenService {
     meta: { userAgent?: string | null; ip?: string | null },
     persistent = true,
   ): Promise<IssuedSession> {
-    const sessionId = randomToken(18);
+    /*
+      **세션 식별자는 난수 숫자다.** 이 값 자체는 비밀이 아니다 — refresh 는 secret 이,
+      access 는 서명이 지키고, 조회·캐시는 모두 (회원, 세션) 쌍으로 묶여 있다. 그래서
+      길 필요가 없고, 콘솔·로그에서 눈으로 다루기 좋은 모양이면 된다.
+
+      **순번이 아니라 난수인 이유.** 순번은 그 회원의 발급량을 드러내고, 옆 번호를 짚어
+      보게 한다. 키가 (회원, 세션) 복합키라 회원 안에서만 유일하면 된다 — 계정당 세션이
+      열 개 남짓이라 32비트 난수로도 겹칠 일이 없다.
+    */
+    const sessionId = randomSessionId();
     const secret = randomToken(24);
     const expiresAt = new Date(Date.now() + this.config.refreshTokenTtlSec * 1000);
     await this.sessions.create({
@@ -148,7 +192,9 @@ export class TokenService {
     this.logger.log(`refresh issued: userId=${userId} sid=${sessionId} ip=${meta.ip ?? '-'}`);
     return {
       sessionId,
-      refreshToken: REFRESH_PREFIX + composeSignedToken(sessionId, secret, this.refreshTagKey),
+      refreshToken:
+        REFRESH_PREFIX +
+        composeSignedToken([String(userId), String(sessionId)], secret, this.refreshTagKey),
       expiresAt,
       persistent,
     };
@@ -160,17 +206,27 @@ export class TokenService {
    */
   async rotateRefreshToken(refreshToken: string): Promise<RotatedSession> {
     // HMAC 태그부터 검증한다. 위조·변조·정크 토큰은 여기서 DB 조회 없이 탈락한다(저사양 보호).
-    const parsed = parseSignedToken(refreshToken, REFRESH_PREFIX, this.refreshTagKey);
+    const parsed = parseSignedToken(
+      refreshToken,
+      REFRESH_PREFIX,
+      this.refreshTagKey,
+      REFRESH_ID_PARTS,
+    );
     if (!parsed) {
       throw new UnauthorizedException('Invalid refresh token.');
     }
-    const session = await this.sessions.findById(parsed.id);
+    /*
+      **(회원, 세션) 쌍으로 찾는다.** 세션 식별자 하나로 찾던 것을 바꾼 이유는, 그러면
+      식별자를 아는 것만으로 어느 계정의 세션이든 가리킬 수 있기 때문이다 — 캐시 키도
+      같은 규칙으로 회원과 묶여 있다. 짝이 맞지 않으면 없는 것으로 본다.
+    */
+    const session = await this.sessions.findOwned(ownerOf(parsed.ids), sessionIdOf(parsed.ids));
     if (!session) {
       throw new UnauthorizedException('Session not found.');
     }
     if (session.expiresAt.getTime() <= Date.now()) {
-      await this.sessions.delete(session.sessionId);
-      await this.sessionCache.invalidate([session.sessionId]);
+      await this.sessions.delete(session.userId, session.sessionId);
+      await this.sessionCache.invalidate(session.userId, [session.sessionId]);
       throw new UnauthorizedException('Session expired. Please sign in again.');
     }
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
@@ -179,14 +235,19 @@ export class TokenService {
 
     const newSecret = randomToken(24);
     const expiresAt = new Date(Date.now() + this.config.refreshTokenTtlSec * 1000);
-    await this.sessions.rotate(session.sessionId, sha256hex(newSecret), expiresAt);
+    await this.sessions.rotate(session.userId, session.sessionId, sha256hex(newSecret), expiresAt);
     // 갱신(rotate)도 refresh 를 재발급한다. rotate 경로엔 요청 meta 가 없어 IP 는 남기지 않는다.
     this.logger.log(`refresh rotated: userId=${session.userId} sid=${session.sessionId}`);
     return {
       userId: session.userId,
       sessionId: session.sessionId,
       refreshToken:
-        REFRESH_PREFIX + composeSignedToken(session.sessionId, newSecret, this.refreshTagKey),
+        REFRESH_PREFIX +
+        composeSignedToken(
+          [String(session.userId), String(session.sessionId)],
+          newSecret,
+          this.refreshTagKey,
+        ),
       expiresAt,
       // 갱신해도 처음 선택을 그대로 이어 간다(요청만 보고는 알 수 없다).
       persistent: session.persistent,
@@ -227,29 +288,35 @@ export class TokenService {
    */
   async revokeByRefreshToken(
     refreshToken: string,
-  ): Promise<{ sessionId: string; userId: number } | null> {
-    const parsed = parseSignedToken(refreshToken, REFRESH_PREFIX, this.refreshTagKey);
+  ): Promise<{ sessionId: number; userId: number } | null> {
+    const parsed = parseSignedToken(
+      refreshToken,
+      REFRESH_PREFIX,
+      this.refreshTagKey,
+      REFRESH_ID_PARTS,
+    );
     if (!parsed) return null;
-    const session = await this.sessions.findById(parsed.id);
+    const session = await this.sessions.findOwned(ownerOf(parsed.ids), sessionIdOf(parsed.ids));
     if (!session) return null;
     // secret 까지 맞아야 남의 세션을 못 지운다. 만료 여부는 안 본다 — 만료된 세션도 치운다.
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
       return null;
     }
-    await this.sessions.delete(session.sessionId);
-    await this.sessionCache.invalidate([session.sessionId]);
+    await this.sessions.delete(session.userId, session.sessionId);
+    await this.sessionCache.invalidate(session.userId, [session.sessionId]);
     return { sessionId: session.sessionId, userId: session.userId };
   }
 
-  async revokeSession(sessionId: string): Promise<void> {
-    await this.sessions.delete(sessionId);
+  /** 세션 하나를 폐기한다. **캐시 키가 회원번호와 묶여 있어 userId 를 함께 받는다.** */
+  async revokeSession(userId: number, sessionId: number): Promise<void> {
+    await this.sessions.delete(userId, sessionId);
     // 지운 뒤 캐시를 비운다. 안 비우면 그 토큰이 캐시 TTL 만큼 더 통한다.
-    await this.sessionCache.invalidate([sessionId]);
+    await this.sessionCache.invalidate(userId, [sessionId]);
   }
 
   async revokeAllSessions(userId: number): Promise<number> {
     const removed = await this.sessions.deleteAllByUser(userId);
-    await this.sessionCache.invalidate(removed);
+    await this.sessionCache.invalidate(userId, removed);
     return removed.length;
   }
 
@@ -296,7 +363,7 @@ export class TokenService {
     if (!parsed) {
       throw new UnauthorizedException('Invalid authorization code.');
     }
-    const row = await this.authCodes.findById(parsed.id);
+    const row = await this.authCodes.findById(parsed.ids[0]);
     if (!row || row.consumedAt) {
       throw new UnauthorizedException('Authorization code is not usable.');
     }

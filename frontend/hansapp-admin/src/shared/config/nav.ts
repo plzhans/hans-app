@@ -1,5 +1,6 @@
 import {
   Boxes,
+  Brush,
   MessageSquareText,
   KeyRound,
   Mail,
@@ -67,6 +68,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/settings/mail', label: '메일', icon: Mail },
       { to: '/settings/integrations', label: '외부 연동', icon: Plug },
       { to: '/settings/llm', label: 'LLM', icon: Sparkles },
+      // 값을 고치는 화면들과 성격이 다르지만(지우는 화면), 서비스 전체를 다룬다는 점이 같다.
+      { to: '/settings/maintenance', label: '정리하기', icon: Brush },
     ],
   },
   {

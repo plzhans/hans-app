@@ -12,6 +12,7 @@ import { AdminAuthController } from './auth/admin-auth.controller';
 import { AdminBootstrapService } from './auth/admin-bootstrap.service';
 import { AdminAccountController } from './admins/admin-account.controller';
 import { SyncStateController } from './admin/sync-state.controller';
+import { MaintenanceController } from './admin/maintenance.controller';
 import { HealthController } from './health/health.controller';
 import { UserController } from './user/user.controller';
 import { AppController } from './apps/app.controller';
@@ -59,6 +60,7 @@ export class AppModule {
         AdminAccountController,
         HealthController,
         SyncStateController,
+        MaintenanceController,
         UserController,
         AppController,
         SettingController,

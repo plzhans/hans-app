@@ -25,6 +25,6 @@ export class SessionCacheHandler {
 
   @OnDomainEvent(DomainEvent.AuthSessionRevoked)
   onRevoked(event: AuthSessionRevokedEvent): Promise<void> {
-    return this.cache.invalidate(event.sessionIds);
+    return this.cache.invalidate(event.userId, event.sessionIds);
   }
 }

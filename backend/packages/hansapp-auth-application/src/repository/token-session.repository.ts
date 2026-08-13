@@ -9,7 +9,7 @@ export class TokenSessionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   create(input: {
-    sessionId: string;
+    sessionId: number;
     userId: number;
     secretHash: string;
     userAgent: string | null;
@@ -21,14 +21,25 @@ export class TokenSessionRepository {
     return this.prisma.userTokenSession.create({ data: input });
   }
 
-  findById(sessionId: string): Promise<UserTokenSession | null> {
-    return this.prisma.userTokenSession.findUnique({ where: { sessionId } });
+  /**
+   * **(회원, 세션) 쌍으로 찾는다.** 키가 복합키라 이 조합 말고는 세션을 가리킬 방법이 없다 —
+   * refresh 토큰도 회원번호를 함께 싣는다.
+   */
+  findOwned(userId: number, sessionId: number): Promise<UserTokenSession | null> {
+    return this.prisma.userTokenSession.findUnique({
+      where: { userId_sessionId: { userId, sessionId } },
+    });
   }
 
   /** rotate: 새 secret 해시 + 만료 연장(sliding). */
-  rotate(sessionId: string, secretHash: string, expiresAt: Date): Promise<UserTokenSession> {
+  rotate(
+    userId: number,
+    sessionId: number,
+    secretHash: string,
+    expiresAt: Date,
+  ): Promise<UserTokenSession> {
     return this.prisma.userTokenSession.update({
-      where: { sessionId },
+      where: { userId_sessionId: { userId, sessionId } },
       data: { secretHash, expiresAt },
     });
   }
@@ -51,7 +62,7 @@ export class TokenSessionRepository {
    * 세션 식별자만으로 지우면 남의 세션 id 를 넣어 끊을 수 있다.
    * 지운 건수를 돌려주므로 호출부가 "내 것이 아니었다" 를 구분할 수 있다.
    */
-  deleteOwned(userId: number, sessionId: string): Promise<number> {
+  deleteOwned(userId: number, sessionId: number): Promise<number> {
     return this.prisma.userTokenSession
       .deleteMany({ where: { sessionId, userId } })
       .then((r) => r.count);
@@ -85,8 +96,11 @@ export class TokenSessionRepository {
     return count;
   }
 
-  delete(sessionId: string): Promise<void> {
-    return this.prisma.userTokenSession.deleteMany({ where: { sessionId } }).then(() => undefined);
+  /** **회원까지 받는다.** 키가 복합키라 세션 식별자만으로는 행을 가리킬 수 없다. */
+  delete(userId: number, sessionId: number): Promise<void> {
+    return this.prisma.userTokenSession
+      .deleteMany({ where: { userId, sessionId } })
+      .then(() => undefined);
   }
 
   /**
@@ -95,7 +109,7 @@ export class TokenSessionRepository {
    * 건수만으로 끝내지 않는 이유는 캐시 때문이다 — 세션 캐시는 sid 로 키를 잡으므로,
    * 무엇을 지웠는지 모르면 비울 키를 알 수 없다. 지운 뒤에는 행이 없어 되물을 수도 없다.
    */
-  async deleteAllByUser(userId: number): Promise<string[]> {
+  async deleteAllByUser(userId: number): Promise<number[]> {
     const rows = await this.prisma.userTokenSession.findMany({
       where: { userId },
       select: { sessionId: true },

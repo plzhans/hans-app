@@ -24,7 +24,7 @@ export type DomainEventName = (typeof DomainEvent)[keyof typeof DomainEvent];
 export interface AuthLoginEvent {
   readonly userId: number;
   /** 이번 로그인으로 만들어진 세션. 이 세션은 남겨야 하는 대상이다. */
-  readonly sessionId: string;
+  readonly sessionId: number;
 }
 
 /**
@@ -37,7 +37,7 @@ export interface AuthLoginEvent {
 export interface AuthSessionRevokedEvent {
   readonly userId: number;
   /** 폐기된 세션들. 한 대만 끊었으면 한 개다. */
-  readonly sessionIds: readonly string[];
+  readonly sessionIds: readonly number[];
 }
 
 /**

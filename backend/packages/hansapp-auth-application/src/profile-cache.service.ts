@@ -8,8 +8,7 @@ import type { ProfileCacheConfig } from './auth.config';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
 import { TwoTierCache } from './two-tier-cache';
-
-const PREFIX = 'auth:profile';
+import { profileKey } from './auth-cache-keys';
 
 /**
  * `/users/me` 가 돌려주는 것 전부.
@@ -71,7 +70,7 @@ export class ProfileCache {
 
   /** 없는 회원이면 null. 탈퇴·정지 여부는 `status` 를 보고 호출부가 정한다. */
   get(userId: number): Promise<MeProfile | null> {
-    return this.cache.read(keyOf(userId), async () => {
+    return this.cache.read(profileKey(userId), async () => {
       const user = await this.users.findById(userId);
       if (!user) return null;
 
@@ -96,10 +95,6 @@ export class ProfileCache {
 
   /** 응답을 이루는 값이 바뀌었을 때 부른다. */
   invalidate(userId: number): Promise<void> {
-    return this.cache.drop(keyOf(userId));
+    return this.cache.drop(profileKey(userId));
   }
-}
-
-function keyOf(userId: number): string {
-  return `${PREFIX}:${userId}`;
 }

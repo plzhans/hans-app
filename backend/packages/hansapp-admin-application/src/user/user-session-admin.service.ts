@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { DomainEvent } from '@hansapp/event-contract';
 import { EventPublisher } from '@hansapp/event-publisher';
 
 import { UserSessionAdminRepository } from './user-session-admin.repository';
+import { UserSessionCacheAdmin } from './user-session-cache.admin';
 
 /**
  * 관리자에 의한 로그인 세션 폐기.
@@ -24,28 +25,53 @@ export class UserSessionAdminService {
 
   constructor(
     private readonly repo: UserSessionAdminRepository,
+    private readonly cache: UserSessionCacheAdmin,
     private readonly events: EventPublisher,
   ) {}
 
   /** 기기 한 대를 끊는다. 그 회원의 세션이 아니면 아무것도 지우지 않는다(빈 배열). */
-  async revokeOne(userId: number, sessionId: string): Promise<string[]> {
+  async revokeOne(userId: number, sessionId: number): Promise<number[]> {
     const removed = await this.repo.deleteOne(userId, sessionId);
-    this.announce(userId, removed);
+    await this.announce(userId, removed);
     return removed;
   }
 
   /** 이 회원의 모든 기기를 끊는다. */
-  async revokeAll(userId: number): Promise<string[]> {
+  async revokeAll(userId: number): Promise<number[]> {
     const removed = await this.repo.deleteAll(userId);
-    this.announce(userId, removed);
+    await this.announce(userId, removed);
     return removed;
   }
 
-  private announce(userId: number, sessionIds: string[]): void {
+  /**
+   * 폐기를 알린다. **공유 캐시는 여기서 직접 지운다.**
+   *
+   * 이벤트에만 맡기면 큐가 죽었을 때 폐기된 세션이 Redis 상한(기본 1시간)만큼 그대로
+   * 통과한다 — 끊는 것이 목적인 조치라 그 창을 큐 사정에 걸어 둘 수 없다. 각 인스턴스의
+   * 메모리 단은 밖에서 손댈 수 없으니 그것만 이벤트로 알린다.
+   */
+  private async announce(userId: number, sessionIds: number[]): Promise<void> {
     // 지운 게 없으면 알릴 것도 없다. 빈 이벤트는 받는 쪽에서 헛도는 잡이 된다.
     if (sessionIds.length === 0) return;
 
+    const left: number[] = [];
+    for (const sessionId of sessionIds) {
+      if (!(await this.cache.purge(userId, sessionId))) left.push(sessionId);
+    }
+
     this.events.publish(DomainEvent.AuthSessionRevoked, { userId, sessionIds });
     this.logger.log(`세션 폐기: userId=${userId} count=${sessionIds.length}`);
+
+    /*
+      **캐시가 남았으면 알린다.** DB 행은 이미 지워졌으니 되돌릴 것은 없지만, 조치가
+      의도한 결과(그 기기가 막힘)에 이르지 못했다 — 조용히 204 를 주면 관리자는 끊긴 줄
+      안다. 다시 눌러 재시도할 수 있고(삭제는 멱등이다), 그대로 둬도 배치가 치운다.
+    */
+    if (left.length > 0) {
+      throw new ServiceUnavailableException(
+        `Sessions were deleted but ${left.length} cache entries could not be cleared. ` +
+          'Those devices may keep passing until the cache expires. Retry to clear them.',
+      );
+    }
   }
 }

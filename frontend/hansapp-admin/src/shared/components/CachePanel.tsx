@@ -166,21 +166,7 @@ export function CachePanel({
             <p className="mb-1.5 text-xs font-semibold text-gray-400">
               담겨 있는 값
             </p>
-            {/*
-              **캐시에 든 것을 그대로 편다.** 화면용으로 다듬으면 "지금 나가는 것" 과
-              달라져, 무엇이 잘못됐는지 볼 수 없다.
-
-              처음엔 다 펴 둔다(allExpanded) — 접혀 있으면 무엇이 들었는지 보려고 매번
-              열어야 하는데, 이 화면을 여는 이유가 그 확인이다.
-            */}
-            {/* 코드를 읽는 자리라 편집기처럼 어둡게 둔다 — 색으로 갈리는 값이 또렷해진다. */}
-            <div className="overflow-x-auto rounded-lg bg-gray-900 px-4 py-3 font-mono text-xs">
-              <JsonView
-                data={state.value as object}
-                shouldExpandNode={allExpanded}
-                style={JSON_STYLE}
-              />
-            </div>
+            <CacheJsonView value={state.value} />
           </div>
         )}
 
@@ -228,10 +214,31 @@ function formatStamp(iso: string): string {
 }
 
 /** 남은 시간을 `12m 30s` 로. 초 단위까지만 — 그 아래는 볼 새도 없이 바뀐다. */
-function formatLeft(ms: number | null): string {
-  if (ms === null) return '—';
+export function formatLeft(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined) return '—';
   const total = Math.floor(ms / 1000);
   const m = Math.floor(total / 60);
   const s = total % 60;
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+/**
+ * 캐시에 든 값을 펴서 보여 준다.
+ *
+ * **다듬지 않는다.** 화면용으로 손보면 "지금 나가는 것" 과 달라져, 무엇이 잘못됐는지
+ * 볼 수 없다. 처음엔 다 펴 둔다(allExpanded) — 접혀 있으면 무엇이 들었는지 보려고 매번
+ * 열어야 하는데, 이걸 여는 이유가 그 확인이다.
+ *
+ * 코드를 읽는 자리라 편집기처럼 어둡게 둔다 — 색으로 갈리는 값이 또렷해진다.
+ */
+export function CacheJsonView({ value }: { value: unknown }) {
+  return (
+    <div className="overflow-x-auto rounded-lg bg-gray-900 px-4 py-3 font-mono text-xs">
+      <JsonView
+        data={value as object}
+        shouldExpandNode={allExpanded}
+        style={JSON_STYLE}
+      />
+    </div>
+  );
 }

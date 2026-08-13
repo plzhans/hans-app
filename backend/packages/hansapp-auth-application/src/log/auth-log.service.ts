@@ -15,7 +15,11 @@ export interface AuthLogInput {
   result: AuthLogResult;
   provider?: AuthProvider | null;
   failReason?: string | null;
-  sessionId?: string | null;
+  /**
+   * 이 일이 일어난 세션. **숫자를 받아 문자열로 남긴다** — 로그 테이블은 별도 DB 라
+   * 회원 DB 의 타입 변경에 끌려다니지 않게 문자열 칸 그대로 둔다.
+   */
+  sessionId?: string | number | null;
   ip?: string | null;
   userAgent?: string | null;
   detail?: LogPrisma.InputJsonValue | null;
@@ -41,7 +45,7 @@ export class AuthLogService {
         result: input.result,
         provider: input.provider ? LogAuthProvider[input.provider] : null,
         failReason: input.failReason ?? null,
-        sessionId: input.sessionId ?? null,
+        sessionId: input.sessionId == null ? null : String(input.sessionId),
         ip: input.ip ?? null,
         userAgent: input.userAgent ?? null,
       };

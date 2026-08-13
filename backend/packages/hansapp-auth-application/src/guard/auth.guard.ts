@@ -68,12 +68,15 @@ export class AuthGuard implements CanActivate {
       /*
         **끊긴 세션의 토큰인지 본다.** 서명은 폐기를 알지 못한다 — 관리자가 기기를 끊었거나
         본인이 로그아웃했으면 여기서 막힌다. 캐시 히트가 대부분이라 비용은 메모리 조회다.
+
+        토큰의 `exp` 를 함께 넘긴다 — 캐시가 그 시각을 넘겨 판단을 들고 있지 않게 한다.
       */
-      if (!(await this.sessions.isLive(payload.sid))) {
+      const userId = Number(payload.sub);
+      if (!(await this.sessions.isLive(userId, payload.sid, payload.exp))) {
         throw new UnauthorizedException('Session is no longer valid.');
       }
       request.user = {
-        userId: Number(payload.sub),
+        userId,
         role: payload.role,
         sessionId: payload.sid,
       };

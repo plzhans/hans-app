@@ -12,7 +12,9 @@ import {
 } from 'class-validator';
 import { AuthLogResult, AuthLogAction, UserStatus } from '@hansapp/admin-application';
 import type {
+  CachedSession,
   ProfileCacheState,
+  SessionCacheState,
   UserAuthLogEntry,
   UserDetail,
   UserOAuthSummary,
@@ -157,8 +159,11 @@ export class UpdateUserRequestDto {
   readonly name?: string;
 }
 
-/** 내 정보 캐시 상태. **글 캐시(PostCacheStateDto)와 같은 모양이다** — 콘솔이 같은 패널로 본다. */
-export class ProfileCacheStateDto {
+/**
+ * 캐시 한 칸의 상태. **내 정보 캐시와 세션 캐시가 같이 쓴다** — 글 캐시(PostCacheStateDto)와도
+ * 같은 모양이라 콘솔이 하나의 패널로 본다.
+ */
+export class CacheStateDto {
   @ApiProperty({ description: '캐시 키. 환경 접두어는 빠져 있다.' })
   readonly key!: string;
 
@@ -271,6 +276,25 @@ export class UserOAuthDto {
 }
 
 /**
+ * 세션 하나의 인증 캐시.
+ *
+ * **값(value)은 싣지 않는다.** 담겨 있는 것이 만료 시각 하나뿐이라 펼쳐 봐야 얻을 것이
+ * 없고, 목록 한 줄에 넣기에도 무겁다 — 여기서 알고 싶은 것은 "캐시에 올라가 있나" 다.
+ */
+export class SessionCacheDto {
+  @ApiProperty({ description: '지금 캐시에 들어 있나' })
+  readonly hit!: boolean;
+
+  @ApiProperty({ nullable: true, description: '남은 시간(ms)' })
+  readonly remainingMs!: number | null;
+
+  constructor(state: SessionCacheState) {
+    this.hit = state.hit;
+    this.remainingMs = state.remainingMs;
+  }
+}
+
+/**
  * 로그인해 둔 기기 한 줄.
  *
  * **세션 식별자를 담는다.** 관리자가 기기 한 대를 끊을 수 있어야 해서다 — 끊을 대상을
@@ -280,8 +304,11 @@ export class UserOAuthDto {
  * 저장되고 어디에도 나가지 않는다(token.service 의 rotateRefreshToken 참고).
  */
 export class UserSessionDto {
-  @ApiProperty({ description: '세션 식별자. 이 기기를 끊을 때 쓴다.' })
-  readonly sessionId!: string;
+  @ApiProperty({
+    description:
+      '세션 식별자(난수). 이 기기를 끊을 때 쓴다. **회원 안에서만 유일하다** — 회원번호와 짝으로만 의미가 있다.',
+  })
+  readonly sessionId!: number;
 
   @ApiPropertyOptional({ description: '접속 기기의 브라우저·운영체제 정보' })
   readonly userAgent!: string | null;
@@ -305,7 +332,16 @@ export class UserSessionDto {
   @ApiProperty({ description: '만료 시각(ISO 8601)' })
   readonly expiresAt!: string;
 
-  constructor(session: UserSession) {
+  @ApiProperty({
+    description:
+      '이 세션의 인증 캐시 상태. **가드가 요청마다 보는 자리라 실제 통과 여부를 정한다** — ' +
+      '목록 자체는 DB 를 보고 그리므로 둘이 어긋날 수 있다.',
+    type: () => SessionCacheDto,
+  })
+  readonly cache!: SessionCacheDto;
+
+  constructor(session: UserSession, cache: SessionCacheState) {
+    this.cache = new SessionCacheDto(cache);
     this.sessionId = session.sessionId;
     this.userAgent = session.userAgent;
     this.ip = session.ip;
@@ -346,5 +382,49 @@ export class UserDetailDto extends UserSummaryDto {
     this.oauths = user.oauths.map((o) => new UserOAuthDto(o));
     this.activeSessionCount = user.activeSessionCount;
     this.appCount = user.appCount;
+  }
+}
+
+/**
+ * DB 에는 없는데 캐시에만 남아 있는 세션.
+ *
+ * **잘못된 데이터다.** 기기를 끊을 때 캐시 삭제가 실패하면 생긴다 — 가드는 이 캐시를 보고
+ * 통과시키므로, 끊은 기기가 캐시 만료까지 계속 통한다. 정리 배치가 주기적으로 치우지만
+ * 그 전에 눈으로 확인하고 지울 수 있어야 한다.
+ */
+export class OrphanSessionCacheDto {
+  @ApiProperty({ description: '세션 식별자(난수)' })
+  readonly sessionId!: number;
+
+  @ApiProperty({
+    description: '캐시에 담긴 세션 만료 시각(ISO 8601). 이 시각까지 통과한다.',
+  })
+  readonly expiresAt!: string;
+
+  constructor(entry: CachedSession) {
+    this.sessionId = entry.sessionId;
+    this.expiresAt = new Date(entry.expiresAt).toISOString();
+  }
+}
+
+/**
+ * 기기 목록 응답.
+ *
+ * **두 곳에서 따로 읽어 합친다.** 목록은 DB 가 정본이지만 요청을 실제로 통과시키는 것은
+ * 캐시라, 둘이 어긋나는 쪽을 감추면 "끊었는데 왜 아직 되지" 를 영영 못 짚는다.
+ */
+export class UserSessionListDto {
+  @ApiProperty({ description: 'DB 에 있는 세션. 캐시 상태를 함께 싣는다.', type: [UserSessionDto] })
+  readonly sessions!: UserSessionDto[];
+
+  @ApiProperty({
+    description: 'DB 에는 없는데 캐시에만 남은 것. 비어 있는 것이 정상이다.',
+    type: [OrphanSessionCacheDto],
+  })
+  readonly orphans!: OrphanSessionCacheDto[];
+
+  constructor(sessions: UserSessionDto[], orphans: OrphanSessionCacheDto[]) {
+    this.sessions = sessions;
+    this.orphans = orphans;
   }
 }

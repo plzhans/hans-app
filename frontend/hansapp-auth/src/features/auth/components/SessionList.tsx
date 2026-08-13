@@ -21,7 +21,8 @@ export function SessionList() {
   const signOut = useAuthStore((s) => s.signOut);
   const [sessions, setSessions] = useState<Session[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  /** 지금 처리 중인 대상. 세션 하나면 그 식별자, 전체 로그아웃이면 `'all'`. */
+  const [busy, setBusy] = useState<number | 'all' | null>(null);
   /**
    * "모든 기기에서 로그아웃" 재확인 단계인가.
    *
@@ -43,7 +44,7 @@ export function SessionList() {
     void load();
   }, [load]);
 
-  const revoke = async (sessionId: string) => {
+  const revoke = async (sessionId: number) => {
     setError(null);
     setBusy(sessionId);
     try {

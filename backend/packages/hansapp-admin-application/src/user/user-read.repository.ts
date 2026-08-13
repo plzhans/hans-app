@@ -27,7 +27,7 @@ export interface UserDetailRow {
  * 저장된다. 해시가 새면 그 대조를 통과시킬 수 있으니 그쪽은 계속 담지 않는다.
  */
 export interface UserSessionRow {
-  readonly sessionId: string;
+  readonly sessionId: number;
   readonly userAgent: string | null;
   readonly ip: string | null;
   /** "로그인 상태 유지" 를 켜고 만든 세션인가. */

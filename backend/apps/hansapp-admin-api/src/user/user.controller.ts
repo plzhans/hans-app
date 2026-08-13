@@ -16,6 +16,7 @@ import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
 import {
   UserAdminService,
   UserProfileCacheAdmin,
+  UserSessionCacheAdmin,
   UserAuthLogService,
   UserReadService,
   UserSessionAdminService,
@@ -26,8 +27,10 @@ import {
   UserAuthLogQueryDto,
   UserDetailDto,
   UserListQueryDto,
-  ProfileCacheStateDto,
+  OrphanSessionCacheDto,
+  CacheStateDto,
   UserSessionDto,
+  UserSessionListDto,
   UserSummaryDto,
   UpdateUserRequestDto,
 } from './dto/user.dto';
@@ -49,6 +52,7 @@ export class UserController {
     private readonly userAdmin: UserAdminService,
     private readonly profileCache: UserProfileCacheAdmin,
     private readonly sessionAdmin: UserSessionAdminService,
+    private readonly sessionCache: UserSessionCacheAdmin,
     private readonly logs: UserAuthLogService,
   ) {}
 
@@ -101,13 +105,13 @@ export class UserController {
       '메모리 단은 인스턴스마다 따로 있어 밖에서 셀 수 없다 — 여기서 "없음" 이어도 어느 ' +
       '인스턴스는 최대 60초까지 들고 있을 수 있다.',
   })
-  @ApiOkResponse({ type: ProfileCacheStateDto })
-  async cacheState(@Param('id', ParseIntPipe) id: number): Promise<ProfileCacheStateDto> {
+  @ApiOkResponse({ type: CacheStateDto })
+  async cacheState(@Param('id', ParseIntPipe) id: number): Promise<CacheStateDto> {
     const user = await this.users.findById(id);
     if (!user) {
       throw new NotFoundException(`User not found: ${id}`);
     }
-    return new ProfileCacheStateDto(await this.profileCache.inspect(id));
+    return new CacheStateDto(await this.profileCache.inspect(id));
   }
 
   @Post(':id/cache/purge')
@@ -131,16 +135,75 @@ export class UserController {
     summary: '회원의 로그인 기기',
     description: '살아 있는 로그인 세션을 최근 활동 순으로 돌려준다. 만료된 세션은 빠진다.',
   })
-  @ApiOkResponse({ type: [UserSessionDto] })
-  async sessions(@Param('id', ParseIntPipe) id: number): Promise<UserSessionDto[]> {
+  @ApiOkResponse({ type: UserSessionListDto })
+  async sessions(@Param('id', ParseIntPipe) id: number): Promise<UserSessionListDto> {
     // 없는 회원도 빈 목록이 나온다. 주소를 잘못 짚은 것과 구별되게 먼저 확인한다.
     const user = await this.users.findById(id);
     if (!user) {
       throw new NotFoundException(`User not found: ${id}`);
     }
 
-    const rows = await this.users.listSessions(id);
-    return rows.map((row) => new UserSessionDto(row));
+    /*
+      **DB 와 캐시를 따로 읽어 합친다.** 목록의 정본은 DB 지만 요청을 실제로 통과시키는
+      것은 캐시라, 어긋나는 쪽을 감추면 "끊었는데 왜 아직 되지" 를 짚을 수 없다.
+    */
+    const [rows, cached] = await Promise.all([
+      this.users.listSessions(id),
+      this.sessionCache.listByUser(id),
+    ]);
+
+    const caches = await this.sessionCache.inspectMany(
+      id,
+      rows.map((row) => row.sessionId),
+    );
+    const sessions = rows.map((row, index) => new UserSessionDto(row, caches[index]));
+
+    // DB 에 없는데 캐시에만 있는 것 = 폐기 때 캐시 삭제가 새어 남은 것.
+    const live = new Set(rows.map((row) => row.sessionId));
+    const orphans = cached
+      .filter((entry) => !live.has(entry.sessionId))
+      .map((entry) => new OrphanSessionCacheDto(entry));
+
+    return new UserSessionListDto(sessions, orphans);
+  }
+
+  @Get(':id/sessions/:sessionId/cache')
+  @ApiOperation({
+    summary: '세션 캐시 상태',
+    description:
+      '이 세션의 인증 캐시에 담긴 값을 그대로 돌려준다. 무엇이 들어 있어서 통과하는지를 ' +
+      '눈으로 확인하는 통로다.\n\n' +
+      'DB 행이 없는 세션(고아 캐시)도 조회된다 — 오히려 그때 들여다볼 일이 많다.',
+  })
+  @ApiOkResponse({ type: CacheStateDto })
+  async sessionCacheState(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+  ): Promise<CacheStateDto> {
+    await this.assertOwnSession(id, sessionId);
+    return new CacheStateDto(await this.sessionCache.inspect(id, sessionId));
+  }
+
+  @Post(':id/sessions/:sessionId/cache/purge')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '세션 캐시 초기화',
+    description:
+      '이 세션의 인증 캐시(공유 캐시)를 지운다. 다음 요청이 DB 를 다시 읽는다.\n\n' +
+      '**세션을 끊는 것이 아니다.** 세션 행은 그대로라 살아 있으면 그대로 통과한다 — ' +
+      '기기를 끊으려면 로그아웃 쪽을 쓴다.\n\n' +
+      'API 인스턴스가 앞에 둔 메모리 캐시는 지우지 못한다(TTL 로 스스로 빠진다).',
+  })
+  async purgeSessionCache(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+  ): Promise<void> {
+    /*
+      **이 회원의 세션이 맞는지 확인한다.** 캐시 키는 sid 하나로 열리므로, 확인 없이 받으면
+      남의 세션 캐시를 지울 수 있다. 지우는 것이 폐기는 아니지만 남의 것을 건드릴 이유가 없다.
+    */
+    await this.assertOwnSession(id, sessionId);
+    await this.sessionCache.purge(id, sessionId);
   }
 
   @Delete(':id/sessions')
@@ -170,7 +233,7 @@ export class UserController {
   })
   async revokeSession(
     @Param('id', ParseIntPipe) id: number,
-    @Param('sessionId') sessionId: string,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
   ): Promise<void> {
     /*
       **회원을 먼저 확인하지 않는다.** 폐기가 userId 를 조건에 함께 넣어 지우므로,
@@ -213,5 +276,25 @@ export class UserController {
       actions: query.actions,
     });
     return PageResponseDto.from(page.map((entry) => new UserAuthLogDto(entry)));
+  }
+
+  /**
+   * 이 세션이 그 회원의 것인지 확인한다.
+   *
+   * **DB 행이 없어도 통과시킨다.** 캐시를 다루는 통로들은 고아 캐시(행은 없고 캐시만 남은
+   * 것)를 대상으로 삼기 때문이다 — 행이 있어야만 손댈 수 있게 하면 정작 손대야 할 것을
+   * 못 건드린다. 대신 남의 것을 건드리지 않도록 회원 소속만은 반드시 본다.
+   */
+  private async assertOwnSession(userId: number, sessionId: number): Promise<void> {
+    const [rows, cached] = await Promise.all([
+      this.users.listSessions(userId),
+      this.sessionCache.listByUser(userId),
+    ]);
+    const mine =
+      rows.some((row) => row.sessionId === sessionId) ||
+      cached.some((entry) => entry.sessionId === sessionId);
+    if (!mine) {
+      throw new NotFoundException(`Session not found: ${sessionId}`);
+    }
   }
 }

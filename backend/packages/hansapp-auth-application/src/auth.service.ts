@@ -225,7 +225,7 @@ export class AuthService {
     });
     await this.users.markWithdrawn(user.id, now);
     await this.profileCache.invalidate(user.id);
-    await this.sessionCache.invalidate(await this.sessions.deleteAllByUser(user.id));
+    await this.sessionCache.invalidate(user.id, await this.sessions.deleteAllByUser(user.id));
     // 소셜 연동 개인정보 제거(재로그인 시 신규 취급 → 30일 재가입 차단에 걸린다).
     await this.deleteAllOAuthLinks(user.id);
 
@@ -356,7 +356,7 @@ export class AuthService {
     }
     await this.users.updatePassword(user.id, await this.hashPassword(input.newPassword));
     await this.profileCache.invalidate(user.id);
-    await this.sessionCache.invalidate(await this.sessions.deleteAllByUser(user.id));
+    await this.sessionCache.invalidate(user.id, await this.sessions.deleteAllByUser(user.id));
     await this.log.record({
       userId: user.id,
       action: AuthLogAction.PASSWORD_RESET,
@@ -463,13 +463,13 @@ export class AuthService {
    * 기기 하나를 로그아웃시킨다. **내 세션만 지운다**(저장소가 userId 를 조건에 함께 넣는다).
    * 남의 세션 식별자를 넣어도 아무 일이 일어나지 않는다.
    */
-  async revokeSession(userId: number, sessionId: string): Promise<void> {
+  async revokeSession(userId: number, sessionId: number): Promise<void> {
     const removed = await this.sessions.deleteOwned(userId, sessionId);
     if (!removed) {
       throw new BadRequestException('Session not found.');
     }
     // 지운 뒤 캐시를 비운다. 안 비우면 그 기기가 캐시 TTL 만큼 더 통한다.
-    await this.sessionCache.invalidate([sessionId]);
+    await this.sessionCache.invalidate(userId, [sessionId]);
   }
 
   /**
@@ -485,7 +485,7 @@ export class AuthService {
    */
   async revokeAllSessions(userId: number, meta: RequestMeta): Promise<number> {
     const removed = await this.sessions.deleteAllByUser(userId);
-    await this.sessionCache.invalidate(removed);
+    await this.sessionCache.invalidate(userId, removed);
     await this.log.record({
       userId,
       action: AuthLogAction.LOGOUT,

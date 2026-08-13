@@ -105,6 +105,16 @@ export { UserAdminService } from './user/user-admin.service';
 export type { UserAdminUpdate } from './user/user-admin.service';
 // /users/me 응답 캐시 들여다보기·초기화. 운영 중 "왜 안 바뀌지" 를 확인하는 통로다.
 export { UserProfileCacheAdmin } from './user/user-profile-cache.admin';
+// 세션 캐시. 인증 경로에서 실제 통과 여부를 정하는 자리라 기기 목록 옆에서 본다.
+export { UserSessionCacheAdmin } from './user/user-session-cache.admin';
+// 전원 로그아웃. 토큰 형식·서명 키를 바꿨거나 유출이 의심될 때 쓰는 비상 통로다.
+export { SessionPurgeService } from './user/session-purge.service';
+export type { SessionPurgeResult } from './user/session-purge.service';
+// 패턴 단위 캐시 일괄 삭제(설정 > 정리하기가 쓴다).
+export { CachePurgeService } from './common/cache-purge.service';
+export type { CachePurgeResult } from './common/cache-purge.service';
+export { ALL_PROFILES_MATCH, ALL_SESSIONS_MATCH } from './user/auth-cache-keys';
+export type { SessionCacheState, CachedSession } from './user/user-session-cache.admin';
 export type { ProfileCacheState } from './user/user-profile-cache.admin';
 // 회원 인증·계정 기록(로그 DB). 로그인만이 아니라 가입·비밀번호·소셜연동·탈퇴가 같은 표에 쌓인다.
 // 서비스 행위(좋아요·조회)는 여기가 아니라 별도 표로 간다 — auth.prisma 주석 참고.
@@ -221,6 +231,7 @@ export type {
 
 export { BoardPostAdminService } from './community/board-post-admin.service';
 export type { PostCacheState } from './community/board-post-cache.invalidator';
+export type { CacheState } from './community/cache-sweeper';
 export type {
   PostAuthor,
   PostSummary,

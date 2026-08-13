@@ -50,7 +50,7 @@ export class OAuthTokenService {
      * 물려준다 — 한 번 한 선택이 옮겨 가는 앱마다 달라지면 체크박스의 뜻이 흐려진다.
      * 없으면(못 찾으면) 유지하지 않는 쪽으로 떨어진다.
      */
-    sessionId?: string,
+    sessionId?: number,
   ): Promise<string> {
     // PKCE 는 **모든 인가코드에 필수**다. 선택으로 두면 공격자가 challenge 를 빼고 요청해
     // 검증을 건너뛸 수 있다(downgrade). 예외를 두지 않아야 그 경로가 안 생긴다.
@@ -79,7 +79,7 @@ export class OAuthTokenService {
         client.clientId,
         challenge,
         null,
-        await this.isPersistentSession(sessionId),
+        await this.isPersistentSession(userId, sessionId),
       );
     }
 
@@ -92,7 +92,7 @@ export class OAuthTokenService {
       null,
       challenge,
       null,
-      await this.isPersistentSession(sessionId),
+      await this.isPersistentSession(userId, sessionId),
     );
   }
 
@@ -102,9 +102,10 @@ export class OAuthTokenService {
    * **모르면 유지하지 않는다.** 세션을 못 찾는 경우(방금 폐기됨 등)에 유지 쪽으로 기울면,
    * 사용자가 끄고 로그인했는데 옮겨 간 앱에서만 남는 일이 생긴다 — 안전한 쪽으로 떨어뜨린다.
    */
-  private async isPersistentSession(sessionId?: string): Promise<boolean> {
+  private async isPersistentSession(userId: number, sessionId?: number): Promise<boolean> {
     if (!sessionId) return false;
-    const session = await this.sessions.findById(sessionId);
+    // 키가 복합키라 회원까지 있어야 행을 가리킬 수 있다.
+    const session = await this.sessions.findOwned(userId, sessionId);
     return session?.persistent ?? false;
   }
 
@@ -180,15 +181,15 @@ export class OAuthTokenService {
     const user = await this.users.findById(rotated.userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
       // 탈퇴·정지 계정의 잔존 세션은 즉시 폐기한다.
-      await this.tokens.revokeSession(rotated.sessionId);
+      await this.tokens.revokeSession(rotated.userId, rotated.sessionId);
       throw new UnauthorizedException('Account is not available.');
     }
     return this.tokens.buildTokens(user.id, user.role, rotated);
   }
 
   /** 로그아웃: 현재 세션 폐기. */
-  async logout(sessionId: string, userId: number, meta: RequestMeta): Promise<void> {
-    await this.tokens.revokeSession(sessionId);
+  async logout(sessionId: number, userId: number, meta: RequestMeta): Promise<void> {
+    await this.tokens.revokeSession(userId, sessionId);
     await this.log.record({
       userId,
       action: AuthLogAction.LOGOUT,

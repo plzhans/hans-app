@@ -140,7 +140,7 @@ export class AdminTokenService {
     if (!parsed) {
       throw new UnauthorizedException('Invalid refresh token.');
     }
-    const session = await this.sessions.findById(parsed.id);
+    const session = await this.sessions.findById(parsed.ids[0]);
     if (!session) {
       throw new UnauthorizedException('Session not found.');
     }
@@ -199,7 +199,7 @@ export class AdminTokenService {
   ): Promise<{ sessionId: string; adminId: number } | null> {
     const parsed = parseSignedToken(refreshToken, ADMIN_REFRESH_PREFIX, this.refreshTagKey);
     if (!parsed) return null;
-    const session = await this.sessions.findById(parsed.id);
+    const session = await this.sessions.findById(parsed.ids[0]);
     if (!session) return null;
     // secret 까지 맞아야 남의 세션을 못 지운다. 만료 여부는 안 본다 — 만료된 세션도 치운다.
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {

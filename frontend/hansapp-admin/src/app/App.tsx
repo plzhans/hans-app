@@ -17,6 +17,7 @@ import AppDetail from '@/features/apps/pages/AppDetail';
 import MailSettings from '@/features/settings/pages/MailSettings';
 import IntegrationSettings from '@/features/settings/pages/IntegrationSettings';
 import LlmSettings from '@/features/settings/pages/LlmSettings';
+import Maintenance from '@/features/settings/pages/Maintenance';
 import Boards from '@/features/community/pages/Boards';
 import Posts from '@/features/community/pages/Posts';
 import PostView from '@/features/community/pages/PostView';
@@ -136,6 +137,8 @@ export default function App() {
             element={<IntegrationSettings />}
           />
           <Route path="/settings/llm" element={<LlmSettings />} />
+          {/* 값을 고치는 화면이 아니라 지우는 화면이다. 대상은 늘 서비스 전체다. */}
+          <Route path="/settings/maintenance" element={<Maintenance />} />
           {/* 커뮤니티. 게시판을 만들고 규칙을 정한다. */}
           <Route path="/boards" element={<Boards />} />
           <Route path="/boards/:boardId/posts" element={<Posts />} />

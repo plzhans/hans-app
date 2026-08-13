@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Put,
@@ -190,7 +191,7 @@ export class UserController {
   })
   async revokeSession(
     @CurrentUser() user: AuthUser,
-    @Param('sessionId') sessionId: string,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
   ): Promise<void> {
     await this.authService.revokeSession(user.userId, sessionId);
   }

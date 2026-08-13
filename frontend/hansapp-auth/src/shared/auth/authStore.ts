@@ -67,14 +67,21 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ status: 'anonymous', me: null });
       return;
     }
-    // access token 이 아직 유효(로컬 exp 검증)하고 프로필 캐시가 있으면 → **서버 0, DB 0** 로 즉시 로그인.
-    // 새로고침을 아무리 해도 access 수명 안에서는 서버로 안 간다.
+    /*
+      **캐시로 먼저 그리고, 그다음 서버에 확인한다.**
+
+      전에는 access token 의 exp 만 로컬에서 보고(isAccessTokenValid) 캐시가 있으면 여기서
+      끝냈다 — 서버를 한 번도 안 불렀다. 그래서 세션이 서버에서 폐기돼도(관리자 로그아웃,
+      전체 로그아웃, 비밀번호 재설정) 그 사실이 이 브라우저에 닿을 길이 없었고, 토큰이
+      만료될 때까지 최대 한 시간 로그인 상태로 남았다.
+
+      **깜빡임은 그대로 없다.** 캐시가 있으면 그것으로 즉시 그리고, 확인은 그 뒤에 붙는다 —
+      바뀐 것은 "확인을 아예 안 하던 것" 이 "그려 놓고 확인하는 것" 이 된 점뿐이다.
+
+      실시간까지는 가지 않는다. 세션이 도중에 끊기면 다음 새로고침에 정리된다 — 다른
+      사이트들도 그렇게 동작하고, 그 이상을 하려면 유휴 탭까지 주기적으로 서버를 때려야 한다.
+    */
     const cached = loadMe();
-    if (isAccessTokenValid(session) && cached) {
-      set({ status: 'authenticated', me: cached });
-      return;
-    }
-    // 캐시가 있으면 그걸로 먼저 그려 깜빡임을 없애고, getMe 로 최신값을 덮는다.
     set({ status: 'authenticated', me: cached });
     try {
       const me = await getMe();

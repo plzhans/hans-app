@@ -126,8 +126,13 @@ model EmailVerification {
 /// refresh 세션. 불투명 refresh 토큰의 서버측 저장소.
 /// 토큰 원문은 저장하지 않고 secret 의 SHA-256 해시만 둔다. rotate 시 만료를 연장한다(sliding).
 model UserTokenSession {
-  /// 세션 식별자. refresh 토큰에 내장돼 조회 키로 쓰인다.
-  sessionId String @id @map("session_id") @db.VarChar(64)
+  /// 세션 식별자(난수). **회원 안에서만 유일하다** — 키가 (회원, 세션) 복합키다.
+  ///
+  /// 이 값 자체는 비밀이 아니다. refresh 는 secret 이, access 는 서명이 지키고, 조회·캐시가
+  /// 모두 회원과 묶여 있어 이 숫자만으로는 아무것도 가리키지 못한다. 그래서 길 필요가 없다.
+  ///
+  /// **순번이 아니라 난수다.** 순번은 그 회원의 발급량을 드러내고, 옆 번호를 짚어 보게 한다.
+  sessionId Int @map("session_id")
 
   userId Int @map("user_id")
 
@@ -154,7 +159,10 @@ model UserTokenSession {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  /// **회원이 앞이다.** 이 계정의 세션을 훑는 조회(목록·전체 로그아웃·상한 정리)가 전부
+  /// 회원으로 시작하므로, 복합키 하나가 그 인덱스 역할까지 겸한다 —
+  /// 따로 두던 @@index([userId]) 는 이 키의 앞자리와 겹쳐 지웠다.
+  @@id([userId, sessionId])
   @@map("user_token_session")
 }
 

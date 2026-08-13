@@ -26,6 +26,7 @@ import { BoardPostRepository } from './community/board-post.repository';
 import { BoardPostAdminService } from './community/board-post-admin.service';
 import { BoardPostCacheInvalidator } from './community/board-post-cache.invalidator';
 import { BoardCacheInvalidator } from './community/board-cache.invalidator';
+import { CacheSweeper } from './community/cache-sweeper';
 import { HiraCodeReadService } from './hira/hira-code-read.service';
 import { HiraCodeSeedService } from './hira/hira-code-seed.service';
 import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
@@ -53,6 +54,9 @@ import { UserReadRepository } from './user/user-read.repository';
 import { UserAdminRepository } from './user/user-admin.repository';
 import { UserAdminService } from './user/user-admin.service';
 import { UserProfileCacheAdmin } from './user/user-profile-cache.admin';
+import { UserSessionCacheAdmin } from './user/user-session-cache.admin';
+import { SessionPurgeService } from './user/session-purge.service';
+import { CachePurgeService } from './common/cache-purge.service';
 import { UserSessionAdminRepository } from './user/user-session-admin.repository';
 import { UserSessionAdminService } from './user/user-session-admin.service';
 import { UserReadService } from './user/user-read.service';
@@ -182,6 +186,7 @@ export class AdminApplicationModule {
         BoardPostAdminService,
         BoardPostCacheInvalidator,
         BoardCacheInvalidator,
+        CacheSweeper,
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         HiraHospitalSyncRepository,
         NmcBasicSyncRepository,
@@ -260,6 +265,9 @@ export class AdminApplicationModule {
         UserReadService,
         UserAdminService,
         UserProfileCacheAdmin,
+        UserSessionCacheAdmin,
+        SessionPurgeService,
+        CachePurgeService,
         UserSessionAdminService,
         UserAuthLogService,
         LlmUsageLogService,
@@ -314,6 +322,7 @@ export class AdminApplicationModule {
         BoardPostAdminService,
         BoardPostCacheInvalidator,
         BoardCacheInvalidator,
+        CacheSweeper,
         /*
           **모듈을 통째로 다시 내보낸다.** Nest 는 provider 를 전이적으로 노출하지 않아서,
           이걸 안 하면 이 모듈을 import 한 앱의 컨트롤러가 ApplicationModule 의 서비스
@@ -324,6 +333,9 @@ export class AdminApplicationModule {
         UserReadService,
         UserAdminService,
         UserProfileCacheAdmin,
+        UserSessionCacheAdmin,
+        SessionPurgeService,
+        CachePurgeService,
         UserSessionAdminService,
         UserAuthLogService,
         LlmUsageLogService,

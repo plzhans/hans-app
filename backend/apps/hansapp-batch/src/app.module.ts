@@ -9,6 +9,7 @@ import { BATCH_CONFIG, buildBatchConfig } from './batch.config';
 import { BatchScheduler } from './batch.scheduler';
 import { BatchService } from './batch.service';
 import { AuthCleanupService } from './auth-cleanup.service';
+import { SessionCacheSweeper } from './session-cache-sweeper.service';
 
 /**
  * 배치의 루트 모듈.
@@ -35,6 +36,7 @@ export class AppModule {
         { provide: BATCH_CONFIG, useValue: buildBatchConfig(source) },
         BatchService,
         AuthCleanupService,
+        SessionCacheSweeper,
         BatchScheduler,
       ],
     };
