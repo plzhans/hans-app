@@ -29,10 +29,9 @@ export type getAddressCodeListResponse200 = {
   status: 200;
 };
 
-export type getAddressCodeListResponseSuccess =
-  getAddressCodeListResponse200 & {
-    headers: Headers;
-  };
+export type getAddressCodeListResponseSuccess = getAddressCodeListResponse200 & {
+  headers: Headers;
+};
 export type getAddressCodeListResponse = getAddressCodeListResponseSuccess;
 
 export const getGetAddressCodeListUrl = (params?: GetAddressCodeListParams) => {
@@ -55,13 +54,10 @@ export const getAddressCodeList = async (
   params?: GetAddressCodeListParams,
   options?: RequestInit,
 ): Promise<getAddressCodeListResponse> => {
-  return krDataMutator<getAddressCodeListResponse>(
-    getGetAddressCodeListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getAddressCodeListResponse>(getGetAddressCodeListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -73,16 +69,12 @@ export type getInstitutionClassCodeListResponse200 = {
   status: 200;
 };
 
-export type getInstitutionClassCodeListResponseSuccess =
-  getInstitutionClassCodeListResponse200 & {
-    headers: Headers;
-  };
-export type getInstitutionClassCodeListResponse =
-  getInstitutionClassCodeListResponseSuccess;
+export type getInstitutionClassCodeListResponseSuccess = getInstitutionClassCodeListResponse200 & {
+  headers: Headers;
+};
+export type getInstitutionClassCodeListResponse = getInstitutionClassCodeListResponseSuccess;
 
-export const getGetInstitutionClassCodeListUrl = (
-  params?: GetInstitutionClassCodeListParams,
-) => {
+export const getGetInstitutionClassCodeListUrl = (params?: GetInstitutionClassCodeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -120,10 +112,9 @@ export type getSubjectCodeListResponse200 = {
   status: 200;
 };
 
-export type getSubjectCodeListResponseSuccess =
-  getSubjectCodeListResponse200 & {
-    headers: Headers;
-  };
+export type getSubjectCodeListResponseSuccess = getSubjectCodeListResponse200 & {
+  headers: Headers;
+};
 export type getSubjectCodeListResponse = getSubjectCodeListResponseSuccess;
 
 export const getGetSubjectCodeListUrl = (params?: GetSubjectCodeListParams) => {
@@ -146,13 +137,10 @@ export const getSubjectCodeList = async (
   params?: GetSubjectCodeListParams,
   options?: RequestInit,
 ): Promise<getSubjectCodeListResponse> => {
-  return krDataMutator<getSubjectCodeListResponse>(
-    getGetSubjectCodeListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getSubjectCodeListResponse>(getGetSubjectCodeListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -164,15 +152,12 @@ export type getEquipmentCodeListResponse200 = {
   status: 200;
 };
 
-export type getEquipmentCodeListResponseSuccess =
-  getEquipmentCodeListResponse200 & {
-    headers: Headers;
-  };
+export type getEquipmentCodeListResponseSuccess = getEquipmentCodeListResponse200 & {
+  headers: Headers;
+};
 export type getEquipmentCodeListResponse = getEquipmentCodeListResponseSuccess;
 
-export const getGetEquipmentCodeListUrl = (
-  params?: GetEquipmentCodeListParams,
-) => {
+export const getGetEquipmentCodeListUrl = (params?: GetEquipmentCodeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -192,13 +177,10 @@ export const getEquipmentCodeList = async (
   params?: GetEquipmentCodeListParams,
   options?: RequestInit,
 ): Promise<getEquipmentCodeListResponse> => {
-  return krDataMutator<getEquipmentCodeListResponse>(
-    getGetEquipmentCodeListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getEquipmentCodeListResponse>(getGetEquipmentCodeListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };
 
 /**
@@ -214,12 +196,9 @@ export type getSpecialtyHospitalCodeListResponseSuccess =
   getSpecialtyHospitalCodeListResponse200 & {
     headers: Headers;
   };
-export type getSpecialtyHospitalCodeListResponse =
-  getSpecialtyHospitalCodeListResponseSuccess;
+export type getSpecialtyHospitalCodeListResponse = getSpecialtyHospitalCodeListResponseSuccess;
 
-export const getGetSpecialtyHospitalCodeListUrl = (
-  params?: GetSpecialtyHospitalCodeListParams,
-) => {
+export const getGetSpecialtyHospitalCodeListUrl = (params?: GetSpecialtyHospitalCodeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -257,16 +236,12 @@ export type getSpecialDiagnosisCodeListResponse200 = {
   status: 200;
 };
 
-export type getSpecialDiagnosisCodeListResponseSuccess =
-  getSpecialDiagnosisCodeListResponse200 & {
-    headers: Headers;
-  };
-export type getSpecialDiagnosisCodeListResponse =
-  getSpecialDiagnosisCodeListResponseSuccess;
+export type getSpecialDiagnosisCodeListResponseSuccess = getSpecialDiagnosisCodeListResponse200 & {
+  headers: Headers;
+};
+export type getSpecialDiagnosisCodeListResponse = getSpecialDiagnosisCodeListResponseSuccess;
 
-export const getGetSpecialDiagnosisCodeListUrl = (
-  params?: GetSpecialDiagnosisCodeListParams,
-) => {
+export const getGetSpecialDiagnosisCodeListUrl = (params?: GetSpecialDiagnosisCodeListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {

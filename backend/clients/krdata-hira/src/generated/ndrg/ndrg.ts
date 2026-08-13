@@ -11,10 +11,7 @@
 적재·연동은 없다. 스펙·클라이언트만 만들어 둔 상태다(2026-07).
  * OpenAPI spec version: 1.0.0
  */
-import type {
-  GetNewDrgPaymentListParams,
-  NewDrgPaymentResponse,
-} from './model';
+import type { GetNewDrgPaymentListParams, NewDrgPaymentResponse } from './model';
 
 import { krDataMutator } from '../../mutator';
 
@@ -31,15 +28,12 @@ export type getNewDrgPaymentListResponse200 = {
   status: 200;
 };
 
-export type getNewDrgPaymentListResponseSuccess =
-  getNewDrgPaymentListResponse200 & {
-    headers: Headers;
-  };
+export type getNewDrgPaymentListResponseSuccess = getNewDrgPaymentListResponse200 & {
+  headers: Headers;
+};
 export type getNewDrgPaymentListResponse = getNewDrgPaymentListResponseSuccess;
 
-export const getGetNewDrgPaymentListUrl = (
-  params: GetNewDrgPaymentListParams,
-) => {
+export const getGetNewDrgPaymentListUrl = (params: GetNewDrgPaymentListParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -59,11 +53,8 @@ export const getNewDrgPaymentList = async (
   params: GetNewDrgPaymentListParams,
   options?: RequestInit,
 ): Promise<getNewDrgPaymentListResponse> => {
-  return krDataMutator<getNewDrgPaymentListResponse>(
-    getGetNewDrgPaymentListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getNewDrgPaymentListResponse>(getGetNewDrgPaymentListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };

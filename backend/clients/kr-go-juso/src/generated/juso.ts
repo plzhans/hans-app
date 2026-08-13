@@ -59,9 +59,7 @@ export const getSearchEngAddressUrl = (params: SearchEngAddressParams) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0
-    ? `/addrEngApi.do?${stringifiedParams}`
-    : `/addrEngApi.do`;
+  return stringifiedParams.length > 0 ? `/addrEngApi.do?${stringifiedParams}` : `/addrEngApi.do`;
 };
 
 export const searchEngAddress = async (

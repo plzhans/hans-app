@@ -1,8 +1,4 @@
-import {
-  extractResultHeader,
-  KrDataResultHeader,
-  normalizeKrDataResponse,
-} from './normalize';
+import { extractResultHeader, KrDataResultHeader, normalizeKrDataResponse } from './normalize';
 
 /**
  * 응답 봉투 어댑터.

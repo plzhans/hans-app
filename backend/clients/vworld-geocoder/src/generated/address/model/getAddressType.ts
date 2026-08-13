@@ -24,8 +24,7 @@
  * OpenAPI spec version: 2.0.0
  */
 
-export type GetAddressType =
-  (typeof GetAddressType)[keyof typeof GetAddressType];
+export type GetAddressType = (typeof GetAddressType)[keyof typeof GetAddressType];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const GetAddressType = {

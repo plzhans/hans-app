@@ -63,8 +63,4 @@ function positiveOr(value: number | undefined, fallback: number): number {
   return value !== undefined && value > 0 ? value : fallback;
 }
 
-export {
-  DEFAULT_CONNECT_TIMEOUT_MS,
-  DEFAULT_READ_TIMEOUT_MS,
-  DEFAULT_MAX_RETRY,
-};
+export { DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, DEFAULT_MAX_RETRY };

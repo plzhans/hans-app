@@ -30,10 +30,7 @@ export interface NtsResponse<T = unknown> {
   headers: Headers;
 }
 
-export type NtsFetch = (
-  url: string,
-  options?: RequestInit,
-) => Promise<NtsResponse>;
+export type NtsFetch = (url: string, options?: RequestInit) => Promise<NtsResponse>;
 
 /**
  * 국세청 사업자등록 API 호출용 fetch 를 만든다. orval 의 custom mutator 로 주입한다.
@@ -54,10 +51,7 @@ export function createNtsFetch(config: NtsConfig): NtsFetch {
   const readTimeoutMs = config.readTimeoutMs ?? DEFAULT_READ_TIMEOUT_MS;
   const maxRetry = config.maxRetry ?? DEFAULT_MAX_RETRY;
 
-  return async function ntsFetch(
-    url: string,
-    options: RequestInit = {},
-  ): Promise<NtsResponse> {
+  return async function ntsFetch(url: string, options: RequestInit = {}): Promise<NtsResponse> {
     // 발급키는 이미 퍼센트 인코딩된 문자열이라 문자열로 직접 이어 붙인다. (@krdata/core 와 같은 이유)
     const separator = url.includes('?') ? '&' : '?';
     const requestUrl = `${baseUrl}${url}${separator}serviceKey=${serviceKey}`;
@@ -137,11 +131,9 @@ async function sendWithRetry(
     }
   }
 
-  throw new NtsError(
-    `NTS API request failed after ${retry.maxRetry} attempts`,
-    'NETWORK',
-    { cause: lastError },
-  );
+  throw new NtsError(`NTS API request failed after ${retry.maxRetry} attempts`, 'NETWORK', {
+    cause: lastError,
+  });
 }
 
 /**
@@ -177,11 +169,9 @@ function parseBody(body: string): unknown {
     return parsed;
   }
 
-  throw new NtsError(
-    `NTS API returned a non-OK status: ${statusCode}`,
-    statusCode,
-    { responseBody: body.slice(0, 500) },
-  );
+  throw new NtsError(`NTS API returned a non-OK status: ${statusCode}`, statusCode, {
+    responseBody: body.slice(0, 500),
+  });
 }
 
 function readStatusCode(parsed: unknown): string | undefined {

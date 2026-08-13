@@ -56,12 +56,10 @@ export type searchStationsBySubwayLineResponse200 = {
   status: 200;
 };
 
-export type searchStationsBySubwayLineResponseSuccess =
-  searchStationsBySubwayLineResponse200 & {
-    headers: Headers;
-  };
-export type searchStationsBySubwayLineResponse =
-  searchStationsBySubwayLineResponseSuccess;
+export type searchStationsBySubwayLineResponseSuccess = searchStationsBySubwayLineResponse200 & {
+  headers: Headers;
+};
+export type searchStationsBySubwayLineResponse = searchStationsBySubwayLineResponseSuccess;
 
 export const getSearchStationsBySubwayLineUrl = (
   startIndex: number,
@@ -82,13 +80,7 @@ export const searchStationsBySubwayLine = async (
   options?: RequestInit,
 ): Promise<searchStationsBySubwayLineResponse> => {
   return seoulDataMutator<searchStationsBySubwayLineResponse>(
-    getSearchStationsBySubwayLineUrl(
-      startIndex,
-      endIndex,
-      stationCd,
-      stationNm,
-      lineNum,
-    ),
+    getSearchStationsBySubwayLineUrl(startIndex, endIndex, stationCd, stationNm, lineNum),
     {
       ...options,
       method: 'GET',

@@ -43,10 +43,7 @@ export class VworldError extends Error {
  * 배치가 쓴다면 이 예외를 **실패가 아니라 "오늘은 여기까지"** 로 다뤄야 한다.
  */
 export class VworldQuotaError extends VworldError {
-  constructor(
-    message: string,
-    options?: { operation?: string; responseBody?: string },
-  ) {
+  constructor(message: string, options?: { operation?: string; responseBody?: string }) {
     super(message, 'OVER_REQUEST_LIMIT', { ...options, level: '2' });
     this.name = 'VworldQuotaError';
   }

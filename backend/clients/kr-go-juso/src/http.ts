@@ -30,10 +30,7 @@ export interface JusoResponse<T = unknown> {
   headers: Headers;
 }
 
-export type JusoFetch = (
-  url: string,
-  options?: RequestInit,
-) => Promise<JusoResponse>;
+export type JusoFetch = (url: string, options?: RequestInit) => Promise<JusoResponse>;
 
 /**
  * 도로명주소 API 호출용 fetch 를 만든다. orval 의 custom mutator 로 주입한다.
@@ -54,10 +51,7 @@ export function createJusoFetch(config: JusoConfig): JusoFetch {
   const readTimeoutMs = config.readTimeoutMs ?? DEFAULT_READ_TIMEOUT_MS;
   const maxRetry = config.maxRetry ?? DEFAULT_MAX_RETRY;
 
-  return async function jusoFetch(
-    url: string,
-    options: RequestInit = {},
-  ): Promise<JusoResponse> {
+  return async function jusoFetch(url: string, options: RequestInit = {}): Promise<JusoResponse> {
     // 생성된 코드가 이미 쿼리(? 포함)를 붙여 넘긴다. confmKey·resultType 만 더한다.
     // resultType 은 항상 json 으로 고정한다 — 스펙에 노출하지 않는 이유는 openapi 주석 참고.
     const separator = url.includes('?') ? '&' : '?';
@@ -134,11 +128,9 @@ async function sendWithRetry(
     }
   }
 
-  throw new JusoError(
-    `JUSO API request failed after ${retry.maxRetry} attempts`,
-    'NETWORK',
-    { cause: lastError },
-  );
+  throw new JusoError(`JUSO API request failed after ${retry.maxRetry} attempts`, 'NETWORK', {
+    cause: lastError,
+  });
 }
 
 /**
@@ -155,11 +147,9 @@ function parseBody(body: string): unknown {
 
   if (trimmed.startsWith('<')) {
     const { code, message } = parseXmlError(trimmed);
-    throw new JusoError(
-      message ?? 'JUSO API returned an XML error',
-      code ?? 'XML',
-      { responseBody: body.slice(0, 500) },
-    );
+    throw new JusoError(message ?? 'JUSO API returned an XML error', code ?? 'XML', {
+      responseBody: body.slice(0, 500),
+    });
   }
 
   let parsed: unknown;
@@ -174,11 +164,7 @@ function parseBody(body: string): unknown {
 
   const common = extractCommon(parsed);
   // common 이 없으면 우리가 모르는 모양이다. 판단하지 말고 원본을 통과시킨다.
-  if (
-    !common ||
-    common.errorCode === undefined ||
-    common.errorCode === ERROR_OK
-  ) {
+  if (!common || common.errorCode === undefined || common.errorCode === ERROR_OK) {
     return parsed;
   }
 
@@ -186,11 +172,9 @@ function parseBody(body: string): unknown {
     ? ' (검색 API 승인키를 확인하라. 재시도해도 소용없다.)'
     : '';
 
-  throw new JusoError(
-    `${common.errorMessage ?? 'JUSO API error'}${hint}`,
-    common.errorCode,
-    { responseBody: body.slice(0, 500) },
-  );
+  throw new JusoError(`${common.errorMessage ?? 'JUSO API error'}${hint}`, common.errorCode, {
+    responseBody: body.slice(0, 500),
+  });
 }
 
 interface CommonBlock {
@@ -221,10 +205,9 @@ function extractCommon(parsed: unknown): CommonBlock | undefined {
  */
 function parseXmlError(xml: string): { code?: string; message?: string } {
   const code = /<errorCode>([^<]*)<\/errorCode>/.exec(xml)?.[1]?.trim();
-  const message =
-    /<errorMessage>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/errorMessage>/
-      .exec(xml)?.[1]
-      ?.trim();
+  const message = /<errorMessage>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/errorMessage>/
+    .exec(xml)?.[1]
+    ?.trim();
   return { code, message };
 }
 

@@ -40,13 +40,8 @@ export class MoisClient {
    * `locatadd_nm` 은 부분일치다. 생략하면 전체(20,560건)가 대상이다.
    * 페이지 범위를 넘기면 에러가 아니라 빈 배열이 온다 — 루프의 종료 조건으로 써도 된다.
    */
-  async getRegionCodes(
-    params: GetStandardRegionCodeListParams = {},
-  ): Promise<RegionCodePage> {
-    const { data } = await getStandardRegionCodeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getRegionCodes(params: GetStandardRegionCodeListParams = {}): Promise<RegionCodePage> {
+    const { data } = await getStandardRegionCodeList(params, withKrDataConfig(this.config));
     return readRows<StandardRegionCodeRow>(data);
   }
 

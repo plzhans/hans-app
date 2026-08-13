@@ -2,8 +2,7 @@ import { createKrDataFetch, KrDataConfig, KrDataFetch } from '@krdata/core';
 
 export const NMC_BASE_URL = 'https://apis.data.go.kr/B552657';
 
-export type NmcConfig = Omit<KrDataConfig, 'baseUrl'> &
-  Partial<Pick<KrDataConfig, 'baseUrl'>>;
+export type NmcConfig = Omit<KrDataConfig, 'baseUrl'> & Partial<Pick<KrDataConfig, 'baseUrl'>>;
 
 /**
  * 생성된 코드는 `krDataMutator(url, options)` 형태로만 호출하므로 설정을 넘길 자리가 없다.
@@ -17,17 +16,11 @@ export interface KrDataRequestInit extends RequestInit {
 /** 같은 설정으로 fetch 를 매번 새로 만들지 않도록 캐시한다. */
 const fetchCache = new WeakMap<NmcConfig, KrDataFetch>();
 
-export function withKrDataConfig(
-  config: NmcConfig,
-  options?: RequestInit,
-): KrDataRequestInit {
+export function withKrDataConfig(config: NmcConfig, options?: RequestInit): KrDataRequestInit {
   return { ...options, krdata: config };
 }
 
-export const krDataMutator = async <T>(
-  url: string,
-  options?: KrDataRequestInit,
-): Promise<T> => {
+export const krDataMutator = async <T>(url: string, options?: KrDataRequestInit): Promise<T> => {
   const config = options?.krdata;
   if (!config) {
     throw new Error(

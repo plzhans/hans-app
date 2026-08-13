@@ -12,17 +12,11 @@ export interface JusoRequestInit extends RequestInit {
 /** 같은 설정으로 fetch 를 매번 새로 만들지 않도록 캐시한다. */
 const fetchCache = new WeakMap<JusoConfig, JusoFetch>();
 
-export function withJusoConfig(
-  config: JusoConfig,
-  options?: RequestInit,
-): JusoRequestInit {
+export function withJusoConfig(config: JusoConfig, options?: RequestInit): JusoRequestInit {
   return { ...options, juso: config };
 }
 
-export const jusoMutator = async <T>(
-  url: string,
-  options?: JusoRequestInit,
-): Promise<T> => {
+export const jusoMutator = async <T>(url: string, options?: JusoRequestInit): Promise<T> => {
   const config = options?.juso;
   if (!config) {
     throw new Error(

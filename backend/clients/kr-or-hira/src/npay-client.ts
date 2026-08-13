@@ -1,11 +1,5 @@
 import { HiraWebError } from './error';
-import {
-  HiraWebConfig,
-  RateGate,
-  hospitalPageUrl,
-  resolveConfig,
-  sendWithRetry,
-} from './http';
+import { HiraWebConfig, RateGate, hospitalPageUrl, resolveConfig, sendWithRetry } from './http';
 import type { NpayItem, NpayResponse } from './types';
 
 /**
@@ -112,10 +106,7 @@ export class HiraNpayClient {
    * 채우기 위해 받는다. 서버가 검사하지 않지만(http.ts 의 hospitalPageUrl 주석 참고) 항상 붙인다.
    * 그래서 옵션이 아니라 필수 인자다 — 빼먹을 수 없게 하려는 것이다.
    */
-  async fetchItems(
-    hospitalId: string,
-    encryptedYkiho: string,
-  ): Promise<ListNpayResult> {
+  async fetchItems(hospitalId: string, encryptedYkiho: string): Promise<ListNpayResult> {
     const url = `${this.config.baseUrl}/ra/eval/diagAmtInfoAjax.do`;
 
     await this.gate.wait();
@@ -147,11 +138,9 @@ export class HiraNpayClient {
     }
 
     if (parsed.failed) {
-      throw new HiraWebError(
-        `HIRA web reported failure for hospitalId=${hospitalId}`,
-        'FAILED',
-        { responseBody: body.slice(0, 500) },
-      );
+      throw new HiraWebError(`HIRA web reported failure for hospitalId=${hospitalId}`, 'FAILED', {
+        responseBody: body.slice(0, 500),
+      });
     }
 
     return {

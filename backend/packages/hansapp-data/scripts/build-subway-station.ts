@@ -72,13 +72,9 @@ function emptyToNull(value: string): string | null {
 }
 
 function findExcel(): string {
-  const files = readdirSync(DATA_DIR).filter(
-    (f) => f.includes('철도') && f.endsWith('.xlsx'),
-  );
+  const files = readdirSync(DATA_DIR).filter((f) => f.includes('철도') && f.endsWith('.xlsx'));
   if (files.length === 0) {
-    throw new Error(
-      `엑셀이 없다: ${DATA_DIR}/전국 도시광역철도 역사 역사정보_*.xlsx`,
-    );
+    throw new Error(`엑셀이 없다: ${DATA_DIR}/전국 도시광역철도 역사 역사정보_*.xlsx`);
   }
   // 파일명 끝에 배포일자가 붙는다(_20260701). 사전순 최신이 최신 데이터다.
   return join(DATA_DIR, files.sort().reverse()[0]);
@@ -115,9 +111,7 @@ async function main(): Promise<void> {
   const required = ['역명(한글)', '역명(영어)', '역명(일본어)', '운영노선'];
   for (const name of required) {
     if (!header[name]) {
-      throw new Error(
-        `엑셀에 '${name}' 컬럼이 없다. 원본 양식이 바뀌었는지 확인하라.`,
-      );
+      throw new Error(`엑셀에 '${name}' 컬럼이 없다. 원본 양식이 바뀌었는지 확인하라.`);
     }
   }
 
@@ -148,9 +142,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const sorted = [...stations.values()].sort((a, b) =>
-    a.ko.localeCompare(b.ko, 'ko'),
-  );
+  const sorted = [...stations.values()].sort((a, b) => a.ko.localeCompare(b.ko, 'ko'));
   const file = path.split('/').pop() as string;
 
   // 배열이 아니라 봉투로 굽는다. **출처와 버전이 데이터와 같은 파일에 붙어 있어야** 한다 —
@@ -161,11 +153,7 @@ async function main(): Promise<void> {
     file,
     version: versionOf(file),
   };
-  writeFileSync(
-    OUT_PATH,
-    `${JSON.stringify({ source, stations: sorted }, null, 1)}\n`,
-    'utf8',
-  );
+  writeFileSync(OUT_PATH, `${JSON.stringify({ source, stations: sorted }, null, 1)}\n`, 'utf8');
 
   const withJa = sorted.filter((s) => s.ja).length;
   console.log(`${file}  (version ${source.version})`);

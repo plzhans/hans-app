@@ -1,9 +1,6 @@
 // 서비스 그룹별로 스펙을 나눴으므로 생성물도 그룹별 모듈에서 가져온다.
 import { getHospitalList } from './generated/hosp-info/hosp-info';
-import type {
-  GetHospitalListParams,
-  HospitalListResponse,
-} from './generated/hosp-info/model';
+import type { GetHospitalListParams, HospitalListResponse } from './generated/hosp-info/model';
 import {
   getAddressCodeList,
   getEquipmentCodeList,
@@ -107,15 +104,9 @@ import type {
   MajorComponentCodeResponse,
 } from './generated/msup-cmpn/model';
 import { getMaterialList } from './generated/mcat/mcat';
-import type {
-  GetMaterialListParams,
-  MaterialListResponse,
-} from './generated/mcat/model';
+import type { GetMaterialListParams, MaterialListResponse } from './generated/mcat/model';
 import { getNewDrgPaymentList } from './generated/ndrg/ndrg';
-import type {
-  GetNewDrgPaymentListParams,
-  NewDrgPaymentResponse,
-} from './generated/ndrg/model';
+import type { GetNewDrgPaymentListParams, NewDrgPaymentResponse } from './generated/ndrg/model';
 import { HiraConfig, withKrDataConfig } from './mutator';
 
 /** ykiho 기준 상세 조회의 공통 파라미터 */
@@ -142,8 +133,7 @@ export const MDFEE_ALL = '%';
 /** 검색 파라미터가 하나라도 있는지. 페이지 파라미터는 검색어가 아니다. */
 function hasSearchFilter(params: Record<string, unknown>): boolean {
   return Object.entries(params).some(
-    ([key, value]) =>
-      key !== 'pageNo' && key !== 'numOfRows' && value !== undefined,
+    ([key, value]) => key !== 'pageNo' && key !== 'numOfRows' && value !== undefined,
   );
 }
 
@@ -172,13 +162,8 @@ export class HiraClient {
   // ── 병원정보서비스 ────────────────────────────────
 
   /** 병원 기본목록. ykiho 를 여기서 얻어 상세 조회에 쓴다. */
-  async getHospitalList(
-    params: GetHospitalListParams = {},
-  ): Promise<HospitalListResponse> {
-    const { data } = await getHospitalList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getHospitalList(params: GetHospitalListParams = {}): Promise<HospitalListResponse> {
+    const { data } = await getHospitalList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -186,125 +171,69 @@ export class HiraClient {
 
   /** 주소코드 (시도) */
   async getAddressCodes(params: CodeParams = {}): Promise<AddressCodeResponse> {
-    const { data } = await getAddressCodeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getAddressCodeList(params, withKrDataConfig(this.config));
     return data;
   }
 
   /** 의료기관종별코드 (clCd) */
-  async getInstitutionClassCodes(
-    params: CodeParams = {},
-  ): Promise<InstitutionClassCodeResponse> {
-    const { data } = await getInstitutionClassCodeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getInstitutionClassCodes(params: CodeParams = {}): Promise<InstitutionClassCodeResponse> {
+    const { data } = await getInstitutionClassCodeList(params, withKrDataConfig(this.config));
     return data;
   }
 
   /** 진료과목코드 (dgsbjtCd) */
   async getSubjectCodes(params: CodeParams = {}): Promise<SubjectCodeResponse> {
-    const { data } = await getSubjectCodeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getSubjectCodeList(params, withKrDataConfig(this.config));
     return data;
   }
 
   /** 장비코드 (oftCd) */
-  async getEquipmentCodes(
-    params: CodeParams = {},
-  ): Promise<EquipmentCodeResponse> {
-    const { data } = await getEquipmentCodeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getEquipmentCodes(params: CodeParams = {}): Promise<EquipmentCodeResponse> {
+    const { data } = await getEquipmentCodeList(params, withKrDataConfig(this.config));
     return data;
   }
 
   /** 전문병원코드 */
-  async getSpecialtyHospitalCodes(
-    params: CodeParams = {},
-  ): Promise<SearchCodeResponse> {
-    const { data } = await getSpecialtyHospitalCodeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getSpecialtyHospitalCodes(params: CodeParams = {}): Promise<SearchCodeResponse> {
+    const { data } = await getSpecialtyHospitalCodeList(params, withKrDataConfig(this.config));
     return data;
   }
 
   /** 특수진료코드 */
-  async getSpecialDiagnosisCodes(
-    params: CodeParams = {},
-  ): Promise<SearchCodeResponse> {
-    const { data } = await getSpecialDiagnosisCodeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getSpecialDiagnosisCodes(params: CodeParams = {}): Promise<SearchCodeResponse> {
+    const { data } = await getSpecialDiagnosisCodeList(params, withKrDataConfig(this.config));
     return data;
   }
 
   // ── 의료기관별상세정보서비스 (ykiho 기준) ──────────
 
   /** 세부정보 (진료시간·휴진·주차·응급실) */
-  async getDetailInfo(
-    ykiho: string,
-    params: DetailParams = {},
-  ): Promise<DetailInfoResponse> {
-    const { data } = await getDetailInfo(
-      { ...params, ykiho },
-      withKrDataConfig(this.config),
-    );
+  async getDetailInfo(ykiho: string, params: DetailParams = {}): Promise<DetailInfoResponse> {
+    const { data } = await getDetailInfo({ ...params, ykiho }, withKrDataConfig(this.config));
     return data;
   }
 
   /** 시설정보 (병상·수술실 등) */
-  async getFacilityInfo(
-    ykiho: string,
-    params: DetailParams = {},
-  ): Promise<FacilityInfoResponse> {
-    const { data } = await getFacilityInfo(
-      { ...params, ykiho },
-      withKrDataConfig(this.config),
-    );
+  async getFacilityInfo(ykiho: string, params: DetailParams = {}): Promise<FacilityInfoResponse> {
+    const { data } = await getFacilityInfo({ ...params, ykiho }, withKrDataConfig(this.config));
     return data;
   }
 
   /** 진료과목정보 */
-  async getSubjectInfo(
-    ykiho: string,
-    params: DetailParams = {},
-  ): Promise<SubjectInfoResponse> {
-    const { data } = await getSubjectInfo(
-      { ...params, ykiho },
-      withKrDataConfig(this.config),
-    );
+  async getSubjectInfo(ykiho: string, params: DetailParams = {}): Promise<SubjectInfoResponse> {
+    const { data } = await getSubjectInfo({ ...params, ykiho }, withKrDataConfig(this.config));
     return data;
   }
 
   /** 교통정보 */
-  async getTransportInfo(
-    ykiho: string,
-    params: DetailParams = {},
-  ): Promise<TransportInfoResponse> {
-    const { data } = await getTransportInfo(
-      { ...params, ykiho },
-      withKrDataConfig(this.config),
-    );
+  async getTransportInfo(ykiho: string, params: DetailParams = {}): Promise<TransportInfoResponse> {
+    const { data } = await getTransportInfo({ ...params, ykiho }, withKrDataConfig(this.config));
     return data;
   }
 
   /** 의료장비정보 */
-  async getEquipmentInfo(
-    ykiho: string,
-    params: DetailParams = {},
-  ): Promise<EquipmentInfoResponse> {
-    const { data } = await getEquipmentInfo(
-      { ...params, ykiho },
-      withKrDataConfig(this.config),
-    );
+  async getEquipmentInfo(ykiho: string, params: DetailParams = {}): Promise<EquipmentInfoResponse> {
+    const { data } = await getEquipmentInfo({ ...params, ykiho }, withKrDataConfig(this.config));
     return data;
   }
 
@@ -313,22 +242,13 @@ export class HiraClient {
     ykiho: string,
     params: DetailParams = {},
   ): Promise<NursingGradeInfoResponse> {
-    const { data } = await getNursingGradeInfo(
-      { ...params, ykiho },
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getNursingGradeInfo({ ...params, ykiho }, withKrDataConfig(this.config));
     return data;
   }
 
   /** 식대가산정보 */
-  async getFoodAddcInfo(
-    ykiho: string,
-    params: DetailParams = {},
-  ): Promise<FoodAddcInfoResponse> {
-    const { data } = await getFoodAddcInfo(
-      { ...params, ykiho },
-      withKrDataConfig(this.config),
-    );
+  async getFoodAddcInfo(ykiho: string, params: DetailParams = {}): Promise<FoodAddcInfoResponse> {
+    const { data } = await getFoodAddcInfo({ ...params, ykiho }, withKrDataConfig(this.config));
     return data;
   }
 
@@ -369,14 +289,8 @@ export class HiraClient {
   }
 
   /** 기타인력수 */
-  async getEtcStaffInfo(
-    ykiho: string,
-    params: DetailParams = {},
-  ): Promise<EtcStaffInfoResponse> {
-    const { data } = await getEtcStaffInfo(
-      { ...params, ykiho },
-      withKrDataConfig(this.config),
-    );
+  async getEtcStaffInfo(ykiho: string, params: DetailParams = {}): Promise<EtcStaffInfoResponse> {
+    const { data } = await getEtcStaffInfo({ ...params, ykiho }, withKrDataConfig(this.config));
     return data;
   }
 
@@ -405,10 +319,7 @@ export class HiraClient {
   async getExcellentAssessments(
     params: GetExcellentAssessmentListParams = {},
   ): Promise<ExcellentAssessmentResponse> {
-    const { data } = await getExcellentAssessmentList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getExcellentAssessmentList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -424,10 +335,7 @@ export class HiraClient {
   async getHospitalAssessments(
     params: GetHospitalAssessmentListParams = {},
   ): Promise<HospitalAssessmentResponse> {
-    const { data } = await getHospitalAssessmentList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getHospitalAssessmentList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -444,10 +352,7 @@ export class HiraClient {
   async getSpecialtyHospitals(
     params: GetSpecialtyHospitalListParams = {},
   ): Promise<SpecialCareHospitalResponse> {
-    const { data } = await getSpecialtyHospitalList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getSpecialtyHospitalList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -455,10 +360,7 @@ export class HiraClient {
   async getSubjectHospitals(
     params: GetSubjectHospitalListParams = {},
   ): Promise<SpecialCareHospitalResponse> {
-    const { data } = await getSubjectHospitalList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getSubjectHospitalList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -466,10 +368,7 @@ export class HiraClient {
   async getNursingHospitals(
     params: GetNursingHospitalListParams = {},
   ): Promise<SpecialCareHospitalResponse> {
-    const { data } = await getNursingHospitalList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getNursingHospitalList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -477,10 +376,7 @@ export class HiraClient {
   async getChildNightCareHospitals(
     params: GetChildNightCareListParams = {},
   ): Promise<SpecialCareHospitalResponse> {
-    const { data } = await getChildNightCareList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getChildNightCareList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -492,13 +388,8 @@ export class HiraClient {
    * **검색 파라미터를 하나도 안 주면 0건이다.** 전량이 필요하면 `mdfeeCd: '%'` 를 주거나
    * paginatePharmacyMdfees() 를 써라.
    */
-  async getPharmacyMdfees(
-    params: GetPharmacyMdfeeListParams = {},
-  ): Promise<PharmacyMdfeeResponse> {
-    const { data } = await getPharmacyMdfeeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getPharmacyMdfees(params: GetPharmacyMdfeeListParams = {}): Promise<PharmacyMdfeeResponse> {
+    const { data } = await getPharmacyMdfeeList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -506,13 +397,8 @@ export class HiraClient {
    * 한방수가 목록. 단가가 종별 4종(unprc1~4)으로 나뉜다. 전건 10,320건.
    * 약국수가와 마찬가지로 **필터 없이 부르면 0건이다.**
    */
-  async getOrientalMdfees(
-    params: GetOrientalMdfeeListParams = {},
-  ): Promise<OrientalMdfeeResponse> {
-    const { data } = await getOrientalMdfeeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getOrientalMdfees(params: GetOrientalMdfeeListParams = {}): Promise<OrientalMdfeeResponse> {
+    const { data } = await getOrientalMdfeeList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -524,10 +410,7 @@ export class HiraClient {
   async getDiagnosisMdfees(
     params: GetDiagnosisMdfeeListParams = {},
   ): Promise<DiagnosisMdfeeResponse> {
-    const { data } = await getDiagnosisMdfeeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getDiagnosisMdfeeList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -549,10 +432,7 @@ export class HiraClient {
   async getNonPaymentDetails(
     params: GetNonPaymentItemHospDetailListParams = {},
   ): Promise<NonPaymentDetailResponse> {
-    const { data } = await getNonPaymentItemHospDetailList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getNonPaymentItemHospDetailList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -565,10 +445,7 @@ export class HiraClient {
   async getNonPaymentSummaries(
     params: GetNonPaymentItemHospSummaryListParams = {},
   ): Promise<NonPaymentSummaryResponse> {
-    const { data } = await getNonPaymentItemHospSummaryList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getNonPaymentItemHospSummaryList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -583,10 +460,7 @@ export class HiraClient {
   async getNonPaymentCodes(
     params: GetNonPaymentItemCodesParams = {},
   ): Promise<NonPaymentCodeResponse> {
-    const { data } = await getNonPaymentItemCodes(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getNonPaymentItemCodes(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -599,10 +473,7 @@ export class HiraClient {
   async getNonPaymentClassStats(
     params: GetNonPaymentClassStatsParams = {},
   ): Promise<NonPaymentClassStatResponse> {
-    const { data } = await getNonPaymentClassStats(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getNonPaymentClassStats(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -614,10 +485,7 @@ export class HiraClient {
   async getNonPaymentRegionStats(
     params: GetNonPaymentRegionStatsParams = {},
   ): Promise<NonPaymentRegionStatResponse> {
-    const { data } = await getNonPaymentRegionStats(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getNonPaymentRegionStats(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -634,10 +502,7 @@ export class HiraClient {
   async getMajorComponentCodes(
     params: GetMajorComponentCodeListParams = {},
   ): Promise<MajorComponentCodeResponse> {
-    const { data } = await getMajorComponentCodeList(
-      params,
-      withKrDataConfig(this.config),
-    );
+    const { data } = await getMajorComponentCodeList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -653,13 +518,8 @@ export class HiraClient {
    * mnfEntpNm/impEntpNm/mdivCd 중 하나는 줘라. 급여구분(payTpNm)은 급여/급여중지/삭제가
    * 섞여 오니 비급여만 필요하면 호출부에서 걸러라.
    */
-  async getMaterials(
-    params: GetMaterialListParams = {},
-  ): Promise<MaterialListResponse> {
-    const { data } = await getMaterialList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getMaterials(params: GetMaterialListParams = {}): Promise<MaterialListResponse> {
+    const { data } = await getMaterialList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -674,13 +534,8 @@ export class HiraClient {
    *
    * **adtStaDd 가 필수다.** '20160101' 로 주면 전건 52,319건이다(2026-07 실측).
    */
-  async getNewDrgPayments(
-    params: GetNewDrgPaymentListParams,
-  ): Promise<NewDrgPaymentResponse> {
-    const { data } = await getNewDrgPaymentList(
-      params,
-      withKrDataConfig(this.config),
-    );
+  async getNewDrgPayments(params: GetNewDrgPaymentListParams): Promise<NewDrgPaymentResponse> {
+    const { data } = await getNewDrgPaymentList(params, withKrDataConfig(this.config));
     return data;
   }
 
@@ -863,10 +718,7 @@ export class HiraClient {
    */
   async *paginateNonPaymentDetails(
     numOfRows = 1000,
-    params: Omit<
-      GetNonPaymentItemHospDetailListParams,
-      'pageNo' | 'numOfRows'
-    > = {},
+    params: Omit<GetNonPaymentItemHospDetailListParams, 'pageNo' | 'numOfRows'> = {},
   ): AsyncGenerator<NonPaymentDetailResponse> {
     yield* this.paginateListPages(
       (page) => this.getNonPaymentDetails({ ...params, ...page }),
@@ -880,10 +732,7 @@ export class HiraClient {
    */
   async *paginateNonPaymentSummaries(
     numOfRows = 1000,
-    params: Omit<
-      GetNonPaymentItemHospSummaryListParams,
-      'pageNo' | 'numOfRows'
-    > = {},
+    params: Omit<GetNonPaymentItemHospSummaryListParams, 'pageNo' | 'numOfRows'> = {},
   ): AsyncGenerator<NonPaymentSummaryResponse> {
     yield* this.paginateListPages(
       (page) => this.getNonPaymentSummaries({ ...params, ...page }),

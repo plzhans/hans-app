@@ -42,11 +42,8 @@ export const getClinicTop5List = async (
   params: GetClinicTop5ListParams,
   options?: RequestInit,
 ): Promise<getClinicTop5ListResponse> => {
-  return krDataMutator<getClinicTop5ListResponse>(
-    getGetClinicTop5ListUrl(params),
-    {
-      ...options,
-      method: 'GET',
-    },
-  );
+  return krDataMutator<getClinicTop5ListResponse>(getGetClinicTop5ListUrl(params), {
+    ...options,
+    method: 'GET',
+  });
 };

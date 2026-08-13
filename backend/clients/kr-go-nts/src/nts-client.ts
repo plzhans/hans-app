@@ -33,14 +33,9 @@ export class NtsClient {
    */
   async getStatus(bNos: string[]): Promise<StatusResponse> {
     if (bNos.length > MAX_BATCH) {
-      throw new Error(
-        `NTS 상태조회는 한 번에 최대 ${MAX_BATCH}건이다 (요청: ${bNos.length}건).`,
-      );
+      throw new Error(`NTS 상태조회는 한 번에 최대 ${MAX_BATCH}건이다 (요청: ${bNos.length}건).`);
     }
-    const { data } = await getBusinessStatus(
-      { b_no: bNos },
-      withNtsConfig(this.config),
-    );
+    const { data } = await getBusinessStatus({ b_no: bNos }, withNtsConfig(this.config));
     return data;
   }
 
@@ -62,17 +57,12 @@ export class NtsClient {
         `NTS 진위확인은 한 번에 최대 ${MAX_BATCH}건이다 (요청: ${businesses.length}건).`,
       );
     }
-    const { data } = await validateBusiness(
-      { businesses },
-      withNtsConfig(this.config),
-    );
+    const { data } = await validateBusiness({ businesses }, withNtsConfig(this.config));
     return data;
   }
 
   /** 사업자 한 건의 진위확인 편의 메서드. 없으면 undefined. */
-  async validateOne(
-    business: BusinessDescription,
-  ): Promise<BusinessValidation | undefined> {
+  async validateOne(business: BusinessDescription): Promise<BusinessValidation | undefined> {
     const { data } = await this.validate([business]);
     return data?.[0];
   }

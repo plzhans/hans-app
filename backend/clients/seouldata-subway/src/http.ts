@@ -1,10 +1,4 @@
-import {
-  RESULT_BAD_KEY,
-  RESULT_EMPTY,
-  RESULT_OK,
-  SeoulDataError,
-  toServiceName,
-} from './error';
+import { RESULT_BAD_KEY, RESULT_EMPTY, RESULT_OK, SeoulDataError, toServiceName } from './error';
 
 const DEFAULT_READ_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_RETRY = 3;
@@ -35,10 +29,7 @@ export interface SeoulDataResponse<T = unknown> {
   headers: Headers;
 }
 
-export type SeoulDataFetch = (
-  url: string,
-  options?: RequestInit,
-) => Promise<SeoulDataResponse>;
+export type SeoulDataFetch = (url: string, options?: RequestInit) => Promise<SeoulDataResponse>;
 
 /**
  * 서울열린데이터광장 호출용 fetch 를 만든다. orval 의 custom mutator 로 주입한다.
@@ -67,12 +58,7 @@ export function createSeoulDataFetch(config: SeoulDataConfig): SeoulDataFetch {
     const requestUrl = `${baseUrl}/${apiKey}${url}`;
     const service = toServiceName(url);
 
-    const response = await sendWithRetry(
-      requestUrl,
-      options,
-      { readTimeoutMs, maxRetry },
-      service,
-    );
+    const response = await sendWithRetry(requestUrl, options, { readTimeoutMs, maxRetry }, service);
 
     return {
       status: response.status,
@@ -165,22 +151,21 @@ function parseBody(body: string, service: string | undefined): unknown {
 
   if (trimmed.startsWith('<')) {
     const { code, message } = parseXmlResult(trimmed);
-    throw new SeoulDataError(
-      message ?? 'SEOUL-DATA API returned an XML error',
-      code ?? 'XML',
-      { responseBody: body, service },
-    );
+    throw new SeoulDataError(message ?? 'SEOUL-DATA API returned an XML error', code ?? 'XML', {
+      responseBody: body,
+      service,
+    });
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
   } catch (error) {
-    throw new SeoulDataError(
-      'SEOUL-DATA API returned an unparseable body',
-      'PARSE',
-      { cause: error, responseBody: body.slice(0, 500), service },
-    );
+    throw new SeoulDataError('SEOUL-DATA API returned an unparseable body', 'PARSE', {
+      cause: error,
+      responseBody: body.slice(0, 500),
+      service,
+    });
   }
 
   const result = extractResult(parsed);
@@ -193,10 +178,7 @@ function parseBody(body: string, service: string | undefined): unknown {
     return parsed;
   }
 
-  const hint =
-    result.CODE === RESULT_BAD_KEY
-      ? ' (인증키를 확인하라. 재시도해도 소용없다.)'
-      : '';
+  const hint = result.CODE === RESULT_BAD_KEY ? ' (인증키를 확인하라. 재시도해도 소용없다.)' : '';
 
   throw new SeoulDataError(
     `${result.MESSAGE ?? 'SEOUL-DATA API error'}${hint}`,
@@ -249,9 +231,7 @@ function isResultBlock(value: unknown): value is ResultBlock {
  */
 function parseXmlResult(xml: string): { code?: string; message?: string } {
   const code = /<CODE>([^<]*)<\/CODE>/.exec(xml)?.[1]?.trim();
-  const message = /<MESSAGE>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/MESSAGE>/
-    .exec(xml)?.[1]
-    ?.trim();
+  const message = /<MESSAGE>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/MESSAGE>/.exec(xml)?.[1]?.trim();
   return { code, message };
 }
 

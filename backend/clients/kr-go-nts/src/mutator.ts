@@ -12,17 +12,11 @@ export interface NtsRequestInit extends RequestInit {
 /** 같은 설정으로 fetch 를 매번 새로 만들지 않도록 캐시한다. */
 const fetchCache = new WeakMap<NtsConfig, NtsFetch>();
 
-export function withNtsConfig(
-  config: NtsConfig,
-  options?: RequestInit,
-): NtsRequestInit {
+export function withNtsConfig(config: NtsConfig, options?: RequestInit): NtsRequestInit {
   return { ...options, nts: config };
 }
 
-export const ntsMutator = async <T>(
-  url: string,
-  options?: NtsRequestInit,
-): Promise<T> => {
+export const ntsMutator = async <T>(url: string, options?: NtsRequestInit): Promise<T> => {
   const config = options?.nts;
   if (!config) {
     throw new Error(

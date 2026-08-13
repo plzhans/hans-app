@@ -110,9 +110,7 @@ function findSections(root: Record<string, unknown>): unknown[] | undefined {
 }
 
 /** 봉투 0번의 head 배열. 없으면 빈 배열. */
-function findHeadSections(
-  root: Record<string, unknown>,
-): Record<string, unknown>[] {
+function findHeadSections(root: Record<string, unknown>): Record<string, unknown>[] {
   for (const section of findSections(root) ?? []) {
     const head = asRecord(section)?.head;
     if (Array.isArray(head)) {
