@@ -84,11 +84,7 @@ export class ConsentService {
     return this.consents.listByUser(userId);
   }
 
-  async record(
-    userId: number,
-    input: ConsentInput,
-    meta: ConsentMeta,
-  ): Promise<void> {
+  async record(userId: number, input: ConsentInput, meta: ConsentMeta): Promise<void> {
     const ip = meta.ip ?? null;
     const userAgent = meta.userAgent ?? null;
     await this.consents.createMany([

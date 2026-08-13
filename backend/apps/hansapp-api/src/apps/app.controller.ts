@@ -16,19 +16,8 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  AppService,
-  Auth,
-  AuthType,
-  CurrentUser,
-  reviewStateOf,
-} from '@hansapp/auth-application';
-import type {
-  App,
-  AppApiKey,
-  AppClient,
-  AuthUser,
-} from '@hansapp/auth-application';
+import { AppService, Auth, AuthType, CurrentUser, reviewStateOf } from '@hansapp/auth-application';
+import type { App, AppApiKey, AppClient, AuthUser } from '@hansapp/auth-application';
 
 import {
   ApiKeySummaryDto,
@@ -77,10 +66,7 @@ export class AppsController {
     description: '등급별 생성 한도를 초과하면 403.',
   })
   @ApiCreatedResponse({ type: AppSummaryDto })
-  async create(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: CreateAppDto,
-  ): Promise<AppSummaryDto> {
+  async create(@CurrentUser() user: AuthUser, @Body() dto: CreateAppDto): Promise<AppSummaryDto> {
     return toAppSummary(await this.apps.createApp(user.userId, dto.name));
   }
 
@@ -165,11 +151,7 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateApiKeyDto,
   ): Promise<CreatedApiKeyDto> {
-    const { apiKey, plainKey } = await this.apps.createApiKey(
-      user.userId,
-      id,
-      dto.name,
-    );
+    const { apiKey, plainKey } = await this.apps.createApiKey(user.userId, id, dto.name);
     return {
       id: apiKey.id,
       name: apiKey.name,
@@ -192,11 +174,7 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
     @Param('keyId', ParseIntPipe) keyId: number,
   ): Promise<CreatedApiKeyDto> {
-    const { apiKey, plainKey } = await this.apps.regenerateApiKey(
-      user.userId,
-      id,
-      keyId,
-    );
+    const { apiKey, plainKey } = await this.apps.regenerateApiKey(user.userId, id, keyId);
     return {
       id: apiKey.id,
       name: apiKey.name,
@@ -242,21 +220,17 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateClientDto,
   ): Promise<CreatedClientDto> {
-    const { client, plainSecret } = await this.apps.createClient(
-      user.userId,
-      id,
-      {
-        type: dto.type,
-        name: dto.name,
-        clientId: dto.clientId,
-        origins: dto.origins,
-        redirectUris: dto.redirectUris,
-        bundleId: dto.bundleId,
-        teamId: dto.teamId,
-        packageName: dto.packageName,
-        fingerprints: dto.fingerprints,
-      },
-    );
+    const { client, plainSecret } = await this.apps.createClient(user.userId, id, {
+      type: dto.type,
+      name: dto.name,
+      clientId: dto.clientId,
+      origins: dto.origins,
+      redirectUris: dto.redirectUris,
+      bundleId: dto.bundleId,
+      teamId: dto.teamId,
+      packageName: dto.packageName,
+      fingerprints: dto.fingerprints,
+    });
     return { ...toClient(client), secret: plainSecret };
   }
 
@@ -264,8 +238,7 @@ export class AppsController {
   @HttpCode(200)
   @ApiOperation({
     summary: '클라이언트 보안 비밀번호 재발급',
-    description:
-      '기존 시크릿은 즉시 무효화된다. 새 원문은 이 응답에서만 확인 가능하다.',
+    description: '기존 시크릿은 즉시 무효화된다. 새 원문은 이 응답에서만 확인 가능하다.',
   })
   @ApiOkResponse({ type: SecretResponseDto })
   async regenerateSecret(
@@ -273,11 +246,7 @@ export class AppsController {
     @Param('id', ParseIntPipe) id: number,
     @Param('clientPk', ParseIntPipe) clientPk: number,
   ): Promise<SecretResponseDto> {
-    const secret = await this.apps.regenerateClientSecret(
-      user.userId,
-      id,
-      clientPk,
-    );
+    const secret = await this.apps.regenerateClientSecret(user.userId, id, clientPk);
     return { secret };
   }
 

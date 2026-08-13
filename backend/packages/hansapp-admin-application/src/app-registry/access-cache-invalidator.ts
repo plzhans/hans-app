@@ -9,8 +9,7 @@ import type { Cache } from 'cache-manager';
  *
  * 환경 네임스페이스(`develop:`)는 CacheModule 이 붙이므로 여기서는 붙이지 않는다.
  */
-const apiKeyCacheKey = (appId: number, keyId: number) =>
-  `auth:apikey:${appId}:${keyId}`;
+const apiKeyCacheKey = (appId: number, keyId: number) => `auth:apikey:${appId}:${keyId}`;
 const clientCacheKey = (clientId: string) => `auth:client:${clientId}`;
 
 /**
@@ -30,9 +29,7 @@ const clientCacheKey = (clientId: string) => `auth:client:${clientId}`;
 export class AccessCacheInvalidator {
   private readonly logger = new Logger(AccessCacheInvalidator.name);
 
-  constructor(
-    @Optional() @Inject(CACHE_MANAGER) private readonly cache?: Cache,
-  ) {}
+  constructor(@Optional() @Inject(CACHE_MANAGER) private readonly cache?: Cache) {}
 
   /**
    * 승인으로 켜진 키·클라이언트의 캐시를 비운다.

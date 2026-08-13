@@ -47,11 +47,7 @@ export class SettingController {
     @CurrentAdmin() admin: AdminAuthUser,
   ): Promise<SettingGroupDto[]> {
     // 누가 바꿨는지 남긴다 — 설정이 조용히 바뀌면 원인을 찾을 단서가 이것뿐이다.
-    const groups = await this.settings.saveGroup(
-      groupId,
-      dto.values,
-      admin.adminId,
-    );
+    const groups = await this.settings.saveGroup(groupId, dto.values, admin.adminId);
     return groups.map((g) => new SettingGroupDto(g));
   }
 }

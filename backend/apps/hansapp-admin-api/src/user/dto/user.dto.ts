@@ -10,11 +10,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import {
-  AuthLogResult,
-  AuthLogAction,
-  UserStatus,
-} from '@hansapp/admin-application';
+import { AuthLogResult, AuthLogAction, UserStatus } from '@hansapp/admin-application';
 import type {
   ProfileCacheState,
   UserAuthLogEntry,
@@ -122,8 +118,7 @@ export class UserAuthLogDto {
   readonly userAgent!: string | null;
 
   @ApiPropertyOptional({
-    description:
-      '액션별 부가정보. **모양이 액션마다 다르다** — 정해진 필드가 없고, 없으면 빠진다.',
+    description: '액션별 부가정보. **모양이 액션마다 다르다** — 정해진 필드가 없고, 없으면 빠진다.',
     type: 'object',
     additionalProperties: true,
   })

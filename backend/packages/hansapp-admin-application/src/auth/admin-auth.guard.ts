@@ -30,10 +30,10 @@ export class AdminAuthGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(
-      IS_ADMIN_PUBLIC_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_ADMIN_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (isPublic) {
       return true;
     }
@@ -60,10 +60,10 @@ export class AdminAuthGuard implements CanActivate {
       그 값을 아는 사람이 곧바로 업무 API 를 부를 수 있으면 강제 변경을 둔 의미가 없다.
     */
     if (mustChangePassword) {
-      const allowed = this.reflector.getAllAndOverride<boolean>(
-        ALLOW_DURING_PASSWORD_CHANGE_KEY,
-        [context.getHandler(), context.getClass()],
-      );
+      const allowed = this.reflector.getAllAndOverride<boolean>(ALLOW_DURING_PASSWORD_CHANGE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
       if (!allowed) {
         // 401 이 아니라 403 이다. 인증은 통과했고 자격이 모자란 것이라,
         // 프론트가 401 로 오해해 토큰 갱신을 반복하는 일이 없어야 한다.

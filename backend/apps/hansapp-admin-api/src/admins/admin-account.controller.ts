@@ -12,26 +12,12 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import {
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
-import {
-  AdminActionLogReadService,
-  AdminEmailService,
-} from '@hansapp/admin-application';
-import {
-  AdminAccountService,
-  CurrentAdmin,
-} from '@hansapp/admin-application/auth';
-import type {
-  AdminActor,
-  AdminAuthUser,
-} from '@hansapp/admin-application/auth';
+import { AdminActionLogReadService, AdminEmailService } from '@hansapp/admin-application';
+import { AdminAccountService, CurrentAdmin } from '@hansapp/admin-application/auth';
+import type { AdminActor, AdminAuthUser } from '@hansapp/admin-application/auth';
 
 import { requestMeta } from '../auth/admin-cookie';
 import {
@@ -81,9 +67,7 @@ export class AdminAccountController {
   @Get(':id')
   @ApiOperation({ summary: '관리자 상세' })
   @ApiOkResponse({ type: AdminAccountDetailDto })
-  async detail(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<AdminAccountDetailDto> {
+  async detail(@Param('id', ParseIntPipe) id: number): Promise<AdminAccountDetailDto> {
     const admin = await this.accounts.findById(id);
     if (!admin) {
       throw new NotFoundException(`Admin not found: ${id}`);
@@ -145,9 +129,7 @@ export class AdminAccountController {
     @CurrentAdmin() current: AdminAuthUser,
     @Req() req: Request,
   ): Promise<AdminAccountDetailDto> {
-    return new AdminAccountDetailDto(
-      await this.accounts.update(id, dto, actorOf(current, req)),
-    );
+    return new AdminAccountDetailDto(await this.accounts.update(id, dto, actorOf(current, req)));
   }
 
   @Post(':id/password')
@@ -167,11 +149,7 @@ export class AdminAccountController {
     @CurrentAdmin() current: AdminAuthUser,
     @Req() req: Request,
   ): Promise<AdminPasswordResetResponseDto> {
-    const account = await this.accounts.resetPassword(
-      id,
-      actorOf(current, req),
-      dto.password,
-    );
+    const account = await this.accounts.resetPassword(id, actorOf(current, req), dto.password);
 
     // 계정을 만들 때와 같은 이유로 여기서 보낸다 — 컨트롤러의 create 주석 참고.
     const mail = dto.sendEmail
@@ -234,9 +212,7 @@ export class AdminAccountController {
       to: query.to ? new Date(query.to) : undefined,
       actions: query.actions,
     });
-    return PageResponseDto.from(
-      page.map((entry) => new AdminActionLogDto(entry)),
-    );
+    return PageResponseDto.from(page.map((entry) => new AdminActionLogDto(entry)));
   }
 }
 

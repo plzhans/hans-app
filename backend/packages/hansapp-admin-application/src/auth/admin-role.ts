@@ -16,11 +16,7 @@ export const ADMIN_ROLE_RANK: Record<AdminRole, number> = {
 };
 
 /** 높은 등급부터. 화면의 선택 목록 차례가 이 순서다. */
-export const ADMIN_ROLES: AdminRole[] = [
-  AdminRole.SYSTEM,
-  AdminRole.ADMIN,
-  AdminRole.OPERATOR,
-];
+export const ADMIN_ROLES: AdminRole[] = [AdminRole.SYSTEM, AdminRole.ADMIN, AdminRole.OPERATOR];
 
 /**
  * `actor` 가 `target` 등급의 계정을 다룰 수 있는가.
@@ -43,15 +39,9 @@ export function canManageRole(actor: AdminRole, target: AdminRole): boolean {
  *
  * @param what 무엇을 하려 했는지. 영어 동사구 — 예외 메시지는 영어로 쓴다.
  */
-export function assertCanManageAdmin(
-  actor: AdminRole,
-  target: AdminRole,
-  what: string,
-): void {
+export function assertCanManageAdmin(actor: AdminRole, target: AdminRole, what: string): void {
   if (!canManageRole(actor, target)) {
-    throw new ForbiddenException(
-      `Cannot ${what} an admin with a higher role than yours.`,
-    );
+    throw new ForbiddenException(`Cannot ${what} an admin with a higher role than yours.`);
   }
 }
 

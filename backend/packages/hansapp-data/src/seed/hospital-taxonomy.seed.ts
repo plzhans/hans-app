@@ -139,17 +139,7 @@ export const SUBJECT_GROUPS: SubjectGroupSeed[] = [
   {
     code: 'dental',
     name: { ko: '치과', en: 'Dentistry', ja: '歯科', zh: '牙科' },
-    subjects: [
-      'DENT',
-      'ORTHO',
-      'PROS',
-      'PERIO',
-      'ENDO',
-      'PEDO',
-      'OMFS',
-      'OMED',
-      'INTEG_DENT',
-    ],
+    subjects: ['DENT', 'ORTHO', 'PROS', 'PERIO', 'ENDO', 'PEDO', 'OMFS', 'OMED', 'INTEG_DENT'],
   },
 
   {
@@ -365,9 +355,7 @@ export function subjectField(subjectCd: string): MedicalField {
   if (subjectCd.startsWith('KM_')) {
     return 'km';
   }
-  return (DENTAL_SUBJECTS as readonly string[]).includes(subjectCd)
-    ? 'dent'
-    : 'med';
+  return (DENTAL_SUBJECTS as readonly string[]).includes(subjectCd) ? 'dent' : 'med';
 }
 
 /**

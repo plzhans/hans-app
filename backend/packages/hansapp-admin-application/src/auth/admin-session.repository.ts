@@ -26,11 +26,7 @@ export class AdminSessionRepository {
   }
 
   /** rotate: 새 secret 해시 + 만료 연장(sliding). */
-  rotate(
-    sessionId: string,
-    secretHash: string,
-    expiresAt: Date,
-  ): Promise<AdminTokenSession> {
+  rotate(sessionId: string, secretHash: string, expiresAt: Date): Promise<AdminTokenSession> {
     return this.prisma.adminTokenSession.update({
       where: { sessionId },
       data: { secretHash, expiresAt },
@@ -38,9 +34,7 @@ export class AdminSessionRepository {
   }
 
   delete(sessionId: string): Promise<void> {
-    return this.prisma.adminTokenSession
-      .deleteMany({ where: { sessionId } })
-      .then(() => undefined);
+    return this.prisma.adminTokenSession.deleteMany({ where: { sessionId } }).then(() => undefined);
   }
 
   /**
@@ -66,9 +60,7 @@ export class AdminSessionRepository {
   }
 
   deleteAllByAdmin(adminId: number): Promise<number> {
-    return this.prisma.adminTokenSession
-      .deleteMany({ where: { adminId } })
-      .then((r) => r.count);
+    return this.prisma.adminTokenSession.deleteMany({ where: { adminId } }).then((r) => r.count);
   }
 
   /**

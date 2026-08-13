@@ -37,11 +37,7 @@ export class LlmUsageLogRepository {
    * 한 페이지와 총건수를 **한 번에** 가져온다.
    * 따로 부르면 그 사이에 새 호출이 쌓여 총건수와 행이 어긋난다.
    */
-  listPage(
-    filter: LlmUsageLogFilter,
-    skip: number,
-    take: number,
-  ): Promise<[LlmUsage[], number]> {
+  listPage(filter: LlmUsageLogFilter, skip: number, take: number): Promise<[LlmUsage[], number]> {
     const where = buildWhere(filter);
     return this.prisma.$transaction([
       this.prisma.llmUsage.findMany({

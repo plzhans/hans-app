@@ -38,11 +38,7 @@ export class AuthLogRepository {
    * 한 페이지와 총건수를 **한 번에** 가져온다.
    * 따로 부르면 그 사이에 새 이벤트가 쌓여 총건수와 행이 어긋난다.
    */
-  listPage(
-    filter: AuthLogFilter,
-    skip: number,
-    take: number,
-  ): Promise<[UserAuthLog[], number]> {
+  listPage(filter: AuthLogFilter, skip: number, take: number): Promise<[UserAuthLog[], number]> {
     const where = buildWhere(filter);
     return this.prisma.$transaction([
       this.prisma.userAuthLog.findMany({

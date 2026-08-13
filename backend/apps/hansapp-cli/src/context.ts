@@ -1,8 +1,4 @@
-import {
-  DynamicModule,
-  INestApplicationContext,
-  LogLevel,
-} from '@nestjs/common';
+import { DynamicModule, INestApplicationContext, LogLevel } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigSource } from '@hansapp/common';
 import { AdminApplicationModule, I18nModule } from '@hansapp/admin-application';
@@ -97,12 +93,7 @@ export async function withSearchContext<T>(
   run: (context: INestApplicationContext) => Promise<T>,
   options: { verbose?: boolean } = {},
 ): Promise<T> {
-  return withContext(
-    SearchModule.forRoot(source),
-    run,
-    options.verbose !== false,
-    false,
-  );
+  return withContext(SearchModule.forRoot(source), run, options.verbose !== false, false);
 }
 
 export async function withI18nContext<T>(
@@ -110,12 +101,7 @@ export async function withI18nContext<T>(
   run: (context: INestApplicationContext) => Promise<T>,
   options: { verbose?: boolean } = {},
 ): Promise<T> {
-  return withContext(
-    I18nModule.forRoot(source),
-    run,
-    options.verbose !== false,
-    false,
-  );
+  return withContext(I18nModule.forRoot(source), run, options.verbose !== false, false);
 }
 
 /**

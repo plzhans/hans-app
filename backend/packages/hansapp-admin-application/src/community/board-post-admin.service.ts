@@ -1,20 +1,10 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuthorType, Page, PostStatus } from '@hansapp/common';
 import type { Board, BoardPost } from '@hansapp/data';
 
 import { BoardRepository } from './board.repository';
-import {
-  BoardPostCacheInvalidator,
-  type PostCacheState,
-} from './board-post-cache.invalidator';
-import {
-  BoardPostRepository,
-  type PostListItem,
-} from './board-post.repository';
+import { BoardPostCacheInvalidator, type PostCacheState } from './board-post-cache.invalidator';
+import { BoardPostRepository, type PostListItem } from './board-post.repository';
 
 /**
  * 글·댓글을 쓴 사람. **세 값이 한 벌이다.**
@@ -109,11 +99,7 @@ export class BoardPostAdminService {
   }
 
   /** 쓴다. **작성자는 부르는 쪽이 확정해 넘긴다**(콘솔이면 지금 로그인한 관리자다). */
-  async create(
-    boardId: number,
-    author: PostAuthor,
-    input: PostWriteInput,
-  ): Promise<PostDetail> {
+  async create(boardId: number, author: PostAuthor, input: PostWriteInput): Promise<PostDetail> {
     const board = await this.mustFindBoard(boardId);
     const status = input.status ?? PostStatus.PUBLISHED;
     const post = await this.posts.create({
@@ -142,8 +128,7 @@ export class BoardPostAdminService {
     const post = await this.posts.update(id, {
       title: input.title?.trim(),
       content: input.content,
-      summary:
-        input.summary === undefined ? undefined : input.summary?.trim() || null,
+      summary: input.summary === undefined ? undefined : input.summary?.trim() || null,
       pinned: input.pinned,
       status,
       /*
@@ -151,18 +136,11 @@ export class BoardPostAdminService {
         수정 순으로 뒤섞인다 — 내렸다가 다시 올리는 경우에만 새로 찍는다.
       */
       publishedAt:
-        status === PostStatus.PUBLISHED && current.publishedAt === null
-          ? new Date()
-          : undefined,
+        status === PostStatus.PUBLISHED && current.publishedAt === null ? new Date() : undefined,
       ...decided(board, {
         commentEnabled:
-          input.commentEnabled === undefined
-            ? current.commentEnabled
-            : input.commentEnabled,
-        likeEnabled:
-          input.likeEnabled === undefined
-            ? current.likeEnabled
-            : input.likeEnabled,
+          input.commentEnabled === undefined ? current.commentEnabled : input.commentEnabled,
+        likeEnabled: input.likeEnabled === undefined ? current.likeEnabled : input.likeEnabled,
         secret: input.secret ?? current.secret,
       }),
     });

@@ -11,10 +11,7 @@ export { HiraHospitalSyncService } from './hira/hira-hospital-sync.service';
 
 /** 병원 ES 색인 오케스트레이션(DB→문서→ES). CLI(es hospital)가 쓴다. */
 export { HealthcareIndexService } from './healthcare/healthcare-index.service';
-export type {
-  IndexResult,
-  ReindexResult,
-} from './healthcare/healthcare-index.service';
+export type { IndexResult, ReindexResult } from './healthcare/healthcare-index.service';
 export { NmcQueryService } from './nmc/nmc-query.service';
 export { NmcHospitalReadService } from './nmc/nmc-hospital-read.service';
 export type { NmcHospitalListOptions } from './nmc/nmc-hospital-read.service';
@@ -25,11 +22,7 @@ export type { HiraPageParams } from './hira/hira-query.service';
 
 // 코드 종류(tp) 정의는 application 계층이 소유한다(조회 시 원본 필드명 복원에 쓴다).
 // CLI 는 admin 계층만 참조하므로 여기서 다시 내보낸다.
-export {
-  HIRA_CODE_TYPES,
-  HIRA_CODE_TYPE_DEFS,
-  isHiraCodeType,
-} from '@hansapp/application';
+export { HIRA_CODE_TYPES, HIRA_CODE_TYPE_DEFS, isHiraCodeType } from '@hansapp/application';
 export type { HiraCodeType, HiraCodeResponse } from '@hansapp/application';
 
 // 인프라 접속 점검. AdminApplicationModule 이 ApplicationModule 을 통해 이미 제공하고 있어
@@ -51,20 +44,14 @@ export { SettingAdminService } from './setting/setting-admin.service';
 /* 서버 LLM 키(env_llm_key). app_llm_key 와 짝이고, 설정이 아니라 관리 대상 목록이라 CRUD 다. */
 export { EnvLlmKeyAdminService } from './llm/env-llm-key-admin.service';
 export { EnvLlmModelAdminService } from './llm/env-llm-model-admin.service';
-export type {
-  EnvLlmModelInput,
-  EnvLlmModelView,
-} from './llm/env-llm-model-admin.service';
+export type { EnvLlmModelInput, EnvLlmModelView } from './llm/env-llm-model-admin.service';
 /*
   enum 을 여기서 다시 내보낸다. 관리자 API 가 DTO 검증(@IsEnum)에 값을 써야 하는데
   @hansapp/data 를 직접 의존시키면 HTTP 앱이 DB 계층에 붙는다 — HealthService 를
   re-export 한 것과 같은 이유다.
 */
 export { LlmProvider, LlmKeyType, EnvLlmKeyStatus } from '@hansapp/data';
-export type {
-  EnvLlmKeyView,
-  EnvLlmKeyInput,
-} from './llm/env-llm-key-admin.service';
+export type { EnvLlmKeyView, EnvLlmKeyInput } from './llm/env-llm-key-admin.service';
 // 타입·카탈로그는 계층이 아니라 공용이다 — 관리자 API 가 DTO 를 만들 때 이걸 쓴다.
 export type {
   SettingSource,
@@ -92,10 +79,7 @@ export type { RegionRebuildResult } from './common/region-rebuild';
 /** 행정안전부 법정동코드. 지역 정본이라 배치에서 가장 먼저 적재한다. */
 export { MoisQueryService } from './mois/mois-query.service';
 export { MoisRegionSyncService } from './mois/mois-region-sync.service';
-export {
-  REGION_SYNC_MODES,
-  REGION_LEVELS,
-} from './mois/mois-region-sync.service';
+export { REGION_SYNC_MODES, REGION_LEVELS } from './mois/mois-region-sync.service';
 export type {
   RegionSyncMode,
   RegionSyncOptions,
@@ -106,11 +90,7 @@ export { MoisStageService, MOIS_STAGES } from './mois/mois-stage.service';
 export type { MoisStage } from './mois/mois-stage.service';
 
 export { SyncRunnerService } from './common/sync-runner.service';
-export type {
-  RunAllOptions,
-  RunAllResult,
-  StageRun,
-} from './common/sync-runner.service';
+export type { RunAllOptions, RunAllResult, StageRun } from './common/sync-runner.service';
 export { SyncStateService } from './common/sync-state.service';
 
 // 관리자용 회원 조회(읽기 전용). 회원 수정은 회원 본인의 통로가 하고 여기서는 보기만 한다.
@@ -129,10 +109,7 @@ export type { ProfileCacheState } from './user/user-profile-cache.admin';
 // 회원 인증·계정 기록(로그 DB). 로그인만이 아니라 가입·비밀번호·소셜연동·탈퇴가 같은 표에 쌓인다.
 // 서비스 행위(좋아요·조회)는 여기가 아니라 별도 표로 간다 — auth.prisma 주석 참고.
 export { UserAuthLogService } from './user/user-auth-log.service';
-export type {
-  UserAuthLogEntry,
-  UserAuthLogQuery,
-} from './user/user-auth-log.service';
+export type { UserAuthLogEntry, UserAuthLogQuery } from './user/user-auth-log.service';
 // 전역 인증 기록(로그 DB). 회원 상세의 탭과 달리 대상을 가리지 않고 기간으로 훑는다 —
 // **user_id 가 null 인 행(없는 계정으로의 시도)은 여기서만 보인다.**
 export { AuthLogService } from './log/auth-log.service';
@@ -142,18 +119,12 @@ export type { AuthLogEntry, AuthLogQuery } from './log/auth-log.service';
   user.id 라 관리자 번호를 섞을 수 없다. 로그인만이 아니라 계정 관리 조치까지 같이 쌓인다.
 */
 export { AdminActionLogReadService } from './log/admin-action-log-read.service';
-export type {
-  AdminActionLogEntry,
-  AdminActionLogQuery,
-} from './log/admin-action-log-read.service';
+export type { AdminActionLogEntry, AdminActionLogQuery } from './log/admin-action-log-read.service';
 // 화면 필터·DTO 검증이 값으로 쓴다(다른 enum 재노출과 같은 이유).
 export { AdminLogAction, AdminLogResult } from '@hansapp/data';
 // LLM 호출 이력(로그 DB). **합산하지 않는다** — 사용량·정산은 별도 표가 맡는다.
 export { LlmUsageLogService } from './log/llm-usage-log.service';
-export type {
-  LlmUsageLogEntry,
-  LlmUsageLogQuery,
-} from './log/llm-usage-log.service';
+export type { LlmUsageLogEntry, LlmUsageLogQuery } from './log/llm-usage-log.service';
 export type {
   UserSummary,
   UserDetail,
@@ -192,26 +163,15 @@ export {
   PROVIDER_FRESHNESS_HOURS,
   freshnessHours,
 } from './nmc/nmc-stage.service';
-export type {
-  NmcStage,
-  StageResult,
-  StageRunOptions,
-} from './nmc/nmc-stage.service';
-export {
-  NmcBasicSyncService,
-  NMC_MAJOR_DIVS,
-} from './nmc/nmc-basic-sync.service';
+export type { NmcStage, StageResult, StageRunOptions } from './nmc/nmc-stage.service';
+export { NmcBasicSyncService, NMC_MAJOR_DIVS } from './nmc/nmc-basic-sync.service';
 export {
   HiraDetailSyncService,
   HIRA_DETAIL_OPS,
   HIRA_EXTRA_OPS,
   HIRA_ALL_OPS,
 } from './hira/hira-detail-sync.service';
-export {
-  HiraStageService,
-  HIRA_STAGES,
-  HIRA_STAGE_CLASSES,
-} from './hira/hira-stage.service';
+export { HiraStageService, HIRA_STAGES, HIRA_STAGE_CLASSES } from './hira/hira-stage.service';
 export type { HiraStage } from './hira/hira-stage.service';
 
 export { HealthcareBuildService } from './healthcare/healthcare-build.service';
@@ -227,12 +187,7 @@ export type { CodeSeedResult } from './healthcare/healthcare-code-seed.service';
 
 export { HiraNmcMatchService } from './match/hira-nmc-match.service';
 export type { MatchOptions, MatchResult } from './match/hira-nmc-match.service';
-export {
-  normalizeName,
-  normalizeTel,
-  nameSimilarity,
-  distanceMeters,
-} from './match/similarity';
+export { normalizeName, normalizeTel, nameSimilarity, distanceMeters } from './match/similarity';
 
 export { describeError } from './common/error';
 export { DATA_SOURCES } from './common/data-source';

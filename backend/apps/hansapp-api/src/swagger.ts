@@ -56,9 +56,7 @@ const SERVERS_BY_ENV: Record<AppEnv, ServerDef[]> = {
  * - 설명 생략 시 url 을 설명으로 쓴다. 빈 항목/빈 url 은 버린다.
  * 파싱 결과가 비면 undefined 를 돌려 상위(env/기본)로 폴백하게 한다.
  */
-export function parseServersSpec(
-  spec: string | undefined,
-): ServerDef[] | undefined {
+export function parseServersSpec(spec: string | undefined): ServerDef[] | undefined {
   if (!spec?.trim()) return undefined;
   const servers = spec
     .split(';')
@@ -79,10 +77,7 @@ export function parseServersSpec(
  */
 function resolveServers(override?: ServerDef[]): ServerDef[] {
   if (override?.length) return override;
-  return (
-    parseServersSpec(process.env.OPENAPI_SERVERS) ??
-    SERVERS_BY_ENV[resolveAppEnv()]
-  );
+  return parseServersSpec(process.env.OPENAPI_SERVERS) ?? SERVERS_BY_ENV[resolveAppEnv()];
 }
 
 /**
@@ -111,8 +106,7 @@ export function buildOpenApiDocument(
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT or service key(sk_...)',
-        description:
-          '사용자 access token(JWT) 또는 서비스 키(sk_{appId}_{keyId}_{rand}).',
+        description: '사용자 access token(JWT) 또는 서비스 키(sk_{appId}_{keyId}_{rand}).',
       },
       BEARER_SCHEME,
     )
@@ -122,8 +116,7 @@ export function buildOpenApiDocument(
         type: 'apiKey',
         in: 'header',
         name: CLIENT_ID_HEADER,
-        description:
-          '공개 클라이언트 식별자(clientId). WEB 은 Origin 도 검사됨.',
+        description: '공개 클라이언트 식별자(clientId). WEB 은 Origin 도 검사됨.',
       },
       CLIENT_ID_SCHEME,
     );

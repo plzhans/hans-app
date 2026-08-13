@@ -184,8 +184,7 @@ export class TokenRequestDto {
   readonly code?: string;
 
   @ApiPropertyOptional({
-    description:
-      'refresh_token grant 의 refresh token(rt_...). 생략 시 httpOnly 쿠키에서 읽는다.',
+    description: 'refresh_token grant 의 refresh token(rt_...). 생략 시 httpOnly 쿠키에서 읽는다.',
   })
   @IsOptional()
   @IsString()

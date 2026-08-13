@@ -62,9 +62,7 @@ const NMC_AREA: Record<string, string> = {
 };
 
 /** HIRA sggu_cd 로 지역번호를 찾는다. 못 찾으면 undefined(=지역번호를 못 채움). */
-export function hiraAreaCode(
-  sgguCd: string | null | undefined,
-): string | undefined {
+export function hiraAreaCode(sgguCd: string | null | undefined): string | undefined {
   if (!sgguCd) return undefined;
   return HIRA_AREA[sgguCd.slice(0, 2)];
 }
@@ -74,9 +72,7 @@ export function hiraAreaCode(
  * 통합 지역명('전남광주통합특별시')은 전남·광주가 섞여 있어 지역번호를 특정할 수 없다 →
  * undefined 를 돌려 지역번호를 함부로 채우지 않는다(틀린 번호를 만드느니 로컬 그대로 둔다).
  */
-export function nmcAreaCode(
-  sidoNm: string | null | undefined,
-): string | undefined {
+export function nmcAreaCode(sidoNm: string | null | undefined): string | undefined {
   if (!sidoNm) return undefined;
   return NMC_AREA[sidoNm.trim()];
 }

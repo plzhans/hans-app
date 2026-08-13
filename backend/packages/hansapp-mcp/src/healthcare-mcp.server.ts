@@ -1,9 +1,6 @@
 import { Injectable, type OnApplicationBootstrap } from '@nestjs/common';
 import { McpServer } from '@modelcontextprotocol/server';
-import {
-  HealthcareHospitalService,
-  HealthcareMetaService,
-} from '@hansapp/application';
+import { HealthcareHospitalService, HealthcareMetaService } from '@hansapp/application';
 import { FALLBACK_LANG, type SupportedLang } from '@hansapp/common';
 import { z } from 'zod';
 
@@ -24,12 +21,7 @@ const RESULT_SIZE = 8;
  * 도구 인자로 받을 수 있는 언어. 응답의 이름 현지화에 쓴다.
  * `satisfies` 로 공용 타입에 묶어 둔다 — 지원 언어가 늘었는데 여기만 안 늘면 컴파일이 막힌다.
  */
-const LANGS = [
-  'ko',
-  'en',
-  'ja',
-  'zh',
-] as const satisfies readonly SupportedLang[];
+const LANGS = ['ko', 'en', 'ja', 'zh'] as const satisfies readonly SupportedLang[];
 
 /**
  * 병원 도메인 MCP 서버. **LLM 을 부르지 않는다** — 추론은 붙은 쪽(Claude Desktop 등)
@@ -76,13 +68,9 @@ export class HealthcareMcpServer implements OnApplicationBootstrap {
    */
   onApplicationBootstrap(): void {
     this.subjectCodes = toEnum(this.meta.listSubjects().map((s) => s.code));
-    this.specialtyCodes = toEnum(
-      this.meta.listCodes('specialty').map((c) => c.code),
-    );
+    this.specialtyCodes = toEnum(this.meta.listCodes('specialty').map((c) => c.code));
     // 평가 항목은 분야(asm01…)로 묶여 오므로 항목 코드만 펼친다.
-    this.asmCodes = toEnum(
-      this.meta.listAssessments().flatMap((g) => g.items.map((i) => i.code)),
-    );
+    this.asmCodes = toEnum(this.meta.listAssessments().flatMap((g) => g.items.map((i) => i.code)));
     this.tierCodes = toEnum(this.meta.listHospitalTiers().map((t) => t.code));
   }
 
@@ -149,10 +137,7 @@ export class HealthcareMcpServer implements OnApplicationBootstrap {
             ),
           name: z.string().optional().describe('병원 이름(부분 일치).'),
           emergency: z.boolean().optional().describe('응급실 운영 병원만.'),
-          baby: z
-            .boolean()
-            .optional()
-            .describe('달빛어린이병원(야간·휴일 소아 진료)만.'),
+          baby: z.boolean().optional().describe('달빛어린이병원(야간·휴일 소아 진료)만.'),
           lang: z.enum(LANGS).optional().describe('결과 이름의 언어. 기본 ko.'),
         },
       },

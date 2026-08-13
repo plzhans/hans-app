@@ -105,10 +105,7 @@ export class HospitalI18nExportService {
       elapsedMs: 0,
     };
 
-    await pipeline(
-      Readable.from(this.lines(options, fields, result)),
-      createWriteStream(file),
-    );
+    await pipeline(Readable.from(this.lines(options, fields, result)), createWriteStream(file));
 
     result.elapsedMs = Date.now() - started;
     // 출력은 CLI 가 소유한다. 여기서 또 찍으면 같은 경로가 두 번 나온다.

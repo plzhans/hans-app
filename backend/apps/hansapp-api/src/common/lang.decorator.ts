@@ -12,9 +12,7 @@ import type { Request } from 'express';
  * @example
  *   async list(@Lang() lang: SupportedLang) { ... }
  */
-export const Lang = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): SupportedLang => {
-    const request = ctx.switchToHttp().getRequest<Request>();
-    return resolveLang(request.headers['accept-language']);
-  },
-);
+export const Lang = createParamDecorator((_data: unknown, ctx: ExecutionContext): SupportedLang => {
+  const request = ctx.switchToHttp().getRequest<Request>();
+  return resolveLang(request.headers['accept-language']);
+});

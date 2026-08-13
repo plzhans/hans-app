@@ -1,10 +1,5 @@
 import { Controller, Get, NotFoundException, Query } from '@nestjs/common';
-import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { RegionService } from '@hansapp/application';
 
 import { Lang } from '../common/lang.decorator';
@@ -14,10 +9,7 @@ import { AuthType } from '../auth/auth-type.enum';
 import { ApiListResponse } from '../common/dto/api-list-response.decorator';
 import { ListResponseDto } from '../common/dto/list.response.dto';
 import { RegionDto } from './dto/region.dto';
-import {
-  RegionPointDto,
-  RegionReverseRequestDto,
-} from './dto/region-reverse.dto';
+import { RegionPointDto, RegionReverseRequestDto } from './dto/region-reverse.dto';
 
 /**
  * 지역(주소) API.
@@ -59,9 +51,7 @@ export class RegionController {
     @Query('level') level?: string,
     @Query('parent') parent?: string,
   ): ListResponseDto<RegionDto> {
-    return new ListResponseDto(
-      this.service.list({ level, parentCode: parent }, lang),
-    );
+    return new ListResponseDto(this.service.list({ level, parentCode: parent }, lang));
   }
 
   /*

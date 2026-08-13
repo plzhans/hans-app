@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  DomainEvent,
-  type AuthSessionRevokedEvent,
-} from '@hansapp/event-contract';
+import { DomainEvent, type AuthSessionRevokedEvent } from '@hansapp/event-contract';
 import { OnDomainEvent } from '@hansapp/event-consumer';
 
 import { SessionCache } from './session-cache.service';

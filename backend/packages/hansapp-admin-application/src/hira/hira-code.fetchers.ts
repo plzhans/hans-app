@@ -28,10 +28,7 @@ export interface HiraCodeValues {
 
 export interface HiraCodeFetcher<TItem> {
   /** 원본 API 호출. 종류마다 엔드포인트가 다르다. */
-  fetch: (
-    api: HiraQueryService,
-    params: HiraPageParams,
-  ) => Promise<CodeListResponse<TItem>>;
+  fetch: (api: HiraQueryService, params: HiraPageParams) => Promise<CodeListResponse<TItem>>;
 
   /** 원본 item → DB 컬럼. 프로퍼티로 접근하므로 스펙이 바뀌면 컴파일 에러가 난다. */
   toValues: (item: TItem) => HiraCodeValues;
@@ -42,17 +39,12 @@ export interface HiraCodeFetcher<TItem> {
  * (toValues 의 인자가 반공변이라 CodeFetcher<TItem> 은 CodeFetcher<unknown> 에 직접 대입되지 않는다.
  *  호출부는 항상 같은 fetch 가 준 item 을 같은 toValues 에 넘기므로 이 소거는 안전하다.)
  */
-function define<TItem>(
-  fetcher: HiraCodeFetcher<TItem>,
-): HiraCodeFetcher<unknown> {
+function define<TItem>(fetcher: HiraCodeFetcher<TItem>): HiraCodeFetcher<unknown> {
   return fetcher as unknown as HiraCodeFetcher<unknown>;
 }
 
 /** tp → 원본 API 호출·필드 매핑. 원본이 6개로 갈라 놓은 것을 여기서 하나로 모은다. */
-export const HIRA_CODE_FETCHERS: Record<
-  HiraCodeType,
-  HiraCodeFetcher<unknown>
-> = {
+export const HIRA_CODE_FETCHERS: Record<HiraCodeType, HiraCodeFetcher<unknown>> = {
   addr: define<AddressCodeItem>({
     fetch: (api, params) => api.getAddressCodes(params),
     toValues: (item) => ({ cd: item.addrCd, cdNm: item.addrCdNm }),

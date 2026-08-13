@@ -10,8 +10,7 @@ import type { Cache } from 'cache-manager';
  *
  * 환경 네임스페이스(`develop:`)는 CacheModule 이 붙이므로 여기서는 붙이지 않는다.
  */
-const postCacheKey = (boardName: string, postId: number) =>
-  `board:post:${boardName}:${postId}`;
+const postCacheKey = (boardName: string, postId: number) => `board:post:${boardName}:${postId}`;
 
 /** 캐시에 무엇이 들어 있나. 콘솔의 캐싱 탭이 이걸 그대로 보여 준다. */
 export interface PostCacheState {
@@ -47,9 +46,7 @@ export interface PostCacheState {
 export class BoardPostCacheInvalidator {
   private readonly logger = new Logger(BoardPostCacheInvalidator.name);
 
-  constructor(
-    @Optional() @Inject(CACHE_MANAGER) private readonly cache?: Cache,
-  ) {}
+  constructor(@Optional() @Inject(CACHE_MANAGER) private readonly cache?: Cache) {}
 
   /**
    * 지운다. **실패해도 던지지 않는다** — DB 는 이미 바뀌었고, 캐시는 TTL 이 지나면 어차피
@@ -60,9 +57,7 @@ export class BoardPostCacheInvalidator {
     try {
       await this.cache.del(postCacheKey(boardName, postId));
     } catch (error) {
-      this.logger.warn(
-        `글 캐시를 지우지 못했다(${boardName}/${postId}): ${String(error)}`,
-      );
+      this.logger.warn(`글 캐시를 지우지 못했다(${boardName}/${postId}): ${String(error)}`);
     }
   }
 
@@ -100,15 +95,12 @@ export class BoardPostCacheInvalidator {
         key,
         hit: true,
         expiresAt: expires === null ? null : new Date(expires),
-        remainingMs:
-          expires === null ? null : Math.max(0, expires - Date.now()),
+        remainingMs: expires === null ? null : Math.max(0, expires - Date.now()),
         value: raw.value ?? null,
         shared: isShared(store),
       };
     } catch (error) {
-      this.logger.warn(
-        `글 캐시를 읽지 못했다(${boardName}/${postId}): ${String(error)}`,
-      );
+      this.logger.warn(`글 캐시를 읽지 못했다(${boardName}/${postId}): ${String(error)}`);
       return empty;
     }
   }

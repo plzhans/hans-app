@@ -12,10 +12,7 @@ import { SearchModule } from '@hansapp/search';
 
 import { AdminEmailService } from './mail/admin-email.service';
 import { AdminMailSettingsSource } from './mail/admin-mail-settings.source';
-import {
-  ADMIN_MAIL_CONFIG,
-  buildAdminMailConfig,
-} from './mail/admin-mail.config';
+import { ADMIN_MAIL_CONFIG, buildAdminMailConfig } from './mail/admin-mail.config';
 import { SettingCache } from './setting/setting-cache.service';
 import { SettingAdminService } from './setting/setting-admin.service';
 import { SettingWriteRepository } from './setting/setting-write.repository';
@@ -94,11 +91,7 @@ import {
   type KrDataAppConfig,
 } from './krdata.config';
 import { krDataProviders } from './krdata.providers';
-import {
-  buildJusoConfig,
-  JUSO_CONFIG,
-  type JusoAppConfig,
-} from './juso.config';
+import { buildJusoConfig, JUSO_CONFIG, type JusoAppConfig } from './juso.config';
 import { jusoProviders } from './juso.providers';
 import { ntsProviders } from './nts.providers';
 import { NmcCodeReadService } from './nmc/nmc-code-read.service';
@@ -160,10 +153,8 @@ export class AdminApplicationModule {
         SettingWriteRepository,
         {
           provide: SettingCache,
-          useFactory: (
-            repo: SettingReadRepository,
-            keyring: SecretBoxKeys | undefined,
-          ) => new SettingCache(repo, keyring),
+          useFactory: (repo: SettingReadRepository, keyring: SecretBoxKeys | undefined) =>
+            new SettingCache(repo, keyring),
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         SettingAdminService,
@@ -235,23 +226,18 @@ export class AdminApplicationModule {
         */
         {
           provide: KRDATA_CONFIG,
-          useFactory: async (
-            settings: SettingCache,
-          ): Promise<KrDataAppConfig> => ({
+          useFactory: async (settings: SettingCache): Promise<KrDataAppConfig> => ({
             ...config,
             serviceKey: (await settings.getString('krdata.serviceKey')) ?? '',
             hiraDetailVersion:
-              (await settings.getString('krdata.hiraDetailVersion')) ||
-              DEFAULT_HIRA_DETAIL_VERSION,
+              (await settings.getString('krdata.hiraDetailVersion')) || DEFAULT_HIRA_DETAIL_VERSION,
           }),
           inject: [SettingCache],
         },
         ...krDataProviders,
         {
           provide: JUSO_CONFIG,
-          useFactory: async (
-            settings: SettingCache,
-          ): Promise<JusoAppConfig> => ({
+          useFactory: async (settings: SettingCache): Promise<JusoAppConfig> => ({
             ...jusoConfig,
             confmKey: (await settings.getString('juso.serviceKey')) ?? '',
           }),

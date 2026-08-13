@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AppStatus } from '@hansapp/data';
 
 import { AccessCacheInvalidator } from './access-cache-invalidator';
@@ -53,9 +48,7 @@ export class AppModerationService {
     }
     if (app.status === AppStatus.DISABLED) {
       // 차단을 푸는 것은 승인이 아니다 — 되살릴 대상(어디까지 켤지)이 다르다.
-      throw new BadRequestException(
-        'A blocked app cannot be approved. Unblock it instead.',
-      );
+      throw new BadRequestException('A blocked app cannot be approved. Unblock it instead.');
     }
 
     await this.move(appId, [AppStatus.PENDING], () => this.repo.approve(appId));
@@ -80,9 +73,7 @@ export class AppModerationService {
     const app = await this.live(appId);
     if (app.status !== AppStatus.PENDING) {
       // 승인된 앱을 거절로 되돌리는 것은 심사가 아니라 제재다 — 차단이 그 통로다.
-      throw new BadRequestException(
-        'Only a pending app can be rejected. Block it instead.',
-      );
+      throw new BadRequestException('Only a pending app can be rejected. Block it instead.');
     }
 
     await this.repo.reject(appId, trimmed);
@@ -101,9 +92,7 @@ export class AppModerationService {
       return; // 이미 꺼져 있다 — 멱등.
     }
 
-    await this.move(appId, [AppStatus.PENDING, AppStatus.ACTIVE], () =>
-      this.repo.block(appId),
-    );
+    await this.move(appId, [AppStatus.PENDING, AppStatus.ACTIVE], () => this.repo.block(appId));
     this.logger.log(`앱 차단: appId=${appId} adminId=${adminId}`);
   }
 
@@ -120,9 +109,7 @@ export class AppModerationService {
       throw new BadRequestException('Only a blocked app can be unblocked.');
     }
 
-    await this.move(appId, [AppStatus.DISABLED], () =>
-      this.repo.unblock(appId),
-    );
+    await this.move(appId, [AppStatus.DISABLED], () => this.repo.unblock(appId));
     this.logger.log(`앱 차단 해제: appId=${appId} adminId=${adminId}`);
   }
 
@@ -141,11 +128,7 @@ export class AppModerationService {
    * **움직일 대상을 먼저 읽는다** — 조치 후에는 전부 같은 상태라 이번에 무엇이 바뀌었는지
    * 가려낼 수 없고, 안 바뀐 것까지 캐시를 지우면 불필요한 DB 재조회가 생긴다.
    */
-  private async move(
-    appId: number,
-    from: AppStatus[],
-    apply: () => Promise<void>,
-  ): Promise<void> {
+  private async move(appId: number, from: AppStatus[], apply: () => Promise<void>): Promise<void> {
     const issued = await this.repo.findIssued(appId, from);
     await apply();
     await this.cache.invalidate(appId, issued);

@@ -3,11 +3,7 @@ import { asString } from '@hansapp/application';
 import type { CodeInfoItem } from '@krdata/nmc';
 
 import { CodeRow } from '../common/code-upsert';
-import {
-  CodeSyncOptions,
-  CodeSyncResult,
-  DEFAULT_CODE_SYNC_ROWS,
-} from '../common/code-sync.types';
+import { CodeSyncOptions, CodeSyncResult, DEFAULT_CODE_SYNC_ROWS } from '../common/code-sync.types';
 import { NmcCodeSyncRepository } from './nmc-code-sync.repository';
 import { NmcQueryService } from './nmc-query.service';
 
@@ -50,9 +46,7 @@ export class NmcCodeSyncService {
       upserted += await this.upsert(items);
       fetched += items.length;
 
-      this.logger.log(
-        `NMC 코드 page=${pageNo} rows=${items.length} 누적=${fetched}/${totalCount}`,
-      );
+      this.logger.log(`NMC 코드 page=${pageNo} rows=${items.length} 누적=${fetched}/${totalCount}`);
 
       if (fetched >= totalCount) {
         break;

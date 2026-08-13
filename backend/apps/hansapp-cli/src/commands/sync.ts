@@ -1,11 +1,7 @@
 import { INestApplicationContext } from '@nestjs/common';
 import { Command } from 'commander';
 import { ConfigSource } from '@hansapp/common';
-import {
-  DEFAULT_SYNC_ROWS,
-  SyncOptions,
-  SyncResult,
-} from '@hansapp/admin-application';
+import { DEFAULT_SYNC_ROWS, SyncOptions, SyncResult } from '@hansapp/admin-application';
 
 import { withAdminContext } from '../context';
 import { addExamples } from '../help';
@@ -26,19 +22,12 @@ interface SyncCommandOptions {
 export function syncCommand(
   label: string,
   source: ConfigSource,
-  runSync: (
-    context: INestApplicationContext,
-    options: SyncOptions,
-  ) => Promise<SyncResult>,
+  runSync: (context: INestApplicationContext, options: SyncOptions) => Promise<SyncResult>,
 ): Command {
   const command = new Command('sync')
     .description(`${label} 병원 목록을 로컬 DB 에 적재한다`)
     .option('--full', `전체를 적재한다. 주지 않으면 한 페이지만 적재한다`)
-    .option(
-      '-p, --page <number>',
-      '적재할 페이지 번호. --full 이면 무시된다',
-      '1',
-    )
+    .option('-p, --page <number>', '적재할 페이지 번호. --full 이면 무시된다', '1')
     .option(
       '-n, --rows <number>',
       `한 페이지 결과 수. 생략하면 --full 일 때 ${DEFAULT_SYNC_ROWS}, 아니면 1`,
@@ -52,11 +41,10 @@ export function syncCommand(
         numOfRows: options.rows ? Number(options.rows) : undefined,
       };
 
-      const result = await withAdminContext(
-        source,
-        (context) => runSync(context, syncOptions),
-        { verbose: !options.quiet, debug: options.debug },
-      );
+      const result = await withAdminContext(source, (context) => runSync(context, syncOptions), {
+        verbose: !options.quiet,
+        debug: options.debug,
+      });
 
       printResult(label, result);
     });

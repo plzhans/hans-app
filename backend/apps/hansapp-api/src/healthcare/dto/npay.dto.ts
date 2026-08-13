@@ -30,8 +30,7 @@ export class NonPaymentPriceDto {
   @ApiProperty({
     type: Number,
     example: 450000,
-    description:
-      '최저가(원). **단일가면 max 와 같다** — 두 값이 같으면 범위로 표시하지 않는다.',
+    description: '최저가(원). **단일가면 max 와 같다** — 두 값이 같으면 범위로 표시하지 않는다.',
   })
   readonly min!: number;
 

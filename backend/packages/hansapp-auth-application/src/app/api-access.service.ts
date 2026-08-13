@@ -86,8 +86,7 @@ export class ApiAccessService {
       throw new UnauthorizedException('Invalid client.');
     }
     if (client.type === AppClientType.WEB) {
-      const origin =
-        typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+      const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
       const origins = (client.origins as string[] | null) ?? [];
       if (!origin || !origins.includes(origin)) {
         throw new UnauthorizedException('Origin not allowed.');
@@ -121,9 +120,7 @@ function clientIdHeader(req: Request): string | undefined {
  * 서비스 키 파싱: `sk_{appId}_{keyId}_{rand}`.
  * rand(base64url)는 '_' 를 포함할 수 있으나 appId·keyId 는 숫자라 앞 3토막만 보면 된다.
  */
-function parseServiceKey(
-  token: string,
-): { appId: number; keyId: number } | null {
+function parseServiceKey(token: string): { appId: number; keyId: number } | null {
   const parts = token.split('_');
   if (parts.length < 4 || parts[0] !== 'sk') return null;
   const appId = Number(parts[1]);

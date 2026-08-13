@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { JusoError } from '@kr-go/juso';
 import type { AddrEng } from '@kr-go/juso';
 import { Page } from '@hansapp/common';
@@ -90,9 +86,7 @@ export class AddressService {
     } catch (error) {
       if (error instanceof JusoError) {
         if (INPUT_ERROR_CODES.has(error.errorCode)) {
-          throw new BadRequestException(
-            error.message || 'Invalid search keyword.',
-          );
+          throw new BadRequestException(error.message || 'Invalid search keyword.');
         }
         throw new ServiceUnavailableException(
           'The address search service is temporarily unavailable.',

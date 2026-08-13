@@ -81,9 +81,7 @@ export class RegionService {
       return { sido: toRegion(entry, lang) };
     }
 
-    const parent = entry.parentCode
-      ? this.cache.get(entry.parentCode)
-      : undefined;
+    const parent = entry.parentCode ? this.cache.get(entry.parentCode) : undefined;
     // 시군구인데 시도를 못 찾으면 지역표가 깨진 것이다. 반쪽 답을 주느니 못 찾은 것으로 낸다.
     if (!parent) {
       return null;

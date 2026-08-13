@@ -29,19 +29,12 @@ export class NmcSubjectSyncRepository {
    * 나중에 basic(dgidIdName)이 같은 키를 source='basic' 으로 덮어쓴다.
    * 이미 basic 으로 채워진 행을 역조회가 되돌리지 않도록, source 가 'basic' 이면 건드리지 않는다.
    */
-  async upsertLinks(
-    hpids: string[],
-    subjectCd: string,
-    subjectNm: string | null,
-  ): Promise<number> {
+  async upsertLinks(hpids: string[], subjectCd: string, subjectNm: string | null): Promise<number> {
     for (let i = 0; i < hpids.length; i += CHUNK_SIZE) {
       const chunk = hpids.slice(i, i + CHUNK_SIZE);
 
       const values = Prisma.join(
-        chunk.map(
-          (hpid) =>
-            Prisma.sql`(${hpid}, ${subjectCd}, ${subjectNm}, 'list', NOW())`,
-        ),
+        chunk.map((hpid) => Prisma.sql`(${hpid}, ${subjectCd}, ${subjectNm}, 'list', NOW())`),
       );
 
       await this.prisma.$executeRaw(

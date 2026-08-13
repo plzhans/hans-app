@@ -22,10 +22,7 @@ export class LlmModule {
   static forRoot(source: ConfigSource): DynamicModule {
     return {
       module: LlmModule,
-      providers: [
-        { provide: LLM_CONFIG, useValue: buildLlmConfig(source) },
-        SvcPromptRepository,
-      ],
+      providers: [{ provide: LLM_CONFIG, useValue: buildLlmConfig(source) }, SvcPromptRepository],
       exports: [LLM_CONFIG, SvcPromptRepository],
     };
   }

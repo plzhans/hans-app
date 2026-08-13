@@ -222,8 +222,7 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
   // 로그인 UI 가 별도 서브도메인(hans-auth)으로 분리돼 있어 명시 설정한다(자동 파생 없음).
   // 뒤에 경로를 붙여 쓰므로 끝의 / 는 떼어 둔다.
   const externalUrl =
-    source.getStringOrDefault('auth.externalUrl').replace(/\/+$/, '') ||
-    undefined;
+    source.getStringOrDefault('auth.externalUrl').replace(/\/+$/, '') || undefined;
   const authorizeUrl = externalUrl ? `${externalUrl}/login` : undefined;
   return Object.freeze({
     jwtSecret: source.getString('auth.jwt.secret'),
@@ -236,15 +235,9 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     // **기본값은 여기가 원천이다** — yaml 에서는 주석으로 가려 두고, 환경마다 다르게
     // 가져갈 때만 그 줄을 살린다. 예전엔 필수였는데, 그러면 yaml 에 한 줄만 빠져도
     // 부팅이 죽었다(환경 yaml 은 서로 상속하지 않아 세 파일에 다 적어야 했다).
-    accessTokenTtlSec: source.getDurationSecOrDefault(
-      'auth.jwt.accessTokenExpiresIn',
-    ),
-    refreshTokenTtlSec: source.getDurationSecOrDefault(
-      'auth.jwt.refreshTokenExpiresIn',
-    ),
-    authCodeTtlSec: source.getDurationSecOrDefault(
-      'auth.jwt.authCodeExpiresIn',
-    ),
+    accessTokenTtlSec: source.getDurationSecOrDefault('auth.jwt.accessTokenExpiresIn'),
+    refreshTokenTtlSec: source.getDurationSecOrDefault('auth.jwt.refreshTokenExpiresIn'),
+    authCodeTtlSec: source.getDurationSecOrDefault('auth.jwt.authCodeExpiresIn'),
     accessCache: Object.freeze({
       memoryTtlSec: source.getNumberOrDefault('cache.memoryTtlSec'),
       memoryMaxEntries: source.getNumberOrDefault('cache.memoryMaxEntries'),
@@ -261,13 +254,9 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
       sharedTtlSec: source.getNumberOrDefault('auth.profileCache.sharedTtlSec'),
       memoryMaxEntries: source.getNumberOrDefault('cache.memoryMaxEntries'),
     }),
-    withdrawalRetentionDays: source.getNumberOrDefault(
-      'auth.withdrawalRetentionDays',
-    ),
+    withdrawalRetentionDays: source.getNumberOrDefault('auth.withdrawalRetentionDays'),
     // 앞 점 제거·트림 후, IP·점없는 라벨(localhost 등)이면 경고 후 무시(빈값). 도메인만 통과.
-    rootDomain: normalizeRootDomain(
-      source.getStringOrDefault('auth.rootDomain'),
-    ),
+    rootDomain: normalizeRootDomain(source.getStringOrDefault('auth.rootDomain')),
     cookieSecure: source.getBoolOrDefault('auth.cookieSecure'),
     socialFlowTtlSec: source.getNumberOrDefault('auth.socialFlowTtlSec'),
     bcryptRounds: source.getNumberOrDefault('auth.bcryptRounds'),

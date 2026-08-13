@@ -56,11 +56,7 @@ export class UserReadRepository {
    * 두 쿼리를 따로 부르면 그 사이에 가입/탈퇴가 끼어 총건수와 행이 어긋난다.
    * $transaction 으로 묶어 같은 스냅샷을 보게 한다.
    */
-  listPage(
-    filter: UserListFilter,
-    skip: number,
-    take: number,
-  ): Promise<[User[], number]> {
+  listPage(filter: UserListFilter, skip: number, take: number): Promise<[User[], number]> {
     const where = buildWhere(filter);
     return this.prisma.$transaction([
       this.prisma.user.findMany({
@@ -112,17 +108,16 @@ export class UserReadRepository {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) return null;
 
-    const [oauths, activeSessionCount, appCount] =
-      await this.prisma.$transaction([
-        this.prisma.userOAuth.findMany({
-          where: { userId: id },
-          orderBy: { id: 'asc' },
-        }),
-        this.prisma.userTokenSession.count({
-          where: { userId: id, expiresAt: { gt: now } },
-        }),
-        this.prisma.appMember.count({ where: { userId: id } }),
-      ]);
+    const [oauths, activeSessionCount, appCount] = await this.prisma.$transaction([
+      this.prisma.userOAuth.findMany({
+        where: { userId: id },
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.userTokenSession.count({
+        where: { userId: id, expiresAt: { gt: now } },
+      }),
+      this.prisma.appMember.count({ where: { userId: id } }),
+    ]);
 
     return { user, oauths, activeSessionCount, appCount };
   }
@@ -163,10 +158,7 @@ function buildWhere(filter: UserListFilter): Prisma.UserWhereInput {
       찾는 일이 잦아 접두 일치로는 못 쓴다. 대신 인덱스를 못 타므로 회원 수가 커지면 느려진다 —
       그때는 전문 검색으로 옮긴다(지금 규모에서 미리 만들 이유는 없다).
     */
-    where.OR = [
-      { email: { contains: keyword } },
-      { name: { contains: keyword } },
-    ];
+    where.OR = [{ email: { contains: keyword } }, { name: { contains: keyword } }];
   }
 
   if (filter.status) {

@@ -70,10 +70,7 @@ export class BoardPostRepository {
     return this.prisma.boardPost.create({ data });
   }
 
-  update(
-    id: number,
-    data: Prisma.BoardPostUncheckedUpdateInput,
-  ): Promise<BoardPost> {
+  update(id: number, data: Prisma.BoardPostUncheckedUpdateInput): Promise<BoardPost> {
     return this.prisma.boardPost.update({ where: { id }, data });
   }
 

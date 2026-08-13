@@ -31,7 +31,6 @@ export function buildSlackNotifyConfig(cfg: ConfigSource): SlackNotifyConfig {
     botToken: cfg.getStringOrDefault('slack.botToken') || undefined,
     channel: cfg.getStringOrDefault('slack.channel') || undefined,
     webhookUrl: cfg.getStringOrDefault('slack.webhookUrl') || undefined,
-    deployThreadTimestamp:
-      cfg.getStringOrDefault('slack.deployThreadTimestamp') || undefined,
+    deployThreadTimestamp: cfg.getStringOrDefault('slack.deployThreadTimestamp') || undefined,
   });
 }

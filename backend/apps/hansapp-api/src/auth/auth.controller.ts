@@ -151,10 +151,7 @@ export class AuthController {
   }
 
   /** refresh 를 쿠키+바디로, access 는 바디로 반환한다. */
-  private respondWithTokens(
-    res: Response,
-    result: AuthResult,
-  ): TokenResponseDto {
+  private respondWithTokens(res: Response, result: AuthResult): TokenResponseDto {
     return respondTokens(res, result.tokens);
   }
 }

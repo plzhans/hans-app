@@ -2,11 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
 import { HiraCodeRepository } from './hira-code.repository';
-import {
-  HIRA_CODE_TYPE_DEFS,
-  type HiraCodeResponse,
-  type HiraCodeType,
-} from './hira-code.types';
+import { HIRA_CODE_TYPE_DEFS, type HiraCodeResponse, type HiraCodeType } from './hira-code.types';
 
 export interface HiraCodeListCommand {
   /** 코드 종류. 원본이 엔드포인트로 갈라 놓은 것을 우리는 이 파라미터로 받는다. */

@@ -55,9 +55,7 @@ export class HealthcareMetaController {
       '환자가 직접 가지 않는 과(영상의학·병리·진단검사 등)는 어느 그룹에도 없다.',
   })
   @ApiListResponse(MetaSubjectGroupDto)
-  subjectGroups(
-    @Lang() lang: SupportedLang,
-  ): ListResponseDto<MetaSubjectGroupDto> {
+  subjectGroups(@Lang() lang: SupportedLang): ListResponseDto<MetaSubjectGroupDto> {
     return new ListResponseDto(this.service.listSubjectGroups(lang));
   }
 
@@ -77,8 +75,7 @@ export class HealthcareMetaController {
   @Get('classes')
   @ApiOperation({
     summary: '종별 코드',
-    description:
-      '상급종합·종합병원·의원 등. 병원 검색의 category 파라미터에 쓴다.',
+    description: '상급종합·종합병원·의원 등. 병원 검색의 category 파라미터에 쓴다.',
   })
   @ApiListResponse(MetaCodeDto)
   classes(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
@@ -95,8 +92,7 @@ export class HealthcareMetaController {
   @Get('severities')
   @ApiOperation({
     summary: '중증질환 처치가능 코드',
-    description:
-      '뇌출혈수술·심근경색 재관류 등. 응급 상황에서 갈 수 있는 병원을 가른다.',
+    description: '뇌출혈수술·심근경색 재관류 등. 응급 상황에서 갈 수 있는 병원을 가른다.',
   })
   @ApiListResponse(MetaCodeDto)
   severities(@Lang() lang: SupportedLang): ListResponseDto<MetaCodeDto> {
@@ -136,9 +132,7 @@ export class HealthcareMetaController {
       '그 항목에서 1등급(우수)을 받은 병원을 찾는다.',
   })
   @ApiListResponse(MetaAssessmentGroupDto)
-  assessments(
-    @Lang() lang: SupportedLang,
-  ): ListResponseDto<MetaAssessmentGroupDto> {
+  assessments(@Lang() lang: SupportedLang): ListResponseDto<MetaAssessmentGroupDto> {
     return new ListResponseDto(this.service.listAssessments(lang));
   }
 }

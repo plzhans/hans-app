@@ -39,9 +39,7 @@ export class HiraSpecialtySyncService {
 
     if (codes.length === 0) {
       // 코드가 없으면 돌 축이 없다. 1단계의 코드 동기화가 먼저다.
-      this.logger.warn(
-        'HIRA 전문병원코드가 비어 있다. 코드 동기화(1단계 1/4)가 먼저다.',
-      );
+      this.logger.warn('HIRA 전문병원코드가 비어 있다. 코드 동기화(1단계 1/4)가 먼저다.');
       return { total: 0, processed: 0, calls: 0 };
     }
 
@@ -87,9 +85,7 @@ export class HiraSpecialtySyncService {
         pageNo += 1;
       }
 
-      this.logger.log(
-        `HIRA 전문병원 ${cd}(${name ?? '?'}) ${fetched.toLocaleString()}건`,
-      );
+      this.logger.log(`HIRA 전문병원 ${cd}(${name ?? '?'}) ${fetched.toLocaleString()}건`);
     }
 
     await this.removeStale(startedAt);
@@ -101,11 +97,7 @@ export class HiraSpecialtySyncService {
    * 분야는 루프 변수(srchCd)가 정한다. 응답에는 없다.
    * srch_nm 은 hira_code 에서 가져온다 — 목록 API 가 코드명을 주지 않는다.
    */
-  private async upsert(
-    ykihos: string[],
-    srchCd: string,
-    srchNm: string | null,
-  ): Promise<number> {
+  private async upsert(ykihos: string[], srchCd: string, srchNm: string | null): Promise<number> {
     if (ykihos.length === 0) {
       return 0;
     }
@@ -129,9 +121,7 @@ export class HiraSpecialtySyncService {
     const removed = await this.repo.removeStale(startedAt);
 
     if (removed > 0) {
-      this.logger.log(
-        `HIRA 전문병원 지정 해제 ${removed.toLocaleString()}건 정리`,
-      );
+      this.logger.log(`HIRA 전문병원 지정 해제 ${removed.toLocaleString()}건 정리`);
     }
     return removed;
   }

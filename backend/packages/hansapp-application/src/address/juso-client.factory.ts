@@ -21,9 +21,7 @@ export class JusoClientFactory {
   async create(confmKey?: string): Promise<JusoClient> {
     const key = confmKey ?? (await this.settings.getString(JUSO_KEY));
     if (!key) {
-      throw new ServiceUnavailableException(
-        'The road name address service key is not configured.',
-      );
+      throw new ServiceUnavailableException('The road name address service key is not configured.');
     }
     return new JusoClient({ confmKey: key });
   }

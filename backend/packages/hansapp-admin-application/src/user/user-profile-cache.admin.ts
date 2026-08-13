@@ -83,15 +83,12 @@ export class UserProfileCacheAdmin {
         key,
         hit: true,
         expiresAt: expires === null ? null : new Date(expires),
-        remainingMs:
-          expires === null ? null : Math.max(0, expires - Date.now()),
+        remainingMs: expires === null ? null : Math.max(0, expires - Date.now()),
         value: raw.value ?? null,
         shared: isShared(store),
       };
     } catch (error) {
-      this.logger.warn(
-        `내 정보 캐시를 읽지 못했다(userId=${userId}): ${String(error)}`,
-      );
+      this.logger.warn(`내 정보 캐시를 읽지 못했다(userId=${userId}): ${String(error)}`);
       return empty;
     }
   }
@@ -104,9 +101,7 @@ export class UserProfileCacheAdmin {
     try {
       await this.cache?.del(profileCacheKey(userId));
     } catch (error) {
-      this.logger.warn(
-        `내 정보 캐시를 지우지 못했다(userId=${userId}): ${String(error)}`,
-      );
+      this.logger.warn(`내 정보 캐시를 지우지 못했다(userId=${userId}): ${String(error)}`);
     }
     // 각 인스턴스의 메모리 단은 이벤트를 받아 스스로 비운다.
     this.events.publish(DomainEvent.UserProfileUpdated, { userId });

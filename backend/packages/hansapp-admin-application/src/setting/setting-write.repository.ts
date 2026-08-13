@@ -40,8 +40,6 @@ export class SettingWriteRepository {
    * "빈 값으로 설정함" 이 갈린다. 행이 없으면 설정 파일 값으로 폴백한다.
    */
   delete(key: string): Promise<void> {
-    return this.prisma.envSetting
-      .deleteMany({ where: { key } })
-      .then(() => undefined);
+    return this.prisma.envSetting.deleteMany({ where: { key } }).then(() => undefined);
   }
 }

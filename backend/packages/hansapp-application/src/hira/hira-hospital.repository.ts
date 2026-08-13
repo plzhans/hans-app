@@ -38,11 +38,7 @@ export class HiraHospitalRepository {
   }
 
   /** 한 기관의 비급여 진료비 한 페이지. sno(원본 신고 순번) 오름차순으로 정렬한다. */
-  listNonPayments(
-    ykiho: string,
-    page: number,
-    size: number,
-  ): Promise<HiraHospitalNpay[]> {
+  listNonPayments(ykiho: string, page: number, size: number): Promise<HiraHospitalNpay[]> {
     return this.prisma.hiraHospitalNpay.findMany({
       where: { ykiho },
       orderBy: { sno: 'asc' },

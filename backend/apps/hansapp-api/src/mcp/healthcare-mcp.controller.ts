@@ -42,9 +42,7 @@ export class HealthcareMcpController {
    * 새 스펙(2026-07-28)은 세션이 없어 서버에 남는 상태가 없으므로 안전하고, 만드는 비용은
    * 도구 등록 몇 번뿐이다.
    */
-  private readonly handle = toNodeHandler(
-    createMcpHandler(() => this.mcp.create()),
-  );
+  private readonly handle = toNodeHandler(createMcpHandler(() => this.mcp.create()));
 
   constructor(private readonly mcp: HealthcareMcpServer) {}
 

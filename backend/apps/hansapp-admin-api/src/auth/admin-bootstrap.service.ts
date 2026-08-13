@@ -1,13 +1,5 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  type OnApplicationBootstrap,
-} from '@nestjs/common';
-import {
-  ADMIN_AUTH_CONFIG,
-  AdminAuthService,
-} from '@hansapp/admin-application/auth';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
+import { ADMIN_AUTH_CONFIG, AdminAuthService } from '@hansapp/admin-application/auth';
 import type { AdminAuthConfig } from '@hansapp/admin-application/auth';
 
 import { appEnv } from '../boot-config';
@@ -70,9 +62,7 @@ export class AdminBootstrapService implements OnApplicationBootstrap {
         plainPassword: password || undefined,
       });
 
-      this.logger.log(
-        `관리자 계정이 없어 기본 계정을 만들었다: ${admin.email}`,
-      );
+      this.logger.log(`관리자 계정이 없어 기본 계정을 만들었다: ${admin.email}`);
 
       if (generatedPassword) {
         /*

@@ -66,11 +66,7 @@ export class ProfileCache {
     @Inject(PROFILE_CACHE_CONFIG) config: ProfileCacheConfig,
     @Optional() @Inject(CACHE_MANAGER) shared?: Cache,
   ) {
-    this.cache = new TwoTierCache(
-      config,
-      shared,
-      new Logger(ProfileCache.name),
-    );
+    this.cache = new TwoTierCache(config, shared, new Logger(ProfileCache.name));
   }
 
   /** 없는 회원이면 null. 탈퇴·정지 여부는 `status` 를 보고 호출부가 정한다. */

@@ -47,8 +47,7 @@ export class SocialStrategyFactory {
    */
   async create(key: SocialKey, callbackURL: string): Promise<RequestStrategy> {
     const clientId = await this.settings.getString(`${key}.clientId`);
-    const clientSecret =
-      (await this.settings.getString(`${key}.clientSecret`)) ?? '';
+    const clientSecret = (await this.settings.getString(`${key}.clientSecret`)) ?? '';
 
     /*
       **카카오만 secret 이 선택이다.** REST API 키를 client_id 로 쓰고, client secret 은
@@ -84,16 +83,14 @@ function build(
   if (key === 'naver') {
     return new NaverStrategy(
       { clientID, clientSecret, callbackURL },
-      (_at: string, _rt: string, profile: NaverProfile, done: Done) =>
-        done(null, toNaver(profile)),
+      (_at: string, _rt: string, profile: NaverProfile, done: Done) => done(null, toNaver(profile)),
     );
   }
 
   if (key === 'kakao') {
     return new KakaoStrategy(
       { clientID, clientSecret, callbackURL },
-      (_at: string, _rt: string, profile: KakaoProfile, done: Done) =>
-        done(null, toKakao(profile)),
+      (_at: string, _rt: string, profile: KakaoProfile, done: Done) => done(null, toKakao(profile)),
     ) as unknown as RequestStrategy;
   }
 
@@ -108,13 +105,8 @@ function build(
       store: passthroughStateStore,
     },
     // LINE 만 verify 인자가 하나 더 있다(params).
-    (
-      _at: string,
-      _rt: string,
-      _params: unknown,
-      profile: LineProfile,
-      done: Done,
-    ) => done(null, toLine(profile)),
+    (_at: string, _rt: string, _params: unknown, profile: LineProfile, done: Done) =>
+      done(null, toLine(profile)),
   ) as unknown as RequestStrategy;
 }
 
@@ -131,10 +123,7 @@ type Done = (err: unknown, user?: SocialProfile) => void;
  */
 const passthroughStateStore = {
   store(_req: unknown, ...args: unknown[]): void {
-    (args[args.length - 1] as (err: unknown, state?: unknown) => void)(
-      null,
-      undefined,
-    );
+    (args[args.length - 1] as (err: unknown, state?: unknown) => void)(null, undefined);
   },
   verify(_req: unknown, ...args: unknown[]): void {
     (args[args.length - 1] as (err: unknown, ok: boolean) => void)(null, true);

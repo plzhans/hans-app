@@ -137,7 +137,5 @@ export type ConfigDefaultValue = string | number | boolean;
 
 /** 설정 경로 → 기본값. 등록되지 않은 경로면 undefined. */
 export function configDefaultOf(path: string): ConfigDefaultValue | undefined {
-  return (CONFIG_DEFAULTS as Record<string, ConfigDefaultValue | undefined>)[
-    path
-  ];
+  return (CONFIG_DEFAULTS as Record<string, ConfigDefaultValue | undefined>)[path];
 }

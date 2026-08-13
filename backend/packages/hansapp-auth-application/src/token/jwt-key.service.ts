@@ -1,9 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createPublicKey } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -11,12 +6,7 @@ import { join } from 'node:path';
 
 import { AUTH_CONFIG } from '../auth.config';
 import type { AuthConfig } from '../auth.config';
-import {
-  algForCurve,
-  jwkThumbprint,
-  publicJwkFromPem,
-  type AccessAlg,
-} from './jwt-keygen';
+import { algForCurve, jwkThumbprint, publicJwkFromPem, type AccessAlg } from './jwt-keygen';
 
 const KNOWN_ALGS = new Set<AccessAlg>(['ES256', 'ES384', 'ES512']);
 
@@ -65,9 +55,7 @@ export class JwtKeyService {
     // 키가 없다 → HS256 폴백. 단, 경로를 **명시**했는데 키가 없으면 설정 실수이므로
     // 조용한 강등(보안 저하) 대신 부팅을 거부한다. 미지정(기본 경로)일 때만 폴백한다.
     if (explicit) {
-      throw new Error(
-        `AUTH_JWT_KEY_DIR=${explicit} 에 활성 서명 키(*.key)가 없다.`,
-      );
+      throw new Error(`AUTH_JWT_KEY_DIR=${explicit} 에 활성 서명 키(*.key)가 없다.`);
     }
     this.logger.warn(
       `No JWT signing keys in ${dir} — access tokens use HS256 (symmetric fallback).`,
@@ -137,9 +125,7 @@ export class JwtKeyService {
     const seg = token.split('.')[0];
     if (!seg) return undefined;
     try {
-      const header = JSON.parse(
-        Buffer.from(seg, 'base64url').toString('utf8'),
-      ) as { kid?: string };
+      const header = JSON.parse(Buffer.from(seg, 'base64url').toString('utf8')) as { kid?: string };
       return typeof header.kid === 'string' ? header.kid : undefined;
     } catch {
       return undefined;
@@ -162,9 +148,7 @@ export class JwtKeyService {
     const algs = [...new Set([...this.keys.values()].map((k) => k.alg))];
     return {
       ...(issuer ? { issuer } : {}),
-      ...(this.config.authorizeUrl
-        ? { authorization_endpoint: this.config.authorizeUrl }
-        : {}),
+      ...(this.config.authorizeUrl ? { authorization_endpoint: this.config.authorizeUrl } : {}),
       ...(issuer
         ? {
             token_endpoint: `${issuer}/oauth/token`,
@@ -198,13 +182,9 @@ export class JwtKeyService {
     // 단일 활성 전제. 멀티 활성(멀티리전 등)은 추후 선택 정책으로 확장한다.
     this.activeKid = actives[0].kid;
     if (actives.length > 1) {
-      this.logger.warn(
-        `Multiple active keys found; signing with ${this.activeKid}.`,
-      );
+      this.logger.warn(`Multiple active keys found; signing with ${this.activeKid}.`);
     }
-    this.logger.log(
-      `Loaded ${this.keys.size} access-token key(s); active=${this.activeKid}.`,
-    );
+    this.logger.log(`Loaded ${this.keys.size} access-token key(s); active=${this.activeKid}.`);
     return actives.length;
   }
 
@@ -218,11 +198,7 @@ export class JwtKeyService {
         continue;
       }
       try {
-        const key = this.buildKey(
-          readFileSync(join(dir, file), 'utf8'),
-          parsed.alg,
-          isPrivate,
-        );
+        const key = this.buildKey(readFileSync(join(dir, file), 'utf8'), parsed.alg, isPrivate);
         // **kid 는 내용에서 계산한 thumbprint 다. 파일명은 사람이 읽는 이름일 뿐이다.**
         //
         // 예전에는 파일명의 kid 가 thumbprint 와 다르면 키를 통째로 건너뛰었다. 손 rename
@@ -233,9 +209,7 @@ export class JwtKeyService {
         // 파일명이 틀려도 위험하지 않다. 발급한 토큰의 kid 헤더는 여기서 계산한 값이고,
         // 검증도 그 값으로 찾는다. 파일명은 아무 데도 안 쓰인다.
         if (key.kid !== parsed.kid) {
-          this.logger.log(
-            `${file}: kid=${key.kid} (파일명 ${parsed.kid} 은 라벨로만 쓴다)`,
-          );
+          this.logger.log(`${file}: kid=${key.kid} (파일명 ${parsed.kid} 은 라벨로만 쓴다)`);
         }
         this.keys.set(key.kid, key);
         loaded.push(key);
@@ -247,10 +221,7 @@ export class JwtKeyService {
   }
 
   /** `<kid>_<alg>.<ext>` 를 분해한다. alg 는 마지막 '_' 뒤(알려진 alg 목록과 대조). */
-  private parseName(
-    file: string,
-    ext: string,
-  ): { kid: string; alg: AccessAlg } | null {
+  private parseName(file: string, ext: string): { kid: string; alg: AccessAlg } | null {
     const stem = file.slice(0, file.length - ext.length);
     const sep = stem.lastIndexOf('_');
     if (sep <= 0) return null;
@@ -265,9 +236,7 @@ export class JwtKeyService {
     const kid = jwkThumbprint(publicJwk);
     const implied = algForCurve(publicJwk.crv);
     if (implied && implied !== alg) {
-      this.logger.warn(
-        `Key ${kid}: filename alg=${alg} but curve implies ${implied}.`,
-      );
+      this.logger.warn(`Key ${kid}: filename alg=${alg} but curve implies ${implied}.`);
     }
     // 검증용 SPKI PEM 을 공개 JWK 에서 되만든다. 입력 타입은 @types/node 버전마다 이름이 달라
     // (JsonWebKeyInput 등), 버전 무관하게 캐스팅한다.

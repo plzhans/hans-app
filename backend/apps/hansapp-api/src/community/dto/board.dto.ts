@@ -131,8 +131,6 @@ export class PublicPostDetailDto extends PublicPostSummaryDto {
   constructor(post: PublicPostDetail) {
     super(post);
     this.content = post.content;
-    this.comments = post.comments.map(
-      (comment) => new PublicCommentDto(comment),
-    );
+    this.comments = post.comments.map((comment) => new PublicCommentDto(comment));
   }
 }

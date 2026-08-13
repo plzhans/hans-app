@@ -39,23 +39,16 @@ export function i18nCommand(source: ConfigSource): Command {
   addExamples(
     i18n
       .command('export')
-      .description(
-        '번역할 원문을 JSONL 로 뽑는다. 이미 최신 번역이 있는 필드는 빠진다',
-      )
-      .option(
-        '--lang <langs>',
-        `대상 언어. 쉼표로 여러 개. ${LANGS.join(' | ')}`,
-        parseLangs,
-        [...LANGS],
-      )
+      .description('번역할 원문을 JSONL 로 뽑는다. 이미 최신 번역이 있는 필드는 빠진다')
+      .option('--lang <langs>', `대상 언어. 쉼표로 여러 개. ${LANGS.join(' | ')}`, parseLangs, [
+        ...LANGS,
+      ])
       .option(
         '--fields <fields>',
         `대상 필드. 쉼표로 여러 개. 기본은 전부.\n                         ${I18N_FIELDS.join(' | ')}`,
         parseFields,
       )
-      .option('--limit <n>', '앞에서 N 건만. 샘플 확인용', (value) =>
-        positiveInt(value, '--limit'),
-      )
+      .option('--limit <n>', '앞에서 N 건만. 샘플 확인용', (value) => positiveInt(value, '--limit'))
       .option('--out <dir>', '출력 디렉토리', defaultOut())
       .option(
         '--force',
@@ -113,9 +106,7 @@ function report(results: I18nExportResult[]): void {
   for (const r of results) {
     const seconds = (r.elapsedMs / 1000).toFixed(1);
     console.log(`\n[${r.lang}] ${r.file}`);
-    console.log(
-      `  ${r.lines.toLocaleString()}줄 · ${mib(r.bytes)} · ${seconds}s`,
-    );
+    console.log(`  ${r.lines.toLocaleString()}줄 · ${mib(r.bytes)} · ${seconds}s`);
 
     const fields = Object.keys(r.fields).filter((f) => r.fields[f] > 0);
     if (fields.length === 0) {
@@ -159,9 +150,7 @@ function parseLangs(value: string): string[] {
 
   for (const lang of langs) {
     if (lang === 'ko') {
-      throw new InvalidArgumentError(
-        'ko 는 원문이라 번역 대상이 아니다. 병원 테이블에 이미 있다',
-      );
+      throw new InvalidArgumentError('ko 는 원문이라 번역 대상이 아니다. 병원 테이블에 이미 있다');
     }
     if (!(LANGS as readonly string[]).includes(lang)) {
       throw new InvalidArgumentError(

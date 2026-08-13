@@ -66,9 +66,7 @@ export class BatchService {
 
       const calls = mois.calls + nmc.calls + hira.calls;
       const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
-      this.logger.log(
-        `배치 완료 — 총 ${calls.toLocaleString()}콜 / ${seconds}초`,
-      );
+      this.logger.log(`배치 완료 — 총 ${calls.toLocaleString()}콜 / ${seconds}초`);
     } finally {
       this.running = false;
     }
@@ -80,9 +78,7 @@ export class BatchService {
       if (run.error) {
         this.logger.error(`  ${label} ${run.stage}단계 실패 — ${run.error}`);
       } else if (run.result?.skipped) {
-        this.logger.log(
-          `  ${label} ${run.stage}단계 생략 — ${run.result.skipReason}`,
-        );
+        this.logger.log(`  ${label} ${run.stage}단계 생략 — ${run.result.skipReason}`);
       } else {
         this.logger.log(
           `  ${label} ${run.stage}단계 — 콜 ${run.result?.calls.toLocaleString()} / 처리 ${run.result?.processed.toLocaleString()}`,
@@ -91,9 +87,7 @@ export class BatchService {
     }
 
     if (result.budgetExhausted) {
-      this.logger.log(
-        `  ${label} 콜 예산 소진. 남은 단계는 다음 실행에서 이어받는다.`,
-      );
+      this.logger.log(`  ${label} 콜 예산 소진. 남은 단계는 다음 실행에서 이어받는다.`);
     }
   }
 }

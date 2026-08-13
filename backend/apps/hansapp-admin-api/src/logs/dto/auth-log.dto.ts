@@ -90,8 +90,7 @@ export class AuthLogQueryDto {
   readonly userId?: number;
 
   @ApiPropertyOptional({
-    description:
-      '회원 이메일. 서버가 회원번호로 바꿔 조회한다. 그런 회원이 없으면 빈 결과다.',
+    description: '회원 이메일. 서버가 회원번호로 바꿔 조회한다. 그런 회원이 없으면 빈 결과다.',
   })
   @IsOptional()
   @IsString()

@@ -25,11 +25,7 @@ export class HospitalLocks {
     const rows = new Set<string>();
 
     for (const lock of await prisma.healthcareHospitalLock.findMany()) {
-      const rowKey = HospitalLocks.rowKey(
-        lock.tableName,
-        lock.hospitalId,
-        lock.keyJson,
-      );
+      const rowKey = HospitalLocks.rowKey(lock.tableName, lock.hospitalId, lock.keyJson);
 
       if (lock.field === null) {
         rows.add(rowKey);
@@ -48,11 +44,7 @@ export class HospitalLocks {
    * 행 식별자. 키의 순서가 달라도 같은 행이 되도록 정렬해서 만든다.
    * ({"day":1,"kind":"general"} 와 {"kind":"general","day":1} 은 같은 행이다)
    */
-  private static rowKey(
-    table: string,
-    hospitalId: number,
-    keyJson: unknown,
-  ): string {
+  private static rowKey(table: string, hospitalId: number, keyJson: unknown): string {
     if (keyJson === null || keyJson === undefined) {
       return `${table}|${hospitalId}`;
     }
@@ -63,11 +55,7 @@ export class HospitalLocks {
   }
 
   /** 이 행이 통째로 잠겼나. 빌드가 지우지도 다시 만들지도 않는다. */
-  isRowLocked(
-    table: string,
-    hospitalId: number,
-    key?: Record<string, unknown>,
-  ): boolean {
+  isRowLocked(table: string, hospitalId: number, key?: Record<string, unknown>): boolean {
     return this.rows.has(HospitalLocks.rowKey(table, hospitalId, key ?? null));
   }
 

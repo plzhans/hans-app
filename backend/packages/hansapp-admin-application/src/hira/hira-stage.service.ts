@@ -1,18 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KrDataQuotaError } from '@krdata/core';
 
-import {
-  skipReason,
-  StageResult,
-  StageRunOptions,
-} from '../nmc/nmc-stage.service';
+import { skipReason, StageResult, StageRunOptions } from '../nmc/nmc-stage.service';
 import { SyncOutcome, SyncStateService } from '../common/sync-state.service';
 import { HiraCodeSyncService } from './hira-code-sync.service';
 import { HiraHospitalSyncService } from './hira-hospital-sync.service';
-import {
-  HiraDetailSyncService,
-  type HiraDetailOp,
-} from './hira-detail-sync.service';
+import { HiraDetailSyncService, type HiraDetailOp } from './hira-detail-sync.service';
 import { HiraAssessmentSyncService } from './hira-assessment-sync.service';
 import { HiraNpaySyncService } from './hira-npay-sync.service';
 import { HiraSpecialtySyncService } from './hira-specialty-sync.service';
@@ -88,10 +81,7 @@ export class HiraStageService {
   }
 
   /** 한도 초과는 실패가 아니다. 오늘은 여기까지라는 뜻이라 다음 실행에서 이어받는다. */
-  private async guard(
-    stage: HiraStage,
-    options: StageRunOptions,
-  ): Promise<SyncOutcome> {
+  private async guard(stage: HiraStage, options: StageRunOptions): Promise<SyncOutcome> {
     try {
       return await this.execute(stage, options);
     } catch (error) {
@@ -105,10 +95,7 @@ export class HiraStageService {
     }
   }
 
-  private async execute(
-    stage: HiraStage,
-    options: StageRunOptions,
-  ): Promise<SyncOutcome> {
+  private async execute(stage: HiraStage, options: StageRunOptions): Promise<SyncOutcome> {
     if (stage === 1) {
       return this.stage1();
     }
@@ -118,9 +105,7 @@ export class HiraStageService {
     // 12단계는 나머지 전부다(보건소·보건지소·보건진료소·조산원·보건의료원).
     // 앞 단계들이 가져간 종별을 빼고 남은 것을 대상으로 한다.
     if (clCd === null) {
-      const covered = Object.values(HIRA_STAGE_CLASSES).filter(
-        (cd): cd is string => cd !== null,
-      );
+      const covered = Object.values(HIRA_STAGE_CLASSES).filter((cd): cd is string => cd !== null);
       return this.detail.sync({
         excludeClCds: covered,
         limit: options.limit,

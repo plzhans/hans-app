@@ -18,9 +18,7 @@
  *      host-only 쿠키 + 루프백 폴백으로 안전하게 동작한다(fail-safe).
  *  - 그 외(점 포함 도메인) → 그대로 사용.
  */
-export function normalizeRootDomain(
-  raw: string | undefined,
-): string | undefined {
+export function normalizeRootDomain(raw: string | undefined): string | undefined {
   const value = raw?.replace(/^\./, '').trim();
   if (!value) return undefined;
   const reason = invalidRootDomainReason(value);
@@ -46,10 +44,7 @@ function invalidRootDomainReason(host: string): string | null {
   return null;
 }
 
-export function isFirstPartyOrigin(
-  origin: string,
-  rootDomain: string | undefined,
-): boolean {
+export function isFirstPartyOrigin(origin: string, rootDomain: string | undefined): boolean {
   let host: string;
   try {
     host = new URL(origin).hostname;
@@ -59,10 +54,5 @@ export function isFirstPartyOrigin(
   if (rootDomain) {
     return host === rootDomain || host.endsWith(`.${rootDomain}`);
   }
-  return (
-    host === '127.0.0.1' ||
-    host === 'localhost' ||
-    host === '::1' ||
-    host === '[::1]'
-  );
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1' || host === '[::1]';
 }

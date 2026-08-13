@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { StandardRegionCodeRow } from '@krdata/mois';
 
-import {
-  MoisRegionSyncRepository,
-  RegionCodeRow,
-} from './mois-region-sync.repository';
+import { MoisRegionSyncRepository, RegionCodeRow } from './mois-region-sync.repository';
 import { MoisQueryService } from './mois-query.service';
 
 /**
@@ -102,10 +99,7 @@ export class MoisRegionSyncService {
     let upserted = 0;
     let pages = 0;
 
-    for await (const page of this.api.streamRegionCodes(
-      {},
-      options.numOfRows,
-    )) {
+    for await (const page of this.api.streamRegionCodes({}, options.numOfRows)) {
       pages += 1;
       totalCount = page.totalCount;
       fetched += page.rows.length;

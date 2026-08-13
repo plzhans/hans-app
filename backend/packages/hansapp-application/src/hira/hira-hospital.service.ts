@@ -28,9 +28,7 @@ import { HiraHospitalRepository } from './hira-hospital.repository';
 export class HiraHospitalService {
   constructor(private readonly repo: HiraHospitalRepository) {}
 
-  async listHospitals(
-    command: MirrorListCommand,
-  ): Promise<HospitalListResponse> {
+  async listHospitals(command: MirrorListCommand): Promise<HospitalListResponse> {
     const [rows, totalCount] = await Promise.all([
       this.repo.listHospitals(command.page, command.size),
       this.repo.countHospitals(),
@@ -124,8 +122,7 @@ export class HiraHospitalService {
     const row = await this.repo.getClinicTop5(ykiho);
 
     // 적재는 0건 응답도 행으로 남긴다(재조회를 막으려고). 그때 data 는 객체가 아니라 []다.
-    const item =
-      row && !Array.isArray(row.data) ? (row.data as ClinicTop5Item) : null;
+    const item = row && !Array.isArray(row.data) ? (row.data as ClinicTop5Item) : null;
 
     return toKrDataEnvelope<ClinicTop5Item>({
       items: item ? [item] : [],

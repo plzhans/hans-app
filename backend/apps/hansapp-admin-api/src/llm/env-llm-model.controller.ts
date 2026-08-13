@@ -9,12 +9,7 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import {
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EnvLlmModelAdminService } from '@hansapp/admin-application';
 import { CurrentAdmin } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
@@ -116,8 +111,7 @@ export class EnvLlmModelController {
   @HttpCode(204)
   @ApiOperation({
     summary: '모델 삭제',
-    description:
-      '기본으로 지정된 것은 못 지운다(그 키의 마지막 하나라면 지울 수 있다).',
+    description: '기본으로 지정된 것은 못 지운다(그 키의 마지막 하나라면 지울 수 있다).',
   })
   @ApiNoContentResponse()
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {

@@ -27,11 +27,7 @@ export class AdminLoginService {
   ): Promise<AdminAuthTokens> {
     const session = await this.tokens.createSession(admin.id, meta);
     // 강제 변경 여부가 access token 클레임으로 실린다 — 가드가 이 값으로 업무 API 를 막는다.
-    const tokens = this.tokens.buildTokens(
-      admin.id,
-      session,
-      admin.mustChangePassword,
-    );
+    const tokens = this.tokens.buildTokens(admin.id, session, admin.mustChangePassword);
 
     await this.admins.touchLastLogin(admin.id, new Date());
     // 상한을 넘은 오래된 세션 정리. 방금 만든 세션이 가장 최근이라 살아남는다.

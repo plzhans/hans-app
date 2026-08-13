@@ -22,10 +22,7 @@ const CHUNK_SIZE = 500;
  * updated_at 은 이름·분류가 실제로 바뀐 경우에만 갱신한다. SET 절이 왼쪽부터 평가되므로
  * 컬럼 대입보다 앞에 둬야 비교 시점의 값이 옛 값이다(mirror-upsert.ts 와 같은 이유).
  */
-export async function upsertNpayCodes(
-  prisma: PrismaService,
-  rows: NpayCodeRow[],
-): Promise<number> {
+export async function upsertNpayCodes(prisma: PrismaService, rows: NpayCodeRow[]): Promise<number> {
   let processed = 0;
 
   for (let i = 0; i < rows.length; i += CHUNK_SIZE) {

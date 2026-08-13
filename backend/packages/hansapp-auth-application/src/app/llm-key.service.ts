@@ -21,9 +21,7 @@ import { LlmKeyRepository, type LlmKeyView } from './llm-key.repository';
  * 고를 이유가 없다. LOCAL 은 청구서가 없고 기계마다 다른 모델을 띄우는 것이 정상 사용이라,
  * "여러 대 중 하나를 고른다" 가 자연스럽다.
  */
-const MULTI_KEY_PROVIDERS: ReadonlySet<LlmProvider> = new Set([
-  LlmProvider.LOCAL,
-]);
+const MULTI_KEY_PROVIDERS: ReadonlySet<LlmProvider> = new Set([LlmProvider.LOCAL]);
 
 /** 이름 최대 길이. 스키마의 VarChar(50) 과 맞춘다. */
 const NAME_MAX_LENGTH = 50;
@@ -74,11 +72,7 @@ export class LlmKeyService {
    * 등록. 호스팅 업체는 앱당 하나뿐이라 이미 있으면 409 대신 **덮어쓰기**로 받는다 —
    * 사용자가 하는 일이 "키 교체" 인데 지우고 다시 넣으라고 하면 상한·모델 설정이 함께 날아간다.
    */
-  async create(
-    userId: number,
-    appId: number,
-    input: UpsertLlmKeyInput,
-  ): Promise<LlmKeyView> {
+  async create(userId: number, appId: number, input: UpsertLlmKeyInput): Promise<LlmKeyView> {
     await this.apps.assertMember(userId, appId, AppRole.ADMIN);
 
     const name = this.normalizeName(input.provider, input.name);
@@ -89,17 +83,13 @@ export class LlmKeyService {
     }
 
     const existing = await this.keys.listByApp(appId);
-    const duplicate = existing.find(
-      (key) => key.provider === input.provider && key.name === name,
-    );
+    const duplicate = existing.find((key) => key.provider === input.provider && key.name === name);
     if (duplicate) {
       // 호스팅 업체는 name 이 늘 '' 이라 여기로 온다 = 교체. LOCAL 은 이름이 겹칠 때만 온다.
       if (!MULTI_KEY_PROVIDERS.has(input.provider)) {
         return this.update(userId, appId, duplicate.id, input);
       }
-      throw new BadRequestException(
-        'A key with this name already exists for this provider.',
-      );
+      throw new BadRequestException('A key with this name already exists for this provider.');
     }
 
     const data: Prisma.AppLlmKeyUncheckedCreateInput = {
@@ -149,9 +139,7 @@ export class LlmKeyService {
       data.defaultModel = input.defaultModel.trim() || null;
     }
     if (input.monthlyLimitMicroUsd !== undefined) {
-      data.monthlyLimitMicroUsd = this.normalizeLimit(
-        input.monthlyLimitMicroUsd,
-      );
+      data.monthlyLimitMicroUsd = this.normalizeLimit(input.monthlyLimitMicroUsd);
     }
     if (input.dailyLimitMicroUsd !== undefined) {
       data.dailyLimitMicroUsd = this.normalizeLimit(input.dailyLimitMicroUsd);
@@ -197,12 +185,8 @@ export class LlmKeyService {
 
     const keyring = this.config.keyring;
     if (!keyring) {
-      this.logger.error(
-        'appSecretEncryption is not configured; refusing to store a provider key.',
-      );
-      throw new NotImplementedException(
-        'Provider key storage is not configured on this server.',
-      );
+      this.logger.error('appSecretEncryption is not configured; refusing to store a provider key.');
+      throw new NotImplementedException('Provider key storage is not configured on this server.');
     }
 
     return {
@@ -225,9 +209,7 @@ export class LlmKeyService {
       throw new BadRequestException('Name is required for this provider.');
     }
     if (trimmed.length > NAME_MAX_LENGTH) {
-      throw new BadRequestException(
-        `Name must be at most ${NAME_MAX_LENGTH} characters.`,
-      );
+      throw new BadRequestException(`Name must be at most ${NAME_MAX_LENGTH} characters.`);
     }
     if (!NAME_PATTERN.test(trimmed)) {
       throw new BadRequestException(
@@ -241,16 +223,11 @@ export class LlmKeyService {
    * 엔드포인트를 다듬는다. **LOCAL 은 필수다** — 어느 기계의 Ollama 인지가 이 값으로만 갈린다.
    * 호스팅 업체는 비워 두는 것이 보통이라(서버 설정을 쓴다) 빈 값을 null 로 접는다.
    */
-  private normalizeBaseUrl(
-    provider: LlmProvider,
-    baseUrl?: string,
-  ): string | null {
+  private normalizeBaseUrl(provider: LlmProvider, baseUrl?: string): string | null {
     const trimmed = baseUrl?.trim() ?? '';
     if (!trimmed) {
       if (provider === LlmProvider.LOCAL) {
-        throw new BadRequestException(
-          'Base URL is required for this provider.',
-        );
+        throw new BadRequestException('Base URL is required for this provider.');
       }
       return null;
     }
@@ -259,14 +236,10 @@ export class LlmKeyService {
     try {
       parsed = new URL(trimmed);
     } catch {
-      throw new BadRequestException(
-        'Base URL must be an absolute http(s) URL.',
-      );
+      throw new BadRequestException('Base URL must be an absolute http(s) URL.');
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new BadRequestException(
-        'Base URL must be an absolute http(s) URL.',
-      );
+      throw new BadRequestException('Base URL must be an absolute http(s) URL.');
     }
     return trimmed;
   }

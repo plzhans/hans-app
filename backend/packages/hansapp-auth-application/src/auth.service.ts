@@ -85,13 +85,9 @@ export class AuthService {
   async requestSignupCode(emailRaw: string, locale?: string): Promise<void> {
     const email = normalizeEmail(emailRaw);
     await this.assertEmailAvailable(email);
-    await this.emailVerification.issueAndSend(
-      EmailVerifyPurpose.SIGNUP,
-      email,
-      {
-        locale,
-      },
-    );
+    await this.emailVerification.issueAndSend(EmailVerifyPurpose.SIGNUP, email, {
+      locale,
+    });
   }
 
   /**
@@ -162,12 +158,7 @@ export class AuthService {
       체크가 없어서 이용자가 고른 적이 없는데, 고르지 않은 것을 켠 것으로 볼 이유가 없다.
       로그인 화면에서 체크를 안 했을 때와 같은 결과가 된다.
     */
-    const tokens = await this.issueLoginTokens(
-      user,
-      meta,
-      AuthProvider.EMAIL,
-      false,
-    );
+    const tokens = await this.issueLoginTokens(user, meta, AuthProvider.EMAIL, false);
     return { user, tokens };
   }
 
@@ -185,10 +176,7 @@ export class AuthService {
       있다" 를 말해 준다 — 메시지를 똑같이 맞춰 둔 의미가 없어진다.
       비밀번호가 없는 소셜 전용 계정도 같은 이유로 더미와 대조한다.
     */
-    const matched = await bcrypt.compare(
-      input.password,
-      user?.password ?? this.getDummyHash(),
-    );
+    const matched = await bcrypt.compare(input.password, user?.password ?? this.getDummyHash());
     const ok = !!user?.password && matched;
     if (!user || !ok) {
       await this.log.record({
@@ -237,9 +225,7 @@ export class AuthService {
     });
     await this.users.markWithdrawn(user.id, now);
     await this.profileCache.invalidate(user.id);
-    await this.sessionCache.invalidate(
-      await this.sessions.deleteAllByUser(user.id),
-    );
+    await this.sessionCache.invalidate(await this.sessions.deleteAllByUser(user.id));
     // 소셜 연동 개인정보 제거(재로그인 시 신규 취급 → 30일 재가입 차단에 걸린다).
     await this.deleteAllOAuthLinks(user.id);
 
@@ -275,8 +261,7 @@ export class AuthService {
 
     if (user.password) {
       const ok =
-        !!input.currentPassword &&
-        (await bcrypt.compare(input.currentPassword, user.password));
+        !!input.currentPassword && (await bcrypt.compare(input.currentPassword, user.password));
       if (!ok) {
         await this.log.record({
           userId: user.id,
@@ -289,10 +274,7 @@ export class AuthService {
       }
     }
 
-    await this.users.updatePassword(
-      user.id,
-      await this.hashPassword(input.newPassword),
-    );
+    await this.users.updatePassword(user.id, await this.hashPassword(input.newPassword));
     // hasPassword 가 뒤집힐 수 있다(소셜 전용 계정이 비밀번호를 세운 경우).
     await this.profileCache.invalidate(user.id);
     await this.log.record({
@@ -372,14 +354,9 @@ export class AuthService {
     if (!user) {
       throw new BadRequestException('Account not found.');
     }
-    await this.users.updatePassword(
-      user.id,
-      await this.hashPassword(input.newPassword),
-    );
+    await this.users.updatePassword(user.id, await this.hashPassword(input.newPassword));
     await this.profileCache.invalidate(user.id);
-    await this.sessionCache.invalidate(
-      await this.sessions.deleteAllByUser(user.id),
-    );
+    await this.sessionCache.invalidate(await this.sessions.deleteAllByUser(user.id));
     await this.log.record({
       userId: user.id,
       action: AuthLogAction.PASSWORD_RESET,
@@ -531,9 +508,7 @@ export class AuthService {
    */
   private logSkippedReset(email: string, reason: string): void {
     if (process.env.APP_ENV === 'production') return;
-    this.logger.warn(
-      `[dev] 비밀번호 재설정 메일을 보내지 않았습니다 — ${reason}. to=${email}`,
-    );
+    this.logger.warn(`[dev] 비밀번호 재설정 메일을 보내지 않았습니다 — ${reason}. to=${email}`);
   }
 
   /** 이메일이 신규 가입 가능한지 검증한다(활성 계정·탈퇴 재가입 제한 모두 확인). */
@@ -542,10 +517,7 @@ export class AuthService {
     if (active) {
       throw new ConflictException('Email already registered.');
     }
-    const withdrawn = await this.withdrawals.findActiveByEmail(
-      email,
-      new Date(),
-    );
+    const withdrawn = await this.withdrawals.findActiveByEmail(email, new Date());
     if (withdrawn) {
       throw new ConflictException(
         'Re-signup is restricted after withdrawal. Please try again later.',
@@ -602,9 +574,7 @@ export class AuthService {
     try {
       await this.users.updatePassword(user.id, await this.hashPassword(plain));
     } catch (e) {
-      this.logger.warn(
-        `Failed to rehash password for user ${user.id}: ${String(e)}`,
-      );
+      this.logger.warn(`Failed to rehash password for user ${user.id}: ${String(e)}`);
     }
   }
 

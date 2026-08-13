@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@hansapp/data';
 
-import type {
-  HealthcareHospitalIndexRow,
-  I18nRow,
-} from './healthcare-index-doc';
+import type { HealthcareHospitalIndexRow, I18nRow } from './healthcare-index-doc';
 
 /**
  * ES 색인용 병원 읽기. **keyset 커서**(id > cursor)로 대량을 훑고, 배치마다 자식·i18n·asm 을
@@ -65,10 +62,7 @@ export class HealthcareIndexRepository {
   }
 
   /** id > cursor 인 활성 병원 한 배치를 자식·i18n·asm 까지 묶어 반환. 빈 배열이면 끝. */
-  async loadBatch(
-    cursor: number,
-    take: number,
-  ): Promise<HealthcareHospitalIndexRow[]> {
+  async loadBatch(cursor: number, take: number): Promise<HealthcareHospitalIndexRow[]> {
     const hospitals = await this.prisma.healthcareHospital.findMany({
       where: { id: { gt: cursor }, status: 'active' },
       orderBy: { id: 'asc' },
@@ -100,9 +94,7 @@ export class HealthcareIndexRepository {
     }
 
     const ids = hospitals.map((h) => h.id);
-    const ykihos = hospitals
-      .map((h) => h.ykiho)
-      .filter((v): v is string => v !== null);
+    const ykihos = hospitals.map((h) => h.ykiho).filter((v): v is string => v !== null);
 
     const [i18nRows, asmRows] = await Promise.all([
       this.prisma.healthcareHospitalI18n.findMany({
@@ -131,10 +123,7 @@ export class HealthcareIndexRepository {
 
     const asmByYkiho = new Map<string, Record<string, string | null>>();
     for (const row of asmRows) {
-      asmByYkiho.set(
-        row.ykiho,
-        row as unknown as Record<string, string | null>,
-      );
+      asmByYkiho.set(row.ykiho, row as unknown as Record<string, string | null>);
     }
 
     return hospitals.map((hospital) => ({

@@ -5,17 +5,8 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  AuthLogResult,
-  AppStatus,
-  AuthLogAction,
-  UserStatus,
-} from '@hansapp/data';
-import {
-  sha256base64url,
-  sha256hex,
-  timingSafeEqualHex,
-} from '@hansapp/common';
+import { AuthLogResult, AppStatus, AuthLogAction, UserStatus } from '@hansapp/data';
+import { sha256base64url, sha256hex, timingSafeEqualHex } from '@hansapp/common';
 
 import { AccessCache } from './app/access-cache.service';
 import { AUTH_CONFIG } from './auth.config';
@@ -81,9 +72,7 @@ export class OAuthTokenService {
       }
       const allowed = (client.redirectUris as string[] | null) ?? [];
       if (!allowed.includes(returnTo)) {
-        throw new BadRequestException(
-          'redirect_uri is not a registered redirect URI.',
-        );
+        throw new BadRequestException('redirect_uri is not a registered redirect URI.');
       }
       return this.tokens.issueAuthCode(
         userId,
@@ -138,10 +127,7 @@ export class OAuthTokenService {
    * Origin 이 없으면(서버-서버·네이티브·curl) 통과시킨다 — 브라우저 교차출처 위협이 아니고,
    * Origin 은 브라우저만 강제로 채우는 헤더라 없다고 의심할 근거가 없다. FirstPartyGuard 와 같은 규칙이다.
    */
-  private async assertExchangeOrigin(
-    clientId: string | null,
-    origin?: string,
-  ): Promise<void> {
+  private async assertExchangeOrigin(clientId: string | null, origin?: string): Promise<void> {
     if (!origin) {
       return;
     }
@@ -153,11 +139,7 @@ export class OAuthTokenService {
     }
     const client = await this.access.getClient(clientId);
     const origins = (client?.origins as string[] | null) ?? [];
-    if (
-      !client ||
-      client.status !== AppStatus.ACTIVE ||
-      !origins.includes(origin)
-    ) {
+    if (!client || client.status !== AppStatus.ACTIVE || !origins.includes(origin)) {
       throw new ForbiddenException('Origin not allowed.');
     }
   }
@@ -189,12 +171,7 @@ export class OAuthTokenService {
     // 이메일 로그인처럼 코드에 provider 가 없는 경로(1st-party 릴레이)는 joinType 으로 떨어진다.
     // **"로그인 상태 유지" 는 코드에서 온다.** 이 요청은 그 앱의 서버 대 서버 교환이라
     // 사용자의 선택을 물어볼 화면이 없다 — 콜백이 코드에 실어 보낸 값을 그대로 쓴다.
-    return this.login.complete(
-      user,
-      provider ?? user.joinType,
-      meta,
-      persistent,
-    );
+    return this.login.complete(user, provider ?? user.joinType, meta, persistent);
   }
 
   /** grant_type=refresh_token. rotate 후 새 access/refresh 발급(refresh 는 로그 대상 아님 — 폭증 방지). */
@@ -210,11 +187,7 @@ export class OAuthTokenService {
   }
 
   /** 로그아웃: 현재 세션 폐기. */
-  async logout(
-    sessionId: string,
-    userId: number,
-    meta: RequestMeta,
-  ): Promise<void> {
+  async logout(sessionId: string, userId: number, meta: RequestMeta): Promise<void> {
     await this.tokens.revokeSession(sessionId);
     await this.log.record({
       userId,
@@ -234,10 +207,7 @@ export class OAuthTokenService {
    *
    * 폐기할 세션을 찾았을 때만 감사 로그를 남긴다(남길 userId 가 그때 생긴다).
    */
-  async logoutByRefreshToken(
-    refreshToken: string | undefined,
-    meta: RequestMeta,
-  ): Promise<void> {
+  async logoutByRefreshToken(refreshToken: string | undefined, meta: RequestMeta): Promise<void> {
     if (!refreshToken) return;
     const revoked = await this.tokens.revokeByRefreshToken(refreshToken);
     if (!revoked) return;
@@ -266,13 +236,8 @@ function assertCodeChallenge(value?: string): string {
     throw new BadRequestException('code_challenge is required (PKCE, S256).');
   }
   // S256 결과는 base64url 43자로 길이가 고정이다. 형식이 어긋나면 클라이언트 구현 오류다.
-  if (
-    challenge.length !== CHALLENGE_LENGTH ||
-    !/^[A-Za-z0-9\-_]+$/.test(challenge)
-  ) {
-    throw new BadRequestException(
-      'code_challenge must be BASE64URL(SHA256(code_verifier)).',
-    );
+  if (challenge.length !== CHALLENGE_LENGTH || !/^[A-Za-z0-9\-_]+$/.test(challenge)) {
+    throw new BadRequestException('code_challenge must be BASE64URL(SHA256(code_verifier)).');
   }
   return challenge;
 }

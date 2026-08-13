@@ -24,10 +24,7 @@ export class EnvLlmModelWriteRepository {
    * 받은 차례대로 자리를 다시 매긴다. **한 트랜잭션이다** — 중간에 끊기면 두 행이 같은
    * 자리를 갖고, 그 뒤로는 목록 순서가 조회할 때마다 달라진다.
    */
-  async reorder(
-    ids: readonly number[],
-    updatedBy: number | null,
-  ): Promise<void> {
+  async reorder(ids: readonly number[], updatedBy: number | null): Promise<void> {
     await this.prisma.$transaction(
       ids.map((id, index) =>
         this.prisma.envLlmModel.update({
@@ -42,17 +39,12 @@ export class EnvLlmModelWriteRepository {
     return this.prisma.envLlmModel.create({ data });
   }
 
-  update(
-    id: number,
-    data: Prisma.EnvLlmModelUncheckedUpdateInput,
-  ): Promise<EnvLlmModel> {
+  update(id: number, data: Prisma.EnvLlmModelUncheckedUpdateInput): Promise<EnvLlmModel> {
     return this.prisma.envLlmModel.update({ where: { id }, data });
   }
 
   delete(id: number): Promise<void> {
-    return this.prisma.envLlmModel
-      .deleteMany({ where: { id } })
-      .then(() => undefined);
+    return this.prisma.envLlmModel.deleteMany({ where: { id } }).then(() => undefined);
   }
 
   /**
@@ -62,11 +54,7 @@ export class EnvLlmModelWriteRepository {
    * 기본은 **꺼져 있으면 안 된다.** 끈 모델을 기본으로 두면 서버가 부를 수 없는 것을
    * 기본으로 삼게 되므로 여기서 같이 켠다.
    */
-  async setDefault(
-    keyId: number,
-    id: number,
-    updatedBy: number | null,
-  ): Promise<void> {
+  async setDefault(keyId: number, id: number, updatedBy: number | null): Promise<void> {
     await this.prisma.$transaction([
       this.prisma.envLlmModel.updateMany({
         where: { keyId, isDefault: true },

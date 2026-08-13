@@ -12,12 +12,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import {
-  ApiExcludeEndpoint,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import {
   Auth,
@@ -159,12 +154,7 @@ export class UserController {
     @Req() req: Request,
     @Lang() lang: SupportedLang,
   ): Promise<void> {
-    await this.authService.updatePassword(
-      user.userId,
-      dto,
-      requestMeta(req),
-      lang,
-    );
+    await this.authService.updatePassword(user.userId, dto, requestMeta(req), lang);
   }
 
   @Get('me/sessions')
@@ -276,11 +266,6 @@ export class UserController {
     if (!provider) {
       throw new BadRequestException('Unsupported social provider.');
     }
-    await this.socialService.unlink(
-      user.userId,
-      provider,
-      requestMeta(req),
-      lang,
-    );
+    await this.socialService.unlink(user.userId, provider, requestMeta(req), lang);
   }
 }

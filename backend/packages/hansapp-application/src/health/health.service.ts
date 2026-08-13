@@ -103,10 +103,7 @@ export class HealthService {
     }
   }
 
-  private async check(
-    name: string,
-    probe: () => Promise<unknown>,
-  ): Promise<HealthCheckResult> {
+  private async check(name: string, probe: () => Promise<unknown>): Promise<HealthCheckResult> {
     try {
       await withTimeout(name, probe());
       return { name, status: 'ok' };

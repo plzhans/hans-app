@@ -11,10 +11,7 @@ import {
 } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { AdminRole, AdminStatus, AdminUser } from '@hansapp/data';
-import {
-  normalizeLanguageChoice,
-  normalizeTimeZoneChoice,
-} from '@hansapp/common';
+import { normalizeLanguageChoice, normalizeTimeZoneChoice } from '@hansapp/common';
 
 import { ADMIN_AUTH_CONFIG } from './admin-auth.config';
 import type { AdminAuthConfig } from './admin-auth.config';
@@ -59,10 +56,7 @@ export class AdminAuthService {
       응답이 그만큼(코스트 10 기준 ~80ms) 빨리 돌아오고, 그 시간차가 "이 이메일은 관리자다" 를
       말해 준다 — 메시지를 똑같이 맞춰 둔 의미가 없어진다.
     */
-    const matched = await bcrypt.compare(
-      input.password,
-      admin?.password ?? this.getDummyHash(),
-    );
+    const matched = await bcrypt.compare(input.password, admin?.password ?? this.getDummyHash());
 
     const failReason = !admin
       ? 'admin_not_found'
@@ -108,18 +102,11 @@ export class AdminAuthService {
 
     // **여기서 DB 값을 다시 읽어 싣는다.** 비밀번호를 바꾸면 다음 갱신에서 플래그가
     // 자연히 풀리고, 반대로 운영자가 초기화하면 다음 갱신부터 다시 막힌다.
-    return this.tokens.buildTokens(
-      rotated.adminId,
-      rotated,
-      admin.mustChangePassword,
-    );
+    return this.tokens.buildTokens(rotated.adminId, rotated, admin.mustChangePassword);
   }
 
   /** 로그아웃. **자격증명을 요구하지 않는다** — 잘못된 토큰이면 지울 것이 없을 뿐이다. */
-  async logout(
-    refreshToken: string | undefined,
-    meta: AdminRequestMeta,
-  ): Promise<void> {
+  async logout(refreshToken: string | undefined, meta: AdminRequestMeta): Promise<void> {
     if (!refreshToken) return;
     const revoked = await this.tokens.revokeByRefreshToken(refreshToken);
     if (!revoked) return;
@@ -168,9 +155,7 @@ export class AdminAuthService {
 
     // 같은 값으로 바꾸면 강제 변경을 형식적으로 통과하는 셈이라 막는다.
     if (await bcrypt.compare(input.newPassword, admin.password)) {
-      throw new BadRequestException(
-        'New password must differ from the current one.',
-      );
+      throw new BadRequestException('New password must differ from the current one.');
     }
 
     await this.admins.updatePassword(
@@ -197,10 +182,7 @@ export class AdminAuthService {
       mustChangePassword 가 아직 true 다. 그대로 넘기면 방금 비밀번호를 바꿨는데도
       새 토큰에 chg 클레임이 실려 계속 막힌다.
     */
-    return this.loginFlow.complete(
-      { ...admin, mustChangePassword: false },
-      meta,
-    );
+    return this.loginFlow.complete({ ...admin, mustChangePassword: false }, meta);
   }
 
   /*
@@ -241,9 +223,7 @@ export class AdminAuthService {
       두 통로가 같은 기준을 쓰도록 계정을 만드는 이 자리에서 막는다.
     */
     if (!isEmailLike(email)) {
-      throw new BadRequestException(
-        `Not a valid email address: ${input.email}`,
-      );
+      throw new BadRequestException(`Not a valid email address: ${input.email}`);
     }
     if (await this.admins.findByEmail(email)) {
       throw new ConflictException('Email already registered.');
@@ -294,10 +274,7 @@ export class AdminAuthService {
   /** 계정을 비활성화한다. 살아 있는 세션도 함께 끊는다. */
   async disable(email: string): Promise<AdminUser> {
     const admin = await this.requireByEmail(email);
-    const updated = await this.admins.updateStatus(
-      admin.id,
-      AdminStatus.DISABLED,
-    );
+    const updated = await this.admins.updateStatus(admin.id, AdminStatus.DISABLED);
     await this.tokens.revokeAllByAdmin(admin.id);
     return updated;
   }
@@ -411,9 +388,7 @@ export class AdminAuthService {
         admin.mustChangePassword,
       );
     } catch (error) {
-      this.logger.warn(
-        `Failed to rehash password for admin ${admin.id}: ${String(error)}`,
-      );
+      this.logger.warn(`Failed to rehash password for admin ${admin.id}: ${String(error)}`);
     }
   }
 }

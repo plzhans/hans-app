@@ -137,11 +137,7 @@ export class SyncStateService {
    *
    * partial 은 "성공했지만 아직 남았다"는 뜻이라, 다음 실행에서 신선도를 무시하고 이어받는다.
    */
-  async succeed(
-    job: SyncJob,
-    outcome: SyncOutcome,
-    elapsedMs: number,
-  ): Promise<void> {
+  async succeed(job: SyncJob, outcome: SyncOutcome, elapsedMs: number): Promise<void> {
     const now = new Date();
     await this.repo.update(jobKey(job), {
       status: outcome.limitReached ? 'partial' : 'done',

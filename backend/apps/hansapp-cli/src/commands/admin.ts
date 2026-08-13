@@ -18,13 +18,8 @@ import { printJson } from '../output';
  */
 
 /** 컨텍스트를 띄우고 인증 서비스를 넘긴다. */
-function run<T>(
-  source: ConfigSource,
-  action: (auth: AdminAuthService) => Promise<T>,
-): Promise<T> {
-  return withAdminAuthContext(source, (context) =>
-    action(context.get(AdminAuthService)),
-  );
+function run<T>(source: ConfigSource, action: (auth: AdminAuthService) => Promise<T>): Promise<T> {
+  return withAdminAuthContext(source, (context) => action(context.get(AdminAuthService)));
 }
 
 /** 시크릿은 이때만 볼 수 있으므로 눈에 띄게 찍는다(app 커맨드와 같은 관례). */
@@ -95,32 +90,23 @@ export function adminCommand(source: ConfigSource): Command {
         '--password-stdin',
         '비밀번호를 stdin 에서 읽는다. 생략하면 난수로 발급해 1회 출력한다',
       )
-      .action(
-        async (
-          email: string,
-          options: { name?: string; passwordStdin?: boolean },
-        ) => {
-          const plainPassword = options.passwordStdin
-            ? await readPasswordFromStdin()
-            : undefined;
+      .action(async (email: string, options: { name?: string; passwordStdin?: boolean }) => {
+        const plainPassword = options.passwordStdin ? await readPasswordFromStdin() : undefined;
 
-          const { admin: created, generatedPassword } = await run(
-            source,
-            (auth) =>
-              auth.createAdmin({
-                email,
-                name: options.name,
-                plainPassword,
-              }),
-          );
+        const { admin: created, generatedPassword } = await run(source, (auth) =>
+          auth.createAdmin({
+            email,
+            name: options.name,
+            plainPassword,
+          }),
+        );
 
-          printJson(present(created), true);
-          if (generatedPassword) {
-            printSecret('초기 비밀번호', generatedPassword);
-          }
-          printChangeNotice();
-        },
-      ),
+        printJson(present(created), true);
+        if (generatedPassword) {
+          printSecret('초기 비밀번호', generatedPassword);
+        }
+        printChangeNotice();
+      }),
     [
       'hansapp-cli admin create admin@example.com --name 관리자',
       "printf '%s' 'Str0ng!Pass' | hansapp-cli admin create admin@example.com --password-stdin",
@@ -143,22 +129,14 @@ export function adminCommand(source: ConfigSource): Command {
   addExamples(
     admin
       .command('password-reset')
-      .description(
-        '비밀번호를 난수로 초기화한다. **살아 있는 세션이 모두 끊긴다**',
-      )
+      .description('비밀번호를 난수로 초기화한다. **살아 있는 세션이 모두 끊긴다**')
       .argument('<email>', '대상 관리자 이메일')
-      .option(
-        '--password-stdin',
-        '난수 대신 stdin 의 값을 쓴다(임시 비밀번호를 직접 정할 때)',
-      )
+      .option('--password-stdin', '난수 대신 stdin 의 값을 쓴다(임시 비밀번호를 직접 정할 때)')
       .action(async (email: string, options: { passwordStdin?: boolean }) => {
-        const plain = options.passwordStdin
-          ? await readPasswordFromStdin()
-          : undefined;
+        const plain = options.passwordStdin ? await readPasswordFromStdin() : undefined;
 
-        const { admin: updated, generatedPassword } = await run(
-          source,
-          (auth) => auth.resetPassword(email, plain),
+        const { admin: updated, generatedPassword } = await run(source, (auth) =>
+          auth.resetPassword(email, plain),
         );
 
         printJson(present(updated), true);

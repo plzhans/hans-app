@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KrDataQuotaError } from '@krdata/core';
 
-import {
-  skipReason,
-  StageResult,
-  StageRunOptions,
-} from '../nmc/nmc-stage.service';
+import { skipReason, StageResult, StageRunOptions } from '../nmc/nmc-stage.service';
 import { SyncOutcome, SyncStateService } from '../common/sync-state.service';
 import { MoisRegionSyncService } from './mois-region-sync.service';
 

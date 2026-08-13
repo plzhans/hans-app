@@ -35,8 +35,6 @@ export function buildAdminMailConfig(source: ConfigSource): AdminMailConfig {
     forceDisabled: source.getBoolOrDefault('mail.forceDisabled'),
     appName: source.getStringOrDefault('apps-api.name'),
     // 끝의 `/` 를 떼어 둔다 — 링크를 이어 붙일 때 `//` 가 되는 것을 부르는 쪽마다 막지 않도록.
-    consoleUrl: source
-      .getStringOrDefault('apps-admin-api.externalUrl', '')
-      .replace(/\/+$/, ''),
+    consoleUrl: source.getStringOrDefault('apps-admin-api.externalUrl', '').replace(/\/+$/, ''),
   });
 }

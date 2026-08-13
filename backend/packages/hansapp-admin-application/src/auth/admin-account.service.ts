@@ -80,7 +80,8 @@ export class AdminAccountService {
    * 나누면 오히려 "누가 들어올 수 있는가" 를 한 화면에서 못 본다.
    */
   async list(): Promise<AdminAccountSummary[]> {
-    return (await this.admins.listAll()).map(toSummary);
+    const admins = await this.admins.listAll();
+    return admins.map(toSummary);
   }
 
   async findById(id: number): Promise<AdminAccountDetail | null> {
@@ -90,10 +91,7 @@ export class AdminAccountService {
     return {
       ...toSummary(admin),
       updatedAt: admin.updatedAt,
-      activeSessionCount: await this.sessions.countActiveByAdmin(
-        id,
-        new Date(),
-      ),
+      activeSessionCount: await this.sessions.countActiveByAdmin(id, new Date()),
     };
   }
 
@@ -223,12 +221,8 @@ export class AdminAccountService {
           되짚을 수 있는 곳이 여기뿐이다 — 계정 표에는 지금 값만 있다.
         */
         detail: {
-          ...(data.email
-            ? { email: { from: admin.email, to: data.email } }
-            : {}),
-          ...(data.name !== undefined
-            ? { name: { from: admin.name, to: data.name } }
-            : {}),
+          ...(data.email ? { email: { from: admin.email, to: data.email } } : {}),
+          ...(data.name !== undefined ? { name: { from: admin.name, to: data.name } } : {}),
           ...(data.role ? { role: { from: admin.role, to: data.role } } : {}),
         },
       });
@@ -262,24 +256,15 @@ export class AdminAccountService {
       throw new NotFoundException(`Admin not found: ${id}`);
     }
     if (id === actor.adminId) {
-      throw new BadRequestException(
-        'Use the password change flow for your own account.',
-      );
+      throw new BadRequestException('Use the password change flow for your own account.');
     }
     /*
       **초기화도 등급을 본다.** 이걸 빼면 상급 계정의 비밀번호를 다시 내고 그 값으로
       로그인하면 그만이라, "고칠 수 없다" 는 규칙이 통째로 무의미해진다.
     */
-    assertCanManageAdmin(
-      await this.roleOf(actor),
-      admin.role,
-      'reset the password of',
-    );
+    assertCanManageAdmin(await this.roleOf(actor), admin.role, 'reset the password of');
 
-    const { admin: updated } = await this.auth.resetPassword(
-      admin.email,
-      password,
-    );
+    const { admin: updated } = await this.auth.resetPassword(admin.email, password);
 
     await this.log.record({
       ...meta(actor),
@@ -317,10 +302,7 @@ export class AdminAccountService {
       );
     }
     // 마지막 시스템 관리자가 사라지면 그 등급을 되돌릴 사람이 없다(등급 강등과 같은 이유).
-    if (
-      admin.role === AdminRole.SYSTEM &&
-      (await this.admins.countByRole(AdminRole.SYSTEM)) <= 1
-    ) {
+    if (admin.role === AdminRole.SYSTEM && (await this.admins.countByRole(AdminRole.SYSTEM)) <= 1) {
       throw new BadRequestException(
         'Cannot remove the last system admin — no one could restore that role afterwards.',
       );

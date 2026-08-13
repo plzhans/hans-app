@@ -84,13 +84,9 @@ export function buildAdminAuthConfig(source: ConfigSource): AdminAuthConfig {
     issuer: source.getStringOrDefault('admin.jwt.issuer') || undefined,
     // 5분. 짧게 잡아 계정을 비활성화했을 때 최대 이만큼만 버티게 한다 —
     // access token 은 stateless 라 즉시 폐기가 안 된다.
-    accessTokenTtlSec: source.getDurationSecOrDefault(
-      'admin.jwt.accessTokenExpiresIn',
-    ),
+    accessTokenTtlSec: source.getDurationSecOrDefault('admin.jwt.accessTokenExpiresIn'),
     // 8시간. 하루 근무를 덮으므로 작업 중 재로그인이 없고, 퇴근 뒤에는 자연히 끊긴다.
-    refreshTokenTtlSec: source.getDurationSecOrDefault(
-      'admin.jwt.refreshTokenExpiresIn',
-    ),
+    refreshTokenTtlSec: source.getDurationSecOrDefault('admin.jwt.refreshTokenExpiresIn'),
     bcryptRounds: source.getNumberOrDefault('admin.bcryptRounds'),
     cookieSecure: source.getBoolOrDefault('auth.cookieSecure'),
     maxSessionsPerAdmin: source.getNumberOrDefault('admin.maxSessionsPerAdmin'),

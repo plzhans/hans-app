@@ -19,9 +19,7 @@ import { addExamples } from '../help';
  * 재색인 후 alias 만 교체한다(schema import 가 alias 를 관리한다).
  */
 export function esCommand(source: ConfigSource): Command {
-  const es = new Command('es').description(
-    'Elasticsearch 색인 관리 · 병원 데이터 동기화',
-  );
+  const es = new Command('es').description('Elasticsearch 색인 관리 · 병원 데이터 동기화');
 
   registerSchema(es, source);
   registerHospital(es, source);
@@ -30,9 +28,7 @@ export function esCommand(source: ConfigSource): Command {
 }
 
 function registerSchema(es: Command, source: ConfigSource): void {
-  const schema = es
-    .command('schema')
-    .description('ES 스키마/설정(템플릿·인덱스·alias) 관리');
+  const schema = es.command('schema').description('ES 스키마/설정(템플릿·인덱스·alias) 관리');
 
   addExamples(
     schema
@@ -98,9 +94,7 @@ function registerSchema(es: Command, source: ConfigSource): void {
 
   schema
     .command('delete')
-    .description(
-      '⚠️ 등록된 모든 인덱스·템플릿·alias 를 삭제한다(구조·데이터 모두 소실)',
-    )
+    .description('⚠️ 등록된 모든 인덱스·템플릿·alias 를 삭제한다(구조·데이터 모두 소실)')
     .option('--yes', '확인 없이 실행')
     .action(async (options: { yes?: boolean }): Promise<void> => {
       if (!options.yes) {
@@ -110,9 +104,7 @@ function registerSchema(es: Command, source: ConfigSource): void {
         process.exitCode = 1;
         return;
       }
-      await withSearchContext(source, (ctx) =>
-        ctx.get(SearchSchemaService).delete(),
-      );
+      await withSearchContext(source, (ctx) => ctx.get(SearchSchemaService).delete());
       console.log('ES 스키마 삭제 완료(인덱스·템플릿·alias 삭제)');
     });
 
@@ -146,9 +138,7 @@ function registerSchema(es: Command, source: ConfigSource): void {
 function registerHospital(es: Command, source: ConfigSource): void {
   const hospital = es
     .command('hospital')
-    .description(
-      '통합 병원(healthcare_hospital) 문서 색인 — alias 인덱스에 in-place',
-    );
+    .description('통합 병원(healthcare_hospital) 문서 색인 — alias 인덱스에 in-place');
 
   addExamples(
     hospital
@@ -164,11 +154,7 @@ function registerHospital(es: Command, source: ConfigSource): void {
         'upsert 후 DB 에 없는(하드 삭제 + status 비활성) 병원 문서를 ES 에서 정리한다(대사)',
       )
       .action(
-        async (options: {
-          quiet?: boolean;
-          fresh?: boolean;
-          prune?: boolean;
-        }): Promise<void> => {
+        async (options: { quiet?: boolean; fresh?: boolean; prune?: boolean }): Promise<void> => {
           const started = Date.now();
           const result = await withAdminContext(
             source,
@@ -177,9 +163,7 @@ function registerHospital(es: Command, source: ConfigSource): void {
 
               // 색인할 인덱스가 없으면 스스로 만든다(그 인덱스만). 만들었을 때만 알린다.
               // ensure 는 **논리 이름**을 받는다(INDEX_DEFINITIONS 조회 → env 접두사는 내부에서 붙임).
-              const created = await ctx
-                .get(SearchSchemaService)
-                .ensure(svc.logicalName);
+              const created = await ctx.get(SearchSchemaService).ensure(svc.logicalName);
               if (created?.createdIndex && !options.quiet) {
                 console.log(
                   `  인덱스 없음 → 생성: ${created.createdIndex} (alias ${created.aliasTarget})`,
@@ -189,19 +173,14 @@ function registerHospital(es: Command, source: ConfigSource): void {
               if (options.fresh) {
                 const deleted = await svc.clearData();
                 if (!options.quiet) {
-                  console.log(
-                    `  기존 문서 비움: ${deleted.toLocaleString()}건 삭제`,
-                  );
+                  console.log(`  기존 문서 비움: ${deleted.toLocaleString()}건 삭제`);
                 }
               }
               const indexResult = await svc.syncAll(
                 options.quiet
                   ? undefined
                   : (processed, total, target) => {
-                      const pct =
-                        total > 0
-                          ? ((processed / total) * 100).toFixed(1)
-                          : '0.0';
+                      const pct = total > 0 ? ((processed / total) * 100).toFixed(1) : '0.0';
                       const secs = ((Date.now() - started) / 1000).toFixed(1);
                       // 어느 인덱스에 색인 중인지 함께 보여준다(in-place 라 target = alias).
                       process.stdout.write(
@@ -226,9 +205,7 @@ function registerHospital(es: Command, source: ConfigSource): void {
               `  실패      : ${result.failed.toLocaleString()} (ES 색인 거부)`,
               `  건너뜀    : ${result.skipped.toLocaleString()} (문서 변환 실패)`,
               ...(options.prune
-                ? [
-                    `  정리(삭제): ${result.pruned.toLocaleString()} (DB 에 없는·비활성 문서)`,
-                  ]
+                ? [`  정리(삭제): ${result.pruned.toLocaleString()} (DB 에 없는·비활성 문서)`]
                 : []),
               `  소요 시간 : ${((Date.now() - started) / 1000).toFixed(1)}초`,
             ].join('\n'),
@@ -265,10 +242,7 @@ function registerHospital(es: Command, source: ConfigSource): void {
               options.quiet
                 ? undefined
                 : (processed, total, target) => {
-                    const pct =
-                      total > 0
-                        ? ((processed / total) * 100).toFixed(1)
-                        : '0.0';
+                    const pct = total > 0 ? ((processed / total) * 100).toFixed(1) : '0.0';
                     const secs = ((Date.now() - started) / 1000).toFixed(1);
                     // 어느 인덱스에 색인 중인지 함께 보여준다(alias → 새 버전 인덱스).
                     process.stdout.write(
@@ -303,23 +277,16 @@ function registerHospital(es: Command, source: ConfigSource): void {
           process.exitCode = 1;
         }
       }),
-    [
-      'hansapp-cli es hospital reindex',
-      'hansapp-cli es hospital reindex --quiet',
-    ],
+    ['hansapp-cli es hospital reindex', 'hansapp-cli es hospital reindex --quiet'],
   );
 
   hospital
     .command('clear')
-    .description(
-      '⚠️ alias 인덱스의 병원 문서를 전량 비운다(인덱스·매핑은 유지)',
-    )
+    .description('⚠️ alias 인덱스의 병원 문서를 전량 비운다(인덱스·매핑은 유지)')
     .option('--yes', '확인 없이 실행')
     .action(async (options: { yes?: boolean }): Promise<void> => {
       if (!options.yes) {
-        console.error(
-          'alias 인덱스의 모든 병원 문서를 비웁니다. 실행하려면 --yes 를 붙이세요.',
-        );
+        console.error('alias 인덱스의 모든 병원 문서를 비웁니다. 실행하려면 --yes 를 붙이세요.');
         process.exitCode = 1;
         return;
       }
@@ -339,9 +306,7 @@ function registerHospital(es: Command, source: ConfigSource): void {
         ctx.get(HealthcareIndexService).syncOne(id),
       );
       console.log(
-        result.found
-          ? `병원 ${id} 색인 완료`
-          : `병원 ${id} 를 찾지 못했습니다(비활성이거나 없음)`,
+        result.found ? `병원 ${id} 색인 완료` : `병원 ${id} 를 찾지 못했습니다(비활성이거나 없음)`,
       );
       if (!result.found) {
         process.exitCode = 1;
@@ -357,11 +322,7 @@ function registerHospital(es: Command, source: ConfigSource): void {
       const result = await withAdminContext(source, (ctx) =>
         ctx.get(HealthcareIndexService).deleteOne(id),
       );
-      console.log(
-        result.deleted
-          ? `병원 ${id} 삭제 완료`
-          : `병원 ${id} 는 색인에 없었습니다`,
-      );
+      console.log(result.deleted ? `병원 ${id} 삭제 완료` : `병원 ${id} 는 색인에 없었습니다`);
     });
 }
 
@@ -413,8 +374,7 @@ function renderTable(headers: string[], rows: string[][]): string {
   );
   const pad = (text: string, i: number): string =>
     text + ' '.repeat(Math.max(0, widths[i] - displayWidth(text)));
-  const line = (cells: string[]): string =>
-    '  ' + cells.map((c, i) => pad(c ?? '', i)).join('   ');
+  const line = (cells: string[]): string => '  ' + cells.map((c, i) => pad(c ?? '', i)).join('   ');
   const sep = '  ' + widths.map((w) => '─'.repeat(w)).join('   ');
   return [line(headers), sep, ...rows.map(line)].join('\n');
 }

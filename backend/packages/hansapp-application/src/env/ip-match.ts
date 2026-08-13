@@ -67,11 +67,7 @@ function parseIpv6(value: string): bigint | null {
   // '::' 가 없으면 8그룹이 전부 적혀 있어야 한다(축약 없이 생략된 건 잘못된 표기다).
   if (halves.length === 1 && total !== 8) return null;
 
-  const groups = [
-    ...head,
-    ...(Array(8 - total).fill('0') as string[]),
-    ...tail,
-  ];
+  const groups = [...head, ...(Array(8 - total).fill('0') as string[]), ...tail];
 
   let bits = 0n;
   for (const group of groups) {
@@ -116,11 +112,7 @@ export function matchesAllowedIp(client: ParsedIp, pattern: string): boolean {
 
   if (slash === -1) {
     const target = parseIp(trimmed);
-    return (
-      target !== null &&
-      target.version === client.version &&
-      target.bits === client.bits
-    );
+    return target !== null && target.version === client.version && target.bits === client.bits;
   }
 
   const network = parseIp(trimmed.slice(0, slash));

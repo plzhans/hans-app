@@ -22,9 +22,7 @@ export class HiraSpecialtySyncRepository {
 
   /** DB 의 현재 시각. 워터마크를 앱 시계로 잡지 않기 위한 것이다. */
   async now(): Promise<Date> {
-    const rows = await this.prisma.$queryRaw<{ now: Date }[]>(
-      Prisma.sql`SELECT NOW() now`,
-    );
+    const rows = await this.prisma.$queryRaw<{ now: Date }[]>(Prisma.sql`SELECT NOW() now`);
     return rows[0].now;
   }
 
@@ -32,16 +30,9 @@ export class HiraSpecialtySyncRepository {
    * 분야는 호출자가 정한 srchCd 로 고정한다. 응답에는 없다.
    * srch_nm 은 hira_code 에서 가져온다 — 목록 API 가 코드명을 주지 않는다.
    */
-  async upsertSrch(
-    ykihos: string[],
-    srchCd: string,
-    srchNm: string | null,
-  ): Promise<void> {
+  async upsertSrch(ykihos: string[], srchCd: string, srchNm: string | null): Promise<void> {
     const values = Prisma.join(
-      ykihos.map(
-        (ykiho) =>
-          Prisma.sql`(${ykiho}, 'specialty', ${srchCd}, ${srchNm}, NOW())`,
-      ),
+      ykihos.map((ykiho) => Prisma.sql`(${ykiho}, 'specialty', ${srchCd}, ${srchNm}, NOW())`),
     );
 
     await this.prisma.$executeRaw(

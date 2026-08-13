@@ -1,9 +1,4 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
@@ -94,10 +89,7 @@ export class AdminPasswordResetService {
    * @returns 메일로 보낼 것. **보낼 것이 없으면 `null`** 이다(없는 계정·비활성 계정·한도 초과).
    *          부르는 쪽은 어느 경우든 같은 응답을 돌려줘야 한다.
    */
-  async issue(
-    rawEmail: string,
-    meta: AdminRequestMeta,
-  ): Promise<AdminPasswordResetTicket | null> {
+  async issue(rawEmail: string, meta: AdminRequestMeta): Promise<AdminPasswordResetTicket | null> {
     const email = normalizeEmail(rawEmail);
     const admin = await this.admins.findByEmail(email);
 
@@ -105,10 +97,8 @@ export class AdminPasswordResetService {
       ? 'admin_not_found'
       : admin.status !== AdminStatus.ACTIVE
         ? 'account_disabled'
-        : (await this.tickets.countRecentByAdmin(
-              admin.id,
-              new Date(Date.now() - 3_600_000),
-            )) >= MAX_REQUESTS_PER_HOUR
+        : (await this.tickets.countRecentByAdmin(admin.id, new Date(Date.now() - 3_600_000))) >=
+            MAX_REQUESTS_PER_HOUR
           ? 'too_many_requests'
           : null;
 
@@ -194,11 +184,7 @@ export class AdminPasswordResetService {
    *
    * **변경 강제 플래그는 풀린다.** 본인이 방금 정한 값이라 다시 바꾸게 할 이유가 없다.
    */
-  async consume(
-    token: string,
-    newPassword: string,
-    meta: AdminRequestMeta,
-  ): Promise<void> {
+  async consume(token: string, newPassword: string, meta: AdminRequestMeta): Promise<void> {
     // **DB 앞의 문지기다.** 서명이 안 맞거나 만료된 값은 여기서 끝난다.
     if (!looksValid(token, this.signingKey)) throw invalidLink();
 
@@ -310,9 +296,7 @@ function sign(body: string, key: Buffer): string {
  *  여기서 막는 것은 **남의 환경 DB 까지 질의가 가는 것**이다.)
  */
 function deriveKey(jwtSecret: string, appEnv: string): Buffer {
-  return createHmac('sha256', jwtSecret)
-    .update(`${appEnv}:${KEY_VERSION}:${KEY_PURPOSE}`)
-    .digest();
+  return createHmac('sha256', jwtSecret).update(`${appEnv}:${KEY_VERSION}:${KEY_PURPOSE}`).digest();
 }
 
 /**
@@ -338,9 +322,7 @@ const KEY_PURPOSE = 'admin-password-reset';
  * 찾아 헤매는 쪽에만 단서가 된다.
  */
 function invalidLink(): BadRequestException {
-  return new BadRequestException(
-    'This password reset link is invalid or has expired.',
-  );
+  return new BadRequestException('This password reset link is invalid or has expired.');
 }
 
 /** 저장·대조에 쓰는 값. 원문은 메일로만 나간다. */

@@ -46,9 +46,7 @@ export class HiraNpayCodeSyncService {
     // 코드는 대부분 앞 페이지에 나오므로(distinct 655) 뒤가 끊겨도 실질 누락은 적고, 남은 건
     // 다음 스케줄 실행이나 크롤 적재가 채운다.
     try {
-      for await (const response of this.client.paginateNonPaymentSummaries(
-        PAGE_SIZE,
-      )) {
+      for await (const response of this.client.paginateNonPaymentSummaries(PAGE_SIZE)) {
         const items = response.response?.body?.items?.item ?? [];
         calls += 1;
         scanned += items.length;

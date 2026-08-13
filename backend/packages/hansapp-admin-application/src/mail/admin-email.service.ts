@@ -96,10 +96,7 @@ export class AdminEmailService {
     }
 
     const link = `${consoleUrl}/reset-password?token=${encodeURIComponent(input.token)}`;
-    const minutes = Math.max(
-      1,
-      Math.round((input.expiresAt.getTime() - Date.now()) / 60_000),
-    );
+    const minutes = Math.max(1, Math.round((input.expiresAt.getTime() - Date.now()) / 60_000));
     const greeting = input.name?.trim() || input.email;
 
     try {
@@ -129,10 +126,7 @@ export class AdminEmailService {
    * **던지지 않는다.** 계정 쪽 일은 이미 끝났고, 메일이 실패했다고 그것을 되돌릴 수는 없다.
    * 무슨 일이 있었는지는 돌려주고, 그다음은 부르는 쪽이 화면에서 말한다.
    */
-  private async sendPassword(
-    occasion: Occasion,
-    input: MailInput,
-  ): Promise<AdminMailOutcome> {
+  private async sendPassword(occasion: Occasion, input: MailInput): Promise<AdminMailOutcome> {
     /*
       **보내기 전에 설정을 본다.** 발송기는 꺼져 있으면 본문을 로그로 남기고 조용히 끝내는데
       (곁다리 메일이 본 작업을 깨지 않게 하려는 설계다), 여기서는 그 "안 나갔음" 을

@@ -12,19 +12,11 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import {
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
 import { BoardPostAdminService } from '@hansapp/admin-application';
 import { AuthorType } from '@hansapp/common';
-import {
-  AdminAccountService,
-  CurrentAdmin,
-} from '@hansapp/admin-application/auth';
+import { AdminAccountService, CurrentAdmin } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
 
 import {
@@ -124,9 +116,7 @@ export class BoardPostController {
       '캐시에 무엇이 들어 있고 언제 만료되는지. 지우기 전에 지울 것이 있는지 볼 수 있다.',
   })
   @ApiOkResponse({ type: PostCacheStateDto })
-  async cacheState(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<PostCacheStateDto> {
+  async cacheState(@Param('id', ParseIntPipe) id: number): Promise<PostCacheStateDto> {
     return new PostCacheStateDto(await this.posts.cacheState(id));
   }
 

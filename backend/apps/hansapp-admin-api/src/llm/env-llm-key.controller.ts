@@ -9,12 +9,7 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import {
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EnvLlmKeyAdminService } from '@hansapp/admin-application';
 import { CurrentAdmin } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
@@ -62,9 +57,7 @@ export class EnvLlmKeyController {
       '실패해도 사람이 모델 이름을 직접 적을 수 있어야 하므로 등록을 막지 않는다.',
   })
   @ApiOkResponse({ type: VendorModelsResponseDto })
-  async models(
-    @Body() dto: VendorModelsRequestDto,
-  ): Promise<VendorModelsResponseDto> {
+  async models(@Body() dto: VendorModelsRequestDto): Promise<VendorModelsResponseDto> {
     return new VendorModelsResponseDto(await this.keys.listVendorModels(dto));
   }
 
@@ -110,8 +103,7 @@ export class EnvLlmKeyController {
   @HttpCode(204)
   @ApiOperation({
     summary: '키 삭제',
-    description:
-      '기본으로 지정된 것은 못 지운다 — 먼저 다른 것을 기본으로 옮긴다.',
+    description: '기본으로 지정된 것은 못 지운다 — 먼저 다른 것을 기본으로 옮긴다.',
   })
   @ApiNoContentResponse()
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {

@@ -6,10 +6,7 @@
  * 그래서 앱(apps/*)이 아니라 패키지에 둔다.
  */
 export { HttpErrorFilter } from './http-error.filter';
-export {
-  requestIdMiddleware,
-  REQUEST_ID_HEADER,
-} from './request-id.middleware';
+export { requestIdMiddleware, REQUEST_ID_HEADER } from './request-id.middleware';
 export type { RequestWithId } from './request-id.middleware';
 export { resolveClientIp } from './client-ip';
 export { StripNullInterceptor } from './strip-null.interceptor';

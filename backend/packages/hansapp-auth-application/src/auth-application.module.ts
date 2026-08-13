@@ -16,12 +16,7 @@ import {
   SESSION_CACHE_CONFIG,
   buildAuthConfig,
 } from './auth.config';
-import {
-  MAIL_CONFIG,
-  OTP_CONFIG,
-  buildMailConfig,
-  buildOtpConfig,
-} from './mail/mail.config';
+import { MAIL_CONFIG, OTP_CONFIG, buildMailConfig, buildOtpConfig } from './mail/mail.config';
 import { EmailVerificationRepository } from './mail/email-verification.repository';
 import { EmailVerificationService } from './mail/email-verification.service';
 import { EmailSender, EMAIL_SETTINGS_SOURCE } from '@hansapp/email-sender';
@@ -53,10 +48,7 @@ import { AuthCodeRepository } from './repository/auth-code.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
 import { AppRepository } from './app/app.repository';
 import { AppService } from './app/app.service';
-import {
-  APP_SECRET_CONFIG,
-  buildAppSecretConfig,
-} from './app/app-secret.config';
+import { APP_SECRET_CONFIG, buildAppSecretConfig } from './app/app-secret.config';
 import { LlmKeyRepository } from './app/llm-key.repository';
 import { LlmKeyService } from './app/llm-key.service';
 import { AccessCache } from './app/access-cache.service';
@@ -114,10 +106,8 @@ export class AuthModule {
         { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
         {
           provide: SettingCache,
-          useFactory: (
-            repo: SettingReadRepository,
-            keyring: SecretBoxKeys | undefined,
-          ) => new SettingCache(repo, keyring),
+          useFactory: (repo: SettingReadRepository, keyring: SecretBoxKeys | undefined) =>
+            new SettingCache(repo, keyring),
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         MailSettingsSource,

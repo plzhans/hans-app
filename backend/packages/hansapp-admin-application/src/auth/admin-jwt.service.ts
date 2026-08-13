@@ -18,9 +18,7 @@ import type { AdminAuthConfig } from './admin-auth.config';
 export class AdminJwtService {
   private readonly jwt = new JwtService({});
 
-  constructor(
-    @Inject(ADMIN_AUTH_CONFIG) private readonly config: AdminAuthConfig,
-  ) {}
+  constructor(@Inject(ADMIN_AUTH_CONFIG) private readonly config: AdminAuthConfig) {}
 
   sign(payload: object): string {
     return this.jwt.sign(payload, {

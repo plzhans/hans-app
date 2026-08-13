@@ -42,46 +42,29 @@ export class HiraQueryService {
 
   // ── 병원정보서비스 ────────────────────────────────
 
-  getHospitalList(
-    params: GetHospitalListParams = {},
-  ): Promise<HospitalListResponse> {
+  getHospitalList(params: GetHospitalListParams = {}): Promise<HospitalListResponse> {
     return this.client.getHospitalList(params);
   }
 
   // ── 의료기관별상세정보서비스 (ykiho 기준) ──────────
 
-  getDetailInfo(
-    ykiho: string,
-    params: HiraPageParams = {},
-  ): Promise<DetailInfoResponse> {
+  getDetailInfo(ykiho: string, params: HiraPageParams = {}): Promise<DetailInfoResponse> {
     return this.client.getDetailInfo(ykiho, params);
   }
 
-  getFacilityInfo(
-    ykiho: string,
-    params: HiraPageParams = {},
-  ): Promise<FacilityInfoResponse> {
+  getFacilityInfo(ykiho: string, params: HiraPageParams = {}): Promise<FacilityInfoResponse> {
     return this.client.getFacilityInfo(ykiho, params);
   }
 
-  getSubjectInfo(
-    ykiho: string,
-    params: HiraPageParams = {},
-  ): Promise<SubjectInfoResponse> {
+  getSubjectInfo(ykiho: string, params: HiraPageParams = {}): Promise<SubjectInfoResponse> {
     return this.client.getSubjectInfo(ykiho, params);
   }
 
-  getTransportInfo(
-    ykiho: string,
-    params: HiraPageParams = {},
-  ): Promise<TransportInfoResponse> {
+  getTransportInfo(ykiho: string, params: HiraPageParams = {}): Promise<TransportInfoResponse> {
     return this.client.getTransportInfo(ykiho, params);
   }
 
-  getEquipmentInfo(
-    ykiho: string,
-    params: HiraPageParams = {},
-  ): Promise<EquipmentInfoResponse> {
+  getEquipmentInfo(ykiho: string, params: HiraPageParams = {}): Promise<EquipmentInfoResponse> {
     return this.client.getEquipmentInfo(ykiho, params);
   }
 
@@ -92,10 +75,7 @@ export class HiraQueryService {
     return this.client.getNursingGradeInfo(ykiho, params);
   }
 
-  getFoodAddcInfo(
-    ykiho: string,
-    params: HiraPageParams = {},
-  ): Promise<FoodAddcInfoResponse> {
+  getFoodAddcInfo(ykiho: string, params: HiraPageParams = {}): Promise<FoodAddcInfoResponse> {
     return this.client.getFoodAddcInfo(ykiho, params);
   }
 
@@ -120,10 +100,7 @@ export class HiraQueryService {
     return this.client.getSpecialistCounts(ykiho, params);
   }
 
-  getEtcStaffInfo(
-    ykiho: string,
-    params: HiraPageParams = {},
-  ): Promise<EtcStaffInfoResponse> {
+  getEtcStaffInfo(ykiho: string, params: HiraPageParams = {}): Promise<EtcStaffInfoResponse> {
     return this.client.getEtcStaffInfo(ykiho, params);
   }
 
@@ -133,9 +110,7 @@ export class HiraQueryService {
     return this.client.getAddressCodes(params);
   }
 
-  getInstitutionClassCodes(
-    params: HiraPageParams = {},
-  ): Promise<InstitutionClassCodeResponse> {
+  getInstitutionClassCodes(params: HiraPageParams = {}): Promise<InstitutionClassCodeResponse> {
     return this.client.getInstitutionClassCodes(params);
   }
 
@@ -143,21 +118,15 @@ export class HiraQueryService {
     return this.client.getSubjectCodes(params);
   }
 
-  getEquipmentCodes(
-    params: HiraPageParams = {},
-  ): Promise<EquipmentCodeResponse> {
+  getEquipmentCodes(params: HiraPageParams = {}): Promise<EquipmentCodeResponse> {
     return this.client.getEquipmentCodes(params);
   }
 
-  getSpecialtyHospitalCodes(
-    params: HiraPageParams = {},
-  ): Promise<SearchCodeResponse> {
+  getSpecialtyHospitalCodes(params: HiraPageParams = {}): Promise<SearchCodeResponse> {
     return this.client.getSpecialtyHospitalCodes(params);
   }
 
-  getSpecialDiagnosisCodes(
-    params: HiraPageParams = {},
-  ): Promise<SearchCodeResponse> {
+  getSpecialDiagnosisCodes(params: HiraPageParams = {}): Promise<SearchCodeResponse> {
     return this.client.getSpecialDiagnosisCodes(params);
   }
 }

@@ -109,9 +109,7 @@ async function getJson(
   try {
     const res = await fetch(url, { headers, signal: controller.signal });
     if (!res.ok) {
-      throw new Error(
-        `Model listing failed (HTTP ${res.status}) — ${await preview(res)}`,
-      );
+      throw new Error(`Model listing failed (HTTP ${res.status}) — ${await preview(res)}`);
     }
     return await res.json();
   } finally {
@@ -143,7 +141,8 @@ function trimEnd(url: string): string {
 /** 오류 본문 앞부분. 통째로 실으면 로그가 업체 HTML 로 덮인다. */
 async function preview(res: Response): Promise<string> {
   try {
-    return (await res.text()).slice(0, 200);
+    const body = await res.text();
+    return body.slice(0, 200);
   } catch {
     return '(본문 없음)';
   }

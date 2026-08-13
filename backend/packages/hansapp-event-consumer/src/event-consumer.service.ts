@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  type OnModuleDestroy,
-  type OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 import { Worker, type Job } from 'bullmq';
 import type { DomainEventName } from '@hansapp/event-contract';
@@ -51,11 +46,10 @@ export class EventConsumer implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    this.worker = new Worker(
-      EVENT_QUEUE_NAME,
-      (job: Job) => this.dispatch(job),
-      { connection: { url: this.redisUrl }, concurrency: this.concurrency },
-    );
+    this.worker = new Worker(EVENT_QUEUE_NAME, (job: Job) => this.dispatch(job), {
+      connection: { url: this.redisUrl },
+      concurrency: this.concurrency,
+    });
     this.logger.log(
       `이벤트 소비 시작 — ${[...this.handlers.keys()].join(', ')} (동시 ${this.concurrency})`,
     );
@@ -80,10 +74,7 @@ export class EventConsumer implements OnModuleInit, OnModuleDestroy {
         const fn = target[method];
         if (typeof fn !== 'function') continue;
 
-        const name = this.reflector.get<DomainEventName | undefined>(
-          DOMAIN_EVENT_HANDLER,
-          fn,
-        );
+        const name = this.reflector.get<DomainEventName | undefined>(DOMAIN_EVENT_HANDLER, fn);
         if (!name) continue;
 
         const bound = (fn as Handler).bind(instance);

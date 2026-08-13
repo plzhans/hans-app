@@ -73,11 +73,7 @@ function stripPort(value: string): string {
   }
   // IPv4:port — 콜론이 정확히 하나이고 앞이 IPv4(점 포함)일 때만 뗀다(IPv6 오판 방지).
   const colon = value.indexOf(':');
-  if (
-    colon > 0 &&
-    value.indexOf(':', colon + 1) === -1 &&
-    value.lastIndexOf('.', colon) !== -1
-  ) {
+  if (colon > 0 && value.indexOf(':', colon + 1) === -1 && value.lastIndexOf('.', colon) !== -1) {
     return value.slice(0, colon);
   }
   return value;

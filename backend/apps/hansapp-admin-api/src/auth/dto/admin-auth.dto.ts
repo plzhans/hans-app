@@ -1,12 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsIn,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { AdminRole } from '@hansapp/admin-application/auth';
 import type { AdminPasswordResetTarget } from '@hansapp/admin-application/auth';
 import { SUPPORTED_LANGS } from '@hansapp/common';

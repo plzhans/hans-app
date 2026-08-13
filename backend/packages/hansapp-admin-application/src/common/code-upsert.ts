@@ -46,17 +46,13 @@ export async function upsertCodeRows(
 
     const unchanged = Prisma.join(
       valueColumns.map(
-        (column) =>
-          Prisma.sql`${self}.${Prisma.raw(column)} <=> new.${Prisma.raw(column)}`,
+        (column) => Prisma.sql`${self}.${Prisma.raw(column)} <=> new.${Prisma.raw(column)}`,
       ),
       ' AND ',
     );
 
     const assignments = Prisma.join(
-      valueColumns.map(
-        (column) =>
-          Prisma.sql`${Prisma.raw(column)} = new.${Prisma.raw(column)}`,
-      ),
+      valueColumns.map((column) => Prisma.sql`${Prisma.raw(column)} = new.${Prisma.raw(column)}`),
     );
 
     await prisma.$executeRaw(

@@ -1,9 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  AppClientType,
-  AppReviewState,
-  AppStatus,
-} from '@hansapp/auth-application';
+import { AppClientType, AppReviewState, AppStatus } from '@hansapp/auth-application';
 import {
   ArrayMaxSize,
   IsArray,
@@ -21,8 +17,7 @@ import {
 const NAME_PATTERN = /^[a-zA-Z-]+$/;
 const APP_NAME_PATTERN = NAME_PATTERN;
 const APP_NAME_MESSAGE = '앱 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
-const CLIENT_NAME_MESSAGE =
-  '클라이언트 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
+const CLIENT_NAME_MESSAGE = '클라이언트 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
 
 export class CreateAppDto {
   @ApiProperty({ description: '앱 이름(영어·하이픈)', example: 'my-service' })
@@ -209,8 +204,7 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-z0-9][a-z0-9-]{1,29}$/, {
-    message:
-      'Client ID 는 소문자·숫자·하이픈만, 2~30자, 하이픈으로 시작할 수 없습니다.',
+    message: 'Client ID 는 소문자·숫자·하이픈만, 2~30자, 하이픈으로 시작할 수 없습니다.',
   })
   readonly clientId?: string;
 

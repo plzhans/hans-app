@@ -17,12 +17,8 @@ import { appConfig, buildInfo } from './boot-config';
  * 비어 있으면 init 자체를 하지 않는다 — 이후 captureException 등은 전부 no-op 이 된다.
  */
 const enabled = appConfig.getBoolOrDefault('apps-admin-api.sentry.enabled');
-const dsn = enabled
-  ? appConfig.getStringOrDefault('apps-admin-api.sentry.dsn')
-  : '';
-const tracesSampleRate = appConfig.getNumberOrDefault(
-  'apps-admin-api.sentry.tracesSampleRate',
-);
+const dsn = enabled ? appConfig.getStringOrDefault('apps-admin-api.sentry.dsn') : '';
+const tracesSampleRate = appConfig.getNumberOrDefault('apps-admin-api.sentry.tracesSampleRate');
 
 if (dsn) {
   Sentry.init({

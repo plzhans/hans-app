@@ -25,9 +25,7 @@ const BOARD_LIST_KEY = 'board:list';
 export class BoardCacheInvalidator {
   private readonly logger = new Logger(BoardCacheInvalidator.name);
 
-  constructor(
-    @Optional() @Inject(CACHE_MANAGER) private readonly cache?: Cache,
-  ) {}
+  constructor(@Optional() @Inject(CACHE_MANAGER) private readonly cache?: Cache) {}
 
   /**
    * 지운다. **실패해도 던지지 않는다** — DB 는 이미 바뀌었고 캐시는 TTL 이 지나면 어차피

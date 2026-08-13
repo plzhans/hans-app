@@ -64,8 +64,7 @@ export interface HospitalSearchFilter {
  * 판별 유니온이라 **거리순인데 기준점이 없는 상태를 타입이 막는다** — 그 조합은 조용히
  * 기본 정렬로 떨어지기 딱 좋은 자리다.
  */
-export type HospitalSearchOrder =
-  { by: 'default' } | { by: 'distance'; origin: HospitalCoords };
+export type HospitalSearchOrder = { by: 'default' } | { by: 'distance'; origin: HospitalCoords };
 
 /**
  * DB 경로가 **좌표 기반 조건을 거절한다** — 거리순 정렬(order)과 지도 영역(bbox) 둘 다.
@@ -78,14 +77,9 @@ export type HospitalSearchOrder =
  * 거리순을 id 순으로 주면 "가까운 순" 을 누른 사용자가 먼 병원을 위에서 보게 된다 —
  * 둘 다 틀린 답을 맞는 척 주는 것이라, 실패하는 편이 낫다.
  */
-function assertNoGeoQuery(
-  filter: HospitalSearchFilter,
-  order: HospitalSearchOrder,
-): void {
+function assertNoGeoQuery(filter: HospitalSearchFilter, order: HospitalSearchOrder): void {
   if (order.by === 'distance') {
-    throw new Error(
-      'Distance sorting is not supported by the database source. Use Elasticsearch.',
-    );
+    throw new Error('Distance sorting is not supported by the database source. Use Elasticsearch.');
   }
   if (filter.bbox) {
     throw new Error(
@@ -198,9 +192,7 @@ export type HospitalDetailModel = Prisma.HealthcareHospitalGetPayload<{
 }>;
 
 @Injectable()
-export class HealthcareHospitalRepository
-  implements HospitalScrollSource, HospitalSearchSource
-{
+export class HealthcareHospitalRepository implements HospitalScrollSource, HospitalSearchSource {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -263,8 +255,7 @@ export class HealthcareHospitalRepository
     assertNoGeoQuery(filter, order);
     const afterId = decodeIdToken(nextToken);
     const where = this.buildWhere(filter);
-    const cursor =
-      afterId !== undefined ? Prisma.sql`AND h.id > ${afterId}` : Prisma.empty;
+    const cursor = afterId !== undefined ? Prisma.sql`AND h.id > ${afterId}` : Prisma.empty;
     const rows = await this.prisma.$queryRaw<HospitalListRow[]>(Prisma.sql`
       ${this.selectFrom(lang)}
        WHERE ${where} ${cursor}
@@ -341,10 +332,7 @@ export class HealthcareHospitalRepository
    * 병원의 한 언어 번역. 없으면(그 언어 번역이 아직 없음) null.
    * 상세(findDetail)와 분리해 (id,lang) 단위로 캐시하기 쉽게 둔다 — 캐시 객체가 작아진다.
    */
-  findI18n(
-    id: number,
-    lang: SupportedLang,
-  ): Promise<HealthcareHospitalI18n | null> {
+  findI18n(id: number, lang: SupportedLang): Promise<HealthcareHospitalI18n | null> {
     return this.prisma.healthcareHospitalI18n.findUnique({
       where: { hospitalId_lang: { hospitalId: id, lang } },
     });
@@ -380,14 +368,10 @@ export class HealthcareHospitalRepository
 
     if (filter.regionCds?.length) {
       // 시도 코드도 검색된다 — 서비스가 [자신 + 하위 시군구] 로 펴서 넘긴다(시군구면 자신뿐이라 등가).
-      conditions.push(
-        Prisma.sql`h.region_cd IN (${Prisma.join(filter.regionCds)})`,
-      );
+      conditions.push(Prisma.sql`h.region_cd IN (${Prisma.join(filter.regionCds)})`);
     }
     if (filter.classCds?.length) {
-      conditions.push(
-        Prisma.sql`h.class_cd IN (${Prisma.join(filter.classCds)})`,
-      );
+      conditions.push(Prisma.sql`h.class_cd IN (${Prisma.join(filter.classCds)})`);
     }
 
     if (filter.tiers?.length) {
@@ -435,9 +419,7 @@ export class HealthcareHospitalRepository
        */
       const conds = filter.asmExcellentCds.map(
         (code) =>
-          Prisma.sql`ha.${Prisma.raw(`asm_${code}`)} = ${
-            code === ASTHMA_ASM_CODE ? '양호' : '1'
-          }`,
+          Prisma.sql`ha.${Prisma.raw(`asm_${code}`)} = ${code === ASTHMA_ASM_CODE ? '양호' : '1'}`,
       );
       conditions.push(Prisma.sql`EXISTS (
         SELECT 1 FROM hira_hospital_asm ha

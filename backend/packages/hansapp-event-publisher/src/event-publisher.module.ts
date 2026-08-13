@@ -27,9 +27,7 @@ export class EventPublisherModule {
       providers: [
         {
           provide: EVENT_QUEUE,
-          useValue: url
-            ? new Queue(EVENT_QUEUE_NAME, { connection: { url } })
-            : null,
+          useValue: url ? new Queue(EVENT_QUEUE_NAME, { connection: { url } }) : null,
         },
         {
           provide: EventPublisher,

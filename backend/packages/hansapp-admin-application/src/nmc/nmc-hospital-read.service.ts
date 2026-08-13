@@ -25,9 +25,7 @@ export class NmcHospitalReadService {
     private readonly db: NmcHospitalService,
   ) {}
 
-  async getHospitalList(
-    options: NmcHospitalListOptions,
-  ): Promise<HospitalFullDownResponse> {
+  async getHospitalList(options: NmcHospitalListOptions): Promise<HospitalFullDownResponse> {
     if (options.source === 'origin') {
       return this.api.getHospitalFullDown({
         pageNo: options.pageNo,

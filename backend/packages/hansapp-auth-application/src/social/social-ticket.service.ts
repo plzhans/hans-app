@@ -123,17 +123,11 @@ export class SocialTicketService {
 
   /** 연동(link) 시작 토큰. 로그인 상태에서 발급받아 GET /auth/:provider?link_token= 로 넘긴다. */
   signLinkPrepare(userId: number): string {
-    return this.jwt.sign(
-      { token_use: 'oauth_link', user_id: userId },
-      { expiresIn: 600 },
-    );
+    return this.jwt.sign({ token_use: 'oauth_link', user_id: userId }, { expiresIn: 600 });
   }
 
   verifyLinkPrepare(token: string): { userId: number } {
-    const p = this.verify<{ token_use: string; user_id: number }>(
-      token,
-      'oauth_link',
-    );
+    const p = this.verify<{ token_use: string; user_id: number }>(token, 'oauth_link');
     return { userId: p.user_id };
   }
 
@@ -188,10 +182,7 @@ export class SocialTicketService {
     };
   }
 
-  private verify<T extends { token_use: string }>(
-    token: string,
-    expected: string,
-  ): T {
+  private verify<T extends { token_use: string }>(token: string, expected: string): T {
     let payload: T;
     try {
       payload = this.jwt.verify<T>(token);

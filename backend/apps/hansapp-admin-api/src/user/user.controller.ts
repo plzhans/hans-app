@@ -58,9 +58,7 @@ export class UserController {
     description: '최근 가입 순. 이메일·이름 부분 일치와 상태로 거를 수 있다.',
   })
   @ApiPageResponse(UserSummaryDto)
-  async list(
-    @Query() query: UserListQueryDto,
-  ): Promise<PageResponseDto<UserSummaryDto>> {
+  async list(@Query() query: UserListQueryDto): Promise<PageResponseDto<UserSummaryDto>> {
     const page = await this.users.list(query);
     return PageResponseDto.from(page.map((user) => new UserSummaryDto(user)));
   }
@@ -104,9 +102,7 @@ export class UserController {
       '인스턴스는 최대 60초까지 들고 있을 수 있다.',
   })
   @ApiOkResponse({ type: ProfileCacheStateDto })
-  async cacheState(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<ProfileCacheStateDto> {
+  async cacheState(@Param('id', ParseIntPipe) id: number): Promise<ProfileCacheStateDto> {
     const user = await this.users.findById(id);
     if (!user) {
       throw new NotFoundException(`User not found: ${id}`);
@@ -133,13 +129,10 @@ export class UserController {
   @Get(':id/sessions')
   @ApiOperation({
     summary: '회원의 로그인 기기',
-    description:
-      '살아 있는 로그인 세션을 최근 활동 순으로 돌려준다. 만료된 세션은 빠진다.',
+    description: '살아 있는 로그인 세션을 최근 활동 순으로 돌려준다. 만료된 세션은 빠진다.',
   })
   @ApiOkResponse({ type: [UserSessionDto] })
-  async sessions(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<UserSessionDto[]> {
+  async sessions(@Param('id', ParseIntPipe) id: number): Promise<UserSessionDto[]> {
     // 없는 회원도 빈 목록이 나온다. 주소를 잘못 짚은 것과 구별되게 먼저 확인한다.
     const user = await this.users.findById(id);
     if (!user) {
@@ -159,9 +152,7 @@ export class UserController {
       '**즉시 막히지는 않는다.** access token 은 서명만으로 검증되는 JWT 라, ' +
       '세션 캐시가 갱신되기까지(기본 60초) 발급돼 있던 토큰이 통한다.',
   })
-  async revokeAllSessions(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<void> {
+  async revokeAllSessions(@Param('id', ParseIntPipe) id: number): Promise<void> {
     const user = await this.users.findById(id);
     if (!user) {
       throw new NotFoundException(`User not found: ${id}`);

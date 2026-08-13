@@ -18,12 +18,8 @@ import { appConfig, buildInfo } from './boot-config';
 
 // 끄개는 dsn 과 따로 둔다(이유는 apps-api 의 instrument.ts 참고 — 빈 값은 기본값으로 되돌아간다).
 const enabled = appConfig.getBoolOrDefault('apps-batch.sentry.enabled');
-const dsn = enabled
-  ? appConfig.getStringOrDefault('apps-batch.sentry.dsn')
-  : '';
-const tracesSampleRate = appConfig.getNumberOrDefault(
-  'apps-batch.sentry.tracesSampleRate',
-);
+const dsn = enabled ? appConfig.getStringOrDefault('apps-batch.sentry.dsn') : '';
+const tracesSampleRate = appConfig.getNumberOrDefault('apps-batch.sentry.tracesSampleRate');
 
 if (dsn) {
   Sentry.init({

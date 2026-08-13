@@ -28,13 +28,10 @@ export class NmcCodeController {
   @Get()
   @ApiOperation({
     summary: '코드마스터 목록 조회',
-    description:
-      '로컬 DB 에 미러링한 NMC 코드마스터. 응답 구조는 원본 API 와 동일하다.',
+    description: '로컬 DB 에 미러링한 NMC 코드마스터. 응답 구조는 원본 API 와 동일하다.',
   })
   @ApiOkResponse({ schema: krDataSchemaRef(RESPONSE_SCHEMA) })
-  async list(
-    @Query() request: NmcCodeListRequestDto,
-  ): Promise<CodeInfoResponse> {
+  async list(@Query() request: NmcCodeListRequestDto): Promise<CodeInfoResponse> {
     return this.nmcCodeService.listCodes({
       cmMid: request.cmMid,
       page: request.page,

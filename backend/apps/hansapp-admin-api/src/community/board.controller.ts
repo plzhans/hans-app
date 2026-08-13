@@ -11,12 +11,7 @@ import {
   Post,
   UseInterceptors,
 } from '@nestjs/common';
-import {
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BoardAdminService } from '@hansapp/admin-application';
 
 import {
@@ -45,8 +40,7 @@ export class BoardController {
   @Get()
   @ApiOperation({
     summary: '게시판 목록',
-    description:
-      '순서(sortOrder)대로 전부 준다. 게시판은 수가 적어 페이징이 없다.',
+    description: '순서(sortOrder)대로 전부 준다. 게시판은 수가 적어 페이징이 없다.',
   })
   @ApiOkResponse({ type: [BoardDto] })
   async list(): Promise<BoardDto[]> {
@@ -60,8 +54,7 @@ export class BoardController {
   @Get('deleted')
   @ApiOperation({
     summary: '삭제함',
-    description:
-      '지운 게시판. 되살릴 때 채워 줄 이름(suggestedName)을 함께 준다.',
+    description: '지운 게시판. 되살릴 때 채워 줄 이름(suggestedName)을 함께 준다.',
   })
   @ApiOkResponse({ type: [DeletedBoardDto] })
   async listDeleted(): Promise<DeletedBoardDto[]> {

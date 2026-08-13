@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  DomainEvent,
-  type UserProfileUpdatedEvent,
-} from '@hansapp/event-contract';
+import { DomainEvent, type UserProfileUpdatedEvent } from '@hansapp/event-contract';
 import { OnDomainEvent } from '@hansapp/event-consumer';
 
 import { ProfileCache } from './profile-cache.service';

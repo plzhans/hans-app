@@ -1,9 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { AuthProvider, UserRole } from '@hansapp/data';
 import {
   composeSignedToken,
@@ -102,10 +97,7 @@ export class TokenService {
     private readonly authCodes: AuthCodeRepository,
   ) {
     this.authCodeTagKey = hmacSha256hex(config.jwtSecret, 'auth-code-tag-v1');
-    this.refreshTagKey = hmacSha256hex(
-      config.jwtSecret,
-      'refresh-token-tag-v1',
-    );
+    this.refreshTagKey = hmacSha256hex(config.jwtSecret, 'refresh-token-tag-v1');
   }
 
   // ---- access token (JWT) ----
@@ -141,9 +133,7 @@ export class TokenService {
   ): Promise<IssuedSession> {
     const sessionId = randomToken(18);
     const secret = randomToken(24);
-    const expiresAt = new Date(
-      Date.now() + this.config.refreshTokenTtlSec * 1000,
-    );
+    const expiresAt = new Date(Date.now() + this.config.refreshTokenTtlSec * 1000);
     await this.sessions.create({
       sessionId,
       userId,
@@ -155,14 +145,10 @@ export class TokenService {
     });
     // 발급 확인용 로그. ip 는 resolveClientIp 로 통일된 값이라, CDN/프록시 뒤에서 진짜 클라 IP 가
     // 제대로 잡히는지 이 로그로 검증할 수 있다.
-    this.logger.log(
-      `refresh issued: userId=${userId} sid=${sessionId} ip=${meta.ip ?? '-'}`,
-    );
+    this.logger.log(`refresh issued: userId=${userId} sid=${sessionId} ip=${meta.ip ?? '-'}`);
     return {
       sessionId,
-      refreshToken:
-        REFRESH_PREFIX +
-        composeSignedToken(sessionId, secret, this.refreshTagKey),
+      refreshToken: REFRESH_PREFIX + composeSignedToken(sessionId, secret, this.refreshTagKey),
       expiresAt,
       persistent,
     };
@@ -174,11 +160,7 @@ export class TokenService {
    */
   async rotateRefreshToken(refreshToken: string): Promise<RotatedSession> {
     // HMAC 태그부터 검증한다. 위조·변조·정크 토큰은 여기서 DB 조회 없이 탈락한다(저사양 보호).
-    const parsed = parseSignedToken(
-      refreshToken,
-      REFRESH_PREFIX,
-      this.refreshTagKey,
-    );
+    const parsed = parseSignedToken(refreshToken, REFRESH_PREFIX, this.refreshTagKey);
     if (!parsed) {
       throw new UnauthorizedException('Invalid refresh token.');
     }
@@ -196,24 +178,15 @@ export class TokenService {
     }
 
     const newSecret = randomToken(24);
-    const expiresAt = new Date(
-      Date.now() + this.config.refreshTokenTtlSec * 1000,
-    );
-    await this.sessions.rotate(
-      session.sessionId,
-      sha256hex(newSecret),
-      expiresAt,
-    );
+    const expiresAt = new Date(Date.now() + this.config.refreshTokenTtlSec * 1000);
+    await this.sessions.rotate(session.sessionId, sha256hex(newSecret), expiresAt);
     // 갱신(rotate)도 refresh 를 재발급한다. rotate 경로엔 요청 meta 가 없어 IP 는 남기지 않는다.
-    this.logger.log(
-      `refresh rotated: userId=${session.userId} sid=${session.sessionId}`,
-    );
+    this.logger.log(`refresh rotated: userId=${session.userId} sid=${session.sessionId}`);
     return {
       userId: session.userId,
       sessionId: session.sessionId,
       refreshToken:
-        REFRESH_PREFIX +
-        composeSignedToken(session.sessionId, newSecret, this.refreshTagKey),
+        REFRESH_PREFIX + composeSignedToken(session.sessionId, newSecret, this.refreshTagKey),
       expiresAt,
       // 갱신해도 처음 선택을 그대로 이어 간다(요청만 보고는 알 수 없다).
       persistent: session.persistent,
@@ -232,11 +205,7 @@ export class TokenService {
   }
 
   /** 세션(신규/rotate)에 access token 을 얹어 토큰 묶음을 만든다. */
-  buildTokens(
-    userId: number,
-    role: UserRole,
-    session: IssuedSession,
-  ): AuthTokens {
+  buildTokens(userId: number, role: UserRole, session: IssuedSession): AuthTokens {
     return {
       accessToken: this.issueAccessToken(userId, role, session.sessionId),
       tokenType: 'Bearer',
@@ -259,11 +228,7 @@ export class TokenService {
   async revokeByRefreshToken(
     refreshToken: string,
   ): Promise<{ sessionId: string; userId: number } | null> {
-    const parsed = parseSignedToken(
-      refreshToken,
-      REFRESH_PREFIX,
-      this.refreshTagKey,
-    );
+    const parsed = parseSignedToken(refreshToken, REFRESH_PREFIX, this.refreshTagKey);
     if (!parsed) return null;
     const session = await this.sessions.findById(parsed.id);
     if (!session) return null;
@@ -316,9 +281,7 @@ export class TokenService {
       secretHash: sha256hex(secret),
       expiresAt: new Date(Date.now() + this.config.authCodeTtlSec * 1000),
     });
-    return (
-      AUTH_CODE_PREFIX + composeSignedToken(sid, secret, this.authCodeTagKey)
-    );
+    return AUTH_CODE_PREFIX + composeSignedToken(sid, secret, this.authCodeTagKey);
   }
 
   /**
@@ -329,11 +292,7 @@ export class TokenService {
    */
   async consumeAuthCode(code: string): Promise<ConsumedAuthCode> {
     // HMAC 태그부터 검증한다. 위조·변조·정크 코드는 여기서 DB 조회 없이 탈락한다(저사양 보호).
-    const parsed = parseSignedToken(
-      code,
-      AUTH_CODE_PREFIX,
-      this.authCodeTagKey,
-    );
+    const parsed = parseSignedToken(code, AUTH_CODE_PREFIX, this.authCodeTagKey);
     if (!parsed) {
       throw new UnauthorizedException('Invalid authorization code.');
     }

@@ -63,9 +63,7 @@ export class TransportController {
       '— 수도권·부산·대구·대전·광주.',
   })
   @ApiOkResponse({ type: SubwayStationListDto })
-  subwayStations(
-    @Res({ passthrough: true }) res: Response,
-  ): SubwayStationListDto {
+  subwayStations(@Res({ passthrough: true }) res: Response): SubwayStationListDto {
     // **본문 해시가 아니라 데이터 버전으로 ETag 를 만든다.**
     // Express 기본 ETag 는 응답 본문을 매 요청 직렬화·해시해서 만든다 — 916역을 매번 그러는 건
     // 낭비이고, 무엇보다 "무엇이 바뀌면 값이 바뀌는가" 가 불분명하다. 우리는 안다:

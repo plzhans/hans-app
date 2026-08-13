@@ -19,9 +19,7 @@ export interface RegionRebuildResult {
  * 부분 sync(--full 아님) 뒤에 호출해도 안전하다. 집계 대상이 방금 받은 페이지가 아니라
  * 병원 테이블 전체이기 때문이다.
  */
-export async function rebuildNmcRegions(
-  prisma: PrismaService,
-): Promise<RegionRebuildResult> {
+export async function rebuildNmcRegions(prisma: PrismaService): Promise<RegionRebuildResult> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`DELETE FROM nmc_region`;
 
@@ -46,9 +44,7 @@ export async function rebuildNmcRegions(
  * (예: 360000 의 이름이 대부분 '전남광주' 인데 갱신 누락된 3건은 아직 '전남' 이다)
  * 이름은 MAX 로 하나만 고른다. 통합 후 이름이 옛 이름보다 뒤에 정렬되므로 현행 이름이 뽑힌다.
  */
-export async function rebuildHiraRegions(
-  prisma: PrismaService,
-): Promise<RegionRebuildResult> {
+export async function rebuildHiraRegions(prisma: PrismaService): Promise<RegionRebuildResult> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`DELETE FROM hira_region`;
 
@@ -60,9 +56,7 @@ export async function rebuildHiraRegions(
        GROUP BY sido_cd, sggu_cd
     `;
 
-    return summarize(
-      await tx.hiraRegion.findMany({ select: { sidoNm: true } }),
-    );
+    return summarize(await tx.hiraRegion.findMany({ select: { sidoNm: true } }));
   });
 }
 

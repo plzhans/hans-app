@@ -79,8 +79,6 @@ export class BatchScheduler {
     this.registry.addCronJob(AUTH_CLEANUP_JOB_NAME, cleanupJob);
     cleanupJob.start();
 
-    this.logger.log(
-      `크론 등록 — ${AUTH_CLEANUP_JOB_NAME} ${this.config.authCleanupCron}`,
-    );
+    this.logger.log(`크론 등록 — ${AUTH_CLEANUP_JOB_NAME} ${this.config.authCleanupCron}`);
   }
 }

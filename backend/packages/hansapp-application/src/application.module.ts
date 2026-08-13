@@ -10,11 +10,7 @@ import {
 
 import { DataModule, SettingReadRepository } from '@hansapp/data';
 import { LlmModule, LlmService, LLM_SETTINGS_SOURCE } from '@hansapp/llm';
-import {
-  buildSearchConfig,
-  ElasticsearchService,
-  SEARCH_CONFIG,
-} from '@hansapp/search';
+import { buildSearchConfig, ElasticsearchService, SEARCH_CONFIG } from '@hansapp/search';
 
 import { SettingCache } from './setting/setting-cache.service';
 import { BoardReadRepository } from './community/board-read.repository';
@@ -29,10 +25,7 @@ import { EnvSwaggerAllowedIpRepository } from './env/env-swagger-allowed-ip.repo
 import { buildHealthConfig, HEALTH_CONFIG } from './health/health.config';
 import { HealthService } from './health/health.service';
 import { SwaggerAccessService } from './env/swagger-access.service';
-import {
-  buildSlackNotifyConfig,
-  SLACK_NOTIFY_CONFIG,
-} from './notify/slack-notify.config';
+import { buildSlackNotifyConfig, SLACK_NOTIFY_CONFIG } from './notify/slack-notify.config';
 import { SlackNotifyService } from './notify/slack-notify.service';
 import { HiraCodeService } from './hira/hira-code.service';
 import { HiraCodeRepository } from './hira/hira-code.repository';
@@ -103,11 +96,7 @@ export class ApplicationModule {
       module: ApplicationModule,
       // LlmModule 은 **통째로 붙인다**(SEARCH_CONFIG 처럼 조각만 뽑지 않는다) —
       // 무거운 연결도 두 번째 커넥션 풀도 없고, 설정이 비면 스스로 조용해지기 때문이다.
-      imports: [
-        DataModule.forRoot(source),
-        LlmModule.forRoot(source),
-        cacheModule,
-      ],
+      imports: [DataModule.forRoot(source), LlmModule.forRoot(source), cacheModule],
       providers: [
         // 커뮤니티 읽기(포털). 공개된 게시판·글만 나간다.
         BoardReadRepository,
@@ -119,10 +108,8 @@ export class ApplicationModule {
         { provide: SETTING_KEYRING, useValue: buildSettingKeyring(source) },
         {
           provide: SettingCache,
-          useFactory: (
-            repo: SettingReadRepository,
-            keyring: SecretBoxKeys | undefined,
-          ) => new SettingCache(repo, keyring),
+          useFactory: (repo: SettingReadRepository, keyring: SecretBoxKeys | undefined) =>
+            new SettingCache(repo, keyring),
           inject: [SettingReadRepository, SETTING_KEYRING],
         },
         /*

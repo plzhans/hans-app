@@ -69,8 +69,7 @@ export default tseslint.config(
         'error',
         {
           selector: 'MemberExpression > AwaitExpression.object',
-          message:
-            'await 결과에 바로 . 을 붙이지 말 것. 변수로 받은 뒤 쓰면 읽는 순서가 맞는다.',
+          message: 'await 결과에 바로 . 을 붙이지 말 것. 변수로 받은 뒤 쓰면 읽는 순서가 맞는다.',
         },
       ],
     },

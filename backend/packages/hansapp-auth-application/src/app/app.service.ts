@@ -300,9 +300,7 @@ export class AppService {
       throw new NotFoundException('App not found.');
     }
     if (app.status !== AppStatus.PENDING) {
-      throw new BadRequestException(
-        'Only a pending app can be submitted for review.',
-      );
+      throw new BadRequestException('Only a pending app can be submitted for review.');
     }
     return this.apps.requestReview(appId);
   }
@@ -337,11 +335,7 @@ export class AppService {
    * 서비스 키 발급. 앱당 상한(App.apiKeyLimit, 기본 3)을 넘으면 거부한다.
    * 이름을 지정해 여러 개 발급할 수 있다(rotation). plainKey 는 이때만 반환.
    */
-  async createApiKey(
-    userId: number,
-    appId: number,
-    name: string,
-  ): Promise<CreatedApiKey> {
+  async createApiKey(userId: number, appId: number, name: string): Promise<CreatedApiKey> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const app = await this.apps.findApp(appId);
     if (!app) {
@@ -349,9 +343,7 @@ export class AppService {
     }
     const count = await this.apps.countApiKeys(appId);
     if (count >= app.apiKeyLimit) {
-      throw new ForbiddenException(
-        `Service key limit reached (${app.apiKeyLimit} per app).`,
-      );
+      throw new ForbiddenException(`Service key limit reached (${app.apiKeyLimit} per app).`);
     }
     // 키 원문에 appId·행 id 를 박는다: sk_{appId}_{keyId}_{random}.
     //  - 키값만 봐도 어느 앱/키인지 식별 가능(로그·유출 추적)
@@ -360,25 +352,16 @@ export class AppService {
     let plainKey = '';
     // 키는 앱의 승인 상태를 따라간다. PENDING 앱에서 만들면 키도 PENDING(인증 거부) →
     // 앱 승인 시 함께 ACTIVE 로 켜진다. ACTIVE 앱이면 키도 바로 ACTIVE.
-    const apiKey = await this.apps.createApiKeyWithId(
-      appId,
-      name.trim(),
-      app.status,
-      (id) => {
-        plainKey = `sk_${appId}_${id}_${randomToken(24)}`;
-        return { keyPrefix: `sk_${appId}_${id}`, keyHash: sha256hex(plainKey) };
-      },
-    );
+    const apiKey = await this.apps.createApiKeyWithId(appId, name.trim(), app.status, (id) => {
+      plainKey = `sk_${appId}_${id}_${randomToken(24)}`;
+      return { keyPrefix: `sk_${appId}_${id}`, keyHash: sha256hex(plainKey) };
+    });
     // 새로 만든 id 라 캐시에 있을 수 없다 — 무효화 불필요.
     return { apiKey, plainKey };
   }
 
   /** 서비스 키 재발급. 행(id)은 유지하고 값·해시만 교체한다(형식 sk_{appId}_{keyId}_{rand}). */
-  async regenerateApiKey(
-    userId: number,
-    appId: number,
-    keyId: number,
-  ): Promise<CreatedApiKey> {
+  async regenerateApiKey(userId: number, appId: number, keyId: number): Promise<CreatedApiKey> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const key = await this.apps.findApiKey(appId, keyId);
     if (!key) {
@@ -398,11 +381,7 @@ export class AppService {
     return this.apps.listApiKeys(appId);
   }
 
-  async deleteApiKey(
-    userId: number,
-    appId: number,
-    keyId: number,
-  ): Promise<void> {
+  async deleteApiKey(userId: number, appId: number, keyId: number): Promise<void> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const deleted = await this.apps.deleteApiKey(appId, keyId);
     if (deleted === 0) {
@@ -510,20 +489,14 @@ export class AppService {
   }
 
   /** 클라이언트 시크릿 재발급. WEB 만 가능. 새 원문은 이때만 반환. */
-  async regenerateClientSecret(
-    userId: number,
-    appId: number,
-    clientPk: number,
-  ): Promise<string> {
+  async regenerateClientSecret(userId: number, appId: number, clientPk: number): Promise<string> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const client = await this.apps.findClient(appId, clientPk);
     if (!client) {
       throw new NotFoundException('Client not found.');
     }
     if (client.type !== AppClientType.WEB) {
-      throw new BadRequestException(
-        'Native clients have no secret (PKCE is used).',
-      );
+      throw new BadRequestException('Native clients have no secret (PKCE is used).');
     }
     const secret = genClientSecret();
     await this.apps.updateClientSecret(appId, clientPk, {
@@ -565,16 +538,13 @@ export class AppService {
     switch (client.type) {
       case AppClientType.WEB:
         if (input.origins) data.origins = normalizeList(input.origins);
-        if (input.redirectUris)
-          data.redirectUris = normalizeList(input.redirectUris);
+        if (input.redirectUris) data.redirectUris = normalizeList(input.redirectUris);
         break;
       case AppClientType.IOS:
         if (input.bundleId !== undefined || input.teamId !== undefined) {
           const cfg = (client.config as Record<string, unknown> | null) ?? {};
-          const bundleId =
-            input.bundleId?.trim() ?? (cfg.bundleId as string | undefined);
-          const teamId =
-            input.teamId?.trim() ?? (cfg.teamId as string | undefined);
+          const bundleId = input.bundleId?.trim() ?? (cfg.bundleId as string | undefined);
+          const teamId = input.teamId?.trim() ?? (cfg.teamId as string | undefined);
           data.config = { bundleId, ...(teamId ? { teamId } : {}) };
         }
         break;
@@ -598,11 +568,7 @@ export class AppService {
     await this.cache.invalidateClient(client.clientId);
   }
 
-  async deleteClient(
-    userId: number,
-    appId: number,
-    clientPk: number,
-  ): Promise<void> {
+  async deleteClient(userId: number, appId: number, clientPk: number): Promise<void> {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     // 캐시 무효화에 공개 clientId 가 필요하므로 삭제 전에 읽어 둔다.
     const client = await this.apps.findClient(appId, clientPk);
@@ -637,16 +603,10 @@ export class AppService {
 
 /** 문자열 목록 정규화(공백 제거·빈값 제거·중복 제거). */
 function normalizeList(list: string[]): string[] {
-  return Array.from(
-    new Set(list.map((s) => s.trim()).filter((s) => s.length > 0)),
-  );
+  return Array.from(new Set(list.map((s) => s.trim()).filter((s) => s.length > 0)));
 }
 
 /** Prisma 고유 제약 위반(P2002). AppClient 의 유일 컬럼은 clientId 뿐이다. */
 function isUniqueViolation(e: unknown): boolean {
-  return (
-    typeof e === 'object' &&
-    e !== null &&
-    (e as { code?: string }).code === 'P2002'
-  );
+  return typeof e === 'object' && e !== null && (e as { code?: string }).code === 'P2002';
 }

@@ -12,22 +12,14 @@ import { SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { logConfigSummary, resolveConfigPath } from '@hansapp/common';
 import { HealthService } from '@hansapp/admin-application';
-import {
-  HttpErrorFilter,
-  StripNullInterceptor,
-  requestIdMiddleware,
-} from '@hansapp/http-common';
+import { HttpErrorFilter, StripNullInterceptor, requestIdMiddleware } from '@hansapp/http-common';
 
 import { AppModule } from './app.module';
 import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initAdminCookie } from './auth/admin-cookie';
 import { serveAdminSpa } from './static-spa';
-import {
-  OPENAPI_JSON_PATH,
-  SWAGGER_PATH,
-  buildOpenApiDocument,
-} from './swagger';
+import { OPENAPI_JSON_PATH, SWAGGER_PATH, buildOpenApiDocument } from './swagger';
 
 // --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
 
@@ -49,12 +41,8 @@ function parseTrustProxy(raw?: string): boolean | number | string | undefined {
  * 플래그와 경로가 어긋나는 상태를 아예 만들지 않기 위해서다.
  */
 function readHttpsOptions() {
-  const cert = appConfig.getStringOrDefault(
-    'apps-admin-api.web.sslCertificate',
-  );
-  const key = appConfig.getStringOrDefault(
-    'apps-admin-api.web.sslCertificateKey',
-  );
+  const cert = appConfig.getStringOrDefault('apps-admin-api.web.sslCertificate');
+  const key = appConfig.getStringOrDefault('apps-admin-api.web.sslCertificateKey');
   const hasCert = cert.length > 0;
   const hasKey = key.length > 0;
 
@@ -89,10 +77,7 @@ function readCertFile(configPath: string, value: string): Buffer {
  * 색인 작업 같은 일부 기능에서만 쓴다. 그것 때문에 관리자 화면 전체가 안 뜨면 오히려 곤란하다 —
  * ES 가 죽었을 때 들어가서 상태를 봐야 하는 곳이 여기다.
  */
-async function verifyInfrastructure(
-  app: NestExpressApplication,
-  logger: Logger,
-): Promise<void> {
+async function verifyInfrastructure(app: NestExpressApplication, logger: Logger): Promise<void> {
   const results = await app.get(HealthService).checkAll();
   const fatal: string[] = [];
 
@@ -174,9 +159,7 @@ async function bootstrap() {
     IP 화이트리스트가 필요했다. 관리자 API 는 외부 소비자가 없다 — 열어 둘 이유가 없으니
     IP 제한 장치도 얹지 않는다.
   */
-  const swaggerEnabled = appConfig.getBoolOrDefault(
-    'apps-admin-api.swagger.enabled',
-  );
+  const swaggerEnabled = appConfig.getBoolOrDefault('apps-admin-api.swagger.enabled');
   if (swaggerEnabled) {
     const document = buildOpenApiDocument(app);
     SwaggerModule.setup(SWAGGER_PATH, app, document, {
@@ -214,9 +197,7 @@ async function bootstrap() {
   if (swaggerEnabled) {
     logger.log(`📚 Swagger UI: ${baseUrl}/${SWAGGER_PATH}`);
   } else {
-    logger.log(
-      '📚 Swagger is disabled by config (apps-admin-api.swagger.enabled)',
-    );
+    logger.log('📚 Swagger is disabled by config (apps-admin-api.swagger.enabled)');
   }
 
   // 부팅 시퀀스의 **마지막 라인** — 여기까지 찍혔으면 요청을 받을 준비가 끝났다는 신호다.

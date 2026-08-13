@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  type OnApplicationBootstrap,
-} from '@nestjs/common';
+import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from '@hansapp/data';
 import { FALLBACK_LANG, type SupportedLang } from '@hansapp/common';
 
@@ -90,11 +86,7 @@ export class HealthcareCodeCache implements OnApplicationBootstrap {
   }
 
   /** (tp, cd) 표시명. 언어 폴백은 pickName 규칙. 모르는 코드면 undefined. */
-  name(
-    tp: string,
-    cd: string,
-    lang: SupportedLang = FALLBACK_LANG,
-  ): string | undefined {
+  name(tp: string, cd: string, lang: SupportedLang = FALLBACK_LANG): string | undefined {
     const entry = this.byKey.get(codeKey(tp, cd));
     return entry ? codeName(entry, lang) : undefined;
   }

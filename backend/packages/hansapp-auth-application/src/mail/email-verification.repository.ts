@@ -1,9 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  EmailVerification,
-  EmailVerifyPurpose,
-  PrismaService,
-} from '@hansapp/data';
+import { EmailVerification, EmailVerifyPurpose, PrismaService } from '@hansapp/data';
 
 /**
  * 이메일 인증 코드(OTP) 저장소. 이메일·코드 원문은 다루지 않고 **HMAC 해시**만 저장/조회한다
@@ -23,10 +19,7 @@ export class EmailVerificationRepository {
   }
 
   /** 용도별 가장 최근 코드 1건(소비/만료 무관). 검증·쿨다운 판정에 쓴다. */
-  latest(
-    emailHash: string,
-    purpose: EmailVerifyPurpose,
-  ): Promise<EmailVerification | null> {
+  latest(emailHash: string, purpose: EmailVerifyPurpose): Promise<EmailVerification | null> {
     return this.prisma.emailVerification.findFirst({
       where: { emailHash, purpose },
       orderBy: { id: 'desc' },
@@ -59,11 +52,7 @@ export class EmailVerificationRepository {
   }
 
   /** 같은 이메일·용도의 미소비 코드를 무효화(재발송 시 이전 코드 폐기). */
-  consumeAllActive(
-    emailHash: string,
-    purpose: EmailVerifyPurpose,
-    at: Date,
-  ): Promise<number> {
+  consumeAllActive(emailHash: string, purpose: EmailVerifyPurpose, at: Date): Promise<number> {
     return this.prisma.emailVerification
       .updateMany({
         where: { emailHash, purpose, consumedAt: null },

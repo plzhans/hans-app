@@ -86,8 +86,7 @@ export class ModelChoiceDto implements LlmModelChoice {
   readonly id!: string;
 
   @ApiProperty({
-    description:
-      '선택할 수 없는 모델. 목록에는 표시되지만 요청에는 실리지 않는다.',
+    description: '선택할 수 없는 모델. 목록에는 표시되지만 요청에는 실리지 않는다.',
   })
   readonly locked!: boolean;
 }

@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Page } from '@hansapp/common';
-import type {
-  AuthProvider,
-  OAuthProvider,
-  UserStatus,
-  UserTier,
-} from '@hansapp/data';
+import type { AuthProvider, OAuthProvider, UserStatus, UserTier } from '@hansapp/data';
 
 import { UserReadRepository } from './user-read.repository';
 import type { UserListFilter, UserSessionRow } from './user-read.repository';

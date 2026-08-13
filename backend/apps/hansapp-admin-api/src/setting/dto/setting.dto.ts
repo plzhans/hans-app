@@ -1,10 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsObject } from 'class-validator';
-import type {
-  SettingFieldView,
-  SettingGroupView,
-  SettingInput,
-} from '@hansapp/admin-application';
+import type { SettingFieldView, SettingGroupView, SettingInput } from '@hansapp/admin-application';
 
 export class SettingFieldDto {
   @ApiProperty({ description: '설정 경로. 저장할 때 이 값을 키로 보낸다.' })
@@ -32,14 +28,12 @@ export class SettingFieldDto {
   readonly section?: string;
 
   @ApiPropertyOptional({
-    description:
-      '옆에 나란히 세울 묶음 이름. 연달아 있고 이름이 같은 필드끼리 한 줄에 놓인다.',
+    description: '옆에 나란히 세울 묶음 이름. 연달아 있고 이름이 같은 필드끼리 한 줄에 놓인다.',
   })
   readonly row?: string;
 
   @ApiPropertyOptional({
-    description:
-      '현재 값. **secret 은 언제나 null 이다** — 원문은 내려보내지 않는다.',
+    description: '현재 값. **secret 은 언제나 null 이다** — 원문은 내려보내지 않는다.',
   })
   readonly value!: string | null;
 
@@ -124,8 +118,7 @@ export class SettingGroupDto {
 
 export class SettingSaveRequestDto {
   @ApiProperty({
-    description:
-      '바꿀 값만 담는다. **없는 키는 건드리지 않고**, null 을 보내면 지운다.',
+    description: '바꿀 값만 담는다. **없는 키는 건드리지 않고**, null 을 보내면 지운다.',
     example: { 'mail.smtp.host': 'smtp.example.com', 'mail.smtp.port': 587 },
     type: 'object',
     additionalProperties: true,

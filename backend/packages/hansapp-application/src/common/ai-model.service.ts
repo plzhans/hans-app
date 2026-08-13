@@ -27,8 +27,6 @@ export class AiModelService {
    */
   async list(entitled: boolean): Promise<LlmModelChoice[]> {
     const models = await this.llm.listModels();
-    return entitled
-      ? models.map((model) => ({ ...model, locked: false }))
-      : models;
+    return entitled ? models.map((model) => ({ ...model, locked: false })) : models;
   }
 }

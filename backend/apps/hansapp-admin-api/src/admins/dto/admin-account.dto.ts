@@ -14,15 +14,9 @@ import {
   MinLength,
 } from 'class-validator';
 import { AdminLogAction, AdminLogResult } from '@hansapp/admin-application';
-import type {
-  AdminActionLogEntry,
-  AdminMailOutcome,
-} from '@hansapp/admin-application';
+import type { AdminActionLogEntry, AdminMailOutcome } from '@hansapp/admin-application';
 import { AdminRole, AdminStatus } from '@hansapp/admin-application/auth';
-import type {
-  AdminAccountDetail,
-  AdminAccountSummary,
-} from '@hansapp/admin-application/auth';
+import type { AdminAccountDetail, AdminAccountSummary } from '@hansapp/admin-application/auth';
 import { SUPPORTED_LANGS } from '@hansapp/common';
 
 /**
@@ -128,8 +122,7 @@ export class AdminActionLogDto {
   readonly userAgent!: string | null;
 
   @ApiPropertyOptional({
-    description:
-      '조치별 부가정보. **모양이 종류마다 다르다** — 정해진 필드가 없고, 없으면 빠진다.',
+    description: '조치별 부가정보. **모양이 종류마다 다르다** — 정해진 필드가 없고, 없으면 빠진다.',
     type: 'object',
     additionalProperties: true,
   })
@@ -251,8 +244,7 @@ export class AdminAccountCreateRequestDto {
   readonly role!: AdminRole;
 
   @ApiProperty({
-    description:
-      '초기 비밀번호. **본인이 첫 로그인에서 다시 바꿔야** 다른 API 가 열린다.',
+    description: '초기 비밀번호. **본인이 첫 로그인에서 다시 바꿔야** 다른 API 가 열린다.',
     minLength: 10,
   })
   @IsString()
@@ -281,8 +273,7 @@ export class AdminAccountCreateRequestDto {
  */
 export class AdminAccountUpdateRequestDto {
   @ApiPropertyOptional({
-    description:
-      '로그인 식별자. **바꾸면 옛 주소로는 로그인할 수 없다.** 이미 쓰는 주소면 409.',
+    description: '로그인 식별자. **바꾸면 옛 주소로는 로그인할 수 없다.** 이미 쓰는 주소면 409.',
     example: 'admin@example.com',
   })
   @IsOptional()
@@ -339,8 +330,7 @@ export class AdminPasswordResetRequestDto {
 /** 메일이 나갔는지만 알려 준다. 계정 값은 바뀐 것이 없다(해시는 내보내지 않는다). */
 export class AdminPasswordResetResponseDto {
   @ApiProperty({
-    description:
-      '안내 메일이 실제로 나갔는지. `sendEmail` 을 안 보냈으면 항상 false 다.',
+    description: '안내 메일이 실제로 나갔는지. `sendEmail` 을 안 보냈으면 항상 false 다.',
   })
   readonly emailSent!: boolean;
 
@@ -361,8 +351,7 @@ export class AdminAccountCreateResponseDto {
   readonly account!: AdminAccountSummaryDto;
 
   @ApiProperty({
-    description:
-      '안내 메일이 실제로 나갔는지. `sendEmail` 을 안 보냈으면 항상 false 다.',
+    description: '안내 메일이 실제로 나갔는지. `sendEmail` 을 안 보냈으면 항상 false 다.',
   })
   readonly emailSent!: boolean;
 

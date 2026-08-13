@@ -1,9 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { MoisClient } from '@krdata/mois';
-import type {
-  GetStandardRegionCodeListParams,
-  RegionCodePage,
-} from '@krdata/mois';
+import type { GetStandardRegionCodeListParams, RegionCodePage } from '@krdata/mois';
 
 import { MOIS_CLIENT } from '../krdata.providers';
 
@@ -18,9 +15,7 @@ export class MoisQueryService {
   constructor(@Inject(MOIS_CLIENT) private readonly client: MoisClient) {}
 
   /** 법정동코드 한 페이지. */
-  getRegionCodes(
-    params: GetStandardRegionCodeListParams = {},
-  ): Promise<RegionCodePage> {
+  getRegionCodes(params: GetStandardRegionCodeListParams = {}): Promise<RegionCodePage> {
     return this.client.getRegionCodes(params);
   }
 

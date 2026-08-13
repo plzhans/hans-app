@@ -5,10 +5,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
 import type { ConfigSource } from '@hansapp/common';
 import { AdminApplicationModule } from '@hansapp/admin-application';
 import { EventPublisherModule } from '@hansapp/event-publisher';
-import {
-  AdminAuthGuard,
-  AdminAuthModule,
-} from '@hansapp/admin-application/auth';
+import { AdminAuthGuard, AdminAuthModule } from '@hansapp/admin-application/auth';
 import { resolveClientIp } from '@hansapp/http-common';
 
 import { AdminAuthController } from './auth/admin-auth.controller';
@@ -30,8 +27,7 @@ import { LlmUsageLogController } from './logs/llm-usage-log.controller';
 export class AppModule {
   static forRoot(config: ConfigSource): DynamicModule {
     const clientIpHeader =
-      config.getStringOrDefault('apps-admin-api.proxy.clientIpHeader') ||
-      undefined;
+      config.getStringOrDefault('apps-admin-api.proxy.clientIpHeader') || undefined;
 
     return {
       module: AppModule,

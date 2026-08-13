@@ -28,9 +28,7 @@ async function withRead<T>(
   source: ConfigSource,
   run: (service: NmcHospitalReadService) => Promise<T>,
 ): Promise<T> {
-  return withAdminContext(source, (context) =>
-    run(context.get(NmcHospitalReadService)),
-  );
+  return withAdminContext(source, (context) => run(context.get(NmcHospitalReadService)));
 }
 
 /**
@@ -41,17 +39,11 @@ async function withQuery<T>(
   source: ConfigSource,
   run: (service: NmcQueryService) => Promise<T>,
 ): Promise<T> {
-  return withAdminContext(source, (context) =>
-    run(context.get(NmcQueryService)),
-  );
+  return withAdminContext(source, (context) => run(context.get(NmcQueryService)));
 }
 
 /** --simple 이면 지정 컬럼만 표로, 아니면 응답 원본을 그대로 출력한다. */
-function printResponse(
-  response: unknown,
-  command: Command,
-  simpleColumns: string[],
-): void {
+function printResponse(response: unknown, command: Command, simpleColumns: string[]): void {
   const { simple, pretty } = command.optsWithGlobals<{
     simple?: boolean;
     pretty?: boolean;
@@ -85,9 +77,7 @@ function withCommonOptions(command: Command, defaultRows: string): Command {
 }
 
 export function nmcCommand(source: ConfigSource): Command {
-  const nmc = new Command('nmc').description(
-    '국립중앙의료원(NMC) 전국 병·의원 찾기 서비스',
-  );
+  const nmc = new Command('nmc').description('국립중앙의료원(NMC) 전국 병·의원 찾기 서비스');
 
   // 단계 배치. 계획 문서(docs/krdata-cache-plan.md)의 단계와 1:1 이다.
   nmc.addCommand(stageSyncCommand('nmc', source));
@@ -104,15 +94,10 @@ export function nmcCommand(source: ConfigSource): Command {
     withCommonOptions(
       hospital
         .command('search')
-        .description(
-          '병·의원 목록정보 조회 (주소·진료과목 등으로 필터). 원본 API 전용',
-        )
+        .description('병·의원 목록정보 조회 (주소·진료과목 등으로 필터). 원본 API 전용')
         .option('--sido <name>', '주소(시도). 예: 서울특별시')
         .option('--sigungu <name>', '주소(시군구). 예: 강남구')
-        .option(
-          '--div <code>',
-          '기관구분 코드. 코드마스터 H000 참조 (B:병원, C:의원)',
-        )
+        .option('--div <code>', '기관구분 코드. 코드마스터 H000 참조 (B:병원, C:의원)')
         .option('--subject <code>', '진료과목 코드. 예: D001(내과)')
         .option('--day <1-8>', '진료요일. 월~일(1~7), 공휴일(8)')
         .option('--name <name>', '기관명')
@@ -175,9 +160,7 @@ export function nmcCommand(source: ConfigSource): Command {
         printResponse(response, command, LOCATION_COLUMNS);
       },
     ),
-    [
-      'hansapp-cli nmc hospital location --lon 127.0851566 --lat 37.4881325 --simple',
-    ],
+    ['hansapp-cli nmc hospital location --lon 127.0851566 --lat 37.4881325 --simple'],
   );
 
   addExamples(
@@ -187,18 +170,12 @@ export function nmcCommand(source: ConfigSource): Command {
         .description('병·의원별 기본정보 조회')
         .argument('<hpid>', '기관ID (예: A1100001)'),
       '10',
-    ).action(
-      async (
-        hpid: string,
-        options: PageOptions,
-        command: Command,
-      ): Promise<void> => {
-        const response = await withQuery(source, (service) =>
-          service.getHospitalBasisInfo(hpid, toPageParams(options)),
-        );
-        printResponse(response, command, HOSPITAL_COLUMNS);
-      },
-    ),
+    ).action(async (hpid: string, options: PageOptions, command: Command): Promise<void> => {
+      const response = await withQuery(source, (service) =>
+        service.getHospitalBasisInfo(hpid, toPageParams(options)),
+      );
+      printResponse(response, command, HOSPITAL_COLUMNS);
+    }),
     ['hansapp-cli nmc hospital basic A1100001 --pretty'],
   );
 
@@ -206,19 +183,11 @@ export function nmcCommand(source: ConfigSource): Command {
     withCommonOptions(
       hospital
         .command('list')
-        .description(
-          '병·의원 목록 조회. 기본은 로컬 DB, --origin 이면 원본 API',
-        )
-        .option(
-          '--origin',
-          '로컬 DB 대신 공공데이터 API 를 직접 조회한다 (콜수를 소모한다)',
-        ),
+        .description('병·의원 목록 조회. 기본은 로컬 DB, --origin 이면 원본 API')
+        .option('--origin', '로컬 DB 대신 공공데이터 API 를 직접 조회한다 (콜수를 소모한다)'),
       '10',
     ).action(
-      async (
-        options: PageOptions & { origin?: boolean },
-        command: Command,
-      ): Promise<void> => {
+      async (options: PageOptions & { origin?: boolean }, command: Command): Promise<void> => {
         const response = await withRead(source, (service) =>
           service.getHospitalList({
             source: options.origin ? 'origin' : 'db',
@@ -234,9 +203,7 @@ export function nmcCommand(source: ConfigSource): Command {
     ],
   );
 
-  const baby = nmc
-    .command('baby')
-    .description('달빛어린이병원 및 소아전문센터');
+  const baby = nmc.command('baby').description('달빛어린이병원 및 소아전문센터');
 
   addExamples(
     withCommonOptions(
@@ -305,9 +272,7 @@ export function nmcCommand(source: ConfigSource): Command {
         printResponse(response, command, LOCATION_COLUMNS);
       },
     ),
-    [
-      'hansapp-cli nmc baby location --lon 127.0851566 --lat 37.4881325 --simple',
-    ],
+    ['hansapp-cli nmc baby location --lon 127.0851566 --lat 37.4881325 --simple'],
   );
 
   const code = nmc.command('code').description('코드마스터');
@@ -316,24 +281,19 @@ export function nmcCommand(source: ConfigSource): Command {
     code
       .command('sync')
       .description('코드마스터를 로컬 DB(nmc_code)에 적재한다')
-      .option(
-        '-n, --rows <number>',
-        `한 페이지 결과 수 (기본 ${DEFAULT_CODE_SYNC_ROWS})`,
-      )
+      .option('-n, --rows <number>', `한 페이지 결과 수 (기본 ${DEFAULT_CODE_SYNC_ROWS})`)
       .option('--quiet', '진행 로그를 숨긴다')
-      .action(
-        async (options: { rows?: string; quiet?: boolean }): Promise<void> => {
-          const result = await withAdminContext(
-            source,
-            (context) =>
-              context.get(NmcCodeSyncService).sync({
-                numOfRows: options.rows ? Number(options.rows) : undefined,
-              }),
-            { verbose: !options.quiet },
-          );
-          printCodeSyncResult('NMC', [result]);
-        },
-      ),
+      .action(async (options: { rows?: string; quiet?: boolean }): Promise<void> => {
+        const result = await withAdminContext(
+          source,
+          (context) =>
+            context.get(NmcCodeSyncService).sync({
+              numOfRows: options.rows ? Number(options.rows) : undefined,
+            }),
+          { verbose: !options.quiet },
+        );
+        printCodeSyncResult('NMC', [result]);
+      }),
     ['hansapp-cli nmc code sync'],
   );
 
@@ -346,10 +306,7 @@ export function nmcCommand(source: ConfigSource): Command {
           '-m, --cm-mid <code>',
           '대분류코드 (예: H010, D000, S000). 생략하면 전체 코드를 받는다',
         )
-        .option(
-          '--origin',
-          '로컬 DB 대신 공공데이터 API 를 직접 조회한다 (콜수를 소모한다)',
-        ),
+        .option('--origin', '로컬 DB 대신 공공데이터 API 를 직접 조회한다 (콜수를 소모한다)'),
       '100',
     ).action(
       async (

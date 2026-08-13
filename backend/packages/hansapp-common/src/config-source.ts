@@ -24,9 +24,7 @@ export function yamlProvider(appDir: string, name: string): ConfigProvider {
 /**
  * 빌드 1단계: 공급자들을 우선순위대로(앞=낮음, 뒤=높음) 깊게 병합한다. 뒤 공급자가 이긴다.
  */
-export function buildConfigTree(
-  providers: ConfigProvider[],
-): Record<string, unknown> {
+export function buildConfigTree(providers: ConfigProvider[]): Record<string, unknown> {
   const tree: Record<string, unknown> = {};
   for (const provider of providers) {
     // lodash.merge 는 깊게 병합한다(중첩 섹션을 통째로 갈아치우지 않는다).
@@ -64,11 +62,7 @@ const BASH_PLACEHOLDER = /\$\{[A-Z0-9_]+:-/;
  *
  * @param path 오류에 찍을 yaml 경로. 어느 줄을 고쳐야 하는지가 메시지에 있어야 한다.
  */
-function interpolateString(
-  raw: string,
-  env: NodeJS.ProcessEnv,
-  path: string,
-): string {
+function interpolateString(raw: string, env: NodeJS.ProcessEnv, path: string): string {
   if (BASH_PLACEHOLDER.test(raw)) {
     throw new Error(
       `설정 ${path} 에 bash 문법 \${VAR:-기본값} 이 있다: ${raw}\n` +
@@ -83,16 +77,11 @@ function interpolateString(
 }
 
 /** 빌드 2단계: 트리의 모든 문자열 값에서 ${VAR} 를 process.env 로 치환한다(재귀). */
-function interpolate(
-  node: unknown,
-  env: NodeJS.ProcessEnv,
-  path = '',
-): unknown {
+function interpolate(node: unknown, env: NodeJS.ProcessEnv, path = ''): unknown {
   if (typeof node === 'string') {
     return interpolateString(node, env, path);
   }
-  const at = (key: string | number): string =>
-    path ? `${path}.${key}` : String(key);
+  const at = (key: string | number): string => (path ? `${path}.${key}` : String(key));
   if (Array.isArray(node)) {
     return node.map((item, index) => interpolate(item, env, at(index)));
   }
@@ -244,19 +233,13 @@ function getByPath(tree: unknown, path: string): unknown {
     .split(/[.:]/)
     .reduce<unknown>(
       (node, key) =>
-        node && typeof node === 'object'
-          ? (node as Record<string, unknown>)[key]
-          : undefined,
+        node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined,
       tree,
     );
 }
 
 function present(raw: unknown): boolean {
-  return (
-    raw !== undefined &&
-    raw !== null &&
-    !(typeof raw === 'string' && raw.trim() === '')
-  );
+  return raw !== undefined && raw !== null && !(typeof raw === 'string' && raw.trim() === '');
 }
 
 function toNumber(raw: unknown, path: string): number {
@@ -274,9 +257,7 @@ function toBool(raw: unknown, path: string): boolean {
   const v = String(raw).trim().toLowerCase();
   if (v === 'true') return true;
   if (v === 'false') return false;
-  throw new Error(
-    `설정 ${path} 는 true/false 여야 한다. 받은 값: ${String(raw)}`,
-  );
+  throw new Error(`설정 ${path} 는 true/false 여야 한다. 받은 값: ${String(raw)}`);
 }
 
 function toStringArray(raw: unknown): string[] {
@@ -407,9 +388,7 @@ class ConfigSection implements ConfigSource {
     const raw = this.at(path);
     if (present(raw)) return String(raw).trim();
     // 문자열은 표에도 없으면 빈 문자열이다 — "미설정" 을 빈값으로 다루는 자리가 많다.
-    return String(
-      fallback ?? configDefaultOf(this.absolute(path)) ?? '',
-    ).trim();
+    return String(fallback ?? configDefaultOf(this.absolute(path)) ?? '').trim();
   }
 
   getUrl(path: string): string {
@@ -528,10 +507,7 @@ export function createConfigSource(
         '값만 있어 정본(config.yaml)이 빠지면 반쪽짜리 설정이 된다.',
     );
   }
-  const interpolated = interpolate(merged, process.env) as Record<
-    string,
-    unknown
-  >;
+  const interpolated = interpolate(merged, process.env) as Record<string, unknown>;
   const tree = applyEnvOverrides(interpolated, process.env);
   return new ConfigSection(tree, env);
 }
@@ -548,16 +524,12 @@ export function createConfigSource(
  *
  * 빈 문자열도 없는 것으로 본다 — 시크릿을 빈값으로 두는 것은 끄겠다는 뜻이 아니라 실수다.
  */
-export function requireSettings(
-  cfg: ConfigSource,
-  paths: readonly string[],
-): void {
+export function requireSettings(cfg: ConfigSource, paths: readonly string[]): void {
   const missing = paths.filter((path) => !cfg.getStringOrDefault(path));
   if (missing.length === 0) return;
   throw new Error(
     `필수 설정이 없다:\n${missing
       .map((path) => `  ${path}  (환경변수 ${envNameOf(path)})`)
-      .join('\n')}\n` +
-      'config/.env.<환경> 또는 config/config.<환경>.yaml 에 채울 것.',
+      .join('\n')}\n` + 'config/.env.<환경> 또는 config/config.<환경>.yaml 에 채울 것.',
   );
 }

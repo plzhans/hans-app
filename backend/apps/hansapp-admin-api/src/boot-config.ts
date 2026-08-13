@@ -36,11 +36,7 @@ export const buildInfo: BuildInfo = loadBuildInfo(__dirname);
 // 설정 접근자. 계층형 .env 위에 config/config.yaml + config.<환경>.yaml 을 얹은 ConfigSource 다.
 // **설정 파일은 hansapp-api 와 같은 것을 읽는다** — DB·Redis 접속정보를 앱마다 중복시키지 않는다.
 // 이 앱만의 값은 최상위 키 `apps-admin-api`·`admin` 아래에 있다.
-export const appConfig: ConfigSource = createConfigSource(
-  __dirname,
-  appEnv,
-  config,
-);
+export const appConfig: ConfigSource = createConfigSource(__dirname, appEnv, config);
 
 /*
   없으면 뜨면 안 되는 값. **DI 가 만들다 터지기 전에 여기서 먼저 막는다.**

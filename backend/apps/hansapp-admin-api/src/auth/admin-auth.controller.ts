@@ -12,12 +12,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import {
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AdminEmailService } from '@hansapp/admin-application';
@@ -30,12 +25,7 @@ import {
 } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
 
-import {
-  clearAdminCookies,
-  readRefreshCookie,
-  requestMeta,
-  respondTokens,
-} from './admin-cookie';
+import { clearAdminCookies, readRefreshCookie, requestMeta, respondTokens } from './admin-cookie';
 import {
   AdminChangePasswordRequestDto,
   AdminForgotPasswordRequestDto,
@@ -70,8 +60,7 @@ export class AdminAuthController {
   @HttpCode(200)
   @ApiOperation({
     summary: '관리자 로그인',
-    description:
-      '이메일/비밀번호로 로그인한다. refresh token 은 httpOnly 쿠키로 내려간다.',
+    description: '이메일/비밀번호로 로그인한다. refresh token 은 httpOnly 쿠키로 내려간다.',
   })
   @ApiOkResponse({ type: AdminTokenResponseDto })
   async login(
@@ -121,10 +110,7 @@ export class AdminAuthController {
     summary: '로그아웃',
     description: '세션을 폐기하고 쿠키를 지운다.',
   })
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<void> {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     /*
       **아무 자격증명도 요구하지 않는다.** 로그아웃은 "잊는" 동작이라 인증을 걸면 안 된다 —
       access token 이 만료됐을 때 가드가 401 로 끊으면 이 응답에 쿠키 삭제도 안 실려 세션이
@@ -140,9 +126,7 @@ export class AdminAuthController {
   @AllowDuringPasswordChange()
   @ApiOperation({ summary: '현재 로그인한 관리자' })
   @ApiOkResponse({ type: AdminMeResponseDto })
-  async me(
-    @CurrentAdmin() current: AdminAuthUser,
-  ): Promise<AdminMeResponseDto> {
+  async me(@CurrentAdmin() current: AdminAuthUser): Promise<AdminMeResponseDto> {
     const admin = await this.auth.findById(current.adminId);
     if (!admin) {
       // 토큰은 유효한데 계정이 사라졌다. 세션 정리가 못 따라온 경우다.
@@ -164,8 +148,7 @@ export class AdminAuthController {
   @HttpCode(204)
   @ApiOperation({
     summary: '내 언어·타임존 변경',
-    description:
-      '관리 화면과 메일에 쓰는 언어·타임존을 바꾼다. 보낸 항목만 바뀐다.',
+    description: '관리 화면과 메일에 쓰는 언어·타임존을 바꾼다. 보낸 항목만 바뀐다.',
   })
   async updateMe(
     @CurrentAdmin() current: AdminAuthUser,
@@ -222,9 +205,7 @@ export class AdminAuthController {
       '링크가 죽었으면 400 이다 — 폼을 다 채우고 누른 뒤에야 만료를 알게 되지 않도록 미리 본다.',
   })
   @ApiOkResponse({ type: AdminPasswordResetTargetDto })
-  async resetTarget(
-    @Query('token') token: string,
-  ): Promise<AdminPasswordResetTargetDto> {
+  async resetTarget(@Query('token') token: string): Promise<AdminPasswordResetTargetDto> {
     return new AdminPasswordResetTargetDto(await this.reset.describe(token));
   }
 
@@ -267,11 +248,7 @@ export class AdminAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AdminTokenResponseDto> {
-    const tokens = await this.auth.changeOwnPassword(
-      current.adminId,
-      dto,
-      requestMeta(req),
-    );
+    const tokens = await this.auth.changeOwnPassword(current.adminId, dto, requestMeta(req));
     return respondTokens(res, tokens);
   }
 }

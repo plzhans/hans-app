@@ -25,11 +25,7 @@ export class HospitalI18nExportRepository {
    * engine='human' 은 사람이 고친 번역이라 건드리지 않는다.
    * attempt_count>=3 은 이미 세 번 실패한 것이다 — 계속 재시도하면 돈만 태운다.
    */
-  loadPending(
-    lang: string,
-    cursor: number,
-    take: number,
-  ): Promise<Record<string, unknown>[]> {
+  loadPending(lang: string, cursor: number, take: number): Promise<Record<string, unknown>[]> {
     return this.prisma.$queryRaw<Record<string, unknown>[]>(Prisma.sql`
       SELECT h.id,
              h.name,       CAST(MD5(h.name) AS CHAR)       AS name_md5,

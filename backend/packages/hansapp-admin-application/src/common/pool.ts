@@ -15,18 +15,15 @@ export async function mapWithConcurrency<T, R>(
   const results: R[] = new Array<R>(items.length);
   let cursor = 0;
 
-  const runners = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    async () => {
-      for (;;) {
-        const index = cursor++;
-        if (index >= items.length) {
-          return;
-        }
-        results[index] = await worker(items[index], index);
+  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    for (;;) {
+      const index = cursor++;
+      if (index >= items.length) {
+        return;
       }
-    },
-  );
+      results[index] = await worker(items[index], index);
+    }
+  });
 
   await Promise.all(runners);
   return results;

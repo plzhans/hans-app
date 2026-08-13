@@ -12,10 +12,7 @@ import {
 } from 'class-validator';
 import { EnumField } from '@hansapp/http-common';
 import { BoardStatus, BoardWriteRole } from '@hansapp/common';
-import type {
-  BoardSummary,
-  DeletedBoardSummary,
-} from '@hansapp/admin-application';
+import type { BoardSummary, DeletedBoardSummary } from '@hansapp/admin-application';
 
 /** 이름 규칙. 주소에 그대로 실리므로 소문자·숫자·하이픈만 받는다. */
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -78,8 +75,7 @@ export class BoardCreateRequestDto {
 
   @ApiPropertyOptional({
     default: false,
-    description:
-      '비공개 댓글을 허용하나. commentEnabled 가 꺼져 있으면 함께 꺼진다.',
+    description: '비공개 댓글을 허용하나. commentEnabled 가 꺼져 있으면 함께 꺼진다.',
   })
   @IsOptional()
   @IsBoolean()
@@ -158,8 +154,7 @@ export class BoardUpdateRequestDto {
 /** 되살리기 요청. **이름을 반드시 받는다**(비켜 둔 이름을 그대로 쓸 수 없다). */
 export class BoardRestoreRequestDto {
   @ApiProperty({
-    description:
-      '되살릴 때 쓸 이름. 소문자·숫자·하이픈. 이미 쓰는 이름이면 409 로 거절한다.',
+    description: '되살릴 때 쓸 이름. 소문자·숫자·하이픈. 이미 쓰는 이름이면 409 로 거절한다.',
     example: 'notice',
   })
   @IsString()
@@ -213,8 +208,7 @@ export class DeletedBoardDto extends BoardDto {
   readonly deletedAt!: string;
 
   @ApiProperty({
-    description:
-      '되살릴 때 채워 줄 이름(비켜 두기 전 이름). 지금도 비어 있다는 보장은 없다.',
+    description: '되살릴 때 채워 줄 이름(비켜 두기 전 이름). 지금도 비어 있다는 보장은 없다.',
   })
   readonly suggestedName!: string;
 

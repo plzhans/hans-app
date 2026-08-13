@@ -40,7 +40,6 @@ import {
 @ApiTags('board')
 @Public()
 @Controller('boards')
-// 응답의 enum 을 이름으로 바꾼다(@EnumField 참고). 전역이 아니라 이 컨트롤러에서만 켠다.
 @UseInterceptors(ClassSerializerInterceptor)
 export class BoardController {
   constructor(private readonly boards: BoardReadService) {}
@@ -90,17 +89,11 @@ export class BoardController {
       인자를 아예 안 준 것과 기본값을 그대로 적어 보낸 것을 **같게 본다** — 응답이 같으니
       캐시도 같아야 한다.
     */
-    const firstPage =
-      query.page === DEFAULT_POST_PAGE && query.size === DEFAULT_POST_SIZE;
-    res.setHeader(
-      'Cache-Control',
-      firstPage ? BOARD_POST_LIST_CACHE_CONTROL : 'no-store',
-    );
+    const firstPage = query.page === DEFAULT_POST_PAGE && query.size === DEFAULT_POST_SIZE;
+    res.setHeader('Cache-Control', firstPage ? BOARD_POST_LIST_CACHE_CONTROL : 'no-store');
 
     const page = await this.boards.listPosts(name, query.page, query.size);
-    return PageResponseDto.from(
-      page.map((post) => new PublicPostSummaryDto(post)),
-    );
+    return PageResponseDto.from(page.map((post) => new PublicPostSummaryDto(post)));
   }
 
   @Get(':name/posts/:id')
@@ -137,10 +130,7 @@ export class BoardController {
 
       @Header 데코레이터로는 못 한다 — 글을 읽어 봐야 공개인지 알 수 있어 응답마다 값이 다르다.
     */
-    res.setHeader(
-      'Cache-Control',
-      post.secret ? 'no-store' : BOARD_POST_CACHE_CONTROL,
-    );
+    res.setHeader('Cache-Control', post.secret ? 'no-store' : BOARD_POST_CACHE_CONTROL);
 
     await this.boards.countView(id);
     return new PublicPostDetailDto(post);

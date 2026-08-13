@@ -11,19 +11,11 @@ import {
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
-import {
-  AppModerationService,
-  AppReadService,
-} from '@hansapp/admin-application';
+import { AppModerationService, AppReadService } from '@hansapp/admin-application';
 import { CurrentAdmin } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
 
-import {
-  AppDetailDto,
-  AppListQueryDto,
-  AppRejectRequestDto,
-  AppSummaryDto,
-} from './dto/app.dto';
+import { AppDetailDto, AppListQueryDto, AppRejectRequestDto, AppSummaryDto } from './dto/app.dto';
 
 /**
  * 앱(개발자 플랫폼) 조회와 관리 조치(승인·거절·차단).
@@ -49,9 +41,7 @@ export class AppController {
       '삭제된 앱은 기본으로 제외한다.',
   })
   @ApiPageResponse(AppSummaryDto)
-  async list(
-    @Query() query: AppListQueryDto,
-  ): Promise<PageResponseDto<AppSummaryDto>> {
+  async list(@Query() query: AppListQueryDto): Promise<PageResponseDto<AppSummaryDto>> {
     const page = await this.apps.list(query);
     return PageResponseDto.from(page.map((app) => new AppSummaryDto(app)));
   }

@@ -51,9 +51,7 @@ export class AdminActionLogRepository {
   }
 }
 
-function buildWhere(
-  filter: AdminActionLogFilter,
-): LogPrisma.AdminActionLogWhereInput {
+function buildWhere(filter: AdminActionLogFilter): LogPrisma.AdminActionLogWhereInput {
   /*
     **OR 로 두 인덱스를 걸친다.** (admin_id, created_at)·(target_admin_id, created_at)
     각각은 인덱스를 타지만 OR 로 묶이면 index_merge 나 정렬이 붙는다 — 관리자 로그는

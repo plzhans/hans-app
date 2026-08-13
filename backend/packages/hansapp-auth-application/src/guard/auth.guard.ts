@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
@@ -52,16 +47,13 @@ export class AuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<AuthedRequest>();
-    const authTypes = this.reflector.getAllAndOverride<AuthType[]>(
-      AUTH_TYPES_KEY,
-      [context.getHandler(), context.getClass()],
-    ) ?? [AuthType.Jwt];
+    const authTypes = this.reflector.getAllAndOverride<AuthType[]>(AUTH_TYPES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]) ?? [AuthType.Jwt];
 
     // API 접근(서비스 키/클라이언트)을 지원하고, 요청에 그 자격이 실려 있으면 우선 처리한다.
-    if (
-      authTypes.includes(AuthType.ApiKey) &&
-      this.apiAccess.hasCredentials(request)
-    ) {
+    if (authTypes.includes(AuthType.ApiKey) && this.apiAccess.hasCredentials(request)) {
       request.apiAccess = await this.apiAccess.authenticate(request);
       return true;
     }

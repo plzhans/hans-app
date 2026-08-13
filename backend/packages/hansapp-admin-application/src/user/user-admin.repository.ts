@@ -17,8 +17,6 @@ export class UserAdminRepository {
    * 그 예외를 잡아 404 로 바꾸느니 건수를 보고 호출부가 정하는 편이 읽기 쉽다.
    */
   updateProfile(id: number, data: { name?: string | null }): Promise<number> {
-    return this.prisma.user
-      .updateMany({ where: { id }, data })
-      .then((result) => result.count);
+    return this.prisma.user.updateMany({ where: { id }, data }).then((result) => result.count);
   }
 }

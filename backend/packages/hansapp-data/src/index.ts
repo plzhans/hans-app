@@ -84,11 +84,7 @@ export type { Board, BoardPost, BoardComment } from '../generated/main';
 // (main 과 log 는 다른 client 라 Create 입력 타입 등이 서로 다르다).
 export type { UserAuthLog, LlmUsage, AdminActionLog } from '../generated/log';
 export { Prisma as LogPrisma } from '../generated/log';
-export {
-  AuthLogAction,
-  AuthLogResult,
-  AuthProvider as LogAuthProvider,
-} from '../generated/log';
+export { AuthLogAction, AuthLogResult, AuthProvider as LogAuthProvider } from '../generated/log';
 // 관리자 행위 로그(admin.prisma). 회원 로그와 번호 공간이 달라 표도 enum 도 갈라져 있다.
 export { AdminLogAction, AdminLogResult } from '../generated/log';
 

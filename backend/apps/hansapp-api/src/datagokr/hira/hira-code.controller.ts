@@ -44,9 +44,7 @@ export class HiraCodeController {
       '로컬 DB 에 미러링한 HIRA 코드. tp 로 종류를 고른다. 응답 item 의 필드명은 종류별 원본 API 와 같다.',
   })
   @ApiOkResponse({ schema: RESPONSE_SCHEMA })
-  async list(
-    @Query() request: HiraCodeListRequestDto,
-  ): Promise<HiraCodeResponse> {
+  async list(@Query() request: HiraCodeListRequestDto): Promise<HiraCodeResponse> {
     return this.hiraCodeService.listCodes({
       tp: request.tp,
       page: request.page,

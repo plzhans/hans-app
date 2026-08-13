@@ -20,17 +20,12 @@ export class EnvLlmKeyWriteRepository {
     return this.prisma.envLlmKey.create({ data });
   }
 
-  update(
-    id: number,
-    data: Prisma.EnvLlmKeyUncheckedUpdateInput,
-  ): Promise<EnvLlmKey> {
+  update(id: number, data: Prisma.EnvLlmKeyUncheckedUpdateInput): Promise<EnvLlmKey> {
     return this.prisma.envLlmKey.update({ where: { id }, data });
   }
 
   delete(id: number): Promise<void> {
-    return this.prisma.envLlmKey
-      .deleteMany({ where: { id } })
-      .then(() => undefined);
+    return this.prisma.envLlmKey.deleteMany({ where: { id } }).then(() => undefined);
   }
 
   /**

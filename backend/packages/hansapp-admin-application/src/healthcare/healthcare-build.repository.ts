@@ -129,10 +129,7 @@ export class HealthcareBuildRepository {
    * 잠긴 컬럼은 기존 값을 유지한다(IF). source='manual'(직접 등록)은 통째로 보존한다.
    * 컬럼 단위라 전화번호만 잠가도 주소·종별은 계속 최신을 따라간다.
    */
-  async upsertHospitals(
-    rows: BuiltHospital[],
-    locks: HospitalLocks,
-  ): Promise<void> {
+  async upsertHospitals(rows: BuiltHospital[], locks: HospitalLocks): Promise<void> {
     const keep = (field: string): Prisma.Sql => {
       const ids = locks.lockedHospitalsFor('healthcare_hospital', field);
       const self = Prisma.raw(`healthcare_hospital.${field}`);

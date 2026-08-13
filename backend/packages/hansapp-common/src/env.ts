@@ -46,9 +46,7 @@ export function resolveAppEnv(explicit?: string): AppEnv {
     );
   }
   if (!isAppEnv(value)) {
-    throw new Error(
-      `알 수 없는 환경: ${value}. 가능한 값: ${APP_ENVS.join(', ')}`,
-    );
+    throw new Error(`알 수 없는 환경: ${value}. 가능한 값: ${APP_ENVS.join(', ')}`);
   }
   return value;
 }
@@ -187,9 +185,7 @@ export function envFiles(appDir: string, env: AppEnv): string[] {
   // 마커가 없어 undefined. config/ 후보를 만들 base 를 cwd 와 루트(있으면) 둘로 둔다.
   const root = findRootDir(appDir);
   // 루트보다 cwd 가 세다(명시적으로 띄운 위치가 이긴다). 둘이 같으면(예: cwd=backend) 하나로.
-  const bases = [
-    ...new Set([root, cwd].filter((d): d is string => Boolean(d))),
-  ];
+  const bases = [...new Set([root, cwd].filter((d): d is string => Boolean(d)))];
 
   // 한 base 밑 config/ 후보 (낮은→높은). **env 파일은 config/ 바로 밑에 평면으로** 둔다.
   // (config/<환경>/ 은 jwt 키 등 환경별 에셋 폴더라 env 파일과 구분한다.)
@@ -201,9 +197,7 @@ export function envFiles(appDir: string, env: AppEnv): string[] {
   ];
   // 개인 오버라이드(gitignore). 남의 머신에는 없다. 파일 중에서는 가장 세다.
   //   config/.env.<환경>.local  (예: .env.develop.local)
-  const localAt = (base: string): string[] => [
-    join(base, CONFIG_DIR, `.env.${env}.local`),
-  ];
+  const localAt = (base: string): string[] => [join(base, CONFIG_DIR, `.env.${env}.local`)];
 
   // 낮은 우선순위부터 쌓고 마지막에 뒤집는다. 위 주석의 표와 순서를 같게 두면
   // "표와 코드 중 어느 쪽이 맞나" 를 고민할 일이 없다.
@@ -224,10 +218,7 @@ export function envFiles(appDir: string, env: AppEnv): string[] {
  * dotenv 의 config 를 주입받는다. common 이 dotenv 에 의존하지 않기 위해서다.
  * quiet 를 켜지 않으면 dotenv 가 stdout 에 팁을 찍어 JSON 출력을 오염시킨다.
  */
-export type DotenvLoader = (options: {
-  path: string;
-  quiet?: boolean;
-}) => unknown;
+export type DotenvLoader = (options: { path: string; quiet?: boolean }) => unknown;
 
 /**
  * 설정을 계층으로 쌓아 올린다. Spring 의 application.yml + application-{profile}.yml 과 같은 방식이다.
@@ -244,11 +235,7 @@ export type DotenvLoader = (options: {
  *
  * process.env 를 읽는 곳은 여기 하나뿐이다. 다른 코드는 EnvSource 를 통해서만 설정을 본다.
  */
-export function loadEnv(
-  appDir: string,
-  env: AppEnv,
-  loader: DotenvLoader,
-): EnvSource {
+export function loadEnv(appDir: string, env: AppEnv, loader: DotenvLoader): EnvSource {
   const candidates = [
     // ENV_FILE 은 배포가 절대경로로 콕 집어 주는 값이라 파일 탐색보다 우선한다.
     process.env.ENV_FILE,
@@ -260,9 +247,7 @@ export function loadEnv(
     if (!candidate) {
       continue;
     }
-    const path = isAbsolute(candidate)
-      ? candidate
-      : resolve(process.cwd(), candidate);
+    const path = isAbsolute(candidate) ? candidate : resolve(process.cwd(), candidate);
     if (!existsSync(path)) {
       continue;
     }

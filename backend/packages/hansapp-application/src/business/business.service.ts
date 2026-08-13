@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { NtsError } from '@kr-go/nts';
 import type { BusinessStatus } from '@kr-go/nts';
 
@@ -67,9 +63,7 @@ export class BusinessService {
   }
 
   /** 사업자번호+개업일자+대표자성명이 국세청 등록정보와 일치하는지 확인한다. */
-  async verify(
-    command: VerifyBusinessCommand,
-  ): Promise<BusinessVerificationResult> {
+  async verify(command: VerifyBusinessCommand): Promise<BusinessVerificationResult> {
     const client = await this.nts.create();
     const result = await this.call(() =>
       client.validateOne({
@@ -102,9 +96,7 @@ export class BusinessService {
     } catch (error) {
       if (error instanceof NtsError) {
         if (CLIENT_ERROR_CODES.has(error.errorCode)) {
-          throw new BadRequestException(
-            `Invalid business lookup request (${error.errorCode}).`,
-          );
+          throw new BadRequestException(`Invalid business lookup request (${error.errorCode}).`);
         }
         throw new ServiceUnavailableException(
           'The NTS business registration service is temporarily unavailable.',

@@ -49,17 +49,15 @@ export function EnumField(
   const { description, optional = false, default: defaultName } = options;
 
   const table: Record<string | number, string | number | undefined> = enumType;
-  const transform = Transform(
-    ({ value }: { value: unknown }): string | number | undefined => {
-      if (typeof value !== 'string' && typeof value !== 'number') {
-        return undefined;
-      }
-      const mapped = table[value];
-      // 매칭이 없으면 원래 값을 그대로 둔다 — 여기서 undefined 로 바꾸면 잘못된 값이
-      // "안 보낸 것" 으로 둔갑해 @IsOptional 을 통과한다.
-      return mapped === undefined ? value : mapped;
-    },
-  );
+  const transform = Transform(({ value }: { value: unknown }): string | number | undefined => {
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      return undefined;
+    }
+    const mapped = table[value];
+    // 매칭이 없으면 원래 값을 그대로 둔다 — 여기서 undefined 로 바꾸면 잘못된 값이
+    // "안 보낸 것" 으로 둔갑해 @IsOptional 을 통과한다.
+    return mapped === undefined ? value : mapped;
+  });
 
   return applyDecorators(
     optional

@@ -8,9 +8,7 @@ import { ScrollResponseDto } from './scroll.response.dto';
  * 컨트롤러에서 @ApiScrollResponse(ItemDto) 로 감싸 실제 항목 타입을 노출한다.
  * (페이지네이션의 @ApiPageResponse 와 같은 구조다.)
  */
-export const ApiScrollResponse = <TModel extends Type<unknown>>(
-  model: TModel,
-) =>
+export const ApiScrollResponse = <TModel extends Type<unknown>>(model: TModel) =>
   applyDecorators(
     ApiExtraModels(ScrollResponseDto, model),
     ApiOkResponse({

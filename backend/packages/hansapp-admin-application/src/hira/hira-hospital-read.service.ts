@@ -49,9 +49,7 @@ export class HiraHospitalReadService {
     private readonly db: HiraHospitalService,
   ) {}
 
-  async getHospitalList(
-    options: HiraHospitalListOptions,
-  ): Promise<HospitalListResponse> {
+  async getHospitalList(options: HiraHospitalListOptions): Promise<HospitalListResponse> {
     if (options.source === 'origin') {
       return this.api.getHospitalList({
         sidoCd: options.sido,

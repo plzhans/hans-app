@@ -1,10 +1,4 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  randomInt,
-  timingSafeEqual,
-} from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 /**
  * 인증 토큰(refresh·인가코드)의 공통 암호 유틸.
@@ -68,11 +62,7 @@ const SIGNED_TAG_HEX_LEN = 24;
  * **DB 조회 전에 위조·변조·정크 토큰을 인메모리(상수시간)로 걸러내기 위한 사전 관문이다.**
  * 보안 경계는 여전히 DB 의 secretHash — 태그는 값싼 필터라 잘라 써도 된다.
  */
-export function composeSignedToken(
-  id: string,
-  secret: string,
-  key: string,
-): string {
+export function composeSignedToken(id: string, secret: string, key: string): string {
   const body = `${id}.${secret}`;
   const tag = hmacSha256hex(body, key).slice(0, SIGNED_TAG_HEX_LEN);
   return `${body}.${tag}`;
@@ -99,10 +89,7 @@ export function parseSignedToken(
   if (!id || !secret || !tag) {
     return null;
   }
-  const expected = hmacSha256hex(`${id}.${secret}`, key).slice(
-    0,
-    SIGNED_TAG_HEX_LEN,
-  );
+  const expected = hmacSha256hex(`${id}.${secret}`, key).slice(0, SIGNED_TAG_HEX_LEN);
   if (!timingSafeEqualHex(expected, tag)) {
     return null;
   }

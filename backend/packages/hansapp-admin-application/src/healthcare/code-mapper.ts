@@ -30,11 +30,7 @@ export class CodeMapper {
     const regions = new Map<string, string>();
     const sidoByName = new Map<string, string>();
 
-    const put = (
-      map: Map<string, string>,
-      key: string,
-      value: string,
-    ): void => {
+    const put = (map: Map<string, string>, key: string, value: string): void => {
       const owner = map.get(key);
       if (owner !== undefined && owner !== value) {
         throw new Error(`중복 매핑: ${key} → ${owner} / ${value}`);
@@ -90,10 +86,7 @@ export class CodeMapper {
     if (!sgguCd) {
       return undefined;
     }
-    return (
-      this.regions.get(`hira|sggu|${sgguCd}`) ??
-      this.regions.get(`hira|sido|${sgguCd}`)
-    );
+    return this.regions.get(`hira|sggu|${sgguCd}`) ?? this.regions.get(`hira|sido|${sgguCd}`);
   }
 
   /**

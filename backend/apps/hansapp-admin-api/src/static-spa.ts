@@ -24,10 +24,7 @@ const API_PREFIXES = ['/api/', '/auth/', '/health', '/docs', '/openapi'];
  *            비어 있으면 아무것도 안 붙인다 — 로컬은 Vite dev server 로 따로 띄운다.
  * @returns 부팅 로그에 찍을 한 줄.
  */
-export function serveAdminSpa(
-  app: NestExpressApplication,
-  config: ConfigSource,
-): string {
+export function serveAdminSpa(app: NestExpressApplication, config: ConfigSource): string {
   const raw = config.getStringOrDefault('apps-admin-api.web.staticDir');
   if (!raw) {
     return '🖥  SPA    : 꺼짐 — apps-admin-api.web.staticDir 가 비었다 (로컬은 Vite dev server)';

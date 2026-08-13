@@ -59,10 +59,7 @@ export class AuthCleanupService {
   }
 
   /** 한 테이블을 쓸고 결과를 남긴다. 0 건이어도 남긴다 — 잡이 돌긴 했는지 보여야 한다. */
-  private async sweep(
-    label: string,
-    remove: () => Promise<{ count: number }>,
-  ): Promise<void> {
+  private async sweep(label: string, remove: () => Promise<{ count: number }>): Promise<void> {
     try {
       const { count } = await remove();
       this.logger.log(`${label} 정리 — ${count}건`);

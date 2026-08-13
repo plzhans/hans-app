@@ -56,9 +56,7 @@ export class HiraCodeSeedRepository {
    * 시드가 소유하는 범위(= sync 6종이 아닌 tp)의 코드를 모두 조회한다.
    * 이 목록에서 시드에 없는 것이 유령이다. 소유 범위 판정은 서비스가 한다.
    */
-  findManagedCodes(
-    excludeTps: readonly string[],
-  ): Promise<{ tp: string; cd: string }[]> {
+  findManagedCodes(excludeTps: readonly string[]): Promise<{ tp: string; cd: string }[]> {
     return this.prisma.hiraCode.findMany({
       where: { tp: { notIn: [...excludeTps] } },
       select: { tp: true, cd: true },

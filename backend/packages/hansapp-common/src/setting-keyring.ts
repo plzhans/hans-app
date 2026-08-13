@@ -15,9 +15,7 @@ export const SETTING_KEYRING = Symbol('SETTING_KEYRING');
  * 실패한다 — 이 기능을 안 쓰는 환경(배치·CLI·키를 아직 안 만든 로컬)까지 부팅을 막을
  * 이유가 없다. 대신 실패할 때는 "키링이 없다" 고 분명히 말해야 한다.
  */
-export function buildSettingKeyring(
-  source: ConfigSource,
-): SecretBoxKeys | undefined {
+export function buildSettingKeyring(source: ConfigSource): SecretBoxKeys | undefined {
   const path = 'appSecretEncryption';
   return parseSecretBoxKeys(source.getValue(path), path);
 }

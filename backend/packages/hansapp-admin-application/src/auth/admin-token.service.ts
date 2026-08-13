@@ -1,9 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import {
   composeSignedToken,
   hmacSha256hex,
@@ -86,19 +81,12 @@ export class AdminTokenService {
     private readonly jwt: AdminJwtService,
     private readonly sessions: AdminSessionRepository,
   ) {
-    this.refreshTagKey = hmacSha256hex(
-      config.jwtSecret,
-      'admin-refresh-token-tag-v1',
-    );
+    this.refreshTagKey = hmacSha256hex(config.jwtSecret, 'admin-refresh-token-tag-v1');
   }
 
   // ---- access token (JWT) ----
 
-  issueAccessToken(
-    adminId: number,
-    sessionId: string,
-    mustChangePassword = false,
-  ): string {
+  issueAccessToken(adminId: number, sessionId: string, mustChangePassword = false): string {
     const payload: AdminAccessTokenPayload = {
       sub: String(adminId),
       sid: sessionId,
@@ -119,15 +107,10 @@ export class AdminTokenService {
   // ---- refresh 세션 ----
 
   /** 새 refresh 세션을 만들고 refresh token 을 반환한다. */
-  async createSession(
-    adminId: number,
-    meta: AdminRequestMeta,
-  ): Promise<IssuedAdminSession> {
+  async createSession(adminId: number, meta: AdminRequestMeta): Promise<IssuedAdminSession> {
     const sessionId = randomToken(18);
     const secret = randomToken(24);
-    const expiresAt = new Date(
-      Date.now() + this.config.refreshTokenTtlSec * 1000,
-    );
+    const expiresAt = new Date(Date.now() + this.config.refreshTokenTtlSec * 1000);
     await this.sessions.create({
       sessionId,
       adminId,
@@ -142,8 +125,7 @@ export class AdminTokenService {
     return {
       sessionId,
       refreshToken:
-        ADMIN_REFRESH_PREFIX +
-        composeSignedToken(sessionId, secret, this.refreshTagKey),
+        ADMIN_REFRESH_PREFIX + composeSignedToken(sessionId, secret, this.refreshTagKey),
       expiresAt,
     };
   }
@@ -154,11 +136,7 @@ export class AdminTokenService {
    */
   async rotateRefreshToken(refreshToken: string): Promise<RotatedAdminSession> {
     // HMAC 태그부터 본다. 위조·변조·정크 토큰은 여기서 DB 조회 없이 탈락한다.
-    const parsed = parseSignedToken(
-      refreshToken,
-      ADMIN_REFRESH_PREFIX,
-      this.refreshTagKey,
-    );
+    const parsed = parseSignedToken(refreshToken, ADMIN_REFRESH_PREFIX, this.refreshTagKey);
     if (!parsed) {
       throw new UnauthorizedException('Invalid refresh token.');
     }
@@ -175,20 +153,13 @@ export class AdminTokenService {
     }
 
     const newSecret = randomToken(24);
-    const expiresAt = new Date(
-      Date.now() + this.config.refreshTokenTtlSec * 1000,
-    );
-    await this.sessions.rotate(
-      session.sessionId,
-      sha256hex(newSecret),
-      expiresAt,
-    );
+    const expiresAt = new Date(Date.now() + this.config.refreshTokenTtlSec * 1000);
+    await this.sessions.rotate(session.sessionId, sha256hex(newSecret), expiresAt);
     return {
       adminId: session.adminId,
       sessionId: session.sessionId,
       refreshToken:
-        ADMIN_REFRESH_PREFIX +
-        composeSignedToken(session.sessionId, newSecret, this.refreshTagKey),
+        ADMIN_REFRESH_PREFIX + composeSignedToken(session.sessionId, newSecret, this.refreshTagKey),
       expiresAt,
     };
   }
@@ -205,11 +176,7 @@ export class AdminTokenService {
     mustChangePassword = false,
   ): AdminAuthTokens {
     return {
-      accessToken: this.issueAccessToken(
-        adminId,
-        session.sessionId,
-        mustChangePassword,
-      ),
+      accessToken: this.issueAccessToken(adminId, session.sessionId, mustChangePassword),
       tokenType: 'Bearer',
       expiresIn: this.config.accessTokenTtlSec,
       refreshToken: session.refreshToken,
@@ -230,11 +197,7 @@ export class AdminTokenService {
   async revokeByRefreshToken(
     refreshToken: string,
   ): Promise<{ sessionId: string; adminId: number } | null> {
-    const parsed = parseSignedToken(
-      refreshToken,
-      ADMIN_REFRESH_PREFIX,
-      this.refreshTagKey,
-    );
+    const parsed = parseSignedToken(refreshToken, ADMIN_REFRESH_PREFIX, this.refreshTagKey);
     if (!parsed) return null;
     const session = await this.sessions.findById(parsed.id);
     if (!session) return null;

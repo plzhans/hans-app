@@ -1,9 +1,4 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  timingSafeEqual,
-} from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
 
 /**
  * 되돌릴 수 있게 비밀을 잠그는 상자.
@@ -81,10 +76,7 @@ export interface SecretBoxKeys {
  * @param section 설정 트리에서 꺼낸 값. 객체가 아니면 미설정으로 본다.
  * @param path 오류 메시지에 찍을 yaml 경로. 어느 줄을 고쳐야 하는지가 메시지에 있어야 한다.
  */
-export function parseSecretBoxKeys(
-  section: unknown,
-  path: string,
-): SecretBoxKeys | undefined {
+export function parseSecretBoxKeys(section: unknown, path: string): SecretBoxKeys | undefined {
   if (!section || typeof section !== 'object' || Array.isArray(section)) {
     return undefined;
   }
@@ -97,9 +89,7 @@ export function parseSecretBoxKeys(
 
     const matched = /^v(\d+)$/.exec(name);
     if (!matched) {
-      throw new SecretBoxError(
-        `${path}.${name} is not a key version (expected "v1", "v2", …).`,
-      );
+      throw new SecretBoxError(`${path}.${name} is not a key version (expected "v1", "v2", …).`);
     }
 
     const version = Number(matched[1]);
@@ -133,10 +123,7 @@ export function seal(plain: string, keyring: SecretBoxKeys): string {
 
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const ciphertext = Buffer.concat([
-    cipher.update(plain, 'utf8'),
-    cipher.final(),
-  ]);
+  const ciphertext = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
 
   return [
@@ -167,10 +154,7 @@ export function open(sealed: string, keyring: SecretBoxKeys): string {
   const decipher = createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(tag);
   try {
-    return Buffer.concat([
-      decipher.update(ciphertext),
-      decipher.final(),
-    ]).toString('utf8');
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
   } catch {
     // final() 이 태그 대조 실패로 던진다. 값이 바뀌었거나 다른 키로 잠긴 것이다.
     throw new SecretBoxError(
@@ -196,9 +180,7 @@ export function suffixOf(plain: string): string {
 function parse(sealed: string): Sealed {
   const parts = sealed.split(':');
   if (parts.length !== 4 || !parts[0].startsWith('v')) {
-    throw new SecretBoxError(
-      'Malformed sealed value (expected "v<n>:<iv>:<tag>:<ciphertext>").',
-    );
+    throw new SecretBoxError('Malformed sealed value (expected "v<n>:<iv>:<tag>:<ciphertext>").');
   }
 
   const version = Number(parts[0].slice(1));

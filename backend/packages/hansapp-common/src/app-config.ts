@@ -16,10 +16,7 @@ import { CONFIG_DIR, findRootDir } from './env';
  * @param appDir 바이너리(main.js)가 있는 디렉터리. 보통 __dirname.
  * @param name   yaml 파일 이름(확장자 제외). 'app'(공통 구조) 또는 환경 이름(오버라이드).
  */
-export function loadYamlObject(
-  appDir: string,
-  name: string,
-): Record<string, unknown> {
+export function loadYamlObject(appDir: string, name: string): Record<string, unknown> {
   const base = findRootDir(appDir) ?? process.cwd();
   const yamlPath = join(base, CONFIG_DIR, `${name}.yaml`);
 

@@ -32,9 +32,7 @@ async function withRead<T>(
   source: ConfigSource,
   run: (service: HiraHospitalReadService) => Promise<T>,
 ): Promise<T> {
-  return withAdminContext(source, (context) =>
-    run(context.get(HiraHospitalReadService)),
-  );
+  return withAdminContext(source, (context) => run(context.get(HiraHospitalReadService)));
 }
 
 /**
@@ -45,17 +43,11 @@ async function withQuery<T>(
   source: ConfigSource,
   run: (service: HiraQueryService) => Promise<T>,
 ): Promise<T> {
-  return withAdminContext(source, (context) =>
-    run(context.get(HiraQueryService)),
-  );
+  return withAdminContext(source, (context) => run(context.get(HiraQueryService)));
 }
 
 /** --simple 이면 지정 컬럼만 표로, 아니면 응답 원본을 그대로 출력한다. */
-function printResponse(
-  response: unknown,
-  command: Command,
-  simpleColumns: string[],
-): void {
+function printResponse(response: unknown, command: Command, simpleColumns: string[]): void {
   const { simple, pretty } = command.optsWithGlobals<{
     simple?: boolean;
     pretty?: boolean;
@@ -173,9 +165,9 @@ const DETAIL_COMMANDS: DetailSpec[] = [
  * 원본 API 는 종류마다 엔드포인트가 따로지만, 우리는 --tp 로 고른다.
  */
 function codeTypeHelp(): string {
-  return HIRA_CODE_TYPES.map(
-    (tp: HiraCodeType) => `${tp}=${HIRA_CODE_TYPE_DEFS[tp].tpNm}`,
-  ).join(', ');
+  return HIRA_CODE_TYPES.map((tp: HiraCodeType) => `${tp}=${HIRA_CODE_TYPE_DEFS[tp].tpNm}`).join(
+    ', ',
+  );
 }
 
 /**
@@ -183,17 +175,13 @@ function codeTypeHelp(): string {
  * 매핑을 CLI 에 또 적지 않고, 응용 계층의 변환 함수가 만드는 키를 그대로 쓴다.
  */
 function codeColumns(tp: HiraCodeType): string[] {
-  return Object.keys(
-    HIRA_CODE_TYPE_DEFS[tp].toItem({ cd: '', cdNm: null, cdCmt: null }),
-  );
+  return Object.keys(HIRA_CODE_TYPE_DEFS[tp].toItem({ cd: '', cdNm: null, cdCmt: null }));
 }
 
 /** --tp 값 검증. commander 는 열거형을 모르니 여기서 막는다. */
 function parseCodeType(value: string): HiraCodeType {
   if (!isHiraCodeType(value)) {
-    throw new Error(
-      `알 수 없는 코드 종류: ${value}\n사용 가능: ${HIRA_CODE_TYPES.join(', ')}`,
-    );
+    throw new Error(`알 수 없는 코드 종류: ${value}\n사용 가능: ${HIRA_CODE_TYPES.join(', ')}`);
   }
   return value;
 }
@@ -217,14 +205,10 @@ function addNpayWebCommands(hira: Command, source: ConfigSource): void {
       .action(async (): Promise<void> => {
         await withAdminContext(source, async (context) => {
           const out = await context.get(HiraNpayCodeSyncService).sync();
-          console.log(
-            `완료 ${out.total}종 (${out.processed}건 upsert, ${out.calls}콜)`,
-          );
+          console.log(`완료 ${out.total}종 (${out.processed}건 upsert, ${out.calls}콜)`);
         });
       }),
-    [
-      'hansapp-cli hira npay-code   # 코드마스터 전량 적재 (188콜, 저빈도 배치용)',
-    ],
+    ['hansapp-cli hira npay-code   # 코드마스터 전량 적재 (188콜, 저빈도 배치용)'],
   );
 
   const npay = hira
@@ -235,11 +219,7 @@ function addNpayWebCommands(hira: Command, source: ConfigSource): void {
     npay
       .command('work')
       .description('큐에서 갱신 요청을 꺼내 처리한다 (배치 서버 대역)')
-      .option(
-        '-n, --count <number>',
-        '처리할 건수. 기본 1 — 한 건씩 눈으로 확인하라는 뜻이다',
-        '1',
-      )
+      .option('-n, --count <number>', '처리할 건수. 기본 1 — 한 건씩 눈으로 확인하라는 뜻이다', '1')
       .action(async (options: { count: string }): Promise<void> => {
         const count = Number(options.count);
         await withAdminContext(source, async (context) => {
@@ -274,9 +254,7 @@ function addNpayWebCommands(hira: Command, source: ConfigSource): void {
       .action(async (ykiho: string): Promise<void> => {
         await withAdminContext(source, async (context) => {
           const n = await context.get(HiraNpayWebSyncService).crawl(ykiho);
-          console.log(
-            `완료 ${n}건 (0건이면 그 기관이 신고한 게 없다는 뜻이다)`,
-          );
+          console.log(`완료 ${n}건 (0건이면 그 기관이 신고한 게 없다는 뜻이다)`);
         });
       }),
     ['hansapp-cli hira npay-web crawl JDQ4MTAxMiM1MSMk...'],
@@ -284,9 +262,7 @@ function addNpayWebCommands(hira: Command, source: ConfigSource): void {
 }
 
 export function hiraCommand(source: ConfigSource): Command {
-  const hira = new Command('hira').description(
-    '건강보험심사평가원(HIRA) 공공데이터 API',
-  );
+  const hira = new Command('hira').description('건강보험심사평가원(HIRA) 공공데이터 API');
 
   // 단계 배치. 계획 문서(docs/krdata-cache-plan.md)의 단계와 1:1 이다.
   hira.addCommand(stageSyncCommand('hira', source));
@@ -313,18 +289,12 @@ export function hiraCommand(source: ConfigSource): Command {
           '로컬 DB 대신 공공데이터 API 를 직접 조회한다 (콜수를 소모한다). 필터는 이 모드에서만 쓸 수 있다',
         )
         .option('--sido <code>', '시도코드 (예: 110000=서울). --origin 전용')
-        .option(
-          '--sggu <code>',
-          '시군구코드 (예: 110019=중랑구). --origin 전용',
-        )
+        .option('--sggu <code>', '시군구코드 (예: 110019=중랑구). --origin 전용')
         .option('--emdong <name>', '읍면동명. --origin 전용')
         .option('--name <name>', '병원명. --origin 전용')
         .option('--cl <code>', '종별코드 (예: 01=상급종합). --origin 전용')
         .option('--subject <code>', '진료과목코드 (예: 01=내과). --origin 전용')
-        .option(
-          '--lon <number>',
-          'x좌표(경도). radius 와 함께 써야 반경 검색이 된다',
-        )
+        .option('--lon <number>', 'x좌표(경도). radius 와 함께 써야 반경 검색이 된다')
         .option('--lat <number>', 'y좌표(위도)')
         .option('--radius <meter>', '반경(m). 예: 3000'),
       '10',
@@ -369,9 +339,7 @@ export function hiraCommand(source: ConfigSource): Command {
   );
 
   // ykiho 기준 상세 조회 11종
-  const detail = hira
-    .command('detail')
-    .description('의료기관별 상세정보 (ykiho 기준)');
+  const detail = hira.command('detail').description('의료기관별 상세정보 (ykiho 기준)');
 
   for (const spec of DETAIL_COMMANDS) {
     addExamples(
@@ -379,23 +347,14 @@ export function hiraCommand(source: ConfigSource): Command {
         detail
           .command(spec.name)
           .description(spec.description)
-          .argument(
-            '<ykiho>',
-            '암호화된 요양기호. hira hospital list 로 얻는다',
-          ),
+          .argument('<ykiho>', '암호화된 요양기호. hira hospital list 로 얻는다'),
         '10',
-      ).action(
-        async (
-          ykiho: string,
-          options: PageOptions,
-          command: Command,
-        ): Promise<void> => {
-          const response = await withQuery(source, (service) =>
-            spec.call(service, ykiho, toPageParams(options)),
-          );
-          printResponse(response, command, spec.columns);
-        },
-      ),
+      ).action(async (ykiho: string, options: PageOptions, command: Command): Promise<void> => {
+        const response = await withQuery(source, (service) =>
+          spec.call(service, ykiho, toPageParams(options)),
+        );
+        printResponse(response, command, spec.columns);
+      }),
       [`hansapp-cli hira detail ${spec.name} "<ykiho>" --simple`],
     );
   }
@@ -410,29 +369,20 @@ export function hiraCommand(source: ConfigSource): Command {
       .command('sync')
       .description('코드를 로컬 DB(hira_code)에 적재한다. 기본은 6종 전부')
       .option('--tp <type>', `특정 종류만 적재한다 (${codeTypeHelp()})`)
-      .option(
-        '-n, --rows <number>',
-        `한 페이지 결과 수 (기본 ${DEFAULT_CODE_SYNC_ROWS})`,
-      )
+      .option('-n, --rows <number>', `한 페이지 결과 수 (기본 ${DEFAULT_CODE_SYNC_ROWS})`)
       .option('--quiet', '진행 로그를 숨긴다')
-      .action(
-        async (options: {
-          tp?: string;
-          rows?: string;
-          quiet?: boolean;
-        }): Promise<void> => {
-          const results = await withAdminContext(
-            source,
-            (context) =>
-              context.get(HiraCodeSyncService).sync({
-                tp: options.tp ? parseCodeType(options.tp) : undefined,
-                numOfRows: options.rows ? Number(options.rows) : undefined,
-              }),
-            { verbose: !options.quiet },
-          );
-          printCodeSyncResult('HIRA', results);
-        },
-      ),
+      .action(async (options: { tp?: string; rows?: string; quiet?: boolean }): Promise<void> => {
+        const results = await withAdminContext(
+          source,
+          (context) =>
+            context.get(HiraCodeSyncService).sync({
+              tp: options.tp ? parseCodeType(options.tp) : undefined,
+              numOfRows: options.rows ? Number(options.rows) : undefined,
+            }),
+          { verbose: !options.quiet },
+        );
+        printCodeSyncResult('HIRA', results);
+      }),
     [
       'hansapp-cli hira code sync              # 6종 전부',
       'hansapp-cli hira code sync --tp class   # 의료기관종별코드만',
@@ -447,10 +397,7 @@ export function hiraCommand(source: ConfigSource): Command {
           '코드 목록. 기본은 로컬 DB, --origin 이면 원본 API. 응답은 종류별 원본 필드명 그대로다',
         )
         .requiredOption('--tp <type>', `코드 종류 (${codeTypeHelp()})`)
-        .option(
-          '--origin',
-          '로컬 DB 대신 공공데이터 API 를 직접 조회한다 (콜수를 소모한다)',
-        ),
+        .option('--origin', '로컬 DB 대신 공공데이터 API 를 직접 조회한다 (콜수를 소모한다)'),
       '100',
     ).action(
       async (

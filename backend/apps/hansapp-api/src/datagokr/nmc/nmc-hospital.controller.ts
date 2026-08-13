@@ -1,10 +1,5 @@
 import { Controller, Get, Header, Param, Query } from '@nestjs/common';
-import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { NmcHospitalService } from '@hansapp/application';
 import type { HospitalFullDownResponse } from '@krdata/nmc';
 
@@ -35,13 +30,10 @@ export class NmcHospitalController {
   @Get()
   @ApiOperation({
     summary: '병원 목록 조회',
-    description:
-      '로컬 DB 에 미러링한 NMC 병원 목록. 응답 구조는 원본 API 와 동일하다.',
+    description: '로컬 DB 에 미러링한 NMC 병원 목록. 응답 구조는 원본 API 와 동일하다.',
   })
   @ApiOkResponse({ schema: krDataSchemaRef(RESPONSE_SCHEMA) })
-  async list(
-    @Query() request: MirrorListRequestDto,
-  ): Promise<HospitalFullDownResponse> {
+  async list(@Query() request: MirrorListRequestDto): Promise<HospitalFullDownResponse> {
     return this.nmcHospitalService.listHospitals({
       page: request.page,
       size: request.size,

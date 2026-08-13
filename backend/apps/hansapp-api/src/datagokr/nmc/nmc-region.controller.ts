@@ -1,19 +1,11 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { NmcRegionService, NmcSubjectService } from '@hansapp/application';
 
 import { Auth } from '../../auth/auth.decorator';
 import { AuthType } from '../../auth/auth-type.enum';
 import { MirrorListRequestDto } from '../dto/mirror-list.request.dto';
-import {
-  NmcRegionResponseDto,
-  NmcSubjectResponseDto,
-} from '../dto/krdata-envelope.dto';
+import { NmcRegionResponseDto, NmcSubjectResponseDto } from '../dto/krdata-envelope.dto';
 
 /**
  * 국립중앙의료원(NMC) 지역·진료과목 API.
@@ -38,8 +30,7 @@ export class NmcRegionController {
   @Get('regions')
   @ApiOperation({
     summary: '지역 목록 조회',
-    description:
-      '병원 데이터에서 집계한 시도·시군구 목록. 병원이 1건 이상 있는 지역만 나온다.',
+    description: '병원 데이터에서 집계한 시도·시군구 목록. 병원이 1건 이상 있는 지역만 나온다.',
   })
   @ApiOkResponse({ type: NmcRegionResponseDto })
   async listRegions(@Query() request: MirrorListRequestDto) {

@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapp/application';
-import {
-  hospitalTier,
-  splitHospitalName,
-  IGNORED_SOURCE_CODES,
-} from '@hansapp/data/seed';
+import { hospitalTier, splitHospitalName, IGNORED_SOURCE_CODES } from '@hansapp/data/seed';
 
 import { HealthcareBuildRepository } from './healthcare-build.repository';
 import { normalizeTel, hiraAreaCode, nmcAreaCode } from './phone';
@@ -198,8 +194,7 @@ export class HealthcareBuildService {
         intro: n?.intro ?? null,
         notice: n?.notice ?? null,
         // 찾아오는 길은 NMC 우선, 없으면 HIRA info 의 조각을 이어 붙인다.
-        directions:
-          n?.directions ?? this.hiraDirections(infoByYkiho.get(h.ykiho)),
+        directions: n?.directions ?? this.hiraDirections(infoByYkiho.get(h.ykiho)),
         ...this.hiraParking(infoByYkiho.get(h.ykiho)),
 
         // 대중교통은 HIRA 만 준다. NMC 의 directions 와 겹쳐 보여도 별개다 —
@@ -284,17 +279,13 @@ export class HealthcareBuildService {
   }
 
   /** HIRA info 의 찾아오는 길. 공공건물 이름 + 방향 + 거리 조각을 이어 붙인다. */
-  private hiraDirections(
-    info: Record<string, unknown> | undefined,
-  ): string | null {
+  private hiraDirections(info: Record<string, unknown> | undefined): string | null {
     if (!info) {
       return null;
     }
-    const parts = [
-      asString(info.plcNm),
-      asString(info.plcDir),
-      asString(info.plcDist),
-    ].filter(Boolean);
+    const parts = [asString(info.plcNm), asString(info.plcDir), asString(info.plcDist)].filter(
+      Boolean,
+    );
     return parts.length > 0 ? parts.join(' ') : null;
   }
 
@@ -346,10 +337,7 @@ export class HealthcareBuildService {
    * 화면에 "마을버스 5" 로 정확히 적으려면 필요하다.
    */
   private toTransport(data: unknown): HospitalTransport | null {
-    const items = (Array.isArray(data) ? data : [data]) as Record<
-      string,
-      unknown
-    >[];
+    const items = (Array.isArray(data) ? data : [data]) as Record<string, unknown>[];
 
     const result: HospitalTransport = { subway: [], bus: [], etc: [] };
 
@@ -417,8 +405,7 @@ export class HealthcareBuildService {
       addr: asString(r.addr),
       tel: asString(r.tel),
       // 우편번호는 앞자리·뒷자리로 쪼개져 있다.
-      postNo:
-        `${asString(r.post1) ?? ''}${asString(r.post2) ?? ''}`.trim() || null,
+      postNo: `${asString(r.post1) ?? ''}${asString(r.post2) ?? ''}`.trim() || null,
       // dutyEryn 은 1=운영, 2=미운영이다. (Y/N 이 아니다)
       emergencyYn: asString(r.eryn) === '1',
       intro: asString(r.intro),

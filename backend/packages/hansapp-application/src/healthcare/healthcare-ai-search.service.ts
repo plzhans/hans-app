@@ -66,8 +66,7 @@ const MAX_EXPLAIN_LENGTH = 200;
  * 조건을 설명하는 자리이지 사용자에게 무언가를 전달하는 통로가 아니다.
  * 프롬프트로도 금지하지만, 뚫렸을 때 피싱 링크가 화면에 그려지는 걸 막는 건 여기다.
  */
-const EXPLAIN_FORBIDDEN =
-  /(https?:\/\/\S+|www\.\S+|\S+@\S+\.\S+|\b\d{2,4}-\d{3,4}-\d{4}\b)/gi;
+const EXPLAIN_FORBIDDEN = /(https?:\/\/\S+|www\.\S+|\S+@\S+\.\S+|\b\d{2,4}-\d{3,4}-\d{4}\b)/gi;
 
 /**
  * 제어문자(줄바꿈 포함). 응답 텍스트와 로그 양쪽에서 걷어낸다.
@@ -418,10 +417,7 @@ const ANSWER_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
  */
 const CACHE_SHAPE_VERSION = 2;
 
-const VALID_TIERS = new Set<string>([
-  ...HOSPITAL_TIERS.map((t) => t.code),
-  ...INPATIENT_TIERS,
-]);
+const VALID_TIERS = new Set<string>([...HOSPITAL_TIERS.map((t) => t.code), ...INPATIENT_TIERS]);
 
 const VALID_WARNINGS = new Set<string>([
   'off_topic',
@@ -484,11 +480,7 @@ export class HealthcareAiSearchService {
    * 프롬프트 해시는 **파일을 읽을 때 한 번** 계산해 둔 값이다(SvcPrompt.hash) — 8천 토큰을
    * 요청마다 해싱하지 않는다. 프롬프트가 바뀌면 키 공간이 통째로 갈려 옛 답이 안 나온다.
    */
-  private cacheKey(
-    questionHash: string,
-    promptHash: string,
-    carried?: string,
-  ): string {
+  private cacheKey(questionHash: string, promptHash: string, carried?: string): string {
     const state = carried ? `:${sha(carried).slice(0, 16)}` : '';
     return `${CachePrefix.aiSearch}:v${CACHE_SHAPE_VERSION}:${promptHash}:${questionHash}${state}`;
   }
@@ -516,15 +508,7 @@ export class HealthcareAiSearchService {
     useMyLocation: boolean;
     warnings: AiSearchWarning[];
   }): { tool: AiSearchTool; params: AiSearchParams } {
-    const {
-      answerMode,
-      rawAnswer,
-      offTopic,
-      filter,
-      placeText,
-      useMyLocation,
-      warnings,
-    } = input;
+    const { answerMode, rawAnswer, offTopic, filter, placeText, useMyLocation, warnings } = input;
 
     /*
       **검색하지 않는 두 경우를 먼저 걸러낸다.** 둘 다 조건을 통째로 버린다 — 모델이
@@ -543,9 +527,7 @@ export class HealthcareAiSearchService {
     if (warnings.includes('medical_question')) {
       // 답변 모드라도 **모델이 답을 안 냈으면 거절로 떨어뜨린다.** 빈 답변 상자를 그리는
       // 것보다 "지금은 안 된다" 가 낫다.
-      const answer = answerMode
-        ? sanitizeAnswer(rawAnswer, MAX_ANSWER_LENGTH)
-        : undefined;
+      const answer = answerMode ? sanitizeAnswer(rawAnswer, MAX_ANSWER_LENGTH) : undefined;
       return answer
         ? { tool: 'answer_medical', params: { filter: emptyFilter(), answer } }
         : {
@@ -596,9 +578,7 @@ export class HealthcareAiSearchService {
    * 표시용이라 없으면 안 보여주면 그만이고, 실제 차단은 질문할 때 fail-closed 로 걸린다.
    */
   async getQuota(caller: QuotaCaller): Promise<QuotaSnapshot> {
-    return this.readQuota(
-      this.quotaTargets(caller, await this.settings.load()),
-    );
+    return this.readQuota(this.quotaTargets(caller, await this.settings.load()));
   }
 
   /**
@@ -735,9 +715,7 @@ export class HealthcareAiSearchService {
 
     // 시도가 잡히면 시군구 후보를 그 안으로 좁힌다.
     const sido = hit(this.regions.list({ level: 'sido' }))[0];
-    const sggus = hit(
-      this.regions.list({ level: 'sggu', parentCode: sido?.code }),
-    );
+    const sggus = hit(this.regions.list({ level: 'sggu', parentCode: sido?.code }));
 
     if (sggus.length === 1) {
       return sggus[0].code;
@@ -818,7 +796,10 @@ export class HealthcareAiSearchService {
     const targets = this.quotaTargets(caller, settings);
     /** 아무 답도 안 준 경로(사전 차단)에서 현재 사용량만 읽어 붙인다. */
     /** 아무 답도 안 준 경로(사전 차단)에서 현재 사용량만 읽어 붙인다. */
-    const peekQuota = async () => (await this.readQuota(targets)).quota;
+    const peekQuota = async () => {
+      const read = await this.readQuota(targets);
+      return read.quota;
+    };
 
     /*
       **들어온 문자열은 여기서 한 번만 다듬는다.** 아래로는 이 값만 흐르므로 발송·해시·
@@ -832,9 +813,7 @@ export class HealthcareAiSearchService {
       달라지는 건 **모드로 들어가느냐** 뿐이다.
     */
     const asked = cleaned.endsWith(TEST_COMMAND);
-    const question = asked
-      ? cleaned.slice(0, -TEST_COMMAND.length).trim()
-      : cleaned;
+    const question = asked ? cleaned.slice(0, -TEST_COMMAND.length).trim() : cleaned;
     const answerMode = asked && settings.allowTestCommand;
 
     /*
@@ -881,9 +860,7 @@ export class HealthcareAiSearchService {
       없어서다 — curl 로 아무 코드나 넣어 보낼 수 있고, 그러면 코드표에 없는 값이 프롬프트로
       들어가 모델이 그것을 따라 하게 된다. 떨어진 것은 조용히 버린다(사용자 잘못이 아니다).
     */
-    const previous = sanitizeContext(caller.context, (raw, tp) =>
-      this.pickCodes(raw, tp, []),
-    );
+    const previous = sanitizeContext(caller.context, (raw, tp) => this.pickCodes(raw, tp, []));
 
     const questionHash = questionHashOf(question);
     /*
@@ -899,19 +876,14 @@ export class HealthcareAiSearchService {
       questionHash,
       block ? `${prompt.hash}+${block.hash}` : prompt.hash,
       // 조건과 대화가 둘 다 앞 맥락이다. 하나만 섞으면 나머지가 다른 답을 같은 칸에 넣는다.
-      [
-        carriedParams(previous),
-        renderHistory(this.verifyHistory(caller.history)),
-      ]
+      [carriedParams(previous), renderHistory(this.verifyHistory(caller.history))]
         .filter(Boolean)
         .join('|') || undefined,
     );
     const cached = await this.tryGet(key);
     if (cached) {
       const elapsedMs = Date.now() - startedAt;
-      this.logger.log(
-        `${tag(caller.requestId)}${PROMPT_NAME} cache hit ${elapsedMs}ms (${key})`,
-      );
+      this.logger.log(`${tag(caller.requestId)}${PROMPT_NAME} cache hit ${elapsedMs}ms (${key})`);
       /*
         **캐시 히트도 남긴다**(토큰 0). 안 남기면 수요를 알 수 없어 캐시가 얼마나 값을
         하는지 못 잰다 — 정산은 cached=false 만 합산하면 된다.
@@ -1086,23 +1058,14 @@ export class HealthcareAiSearchService {
     const raw = (response.output ?? {}) as RawFilter;
     if (!response.output) {
       // 스키마를 걸었는데도 값이 없으면 모델·엔드포인트 문제다. 원문 앞부분을 남겨 둔다.
-      this.logger.warn(
-        `llm returned unparseable output: ${response.text.slice(0, 200)}`,
-      );
+      this.logger.warn(`llm returned unparseable output: ${response.text.slice(0, 200)}`);
     }
 
     const dropped: string[] = [];
 
     const filter: AiSearchFilter = {
-      subjectCds: this.pickCodes(raw.subjectCds, 'subject', dropped).slice(
-        0,
-        MAX_SUBJECTS,
-      ),
-      specialistCds: this.pickCodes(
-        raw.specialistCds,
-        'subject',
-        dropped,
-      ).slice(0, MAX_SUBJECTS),
+      subjectCds: this.pickCodes(raw.subjectCds, 'subject', dropped).slice(0, MAX_SUBJECTS),
+      specialistCds: this.pickCodes(raw.specialistCds, 'subject', dropped).slice(0, MAX_SUBJECTS),
       asmItemCds: this.pickAsmCodes(raw.asmItemCds, dropped),
       specialtyCds: this.pickCodes(raw.specialtyCds, 'specialty', dropped),
       equipmentCds: this.pickCodes(raw.equipmentCds, 'equipment', dropped),
@@ -1212,9 +1175,7 @@ export class HealthcareAiSearchService {
         return turn;
       }
       const expected = this.signAnswer(turn.answer);
-      return expected &&
-        turn.signature &&
-        equalSignature(expected, turn.signature)
+      return expected && turn.signature && equalSignature(expected, turn.signature)
         ? turn
         : { question: turn.question };
     });
@@ -1254,10 +1215,7 @@ export class HealthcareAiSearchService {
    * 여기서 못 찾는다면 코드표가 그새 바뀐 것이고, 그 한 줄 때문에 답 전체를 버릴 이유는 없다.
    * 비는 묶음도 뺀다(화면이 "진료과:" 만 그리는 일이 없게).
    */
-  private conditionsOf(
-    filter: AiSearchFilter,
-    lang: SupportedLang,
-  ): AiSearchCondition[] {
+  private conditionsOf(filter: AiSearchFilter, lang: SupportedLang): AiSearchCondition[] {
     const byCode = (tp: string, cds: string[]): string[] =>
       cds.map((cd) => this.codes.name(tp, cd, lang)).filter(isNonEmpty);
 
@@ -1280,9 +1238,7 @@ export class HealthcareAiSearchService {
   }
 
   /** 캐시 조회(best-effort). Redis 가 죽어도 AI 호출로 살아난다. */
-  private async tryGet(
-    key: string,
-  ): Promise<Omit<AiSearchResult, 'conditions'> | undefined> {
+  private async tryGet(key: string): Promise<Omit<AiSearchResult, 'conditions'> | undefined> {
     try {
       const hit = await this.cache.get<Omit<AiSearchResult, 'conditions'>>(key);
       /*
@@ -1296,19 +1252,14 @@ export class HealthcareAiSearchService {
       if (!hit) {
         return undefined;
       }
-      return hit.debug
-        ? { ...hit, debug: { ...hit.debug, cached: true } }
-        : hit;
+      return hit.debug ? { ...hit, debug: { ...hit.debug, cached: true } } : hit;
     } catch {
       return undefined;
     }
   }
 
   /** 캐시 저장(best-effort). 실패해도 응답은 이미 만들어졌다. */
-  private async trySet(
-    key: string,
-    value: Omit<AiSearchResult, 'conditions'>,
-  ): Promise<void> {
+  private async trySet(key: string, value: Omit<AiSearchResult, 'conditions'>): Promise<void> {
     try {
       await this.cache.set(key, value, ANSWER_CACHE_TTL_MS);
     } catch {
@@ -1469,10 +1420,7 @@ function cleanQuestion(raw: string): string {
 function questionHashOf(question: string): string {
   // cleanQuestion 이 이미 지나간 값이다. 대소문자만 더 지운다 — "ENT" 와 "ent" 는 같은
   // 질문이지만, 발송하는 문자열까지 소문자로 만들 이유는 없다(모델이 읽는 글이다).
-  return createHash('sha256')
-    .update(question.toLowerCase())
-    .digest('hex')
-    .slice(0, 32);
+  return createHash('sha256').update(question.toLowerCase()).digest('hex').slice(0, 32);
 }
 
 /** 스키마가 null 을 허용하는 자리. 빈 문자열도 없는 것으로 본다. */
@@ -1574,10 +1522,7 @@ function sanitizeExplain(raw: unknown): string {
  * 개행을 넣어 가짜 로그 줄을 만들 수 있다(로그 위조). 길이도 자른다.
  */
 function forLog(question: string): string {
-  return question
-    .replace(CONTROL_CHARS, ' ')
-    .replace(/\s+/g, ' ')
-    .slice(0, 200);
+  return question.replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').slice(0, 200);
 }
 
 /**
@@ -1616,13 +1561,8 @@ function isDefined<T>(value: T | undefined): value is T {
  * 하나도 못 읽었으면 undefined 다 — 화면이 아무것도 안 그리게 한다
  * (0/0 은 다 쓴 것처럼 보인다).
  */
-function toQuota(
-  read: { owner: QuotaOwner; states: QuotaState[] }[],
-): AiSearchQuota | undefined {
-  const at = (
-    states: QuotaState[],
-    window: QuotaWindow,
-  ): AiSearchQuotaWindow | undefined => {
+function toQuota(read: { owner: QuotaOwner; states: QuotaState[] }[]): AiSearchQuota | undefined {
+  const at = (states: QuotaState[], window: QuotaWindow): AiSearchQuotaWindow | undefined => {
     const state = states.find((s) => s.window === window);
     return state ? { used: state.used, limit: state.limit } : undefined;
   };
@@ -1723,9 +1663,7 @@ const MAX_HISTORY_ANSWER = 800;
  *
  * **최근 것만 남긴다.** 뒤에서부터 세되 순서는 시간순으로 되돌린다.
  */
-function renderHistory(
-  turns: AiSearchHistoryTurn[] | undefined,
-): string | undefined {
+function renderHistory(turns: AiSearchHistoryTurn[] | undefined): string | undefined {
   if (!turns?.length) {
     return undefined;
   }
@@ -1741,9 +1679,7 @@ function renderHistory(
     })
     .filter(Boolean);
 
-  return lines.length > 0
-    ? `<history>\n${lines.join('\n')}\n</history>`
-    : undefined;
+  return lines.length > 0 ? `<history>\n${lines.join('\n')}\n</history>` : undefined;
 }
 
 /** 태그 흉내를 지우고 길이를 자른다. 빈 값이면 undefined. */

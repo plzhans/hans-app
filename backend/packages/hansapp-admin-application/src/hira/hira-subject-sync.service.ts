@@ -70,9 +70,7 @@ export class HiraSubjectSyncService {
         pageNo += 1;
       }
 
-      this.logger.log(
-        `HIRA 진료과목 ${code}(${name ?? '?'}) 병원 ${fetched.toLocaleString()}건`,
-      );
+      this.logger.log(`HIRA 진료과목 ${code}(${name ?? '?'}) 병원 ${fetched.toLocaleString()}건`);
     }
 
     return { total: subjects.length, processed, calls };

@@ -3,10 +3,7 @@ import { PrismaService } from '@hansapp/data';
 import { splitHospitalName } from '@hansapp/data/seed';
 
 import { HospitalLocks } from './hospital-lock';
-import {
-  HealthcareNameBuildRepository,
-  type NameUpdate,
-} from './healthcare-name-build.repository';
+import { HealthcareNameBuildRepository, type NameUpdate } from './healthcare-name-build.repository';
 
 export interface NameBuildResult {
   /** 검사한 행 수 */

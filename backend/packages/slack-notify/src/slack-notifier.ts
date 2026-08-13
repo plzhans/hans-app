@@ -103,9 +103,7 @@ interface ChatPostMessageResponse {
  * "알림 꺼짐" 을 판단한다. 아무것도 안 하는 더미를 돌려주지 않는 이유는, 꺼져 있다는 사실이
  * 호출부에서 보여야 부팅 로그에 남길 수 있기 때문이다.
  */
-export function createSlackNotifier(
-  options: SlackNotifierOptions,
-): SlackNotifier | undefined {
+export function createSlackNotifier(options: SlackNotifierOptions): SlackNotifier | undefined {
   const botToken = options.botToken?.trim();
   const channel = options.channel?.trim();
   const webhookUrl = options.webhookUrl?.trim();
@@ -116,25 +114,21 @@ export function createSlackNotifier(
     return {
       transport: 'bot-token',
       supportsThread: true,
-      post: (message) =>
-        postViaBotToken(botToken, channel, message, timeoutMs, onError),
+      post: (message) => postViaBotToken(botToken, channel, message, timeoutMs, onError),
     };
   }
 
   // 토큰만 있고 채널이 없으면 chat.postMessage 를 부를 수 없다. 조용히 웹훅으로 떨어지면
   // "토큰을 넣었는데 스레드가 안 달린다" 가 되므로 설정 실수라는 것을 알린다.
   if (botToken && !channel) {
-    onError(
-      'SLACK_BOT_TOKEN is set but SLACK_CHANNEL is missing — falling back to webhook',
-    );
+    onError('SLACK_BOT_TOKEN is set but SLACK_CHANNEL is missing — falling back to webhook');
   }
 
   if (webhookUrl) {
     return {
       transport: 'webhook',
       supportsThread: false,
-      post: (message) =>
-        postViaWebhook(webhookUrl, message, timeoutMs, onError),
+      post: (message) => postViaWebhook(webhookUrl, message, timeoutMs, onError),
     };
   }
 
@@ -205,9 +199,7 @@ async function postViaWebhook(
 
     // 웹훅은 성공이면 200 에 본문 'ok', 실패면 4xx 에 사유가 담긴다.
     if (!response.ok) {
-      onError(
-        `Slack webhook failed: ${response.status} ${await response.text()}`,
-      );
+      onError(`Slack webhook failed: ${response.status} ${await response.text()}`);
     }
   } catch (error) {
     onError('Slack webhook request failed', error);

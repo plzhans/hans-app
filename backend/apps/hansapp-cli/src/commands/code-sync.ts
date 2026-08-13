@@ -5,10 +5,7 @@ import { CodeSyncResult } from '@hansapp/admin-application';
  *
  * 병원 sync 와 달리 --full 이 없다. 코드는 전량이 수백 건이라 항상 전체를 적재한다.
  */
-export function printCodeSyncResult(
-  label: string,
-  results: CodeSyncResult[],
-): void {
+export function printCodeSyncResult(label: string, results: CodeSyncResult[]): void {
   const lines = [`${label} 코드 sync 완료`];
 
   for (const result of results) {

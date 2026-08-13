@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import type {
-  HospitalFullDownItem,
-  HospitalFullDownResponse,
-} from '@krdata/nmc';
+import type { HospitalFullDownItem, HospitalFullDownResponse } from '@krdata/nmc';
 
 import { toKrDataEnvelope } from '../common/krdata-envelope';
 import { MirrorListCommand } from '../common/mirror.result';
@@ -19,9 +16,7 @@ import { NmcHospitalRepository } from './nmc-hospital.repository';
 export class NmcHospitalService {
   constructor(private readonly repo: NmcHospitalRepository) {}
 
-  async listHospitals(
-    command: MirrorListCommand,
-  ): Promise<HospitalFullDownResponse> {
+  async listHospitals(command: MirrorListCommand): Promise<HospitalFullDownResponse> {
     const [rows, totalCount] = await Promise.all([
       this.repo.list(command.page, command.size),
       this.repo.count(),

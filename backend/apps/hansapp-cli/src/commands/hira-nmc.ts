@@ -12,9 +12,7 @@ import { addExamples } from '../help';
  * DB 안에서 계산으로 끝난다. 상세 적재(2단계 이후)를 기다릴 필요가 없다.
  */
 export function hiraNmcCommand(source: ConfigSource): Command {
-  const command = new Command('hira-nmc').description(
-    'HIRA ↔ NMC 병원 매칭 (API 콜 없음)',
-  );
+  const command = new Command('hira-nmc').description('HIRA ↔ NMC 병원 매칭 (API 콜 없음)');
 
   addExamples(
     command
@@ -77,9 +75,7 @@ export function hiraNmcCommand(source: ConfigSource): Command {
           return;
         }
         for (const row of rows) {
-          console.log(
-            `  ${row.status.padEnd(14)} ${row.count.toLocaleString()}`,
-          );
+          console.log(`  ${row.status.padEnd(14)} ${row.count.toLocaleString()}`);
         }
       }),
     ['hansapp-cli hira-nmc status'],

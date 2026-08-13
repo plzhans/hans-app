@@ -4,10 +4,7 @@ import { DB_TARGETS, DbTarget, PrismaMigrationService } from '@hansapp/data';
 
 import { withAdminContext, withDataContext } from '../context';
 import { addExamples } from '../help';
-import {
-  HealthcareCodeSeedService,
-  HiraCodeSeedService,
-} from '@hansapp/admin-application';
+import { HealthcareCodeSeedService, HiraCodeSeedService } from '@hansapp/admin-application';
 
 interface DbOptions {
   db: DbTarget;
@@ -23,9 +20,7 @@ async function run(
   action: (service: PrismaMigrationService, target: DbTarget) => void,
 ): Promise<void> {
   if (!DB_TARGETS.includes(db)) {
-    throw new Error(
-      `알 수 없는 DB: ${db}. 가능한 값: ${DB_TARGETS.join(', ')}`,
-    );
+    throw new Error(`알 수 없는 DB: ${db}. 가능한 값: ${DB_TARGETS.join(', ')}`);
   }
 
   await withDataContext(source, (context) => {
@@ -36,11 +31,7 @@ async function run(
 
 /** 모든 db 커맨드에 붙는 대상 DB 옵션 */
 function withDbOption(command: Command): Command {
-  return command.option(
-    '--db <name>',
-    `대상 DB. ${DB_TARGETS.join(' | ')}`,
-    'main',
-  );
+  return command.option('--db <name>', `대상 DB. ${DB_TARGETS.join(' | ')}`, 'main');
 }
 
 export function dbCommand(source: ConfigSource): Command {
@@ -52,13 +43,8 @@ export function dbCommand(source: ConfigSource): Command {
     withDbOption(
       db
         .command('migrate')
-        .description(
-          '스키마 변경분으로 마이그레이션을 만들고 적용한다 (개발용)',
-        )
-        .option(
-          '--name <name>',
-          '마이그레이션 이름. 생략하면 프롬프트로 묻는다',
-        ),
+        .description('스키마 변경분으로 마이그레이션을 만들고 적용한다 (개발용)')
+        .option('--name <name>', '마이그레이션 이름. 생략하면 프롬프트로 묻는다'),
     ).action(async (options: DbOptions & { name?: string }) => {
       await run(source, options.db, (service, target) =>
         service.migrate(target, { name: options.name }),
@@ -78,18 +64,16 @@ export function dbCommand(source: ConfigSource): Command {
           '이미 만들어진 마이그레이션을 적용한다. SQL 을 생성하지 않고 데이터도 지우지 않는다',
         ),
     ).action(async (options: DbOptions) => {
-      await run(source, options.db, (service, target) =>
-        service.deploy(target),
-      );
+      await run(source, options.db, (service, target) => service.deploy(target));
     }),
     ['hansapp-cli db deploy', 'hansapp-cli db deploy --env prod'],
   );
 
-  withDbOption(
-    db.command('status').description('마이그레이션 적용 상태를 확인한다'),
-  ).action(async (options: DbOptions) => {
-    await run(source, options.db, (service, target) => service.status(target));
-  });
+  withDbOption(db.command('status').description('마이그레이션 적용 상태를 확인한다')).action(
+    async (options: DbOptions) => {
+      await run(source, options.db, (service, target) => service.status(target));
+    },
+  );
 
   db.command('generate')
     .description('Prisma Client 를 다시 생성한다 (메인·로그 모두)')
@@ -112,13 +96,10 @@ export function dbCommand(source: ConfigSource): Command {
           '  hira_code        API 가 코드표를 안 주는 HIRA 코드 (병원평가 항목·그룹)',
       )
       .action(async (): Promise<void> => {
-        const { result, hira } = await withAdminContext(
-          source,
-          async (context) => ({
-            result: await context.get(HealthcareCodeSeedService).seed(),
-            hira: await context.get(HiraCodeSeedService).seed(),
-          }),
-        );
+        const { result, hira } = await withAdminContext(source, async (context) => ({
+          result: await context.get(HealthcareCodeSeedService).seed(),
+          hira: await context.get(HiraCodeSeedService).seed(),
+        }));
 
         console.log(
           [

@@ -26,11 +26,7 @@ export class TokenSessionRepository {
   }
 
   /** rotate: 새 secret 해시 + 만료 연장(sliding). */
-  rotate(
-    sessionId: string,
-    secretHash: string,
-    expiresAt: Date,
-  ): Promise<UserTokenSession> {
+  rotate(sessionId: string, secretHash: string, expiresAt: Date): Promise<UserTokenSession> {
     return this.prisma.userTokenSession.update({
       where: { sessionId },
       data: { secretHash, expiresAt },
@@ -90,9 +86,7 @@ export class TokenSessionRepository {
   }
 
   delete(sessionId: string): Promise<void> {
-    return this.prisma.userTokenSession
-      .deleteMany({ where: { sessionId } })
-      .then(() => undefined);
+    return this.prisma.userTokenSession.deleteMany({ where: { sessionId } }).then(() => undefined);
   }
 
   /**

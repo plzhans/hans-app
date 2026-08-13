@@ -1,10 +1,5 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import {
-  DiscoveryModule,
-  DiscoveryService,
-  MetadataScanner,
-  Reflector,
-} from '@nestjs/core';
+import { DiscoveryModule, DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 import type { ConfigSource } from '@hansapp/common';
 
 import { EventConsumer } from './event-consumer.service';
@@ -32,14 +27,7 @@ export class EventConsumerModule {
             discovery: DiscoveryService,
             scanner: MetadataScanner,
             reflector: Reflector,
-          ) =>
-            new EventConsumer(
-              discovery,
-              scanner,
-              reflector,
-              redisUrl,
-              concurrency,
-            ),
+          ) => new EventConsumer(discovery, scanner, reflector, redisUrl, concurrency),
           inject: [DiscoveryService, MetadataScanner, Reflector],
         },
       ],

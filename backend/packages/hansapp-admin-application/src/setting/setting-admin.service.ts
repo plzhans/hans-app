@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   seal,
   suffixOf,
@@ -66,8 +61,7 @@ export class SettingAdminService {
           */
           value: field.type === 'secret' ? null : hasValue ? raw : null,
           hasValue,
-          suffix:
-            field.type === 'secret' && hasValue ? suffixOf(raw) || null : null,
+          suffix: field.type === 'secret' && hasValue ? suffixOf(raw) || null : null,
           // 빈 값이라도 DB 에 행이 있으면 'db' 다. 행의 유무가 정한다.
           source: inDb ? 'db' : 'none',
         });
@@ -100,9 +94,7 @@ export class SettingAdminService {
       // 카탈로그에 없는 키를 받으면 DB 에 쓰레기가 쌓이고, 남의 그룹 값을 이 화면에서
       // 덮어쓸 수도 있다. 그룹에 속한 키만 받는다.
       if (!allowed.has(key)) {
-        throw new BadRequestException(
-          `Key does not belong to group "${groupId}": ${key}`,
-        );
+        throw new BadRequestException(`Key does not belong to group "${groupId}": ${key}`);
       }
     }
 
@@ -129,11 +121,7 @@ export class SettingAdminService {
    *
    * 정한 결과는 행에 같이 적는다 — 읽는 쪽은 카탈로그가 아니라 그 기록을 따른다.
    */
-  private async write(
-    field: SettingField,
-    plain: string,
-    adminId: number | null,
-  ): Promise<void> {
+  private async write(field: SettingField, plain: string, adminId: number | null): Promise<void> {
     const encrypted = field.type === 'secret';
     if (encrypted && !this.keyring) {
       // 비밀값을 평문으로 저장하는 우회는 두지 않는다. 저장 자체를 거절한다.
@@ -152,12 +140,8 @@ export class SettingAdminService {
 }
 
 /** 저장 형태는 문자열 하나다. 타입은 카탈로그가 알고 있으니 읽을 때 되돌린다. */
-function normalize(
-  field: SettingField,
-  value: string | number | boolean,
-): string {
-  if (field.type === 'boolean')
-    return value === true || value === 'true' ? 'true' : 'false';
+function normalize(field: SettingField, value: string | number | boolean): string {
+  if (field.type === 'boolean') return value === true || value === 'true' ? 'true' : 'false';
   if (field.type === 'number') {
     const n = Number(value);
     if (!Number.isFinite(n)) {
@@ -166,11 +150,7 @@ function normalize(
     return String(n);
   }
   const text = String(value);
-  if (
-    field.type === 'select' &&
-    field.options &&
-    !field.options.includes(text)
-  ) {
+  if (field.type === 'select' && field.options && !field.options.includes(text)) {
     throw new BadRequestException(
       `${field.label}: 고를 수 없는 값입니다 (${field.options.join(', ')}).`,
     );

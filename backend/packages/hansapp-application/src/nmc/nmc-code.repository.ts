@@ -12,11 +12,7 @@ export class NmcCodeRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /** 코드 한 페이지. cmMid 가 있으면 대분류로 좁힌다. 대분류→소분류 순으로 정렬한다. */
-  list(
-    cmMid: string | undefined,
-    page: number,
-    size: number,
-  ): Promise<NmcCode[]> {
+  list(cmMid: string | undefined, page: number, size: number): Promise<NmcCode[]> {
     const where = cmMid === undefined ? {} : { cmMid: cmMid };
 
     return this.prisma.nmcCode.findMany({

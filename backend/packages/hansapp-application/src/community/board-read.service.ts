@@ -1,18 +1,7 @@
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-  Optional,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import {
-  AuthorType,
-  BoardStatus,
-  Page,
-  PostStatus,
-  type BoardWriteRole,
-} from '@hansapp/common';
+import { AuthorType, BoardStatus, Page, PostStatus, type BoardWriteRole } from '@hansapp/common';
 
 import { CachePrefix } from '../common/cache-keys';
 import { BoardReadRepository } from './board-read.repository';
@@ -143,11 +132,7 @@ export class BoardReadService {
    * 게시판은 **번호가 아니라 이름으로 찾는다** — 포털 주소가 `/board/notice` 로 읽히고,
    * 번호를 노출하면 게시판이 몇 개인지가 그대로 드러난다.
    */
-  async listPosts(
-    boardName: string,
-    page: number,
-    size: number,
-  ): Promise<Page<PublicPostSummary>> {
+  async listPosts(boardName: string, page: number, size: number): Promise<Page<PublicPostSummary>> {
     const board = await this.mustFindBoard(boardName);
     const { items, totalCount } = await this.boards.findPublishedPosts(
       board.id,
@@ -192,23 +177,15 @@ export class BoardReadService {
       비공개 글의 본문은 쓴 사람만 본다(운영자는 콘솔에서 본다 — 공개 API 에 관리자용
       통로를 내지 않는다). 볼 수 없으면 **응답에서 아예 뺀다**.
     */
-    const canRead =
-      !post.secret || isSelf(post.authorType, post.authorId, viewerUserId);
+    const canRead = !post.secret || isSelf(post.authorType, post.authorId, viewerUserId);
 
     const detail: PublicPostDetail = {
-      ...toSummary(
-        { ...post, _count: { comments: post.comments.length } },
-        board,
-      ),
+      ...toSummary({ ...post, _count: { comments: post.comments.length } }, board),
       content: canRead ? post.content : null,
       comments: post.comments.map((comment) => ({
         id: comment.id,
         parentId: comment.parentId,
-        author: toAuthor(
-          comment.authorType,
-          comment.authorId,
-          comment.authorName,
-        ),
+        author: toAuthor(comment.authorType, comment.authorId, comment.authorName),
         // 비공개 댓글의 본문도 같은 규칙이다 — 쓴 사람과 글쓴이만 본다.
         content:
           !comment.secret ||
@@ -280,11 +257,7 @@ function toAuthor(type: AuthorType, id: number, name: string): PublicAuthor {
 
 /** 지금 보는 사람이 그 글·댓글을 쓴 본인인가. 회원 글에만 해당한다. */
 function isSelf(type: AuthorType, id: number, viewerUserId?: number): boolean {
-  return (
-    type === AuthorType.USER &&
-    viewerUserId !== undefined &&
-    id === viewerUserId
-  );
+  return type === AuthorType.USER && viewerUserId !== undefined && id === viewerUserId;
 }
 
 function toSummary(

@@ -160,10 +160,7 @@ export class BoardAdminService {
     const board = await this.boards.update(id, {
       name,
       title: input.title?.trim(),
-      description:
-        input.description === undefined
-          ? undefined
-          : input.description?.trim() || null,
+      description: input.description === undefined ? undefined : input.description?.trim() || null,
       writeRole: input.writeRole,
       status: input.status,
       sortOrder: input.sortOrder,
@@ -171,8 +168,7 @@ export class BoardAdminService {
         commentEnabled: input.commentEnabled ?? current.commentEnabled,
         likeEnabled: input.likeEnabled ?? current.likeEnabled,
         secretPostEnabled: input.secretPostEnabled ?? current.secretPostEnabled,
-        secretCommentEnabled:
-          input.secretCommentEnabled ?? current.secretCommentEnabled,
+        secretCommentEnabled: input.secretCommentEnabled ?? current.secretCommentEnabled,
       }),
     });
     /*

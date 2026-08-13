@@ -16,12 +16,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  Auth,
-  AuthType,
-  CurrentUser,
-  LlmKeyService,
-} from '@hansapp/auth-application';
+import { Auth, AuthType, CurrentUser, LlmKeyService } from '@hansapp/auth-application';
 import type { AuthUser, LlmKeyView } from '@hansapp/auth-application';
 
 import { CreateLlmKeyDto, LlmKeyDto, UpdateLlmKeyDto } from './dto/llm-key.dto';

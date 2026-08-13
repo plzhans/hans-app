@@ -48,10 +48,7 @@ interface CodeStrings {
 
 const CODE_I18N: Record<
   Locale,
-  Record<
-    EmailVerifyPurpose,
-    (appName: string, code: string, minutes: string) => CodeStrings
-  >
+  Record<EmailVerifyPurpose, (appName: string, code: string, minutes: string) => CodeStrings>
 > = {
   ko: {
     SIGNUP: (n, c, m) => ({
@@ -112,8 +109,7 @@ const CODE_SHELL: Record<
   },
   en: {
     greeting: 'Hello',
-    neverAskNote: (n) =>
-      `${n} will never ask you for this code. Do not share it with anyone.`,
+    neverAskNote: (n) => `${n} will never ask you for this code. Do not share it with anyone.`,
     footerLegal: 'This mailbox is not monitored.',
   },
 };
@@ -149,10 +145,7 @@ const CODE_TEMPLATE = 'verification-code';
  * 이 서비스가 쓰는 템플릿 전부. **부팅 검사가 이 목록을 본다**(onModuleInit).
  * 템플릿을 새로 만들면 여기에도 올려야 한다 — 안 올리면 검사망 밖에 남는다.
  */
-const ALL_TEMPLATES = [
-  CODE_TEMPLATE,
-  ...new Set(Object.values(NOTICE_TEMPLATE)),
-];
+const ALL_TEMPLATES = [CODE_TEMPLATE, ...new Set(Object.values(NOTICE_TEMPLATE))];
 
 /** 알림 문구. `provider` 는 소셜 알림에서만 채워진다. */
 interface NoticeStrings {
@@ -171,10 +164,7 @@ interface NoticeStrings {
 
 const NOTICE_I18N: Record<
   Locale,
-  Record<
-    AccountNoticeKind,
-    (appName: string, provider: string) => NoticeStrings
-  >
+  Record<AccountNoticeKind, (appName: string, provider: string) => NoticeStrings>
 > = {
   ko: {
     SIGNUP_WELCOME: (n) => ({
@@ -183,8 +173,7 @@ const NOTICE_I18N: Record<
       message: `${n} 계정이 만들어졌습니다. 이제 하나의 계정으로 모든 서비스를 이용할 수 있습니다.`,
       ctaLabel: '시작하기',
       alertNote: '',
-      closingNote:
-        '본인이 가입한 것이 아니라면 이 메일로 회신하지 말고 고객센터로 알려 주세요.',
+      closingNote: '본인이 가입한 것이 아니라면 이 메일로 회신하지 말고 고객센터로 알려 주세요.',
     }),
     PASSWORD_CHANGED: (n) => ({
       subject: `[${n}] 비밀번호가 변경되었습니다`,
@@ -200,8 +189,7 @@ const NOTICE_I18N: Record<
       heading: `${p} 계정이 연동되었습니다`,
       message: `${n} 계정에 ${p} 로그인이 추가되었습니다. 이제 ${p} 로도 로그인할 수 있습니다.`,
       ctaLabel: '연동 상태 확인하기',
-      alertNote:
-        '본인이 연동한 것이 아니라면 즉시 연동을 해제하고 비밀번호를 변경하세요.',
+      alertNote: '본인이 연동한 것이 아니라면 즉시 연동을 해제하고 비밀번호를 변경하세요.',
       closingNote: '본인이 한 일이 맞다면 따로 하실 일은 없습니다.',
     }),
     SOCIAL_UNLINKED: (n, p) => ({
@@ -209,8 +197,7 @@ const NOTICE_I18N: Record<
       heading: `${p} 연동이 해제되었습니다`,
       message: `${n} 계정에서 ${p} 로그인이 제거되었습니다. 더 이상 ${p} 로 로그인할 수 없습니다.`,
       ctaLabel: '연동 상태 확인하기',
-      alertNote:
-        '본인이 해제한 것이 아니라면 즉시 비밀번호를 변경하고 연동 상태를 확인하세요.',
+      alertNote: '본인이 해제한 것이 아니라면 즉시 비밀번호를 변경하고 연동 상태를 확인하세요.',
       closingNote: '본인이 한 일이 맞다면 따로 하실 일은 없습니다.',
     }),
   },
@@ -238,8 +225,7 @@ const NOTICE_I18N: Record<
       heading: `${p} was linked`,
       message: `${p} sign-in was added to your ${n} account. You can now sign in with ${p} as well.`,
       ctaLabel: 'Review linked accounts',
-      alertNote:
-        'If you didn’t do this, unlink it immediately and change your password.',
+      alertNote: 'If you didn’t do this, unlink it immediately and change your password.',
       closingNote: 'If this was you, no action is needed.',
     }),
     SOCIAL_UNLINKED: (n, p) => ({
@@ -375,15 +361,8 @@ export class AuthEmailService implements OnModuleInit {
     const locale = this.resolveLocale(input.locale);
     const appName = this.config.appName;
     const shell = NOTICE_SHELL[locale];
-    const expiresMinutes = Math.max(
-      1,
-      Math.round(input.expiresInSec / 60),
-    ).toString();
-    const strings = CODE_I18N[locale][input.purpose](
-      appName,
-      input.code,
-      expiresMinutes,
-    );
+    const expiresMinutes = Math.max(1, Math.round(input.expiresInSec / 60)).toString();
+    const strings = CODE_I18N[locale][input.purpose](appName, input.code, expiresMinutes);
 
     const html = this.render(
       CODE_TEMPLATE,
@@ -392,9 +371,7 @@ export class AuthEmailService implements OnModuleInit {
         appName,
         appUrl: this.config.appUrl,
         code: input.code,
-        userNameGreeting: input.userName
-          ? shell.nameSuffix(input.userName)
-          : '',
+        userNameGreeting: input.userName ? shell.nameSuffix(input.userName) : '',
         copyright: `© ${new Date().getFullYear()} ${appName}`,
         greeting: CODE_SHELL[locale].greeting,
         heading: strings.heading,
@@ -440,13 +417,8 @@ export class AuthEmailService implements OnModuleInit {
   }): Promise<void> {
     try {
       const locale = this.resolveLocale(input.locale);
-      const provider = input.provider
-        ? (PROVIDER_LABEL[input.provider] ?? input.provider)
-        : '';
-      const strings = NOTICE_I18N[locale][input.kind](
-        this.config.appName,
-        provider,
-      );
+      const provider = input.provider ? (PROVIDER_LABEL[input.provider] ?? input.provider) : '';
+      const strings = NOTICE_I18N[locale][input.kind](this.config.appName, provider);
       const shell = NOTICE_SHELL[locale];
       const appName = this.config.appName;
 
@@ -457,18 +429,14 @@ export class AuthEmailService implements OnModuleInit {
       */
       const welcome = input.kind === 'SIGNUP_WELCOME';
       const detailLabel = welcome ? shell.accountLabel : shell.timeLabel;
-      const detail = welcome
-        ? input.to
-        : formatNoticeTime(locale, input.at ?? new Date());
+      const detail = welcome ? input.to : formatNoticeTime(locale, input.at ?? new Date());
 
       const html = this.render(NOTICE_TEMPLATE[input.kind], {
         lang: locale,
         appName: this.config.appName,
         appUrl: this.config.appUrl,
         ctaUrl: this.config.appUrl,
-        userNameGreeting: input.userName
-          ? shell.nameSuffix(input.userName)
-          : '',
+        userNameGreeting: input.userName ? shell.nameSuffix(input.userName) : '',
         copyright: `© ${new Date().getFullYear()} ${appName}`,
         greeting: shell.greeting,
         providerLabel: shell.providerLabel,
@@ -558,12 +526,7 @@ export class AuthEmailService implements OnModuleInit {
    * **여기는 본문을 다 만들어 넘기기만 한다** — 꺼져 있거나 SMTP 가 비었을 때의 처리(로그로
    * 대체)도 발송기의 몫이라, 이 계층은 "보냈다/안 보냈다" 를 신경 쓰지 않는다.
    */
-  private send(msg: {
-    to: string;
-    subject: string;
-    html: string;
-    text: string;
-  }): Promise<void> {
+  private send(msg: { to: string; subject: string; html: string; text: string }): Promise<void> {
     return this.sender.send(msg);
   }
 }

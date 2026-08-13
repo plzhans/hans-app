@@ -94,11 +94,7 @@ export interface SettingGroup {
 }
 
 /** OAuth provider 는 전부 같은 모양이다. 네 번 적지 않는다. */
-function oauthGroup(
-  id: string,
-  label: string,
-  consoles: readonly SettingConsole[],
-): SettingGroup {
+function oauthGroup(id: string, label: string, consoles: readonly SettingConsole[]): SettingGroup {
   return {
     id,
     label,

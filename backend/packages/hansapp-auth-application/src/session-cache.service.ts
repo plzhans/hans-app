@@ -32,11 +32,7 @@ export class SessionCache {
     @Inject(SESSION_CACHE_CONFIG) config: SessionCacheConfig,
     @Optional() @Inject(CACHE_MANAGER) shared?: Cache,
   ) {
-    this.cache = new TwoTierCache(
-      config,
-      shared,
-      new Logger(SessionCache.name),
-    );
+    this.cache = new TwoTierCache(config, shared, new Logger(SessionCache.name));
   }
 
   /**

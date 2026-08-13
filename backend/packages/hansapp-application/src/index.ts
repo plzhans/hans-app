@@ -27,11 +27,7 @@ export { NmcHospitalService } from './nmc/nmc-hospital.service';
 
 export { HiraCodeService } from './hira/hira-code.service';
 export type { HiraCodeListCommand } from './hira/hira-code.service';
-export {
-  HIRA_CODE_TYPES,
-  HIRA_CODE_TYPE_DEFS,
-  isHiraCodeType,
-} from './hira/hira-code.types';
+export { HIRA_CODE_TYPES, HIRA_CODE_TYPE_DEFS, isHiraCodeType } from './hira/hira-code.types';
 export type {
   HiraCodeType,
   HiraCodeItem,
@@ -53,10 +49,7 @@ export type { NmcCodeListCommand } from './nmc/nmc-code.service';
 
 export { HealthcareHospitalService } from './healthcare/healthcare-hospital.service';
 export { HealthcareNonPaymentService } from './healthcare/healthcare-npay.service';
-export {
-  HealthcareMetaService,
-  META_CODE_TYPES,
-} from './healthcare/healthcare-meta.service';
+export { HealthcareMetaService, META_CODE_TYPES } from './healthcare/healthcare-meta.service';
 export type {
   MetaCode,
   MetaSubject,
@@ -154,10 +147,7 @@ export { SwaggerAccessService } from './env/swagger-access.service';
  */
 export { SlackNotifyService } from './notify/slack-notify.service';
 export type { ServerStartedDetail } from './notify/slack-notify.service';
-export {
-  SLACK_NOTIFY_CONFIG,
-  buildSlackNotifyConfig,
-} from './notify/slack-notify.config';
+export { SLACK_NOTIFY_CONFIG, buildSlackNotifyConfig } from './notify/slack-notify.config';
 export type { SlackNotifyConfig } from './notify/slack-notify.config';
 
 /**
@@ -181,10 +171,7 @@ export type {
 } from './business/business.service';
 export { NtsClientFactory } from './business/nts-client.factory';
 export { AddressService } from './address/address.service';
-export type {
-  AddressSearchCommand,
-  AddressResult,
-} from './address/address.service';
+export type { AddressSearchCommand, AddressResult } from './address/address.service';
 export { JusoClientFactory } from './address/juso-client.factory';
 
 /** 서비스 설정(env_setting) 읽기. 이 계층 전용 — DB 만 본다(설정 파일 폴백 없음). */

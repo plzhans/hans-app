@@ -55,9 +55,7 @@ export class TwoTierCache<T> {
     const running = this.inflight.get(key);
     if (running) return running;
 
-    const loading = this.load(key, load).finally(() =>
-      this.inflight.delete(key),
-    );
+    const loading = this.load(key, load).finally(() => this.inflight.delete(key));
     this.inflight.set(key, loading);
     return loading;
   }
@@ -84,10 +82,7 @@ export class TwoTierCache<T> {
     }
   }
 
-  private async load(
-    key: string,
-    fromSource: () => Promise<T | null>,
-  ): Promise<T | null> {
+  private async load(key: string, fromSource: () => Promise<T | null>): Promise<T | null> {
     const cached = await this.shared?.get<{ v: T | null }>(key);
     if (cached) {
       this.putMemory(key, cached.v);

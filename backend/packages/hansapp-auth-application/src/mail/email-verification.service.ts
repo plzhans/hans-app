@@ -5,11 +5,7 @@ import { OTP_CONFIG } from './mail.config';
 import type { OtpConfig } from './mail.config';
 import { EmailVerificationRepository } from './email-verification.repository';
 import { AuthEmailService } from './auth-email.service';
-import {
-  hmacSha256hex,
-  randomNumericCode,
-  timingSafeEqualHex,
-} from '@hansapp/common';
+import { hmacSha256hex, randomNumericCode, timingSafeEqualHex } from '@hansapp/common';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -108,11 +104,7 @@ export class EmailVerificationService {
    * 코드 검증. 최신 코드가 미소비·미만료이고 시도 한도 내이며 값이 일치하면 true.
    * 성공 시 코드를 소비하고, 시도 한도를 넘기면 코드를 폐기한다.
    */
-  async verify(
-    purpose: EmailVerifyPurpose,
-    email: string,
-    code: string,
-  ): Promise<boolean> {
+  async verify(purpose: EmailVerifyPurpose, email: string, code: string): Promise<boolean> {
     const emailHash = this.hash(normalizeEmail(email));
     const now = new Date();
 

@@ -1,11 +1,6 @@
 import { hostname } from 'node:os';
 
-import {
-  Inject,
-  Injectable,
-  Logger,
-  type OnApplicationShutdown,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnApplicationShutdown } from '@nestjs/common';
 import {
   createSlackNotifier,
   type SlackBlock,
@@ -13,10 +8,7 @@ import {
   type SlackNotifier,
 } from '@hansapp/slack-notify';
 
-import {
-  SLACK_NOTIFY_CONFIG,
-  type SlackNotifyConfig,
-} from './slack-notify.config';
+import { SLACK_NOTIFY_CONFIG, type SlackNotifyConfig } from './slack-notify.config';
 
 /**
  * 시작 알림에 실을 내용. 부르는 쪽(앱)이 자기 신원을 안다.
@@ -78,9 +70,7 @@ export class SlackNotifyService implements OnApplicationShutdown {
       webhookUrl: config.webhookUrl,
       // 전송 실패는 경고까지만. 알림이 안 갔다고 부팅·종료가 흔들리면 안 된다.
       onError: (message, error) =>
-        this.logger.warn(
-          error instanceof Error ? `${message}: ${error.message}` : message,
-        ),
+        this.logger.warn(error instanceof Error ? `${message}: ${error.message}` : message),
     });
 
     this.deployThreadRef = resolveDeployThread(
@@ -307,10 +297,7 @@ function timestampContext(label: string, epochMs: number): SlackBlock {
  * `<!date^…>`)을 우리가 직접 쓰므로, 값에 섞여 들어온 꺾쇠는 반드시 죽여야 한다.
  */
 function escape(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /** 3h 12m 을 "3시간 12분" 으로. 초 단위는 1분 미만일 때만 쓴다. */

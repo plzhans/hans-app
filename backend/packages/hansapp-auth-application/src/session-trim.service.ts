@@ -30,9 +30,7 @@ export class SessionTrimService {
 
     const removed = await this.sessions.trimToLimit(userId, keep);
     if (removed > 0) {
-      this.logger.log(
-        `세션 상한 정리 — userId=${userId} ${removed}건 (상한 ${keep})`,
-      );
+      this.logger.log(`세션 상한 정리 — userId=${userId} ${removed}건 (상한 ${keep})`);
     }
   }
 }
