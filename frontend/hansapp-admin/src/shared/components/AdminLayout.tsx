@@ -3,6 +3,7 @@ import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 import { cn } from '@/shared/lib/cn';
 import { Breadcrumb, type Crumb } from './Breadcrumb';
+import { Footer } from './Footer';
 import { Sidebar } from './Sidebar';
 import { UserMenu } from './UserMenu';
 
@@ -160,6 +161,9 @@ export function AdminLayout({
           )}
           {children}
         </main>
+
+        {/* 본문이 flex-1 이라 짧은 화면에서도 여기가 바닥에 붙는다. */}
+        <Footer />
       </div>
     </div>
   );
