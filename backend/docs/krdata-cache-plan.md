@@ -8,6 +8,9 @@
 작성 기준: 2026-07. 건수·콜수는 모두 실호출로 측정한 값이다.
 SDK는 `clients/krdata-nmc`, `clients/krdata-hira` 에 있고 API 특이사항은 `clients/README.md` 를 본다.
 
+**"운영계정 필요" 라고 적힌 단계를 풀려면** [`krdata-operation-account.md`](krdata-operation-account.md) 의
+신청 문안을 공공데이터포털에 그대로 넣는다. 여기 숫자를 고치면 그쪽 문안도 같이 본다.
+
 ## NMC 와 HIRA 는 단계를 공유하지 않는다
 
 두 기관은 API 구조가 달라 배치의 실행 단위 자체가 다르다. 단계 번호를 공유하면 맞지 않는다.
