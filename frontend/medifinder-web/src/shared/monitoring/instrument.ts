@@ -7,6 +7,9 @@ import {
   useNavigationType,
 } from 'react-router-dom';
 
+// 환경 이름·산출물 신원은 푸터도 같은 값을 보여 준다. 두 곳에서 따로 읽으면 언젠가 갈린다.
+import { APP_ENV, APP_RELEASE } from '@/shared/config/env';
+
 /**
  * 에러 추적(Sentry). **import 되는 순간 초기화된다.**
  *
@@ -24,7 +27,6 @@ import {
  */
 
 const DSN = (import.meta.env.VITE_SENTRY_DSN as string | undefined) ?? '';
-const APP_ENV = (import.meta.env.VITE_APP_ENV as string | undefined) ?? 'local';
 const TRACES_SAMPLE_RATE =
   Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE) || 0;
 
@@ -76,7 +78,7 @@ if (DSN) {
     dsn: DSN,
     environment: APP_ENV,
     // `0.0.1-a1b2c3d`. 어느 빌드에서 난 에러인지 — 로컬 빌드면 sha 자리가 dev 다.
-    release: __APP_RELEASE__,
+    release: APP_RELEASE,
     // 라우터 계측. 트랜잭션을 실제 URL 이 아니라 라우트 패턴으로 묶는다
     // (`/en/hospital/123` 이 아니라 `/:lang/hospital/:id`). 안 붙이면 병원마다 트랜잭션이 쪼개진다.
     // 이 앱은 **데이터 라우터**(createBrowserRouter)라 훅을 넘기는 것만으로는 부족하다 —

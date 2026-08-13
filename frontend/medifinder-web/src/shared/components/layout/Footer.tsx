@@ -1,5 +1,8 @@
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LangLink } from '@/shared/i18n/LangLink';
+import { formatBuildStamp } from '@/shared/lib/buildStamp';
+import { APP_BUILT_AT, APP_ENV, APP_RELEASE } from '../../config/env';
 import { CONTACT_EMAIL } from '../../config/contact';
 
 /**
@@ -86,11 +89,71 @@ export function Footer() {
           {/* 운영 주체와 저작권은 짧아서 한 줄에 마주 세운다. */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
             <p>{t('footer.operator')}</p>
-            <p>© {'2026'} medifinder.kr</p>
+            <Copyright />
           </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+/** 연속 클릭으로 인정할 간격. 이보다 뜸하면 처음부터 다시 센다. */
+const REVEAL_CLICK_GAP_MS = 1500;
+/** 몇 번 눌러야 열리나. */
+const REVEAL_CLICKS = 5;
+
+/**
+ * 저작권 표시. **다섯 번 연달아 누르면 산출물 정보가 나온다**(포털·인증웹과 같은 장치다).
+ *
+ * 늘 띄워 두지 않는 건 이용자에게는 아무 의미가 없는데 화면만 어수선해지기 때문이다.
+ * 그렇다고 볼 방법이 없으면 "지금 배포된 게 뭔지" 확인하려고 매번 개발자도구를 열어야 한다.
+ *
+ * **서버 버전은 적지 않는다.** 이 앱이 부르는 API 는 병원 데이터를 주는 곳이라 화면과 같이
+ * 배포되지 않고, 여기서 확인할 값도 아니다 — 그건 포털·인증웹 푸터가 하는 일이다.
+ *
+ * **구운 시각을 버전 옆에 같이 둔다.** 같은 커밋을 두 번 배포하면 버전도 sha 도 똑같아서,
+ * 그것만으로는 지금 뜬 화면이 방금 올린 것인지 가릴 수 없다.
+ *
+ * 버튼으로 만들지 않는다. role 을 붙이는 순간 스크린 리더와 키보드 탭 순서에 "누를 수 있는
+ * 것" 으로 드러나서, 숨겨 둔 의미가 없어진다.
+ */
+function Copyright() {
+  const [shown, setShown] = useState(false);
+  const clicks = useRef(0);
+  const lastClickAt = useRef(0);
+
+  function handleClick() {
+    const now = Date.now();
+    clicks.current =
+      now - lastClickAt.current > REVEAL_CLICK_GAP_MS ? 1 : clicks.current + 1;
+    lastClickAt.current = now;
+
+    if (clicks.current >= REVEAL_CLICKS) {
+      clicks.current = 0;
+      // 다시 다섯 번 누르면 닫힌다. 한 번 연 걸 되돌릴 방법이 새로고침뿐이면 곤란하다.
+      setShown((prev) => !prev);
+    }
+  }
+
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      {/*
+        다섯 번 누르는 동안 글자가 블록으로 잡히면 지저분하다 — select-none 으로 막고,
+        커서도 그대로 둬서 누를 수 있는 자리처럼 보이지 않게 한다.
+      */}
+      <span onClick={handleClick} className="cursor-default select-none">
+        © {'2026'} medifinder.kr
+      </span>
+      {shown && (
+        // 환경 · 버전 · 구운 시각 순. 앞에서부터 좁혀 읽힌다.
+        <span
+          className="font-mono text-ink-muted"
+          title={`구운 시각 · ${APP_BUILT_AT}`}
+        >
+          {APP_ENV} · v{APP_RELEASE} {formatBuildStamp(APP_BUILT_AT)}
+        </span>
+      )}
+    </p>
   );
 }
 
