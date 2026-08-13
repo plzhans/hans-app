@@ -5,7 +5,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { defineConfig } from 'vitepress';
+import { defineConfig, type HeadConfig } from 'vitepress';
 import { withMermaid } from 'vitepress-plugin-mermaid';
 import { loadSpec, sortOperations, specPath } from './openapi-spec';
 
@@ -175,6 +175,7 @@ const TAG_DESCRIPTIONS: Record<string, string> = {
   nmc: '국립중앙의료원(NMC) 원본 데이터 API. 기관 ID(hpid) 기준 병원 목록·상세와 달빛어린이병원 목록을 조회합니다.',
 };
 
+
 const mermaidPages = pagesWithMermaid();
 console.log(
   `[hansapp-docs] mermaid pages: ${[...mermaidPages].join(', ') || '(none)'}`,
@@ -245,6 +246,34 @@ const etcTags = allTags.filter(
 // 예전엔 originTags[0](=hira)로 가서, 문서를 처음 여는 사람이 정부데이터 원본부터 만났다.
 // 원본은 대부분 쓸 일이 없는데도 제일 먼저 보이니 그게 주력인 줄 알게 된다.
 const landingTag = healthcareTags[0] ?? allTags[0];
+
+/**
+ * 태그 페이지가 속한 상위 그룹. 사이드바(themeConfig.sidebar)의 2단 구조를 그대로 쓴다.
+ *
+ * 빵부스러기(BreadcrumbList) 를 만들려고 둔다. 사이드바와 **같은 상수를 참조**하므로
+ * 태그를 그룹에 새로 넣으면 빵부스러기도 따라온다 — 두 곳을 맞춰 적을 일이 없다.
+ *
+ * ai·transport·address 는 여기 없다. 그것들은 그룹이 곧 페이지라, 넣으면
+ * 'AI › AI' 처럼 같은 말이 두 번 나온다.
+ */
+const BREADCRUMB_GROUPS: Array<{ name: string; tags: string[] }> = [
+  { name: '계정', tags: ACCOUNT_TAGS },
+  { name: '헬스케어', tags: HEALTHCARE_TAGS },
+  { name: '국세청', tags: BUSINESS_TAGS },
+  { name: '정부데이터 원본', tags: ORIGIN_TAGS },
+];
+
+/**
+ * 그룹 단계의 이름과 주소. 그룹은 사이드바의 묶음일 뿐 자기 페이지가 없어서
+ * **그 그룹의 첫 태그 페이지를 주소로 빌려 준다** — 마지막 항목이 아닌 단계에는
+ * 주소가 있어야 검색엔진이 유효한 빵부스러기로 받아들인다.
+ */
+function breadcrumbGroupOf(tag: string): { name: string; url: string } | null {
+  const group = BREADCRUMB_GROUPS.find((g) => g.tags.includes(tag));
+  if (!group) return null;
+  const first = group.tags.find((t) => allTags.includes(t));
+  return first ? { name: group.name, url: `${siteUrl}apis/${first}` } : null;
+}
 
 // 오퍼레이션 → 사이드바 앵커 항목(태그 페이지 안의 #op-:operationId 로 점프)
 function opItems(tag: string) {
@@ -344,7 +373,7 @@ export default withMermaid(defineConfig({
     // 어긋나면 정본이 둘인 셈이 되어 canonical 이 하는 일이 없어진다.
     const url = `${siteUrl}${path}`;
 
-    const tags: Array<[string, Record<string, string>]> = [
+    const tags: HeadConfig[] = [
       ['link', { rel: 'canonical', href: url }],
       ['meta', { property: 'og:type', content: 'website' }],
       ['meta', { property: 'og:site_name', content: 'Hans API' }],
@@ -372,6 +401,73 @@ export default withMermaid(defineConfig({
     */
     if (!indexable) {
       tags.push(['meta', { name: 'robots', content: 'noindex, nofollow' }]);
+    }
+
+    /*
+      Schema.org 구조화 데이터(JSON-LD).
+
+      **순위를 올려 주지 않는다.** 구글 문서가 말하는 효과는 리치 결과 "자격" 이 생긴다는
+      것까지고, 표시될지는 별개다. 여기서 실제로 눈에 보이는 건 검색 결과의 주소 자리가
+      'Hans API › 헬스케어 › 병원' 으로 바뀌는 것 하나다(클릭률에만 영향).
+
+      기계가 문서를 읽는 통로이기도 하다 — API 문서라 그쪽 값이 더 클 수 있다.
+    */
+    const site = { '@type': 'WebSite', name: 'Hans API', url: siteUrl };
+    const ld: Array<Record<string, unknown>> = [];
+    const tag = (pageData.params as { tag?: string } | undefined)?.tag;
+    const isHome = pageData.relativePath === 'index.md';
+
+    // 404 는 색인 대상이 아니다. 'Hans API › 404' 같은 빵부스러기가 나갈 이유가 없다.
+    if (pageData.relativePath === '404.md') return tags;
+
+    if (isHome) {
+      ld.push({
+        ...site,
+        description,
+        publisher: { '@type': 'Organization', name: 'Hans API', url: docsOrigin },
+      });
+    } else {
+      // 홈에는 빵부스러기를 넣지 않는다 — 자기 자신 하나뿐이라 의미가 없다.
+      const group = tag ? breadcrumbGroupOf(tag) : null;
+      /*
+        그룹이 자기 대표 페이지와 같은 주소면 그 단계를 뺀다.
+
+        그룹은 페이지가 없어 첫 태그 페이지의 주소를 빌리는데, 지금 보고 있는 페이지가
+        바로 그 첫 태그면 '헬스케어 › 병원' 두 단계가 **같은 주소**를 가리키게 된다.
+        중간 단계는 item 이 필수라 주소를 비울 수도 없다(구글 규격). 그래서 뺀다 —
+        같은 곳을 두 번 가리키는 것보다 한 단계 짧은 쪽이 맞다.
+      */
+      const trail = [
+        { name: 'Hans API', url: siteUrl },
+        ...(group && group.url !== url ? [group] : []),
+        { name: pageData.title, url },
+      ];
+      ld.push({
+        '@type': 'BreadcrumbList',
+        itemListElement: trail.map((step, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: step.name,
+          item: step.url,
+        })),
+      });
+      // 태그 페이지는 엔드포인트 명세라 APIReference, 그 밖(공통)은 기술 문서다.
+      ld.push({
+        '@type': tag ? 'APIReference' : 'TechArticle',
+        name: pageData.title,
+        description,
+        url,
+        inLanguage: 'ko-KR',
+        isPartOf: site,
+      });
+    }
+
+    for (const item of ld) {
+      tags.push([
+        'script',
+        { type: 'application/ld+json' },
+        JSON.stringify({ '@context': 'https://schema.org', ...item }),
+      ]);
     }
     return tags;
   },
