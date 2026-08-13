@@ -93,7 +93,7 @@ export interface SettingGroup {
   readonly fields: readonly SettingField[];
 }
 
-/** OAuth provider 는 전부 같은 모양이다. 네 번 적지 않는다. */
+/** OAuth provider 는 대개 같은 모양이다. 세 번 적지 않는다(구글만 클라이언트가 둘이라 따로 적는다). */
 function oauthGroup(id: string, label: string, consoles: readonly SettingConsole[]): SettingGroup {
   return {
     id,
@@ -215,9 +215,39 @@ export const SETTING_GROUPS: readonly SettingGroup[] = [
     다만 **발급처 이름은 각 업체가 부르는 그대로 쓴다.** 관리자가 그 사이트에 닿았을 때
     화면 제목과 같은 말이어야 제대로 왔는지 안다 — 옮겨 적으면 그 확인이 안 된다.
   */
-  oauthGroup('google', '구글', [
-    { label: 'Google Cloud Console', url: 'https://console.cloud.google.com/' },
-  ]),
+  /*
+    **구글만 클라이언트가 둘이다.** 서비스 로그인과 관리자 콘솔 로그인은 같은 구글이지만
+    OAuth 클라이언트를 갈라 쓴다 — 승인된 리디렉션 URI 목록이 곧 로그인 입구라, 한 클라이언트에
+    둘을 얹으면 서비스 쪽 키를 만지는 일이 관리자 콘솔 입구를 만지는 일이 된다.
+    시크릿을 잘못 넣었을 때 한쪽만 멈추는 것도 갈라 두는 이유다.
+  */
+  {
+    id: 'google',
+    label: '구글',
+    category: 'oauth',
+    consoles: [{ label: 'Google Cloud Console', url: 'https://console.cloud.google.com/' }],
+    fields: [
+      { key: 'google.clientId', label: 'Client ID', type: 'string', section: '서비스 로그인' },
+      {
+        key: 'google.clientSecret',
+        label: 'Client Secret',
+        type: 'secret',
+        section: '서비스 로그인',
+      },
+      {
+        key: 'admin.google.clientId',
+        label: 'Client ID',
+        type: 'string',
+        section: '관리자 콘솔 로그인',
+      },
+      {
+        key: 'admin.google.clientSecret',
+        label: 'Client Secret',
+        type: 'secret',
+        section: '관리자 콘솔 로그인',
+      },
+    ],
+  },
   /*
     **네이버만 발급처가 둘이다.** 어느 쪽에서 받은 키인지 모르면 콘솔을 두 번 뒤지게 되니
     둘 다 띄운다.

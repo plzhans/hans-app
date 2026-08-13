@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Info } from 'lucide-react';
 
 import {
   listSettings,
@@ -45,9 +46,31 @@ export function SettingGroupList({ category }: { category: SettingCategory }) {
   }
   return (
     <div className="space-y-2.5">
+      <CacheNote />
       {groups.map((group) => (
         <SettingGroupCard key={group.id} group={group} />
       ))}
     </div>
+  );
+}
+
+/**
+ * 카드 위에 서는 안내. **저장한 값이 바로 안 먹는 시간이 있다는 것을 미리 말한다.**
+ *
+ * 값을 읽는 쪽은 DB 사본을 5분간 들고 있다(SettingCache). 저장한 화면(관리자 API)은 즉시
+ * 비우지만 값을 실제로 쓰는 다른 서버는 만료를 기다린다 — 그 사이를 모르면 "안 바뀌었다" 로
+ * 보고 같은 값을 다시 저장하게 된다.
+ *
+ * 카드가 하나라도 있을 때만 그린다 — 목록이 비었거나 못 불러온 화면에서는 할 말이 아니다.
+ */
+function CacheNote() {
+  return (
+    <p className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
+      <Info className="mt-px h-4 w-4 shrink-0" />
+      <span>
+        저장한 값은 서버가 <b>5분간 캐시</b>합니다. 바꾼 값이 모든 서버에
+        반영되기까지 최대 5분 걸립니다.
+      </span>
+    </p>
   );
 }
