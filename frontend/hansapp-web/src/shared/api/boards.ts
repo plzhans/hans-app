@@ -17,6 +17,7 @@ export interface Board {
   description?: string | null;
   writeRole: 'ADMIN' | 'MEMBER';
   commentEnabled: boolean;
+  likeEnabled: boolean;
 }
 
 export interface Post {
@@ -27,6 +28,7 @@ export interface Post {
   pinned: boolean;
   secret: boolean;
   commentEnabled: boolean;
+  likeEnabled: boolean;
   publishedAt?: string | null;
   viewCount: number;
   commentCount: number;

@@ -22,7 +22,9 @@ import { BoardAdminService } from '@hansapp/admin-application';
 import {
   BoardCreateRequestDto,
   BoardDto,
+  BoardRestoreRequestDto,
   BoardUpdateRequestDto,
+  DeletedBoardDto,
 } from './dto/board.dto';
 
 /**
@@ -49,6 +51,22 @@ export class BoardController {
   @ApiOkResponse({ type: [BoardDto] })
   async list(): Promise<BoardDto[]> {
     return (await this.boards.list()).map((board) => new BoardDto(board));
+  }
+
+  /*
+   **`:id` 보다 먼저 와야 한다.** 아래에 두면 'deleted' 를 id 로 읽으려다 400 이 난다.
+   */
+  @Get('deleted')
+  @ApiOperation({
+    summary: '삭제함',
+    description:
+      '지운 게시판. 되살릴 때 채워 줄 이름(suggestedName)을 함께 준다.',
+  })
+  @ApiOkResponse({ type: [DeletedBoardDto] })
+  async listDeleted(): Promise<DeletedBoardDto[]> {
+    return (await this.boards.listDeleted()).map(
+      (board) => new DeletedBoardDto(board),
+    );
   }
 
   @Get(':id')
@@ -78,12 +96,26 @@ export class BoardController {
     return new BoardDto(await this.boards.update(id, body));
   }
 
+  @Post(':id/restore')
+  @ApiOperation({
+    summary: '게시판 되살리기',
+    description:
+      '지운 게시판을 목록으로 되돌린다. 이름을 다시 받으며, 이미 쓰는 이름이면 거절한다.',
+  })
+  @ApiOkResponse({ type: BoardDto })
+  async restore(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: BoardRestoreRequestDto,
+  ): Promise<BoardDto> {
+    return new BoardDto(await this.boards.restore(id, body.name));
+  }
+
   @Delete(':id')
   @HttpCode(204)
   @ApiOperation({
     summary: '게시판 삭제',
     description:
-      '글이 하나라도 있으면 거절한다. 안 보이게 하려는 것이면 status=HIDDEN 을 쓴다.',
+      '목록에서 내린다. 데이터는 남아 삭제함에서 되살릴 수 있다. 안에 있던 글도 함께 가려진다.',
   })
   @ApiNoContentResponse()
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {

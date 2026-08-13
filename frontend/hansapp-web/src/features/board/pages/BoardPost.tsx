@@ -33,7 +33,12 @@ export default function BoardPost() {
     둘 다 켜져 있을 때만 댓글 자리를 그린다. 꺼진 곳에 "댓글 0" 이 보이면 아직 아무도 안 단
     것인지 못 다는 것인지 알 수 없다.
   */
-  const commentsOn = Boolean(board?.commentEnabled && post?.commentEnabled);
+  /*
+    **게시판과 글을 여기서 곱하지 않는다.** 서버가 이미 둘을 합친 결과를 내려준다 —
+    화면이 다시 계산하면 규칙이 두 곳에 생겨 한쪽만 고치는 사고가 난다.
+  */
+  const commentsOn = Boolean(post?.commentEnabled);
+  const likesOn = Boolean(post?.likeEnabled);
 
   const copyUrl = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -135,13 +140,15 @@ export default function BoardPost() {
               ))}
           </div>
 
-          {/* 반응 줄. 좋아요는 아직 없어 숫자를 보여줄 것이 없다(아래 주석 참고). */}
-          {post && (
+          {/* 반응 줄. 둘 다 꺼진 게시판에서는 빈 줄만 남으므로 통째로 없앤다. */}
+          {post && (likesOn || commentsOn) && (
             <div className="flex items-center justify-center gap-6 border-t border-gray-100 py-4 text-sm text-gray-500">
-              <span className="inline-flex items-center gap-1.5">
-                <ThumbsUp className="h-4 w-4" />
-                좋아요
-              </span>
+              {likesOn && (
+                <span className="inline-flex items-center gap-1.5">
+                  <ThumbsUp className="h-4 w-4" />
+                  좋아요
+                </span>
+              )}
               {commentsOn && (
                 <span className="inline-flex items-center gap-1.5">
                   <MessageSquare className="h-4 w-4" />

@@ -115,6 +115,17 @@ export { SyncStateService } from './common/sync-state.service';
 
 // 관리자용 회원 조회(읽기 전용). 회원 수정은 회원 본인의 통로가 하고 여기서는 보기만 한다.
 export { UserReadService } from './user/user-read.service';
+/*
+  회원 통로의 예외 둘. 나머지는 전부 읽기 전용이다.
+   - 세션 폐기: 도용이 의심될 때 회원 본인보다 먼저 끊어야 하는 경우가 있다.
+   - 정보 수정: 표시 이름만. 무엇을 왜 안 열었는지는 서비스 주석에 적어 두었다.
+*/
+export { UserSessionAdminService } from './user/user-session-admin.service';
+export { UserAdminService } from './user/user-admin.service';
+export type { UserAdminUpdate } from './user/user-admin.service';
+// /users/me 응답 캐시 들여다보기·초기화. 운영 중 "왜 안 바뀌지" 를 확인하는 통로다.
+export { UserProfileCacheAdmin } from './user/user-profile-cache.admin';
+export type { ProfileCacheState } from './user/user-profile-cache.admin';
 // 회원 인증·계정 기록(로그 DB). 로그인만이 아니라 가입·비밀번호·소셜연동·탈퇴가 같은 표에 쌓인다.
 // 서비스 행위(좋아요·조회)는 여기가 아니라 별도 표로 간다 — auth.prisma 주석 참고.
 export { UserAuthLogService } from './user/user-auth-log.service';
@@ -147,6 +158,7 @@ export type {
   UserSummary,
   UserDetail,
   UserOAuthSummary,
+  UserSession,
   UserListQuery,
 } from './user/user-read.service';
 // 관리자용 앱(개발자 플랫폼) 조회. 회원 조회와 같이 읽기 전용이다.
@@ -247,11 +259,13 @@ export type {
 export { BoardAdminService } from './community/board-admin.service';
 export type {
   BoardSummary,
+  DeletedBoardSummary,
   BoardCreateInput,
   BoardUpdateInput,
 } from './community/board-admin.service';
 
 export { BoardPostAdminService } from './community/board-post-admin.service';
+export type { PostCacheState } from './community/board-post-cache.invalidator';
 export type {
   PostAuthor,
   PostSummary,

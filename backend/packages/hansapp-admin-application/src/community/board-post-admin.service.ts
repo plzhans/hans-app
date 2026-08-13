@@ -7,7 +7,10 @@ import { AuthorType, Page, PostStatus } from '@hansapp/common';
 import type { Board, BoardPost } from '@hansapp/data';
 
 import { BoardRepository } from './board.repository';
-import { BoardPostCacheInvalidator } from './board-post-cache.invalidator';
+import {
+  BoardPostCacheInvalidator,
+  type PostCacheState,
+} from './board-post-cache.invalidator';
 import {
   BoardPostRepository,
   type PostListItem,
@@ -174,6 +177,13 @@ export class BoardPostAdminService {
    * 순간이 실제로 오기 때문이다 — Redis 가 잠깐 끊겼거나, 글이 아니라 게시판 설정만 바꿔
    * 보이는 내용이 달라졌거나. 그때 서버를 만지지 않고 화면에서 해결할 수 있어야 한다.
    */
+  /** 이 글의 공개 캐시에 무엇이 들어 있나. 지우기 전에 볼 수 있게 둔다. */
+  async cacheState(id: number): Promise<PostCacheState> {
+    const post = await this.mustFind(id);
+    const board = await this.mustFindBoard(post.boardId);
+    return this.cache.inspect(board.name, id);
+  }
+
   async purgeCache(id: number): Promise<void> {
     const post = await this.mustFind(id);
     const board = await this.mustFindBoard(post.boardId);
@@ -183,7 +193,7 @@ export class BoardPostAdminService {
   async remove(id: number): Promise<void> {
     const post = await this.mustFind(id);
     const board = await this.mustFindBoard(post.boardId);
-    await this.posts.delete(id);
+    await this.posts.softDelete(id);
     // 지운 뒤에 비운다 — 먼저 비우면 그 사이의 조회가 옛 글을 다시 캐시에 올린다.
     await this.cache.invalidate(board.name, id);
   }

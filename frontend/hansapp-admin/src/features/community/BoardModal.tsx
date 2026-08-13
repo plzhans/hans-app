@@ -51,6 +51,7 @@ export function BoardModal({
   const [commentEnabled, setCommentEnabled] = useState(
     board?.commentEnabled ?? false,
   );
+  const [likeEnabled, setLikeEnabled] = useState(board?.likeEnabled ?? false);
   const [secretPostEnabled, setSecretPostEnabled] = useState(
     board?.secretPostEnabled ?? false,
   );
@@ -69,6 +70,7 @@ export function BoardModal({
         description: description.trim(),
         writeRole,
         commentEnabled,
+        likeEnabled,
         secretPostEnabled,
         // 댓글이 꺼져 있으면 비공개 댓글도 없다. 서버도 같은 정리를 하지만
         // 화면이 보낸 값과 저장된 값이 달라지지 않게 여기서도 맞춰 보낸다.
@@ -88,7 +90,7 @@ export function BoardModal({
   const ready = name.trim().length >= 2 && title.trim().length > 0;
 
   return (
-    <Modal title={editing ? '게시판 수정' : '게시판 추가'} onClose={onClose}>
+    <Modal title={editing ? '게시판 설정' : '게시판 추가'} onClose={onClose}>
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
@@ -158,6 +160,12 @@ export function BoardModal({
               onChange={setCommentEnabled}
               label="댓글 사용"
               hint="끄면 이 게시판의 모든 글에 댓글이 없습니다."
+            />
+            <Switch
+              checked={likeEnabled}
+              onChange={setLikeEnabled}
+              label="좋아요 사용"
+              hint="끄면 이 게시판의 모든 글에서 좋아요가 사라집니다."
             />
             <Switch
               checked={secretPostEnabled}

@@ -51,6 +51,7 @@ export interface PublicBoard {
   readonly description: string | null;
   readonly writeRole: BoardWriteRole;
   readonly commentEnabled: boolean;
+  readonly likeEnabled: boolean;
 }
 
 /** 댓글 한 줄. 비공개 댓글은 볼 수 없는 사람에게 content 가 오지 않는다. */
@@ -111,6 +112,7 @@ export class BoardReadService {
       description: board.description,
       writeRole: board.writeRole as BoardWriteRole,
       commentEnabled: board.commentEnabled,
+      likeEnabled: board.likeEnabled,
     }));
   }
 

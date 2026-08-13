@@ -36,6 +36,8 @@ export class PublicBoardDto {
   readonly writeRole!: BoardWriteRole;
   @ApiProperty({ description: '댓글을 받는 게시판인가' })
   readonly commentEnabled!: boolean;
+  @ApiProperty({ description: '좋아요를 받는 게시판인가' })
+  readonly likeEnabled!: boolean;
 
   constructor(board: PublicBoard) {
     this.name = board.name;
@@ -43,6 +45,7 @@ export class PublicBoardDto {
     this.description = board.description;
     this.writeRole = board.writeRole;
     this.commentEnabled = board.commentEnabled;
+    this.likeEnabled = board.likeEnabled;
   }
 }
 

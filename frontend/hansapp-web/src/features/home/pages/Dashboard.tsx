@@ -1,8 +1,8 @@
 import {
   ArrowRight,
+  BookOpen,
   ExternalLink,
   Hospital,
-  Newspaper,
   Send,
   type LucideIcon,
 } from 'lucide-react';
@@ -23,6 +23,16 @@ const SERVICES: {
   desc: string;
   href: string;
 }[] = [
+  /*
+    **문서가 맨 앞이다.** 처음 온 사람이 무엇부터 볼지 정해 주는 자리라, 개별 서비스보다
+    "여기서 무엇을 할 수 있나" 를 먼저 보여 준다.
+  */
+  {
+    icon: BookOpen,
+    title: 'Docs',
+    desc: 'API 사용법과 서비스 안내를 한곳에. 처음이라면 여기부터 보세요.',
+    href: LINKS.docs,
+  },
   {
     icon: Hospital,
     title: 'MediFinder',
@@ -34,12 +44,6 @@ const SERVICES: {
     title: 'Telegram Exporter',
     desc: '텔레그램 대화를 브라우저에서 바로 내 컴퓨터로. 서버를 거치지 않아 대화 내용이 밖으로 나가지 않습니다. 설치·가입 없이 무료.',
     href: LINKS.telegramExporter,
-  },
-  {
-    icon: Newspaper,
-    title: 'Blog',
-    desc: '만들면서 남긴 개발 기록과 노트.',
-    href: LINKS.blog,
   },
 ];
 
@@ -69,7 +73,7 @@ export default function Dashboard() {
         {/* 서비스 */}
         <section className={cn(PAGE_CONTAINER, 'py-14')}>
           <SectionHead
-            title={['지금 바로 써볼 수 있는', '서비스를 모았습니다']}
+            title="지금 바로 써볼 수 있는 서비스를 모았습니다"
           />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {SERVICES.map((s) => (
@@ -148,31 +152,37 @@ export default function Dashboard() {
 
 
 /**
- * 섹션 머리. **제목을 두 줄로 크게, 오른쪽에 전체 보기.**
+ * 섹션 머리. **제목을 크게, 오른쪽에 `+more`.**
  *
  * 같은 모양을 섹션마다 손으로 쓰면 글자 크기와 여백이 조금씩 어긋난다 — 한 벌로 둔다.
+ *
+ * **더 보러 가는 것은 제목보다 약하게 둔다.** 이 구역에서 먼저 읽혀야 하는 것은 제목과
+ * 그 아래 목록이지 링크가 아닌데, 채운 알약은 "여기를 누르시오" 처럼 보인다.
+ * 글자가 `+more` 인 것은 옮길 말이 아니어서다 — 다국어를 켜도 이 자리는 그대로 둔다.
  */
 function SectionHead({
   title,
   to,
-  label = '전체 보기',
+  label = '+more',
 }: {
-  /** 두 줄로 끊어 넘긴다. 어디서 끊을지는 문장이 정한다. */
-  title: [string, string];
+  title: string;
   to?: string;
   label?: string;
 }) {
   return (
-    <div className="mb-6 flex items-end justify-between gap-4">
-      <h2 className="text-xl font-extrabold leading-snug text-gray-900 sm:text-2xl">
-        {title[0]}
-        <br />
-        {title[1]}
+    /*
+      **글줄끼리 맞춘다.** items-end 는 상자의 아래끝을 맞추는데, 제목은 크고 링크는 작아서
+      글자가 서로 다른 높이에 앉는다 — baseline 이면 두 글줄이 같은 선 위에 놓인다.
+    */
+    <div className="mb-4 flex items-baseline justify-between gap-4">
+      {/* 줄바꿈은 화면 폭이 정한다 — 짧은 문장에 <br> 을 박으면 넓은 화면에서 어색해진다. */}
+      <h2 className="text-xl font-extrabold leading-snug text-balance text-gray-900 sm:text-2xl">
+        {title}
       </h2>
       {to && (
         <Link
           to={to}
-          className="inline-flex h-9 shrink-0 items-center rounded-full bg-gray-900 px-4 text-sm font-semibold text-white transition hover:bg-gray-700"
+          className="shrink-0 text-sm font-semibold text-gray-400 transition hover:text-gray-900"
         >
           {label}
         </Link>
@@ -203,7 +213,7 @@ function Notices() {
   return (
     <section className={cn(PAGE_CONTAINER, 'py-14')}>
       <SectionHead
-        title={['새로 올라온 소식을', '확인하세요']}
+        title="새로 올라온 소식을 확인하세요"
         to={`/board/${NOTICE_BOARD}`}
       />
       <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">

@@ -13,8 +13,27 @@ import type { Cache } from 'cache-manager';
 const postCacheKey = (boardName: string, postId: number) =>
   `board:post:${boardName}:${postId}`;
 
+/** 캐시에 무엇이 들어 있나. 콘솔의 캐싱 탭이 이걸 그대로 보여 준다. */
+export interface PostCacheState {
+  /** 환경 접두어(`develop:`)를 뺀 키. 붙이는 것은 CacheModule 이다. */
+  readonly key: string;
+  readonly hit: boolean;
+  readonly expiresAt: Date | null;
+  /** 남은 시간(ms). 만료 시각을 모르면 null. */
+  readonly remainingMs: number | null;
+  /** 담겨 있는 값 그대로. 화면이 JSON 으로 펴서 보여 준다. */
+  readonly value: unknown;
+  /**
+   * 이 캐시가 프로세스 밖에서도 공유되나.
+   *
+   * **false 면 지금 보는 것은 이 프로세스의 메모리다** — 공개 API 가 다른 프로세스면
+   * 그쪽이 들고 있는 것은 여기서 보이지도, 지워지지도 않는다.
+   */
+  readonly shared: boolean;
+}
+
 /**
- * 글이 바뀌면 그 글의 캐시를 지운다.
+ * 글이 바뀌면 그 글의 캐시를 지운다. 무엇이 들어 있는지도 여기서 들여다본다.
  *
  * **TTL 이 한 시간인 것은 여기가 있기 때문이다.** 시간이 지나 낡은 것이 저절로 털리기를
  * 기다리는 것이 아니라, 바뀐 순간 지운다 — 그래서 공개 화면이 고친 글을 바로 보여준다.
@@ -46,4 +65,60 @@ export class BoardPostCacheInvalidator {
       );
     }
   }
+
+  /**
+   * 들여다본다. **지우기 전에 지울 것이 있는지 보라고 두는 창이다.**
+   *
+   * 값만이 아니라 언제 만료되는지까지 준다 — "캐시를 지웠는데 아직 옛 글이 보인다" 는
+   * 상황에서 알아야 하는 것은 값이 아니라 그 값이 언제까지 살아 있느냐다.
+   *
+   * TTL 은 cache-manager 가 아니라 그 아래 Keyv 에게 직접 묻는다(`{ raw: true }`). 위쪽
+   * API 는 값만 돌려주고 남은 시간을 알려주지 않는다.
+   */
+  async inspect(boardName: string, postId: number): Promise<PostCacheState> {
+    const key = postCacheKey(boardName, postId);
+    const empty: PostCacheState = {
+      key,
+      hit: false,
+      expiresAt: null,
+      remainingMs: null,
+      value: null,
+      shared: false,
+    };
+    const store = this.cache?.stores?.[0];
+    if (!store) return empty;
+
+    try {
+      const raw = (await store.get(key, { raw: true })) as {
+        value?: unknown;
+        expires?: number | null;
+      } | null;
+      if (!raw) return { ...empty, shared: isShared(store) };
+
+      const expires = raw.expires ?? null;
+      return {
+        key,
+        hit: true,
+        expiresAt: expires === null ? null : new Date(expires),
+        remainingMs:
+          expires === null ? null : Math.max(0, expires - Date.now()),
+        value: raw.value ?? null,
+        shared: isShared(store),
+      };
+    } catch (error) {
+      this.logger.warn(
+        `글 캐시를 읽지 못했다(${boardName}/${postId}): ${String(error)}`,
+      );
+      return empty;
+    }
+  }
+}
+
+/**
+ * Redis 처럼 프로세스 밖에 있는 저장소인가.
+ *
+ * Keyv 의 기본 저장소는 그냥 `Map` 이다 — 그것이면 이 프로세스 안에서만 사는 캐시다.
+ */
+function isShared(store: { opts?: { store?: unknown } }): boolean {
+  return !(store.opts?.store instanceof Map);
 }

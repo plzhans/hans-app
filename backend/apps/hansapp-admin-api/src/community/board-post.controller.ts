@@ -28,6 +28,7 @@ import {
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
 
 import {
+  PostCacheStateDto,
   PostDetailDto,
   PostListQueryDto,
   PostSummaryDto,
@@ -117,6 +118,19 @@ export class BoardPostController {
     @Body() body: PostWriteRequestDto,
   ): Promise<PostDetailDto> {
     return new PostDetailDto(await this.posts.update(id, body));
+  }
+
+  @Get('posts/:id/cache')
+  @ApiOperation({
+    summary: '이 글의 공개 캐시 상태',
+    description:
+      '캐시에 무엇이 들어 있고 언제 만료되는지. 지우기 전에 지울 것이 있는지 볼 수 있다.',
+  })
+  @ApiOkResponse({ type: PostCacheStateDto })
+  async cacheState(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<PostCacheStateDto> {
+    return new PostCacheStateDto(await this.posts.cacheState(id));
   }
 
   @Post('posts/:id/cache/purge')

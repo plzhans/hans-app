@@ -12,7 +12,10 @@ import {
 } from 'class-validator';
 import { EnumField } from '@hansapp/http-common';
 import { BoardStatus, BoardWriteRole } from '@hansapp/common';
-import type { BoardSummary } from '@hansapp/admin-application';
+import type {
+  BoardSummary,
+  DeletedBoardSummary,
+} from '@hansapp/admin-application';
 
 /** 이름 규칙. 주소에 그대로 실리므로 소문자·숫자·하이픈만 받는다. */
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -56,6 +59,14 @@ export class BoardCreateRequestDto {
   @IsOptional()
   @IsBoolean()
   readonly commentEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: '좋아요를 받는 게시판인가',
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly likeEnabled?: boolean;
 
   @ApiPropertyOptional({
     default: false,
@@ -121,6 +132,11 @@ export class BoardUpdateRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
+  readonly likeEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   readonly secretPostEnabled?: boolean;
 
   @ApiPropertyOptional()
@@ -139,6 +155,18 @@ export class BoardUpdateRequestDto {
   readonly sortOrder?: number;
 }
 
+/** 되살리기 요청. **이름을 반드시 받는다**(비켜 둔 이름을 그대로 쓸 수 없다). */
+export class BoardRestoreRequestDto {
+  @ApiProperty({
+    description:
+      '되살릴 때 쓸 이름. 소문자·숫자·하이픈. 이미 쓰는 이름이면 409 로 거절한다.',
+    example: 'notice',
+  })
+  @IsString()
+  @MaxLength(50)
+  readonly name!: string;
+}
+
 export class BoardDto {
   @ApiProperty() readonly id!: number;
   @ApiProperty({ description: '주소·API 에서 쓰는 이름' })
@@ -147,6 +175,7 @@ export class BoardDto {
   @ApiProperty({ nullable: true }) readonly description!: string | null;
   @EnumField(BoardWriteRole) readonly writeRole!: BoardWriteRole;
   @ApiProperty() readonly commentEnabled!: boolean;
+  @ApiProperty() readonly likeEnabled!: boolean;
   @ApiProperty() readonly secretPostEnabled!: boolean;
   @ApiProperty() readonly secretCommentEnabled!: boolean;
   @EnumField(BoardStatus) readonly status!: BoardStatus;
@@ -167,6 +196,7 @@ export class BoardDto {
     this.description = board.description;
     this.writeRole = board.writeRole;
     this.commentEnabled = board.commentEnabled;
+    this.likeEnabled = board.likeEnabled;
     this.secretPostEnabled = board.secretPostEnabled;
     this.secretCommentEnabled = board.secretCommentEnabled;
     this.status = board.status;
@@ -174,5 +204,23 @@ export class BoardDto {
     this.postCount = board.postCount;
     this.createdAt = board.createdAt.toISOString();
     this.updatedAt = board.updatedAt.toISOString();
+  }
+}
+
+/** 삭제함 한 줄. 게시판 정보에 지운 시각과 되살릴 때 채워 줄 이름을 더한다. */
+export class DeletedBoardDto extends BoardDto {
+  @ApiProperty({ description: '지운 시각' })
+  readonly deletedAt!: string;
+
+  @ApiProperty({
+    description:
+      '되살릴 때 채워 줄 이름(비켜 두기 전 이름). 지금도 비어 있다는 보장은 없다.',
+  })
+  readonly suggestedName!: string;
+
+  constructor(board: DeletedBoardSummary) {
+    super(board);
+    this.deletedAt = board.deletedAt.toISOString();
+    this.suggestedName = board.suggestedName;
   }
 }

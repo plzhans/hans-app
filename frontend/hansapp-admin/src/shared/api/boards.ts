@@ -20,6 +20,8 @@ export interface Board {
   writeRole: BoardWriteRole;
   /** 댓글을 받는 게시판인가. **글의 설정보다 위에 있다.** */
   commentEnabled: boolean;
+  /** 좋아요를 받는 게시판인가. 댓글과 같은 규칙. */
+  likeEnabled: boolean;
   secretPostEnabled: boolean;
   secretCommentEnabled: boolean;
   status: BoardStatus;
@@ -37,6 +39,7 @@ export interface BoardCreateBody {
   description?: string;
   writeRole?: BoardWriteRole;
   commentEnabled?: boolean;
+  likeEnabled?: boolean;
   secretPostEnabled?: boolean;
   secretCommentEnabled?: boolean;
   status?: BoardStatus;
@@ -59,3 +62,20 @@ export const updateBoard = (id: number, body: BoardUpdateBody) =>
 
 export const deleteBoard = (id: number) =>
   apiFetch<void>(`/api/boards/${id}`, { method: 'DELETE' });
+
+/** 삭제함 한 줄. 게시판 정보에 지운 시각과 되살릴 이름 후보가 붙는다. */
+export interface DeletedBoard extends Board {
+  deletedAt: string;
+  /** 비켜 두기 전 이름. **지금도 비어 있다는 보장은 없다.** */
+  suggestedName: string;
+}
+
+export const listDeletedBoards = () =>
+  apiFetch<DeletedBoard[]>('/api/boards/deleted');
+
+/** 되살린다. 이름이 이미 쓰이고 있으면 409 로 거절된다. */
+export const restoreBoard = (id: number, name: string) =>
+  apiFetch<Board>(`/api/boards/${id}/restore`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });

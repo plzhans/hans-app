@@ -26,7 +26,9 @@ export interface Post {
   title: string;
   summary?: string | null;
   author: PostAuthor;
-  commentEnabled: boolean;
+  /** **null 이면 게시판 설정을 따른다.** true/false 는 이 글만의 뜻. */
+  commentEnabled: boolean | null;
+  likeEnabled: boolean | null;
   secret: boolean;
   pinned: boolean;
   status: PostStatus;
@@ -53,7 +55,8 @@ export interface PostWriteBody {
   title: string;
   content: string;
   summary?: string;
-  commentEnabled?: boolean;
+  commentEnabled?: boolean | null;
+  likeEnabled?: boolean | null;
   secret?: boolean;
   pinned?: boolean;
   status?: PostStatus;
@@ -94,3 +97,19 @@ export const deletePost = (id: number) =>
  */
 export const purgePostCache = (id: number) =>
   apiFetch<void>(`/api/posts/${id}/cache/purge`, { method: 'POST' });
+
+/** 이 글의 공개 캐시 상태. */
+export interface PostCacheState {
+  /** 캐시 키. 환경 접두어(`develop:`)는 빠져 있다. */
+  key: string;
+  hit: boolean;
+  expiresAt: string | null;
+  remainingMs: number | null;
+  /** 캐시에 담긴 값 그대로. */
+  value: unknown;
+  /** Redis 처럼 프로세스 밖에서 공유되나. false 면 이 프로세스의 메모리다. */
+  shared: boolean;
+}
+
+export const getPostCacheState = (id: number) =>
+  apiFetch<PostCacheState>(`/api/posts/${id}/cache`);

@@ -14,6 +14,7 @@ import { EnumField } from '@hansapp/http-common';
 import { AuthorType, PostStatus } from '@hansapp/common';
 import type {
   PostAuthor,
+  PostCacheState,
   PostDetail,
   PostSummary,
 } from '@hansapp/admin-application';
@@ -164,5 +165,42 @@ export class PostDetailDto extends PostSummaryDto {
   constructor(post: PostDetail) {
     super(post);
     this.content = post.content;
+  }
+}
+
+/** 이 글의 공개 캐시 상태. 콘솔 캐싱 탭이 그대로 그린다. */
+export class PostCacheStateDto {
+  @ApiProperty({ description: '캐시 키. 환경 접두어는 빠져 있다.' })
+  readonly key!: string;
+
+  @ApiProperty({ description: '지금 캐시에 들어 있나' })
+  readonly hit!: boolean;
+
+  @ApiProperty({ nullable: true, description: '만료 시각' })
+  readonly expiresAt!: string | null;
+
+  @ApiProperty({ nullable: true, description: '남은 시간(ms)' })
+  readonly remainingMs!: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: '캐시에 담긴 값 그대로. 없으면 null.',
+  })
+  readonly value!: unknown;
+
+  @ApiProperty({
+    description:
+      'Redis 처럼 프로세스 밖에서 공유되는 캐시인가. false 면 이 프로세스의 메모리라, ' +
+      '공개 API 가 다른 프로세스면 그쪽 캐시는 여기서 보이지도 지워지지도 않는다.',
+  })
+  readonly shared!: boolean;
+
+  constructor(state: PostCacheState) {
+    this.key = state.key;
+    this.hit = state.hit;
+    this.expiresAt = state.expiresAt?.toISOString() ?? null;
+    this.remainingMs = state.remainingMs;
+    this.value = state.value;
+    this.shared = state.shared;
   }
 }

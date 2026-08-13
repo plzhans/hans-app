@@ -6,7 +6,6 @@ import { listBoards, type Board } from '@/shared/api/boards';
 import {
   createPost,
   getPost,
-  purgePostCache,
   updatePost,
   type PostStatus,
 } from '@/shared/api/posts';
@@ -57,7 +56,8 @@ export default function PostEdit() {
   const [status, setStatus] = useState<PostStatus>('PUBLISHED');
   const [pinned, setPinned] = useState(false);
   const [secret, setSecret] = useState(false);
-  const [commentEnabled, setCommentEnabled] = useState(true);
+  const [commentEnabled, setCommentEnabled] = useState<boolean | null>(null);
+  const [likeEnabled, setLikeEnabled] = useState<boolean | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +69,10 @@ export default function PostEdit() {
     setStatus(post.data.status);
     setPinned(post.data.pinned);
     setSecret(post.data.secret);
-    setCommentEnabled(post.data.commentEnabled);
+    // **?? null 이 필요하다.** 값이 없으면(undefined) 세 칸 중 어느 것과도 같지 않아
+    // 아무것도 선택되지 않은 채로 보인다 — 없다는 것은 곧 '게시판 따름' 이다.
+    setCommentEnabled(post.data.commentEnabled ?? null);
+    setLikeEnabled(post.data.likeEnabled ?? null);
     setLoaded(true);
   }
 
@@ -83,6 +86,7 @@ export default function PostEdit() {
         pinned,
         secret,
         commentEnabled,
+        likeEnabled,
       };
       return editing
         ? updatePost(postId, body)
@@ -97,12 +101,6 @@ export default function PostEdit() {
       );
     },
     onError: (e) => setError(errorMessage(e, '저장하지 못했습니다.')),
-  });
-
-  /** 공개 캐시 비우기. 이미 있는 글에만 뜻이 있다. */
-  const purge = useMutation({
-    mutationFn: () => purgePostCache(postId as number),
-    onError: (e) => setError(errorMessage(e, '캐시를 지우지 못했습니다.')),
   });
 
   const ready = title.trim().length > 0 && content.trim().length > 0;
@@ -174,41 +172,32 @@ export default function PostEdit() {
                   : '이 게시판은 비공개 글을 허용하지 않습니다.'
               }
             />
-            <Check
-              checked={board?.commentEnabled ? commentEnabled : false}
-              onChange={setCommentEnabled}
-              disabled={!board?.commentEnabled}
-              label="댓글 받기"
-              hint={
-                board?.commentEnabled
-                  ? undefined
-                  : '이 게시판은 댓글을 쓰지 않습니다.'
-              }
-            />
           </div>
+        </div>
+
+        {/*
+          **글은 자기 뜻만 적는다.** 기본값 '게시판 따름' 으로 두면 나중에 게시판에서 댓글을
+          켜고 끌 때 옛 글까지 함께 따라온다 — 글을 하나하나 고칠 수는 없다. 여기서 허용·불가를
+          고르는 것은 그 게시판만 예외로 두겠다는 뜻이다.
+        */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Follow
+            value={commentEnabled}
+            onChange={setCommentEnabled}
+            label="댓글"
+            boardOn={board?.commentEnabled}
+          />
+          <Follow
+            value={likeEnabled}
+            onChange={setLikeEnabled}
+            label="좋아요"
+            boardOn={board?.likeEnabled}
+          />
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
         <div className="flex items-center justify-end gap-2">
-          {/*
-            **저장과 같은 줄에 두되 왼쪽 끝으로 민다.** 자주 누를 버튼이 아니라서 저장 옆에
-            붙어 있으면 잘못 누르기 쉽다.
-          */}
-          {editing && (
-            <button
-              type="button"
-              onClick={() => purge.mutate()}
-              disabled={purge.isPending}
-              className="mr-auto text-sm text-gray-500 transition hover:text-gray-900 disabled:opacity-50"
-            >
-              {purge.isPending
-                ? '지우는 중…'
-                : purge.isSuccess
-                  ? '캐시 지움'
-                  : '공개 캐시 지우기'}
-            </button>
-          )}
           <Button
             variant="outline"
             className="w-auto px-4"
@@ -235,6 +224,66 @@ export default function PostEdit() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+/**
+ * 게시판 따름 / 허용 / 불가.
+ *
+ * **꺼진 게시판에서도 고를 수 있게 둔다.** 값은 저장될 뿐 지금 열리지는 않는다 — 나중에
+ * 게시판을 켤 때를 대비해 이 글만 미리 막아 두는 것이 가능해야 한다. 대신 지금 어떻게
+ * 보이는지를 아래 한 줄로 알려 준다.
+ */
+function Follow({
+  value,
+  onChange,
+  label,
+  boardOn,
+}: {
+  value: boolean | null;
+  onChange: (next: boolean | null) => void;
+  label: string;
+  boardOn?: boolean;
+}) {
+  const effective = Boolean(boardOn) && (value ?? true);
+  return (
+    <div>
+      <span className="mb-1 block text-sm font-medium text-gray-700">
+        {label}
+      </span>
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+        {(
+          [
+            [null, '게시판 따름'],
+            [true, '허용'],
+            [false, '불가'],
+          ] as const
+        ).map(([option, text]) => (
+          <button
+            key={text}
+            type="button"
+            onClick={() => onChange(option)}
+            aria-pressed={(value ?? null) === option}
+            className={`h-8 flex-1 rounded-md text-sm font-medium transition ${
+              (value ?? null) === option
+                ? 'bg-white text-primary shadow-sm ring-1 ring-primary/30'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+      <span className="mt-1 block text-xs text-gray-400">
+        {boardOn === undefined
+          ? ' '
+          : effective
+            ? `지금 이 글에서 ${label}이(가) 열립니다.`
+            : boardOn
+              ? `이 글에서만 ${label}을(를) 닫았습니다.`
+              : `게시판이 ${label}을(를) 쓰지 않아 닫혀 있습니다.`}
+      </span>
+    </div>
   );
 }
 

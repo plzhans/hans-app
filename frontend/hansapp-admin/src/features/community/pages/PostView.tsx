@@ -1,30 +1,45 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { listBoards } from '@/shared/api/boards';
-import { deletePost, getPost, purgePostCache } from '@/shared/api/posts';
+import { deletePost, getPost } from '@/shared/api/posts';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
 import { splitDateTime } from '@/shared/lib/formatDateTime';
+import { cn } from '@/shared/lib/cn';
 import { Badge } from '@/shared/ui/Badge';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { MarkdownViewer } from '@/shared/ui/MarkdownViewer';
+import { PostCachePanel } from '../PostCachePanel';
 
 /**
  * 글 보기.
  *
  * **편집과 화면을 나눈다.** 목록에서 누르는 대부분의 이유는 "무슨 내용이더라" 를 확인하는
  * 것인데, 곧바로 편집기가 열리면 본문이 마크다운 원문으로 보이고 실수로 고칠 여지도 생긴다.
- * 고칠 때만 편집 화면으로 간다.
+ *
+ * **포털 상세와 같은 배치로 그린다**(hansapp-web 의 BoardPost — 게시판 이름, 제목, 글쓴이
+ * 줄, 본문 순). 여기서 확인하려는 것은 "사람들에게 어떻게 보이나" 인데, 콘솔에서만 다른
+ * 모양으로 보여 주면 그 확인이 안 된다.
  */
 export default function PostView() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [asking, setAsking] = useState<'purge' | 'delete' | null>(null);
+  const [asking, setAsking] = useState(false);
+
+  // 탭은 주소에 적는다 — 캐시를 보다 새로고침해도 그 자리에 남는다.
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'cache' ? 'cache' : 'content';
+  const setTab = (next: 'content' | 'cache') => {
+    const nextParams = new URLSearchParams(params);
+    if (next === 'content') nextParams.delete('tab');
+    else nextParams.set('tab', next);
+    setParams(nextParams, { replace: true });
+  };
 
   const query = useQuery({ queryKey: ['post', id], queryFn: () => getPost(id) });
   const post = query.data;
@@ -39,17 +54,8 @@ export default function PostView() {
       navigate(`/boards/${post?.boardId}/posts`);
     },
     onError: (e) => {
-      setAsking(null);
+      setAsking(false);
       setError(errorMessage(e, '삭제하지 못했습니다.'));
-    },
-  });
-
-  const purge = useMutation({
-    mutationFn: () => purgePostCache(id),
-    onSuccess: () => setAsking(null),
-    onError: (e) => {
-      setAsking(null);
-      setError(errorMessage(e, '캐싱을 지우지 못했습니다.'));
     },
   });
 
@@ -74,11 +80,7 @@ export default function PostView() {
       actions={
         post && (
           <>
-            {/*
-              **상위 목록으로 가는 것은 뒤로가기와 같은 몸짓이다.** 화면마다 "글 목록"·
-              "게시판 목록" 으로 이름이 갈리면 매번 읽고 판단해야 한다 — 어디서든
-              `‹ 목록` 하나로 두면 읽지 않고도 누른다. 옮길 말이 하나로 줄어드는 것은 덤이다.
-            */}
+            {/* 상위 목록으로 가는 것은 어느 화면이든 `‹ 목록` 하나다. */}
             <Link
               to={`/boards/${post.boardId}/posts`}
               className="mr-auto inline-flex h-9 items-center gap-1 rounded-lg border border-gray-300 bg-white pr-3 pl-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -89,23 +91,13 @@ export default function PostView() {
             {/*
               **자주 쓰는 것이 커서에 가깝다.** 오른쪽 정렬이라 오른쪽 끝이 그 자리다 —
               수정을 맨 오른쪽에, 삭제를 그 왼쪽에 둔다(잘못 눌러 지우는 일도 줄어든다).
-              왼쪽 정렬인 줄에서는 반대로 왼쪽 끝이 그 자리다.
+              캐싱 지우기는 캐싱 탭 안으로 들어갔다 — 무엇을 지우는지 보고 누르는 일이다.
             */}
             <button
               type="button"
               onClick={() => {
                 setError(null);
-                setAsking('purge');
-              }}
-              className="inline-flex h-9 items-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              {purge.isSuccess ? '캐싱 지움' : '캐싱 지우기'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setAsking('delete');
+                setAsking(true);
               }}
               className="inline-flex h-9 items-center rounded-lg border border-gray-300 px-3 text-sm font-semibold text-red-600 transition hover:bg-red-50"
             >
@@ -127,77 +119,145 @@ export default function PostView() {
         </p>
       )}
 
-      <div className="rounded-2xl border border-gray-200 bg-white">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-100 px-6 py-4 text-sm text-gray-500">
-          {/* 켜진 것만 배지로. 꺼진 것까지 늘어놓으면 무엇이 다른지 안 보인다. */}
-          {post?.status === 'PUBLISHED' ? (
-            <Badge tone="green">공개</Badge>
-          ) : (
-            post && (
-              <Badge tone="gray">
-                {post.status === 'DRAFT' ? '작성 중' : '숨김'}
-              </Badge>
-            )
-          )}
-          {post?.pinned && <Badge tone="blue">고정</Badge>}
-          {post?.secret && <Badge tone="amber">비공개</Badge>}
-          {post?.commentEnabled && <Badge tone="blue">댓글</Badge>}
-
-          <span className="ml-auto">
-            {post?.author.name}
-            {published && ` · ${published.date} ${published.time}`}
-            {post && ` · 조회 ${post.viewCount}`}
-          </span>
-        </div>
-
-        <div className="px-6 py-6">
-          {query.isLoading && (
-            <p className="py-16 text-center text-sm text-gray-400">
-              불러오는 중…
-            </p>
-          )}
-          {post && <MarkdownViewer markdown={post.content} />}
-        </div>
+      {/*
+        **본문과 캐싱을 나눈다.** 캐시는 글을 읽으러 온 사람에게는 소음이고, 캐시를 보러 온
+        사람에게는 본문이 소음이다 — 한 화면에 겹쳐 두면 둘 다 잘 안 보인다.
+      */}
+      <div className="mb-3 flex items-center gap-1 border-b border-gray-200">
+        <Tab active={tab === 'content'} onClick={() => setTab('content')}>
+          본문
+        </Tab>
+        <Tab active={tab === 'cache'} onClick={() => setTab('cache')}>
+          캐싱
+        </Tab>
       </div>
 
-      {asking === 'purge' && (
-        <ConfirmDialog
-          title="캐싱 지우기"
-          confirmLabel="지우기"
-          loading={purge.isPending}
-          onConfirm={() => purge.mutate()}
-          onClose={() => setAsking(null)}
-        >
-          <p>
-            이 글의 <b>공개 화면 캐시</b>를 지웁니다. 지운 직후의 조회는 캐시를
-            타지 않고 DB 로 내려갑니다.
-          </p>
-          <p className="mt-2">
-            글을 저장할 때 서버가 이미 지우므로 평소에는 누를 일이 없습니다.
-            게시판 설정만 바꿨거나, 고친 내용이 공개 화면에 안 보일 때만
-            쓰세요.
-          </p>
-        </ConfirmDialog>
+      {tab === 'cache' ? (
+        <PostCachePanel postId={id} />
+      ) : (
+        <article className="rounded-2xl border border-gray-200 bg-white">
+          <header className="px-6 pt-6 pb-4 sm:px-8">
+            {/* 게시판 이름. 누르면 그 게시판의 글 목록으로 돌아간다(포털과 같다). */}
+            {board && post ? (
+              <Link
+                to={`/boards/${post.boardId}/posts`}
+                className="inline-flex items-center text-sm font-semibold text-primary hover:underline"
+              >
+                {board.title}
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span className="block h-5" />
+            )}
+
+            {post && (
+              <h1 className="mt-2 flex items-start gap-2 text-2xl font-bold text-gray-900">
+                {post.pinned && (
+                  <span className="mt-1 shrink-0 rounded bg-red-50 px-1.5 py-0.5 text-xs font-bold text-red-600">
+                    공지
+                  </span>
+                )}
+                <span>{post.title}</span>
+              </h1>
+            )}
+
+            {post && (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                {/* 프로필 아이콘. 사진이 없으니 이름 첫 글자로 대신한다. */}
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-100 text-sm font-bold text-gray-500">
+                  {post.author.name.slice(0, 1)}
+                </span>
+                <span className="mr-auto">
+                  <span className="block text-sm font-semibold text-gray-900">
+                    {post.author.name}
+                  </span>
+                  <span className="block text-xs text-gray-400">
+                    {published
+                      ? `${published.date} ${published.time}`
+                      : '공개 전'}
+                    {` · 조회 ${post.viewCount}`}
+                  </span>
+                </span>
+
+                {/*
+                  **이 줄만 포털에 없다.** 포털은 공개된 글만 보므로 상태를 말할 필요가
+                  없지만, 콘솔에서는 이 글이 지금 어떤 상태인지가 보러 온 이유일 때가 많다.
+                  글이 스스로 정한 것만 배지로 — null(게시판 따름)은 예외가 아니라 기본이다.
+                */}
+                {post.status === 'PUBLISHED' ? (
+                  <Badge tone="green">공개</Badge>
+                ) : (
+                  <Badge tone="gray">
+                    {post.status === 'DRAFT' ? '작성 중' : '숨김'}
+                  </Badge>
+                )}
+                {post.secret && <Badge tone="amber">비공개</Badge>}
+                {post.commentEnabled === false && (
+                  <Badge tone="gray">댓글 닫음</Badge>
+                )}
+                {post.likeEnabled === false && (
+                  <Badge tone="gray">좋아요 닫음</Badge>
+                )}
+              </div>
+            )}
+          </header>
+
+          <div className="border-t border-gray-100 px-6 py-8 sm:px-8">
+            {query.isLoading && (
+              <p className="py-16 text-center text-sm text-gray-400">
+                불러오는 중…
+              </p>
+            )}
+            {post && <MarkdownViewer markdown={post.content} />}
+          </div>
+        </article>
       )}
 
-      {asking === 'delete' && post && (
+      {asking && post && (
         <ConfirmDialog
           title="글 삭제"
           confirmLabel="삭제"
           tone="danger"
           loading={remove.isPending}
           onConfirm={() => remove.mutate()}
-          onClose={() => setAsking(null)}
+          onClose={() => setAsking(false)}
         >
           <p>
-            <b>{post.title}</b> 글을 지웁니다.
+            <b>{post.title}</b> 글을 목록에서 내립니다.
           </p>
           <p className="mt-2">
-            달린 댓글도 함께 사라지며 <b>되돌릴 수 없습니다.</b> 잠시 감추려는
-            것이라면 수정 화면에서 상태를 <b>숨김</b>으로 바꾸세요.
+            데이터는 남습니다. 잠시 감추려는 것이라면 수정 화면에서 상태를{' '}
+            <b>숨김</b>으로 바꾸는 쪽이 낫습니다 — 그건 목록에 계속 보입니다.
           </p>
         </ConfirmDialog>
       )}
     </AdminLayout>
+  );
+}
+
+/** 본문 위의 탭. 밑줄로 지금 보고 있는 쪽을 가리킨다(게시판 목록과 같은 모양). */
+function Tab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        '-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition',
+        active
+          ? 'border-primary text-primary'
+          : 'border-transparent text-gray-500 hover:text-gray-800',
+      )}
+    >
+      {children}
+    </button>
   );
 }

@@ -35,7 +35,8 @@ const LIST_SELECT = {
   updatedAt: true,
 } as const;
 
-export type PostListItem = Omit<BoardPost, 'content'>;
+// deletedAt 은 담지 않는다 — 목록에 오는 것은 살아 있는 글뿐이라 늘 null 이다.
+export type PostListItem = Omit<BoardPost, 'content' | 'deletedAt'>;
 
 @Injectable()
 export class BoardPostRepository {
@@ -62,7 +63,7 @@ export class BoardPostRepository {
   }
 
   findById(id: number): Promise<BoardPost | null> {
-    return this.prisma.boardPost.findUnique({ where: { id } });
+    return this.prisma.boardPost.findFirst({ where: { id, deletedAt: null } });
   }
 
   create(data: Prisma.BoardPostUncheckedCreateInput): Promise<BoardPost> {
@@ -76,8 +77,12 @@ export class BoardPostRepository {
     return this.prisma.boardPost.update({ where: { id }, data });
   }
 
-  async delete(id: number): Promise<void> {
-    await this.prisma.boardPost.delete({ where: { id } });
+  /** 소프트 삭제. 달린 댓글은 그대로 둔다(→ BoardRepository.softDelete). */
+  async softDelete(id: number): Promise<void> {
+    await this.prisma.boardPost.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
   }
 }
 
@@ -85,6 +90,8 @@ function buildWhere(filter: PostListFilter): Prisma.BoardPostWhereInput {
   const keyword = filter.keyword?.trim();
   return {
     boardId: filter.boardId,
+    // 지운 글은 목록에 없다. 이 조건을 빠뜨리면 지운 글이 다시 보인다.
+    deletedAt: null,
     status: filter.status,
     ...(keyword ? { title: { contains: keyword } } : {}),
   };

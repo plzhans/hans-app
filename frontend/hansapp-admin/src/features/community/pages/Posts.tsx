@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronLeft, Plus, Settings } from 'lucide-react';
 
 import { listBoards } from '@/shared/api/boards';
+import { BoardModal } from '../BoardModal';
 import { deletePost, listPosts, type Post } from '@/shared/api/posts';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
@@ -27,6 +28,7 @@ export default function Posts() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [settings, setSettings] = useState(false);
 
   // 게시판 이름·규칙을 보여주려고 목록에서 이 게시판을 찾는다(게시판은 몇 개뿐이라 통째로 온다).
   const boards = useQuery({ queryKey: ['boards'], queryFn: listBoards });
@@ -55,14 +57,32 @@ export default function Posts() {
       ]}
       actions={
         <>
-          {/* 상위 목록으로 가는 것은 어느 화면이든 `‹ 목록` 하나다(PostView 주석 참고). */}
+          {/*
+            **여기만 `‹ 목록` 규칙에서 뺀다.** 이 화면이 이미 목록이라 같은 이름이 두 뜻을
+            가진다 — 글 상세에서 `‹ 목록` 을 눌러 여기 온 사람이 또 `‹ 목록` 을 보면
+            같은 곳으로 되돌아가는 줄 안다. 어디로 가는지 이름에 적는다.
+          */}
           <Link
             to="/boards"
             className="mr-auto inline-flex h-9 items-center gap-1 rounded-lg border border-gray-300 bg-white pr-3 pl-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
             <ChevronLeft className="h-4 w-4" />
-            목록
+            게시판 목록
           </Link>
+          {/*
+            **설정을 고치러 게시판 목록까지 되돌아갈 이유가 없다.** 글을 보다가 "댓글을
+            켜야겠다" 가 되는 자리는 여기다 — 같은 모달을 그대로 띄운다.
+          */}
+          <button
+            type="button"
+            onClick={() => setSettings(true)}
+            disabled={!board}
+            title="게시판 설정"
+            aria-label="게시판 설정"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
           <Link
             to={`/boards/${boardId}/posts/new`}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-white transition hover:bg-primary-700"
@@ -179,6 +199,10 @@ export default function Posts() {
             다음
           </button>
         </div>
+      )}
+
+      {settings && board && (
+        <BoardModal board={board} onClose={() => setSettings(false)} />
       )}
     </AdminLayout>
   );
