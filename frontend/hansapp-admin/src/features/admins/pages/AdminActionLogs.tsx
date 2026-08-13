@@ -174,11 +174,25 @@ function splitActions(value: string): AdminLogActionType[] {
   return value.split(',').filter(Boolean) as AdminLogActionType[];
 }
 
-/** detail 에 실린 대상 계정 정보. 지워진 계정은 이 값만 남는다. */
-interface TargetDetail {
+/** detail 에 실린 값. 액션마다 모양이 다르다. */
+interface LogDetailShape {
+  /** 대상 계정 정보(관리 조치). 지워진 계정은 이 값만 남는다. */
   targetEmail?: string;
   targetName?: string | null;
+  /** 로그인 수단. 이 값을 남기기 전의 기록에는 없다. */
+  via?: string;
 }
+
+/**
+ * 로그인 수단 표시.
+ *
+ * **모르는 값은 그리지 않는다.** 이 값을 남기기 전의 기록은 `via` 가 비어 있는데, 없는 것을
+ * 비밀번호로 단정하면 옛 기록 전부가 비밀번호 로그인으로 둔갑한다.
+ */
+const VIA_LABEL: Record<string, string> = {
+  password: '비밀번호',
+  google: '구글',
+};
 
 /**
  * 기록 한 줄. **누르면 그 자리에서 아래로 펼쳐진다**(회원 기록과 같은 규칙이다).
@@ -190,7 +204,8 @@ function LogRow({ log, adminId }: { log: AdminActionLog; adminId: number }) {
   const [open, setOpen] = useState(false);
   const at = splitDateTime(log.createdAt);
   const failed = log.result === 'FAIL';
-  const detail = (log.detail ?? {}) as TargetDetail;
+  const detail = (log.detail ?? {}) as LogDetailShape;
+  const via = detail.via ? VIA_LABEL[detail.via] : undefined;
   // 이 화면의 주인이 한 일인가, 당한 일인가.
   const byMe = log.adminId === adminId;
 
@@ -219,8 +234,18 @@ function LogRow({ log, adminId }: { log: AdminActionLog; adminId: number }) {
           </span>
         </span>
 
+        {/*
+          **수단은 종류 옆에 붙인다.** "로그인" 만으로는 비밀번호로 들어온 것인지 구글로
+          들어온 것인지 알 수 없는데, 그 둘은 되짚을 때 묻는 질문이 다르다(비밀번호가 샜나 /
+          구글 계정이 넘어갔나). 칸을 새로 만들지 않은 것은 LOGIN 줄에만 있는 값이라서다.
+        */}
         <span className="text-sm font-medium text-gray-900">
           {ADMIN_ACTION_LABEL[log.action] ?? log.action}
+          {via && (
+            <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">
+              {via}
+            </span>
+          )}
         </span>
 
         <span>
@@ -271,6 +296,7 @@ function LogRow({ log, adminId }: { log: AdminActionLog; adminId: number }) {
  * 줄에서는 둘 중 하나만 보인다.
  */
 function LogDetail({ log }: { log: AdminActionLog }) {
+  const via = (log.detail as LogDetailShape | null)?.via;
   return (
     <div className="border-t border-gray-100 bg-gray-50/70 px-6 py-4">
       <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
@@ -304,6 +330,10 @@ function LogDetail({ log }: { log: AdminActionLog }) {
         <DetailField label="IP">
           <span className="font-mono text-xs">{log.ip ?? '—'}</span>
         </DetailField>
+        {via && (
+          // 줄에서는 짧은 배지로만 보이므로, 여기서는 모르는 값도 원문 그대로 보여 준다.
+          <DetailField label="로그인 수단">{VIA_LABEL[via] ?? via}</DetailField>
+        )}
         {log.failReason && (
           <DetailField label="실패 사유">
             <span className="text-red-600">{log.failReason}</span>

@@ -82,7 +82,12 @@ export class AdminAuthService {
     // 평문을 손에 쥐는 유일한 순간이라 여기서 해 둔다.
     await this.rehashIfStale(admin, input.password);
 
-    return this.loginFlow.complete(admin, meta);
+    /*
+      **무엇으로 들어왔는지 명시해 남긴다.** 값이 없으면 "비밀번호로 들어왔다" 와
+      "이 값을 남기기 전의 기록" 이 구분되지 않는다 — 없는 것을 비밀번호로 단정하면
+      옛 기록 전부가 비밀번호 로그인으로 둔갑한다.
+    */
+    return this.loginFlow.complete(admin, meta, { via: 'password' });
   }
 
   /** refresh token 으로 access token 을 갱신한다. refresh 도 rotate 된다. */
@@ -182,7 +187,11 @@ export class AdminAuthService {
       mustChangePassword 가 아직 true 다. 그대로 넘기면 방금 비밀번호를 바꿨는데도
       새 토큰에 chg 클레임이 실려 계속 막힌다.
     */
-    return this.loginFlow.complete({ ...admin, mustChangePassword: false }, meta);
+    // **여기도 password 다.** 이 요청은 현재 비밀번호를 대조하고 통과한 것이라,
+    // 새로 난 세션은 비밀번호로 증명된 세션이 맞다.
+    return this.loginFlow.complete({ ...admin, mustChangePassword: false }, meta, {
+      via: 'password',
+    });
   }
 
   /*
