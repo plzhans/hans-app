@@ -1,11 +1,14 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, RotateCcw, Settings, Trash2 } from 'lucide-react';
+import { DatabaseZap, Plus, RotateCcw, Settings, Trash2 } from 'lucide-react';
 
 import {
   deleteBoard,
+  getBoardListCacheState,
   listBoards,
+  purgeBoardCache,
+  purgeBoardListCache,
   listDeletedBoards,
   type Board,
   type DeletedBoard,
@@ -15,6 +18,7 @@ import { AdminLayout } from '@/shared/components/AdminLayout';
 import { cn } from '@/shared/lib/cn';
 import { splitDateTime } from '@/shared/lib/formatDateTime';
 import { Badge } from '@/shared/ui/Badge';
+import { CachePanel } from '@/shared/components/CachePanel';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { Table } from '@/shared/ui/Table';
 import { BoardModal } from '../BoardModal';
@@ -35,16 +39,18 @@ export default function Boards() {
   const [editing, setEditing] = useState<Board | null>(null);
   const [removing, setRemoving] = useState<Board | null>(null);
   const [restoring, setRestoring] = useState<DeletedBoard | null>(null);
+  const [purging, setPurging] = useState<Board | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   /*
     **탭을 주소에 적는다.** 화면 안에만 두면 새로고침하거나 뒤로 갔다 오면 원래 탭으로
     돌아간다 — 지운 게시판을 보다 되살리면 목록이 다시 불리는데, 그때 튕겨 나가면
     방금 무엇을 했는지 놓친다. 주소에 있으면 링크로 건네줄 수도 있다.
   */
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'deleted' ? 'deleted' : 'active';
-  const setTab = (next: 'active' | 'deleted') => {
+  const tab = readTab(params.get('tab'));
+  const setTab = (next: Tab) => {
     const nextParams = new URLSearchParams(params);
     // 기본 탭은 주소에 적지 않는다. ?tab=active 는 아무것도 더 알려주지 않는다.
     if (next === 'active') nextParams.delete('tab');
@@ -87,6 +93,19 @@ export default function Boards() {
     },
   });
 
+  const purge = useMutation({
+    mutationFn: (board: Board) => purgeBoardCache(board.id),
+    onSuccess: async (result) => {
+      setPurging(null);
+      await qc.invalidateQueries({ queryKey: ['board-list-cache'] });
+      setNotice(`캐시를 비웠습니다. 글 ${result.deletedPosts}건.`);
+    },
+    onError: (e) => {
+      setPurging(null);
+      setError(errorMessage(e, '캐싱을 지우지 못했습니다.'));
+    },
+  });
+
   return (
     <AdminLayout
       title="게시판"
@@ -108,6 +127,11 @@ export default function Boards() {
           {error}
         </p>
       )}
+      {notice && (
+        <p className="mb-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          {notice}
+        </p>
+      )}
 
       {/*
         **표는 하나를 같이 쓴다.** 지운 게시판도 결국 같은 게시판이라 볼 것이 같다 — 목록을
@@ -120,8 +144,32 @@ export default function Boards() {
         <Tab active={deleted} onClick={() => setTab('deleted')}>
           삭제됨 {deletedQuery.data ? `(${deletedQuery.data.length})` : ''}
         </Tab>
+        {/*
+          **목록 캐시를 볼 자리가 없었다.** 포털이 이 목록을 캐시로 받는데 그 상태를
+          들여다보거나 지울 곳이 콘솔 어디에도 없었다 — 글 캐시와 같은 패널을 여기 붙인다.
+        */}
+        <Tab active={tab === 'cache'} onClick={() => setTab('cache')}>
+          캐싱
+        </Tab>
       </div>
 
+      {tab === 'cache' ? (
+        <CachePanel
+          queryKey={['board-list-cache']}
+          fetchState={getBoardListCacheState}
+          purge={purgeBoardListCache}
+          confirmTitle="캐싱 초기화"
+        >
+          <p>
+            포털이 쓰는 <b>게시판 목록 캐시</b>를 지웁니다. 메뉴와 게시판 이름이
+            여기서 나옵니다.
+          </p>
+          <p className="mt-2">
+            게시판을 만들거나 고치면 서버가 이미 지웁니다. 글 캐시는 그대로
+            남으니, 그쪽까지 비우려면 게시판 줄의 <b>캐싱</b> 버튼을 쓰세요.
+          </p>
+        </CachePanel>
+      ) : (
       <Table
         columns={COLUMNS}
         head={[
@@ -244,6 +292,18 @@ export default function Boards() {
                 <>
               <button
                 type="button"
+                onClick={() => {
+                  setError(null);
+                  setPurging(board);
+                }}
+                title="이 게시판과 글 캐시 삭제"
+                aria-label="캐싱 삭제"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-900"
+              >
+                <DatabaseZap className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 onClick={() => setEditing(board)}
                 title="게시판 설정"
                 aria-label="게시판 설정"
@@ -274,6 +334,7 @@ export default function Boards() {
           </div>
         ))}
       </Table>
+      )}
 
       {removing && (
         <ConfirmDialog
@@ -301,6 +362,25 @@ export default function Boards() {
         </ConfirmDialog>
       )}
 
+      {purging && (
+        <ConfirmDialog
+          title="캐싱 삭제"
+          confirmLabel="지우기"
+          tone="danger"
+          loading={purge.isPending}
+          onConfirm={() => purge.mutate(purging)}
+          onClose={() => setPurging(null)}
+        >
+          <p>
+            <b>{purging.title}</b> 게시판과 그 안의 글 캐시를 함께 지웁니다.
+          </p>
+          <p className="mt-2">
+            게시판 설정을 바꾸면 서버가 이미 지웁니다. 고친 내용이 포털에 안
+            보일 때만 쓰세요.
+          </p>
+        </ConfirmDialog>
+      )}
+
       {restoring && (
         <RestoreBoardModal
           board={restoring}
@@ -316,6 +396,13 @@ export default function Boards() {
       )}
     </AdminLayout>
   );
+}
+
+type Tab = 'active' | 'deleted' | 'cache';
+
+/** 주소에 적힌 탭. 모르는 값이면 기본 탭으로 본다. */
+function readTab(raw: string | null): Tab {
+  return raw === 'deleted' || raw === 'cache' ? raw : 'active';
 }
 
 /** 표 위의 탭. 밑줄로 지금 보고 있는 쪽을 가리킨다. */

@@ -1,16 +1,22 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Plus, Settings } from 'lucide-react';
+import { ChevronLeft, DatabaseZap, Plus, Settings } from 'lucide-react';
 
 import { listBoards } from '@/shared/api/boards';
 import { BoardModal } from '../BoardModal';
-import { deletePost, listPosts, type Post } from '@/shared/api/posts';
+import {
+  deletePost,
+  listPosts,
+  purgeBoardPostCache,
+  type Post,
+} from '@/shared/api/posts';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
 import { splitDateTime } from '@/shared/lib/formatDateTime';
 import { cn } from '@/shared/lib/cn';
 import { Badge } from '@/shared/ui/Badge';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { Table } from '@/shared/ui/Table';
 
 const COLUMNS =
@@ -29,6 +35,8 @@ export default function Posts() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
+  const [purging, setPurging] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // 게시판 이름·규칙을 보여주려고 목록에서 이 게시판을 찾는다(게시판은 몇 개뿐이라 통째로 온다).
   const boards = useQuery({ queryKey: ['boards'], queryFn: listBoards });
@@ -44,6 +52,18 @@ export default function Posts() {
     mutationFn: (post: Post) => deletePost(post.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['posts', boardId] }),
     onError: (e) => setError(errorMessage(e, '삭제하지 못했습니다.')),
+  });
+
+  const purge = useMutation({
+    mutationFn: () => purgeBoardPostCache(boardId),
+    onSuccess: (result) => {
+      setPurging(false);
+      setNotice(`글 캐시 ${result.deletedPosts}건을 비웠습니다.`);
+    },
+    onError: (e) => {
+      setPurging(false);
+      setError(errorMessage(e, '캐싱을 지우지 못했습니다.'));
+    },
   });
 
   return (
@@ -73,6 +93,23 @@ export default function Posts() {
             **설정을 고치러 게시판 목록까지 되돌아갈 이유가 없다.** 글을 보다가 "댓글을
             켜야겠다" 가 되는 자리는 여기다 — 같은 모달을 그대로 띄운다.
           */}
+          {/*
+            **글마다 상세로 들어가 지우는 것은 할 짓이 못 된다.** 글이 몇 개만 넘어가도
+            그렇다 — 이 게시판 글 캐시를 한 번에 비운다.
+          */}
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setPurging(true);
+            }}
+            disabled={!board}
+            title="이 게시판 글 캐시 일괄 삭제"
+            aria-label="글 캐시 일괄 삭제"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50"
+          >
+            <DatabaseZap className="h-4 w-4" />
+          </button>
           <button
             type="button"
             onClick={() => setSettings(true)}
@@ -96,6 +133,11 @@ export default function Posts() {
       {error && (
         <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
+        </p>
+      )}
+      {notice && (
+        <p className="mb-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          {notice}
         </p>
       )}
 
@@ -199,6 +241,26 @@ export default function Posts() {
             다음
           </button>
         </div>
+      )}
+
+      {purging && (
+        <ConfirmDialog
+          title="글 캐시 일괄 삭제"
+          confirmLabel="지우기"
+          tone="danger"
+          loading={purge.isPending}
+          onConfirm={() => purge.mutate()}
+          onClose={() => setPurging(false)}
+        >
+          <p>
+            <b>{board?.title}</b> 게시판 글들의 <b>공개 화면 캐시</b>를 한 번에
+            지웁니다.
+          </p>
+          <p className="mt-2">
+            글을 저장하면 그 글 캐시는 서버가 이미 지웁니다. 게시판 설정을
+            바꿨거나 고친 내용이 포털에 안 보일 때만 쓰세요.
+          </p>
+        </ConfirmDialog>
       )}
 
       {settings && board && (

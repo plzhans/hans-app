@@ -19,6 +19,7 @@ import { AuthorType } from '@hansapp/common';
 import { AdminAccountService, CurrentAdmin } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
 
+import { CachePurgeResultDto } from './dto/board.dto';
 import {
   PostCacheStateDto,
   PostDetailDto,
@@ -118,6 +119,20 @@ export class BoardPostController {
   @ApiOkResponse({ type: PostCacheStateDto })
   async cacheState(@Param('id', ParseIntPipe) id: number): Promise<PostCacheStateDto> {
     return new PostCacheStateDto(await this.posts.cacheState(id));
+  }
+
+  @Post('boards/:boardId/posts/cache/purge')
+  @ApiOperation({
+    summary: '이 게시판 글 캐시 일괄 삭제',
+    description:
+      '이 게시판에 속한 글들의 공개 캐시를 한 번에 지운다. 글마다 상세로 들어가 지우는 것은 ' +
+      '글이 몇 개만 넘어가도 할 짓이 못 된다.',
+  })
+  @ApiOkResponse({ type: CachePurgeResultDto })
+  async purgeBoardCache(
+    @Param('boardId', ParseIntPipe) boardId: number,
+  ): Promise<CachePurgeResultDto> {
+    return new CachePurgeResultDto(await this.posts.purgeBoardPostCache(boardId));
   }
 
   @Post('posts/:id/cache/purge')

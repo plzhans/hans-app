@@ -113,3 +113,9 @@ export interface PostCacheState {
 
 export const getPostCacheState = (id: number) =>
   apiFetch<PostCacheState>(`/api/posts/${id}/cache`);
+
+/** 이 게시판 글 캐시를 한 번에 지운다. 지운 수를 돌려준다. */
+export const purgeBoardPostCache = (boardId: number) =>
+  apiFetch<{ deletedPosts: number }>(`/api/boards/${boardId}/posts/cache/purge`, {
+    method: 'POST',
+  });

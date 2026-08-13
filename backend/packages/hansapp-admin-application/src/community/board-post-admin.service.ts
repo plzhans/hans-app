@@ -4,6 +4,7 @@ import type { Board, BoardPost } from '@hansapp/data';
 
 import { BoardRepository } from './board.repository';
 import { BoardPostCacheInvalidator, type PostCacheState } from './board-post-cache.invalidator';
+import { BoardCacheInvalidator } from './board-cache.invalidator';
 import { BoardPostRepository, type PostListItem } from './board-post.repository';
 
 /**
@@ -76,6 +77,7 @@ export class BoardPostAdminService {
     private readonly posts: BoardPostRepository,
     private readonly boards: BoardRepository,
     private readonly cache: BoardPostCacheInvalidator,
+    private readonly boardCache: BoardCacheInvalidator,
   ) {}
 
   async list(options: PostListOptions): Promise<Page<PostSummary>> {
@@ -155,6 +157,17 @@ export class BoardPostAdminService {
    * 순간이 실제로 오기 때문이다 — Redis 가 잠깐 끊겼거나, 글이 아니라 게시판 설정만 바꿔
    * 보이는 내용이 달라졌거나. 그때 서버를 만지지 않고 화면에서 해결할 수 있어야 한다.
    */
+  /**
+   * 이 게시판 글 캐시를 통째로 지운다. 지운 수를 돌려준다.
+   *
+   * 글 목록 화면에서 한 번에 비우는 통로다 — 글마다 상세로 들어가 지우는 것은 글이
+   * 몇 개만 넘어가도 할 짓이 못 된다.
+   */
+  async purgeBoardPostCache(boardId: number): Promise<number> {
+    const board = await this.mustFindBoard(boardId);
+    return this.boardCache.invalidatePosts(board.name);
+  }
+
   /** 이 글의 공개 캐시에 무엇이 들어 있나. 지우기 전에 볼 수 있게 둔다. */
   async cacheState(id: number): Promise<PostCacheState> {
     const post = await this.mustFind(id);

@@ -12,7 +12,7 @@ import {
 } from 'class-validator';
 import { EnumField } from '@hansapp/http-common';
 import { BoardStatus, BoardWriteRole } from '@hansapp/common';
-import type { BoardSummary, DeletedBoardSummary } from '@hansapp/admin-application';
+import type { BoardSummary, CacheState, DeletedBoardSummary } from '@hansapp/admin-application';
 
 /** 이름 규칙. 주소에 그대로 실리므로 소문자·숫자·하이픈만 받는다. */
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -216,5 +216,45 @@ export class DeletedBoardDto extends BoardDto {
     super(board);
     this.deletedAt = board.deletedAt.toISOString();
     this.suggestedName = board.suggestedName;
+  }
+}
+
+/** 캐시를 쓸어 낸 결과. */
+export class CachePurgeResultDto {
+  @ApiProperty({ description: '지운 글 캐시 수. 게시판 목록 캐시는 항상 함께 지운다.' })
+  readonly deletedPosts!: number;
+
+  constructor(deletedPosts: number) {
+    this.deletedPosts = deletedPosts;
+  }
+}
+
+/** 캐시 한 칸의 상태. 글 캐시(PostCacheStateDto)와 같은 모양이다. */
+export class CacheStateDto {
+  @ApiProperty({ description: '캐시 키. 환경 접두어는 빠져 있다.' })
+  readonly key!: string;
+
+  @ApiProperty({ description: '지금 캐시에 들어 있나' })
+  readonly hit!: boolean;
+
+  @ApiProperty({ nullable: true, description: '만료 시각' })
+  readonly expiresAt!: string | null;
+
+  @ApiProperty({ nullable: true, description: '남은 시간(ms)' })
+  readonly remainingMs!: number | null;
+
+  @ApiProperty({ nullable: true, description: '캐시에 담긴 값 그대로' })
+  readonly value!: unknown;
+
+  @ApiProperty({ description: 'Redis 처럼 프로세스 밖에서 공유되는 캐시인가' })
+  readonly shared!: boolean;
+
+  constructor(state: CacheState) {
+    this.key = state.key;
+    this.hit = state.hit;
+    this.expiresAt = state.expiresAt?.toISOString() ?? null;
+    this.remainingMs = state.remainingMs;
+    this.value = state.value;
+    this.shared = state.shared;
   }
 }

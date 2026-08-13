@@ -9,6 +9,7 @@ import type { Board } from '@hansapp/data';
 
 import { BoardRepository, originalName } from './board.repository';
 import { BoardCacheInvalidator } from './board-cache.invalidator';
+import type { CacheState } from './cache-sweeper';
 
 /** 이름 규칙: 소문자·숫자·하이픈, 2~50자. 주소에 그대로 실리는 값이다. */
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]{1,49}$/;
@@ -87,6 +88,27 @@ export class BoardAdminService {
     return toSummary(board, await this.boards.countPosts(id));
   }
 
+  /** 공개 게시판 목록 캐시 상태. 콘솔의 캐싱 탭이 그대로 그린다. */
+  cacheState(): Promise<CacheState> {
+    return this.cache.inspectList();
+  }
+
+  /** 공개 게시판 목록 캐시만 지운다. 글 캐시는 건드리지 않는다. */
+  async purgeListCache(): Promise<void> {
+    await this.cache.invalidateList();
+  }
+
+  /**
+   * 이 게시판과 그 안의 글 캐시를 손으로 지운다. 지운 글 캐시 수를 돌려준다.
+   *
+   * **바뀔 때마다 서버가 이미 지운다.** 그래도 통로를 두는 것은 Redis 가 잠깐 끊겼거나,
+   * 다른 경로로 값이 바뀌어 확신이 안 서는 순간이 실제로 오기 때문이다.
+   */
+  async purgeCache(id: number): Promise<number> {
+    const board = await this.mustFind(id);
+    return this.cache.invalidateBoard(board.name);
+  }
+
   /** 삭제함. 되살릴 수 있는 것들이다. */
   async listDeleted(): Promise<DeletedBoardSummary[]> {
     const rows = await this.boards.findDeleted();
@@ -114,7 +136,7 @@ export class BoardAdminService {
       throw new ConflictException(`Board name already exists: ${name}`);
     }
     const restored = await this.boards.restore(id, name);
-    await this.cache.invalidateList();
+    await this.cache.invalidateBoard(name);
     return toSummary(restored, await this.boards.countPosts(id));
   }
 
@@ -172,11 +194,19 @@ export class BoardAdminService {
       }),
     });
     /*
-      **이름·공개 여부만이 아니라 무엇이 바뀌어도 지운다.** 목록에 담기는 값이 어떤 것인지
-      여기서 따지기 시작하면, 나중에 담는 값이 늘 때 이 조건을 같이 고쳐야 한다는 것을
-      아무도 모른다 — 게시판은 자주 바뀌지 않으니 통째로 지우는 편이 싸다.
+      **글 캐시까지 지운다.** 글 응답에는 게시판 설정과 합쳐진 값이 들어 있어
+      (`board.commentEnabled && (post.commentEnabled ?? true)`), 여기서 댓글을 꺼도
+      캐시에 남은 글은 계속 열려 있다고 답한다.
+
+      무엇이 바뀌었는지는 따지지 않는다. 어떤 값이 응답에 영향을 주는지 여기서 가리기
+      시작하면, 나중에 그 목록이 늘 때 이 조건도 같이 고쳐야 한다는 것을 아무도 모른다 —
+      게시판은 자주 바뀌지 않으니 통째로 지우는 편이 싸다.
+
+      이름이 바뀌면 옛 이름으로 만든 키는 여기서 안 지워지지만, 그 키를 다시 읽을 경로가
+      없다(주소가 이름으로 가므로). TTL 이 지나면 사라진다.
     */
-    await this.cache.invalidateList();
+    await this.cache.invalidateBoard(current.name);
+    if (name && name !== current.name) await this.cache.invalidatePosts(name);
     return toSummary(board, await this.boards.countPosts(id));
   }
 
@@ -193,7 +223,8 @@ export class BoardAdminService {
   async remove(id: number): Promise<void> {
     const board = await this.mustFind(id);
     await this.boards.softDelete(board);
-    await this.cache.invalidateList();
+    // 지운 게시판의 글은 이제 공개 API 에서 404 다. 캐시에 남으면 그대로 계속 나간다.
+    await this.cache.invalidateBoard(board.name);
   }
 
   private async mustFind(id: number): Promise<Board> {

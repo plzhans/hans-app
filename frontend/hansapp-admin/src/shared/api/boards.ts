@@ -1,4 +1,5 @@
 import { apiFetch } from '@/shared/api/client';
+import type { CacheState } from '@/shared/components/CachePanel';
 
 /** 글을 쓸 수 있는 사람. 백엔드 BoardWriteRole 과 같은 값. */
 export type BoardWriteRole = 'ADMIN' | 'MEMBER';
@@ -78,4 +79,20 @@ export const restoreBoard = (id: number, name: string) =>
   apiFetch<Board>(`/api/boards/${id}/restore`, {
     method: 'POST',
     body: JSON.stringify({ name }),
+  });
+
+/**
+ * 포털이 쓰는 공개 게시판 목록 캐시(`board:list`).
+ *
+ * **글 캐시와 같은 모양이다** — 콘솔이 같은 패널(CachePanel)로 보여 준다.
+ */
+export const getBoardListCacheState = () => apiFetch<CacheState>('/api/boards/cache');
+
+export const purgeBoardListCache = () =>
+  apiFetch<void>('/api/boards/cache/purge', { method: 'POST' });
+
+/** 이 게시판과 그 안의 글 캐시를 함께 지운다. 지운 글 캐시 수를 돌려준다. */
+export const purgeBoardCache = (id: number) =>
+  apiFetch<{ deletedPosts: number }>(`/api/boards/${id}/cache/purge`, {
+    method: 'POST',
   });

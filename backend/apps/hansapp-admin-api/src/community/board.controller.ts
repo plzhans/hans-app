@@ -19,6 +19,8 @@ import {
   BoardDto,
   BoardRestoreRequestDto,
   BoardUpdateRequestDto,
+  CachePurgeResultDto,
+  CacheStateDto,
   DeletedBoardDto,
 } from './dto/board.dto';
 
@@ -62,6 +64,29 @@ export class BoardController {
     return boards.map((board) => new DeletedBoardDto(board));
   }
 
+  /* 'deleted' 와 같은 이유로 ':id' 보다 먼저 온다. */
+  @Get('cache')
+  @ApiOperation({
+    summary: '게시판 목록 캐시 상태',
+    description: '포털이 쓰는 공개 게시판 목록 캐시(board:list). 값과 만료 시각을 준다.',
+  })
+  @ApiOkResponse({ type: CacheStateDto })
+  async cacheState(): Promise<CacheStateDto> {
+    return new CacheStateDto(await this.boards.cacheState());
+  }
+
+  @Post('cache/purge')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: '게시판 목록 캐시 삭제',
+    description:
+      '게시판 목록 캐시만 지운다. 글 캐시는 그대로다 — 그쪽은 게시판별 캐시 삭제를 쓴다.',
+  })
+  @ApiNoContentResponse()
+  async purgeListCache(): Promise<void> {
+    await this.boards.purgeListCache();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '게시판 하나' })
   @ApiOkResponse({ type: BoardDto })
@@ -101,6 +126,18 @@ export class BoardController {
     @Body() body: BoardRestoreRequestDto,
   ): Promise<BoardDto> {
     return new BoardDto(await this.boards.restore(id, body.name));
+  }
+
+  @Post(':id/cache/purge')
+  @ApiOperation({
+    summary: '이 게시판 캐시 삭제',
+    description:
+      '게시판 목록 캐시와 이 게시판 글들의 상세 캐시를 함께 지운다. ' +
+      '게시판을 고치면 서버가 이미 지우므로 평소에는 부를 일이 없다.',
+  })
+  @ApiOkResponse({ type: CachePurgeResultDto })
+  async purgeCache(@Param('id', ParseIntPipe) id: number): Promise<CachePurgeResultDto> {
+    return new CachePurgeResultDto(await this.boards.purgeCache(id));
   }
 
   @Delete(':id')
