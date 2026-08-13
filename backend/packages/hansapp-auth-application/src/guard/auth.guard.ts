@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
 import { TokenService } from '../token/token.service';
+import { SessionCache } from '../session-cache.service';
 import { ApiAccessService } from '../app/api-access.service';
 import type { ApiAccess } from '../app/api-access.service';
 import { AuthType } from './auth-type.enum';
@@ -27,12 +28,17 @@ type AuthedRequest = Request & { user?: AuthUser; apiAccess?: ApiAccess };
  * - 어느 방식도 통과 못 하면 401.
  *
  * refresh token 은 여기서 다루지 않는다 — /oauth/token 에서만 교환된다.
+ *
+ * **JWT 는 서명 검증만으로 끝나지 않는다.** 서명이 맞아도 그 세션이 아직 살아 있는지를
+ * 한 번 더 본다(SessionCache). 그러지 않으면 관리자가 기기를 끊어도 access token 이
+ * 만료될 때까지(기본 1시간) 그대로 통한다 — 캐시를 사이에 둬서 DB 는 거의 보지 않는다.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tokenService: TokenService,
+    private readonly sessions: SessionCache,
     private readonly apiAccess: ApiAccessService,
   ) {}
 
@@ -67,6 +73,13 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException('Authentication token is required.');
       }
       const payload = this.tokenService.verifyAccessToken(token);
+      /*
+        **끊긴 세션의 토큰인지 본다.** 서명은 폐기를 알지 못한다 — 관리자가 기기를 끊었거나
+        본인이 로그아웃했으면 여기서 막힌다. 캐시 히트가 대부분이라 비용은 메모리 조회다.
+      */
+      if (!(await this.sessions.isLive(payload.sid))) {
+        throw new UnauthorizedException('Session is no longer valid.');
+      }
       request.user = {
         userId: Number(payload.sub),
         role: payload.role,

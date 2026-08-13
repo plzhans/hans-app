@@ -95,10 +95,20 @@ export class TokenSessionRepository {
       .then(() => undefined);
   }
 
-  /** 회원의 모든 세션 삭제(탈퇴·전체 로그아웃). */
-  deleteAllByUser(userId: number): Promise<number> {
-    return this.prisma.userTokenSession
-      .deleteMany({ where: { userId } })
-      .then((r) => r.count);
+  /**
+   * 회원의 모든 세션 삭제(탈퇴·전체 로그아웃). **지운 세션 식별자를 돌려준다.**
+   *
+   * 건수만으로 끝내지 않는 이유는 캐시 때문이다 — 세션 캐시는 sid 로 키를 잡으므로,
+   * 무엇을 지웠는지 모르면 비울 키를 알 수 없다. 지운 뒤에는 행이 없어 되물을 수도 없다.
+   */
+  async deleteAllByUser(userId: number): Promise<string[]> {
+    const rows = await this.prisma.userTokenSession.findMany({
+      where: { userId },
+      select: { sessionId: true },
+    });
+    if (rows.length === 0) return [];
+
+    await this.prisma.userTokenSession.deleteMany({ where: { userId } });
+    return rows.map((row) => row.sessionId);
   }
 }

@@ -16,9 +16,11 @@ import {
   UserStatus,
 } from '@hansapp/admin-application';
 import type {
+  ProfileCacheState,
   UserAuthLogEntry,
   UserDetail,
   UserOAuthSummary,
+  UserSession,
   UserSummary,
 } from '@hansapp/admin-application';
 
@@ -143,6 +145,60 @@ export class UserAuthLogDto {
   }
 }
 
+/**
+ * 회원 정보 수정 요청. **보낸 항목만 바뀐다.**
+ *
+ * 지금 고칠 수 있는 것은 표시 이름뿐이다 — 이메일·인증 여부·등급을 왜 안 여는지는
+ * UserAdminService 주석에 적어 두었다.
+ */
+export class UpdateUserRequestDto {
+  @ApiPropertyOptional({
+    description: '표시 이름. 빈 문자열을 보내면 지운다.',
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  readonly name?: string;
+}
+
+/** 내 정보 캐시 상태. **글 캐시(PostCacheStateDto)와 같은 모양이다** — 콘솔이 같은 패널로 본다. */
+export class ProfileCacheStateDto {
+  @ApiProperty({ description: '캐시 키. 환경 접두어는 빠져 있다.' })
+  readonly key!: string;
+
+  @ApiProperty({ description: '지금 캐시에 들어 있나' })
+  readonly hit!: boolean;
+
+  @ApiProperty({ nullable: true, description: '만료 시각' })
+  readonly expiresAt!: string | null;
+
+  @ApiProperty({ nullable: true, description: '남은 시간(ms)' })
+  readonly remainingMs!: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: '캐시에 담긴 값 그대로. 없으면 null.',
+  })
+  readonly value!: unknown;
+
+  @ApiProperty({
+    description:
+      'Redis 처럼 프로세스 밖에서 공유되는 캐시인가. false 면 이 프로세스의 메모리라, ' +
+      '회원 API 가 다른 프로세스면 그쪽 캐시는 여기서 보이지도 지워지지도 않는다.',
+  })
+  readonly shared!: boolean;
+
+  constructor(state: ProfileCacheState) {
+    this.key = state.key;
+    this.hit = state.hit;
+    this.expiresAt = state.expiresAt?.toISOString() ?? null;
+    this.remainingMs = state.remainingMs;
+    this.value = state.value;
+    this.shared = state.shared;
+  }
+}
+
 /** 목록 조회 조건. */
 export class UserListQueryDto {
   @ApiPropertyOptional({ description: '페이지 번호(1부터)', default: 1 })
@@ -216,6 +272,52 @@ export class UserOAuthDto {
     this.provider = oauth.provider;
     this.email = oauth.email;
     this.connectedAt = oauth.connectedAt.toISOString();
+  }
+}
+
+/**
+ * 로그인해 둔 기기 한 줄.
+ *
+ * **세션 식별자를 담는다.** 관리자가 기기 한 대를 끊을 수 있어야 해서다 — 끊을 대상을
+ * 가리키는 값이 없으면 "전부 끊기" 밖에 못 한다.
+ *
+ * 이 값만으로는 로그인할 수 없다. refresh token 은 `sid + secret` 인데 secret 은 해시로만
+ * 저장되고 어디에도 나가지 않는다(token.service 의 rotateRefreshToken 참고).
+ */
+export class UserSessionDto {
+  @ApiProperty({ description: '세션 식별자. 이 기기를 끊을 때 쓴다.' })
+  readonly sessionId!: string;
+
+  @ApiPropertyOptional({ description: '접속 기기의 브라우저·운영체제 정보' })
+  readonly userAgent!: string | null;
+
+  @ApiPropertyOptional({ description: '접속 IP' })
+  readonly ip!: string | null;
+
+  @ApiProperty({
+    description: '"로그인 상태 유지" 를 켜고 만든 세션인지',
+  })
+  readonly persistent!: boolean;
+
+  @ApiProperty({ description: '이 기기에서 로그인한 시각(ISO 8601)' })
+  readonly createdAt!: string;
+
+  @ApiProperty({
+    description: '마지막 갱신 시각(ISO 8601). 사실상 최근 활동 시각이다.',
+  })
+  readonly updatedAt!: string;
+
+  @ApiProperty({ description: '만료 시각(ISO 8601)' })
+  readonly expiresAt!: string;
+
+  constructor(session: UserSession) {
+    this.sessionId = session.sessionId;
+    this.userAgent = session.userAgent;
+    this.ip = session.ip;
+    this.persistent = session.persistent;
+    this.createdAt = session.createdAt.toISOString();
+    this.updatedAt = session.updatedAt.toISOString();
+    this.expiresAt = session.expiresAt.toISOString();
   }
 }
 

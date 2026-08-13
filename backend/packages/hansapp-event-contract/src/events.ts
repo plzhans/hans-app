@@ -12,6 +12,10 @@
 export const DomainEvent = {
   /** 로그인이 성립했다(이메일·소셜·인가코드 교환 — 경로 불문). */
   AuthLogin: 'auth.login',
+  /** 로그인 세션이 폐기됐다(관리자 조치). 세션 캐시를 들고 있는 쪽이 비워야 한다. */
+  AuthSessionRevoked: 'auth.session.revoked',
+  /** 회원 정보가 다른 서비스에서 바뀌었다(관리자 조치). 내 정보 캐시를 비워야 한다. */
+  UserProfileUpdated: 'user.profile.updated',
 } as const;
 
 export type DomainEventName = (typeof DomainEvent)[keyof typeof DomainEvent];
@@ -23,7 +27,32 @@ export interface AuthLoginEvent {
   readonly sessionId: string;
 }
 
+/**
+ * 로그인 세션 폐기(관리자 조치).
+ *
+ * **끊은 세션을 열거해 담는다.** 받는 쪽이 캐시에서 지울 대상을 그대로 알아야 하는데,
+ * "이 회원의 세션이 지워졌다" 만 오면 어느 키를 지울지 다시 조회해야 한다 — 그 시점엔
+ * 행이 이미 없어 알아낼 방법도 없다.
+ */
+export interface AuthSessionRevokedEvent {
+  readonly userId: number;
+  /** 폐기된 세션들. 한 대만 끊었으면 한 개다. */
+  readonly sessionIds: readonly string[];
+}
+
+/**
+ * 회원 정보 변경(관리자 조치).
+ *
+ * **무엇이 바뀌었는지는 담지 않는다.** 받는 쪽이 하는 일은 캐시를 통째로 비우는 것이라
+ * 어느 필드인지 알 필요가 없고, 필드를 담기 시작하면 값이 늘 때마다 이 계약이 따라 커진다.
+ */
+export interface UserProfileUpdatedEvent {
+  readonly userId: number;
+}
+
 /** 이벤트 이름 → 그 내용. 발행·구독 양쪽의 타입이 이 표에서 나온다. */
 export interface DomainEventPayloads {
   [DomainEvent.AuthLogin]: AuthLoginEvent;
+  [DomainEvent.AuthSessionRevoked]: AuthSessionRevokedEvent;
+  [DomainEvent.UserProfileUpdated]: UserProfileUpdatedEvent;
 }

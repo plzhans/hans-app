@@ -19,6 +19,7 @@ import type { AuthConfig } from '../auth.config';
 import { AccessTokenPayload } from '../guard/auth-user';
 import { AuthCodeRepository } from '../repository/auth-code.repository';
 import { TokenSessionRepository } from '../repository/token-session.repository';
+import { SessionCache } from '../session-cache.service';
 import { JwtKeyService } from './jwt-key.service';
 
 /** refresh token 접두사 */
@@ -97,6 +98,7 @@ export class TokenService {
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly accessKeys: JwtKeyService,
     private readonly sessions: TokenSessionRepository,
+    private readonly sessionCache: SessionCache,
     private readonly authCodes: AuthCodeRepository,
   ) {
     this.authCodeTagKey = hmacSha256hex(config.jwtSecret, 'auth-code-tag-v1');
@@ -186,6 +188,7 @@ export class TokenService {
     }
     if (session.expiresAt.getTime() <= Date.now()) {
       await this.sessions.delete(session.sessionId);
+      await this.sessionCache.invalidate([session.sessionId]);
       throw new UnauthorizedException('Session expired. Please sign in again.');
     }
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
@@ -269,15 +272,20 @@ export class TokenService {
       return null;
     }
     await this.sessions.delete(session.sessionId);
+    await this.sessionCache.invalidate([session.sessionId]);
     return { sessionId: session.sessionId, userId: session.userId };
   }
 
-  revokeSession(sessionId: string): Promise<void> {
-    return this.sessions.delete(sessionId);
+  async revokeSession(sessionId: string): Promise<void> {
+    await this.sessions.delete(sessionId);
+    // 지운 뒤 캐시를 비운다. 안 비우면 그 토큰이 캐시 TTL 만큼 더 통한다.
+    await this.sessionCache.invalidate([sessionId]);
   }
 
-  revokeAllSessions(userId: number): Promise<number> {
-    return this.sessions.deleteAllByUser(userId);
+  async revokeAllSessions(userId: number): Promise<number> {
+    const removed = await this.sessions.deleteAllByUser(userId);
+    await this.sessionCache.invalidate(removed);
+    return removed.length;
   }
 
   // ---- 인가코드(릴레이) ----

@@ -32,6 +32,9 @@ import { LoginService } from './login.service';
 import { UserRepository } from './repository/user.repository';
 import { UserOAuthRepository } from './repository/user-oauth.repository';
 import { TokenSessionRepository } from './repository/token-session.repository';
+import { SessionCache } from './session-cache.service';
+import { ProfileCache } from './profile-cache.service';
+import type { MeProfile } from './profile-cache.service';
 import type { UserTokenSession } from '@hansapp/data';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
 import { AuthTokens, TokenService } from './token/token.service';
@@ -66,6 +69,8 @@ export class AuthService {
     private readonly oauths: UserOAuthRepository,
     private readonly mail: AuthEmailService,
     private readonly sessions: TokenSessionRepository,
+    private readonly sessionCache: SessionCache,
+    private readonly profileCache: ProfileCache,
     private readonly withdrawals: WithdrawalRepository,
     private readonly tokens: TokenService,
     private readonly log: AuthLogService,
@@ -231,7 +236,10 @@ export class AuthService {
       purgeAt,
     });
     await this.users.markWithdrawn(user.id, now);
-    await this.sessions.deleteAllByUser(user.id);
+    await this.profileCache.invalidate(user.id);
+    await this.sessionCache.invalidate(
+      await this.sessions.deleteAllByUser(user.id),
+    );
     // 소셜 연동 개인정보 제거(재로그인 시 신규 취급 → 30일 재가입 차단에 걸린다).
     await this.deleteAllOAuthLinks(user.id);
 
@@ -285,6 +293,8 @@ export class AuthService {
       user.id,
       await this.hashPassword(input.newPassword),
     );
+    // hasPassword 가 뒤집힐 수 있다(소셜 전용 계정이 비밀번호를 세운 경우).
+    await this.profileCache.invalidate(user.id);
     await this.log.record({
       userId: user.id,
       action: AuthLogAction.PASSWORD_CHANGE,
@@ -366,7 +376,10 @@ export class AuthService {
       user.id,
       await this.hashPassword(input.newPassword),
     );
-    await this.sessions.deleteAllByUser(user.id);
+    await this.profileCache.invalidate(user.id);
+    await this.sessionCache.invalidate(
+      await this.sessions.deleteAllByUser(user.id),
+    );
     await this.log.record({
       userId: user.id,
       action: AuthLogAction.PASSWORD_RESET,
@@ -377,6 +390,20 @@ export class AuthService {
   }
 
   /** 현재 로그인 사용자 프로필 조회. 비활성 계정은 거부한다. */
+  /**
+   * `/users/me` 가 돌려줄 것 전부. **캐시를 지난다.**
+   *
+   * getProfile 과 갈라 둔 이유는 담는 것이 다르기 때문이다 — 그쪽은 회원 엔티티(비밀번호
+   * 해시 포함)라 내부 로직이 쓰고, 이쪽은 밖으로 나가는 응답이라 캐싱해도 되는 값만 담는다.
+   */
+  async getMeProfile(userId: number): Promise<MeProfile> {
+    const profile = await this.profileCache.get(userId);
+    if (!profile || profile.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Invalid account.');
+    }
+    return profile;
+  }
+
   async getProfile(userId: number): Promise<User> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== 'ACTIVE') {
@@ -399,7 +426,9 @@ export class AuthService {
   async updateName(userId: number, name: string): Promise<User> {
     await this.getProfile(userId);
     const trimmed = name.trim();
-    return this.users.updateName(userId, trimmed || null);
+    const updated = await this.users.updateName(userId, trimmed || null);
+    await this.profileCache.invalidate(userId);
+    return updated;
   }
 
   /**
@@ -438,7 +467,9 @@ export class AuthService {
     if (Object.keys(data).length === 0) {
       return current;
     }
-    return this.users.updateLocale(userId, data);
+    const updated = await this.users.updateLocale(userId, data);
+    await this.profileCache.invalidate(userId);
+    return updated;
   }
 
   /**
@@ -460,6 +491,8 @@ export class AuthService {
     if (!removed) {
       throw new BadRequestException('Session not found.');
     }
+    // 지운 뒤 캐시를 비운다. 안 비우면 그 기기가 캐시 TTL 만큼 더 통한다.
+    await this.sessionCache.invalidate([sessionId]);
   }
 
   /**
@@ -475,13 +508,14 @@ export class AuthService {
    */
   async revokeAllSessions(userId: number, meta: RequestMeta): Promise<number> {
     const removed = await this.sessions.deleteAllByUser(userId);
+    await this.sessionCache.invalidate(removed);
     await this.log.record({
       userId,
       action: AuthLogAction.LOGOUT,
       result: AuthLogResult.SUCCESS,
       ...meta,
     });
-    return removed;
+    return removed.length;
   }
 
   // ---- 내부 헬퍼 ----

@@ -9,7 +9,9 @@ import ResetPassword from '@/features/auth/pages/ResetPassword';
 import Me from '@/features/auth/pages/Me';
 import Users from '@/features/users/pages/Users';
 import UserDetail from '@/features/users/pages/UserDetail';
+import UserSessions from '@/features/users/pages/UserSessions';
 import UserAuthLogs from '@/features/users/pages/UserAuthLogs';
+import UserCache from '@/features/users/pages/UserCache';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
 import MailSettings from '@/features/settings/pages/MailSettings';
@@ -117,8 +119,10 @@ export default function App() {
         <Routes>
           <Route path="/users" element={<Users />} />
           <Route path="/users/:id" element={<UserDetail />} />
-          {/* 회원 상세의 탭 하나. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          {/* 회원 상세의 탭들. URL 로 갈라 링크·새로고침이 살아 있게 한다. */}
+          <Route path="/users/:id/sessions" element={<UserSessions />} />
           <Route path="/users/:id/auth-logs" element={<UserAuthLogs />} />
+          <Route path="/users/:id/cache" element={<UserCache />} />
           <Route path="/apps" element={<Apps />} />
           <Route path="/apps/:id" element={<AppDetail />} />
           {/* 같은 화면이다. clientId 가 있으면 그 위에 모달이 뜬다. */}

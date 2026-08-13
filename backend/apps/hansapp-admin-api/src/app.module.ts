@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { SentryModule } from '@sentry/nestjs/setup';
 import type { ConfigSource } from '@hansapp/common';
 import { AdminApplicationModule } from '@hansapp/admin-application';
+import { EventPublisherModule } from '@hansapp/event-publisher';
 import {
   AdminAuthGuard,
   AdminAuthModule,
@@ -41,10 +42,15 @@ export class AppModule {
         // 인증. **AdminApplicationModule 과 별개 모듈이다** — 배치·CLI 는 이걸 가져가지 않는다.
         AdminAuthModule.forRoot(config),
         /*
-          **이벤트 모듈(EventPublisher/EventConsumer)을 넣지 않는다.**
-          큐가 하나라 두 프로세스가 동시에 소비하면 잡이 어느 쪽으로 갈지 정할 수 없다.
-          소비는 hansapp-api 가 한다.
+          **발행만 한다. 소비는 하지 않는다.**
+
+          큐가 하나라 두 프로세스가 동시에 소비하면 잡이 어느 쪽으로 갈지 정할 수 없다 —
+          소비는 hansapp-api 가 맡는다(EventConsumerModule 은 그쪽에만 있다).
+
+          발행은 사정이 다르다. 관리자가 세션을 끊으면 그 사실을 인증 계층이 알아야
+          캐시를 비운다 — 콘솔이 남의 캐시를 직접 건드리는 대신 이벤트로 알린다.
         */
+        EventPublisherModule.forRoot(config),
         ThrottlerModule.forRoot({
           throttlers: [{ ttl: 60_000, limit: 300 }],
           // 프록시 뒤에서 전부 한 IP 로 묶이지 않게 실제 클라 IP 로 버킷을 나눈다.

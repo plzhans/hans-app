@@ -8,7 +8,7 @@ import type {
 } from '@hansapp/data';
 
 import { UserReadRepository } from './user-read.repository';
-import type { UserListFilter } from './user-read.repository';
+import type { UserListFilter, UserSessionRow } from './user-read.repository';
 
 /** 목록 한 줄. **비밀번호 해시는 물론 존재 여부도 여기 담지 않는다.** */
 export interface UserSummary {
@@ -38,6 +38,9 @@ export interface UserDetail extends UserSummary {
   readonly activeSessionCount: number;
   readonly appCount: number;
 }
+
+/** 로그인해 둔 기기 한 줄. */
+export type UserSession = UserSessionRow;
 
 export interface UserListQuery extends UserListFilter {
   readonly page: number;
@@ -82,6 +85,11 @@ export class UserReadService {
       activeSessionCount: row.activeSessionCount,
       appCount: row.appCount,
     };
+  }
+
+  /** 이 회원이 로그인해 둔 기기들. 살아 있는 것만, 최근 활동 순. */
+  listSessions(userId: number): Promise<UserSession[]> {
+    return this.repo.listSessions(userId, new Date());
   }
 }
 

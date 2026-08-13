@@ -1,4 +1,5 @@
 import { apiFetch } from '@/shared/api/client';
+import type { CacheState } from '@/shared/components/CachePanel';
 
 /** 백엔드 UserStatus 와 같은 값. */
 export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN';
@@ -65,6 +66,65 @@ export function listUsers(params: UserListParams) {
 }
 
 export const getUser = (id: number) => apiFetch<UserDetail>(`/api/users/${id}`);
+
+/**
+ * 회원 정보 수정. **보낸 항목만 바뀐다.**
+ *
+ * 지금 고칠 수 있는 것은 표시 이름뿐이다 — 이메일은 로그인 식별자이고, 이메일 인증 여부는
+ * "우리가 확인했다" 는 기록이며, 등급은 앱 생성 한도를 바꾸는 값이라 서버가 열지 않았다.
+ */
+export const updateUser = (id: number, input: { name?: string }) =>
+  apiFetch<void>(`/api/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+
+/** 로그인해 둔 기기 한 줄. */
+export interface UserSession {
+  /** 이 기기를 끊을 때 쓴다. 이 값만으로는 로그인할 수 없다(secret 은 해시로만 저장된다). */
+  sessionId: string;
+  userAgent?: string | null;
+  ip?: string | null;
+  /** "로그인 상태 유지" 를 켜고 만든 세션인지. */
+  persistent: boolean;
+  createdAt: string;
+  /** 마지막 갱신 시각. 사실상 최근 활동 시각이다. */
+  updatedAt: string;
+  expiresAt: string;
+}
+
+/**
+ * `/users/me` 응답 캐시의 상태.
+ *
+ * **글 캐시(PostCacheState)와 같은 모양이다** — 콘솔이 같은 패널(CachePanel)로 보여 준다.
+ */
+export type ProfileCacheState = CacheState;
+
+export const getUserCacheState = (id: number) =>
+  apiFetch<ProfileCacheState>(`/api/users/${id}/cache`);
+
+/** Redis 를 지우고, 각 API 인스턴스가 자기 메모리 캐시를 비우도록 알린다. */
+export const purgeUserCache = (id: number) =>
+  apiFetch<void>(`/api/users/${id}/cache/purge`, { method: 'POST' });
+
+/** 회원 한 명이 로그인해 둔 기기들. 살아 있는 것만, 최근 활동 순. 페이지가 없다. */
+export const listUserSessions = (id: number) =>
+  apiFetch<UserSession[]>(`/api/users/${id}/sessions`);
+
+/**
+ * 기기 한 대를 끊는다.
+ *
+ * **바로 막히지는 않는다.** 서버가 세션 캐시를 갱신하기까지(기본 60초) 이미 발급된
+ * access token 은 통한다 — 화면 문구도 그렇게 적어야 한다.
+ */
+export const revokeUserSession = (id: number, sessionId: string) =>
+  apiFetch<void>(`/api/users/${id}/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+
+/** 이 회원의 모든 기기를 끊는다. 반영 시점은 개별 끊기와 같다. */
+export const revokeAllUserSessions = (id: number) =>
+  apiFetch<void>(`/api/users/${id}/sessions`, { method: 'DELETE' });
 
 /**
  * 인증 기록의 이벤트 종류. 백엔드 AuthLogAction 과 같은 값이다.

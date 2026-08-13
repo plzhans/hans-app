@@ -12,6 +12,8 @@ import { DataModule, SettingReadRepository } from '@hansapp/data';
 import {
   ACCESS_CACHE_CONFIG,
   AUTH_CONFIG,
+  PROFILE_CACHE_CONFIG,
+  SESSION_CACHE_CONFIG,
   buildAuthConfig,
 } from './auth.config';
 import {
@@ -42,6 +44,10 @@ import { UserConsentRepository } from './repository/user-consent.repository';
 import { ConsentService } from './consent.service';
 import { SessionTrimService } from './session-trim.service';
 import { SessionTrimHandler } from './session-trim.handler';
+import { SessionCache } from './session-cache.service';
+import { ProfileCache } from './profile-cache.service';
+import { ProfileCacheHandler } from './profile-cache.handler';
+import { SessionCacheHandler } from './session-cache.handler';
 import { TokenSessionRepository } from './repository/token-session.repository';
 import { AuthCodeRepository } from './repository/auth-code.repository';
 import { WithdrawalRepository } from './repository/withdrawal.repository';
@@ -124,6 +130,9 @@ export class AuthModule {
         AuthEmailService,
         // AccessCache 는 설정 전체가 아니라 캐시 TTL 조각만 받는다.
         { provide: ACCESS_CACHE_CONFIG, useValue: config.accessCache },
+        // 세션 캐시도 같은 규칙으로 자기 조각만 받는다.
+        { provide: SESSION_CACHE_CONFIG, useValue: config.sessionCache },
+        { provide: PROFILE_CACHE_CONFIG, useValue: config.profileCache },
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         UserRepository,
         UserOAuthRepository,
@@ -143,6 +152,12 @@ export class AuthModule {
         // 로그인 이벤트 처리기. 이 모듈을 등록한 프로세스가 소비자가 된다
         // (EventConsumerModule 도 함께 등록해야 실제로 워커가 뜬다).
         SessionTrimHandler,
+        // 세션 캐시(가드가 요청마다 본다) + 폐기 이벤트로 자기 메모리를 비우는 처리기.
+        SessionCache,
+        SessionCacheHandler,
+        // /users/me 응답 캐시. 공개 API 라 호출 빈도를 우리가 정하지 못한다.
+        ProfileCache,
+        ProfileCacheHandler,
         OAuthTokenService,
         AuthGuard,
         FirstPartyGuard,
@@ -173,6 +188,8 @@ export class AuthModule {
         // providers 에만 있으면 이 모듈 안에서만 보인다.
         ConsentService,
         SessionTrimService,
+        SessionCache,
+        ProfileCache,
         OAuthTokenService,
         AuthLogService,
         AuthGuard,

@@ -77,22 +77,24 @@ export class UserController {
   })
   @ApiOkResponse({ type: MeResponseDto })
   async me(@CurrentUser() user: AuthUser): Promise<MeResponseDto> {
-    const [u, linked] = await Promise.all([
-      this.authService.getProfile(user.userId),
-      this.socialService.listLinked(user.userId),
-    ]);
+    /*
+      **조립은 응용 계층이 한다.** 예전에는 여기서 회원 조회와 소셜 연동 조회를 각각 부른
+      뒤 합쳤는데, 그러면 이 응답을 이루는 값이 무엇인지가 컨트롤러에만 있게 된다 —
+      캐시를 붙이는 순간 무효화할 자리를 그 목록에서 찾아야 하므로 한 곳에 모았다.
+    */
+    const profile = await this.authService.getMeProfile(user.userId);
     return {
-      id: u.id,
-      email: u.email,
-      emailVerified: u.emailVerified,
-      name: u.name,
-      role: u.role,
-      joinType: u.joinType,
-      language: u.language,
-      timeZone: u.timeZone,
-      hasPassword: !!u.password,
-      createdAt: u.createdAt.toISOString(),
-      linkedProviders: linked,
+      id: profile.id,
+      email: profile.email,
+      emailVerified: profile.emailVerified,
+      name: profile.name,
+      role: profile.role,
+      joinType: profile.joinType,
+      language: profile.language,
+      timeZone: profile.timeZone,
+      hasPassword: profile.hasPassword,
+      createdAt: profile.createdAt,
+      linkedProviders: profile.linkedProviders,
     };
   }
 

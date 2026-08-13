@@ -3,4 +3,6 @@ export type {
   DomainEventName,
   DomainEventPayloads,
   AuthLoginEvent,
+  AuthSessionRevokedEvent,
+  UserProfileUpdatedEvent,
 } from './events';

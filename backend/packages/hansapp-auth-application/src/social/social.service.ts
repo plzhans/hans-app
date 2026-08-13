@@ -22,6 +22,7 @@ import { AuthLogService } from '../log/auth-log.service';
 import { LoginService } from '../login.service';
 import { UserRepository } from '../repository/user.repository';
 import { UserOAuthRepository } from '../repository/user-oauth.repository';
+import { ProfileCache } from '../profile-cache.service';
 import { WithdrawalRepository } from '../repository/withdrawal.repository';
 import { AuthTokens, TokenService } from '../token/token.service';
 import { EmailVerificationService } from '../mail/email-verification.service';
@@ -86,6 +87,7 @@ export class SocialService {
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly users: UserRepository,
     private readonly oauths: UserOAuthRepository,
+    private readonly profileCache: ProfileCache,
     private readonly withdrawals: WithdrawalRepository,
     private readonly authService: AuthService,
     private readonly tokens: TokenService,
@@ -188,6 +190,8 @@ export class SocialService {
             providerId: profile.providerId,
             email: profile.email,
           });
+          // linkedProviders 가 바뀐다 — /users/me 응답을 이루는 값이다.
+          await this.profileCache.invalidate(active.id);
           await this.log.record({
             userId: active.id,
             action: AuthLogAction.OAUTH_LINK,
@@ -454,6 +458,7 @@ export class SocialService {
       );
     }
     await this.oauths.delete(userId, provider);
+    await this.profileCache.invalidate(userId);
     await this.log.record({
       userId,
       action: AuthLogAction.OAUTH_UNLINK,
@@ -492,6 +497,7 @@ export class SocialService {
       providerId: profile.providerId,
       email: profile.email,
     });
+    await this.profileCache.invalidate(userId);
     await this.log.record({
       userId,
       action: AuthLogAction.OAUTH_LINK,

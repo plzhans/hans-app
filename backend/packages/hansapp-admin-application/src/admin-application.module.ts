@@ -52,6 +52,11 @@ import { LlmUsageLogService } from './log/llm-usage-log.service';
 import { UserAuthLogRepository } from './user/user-auth-log.repository';
 import { UserAuthLogService } from './user/user-auth-log.service';
 import { UserReadRepository } from './user/user-read.repository';
+import { UserAdminRepository } from './user/user-admin.repository';
+import { UserAdminService } from './user/user-admin.service';
+import { UserProfileCacheAdmin } from './user/user-profile-cache.admin';
+import { UserSessionAdminRepository } from './user/user-session-admin.repository';
+import { UserSessionAdminService } from './user/user-session-admin.service';
 import { UserReadService } from './user/user-read.service';
 import { HiraNmcMatchRepository } from './match/hira-nmc-match.repository';
 import { HospitalI18nExportRepository } from './i18n/hospital-i18n-export.repository';
@@ -193,6 +198,8 @@ export class AdminApplicationModule {
         NmcSubjectSyncRepository,
         SyncStateRepository,
         UserReadRepository,
+        UserAdminRepository,
+        UserSessionAdminRepository,
         UserAuthLogRepository,
         LlmUsageLogRepository,
         AuthLogRepository,
@@ -263,6 +270,9 @@ export class AdminApplicationModule {
         HiraCodeReadService,
         SyncStateService,
         UserReadService,
+        UserAdminService,
+        UserProfileCacheAdmin,
+        UserSessionAdminService,
         UserAuthLogService,
         LlmUsageLogService,
         AuthLogService,
@@ -323,6 +333,9 @@ export class AdminApplicationModule {
         */
         ApplicationModule,
         UserReadService,
+        UserAdminService,
+        UserProfileCacheAdmin,
+        UserSessionAdminService,
         UserAuthLogService,
         LlmUsageLogService,
         AuthLogService,

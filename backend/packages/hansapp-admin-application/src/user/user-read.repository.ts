@@ -20,6 +20,26 @@ export interface UserDetailRow {
 }
 
 /**
+ * 살아 있는 로그인 세션 한 줄.
+ *
+ * **secret 해시는 담지 않는다.** 식별자(sessionId)는 끊을 대상을 가리키는 데 쓰이지만,
+ * 그것만으로는 로그인할 수 없다 — refresh token 은 `sid + secret` 이고 secret 은 해시로만
+ * 저장된다. 해시가 새면 그 대조를 통과시킬 수 있으니 그쪽은 계속 담지 않는다.
+ */
+export interface UserSessionRow {
+  readonly sessionId: string;
+  readonly userAgent: string | null;
+  readonly ip: string | null;
+  /** "로그인 상태 유지" 를 켜고 만든 세션인가. */
+  readonly persistent: boolean;
+  readonly expiresAt: Date;
+  /** 이 기기에서 로그인한 시각. */
+  readonly createdAt: Date;
+  /** 마지막 갱신(rotate) 시각. 사실상 최근 활동 시각이다. */
+  readonly updatedAt: Date;
+}
+
+/**
  * 관리자용 회원 조회 저장소.
  *
  * **읽기 전용이다.** 회원 데이터를 고치는 것은 회원 본인의 통로(hansapp-api)가 하고, 여기서는
@@ -85,8 +105,8 @@ export class UserReadRepository {
   /**
    * 상세. 회원 한 명에 딸린 것들을 같이 센다.
    *
-   * 세션·앱은 목록을 내려주지 않고 **개수만** 센다 — 상세 화면이 보여줄 것은 "이 계정이
-   * 활동 중인가" 이지 세션 하나하나가 아니고, 세션 식별자는 굳이 화면에 흘릴 값이 아니다.
+   * 세션·앱은 여기서 **개수만** 센다 — 개요가 답할 것은 "이 계정이 활동 중인가" 다.
+   * 기기 하나하나는 세션 탭(`listSessions`)이 맡는다.
    */
   async findDetail(id: number, now: Date): Promise<UserDetailRow | null> {
     const user = await this.prisma.user.findUnique({ where: { id } });
@@ -105,6 +125,31 @@ export class UserReadRepository {
       ]);
 
     return { user, oauths, activeSessionCount, appCount };
+  }
+
+  /**
+   * 이 회원이 로그인해 둔 기기 목록. 최근 활동 순.
+   *
+   * **만료된 것은 뺀다.** 만료 행은 정리 배치가 치울 때까지 DB 에 남아 있을 뿐이라,
+   * 그대로 보여 주면 개요의 세션 수와 줄 수가 어긋난다(그쪽도 같은 조건으로 센다).
+   *
+   * 페이지를 나누지 않는다 — 세션은 계정마다 상한이 있어 몇 줄로 끝난다.
+   */
+  listSessions(userId: number, now: Date): Promise<UserSessionRow[]> {
+    return this.prisma.userTokenSession.findMany({
+      where: { userId, expiresAt: { gt: now } },
+      orderBy: { updatedAt: 'desc' },
+      // **고를 것만 고른다.** 엔티티를 통째로 실으면 secretHash 가 따라 올라온다.
+      select: {
+        sessionId: true,
+        userAgent: true,
+        ip: true,
+        persistent: true,
+        expiresAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   }
 }
 

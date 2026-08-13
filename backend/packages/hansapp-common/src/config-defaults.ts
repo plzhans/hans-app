@@ -37,6 +37,31 @@ export const CONFIG_DEFAULTS = {
   'auth.bcryptRounds': 10,
   'auth.withdrawalRetentionDays': 30,
   'auth.maxSessionsPerUser': 10,
+  /*
+    로그인 세션 캐시. **API 접근 캐시(cache.*)와 따로 둔다** — 그쪽은 서비스 키·클라이언트라
+    몇 분 늦어도 그만이지만, 이쪽은 관리자가 세션을 끊었을 때 반영이 늦는 시간이다.
+    두 단(메모리·Redis)을 같은 값으로 둬서, 이벤트가 유실돼도 지연이 이 값을 넘지 않는다.
+  */
+  'auth.sessionCache.memoryTtlSec': 60,
+  'auth.sessionCache.sharedTtlSec': 60,
+  /*
+    `/users/me` 응답 캐시. **공개 API 라 호출 빈도를 우리가 정하지 못한다** — 연동한 앱이
+    요청마다 부를 수도 있어서, 매번 DB 를 묻지 않으려고 두는 캐시다.
+
+    **두 단의 값이 다른 이유가 있다.**
+
+    Redis 는 길게(10분) 잡는다. 값이 바뀌는 경로가 전부 이 키를 직접 지우므로, TTL 이
+    실제로 쓰이는 때는 그중 하나를 빠뜨렸을 때뿐이다 — 정상 동작의 신선도가 아니라
+    "코드가 틀렸을 때 얼마나 빨리 낫나" 다. 짧게 잡으면 아끼려던 DB 조회를 그 주기로
+    도로 하게 된다.
+
+    메모리는 짧게(1분) 잡는다. 이쪽은 사정이 다르다 — 다른 서비스(관리자 콘솔)가 고쳤을 때
+    각 인스턴스가 자기 메모리를 비우는 통로가 이벤트인데, 지금 전달이 작업 큐라 한 대만
+    받는다. 나머지가 옛 값을 내는 시간이 이 값이다. 소비를 컨슈머 그룹으로 바꾸면 이
+    제약이 사라지고, 그때는 이 값도 늘릴 수 있다.
+  */
+  'auth.profileCache.memoryTtlSec': 60,
+  'auth.profileCache.sharedTtlSec': 600,
   'auth.jwt.accessTokenExpiresIn': '1h',
   'auth.jwt.refreshTokenExpiresIn': '7d',
   'auth.jwt.authCodeExpiresIn': '5m',
