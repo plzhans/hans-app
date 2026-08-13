@@ -14,10 +14,10 @@ import { Modal } from '@/shared/ui/Modal';
 import { SelectField } from '@/shared/ui/SelectField';
 import { TextField } from '@/shared/ui/TextField';
 import {
+  CheckboxField,
   MAIL_FAIL_MESSAGE,
   PasswordFields,
   SecretBox,
-  SendEmailCheckbox,
   passwordReady,
 } from './PasswordFields';
 
@@ -109,10 +109,14 @@ export function AdminCreateModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal size="md" title="관리자 추가" onClose={onClose}>
+      {/*
+        **칸마다 설명을 달지 않는다.** 이메일·이름·등급은 이름만 보고 아는 값이라, 한 줄씩
+        붙이면 창이 화면을 넘겨 저장 버튼이 스크롤 아래로 간다(수정 창과 같은 규칙).
+      */}
       <div className="space-y-4">
         <TextField
+          inline
           label="이메일"
-          hint="로그인 식별자입니다."
           type="email"
           autoComplete="off"
           placeholder="admin@example.com"
@@ -121,20 +125,18 @@ export function AdminCreateModal({ onClose }: { onClose: () => void }) {
         />
 
         <TextField
+          inline
           label="이름"
-          hint="목록에서 사람을 알아보기 위한 표시 이름입니다. 비워도 됩니다."
           autoComplete="off"
+          // 비워도 된다는 사실은 placeholder 로 충분하다.
           placeholder="홍길동"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
 
         <SelectField
+          inline
           label="등급"
-          hint={
-            roles.find((item) => item.value === role)?.description ??
-            '자기보다 높은 등급은 만들 수 없습니다.'
-          }
           options={roles.map((item) => ({
             value: item.value,
             label: item.label,
@@ -151,12 +153,13 @@ export function AdminCreateModal({ onClose }: { onClose: () => void }) {
           onConfirm={setConfirm}
         />
 
-        <SendEmailCheckbox
-          label="새로 생성한 사용자에게 이메일 보내기"
-          checked={sendEmail}
-          onChange={setSendEmail}
-          hint="이메일 주소와 위 비밀번호를 함께 보냅니다. 메일 설정(설정 > 메일)이 켜져 있어야 나갑니다."
-        />
+        <div className="border-t border-gray-100 pt-3">
+          <CheckboxField
+            label="사용자에게 알림 이메일 보내기"
+            checked={sendEmail}
+            onChange={setSendEmail}
+          />
+        </div>
       </div>
 
       {submit.error != null && (

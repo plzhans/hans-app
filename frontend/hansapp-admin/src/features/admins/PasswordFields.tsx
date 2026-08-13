@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Check, Copy, Shuffle } from 'lucide-react';
+import { Check, Copy, Dices } from 'lucide-react';
 
 import { writeClipboard } from '@/shared/lib/clipboard';
-import { Button } from '@/shared/ui/Button';
-import { TextField } from '@/shared/ui/TextField';
+import { INLINE_GRID, TextField } from '@/shared/ui/TextField';
 
 /** 서버(AdminAccountCreateRequestDto)와 같은 값. 여기서 먼저 막아 왕복을 아낀다. */
 export const PASSWORD_MIN_LENGTH = 10;
@@ -63,12 +62,26 @@ export function PasswordFields({
   const tooShort = password.length > 0 && password.length < PASSWORD_MIN_LENGTH;
   const mismatch = confirm.length > 0 && confirm !== password;
 
+  const generate = () => {
+    const generated = randomPassword();
+    onPassword(generated);
+    // 확인칸도 함께 채운다 — 눈으로 옮겨 적게 하면 그 자리에서 오타가 난다.
+    onConfirm(generated);
+    // 만들자마자 보여 준다. 만든 값을 확인하려고 매번 눈 버튼을 누르게 할 이유가 없다.
+    setVisible(true);
+  };
+
+  /*
+    **라벨을 왼쪽에 세운다**(다른 칸들과 같은 격자를 쓴다). 두 칸이 위아래로 쌓이면
+    비밀번호만으로 창의 절반을 먹는다.
+
+    첫 칸은 격자를 직접 그린다 — 오른쪽에 생성 버튼이 따라붙어야 해서 TextField 의
+    `inline` 으로는 담을 수 없다.
+  */
   return (
     <>
-      <div>
-        <span className="mb-1 block text-sm font-medium text-gray-700">
-          {label}
-        </span>
+      <div className={INLINE_GRID}>
+        <span className="text-sm font-medium text-gray-700">{label}</span>
         <div className="flex items-start gap-2">
           {/* TextField 는 label 로 감싸져 있어 그대로 두면 flex 안에서 내용 너비가 된다. */}
           <div className="min-w-0 flex-1">
@@ -90,32 +103,25 @@ export function PasswordFields({
               }
             />
           </div>
-          <Button
+          {/*
+            **아이콘만 둔다.** 주사위는 설명 없이도 "아무 값이나 뽑는다" 로 읽히고, 글자를
+            붙이면 그 버튼이 입력칸만큼 넓어져 정작 값이 보이는 자리를 좁힌다.
+            무엇인지는 마우스를 올리면 나오고, 화면 낭독기는 aria-label 을 읽는다.
+          */}
+          <button
             type="button"
-            variant="outline"
-            className="w-auto shrink-0 px-3"
-            onClick={() => {
-              const generated = randomPassword();
-              onPassword(generated);
-              // 확인칸도 함께 채운다 — 눈으로 옮겨 적게 하면 그 자리에서 오타가 난다.
-              onConfirm(generated);
-              // 만들자마자 보여 준다. 만든 값을 확인하려고 매번 눈 버튼을 누르게 할 이유가 없다.
-              setVisible(true);
-            }}
+            onClick={generate}
+            title="임의 패스워드 생성"
+            aria-label="임의 패스워드 생성"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-gray-300 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
           >
-            <Shuffle className="h-4 w-4" />
-            임의 패스워드 생성
-          </Button>
+            <Dices className="h-4 w-4" />
+          </button>
         </div>
-        <p className="mt-1 text-xs text-gray-400">
-          {PASSWORD_MIN_LENGTH}자 이상. 본인이 첫 로그인에서 다시 바꿉니다.
-        </p>
       </div>
 
-      <div>
-        <span className="mb-1 block text-sm font-medium text-gray-700">
-          패스워드 확인
-        </span>
+      <div className={INLINE_GRID}>
+        <span className="text-sm font-medium text-gray-700">패스워드 확인</span>
         <TextField
           className="font-mono"
           type="password"
@@ -185,8 +191,13 @@ export const MAIL_FAIL_MESSAGE: Record<string, string> = {
   SEND_FAILED: '메일 서버가 발송을 거절했습니다.',
 };
 
-/** 메일을 보내겠다는 체크박스. 계정 생성과 비밀번호 초기화가 같은 모양을 쓴다. */
-export function SendEmailCheckbox({
+/**
+ * 켜고 끄는 한 줄. **비밀번호 창들이 같은 모양으로 묻는다**(세션 끊기·변경 강제·메일 발송).
+ *
+ * **설명은 선택이다.** 문장으로 풀어야 아는 항목에만 붙인다 — 줄마다 한 줄씩 달면 창이
+ * 길어져 정작 읽어야 할 것이 묻힌다.
+ */
+export function CheckboxField({
   label,
   checked,
   onChange,
@@ -195,20 +206,21 @@ export function SendEmailCheckbox({
   label: string;
   checked: boolean;
   onChange: (value: boolean) => void;
-  hint: string;
+  hint?: string;
 }) {
   return (
-    <div className="border-t border-gray-100 pt-3">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary-100"
-        />
+    <label className="flex items-start gap-2 text-sm text-gray-700">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        // 글줄 첫 줄에 맞춰 앉힌다. 설명이 붙으면 아래로 늘어나기 때문이다.
+        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary-100"
+      />
+      <span className="min-w-0">
         {label}
-      </label>
-      <p className="mt-1 text-xs text-gray-400">{hint}</p>
-    </div>
+        {hint && <span className="mt-0.5 block text-xs text-gray-400">{hint}</span>}
+      </span>
+    </label>
   );
 }

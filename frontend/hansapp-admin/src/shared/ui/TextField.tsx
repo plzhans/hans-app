@@ -22,7 +22,21 @@ interface Props extends InputHTMLAttributes<HTMLInputElement> {
    */
   revealed?: boolean;
   onRevealedChange?: (revealed: boolean) => void;
+  /**
+   * 라벨을 위가 아니라 **왼쪽**에 둔다(설명은 칸 아래로 내려간다).
+   *
+   * 칸이 예닐곱 개 넘게 서는 자리에서 쓴다 — 라벨·설명·칸이 층층이 쌓이면 모달이 화면을
+   * 넘겨 스크롤해야 저장 버튼이 나온다. 좁은 화면(sm 미만)에서는 어차피 자리가 없어
+   * 원래대로 위아래로 돌아간다.
+   */
+  inline?: boolean;
 }
+
+/** 라벨을 왼쪽에 세울 때 쓰는 격자. 라벨 폭을 한 곳에서 정해 여러 칸이 같은 선에 선다. */
+export const INLINE_GRID = 'grid items-center gap-x-4 sm:grid-cols-[7rem_minmax(0,1fr)]';
+
+/** 라벨 아래 칸(설명·오류)이 라벨 칸을 침범하지 않게 둘째 열에 붙인다. */
+export const INLINE_SUB = 'mt-1 sm:col-start-2';
 
 /**
  * 라벨·힌트·오류를 묶은 입력.
@@ -40,6 +54,7 @@ export const TextField = forwardRef<HTMLInputElement, Props>(
       revealable,
       revealed,
       onRevealedChange,
+      inline,
       ...rest
     },
     ref,
@@ -64,13 +79,21 @@ export const TextField = forwardRef<HTMLInputElement, Props>(
         : undefined;
 
     return (
-      <label className="block">
+      <label className={cn('block', inline && INLINE_GRID)}>
         {label && (
-          <span className="mb-1 block text-sm font-medium text-gray-700">
+          <span
+            className={cn(
+              'text-sm font-medium text-gray-700',
+              !inline && 'mb-1 block',
+            )}
+          >
             {label}
           </span>
         )}
-        {hint && <p className="mb-1 -mt-0.5 text-xs text-gray-400">{hint}</p>}
+        {/* 위아래 배치일 때만 설명이 칸 앞에 선다. 옆에 세우면 라벨 칸이 좁아 읽히지 않는다. */}
+        {!inline && hint && (
+          <p className="mb-1 -mt-0.5 text-xs text-gray-400">{hint}</p>
+        )}
         <div className="relative">
           <input
             ref={ref}
@@ -106,8 +129,18 @@ export const TextField = forwardRef<HTMLInputElement, Props>(
             </button>
           )}
         </div>
+        {inline && hint && (
+          <p className={cn('text-xs text-gray-400', INLINE_SUB)}>{hint}</p>
+        )}
         {error && (
-          <span className="mt-1 block text-xs text-red-500">{error}</span>
+          <span
+            className={cn(
+              'block text-xs text-red-500',
+              inline ? INLINE_SUB : 'mt-1',
+            )}
+          >
+            {error}
+          </span>
         )}
       </label>
     );

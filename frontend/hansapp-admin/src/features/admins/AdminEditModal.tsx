@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -9,7 +9,14 @@ import {
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { assignableRoles } from '@/shared/lib/adminRoles';
+import {
+  LANGUAGE_OPTIONS,
+  formatTimeZoneLabel,
+  timeZoneDisplayName,
+  timeZoneOptions,
+} from '@/shared/lib/timeZone';
 import { Button } from '@/shared/ui/Button';
+import { ComboBox } from '@/shared/ui/ComboBox';
 import { Modal } from '@/shared/ui/Modal';
 import { SelectField } from '@/shared/ui/SelectField';
 import { TextField } from '@/shared/ui/TextField';
@@ -39,6 +46,8 @@ export function AdminEditModal({
   const [email, setEmail] = useState(admin.email);
   const [name, setName] = useState(admin.name ?? '');
   const [role, setRole] = useState<AdminRole>(admin.role);
+  const [language, setLanguage] = useState(admin.language);
+  const [timeZone, setTimeZone] = useState(admin.timeZone);
 
   /*
     **지금 등급도 목록에 남긴다.** 내가 내줄 수 없는 등급이어도 그렇다 — 여기 오는 것은
@@ -53,10 +62,35 @@ export function AdminEditModal({
         { value: admin.role, label: admin.role, description: '' },
       ];
 
+  /*
+    **고른 시간대가 목록에 없으면 앞에 끼워 넣는다.** `Intl.supportedValuesOf` 가 없는
+    브라우저는 지금 쓰는 존 하나만 주는데, 그 상태로 다른 값이 든 계정을 열면 선택이 빈칸이
+    되고 저장하는 순간 엉뚱한 값으로 덮인다(내정보 화면과 같은 처리).
+  */
+  const zoneOptions = useMemo(() => {
+    const known = timeZoneOptions();
+    if (known.some((option) => option.value === timeZone)) return known;
+    return [
+      {
+        value: timeZone,
+        label: formatTimeZoneLabel(timeZone),
+        description: timeZoneDisplayName(timeZone),
+      },
+      ...known,
+    ];
+  }, [timeZone]);
+
   const emailChanged = email.trim().toLowerCase() !== admin.email;
   const nameChanged = name.trim() !== (admin.name ?? '');
   const roleChanged = role !== admin.role;
-  const changed = emailChanged || nameChanged || roleChanged;
+  const languageChanged = language !== admin.language;
+  const timeZoneChanged = timeZone !== admin.timeZone;
+  const changed =
+    emailChanged ||
+    nameChanged ||
+    roleChanged ||
+    languageChanged ||
+    timeZoneChanged;
 
   const save = useMutation({
     mutationFn: () =>
@@ -64,6 +98,8 @@ export function AdminEditModal({
         ...(emailChanged ? { email: email.trim() } : {}),
         ...(nameChanged ? { name: name.trim() } : {}),
         ...(roleChanged ? { role } : {}),
+        ...(languageChanged ? { language } : {}),
+        ...(timeZoneChanged ? { timeZone } : {}),
       }),
     onSuccess: async (updated) => {
       // 응답이 갱신된 상세다 — 다시 받아오지 않고 그대로 캐시에 꽂는다.
@@ -83,10 +119,15 @@ export function AdminEditModal({
 
   return (
     <Modal size="md" title="관리자 수정" onClose={onClose}>
+      {/*
+        **칸마다 설명을 달지 않는다.** 이메일·이름·등급·언어·시간대는 이름만 보고 아는
+        값이라, 한 줄씩 붙이면 여섯 칸짜리 창이 화면을 넘겨 저장 버튼이 스크롤 아래로 간다.
+        적어 두는 것은 **바꿨을 때 벌어지는 일**뿐이고, 그것도 실제로 바꾼 순간에만 뜬다.
+      */}
       <div className="space-y-4">
         <TextField
+          inline
           label="이메일"
-          hint="로그인 식별자입니다. 바꾸면 옛 주소로는 로그인할 수 없습니다."
           type="email"
           autoComplete="off"
           value={email}
@@ -106,20 +147,18 @@ export function AdminEditModal({
         )}
 
         <TextField
+          inline
           label="이름"
-          hint="목록에서 사람을 알아보기 위한 표시 이름입니다. 비우면 지워집니다."
           autoComplete="off"
+          // 비우면 지워진다는 사실은 placeholder 로 충분하다.
           placeholder="홍길동"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
 
         <SelectField
+          inline
           label="등급"
-          hint={
-            roleOptions.find((item) => item.value === role)?.description ||
-            '자기보다 높은 등급으로는 바꿀 수 없습니다.'
-          }
           options={roleOptions.map((item) => ({
             value: item.value,
             label: item.label,
@@ -137,11 +176,26 @@ export function AdminEditModal({
           </p>
         )}
 
-        {/* 여기서 못 고치는 값들. 어디로 가야 하는지 적어 두지 않으면 이 창을 다시 연다. */}
-        <p className="border-t border-gray-100 pt-3 text-xs text-gray-400">
-          언어·시간대는 본인만 바꿀 수 있습니다(내정보). 비밀번호는 상세의 초기화로
-          다시 냅니다.
-        </p>
+        {/*
+          **표시 설정도 여기서 고친다.** 본인 화면(내정보)에도 같은 칸이 있지만, 본인이
+          콘솔에 못 들어오는 동안에는 아무도 손댈 수 없는 값이 된다 — 시간대를 잘못 골라
+          모든 시각이 어긋나 보이는 상태가 그렇다.
+        */}
+        <ComboBox
+          inline
+          label="시간대"
+          options={zoneOptions}
+          value={timeZone}
+          onChange={setTimeZone}
+        />
+
+        <SelectField
+          inline
+          label="언어"
+          options={LANGUAGE_OPTIONS}
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+        />
       </div>
 
       {save.error != null && (
