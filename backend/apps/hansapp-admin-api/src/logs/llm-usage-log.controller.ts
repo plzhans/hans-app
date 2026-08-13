@@ -43,9 +43,6 @@ export class LlmUsageLogController {
       appId: query.appId,
       userId: query.userId,
     });
-    return new PageResponseDto(
-      page,
-      page.items.map((entry) => new LlmUsageLogDto(entry)),
-    );
+    return PageResponseDto.from(page.map((entry) => new LlmUsageLogDto(entry)));
   }
 }

@@ -24,6 +24,17 @@ export class PageResponseDto<T> {
   @ApiProperty({ description: '전체 페이지 수' })
   readonly totalPages: number;
 
+  /**
+   * 이미 DTO 로 바꾼 페이지를 응답으로. **인자가 하나다.**
+   *
+   * 변환은 페이지 쪽에서 끝내고 온다 — `page.map((post) => new PostDto(post))`.
+   * 생성자처럼 페이지와 항목을 따로 받으면 한쪽에 다른 페이지를 넘겨도 타입이 맞아,
+   * 총 개수는 A 페이지이고 항목은 B 페이지인 응답이 나갈 수 있다.
+   */
+  static from<T>(page: Page<T>): PageResponseDto<T> {
+    return new PageResponseDto<T>(page, page.items);
+  }
+
   constructor(page: Page<unknown>, items: T[]) {
     this.items = items;
     this.page = page.page;

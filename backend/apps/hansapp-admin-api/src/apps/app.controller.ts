@@ -53,10 +53,7 @@ export class AppController {
     @Query() query: AppListQueryDto,
   ): Promise<PageResponseDto<AppSummaryDto>> {
     const page = await this.apps.list(query);
-    return new PageResponseDto(
-      page,
-      page.items.map((app) => new AppSummaryDto(app)),
-    );
+    return PageResponseDto.from(page.map((app) => new AppSummaryDto(app)));
   }
 
   @Get(':id')

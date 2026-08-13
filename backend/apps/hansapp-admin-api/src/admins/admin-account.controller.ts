@@ -234,9 +234,8 @@ export class AdminAccountController {
       to: query.to ? new Date(query.to) : undefined,
       actions: query.actions,
     });
-    return new PageResponseDto(
-      page,
-      page.items.map((entry) => new AdminActionLogDto(entry)),
+    return PageResponseDto.from(
+      page.map((entry) => new AdminActionLogDto(entry)),
     );
   }
 }

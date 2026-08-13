@@ -41,9 +41,6 @@ export class AuthLogController {
       userEmail: query.userEmail,
       anonymousOnly: query.anonymousOnly,
     });
-    return new PageResponseDto(
-      page,
-      page.items.map((entry) => new AuthLogDto(entry)),
-    );
+    return PageResponseDto.from(page.map((entry) => new AuthLogDto(entry)));
   }
 }

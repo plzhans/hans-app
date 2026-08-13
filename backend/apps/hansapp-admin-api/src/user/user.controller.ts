@@ -62,10 +62,7 @@ export class UserController {
     @Query() query: UserListQueryDto,
   ): Promise<PageResponseDto<UserSummaryDto>> {
     const page = await this.users.list(query);
-    return new PageResponseDto(
-      page,
-      page.items.map((user) => new UserSummaryDto(user)),
-    );
+    return PageResponseDto.from(page.map((user) => new UserSummaryDto(user)));
   }
 
   @Get(':id')
@@ -224,9 +221,6 @@ export class UserController {
       to: query.to ? new Date(query.to) : undefined,
       actions: query.actions,
     });
-    return new PageResponseDto(
-      page,
-      page.items.map((entry) => new UserAuthLogDto(entry)),
-    );
+    return PageResponseDto.from(page.map((entry) => new UserAuthLogDto(entry)));
   }
 }

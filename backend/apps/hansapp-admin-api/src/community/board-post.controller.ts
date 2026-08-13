@@ -67,10 +67,7 @@ export class BoardPostController {
     @Query() query: PostListQueryDto,
   ): Promise<PageResponseDto<PostSummaryDto>> {
     const page = await this.posts.list({ boardId, ...query });
-    return new PageResponseDto(
-      page,
-      page.items.map((post) => new PostSummaryDto(post)),
-    );
+    return PageResponseDto.from(page.map((post) => new PostSummaryDto(post)));
   }
 
   @Post('boards/:boardId/posts')

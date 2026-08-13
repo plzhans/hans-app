@@ -98,9 +98,8 @@ export class BoardController {
     );
 
     const page = await this.boards.listPosts(name, query.page, query.size);
-    return new PageResponseDto(
-      page,
-      page.items.map((post) => new PublicPostSummaryDto(post)),
+    return PageResponseDto.from(
+      page.map((post) => new PublicPostSummaryDto(post)),
     );
   }
 
