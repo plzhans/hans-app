@@ -58,24 +58,28 @@ export class SessionPurgeResultDto {
   }
 }
 
-export class MaintenanceSummaryDto {
-  @ApiProperty({ description: '게시판 캐시 키 수' })
-  readonly board!: number;
+export class CacheCountDto {
+  @ApiProperty({ description: '이 패턴에 걸리는 캐시 키 수' })
+  readonly count!: number;
 
-  @ApiProperty({ description: '회원 내 정보 캐시 키 수' })
-  readonly userProfile!: number;
-
-  @ApiProperty({ description: '살아 있는 로그인 세션 수' })
-  readonly sessions!: number;
-
-  @ApiProperty({ description: '캐시 저장소가 붙어 있나' })
+  @ApiProperty({
+    description:
+      '캐시 저장소가 붙어 있었나. false 면 0 은 "없다" 가 아니라 "볼 수 없다" 는 뜻이다.',
+  })
   readonly connected!: boolean;
 
-  constructor(input: { board: CachePurgeResult; userProfile: CachePurgeResult; sessions: number }) {
-    this.board = input.board.removed;
-    this.userProfile = input.userProfile.removed;
-    this.sessions = input.sessions;
-    this.connected = input.board.connected;
+  constructor(result: CachePurgeResult) {
+    this.count = result.removed;
+    this.connected = result.connected;
+  }
+}
+
+export class SessionCountDto {
+  @ApiProperty({ description: '살아 있는 로그인 세션 수' })
+  readonly count!: number;
+
+  constructor(count: number) {
+    this.count = count;
   }
 }
 
@@ -95,19 +99,32 @@ export class MaintenanceController {
     private readonly sessions: SessionPurgeService,
   ) {}
 
-  @Get('summary')
+  /*
+    **규모는 갈래마다 따로 묻는다.** 한 번에 다 세 주는 통로를 두면 화면을 여는 것만으로
+    전체 키스페이스를 갈래 수만큼 훑게 된다 — 세는 비용이 매칭된 키가 아니라 **Redis 에 있는
+    모든 키**에 비례하기 때문이다(SCAN 은 MATCH 로 걸러도 전부 한 번씩은 본다).
+
+    실제로 필요한 순간은 "지울까" 를 정하는 그 한 번뿐이라, 그때 그 갈래만 센다.
+  */
+  @Get('cache/:target/count')
   @ApiOperation({
-    summary: '정리 대상 규모',
-    description: '무엇을 얼마나 지우게 되는지 누르기 전에 보여 주려는 값이다.',
+    summary: '캐시 규모',
+    description: '지우기 전에 몇 건인지 본다. 지우지 않고 세기만 한다.',
   })
-  @ApiOkResponse({ type: MaintenanceSummaryDto })
-  async summary(): Promise<MaintenanceSummaryDto> {
-    const [board, userProfile, sessions] = await Promise.all([
-      this.caches.count(CACHE_TARGETS.board),
-      this.caches.count(CACHE_TARGETS.userProfile),
-      this.sessions.count(),
-    ]);
-    return new MaintenanceSummaryDto({ board, userProfile, sessions });
+  @ApiParam({ name: 'target', enum: Object.keys(CACHE_TARGETS) })
+  @ApiOkResponse({ type: CacheCountDto })
+  async cacheCount(@Param('target') target: string): Promise<CacheCountDto> {
+    return new CacheCountDto(await this.caches.count(resolveTarget(target)));
+  }
+
+  @Get('sessions/count')
+  @ApiOperation({
+    summary: '세션 규모',
+    description: '살아 있는 로그인 세션 수. 캐시와 달리 DB 한 번으로 끝난다.',
+  })
+  @ApiOkResponse({ type: SessionCountDto })
+  async sessionCount(): Promise<SessionCountDto> {
+    return new SessionCountDto(await this.sessions.count());
   }
 
   @Post('cache/:target/purge')
@@ -123,11 +140,7 @@ export class MaintenanceController {
   @ApiParam({ name: 'target', enum: Object.keys(CACHE_TARGETS) })
   @ApiOkResponse({ type: CachePurgeResultDto })
   async purgeCache(@Param('target') target: string): Promise<CachePurgeResultDto> {
-    const match = CACHE_TARGETS[target as CacheTarget];
-    if (!match) {
-      throw new BadRequestException(`Unknown cache target: ${target}`);
-    }
-    return new CachePurgeResultDto(await this.caches.purge(match));
+    return new CachePurgeResultDto(await this.caches.purge(resolveTarget(target)));
   }
 
   @Post('sessions/purge')
@@ -145,4 +158,13 @@ export class MaintenanceController {
   async purgeSessions(): Promise<SessionPurgeResultDto> {
     return new SessionPurgeResultDto(await this.sessions.purgeAll());
   }
+}
+
+/** 이름을 패턴으로 바꾼다. 모르는 이름은 400 이다 — 세는 쪽과 지우는 쪽이 같은 판정을 쓴다. */
+function resolveTarget(target: string): string {
+  const match = CACHE_TARGETS[target as CacheTarget];
+  if (!match) {
+    throw new BadRequestException(`Unknown cache target: ${target}`);
+  }
+  return match;
 }
