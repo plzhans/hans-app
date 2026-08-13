@@ -99,7 +99,7 @@ export function SocialButtons({
           onClick={() => {
             void start(p.key);
           }}
-          className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition lg:h-12 lg:text-base ${p.className}`}
+          className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg px-3 text-xs transition lg:h-12 lg:text-sm ${p.className}`}
         >
           {p.icon}
           {p.label}
