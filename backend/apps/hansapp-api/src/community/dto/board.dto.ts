@@ -11,13 +11,20 @@ import type {
   PublicPostSummary,
 } from '@hansapp/application';
 
+/**
+ * 목록 인자의 기본값. **컨트롤러가 이 값과 비교해 캐시를 걸지 정한다** — 기본값 그대로면
+ * 첫 페이지라 캐시 대상이고, 다른 페이지는 아니다. 그래서 상수로 빼 둔다.
+ */
+export const DEFAULT_POST_PAGE = 1;
+export const DEFAULT_POST_SIZE = 20;
+
 export class PostListQueryDto {
   @ApiPropertyOptional({ description: '페이지 번호(1부터)', default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  readonly page: number = 1;
+  readonly page: number = DEFAULT_POST_PAGE;
 
   @ApiPropertyOptional({ description: '페이지 크기', default: 20, maximum: 50 })
   @IsOptional()
@@ -25,7 +32,7 @@ export class PostListQueryDto {
   @IsInt()
   @Min(1)
   @Max(50)
-  readonly size: number = 20;
+  readonly size: number = DEFAULT_POST_SIZE;
 }
 
 export class PublicBoardDto {

@@ -213,7 +213,8 @@ export class AppsController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ApiKeySummaryDto[]> {
-    return (await this.apps.listApiKeys(user.userId, id)).map(toApiKeySummary);
+    const keys = await this.apps.listApiKeys(user.userId, id);
+    return keys.map(toApiKeySummary);
   }
 
   @Delete(':id/api-keys/:keyId')
@@ -287,7 +288,8 @@ export class AppsController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ClientDto[]> {
-    return (await this.apps.listClients(user.userId, id)).map(toClient);
+    const clients = await this.apps.listClients(user.userId, id);
+    return clients.map(toClient);
   }
 
   @Patch(':id/clients/:clientPk')

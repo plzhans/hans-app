@@ -47,7 +47,8 @@ export class EnvLlmModelController {
   })
   @ApiOkResponse({ type: [EnvLlmModelDto] })
   async list(): Promise<EnvLlmModelDto[]> {
-    return (await this.models.list()).map((v) => new EnvLlmModelDto(v));
+    const models = await this.models.list();
+    return models.map((model) => new EnvLlmModelDto(model));
   }
 
   @Post()

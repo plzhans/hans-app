@@ -8,6 +8,7 @@ import type { BoardStatus, BoardWriteRole } from '@hansapp/common';
 import type { Board } from '@hansapp/data';
 
 import { BoardRepository, originalName } from './board.repository';
+import { BoardCacheInvalidator } from './board-cache.invalidator';
 
 /** 이름 규칙: 소문자·숫자·하이픈, 2~50자. 주소에 그대로 실리는 값이다. */
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]{1,49}$/;
@@ -71,7 +72,10 @@ export type BoardUpdateInput = Partial<BoardCreateInput>;
  */
 @Injectable()
 export class BoardAdminService {
-  constructor(private readonly boards: BoardRepository) {}
+  constructor(
+    private readonly boards: BoardRepository,
+    private readonly cache: BoardCacheInvalidator,
+  ) {}
 
   async list(): Promise<BoardSummary[]> {
     const rows = await this.boards.findAll();
@@ -110,6 +114,7 @@ export class BoardAdminService {
       throw new ConflictException(`Board name already exists: ${name}`);
     }
     const restored = await this.boards.restore(id, name);
+    await this.cache.invalidateList();
     return toSummary(restored, await this.boards.countPosts(id));
   }
 
@@ -132,6 +137,7 @@ export class BoardAdminService {
         secretCommentEnabled: input.secretCommentEnabled ?? false,
       }),
     });
+    await this.cache.invalidateList();
     return toSummary(board, 0);
   }
 
@@ -169,6 +175,12 @@ export class BoardAdminService {
           input.secretCommentEnabled ?? current.secretCommentEnabled,
       }),
     });
+    /*
+      **이름·공개 여부만이 아니라 무엇이 바뀌어도 지운다.** 목록에 담기는 값이 어떤 것인지
+      여기서 따지기 시작하면, 나중에 담는 값이 늘 때 이 조건을 같이 고쳐야 한다는 것을
+      아무도 모른다 — 게시판은 자주 바뀌지 않으니 통째로 지우는 편이 싸다.
+    */
+    await this.cache.invalidateList();
     return toSummary(board, await this.boards.countPosts(id));
   }
 
@@ -185,6 +197,7 @@ export class BoardAdminService {
   async remove(id: number): Promise<void> {
     const board = await this.mustFind(id);
     await this.boards.softDelete(board);
+    await this.cache.invalidateList();
   }
 
   private async mustFind(id: number): Promise<Board> {

@@ -28,6 +28,7 @@ import { BoardAdminService } from './community/board-admin.service';
 import { BoardPostRepository } from './community/board-post.repository';
 import { BoardPostAdminService } from './community/board-post-admin.service';
 import { BoardPostCacheInvalidator } from './community/board-post-cache.invalidator';
+import { BoardCacheInvalidator } from './community/board-cache.invalidator';
 import { HiraCodeReadService } from './hira/hira-code-read.service';
 import { HiraCodeSeedService } from './hira/hira-code-seed.service';
 import { HiraDetailSyncService } from './hira/hira-detail-sync.service';
@@ -189,6 +190,7 @@ export class AdminApplicationModule {
         BoardPostRepository,
         BoardPostAdminService,
         BoardPostCacheInvalidator,
+        BoardCacheInvalidator,
         // 저장소(DB 접근). 서비스 내부 의존이라 export 하지 않는다.
         HiraHospitalSyncRepository,
         NmcBasicSyncRepository,
@@ -325,6 +327,7 @@ export class AdminApplicationModule {
         BoardPostRepository,
         BoardPostAdminService,
         BoardPostCacheInvalidator,
+        BoardCacheInvalidator,
         /*
           **모듈을 통째로 다시 내보낸다.** Nest 는 provider 를 전이적으로 노출하지 않아서,
           이걸 안 하면 이 모듈을 import 한 앱의 컨트롤러가 ApplicationModule 의 서비스

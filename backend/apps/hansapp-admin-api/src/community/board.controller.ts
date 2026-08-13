@@ -50,7 +50,8 @@ export class BoardController {
   })
   @ApiOkResponse({ type: [BoardDto] })
   async list(): Promise<BoardDto[]> {
-    return (await this.boards.list()).map((board) => new BoardDto(board));
+    const boards = await this.boards.list();
+    return boards.map((board) => new BoardDto(board));
   }
 
   /*
@@ -64,9 +65,8 @@ export class BoardController {
   })
   @ApiOkResponse({ type: [DeletedBoardDto] })
   async listDeleted(): Promise<DeletedBoardDto[]> {
-    return (await this.boards.listDeleted()).map(
-      (board) => new DeletedBoardDto(board),
-    );
+    const boards = await this.boards.listDeleted();
+    return boards.map((board) => new DeletedBoardDto(board));
   }
 
   @Get(':id')

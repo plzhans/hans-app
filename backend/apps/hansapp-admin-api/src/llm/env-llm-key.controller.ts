@@ -42,7 +42,8 @@ export class EnvLlmKeyController {
   @ApiOperation({ summary: '키 목록', description: '키는 뒤 4자만 내려간다.' })
   @ApiOkResponse({ type: [EnvLlmKeyDto] })
   async list(): Promise<EnvLlmKeyDto[]> {
-    return (await this.keys.list()).map((v) => new EnvLlmKeyDto(v));
+    const keys = await this.keys.list();
+    return keys.map((key) => new EnvLlmKeyDto(key));
   }
 
   @Get(':id')

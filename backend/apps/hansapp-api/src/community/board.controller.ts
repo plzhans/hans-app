@@ -2,6 +2,7 @@ import {
   ClassSerializerInterceptor,
   Controller,
   Get,
+  Header,
   Param,
   ParseIntPipe,
   Query,
@@ -14,8 +15,14 @@ import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
 import { BoardReadService } from '@hansapp/application';
 import { Public } from '@hansapp/auth-application';
 
-import { BOARD_POST_CACHE_CONTROL } from '../common/cache-control';
 import {
+  BOARD_LIST_CACHE_CONTROL,
+  BOARD_POST_CACHE_CONTROL,
+  BOARD_POST_LIST_CACHE_CONTROL,
+} from '../common/cache-control';
+import {
+  DEFAULT_POST_PAGE,
+  DEFAULT_POST_SIZE,
   PostListQueryDto,
   PublicBoardDto,
   PublicPostDetailDto,
@@ -38,28 +45,58 @@ import {
 export class BoardController {
   constructor(private readonly boards: BoardReadService) {}
 
+  /*
+    **여기는 응답마다 값이 갈리지 않아 @Header 로 붙인다.** 글 상세는 공개·비공개에 따라
+    달라져 코드에서 세워야 하지만, 이 목록은 누가 언제 불러도 같다.
+  */
   @Get()
+  @Header('Cache-Control', BOARD_LIST_CACHE_CONTROL)
   @ApiOperation({
     summary: '게시판 목록',
-    description: '공개(ACTIVE)된 게시판만. 포털 메뉴가 이걸로 그려진다.',
+    description:
+      '공개(ACTIVE)된 게시판만. 포털 메뉴가 이걸로 그려진다.\n\n' +
+      '`Cache-Control: public, max-age=60` 이 붙는다 — 인자도 로그인도 없어 누구에게나 ' +
+      '같은 응답이고, 포털이 화면마다 부르기 때문이다. 게시판을 새로 만들면 최대 1분 뒤에 ' +
+      '메뉴에 나타난다.',
   })
   @ApiOkResponse({ type: [PublicBoardDto] })
   async list(): Promise<PublicBoardDto[]> {
-    return (await this.boards.listBoards()).map(
-      (board) => new PublicBoardDto(board),
-    );
+    const boards = await this.boards.listBoards();
+    return boards.map((board) => new PublicBoardDto(board));
   }
 
   @Get(':name/posts')
   @ApiOperation({
     summary: '게시글 목록',
-    description: '공개된 글만. 고정 글이 먼저, 그다음 최신순.',
+    description:
+      '공개된 글만. 고정 글이 먼저, 그다음 최신순.\n\n' +
+      '**인자 없이 부른 첫 페이지에만** `Cache-Control: public, max-age=60` 이 붙는다 — ' +
+      '게시판을 열면 누구나 보게 되는 한 장이라, 링크가 퍼질 때의 순간 트래픽을 CDN 이 ' +
+      '받아 낸다. 페이지를 넘기거나 크기를 바꾸면 no-store 다. ' +
+      '새 글은 최대 1분 뒤에 목록에 나타난다.',
   })
   @ApiPageResponse(PublicPostSummaryDto)
   async listPosts(
     @Param('name') name: string,
     @Query() query: PostListQueryDto,
+    // passthrough: 헤더만 직접 손대고 본문은 Nest 가 그대로 처리한다.
+    @Res({ passthrough: true }) res: Response,
   ): Promise<PageResponseDto<PublicPostSummaryDto>> {
+    /*
+      **첫 화면만 태운다.** 게시판을 열면 모두가 같은 한 장을 보고, 몰리는 것도 그 장이다.
+      2페이지부터는 가는 곳이 사람마다 갈려 캐시가 잘 맞지도 않고, 인자 조합마다 다른
+      응답을 공유 캐시에 쌓을 이유도 없다.
+
+      인자를 아예 안 준 것과 기본값을 그대로 적어 보낸 것을 **같게 본다** — 응답이 같으니
+      캐시도 같아야 한다.
+    */
+    const firstPage =
+      query.page === DEFAULT_POST_PAGE && query.size === DEFAULT_POST_SIZE;
+    res.setHeader(
+      'Cache-Control',
+      firstPage ? BOARD_POST_LIST_CACHE_CONTROL : 'no-store',
+    );
+
     const page = await this.boards.listPosts(name, query.page, query.size);
     return new PageResponseDto(
       page,

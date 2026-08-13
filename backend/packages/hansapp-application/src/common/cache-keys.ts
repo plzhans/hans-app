@@ -22,4 +22,13 @@ export const CachePrefix = {
    * 알 수 없다. 파일이 바뀌면 키 공간이 통째로 갈리므로 따로 비울 일이 없다.
    */
   aiSearch: 'aiSearch',
+  /**
+   * 게시판 도메인. 실제 키는 `board:list`(공개 게시판 목록)와
+   * `board:post:<게시판이름>:<글번호>`(글 상세) 다.
+   *
+   * **관리자 계층이 같은 형식을 다시 적는다**(BoardCacheInvalidator·
+   * BoardPostCacheInvalidator) — 그쪽은 이 패키지를 의존하지 않기 때문이다.
+   * 여기를 고치면 그쪽도 같이 고쳐야 한다.
+   */
+  board: 'board',
 } as const;

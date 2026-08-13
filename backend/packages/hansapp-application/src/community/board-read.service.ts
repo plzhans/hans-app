@@ -14,6 +14,7 @@ import {
   type BoardWriteRole,
 } from '@hansapp/common';
 
+import { CachePrefix } from '../common/cache-keys';
 import { BoardReadRepository } from './board-read.repository';
 
 /** 운영자 글에 붙는 이름. **관리자 실명을 밖으로 내보내지 않는다.** */
@@ -30,7 +31,21 @@ const POST_CACHE_TTL_MS = 60 * 60_000;
  * 환경 네임스페이스(`develop:`)는 CacheModule 이 붙이므로 여기서는 붙이지 않는다.
  */
 export const boardPostCacheKey = (boardName: string, postId: number) =>
-  `board:post:${boardName}:${postId}`;
+  `${CachePrefix.board}:post:${boardName}:${postId}`;
+
+/**
+ * 공개 게시판 목록 캐시 키. **하나뿐이다** — 인자도 보는 사람도 없는 한 덩어리라
+ * 게시판마다 나눌 이유가 없고, 하나면 지울 때도 이것만 지우면 된다.
+ */
+export const BOARD_LIST_CACHE_KEY = `${CachePrefix.board}:list`;
+
+/**
+ * 게시판 목록 캐시 TTL(ms). 1시간.
+ *
+ * **포털이 화면마다 부르는데 내용은 운영자가 게시판을 만질 때만 바뀐다.** 그 순간
+ * 관리자 계층이 키를 지우므로(BoardCacheInvalidator) 길게 잡아도 낡은 채로 남지 않는다.
+ */
+const BOARD_LIST_TTL_MS = 60 * 60_000;
 
 export interface PublicAuthor {
   readonly type: AuthorType;
@@ -105,8 +120,12 @@ export class BoardReadService {
 
   /** 공개된 게시판 목록. 포털의 메뉴가 이걸로 그려진다. */
   async listBoards(): Promise<PublicBoard[]> {
+    const cached = await this.cache?.get<PublicBoard[]>(BOARD_LIST_CACHE_KEY);
+    // 담기는 것이 전부 원시값이라 되살릴 것이 없다(글 상세와 달리 Date 가 없다).
+    if (cached) return cached;
+
     const rows = await this.boards.findActiveBoards();
-    return rows.map((board) => ({
+    const boards = rows.map((board) => ({
       name: board.name,
       title: board.title,
       description: board.description,
@@ -114,6 +133,8 @@ export class BoardReadService {
       commentEnabled: board.commentEnabled,
       likeEnabled: board.likeEnabled,
     }));
+    await this.cache?.set(BOARD_LIST_CACHE_KEY, boards, BOARD_LIST_TTL_MS);
+    return boards;
   }
 
   /**
