@@ -108,6 +108,31 @@ function onCopyrightClick() {
   background-color: var(--vp-c-bg);
 }
 
+/*
+  **사이드바가 푸터를 덮는다.** 사이드바는 position: fixed 라 문서 흐름에서 빠져 있는데
+  푸터는 layout-bottom 슬롯이라 화면 전체 폭을 쓴다. 그래서 왼쪽이 가려졌다.
+
+  본문(.VPContent.has-sidebar)이 쓰는 여백 규칙을 **그대로** 따라간다. 숫자를 새로 정하면
+  VitePress 가 레이아웃을 바꿀 때 둘이 어긋나고, 그건 화면을 봐야만 드러난다.
+
+  사이드바가 없는 페이지(404)에는 has-sidebar 가 붙지 않아 저절로 빠진다 —
+  그 페이지까지 밀어 넣으면 왼쪽이 텅 빈 채로 들여쓰기만 남는다.
+*/
+@media (min-width: 960px) {
+  .VPContent.has-sidebar ~ .hans-footer {
+    padding-left: var(--vp-sidebar-width);
+  }
+}
+
+@media (min-width: 1440px) {
+  .VPContent.has-sidebar ~ .hans-footer {
+    padding-right: calc((100vw - var(--vp-layout-max-width)) / 2);
+    padding-left: calc(
+      (100vw - var(--vp-layout-max-width)) / 2 + var(--vp-sidebar-width)
+    );
+  }
+}
+
 .hans-footer-inner {
   max-width: 1152px;
   margin: 0 auto;

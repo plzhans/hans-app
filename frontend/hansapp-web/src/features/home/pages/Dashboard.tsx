@@ -22,6 +22,8 @@ const SERVICES: {
   title: string;
   desc: string;
   href: string;
+  /** 다른 사이트로 나갈 때만 준다. 문서는 같은 도메인의 /docs 라 같은 탭에서 연다. */
+  newTab?: boolean;
 }[] = [
   /*
     **문서가 맨 앞이다.** 처음 온 사람이 무엇부터 볼지 정해 주는 자리라, 개별 서비스보다
@@ -38,12 +40,14 @@ const SERVICES: {
     title: 'MediFinder',
     desc: '전국 병원을 쉽고 빠르게. 지역·진료과목·응급실·달빛어린이병원으로 찾고, 지도·비급여 진료비·교통편까지 봅니다.',
     href: LINKS.medifinder,
+    newTab: true,
   },
   {
     icon: Send,
     title: 'Telegram Exporter',
     desc: '텔레그램 대화를 브라우저에서 바로 내 컴퓨터로. 서버를 거치지 않아 대화 내용이 밖으로 나가지 않습니다. 설치·가입 없이 무료.',
     href: LINKS.telegramExporter,
+    newTab: true,
   },
 ];
 
@@ -80,8 +84,8 @@ export default function Dashboard() {
               <a
                 key={s.title}
                 href={s.href}
-                target="_blank"
-                rel="noreferrer"
+                target={s.newTab ? '_blank' : undefined}
+                rel={s.newTab ? 'noreferrer' : undefined}
                 className="group flex flex-col rounded-2xl border border-gray-200 bg-white p-5 transition hover:border-primary-300 hover:shadow-sm"
               >
                 <div className="mb-3 flex items-center justify-between">
@@ -132,8 +136,6 @@ export default function Dashboard() {
               </Link>
               <a
                 href={LINKS.docs}
-                target="_blank"
-                rel="noreferrer"
                 className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
                 API 문서

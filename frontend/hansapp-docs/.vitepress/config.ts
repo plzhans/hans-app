@@ -19,15 +19,43 @@ import { loadSpec, sortOperations, specPath } from './openapi-spec';
 const docsEnv = process.env.DOCS_ENV ?? 'local';
 
 /**
- * 문서가 얹히는 포털 도메인. 문서는 이 도메인의 /docs 밑에 산다(서브도메인을 두지 않는다).
- * 환경 구분은 경로가 아니라 도메인이 한다 — 환경마다 Worker 가 따로다.
+ * 환경마다 달라지는 주소를 `.env.<환경>` 에서 읽는다.
+ *
+ * **표로 박지 않는 이유는 환경이 늘 때 이 파일을 고치게 되기 때문이다.** 주소를 아는 것은
+ * 배포 설정이지 빌드 코드가 아니다. `.env.staging` 을 하나 추가하면 여기는 그대로 둔 채
+ * 새 환경이 돈다. frontend/ci-build.sh 가 `set -a` 로 `.env.$APP_ENV` 를 통째로
+ * process.env 에 실어 주므로 여기서 그냥 읽힌다.
+ *
+ * **VITE_ 접두를 붙이지 않는다.** 그 접두는 "브라우저 번들에 인라인해도 되는 값" 이라는
+ * 표시인데, 이건 빌드가 canonical·sitemap 을 만들 때만 쓰는 값이다.
  */
-const DOCS_ORIGINS: Record<string, string> = {
-  production: 'https://plzhans.com',
-  develop: 'https://develop.plzhans.com',
-  local: 'http://localhost:8801',
-};
-const docsOrigin = DOCS_ORIGINS[docsEnv] ?? DOCS_ORIGINS.local;
+function originFromEnv(name: string, localFallback: string): string {
+  const value = process.env[name]?.trim();
+  // 끝의 / 는 여기서 한 번만 떼어 둔다. 뒤에서 base 를 이어 붙이므로 겹치면 //docs/ 가 된다.
+  if (value) return value.replace(/\/+$/, '');
+  // 로컬 개발 서버(pnpm docs:dev)는 ci-build.sh 를 타지 않아 .env 가 없다.
+  if (docsEnv === 'local') return localFallback;
+  /*
+    **배포 빌드에서 비면 여기서 죽인다.** 폴백으로 넘어가면 로컬 주소가 박힌 canonical 과
+    sitemap 이 그대로 배포된다 — 빌드는 성공하고 화면도 멀쩡해서 아무도 모르는데,
+    검색엔진에는 localhost 를 정본이라고 알린 셈이 된다.
+  */
+  throw new Error(
+    `[hansapp-docs] ${name} 이 없다. frontend/hansapp-docs/.env.${docsEnv} 에 적을 것.`,
+  );
+}
+
+/** 문서 자신의 도메인. 문서는 이 도메인의 /docs 밑에 산다(서브도메인을 두지 않는다). */
+const docsOrigin = originFromEnv('DOCS_ORIGIN', 'http://localhost:8801');
+
+/**
+ * 포털 주소. 상단 nav 의 HOME 이 여기로 돌아간다.
+ *
+ * 배포 환경에서는 문서가 포털 도메인 밑이라 DOCS_ORIGIN 과 같은 값이지만 **따로 받는다** —
+ * 로컬에서 이미 갈린다(문서 8801, 포털 5274). 하나로 묶으면 나중에 도로 쪼갤 때
+ * 어느 쪽이 어느 뜻이었는지 알 수 없다.
+ */
+const portalOrigin = originFromEnv('PORTAL_ORIGIN', 'http://127.0.0.1:5274');
 
 /**
  * 사이트가 놓이는 경로. 배포 경로를 아는 쪽(frontend/ci-build.sh)이 '/docs/' 로 넘겨준다.
@@ -530,6 +558,15 @@ export default withMermaid(defineConfig({
       { text: '소개', link: '/' },
       { text: '공통', link: '/common' },
       { text: 'API', link: `/apis/${landingTag}` },
+      /*
+        포털로 돌아가는 길. 문서가 포털의 /docs 밑이라 사용자는 여기까지 타고 들어온다 —
+        돌아갈 통로가 없으면 뒤로가기 말고는 방법이 없다.
+
+        target·noIcon 을 준 이유는 **같은 사이트라서**다. VitePress 는 절대 주소를 보면
+        외부 링크로 판단해 새 탭(_blank)에 열고 화살표 아이콘을 붙이는데, 배포 환경에서
+        포털은 같은 도메인이다. 새 탭이 쌓이는 것도, 남의 사이트로 나가는 표시도 어색하다.
+      */
+      { text: 'HOME', link: portalOrigin, target: '_self', noIcon: true },
     ],
     sidebar: [
       {

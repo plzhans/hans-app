@@ -8,7 +8,10 @@ import { PAGE_CONTAINER } from '@/shared/ui/layout';
 
 const MENU = [
   // MediFinder 는 상단 헤더에서 일단 뺀다(링크 설정은 links.ts 에 남겨 둠).
-  { label: 'Blog', href: LINKS.blog },
+  //
+  // newTab 은 **다른 사이트로 나갈 때만** 준다. 문서는 같은 도메인의 /docs 라
+  // 새 탭에 띄우면 탭만 쌓이고, 문서 상단의 HOME 으로 되돌아올 수도 있다.
+  { label: 'Blog', href: LINKS.blog, newTab: true },
   { label: 'Docs', href: LINKS.docs },
 ];
 
@@ -28,8 +31,8 @@ export function Gnb() {
               <a
                 key={m.label}
                 href={m.href}
-                target="_blank"
-                rel="noreferrer"
+                target={m.newTab ? '_blank' : undefined}
+                rel={m.newTab ? 'noreferrer' : undefined}
                 className="text-sm font-medium text-gray-500 transition hover:text-gray-900"
               >
                 {m.label}
