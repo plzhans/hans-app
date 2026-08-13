@@ -156,6 +156,33 @@ export default function UserDetail() {
             )}
           </Section>
 
+          {/*
+            **동의 내역은 개요에 둔다.** 탭으로 빼기에는 줄이 너무 적고(가입 2건 + 앱 수),
+            "이 계정이 무엇에 동의했나" 는 계정을 볼 때 같이 읽는 값이다.
+
+            IP·기기를 함께 적는다. 이 기록의 쓸모가 동의를 받았다는 **입증**이라, 접속 정보를
+            빼면 본인 화면(종류·판·시각)과 같아져 관리자가 여기서 얻을 것이 없어진다.
+          */}
+          <Section title="동의 내역">
+            {user.consents.length === 0 ? (
+              <p className="col-span-full text-sm text-gray-400">
+                {/* 동의 기능 이전에 가입한 계정은 기록이 없다. 빈칸과 구별해 준다. */}
+                받아 둔 동의 기록이 없습니다.
+              </p>
+            ) : (
+              user.consents.map((c, i) => (
+                <Field key={`${c.type}-${c.agreedAt}-${i}`} label={consentLabel(c.type)}>
+                  <span className="font-mono text-xs">{c.version}</span>
+                  <span className="ml-2">{formatDateTime(c.agreedAt)}</span>
+                  <span className="mt-0.5 block text-xs text-gray-400">
+                    <span className="font-mono">{c.ip ?? '—'}</span>
+                    <span className="ml-2 break-all">{c.userAgent ?? '—'}</span>
+                  </span>
+                </Field>
+              ))
+            )}
+          </Section>
+
         </div>
       )}
 
@@ -185,6 +212,20 @@ function Section({
       <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">{children}</dl>
     </section>
   );
+}
+
+/**
+ * 동의 항목의 이름. **인증웹 본인 화면과 같은 말을 쓴다** — 같은 기록을 두 화면이 서로 다른
+ * 이름으로 부르면, 이용자가 문의했을 때 무엇을 말하는지 맞춰 보는 일이 생긴다.
+ */
+function consentLabel(type: string): string {
+  const labels: Record<string, string> = {
+    TERMS: '이용약관',
+    PRIVACY: '개인정보 수집·이용',
+    AGE_14: '만 14세 이상',
+    API_TERMS: 'API 이용약관',
+  };
+  return labels[type] ?? type;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

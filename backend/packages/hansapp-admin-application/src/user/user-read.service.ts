@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Page } from '@hansapp/common';
-import type { AuthProvider, OAuthProvider, UserStatus, UserTier } from '@hansapp/data';
+import type { AuthProvider, ConsentType, OAuthProvider, UserStatus, UserTier } from '@hansapp/data';
 
 import { UserReadRepository } from './user-read.repository';
 import type { UserListFilter, UserSessionRow } from './user-read.repository';
@@ -24,6 +24,22 @@ export interface UserOAuthSummary {
   readonly connectedAt: Date;
 }
 
+/**
+ * 동의 기록 한 줄.
+ *
+ * **IP·기기까지 담는다.** 동의 기록이 존재하는 이유가 "동의를 받았음" 의 입증이라, 그 자리를
+ * 특정하는 접속 정보가 빠지면 관리자가 볼 수 있는 것이 본인 화면과 같아진다(그쪽은 종류·판·
+ * 시각만 본다). 인증 기록 탭도 같은 수준으로 IP·기기를 보여 주고 있다.
+ */
+export interface UserConsentSummary {
+  readonly type: ConsentType;
+  /** 동의한 문서의 판(시행일). 문서가 없는 항목은 '-'. */
+  readonly version: string;
+  readonly agreedAt: Date;
+  readonly ip: string | null;
+  readonly userAgent: string | null;
+}
+
 export interface UserDetail extends UserSummary {
   readonly updatedAt: Date;
   readonly withdrawnAt: Date | null;
@@ -36,6 +52,8 @@ export interface UserDetail extends UserSummary {
   readonly oauths: UserOAuthSummary[];
   readonly activeSessionCount: number;
   readonly appCount: number;
+  /** 받아 둔 동의. 가입 때 받은 것과 앱을 등록할 때 받은 것이 함께 온다. */
+  readonly consents: UserConsentSummary[];
 }
 
 /** 로그인해 둔 기기 한 줄. */
@@ -85,6 +103,13 @@ export class UserReadService {
       })),
       activeSessionCount: row.activeSessionCount,
       appCount: row.appCount,
+      consents: row.consents.map((c) => ({
+        type: c.type,
+        version: c.version,
+        agreedAt: c.agreedAt,
+        ip: c.ip,
+        userAgent: c.userAgent,
+      })),
     };
   }
 

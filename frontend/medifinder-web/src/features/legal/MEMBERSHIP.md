@@ -72,7 +72,7 @@ hansapp 것이고 medifinder 는 거기 등록된 앱 클라이언트다. **plzh
   **언제 어느 버전에 동의했는지 기록한다**(입증 책임이 처리자에게 있다).
 
 링크할 문서는 **HansApp 계정 약관·방침**이다(`frontend/hansapp-web/src/features/legal`,
-plzhans.com/terms · /privacy). medifinder 문서를 링크하면 "다른 서비스의 약관에 동의하고
+plzhans.com/terms/service · /terms/privacy). medifinder 문서를 링크하면 "다른 서비스의 약관에 동의하고
 가입" 하는 모양이 된다.
 
 ---
@@ -284,7 +284,7 @@ en:
 ## 5. 문서 밖에서 같이 해야 하는 것
 
 - [x] ~~HansApp 계정 약관·개인정보처리방침을 plzhans 쪽에 만든다~~ →
-      `frontend/hansapp-web/src/features/legal` (plzhans.com/terms · /privacy). 다만 **문의 이메일
+      `frontend/hansapp-web/src/features/legal` (plzhans.com/terms/service · /terms/privacy). 다만 **문의 이메일
       주소가 아직 비어 있다** — 게시 전에 채울 것.
 - [ ] **`frontend/hansapp-auth` 의 가입 화면을 손본다**(1절 ⚠). 동의 절차가 없는 지금 상태로는
       문서를 아무리 잘 써 둬도 동의를 받은 것이 되지 않는다.

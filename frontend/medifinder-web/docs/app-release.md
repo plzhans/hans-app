@@ -133,7 +133,7 @@ Capacitor 로 간다. PWA·TWA·React Native 재작성은 검토 대상이 아�
 
 ### 개인정보처리방침 · 이용약관 — 만들었다
 
-스토어 등록 시 **공개 URL 입력이 필수**인데, `/privacy` · `/terms` · `/terms/location` 을 그대로 쓴다.
+스토어 등록 시 **공개 URL 입력이 필수**인데, `/terms/service` · `/terms/location` · `/terms/privacy` 를 그대로 쓴다.
 조문은 [legal/content](../src/features/legal/content/) 의 JSON 이 정본이고,
 한국어본이 원본 · 영어본이 번역이며 일본어 · 중국어 화면에는 영어본을 보여준다.
 

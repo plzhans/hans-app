@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Plus } from 'lucide-react';
 import { createApp, listApps } from '@/shared/api/apps';
 import { errorMessage } from '@/shared/api/errorMessage';
+import { apiTermsDoc } from '@/features/legal/content';
 import { Gnb } from '@/shared/components/Gnb';
 import { Footer } from '@/shared/components/Footer';
 import { Button } from '@/shared/ui/Button';
@@ -43,14 +44,18 @@ export default function Apps() {
   const deletedApps = apps?.filter((a) => a.deletedAt) ?? [];
   const shown = tab === 'active' ? activeApps : deletedApps;
 
+  /**
+   * 등록 폼. 이름과 **API 이용약관 동의**를 함께 받는다 — 이용계약은 개발자가 약관에
+   * 동의하고 신청함으로써 성립한다(API 이용약관 제4조).
+   */
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<{ name: string }>();
+  } = useForm<{ name: string; agreeApiTerms: boolean }>();
   const create = useMutation({
-    mutationFn: (name: string) => createApp(name),
+    mutationFn: (name: string) => createApp(name, apiTermsDoc.version),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['apps'] });
       reset();
@@ -187,6 +192,42 @@ export default function Apps() {
                 error={errors.name?.message}
                 {...latinRegister(nameReg)}
               />
+
+              {/*
+                약관은 **레이어가 아니라 새 탭으로 연다.** 여기는 이미 모달 안이고, 그 위에
+                문서를 또 겹치면 이름으로 채워 둔 폼이 뒤로 묻힌다. 포털에는 /terms/app
+                라우트가 있어서 새 탭이 그대로 읽는 화면이 된다.
+              */}
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                  {...register('agreeApiTerms', {
+                    required: 'API 이용약관에 동의해야 앱을 등록할 수 있습니다.',
+                  })}
+                />
+                <span>
+                  <Link
+                    to="/terms/app"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-gray-900 underline"
+                  >
+                    HansApp API 이용약관
+                  </Link>
+                  에 동의합니다.
+                  <span className="mt-0.5 block text-xs text-gray-400">
+                    데이터 이용 범위와 의료 정보 표시에 관한 개발자의 의무가 담겨
+                    있습니다.
+                  </span>
+                </span>
+              </label>
+              {errors.agreeApiTerms && (
+                <p className="text-sm text-red-500">
+                  {errors.agreeApiTerms.message}
+                </p>
+              )}
+
               {create.isError && (
                 <p className="text-sm text-red-500">
                   {errorMessage(create.error, '앱 등록에 실패했습니다.')}

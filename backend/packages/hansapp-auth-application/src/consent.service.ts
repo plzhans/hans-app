@@ -84,6 +84,43 @@ export class ConsentService {
     return this.consents.listByUser(userId);
   }
 
+  /**
+   * 앱을 만들기 **전에** 부른다. 통과하지 못하면 앱이 생기지 않는다.
+   *
+   * 가입 동의(assertValid)와 같은 이유로 판을 대조한다. 다른 점은 받는 시점뿐이다 —
+   * API 이용약관의 계약 상대는 회원이 아니라 개발자라(제4조), 앱을 등록하지 않는 사람에게는
+   * 물을 일이 없다.
+   */
+  assertApiTerms(version: string | undefined): asserts version is string {
+    if (!version) {
+      throw new BadRequestException('API terms consent is required.');
+    }
+    if (version !== this.config.consentVersions.apiTerms) {
+      throw new BadRequestException(
+        'API terms have been updated. Please reload and review them again.',
+      );
+    }
+  }
+
+  /**
+   * 앱을 만든 **뒤에** 부른다.
+   *
+   * **앱마다 한 행씩 남는다.** 같은 사람이 앱을 셋 만들면 세 행이다 — 약관이 정하는 이용계약은
+   * 앱(애플리케이션) 단위로 성립하므로, 어느 앱을 만들 때 무엇에 동의했는지가 각각 남아야 한다.
+   * 사람 단위로 한 행만 두면 두 번째 앱부터는 동의를 받은 기록이 없다.
+   */
+  async recordApiTerms(userId: number, version: string, meta: ConsentMeta): Promise<void> {
+    await this.consents.createMany([
+      {
+        userId,
+        type: ConsentType.API_TERMS,
+        version,
+        ip: meta.ip ?? null,
+        userAgent: meta.userAgent ?? null,
+      },
+    ]);
+  }
+
   async record(userId: number, input: ConsentInput, meta: ConsentMeta): Promise<void> {
     const ip = meta.ip ?? null;
     const userAgent = meta.userAgent ?? null;

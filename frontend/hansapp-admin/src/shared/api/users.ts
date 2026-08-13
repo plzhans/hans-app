@@ -43,6 +43,22 @@ export interface UserDetail extends UserSummary {
   oauths: UserOAuth[];
   activeSessionCount: number;
   appCount: number;
+  consents: UserConsent[];
+}
+
+/**
+ * 받아 둔 동의 한 줄.
+ *
+ * TERMS·PRIVACY 는 가입할 때, API_TERMS 는 앱을 등록할 때 받는다 — 그래서 앱을 만든
+ * 계정에는 API_TERMS 가 앱 수만큼 쌓인다.
+ */
+export interface UserConsent {
+  type: string;
+  /** 동의한 문서의 판(시행일). 문서가 없는 항목은 '-'. */
+  version: string;
+  agreedAt: string;
+  ip?: string | null;
+  userAgent?: string | null;
 }
 
 /** 백엔드 PageResponseDto 와 같은 모양. */

@@ -246,6 +246,8 @@ function consentLabel(type: string): string {
     TERMS: '이용약관',
     PRIVACY: '개인정보 수집·이용',
     AGE_14: '만 14세 이상',
+    // 가입이 아니라 앱을 등록할 때 받는 동의라, 앱을 만든 사람에게만 이 줄이 생긴다.
+    API_TERMS: 'API 이용약관',
   };
   return labels[type] ?? type;
 }

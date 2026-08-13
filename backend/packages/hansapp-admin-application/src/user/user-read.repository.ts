@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaService, UserStatus } from '@hansapp/data';
-import type { User, UserOAuth } from '@hansapp/data';
+import type { User, UserConsent, UserOAuth } from '@hansapp/data';
 
 /** 목록 조회 조건. 비어 있는 값은 조건에서 빠진다. */
 export interface UserListFilter {
@@ -17,6 +17,8 @@ export interface UserDetailRow {
   readonly activeSessionCount: number;
   /** 이 회원이 소유·참여 중인 앱 수. */
   readonly appCount: number;
+  /** 받아 둔 동의 기록. 가입 동의와 앱 등록 동의가 함께 온다. */
+  readonly consents: UserConsent[];
 }
 
 /**
@@ -103,12 +105,16 @@ export class UserReadRepository {
    *
    * 세션·앱은 여기서 **개수만** 센다 — 개요가 답할 것은 "이 계정이 활동 중인가" 다.
    * 기기 하나하나는 세션 탭(`listSessions`)이 맡는다.
+   *
+   * 동의만 개수가 아니라 줄째로 가져온다. 세는 것으로는 답이 안 되는 물음이라서다 —
+   * 알고 싶은 것은 "몇 건인가" 가 아니라 **"무엇에, 어느 판에 동의했나"** 이고, 계정당
+   * 많아야 가입 2건 + 앱 수만큼이라 줄 수가 세션·로그처럼 늘지 않는다.
    */
   async findDetail(id: number, now: Date): Promise<UserDetailRow | null> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) return null;
 
-    const [oauths, activeSessionCount, appCount] = await this.prisma.$transaction([
+    const [oauths, activeSessionCount, appCount, consents] = await this.prisma.$transaction([
       this.prisma.userOAuth.findMany({
         where: { userId: id },
         orderBy: { id: 'asc' },
@@ -117,9 +123,14 @@ export class UserReadRepository {
         where: { userId: id, expiresAt: { gt: now } },
       }),
       this.prisma.appMember.count({ where: { userId: id } }),
+      this.prisma.userConsent.findMany({
+        where: { userId: id },
+        // 받은 순. 가입 동의가 먼저 오고 앱 등록 동의가 뒤에 쌓인다.
+        orderBy: { id: 'asc' },
+      }),
     ]);
 
-    return { user, oauths, activeSessionCount, appCount };
+    return { user, oauths, activeSessionCount, appCount, consents };
   }
 
   /**

@@ -41,7 +41,7 @@ export function Footer() {
           */}
           <nav className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <LangLink
-              to="/terms"
+              to="/terms/service"
               className="text-ink-muted underline active:text-brand"
             >
               {t('legal.terms')}
@@ -55,7 +55,7 @@ export function Footer() {
             </LangLink>
             <Dot />
             <LangLink
-              to="/privacy"
+              to="/terms/privacy"
               className="text-ink-muted underline active:text-brand"
             >
               {t('legal.privacy')}

@@ -85,6 +85,8 @@ export interface AccessCacheConfig {
 export interface ConsentVersions {
   readonly terms: string;
   readonly privacy: string;
+  /** API 이용약관. 가입이 아니라 앱 등록에서 받는다. */
+  readonly apiTerms: string;
 }
 
 export interface AuthConfig {
@@ -264,6 +266,7 @@ export function buildAuthConfig(source: ConfigSource): AuthConfig {
     consentVersions: Object.freeze({
       terms: source.getStringOrDefault('auth.consent.termsVersion'),
       privacy: source.getStringOrDefault('auth.consent.privacyVersion'),
+      apiTerms: source.getStringOrDefault('auth.consent.apiTermsVersion'),
     }),
   });
 }

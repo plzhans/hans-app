@@ -139,6 +139,7 @@ export type {
   UserSummary,
   UserDetail,
   UserOAuthSummary,
+  UserConsentSummary,
   UserSession,
   UserListQuery,
 } from './user/user-read.service';

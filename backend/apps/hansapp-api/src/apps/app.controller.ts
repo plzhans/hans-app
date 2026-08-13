@@ -8,7 +8,9 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiCreatedResponse,
   ApiExcludeController,
@@ -16,8 +18,17 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { AppService, Auth, AuthType, CurrentUser, reviewStateOf } from '@hansapp/auth-application';
+import {
+  AppService,
+  Auth,
+  AuthType,
+  ConsentService,
+  CurrentUser,
+  reviewStateOf,
+} from '@hansapp/auth-application';
 import type { App, AppApiKey, AppClient, AuthUser } from '@hansapp/auth-application';
+
+import { requestMeta } from '../auth/refresh-cookie';
 
 import {
   ApiKeySummaryDto,
@@ -50,7 +61,10 @@ import {
 @Auth(AuthType.Jwt)
 @Controller('apps')
 export class AppsController {
-  constructor(private readonly apps: AppService) {}
+  constructor(
+    private readonly apps: AppService,
+    private readonly consent: ConsentService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: '내 앱 목록' })
@@ -63,11 +77,22 @@ export class AppsController {
   @Post()
   @ApiOperation({
     summary: '앱 등록',
-    description: '등급별 생성 한도를 초과하면 403.',
+    description: 'API 이용약관 동의가 필요하다. 등급별 생성 한도를 초과하면 403.',
   })
   @ApiCreatedResponse({ type: AppSummaryDto })
-  async create(@CurrentUser() user: AuthUser, @Body() dto: CreateAppDto): Promise<AppSummaryDto> {
-    return toAppSummary(await this.apps.createApp(user.userId, dto.name));
+  async create(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateAppDto,
+    @Req() req: Request,
+  ): Promise<AppSummaryDto> {
+    // **앱을 만들기 전에 막는다.** 통과 못 하면 아무것도 생기지 않는다.
+    this.consent.assertApiTerms(dto.apiTermsVersion);
+
+    const app = await this.apps.createApp(user.userId, dto.name);
+    // 기록이 실패해도 앱을 되돌리지 않는다 — 이미 만들어진 뒤라 되돌리면 사용자는 "등록이
+    // 안 된" 것으로 보는데, 실제로 잃은 것은 우리 쪽 증빙이다(ConsentService.record 와 같다).
+    await this.consent.recordApiTerms(user.userId, dto.apiTermsVersion, requestMeta(req));
+    return toAppSummary(app);
   }
 
   @Get(':id')

@@ -100,9 +100,9 @@ function onCopyrightClick() {
         </p>
 
         <nav class="hans-footer-links">
-          <a :href="`${PORTAL}/terms`">이용약관</a>
+          <a :href="`${PORTAL}/terms/service`">이용약관</a>
           <span aria-hidden class="hans-footer-dot">·</span>
-          <a :href="`${PORTAL}/privacy`" class="hans-footer-privacy"
+          <a :href="`${PORTAL}/terms/privacy`" class="hans-footer-privacy"
             >개인정보처리방침</a
           >
         </nav>

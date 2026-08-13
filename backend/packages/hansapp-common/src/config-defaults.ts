@@ -82,6 +82,8 @@ export const CONFIG_DEFAULTS = {
   // 약관·방침의 현재 판(시행일). frontend/legal 의 JSON `version` 과 같아야 한다.
   'auth.consent.termsVersion': '2026-08-06',
   'auth.consent.privacyVersion': '2026-08-06',
+  // API 이용약관. 가입이 아니라 앱 등록에서 받는다.
+  'auth.consent.apiTermsVersion': '2026-08-14',
 
   // ── 관리자 인증 ─────────────────────────────────────────────────────────────
   'admin.bcryptRounds': 10,

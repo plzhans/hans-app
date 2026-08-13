@@ -102,9 +102,16 @@ const pages: RouteObject[] = [
       { index: true, element: <Home /> },
       { path: 'search', element: <Search /> },
       // 약관·방침은 푸터에서만 들어오는 읽기 화면이라 목록 껍데기를 그대로 쓴다.
-      { path: 'terms', element: <Terms /> },
+      //
+      // 셋 다 /terms 아래 한 단계로 둔다. 포털(plzhans.com)도 같은 규칙이라 두 서비스의
+      // 약관 주소를 한 자리에 적어 놓고 볼 수 있고, 스토어 등록 폼처럼 URL 을 하나씩
+      // 옮겨 적는 곳에서 접두사가 갈리지 않는다.
+      { path: 'terms/service', element: <Terms /> },
       { path: 'terms/location', element: <LocationTerms /> },
-      { path: 'privacy', element: <Privacy /> },
+      { path: 'terms/privacy', element: <Privacy /> },
+      // 옛 주소. 이미 나간 링크가 있을 수 있어 남겨 둔다.
+      { path: 'terms', element: <Navigate to="service" replace /> },
+      { path: 'privacy', element: <Navigate to="../terms/privacy" replace /> },
       { path: '*', element: <NotFound /> },
     ],
   },

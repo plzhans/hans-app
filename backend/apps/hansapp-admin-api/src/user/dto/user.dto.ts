@@ -24,6 +24,7 @@ import type {
   SessionCacheState,
   UserAppSummary,
   UserAuthLogEntry,
+  UserConsentSummary,
   UserDetail,
   UserOAuthSummary,
   UserSession,
@@ -314,6 +315,40 @@ export class UserOAuthDto {
 }
 
 /**
+ * 동의 한 줄.
+ *
+ * **IP·기기까지 싣는다.** 이 기록의 쓸모가 "동의를 받았음" 의 입증이라, 접속 정보를 빼면
+ * 관리자가 보는 것이 본인 화면(종류·판·시각)과 같아져 볼 이유가 없어진다.
+ */
+export class UserConsentDto {
+  @ApiProperty({
+    description: '동의 항목. TERMS·PRIVACY 는 가입 때, API_TERMS 는 앱 등록 때 받는다.',
+    enum: ['TERMS', 'PRIVACY', 'AGE_14', 'API_TERMS'],
+  })
+  readonly type!: string;
+
+  @ApiProperty({ description: '동의한 문서의 판(시행일)', example: '2026-08-14' })
+  readonly version!: string;
+
+  @ApiProperty({ description: '동의 시각(ISO 8601)' })
+  readonly agreedAt!: string;
+
+  @ApiPropertyOptional({ description: '동의 시점의 접속 IP' })
+  readonly ip!: string | null;
+
+  @ApiPropertyOptional({ description: '동의 시점의 User-Agent' })
+  readonly userAgent!: string | null;
+
+  constructor(consent: UserConsentSummary) {
+    this.type = consent.type;
+    this.version = consent.version;
+    this.agreedAt = consent.agreedAt.toISOString();
+    this.ip = consent.ip;
+    this.userAgent = consent.userAgent;
+  }
+}
+
+/**
  * 세션 하나의 인증 캐시.
  *
  * **값(value)은 싣지 않는다.** 담겨 있는 것이 만료 시각 하나뿐이라 펼쳐 봐야 얻을 것이
@@ -424,6 +459,9 @@ export class UserDetailDto extends UserSummaryDto {
   @ApiProperty({ description: '소유·참여 중인 앱 수' })
   readonly appCount!: number;
 
+  @ApiProperty({ description: '받아 둔 동의 기록', type: [UserConsentDto] })
+  readonly consents!: UserConsentDto[];
+
   constructor(user: UserDetail) {
     super(user);
     this.updatedAt = user.updatedAt.toISOString();
@@ -434,6 +472,7 @@ export class UserDetailDto extends UserSummaryDto {
     this.oauths = user.oauths.map((o) => new UserOAuthDto(o));
     this.activeSessionCount = user.activeSessionCount;
     this.appCount = user.appCount;
+    this.consents = user.consents.map((c) => new UserConsentDto(c));
   }
 }
 

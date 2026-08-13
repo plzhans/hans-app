@@ -43,11 +43,14 @@ export function Footer() {
           </p>
 
           <nav className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Link to="/terms" className="text-gray-400 hover:text-white">
+            <Link to="/terms/service" className="text-gray-400 hover:text-white">
               이용약관
             </Link>
             <Dot />
-            <Link to="/privacy" className="font-bold text-white hover:underline">
+            <Link
+              to="/terms/privacy"
+              className="font-bold text-white hover:underline"
+            >
               개인정보처리방침
             </Link>
           </nav>
