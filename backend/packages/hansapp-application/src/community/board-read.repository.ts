@@ -1,7 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { BoardStatus, CommentStatus, PostStatus } from '@hansapp/common';
 import { PrismaService } from '@hansapp/data';
-import type { Board } from '@hansapp/data';
+import type { Board, BoardComment, BoardPost } from '@hansapp/data';
+
+/**
+ * 글 상세 조회 결과. 글 한 건과 그 글에 달린(보이는) 댓글이다.
+ *
+ * **타입을 손으로 적는 이유가 있다.** 추론에 맡기면 tsc 가 Prisma 가 만든 내부 타입
+ * (generated/main/runtime/library)을 가리키는데, pnpm 은 그 경로를 패키지 밖에서
+ * 이름으로 부를 수 없다 — TS2742 로 빌드가 깨진다. 로컬에서는 node_modules 배치가 달라
+ * 지나가고 CI 에서만 터지므로, 지우면 다시 같은 자리에서 막힌다.
+ */
+export type PublishedPostWithComments = BoardPost & {
+  comments: BoardComment[];
+};
 
 /** 목록에 필요한 것만. **본문은 빼고 가져온다** — 마크다운 원문이 길다. */
 const LIST_SELECT = {
@@ -59,7 +71,7 @@ export class BoardReadRepository {
   }
 
   /** 글 하나 + 보이는 댓글. 상세는 한 번에 가져온다(relationJoins). */
-  findPublishedPost(boardId: number, postId: number) {
+  findPublishedPost(boardId: number, postId: number): Promise<PublishedPostWithComments | null> {
     return this.prisma.boardPost.findFirst({
       where: {
         id: postId,
