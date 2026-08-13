@@ -5,9 +5,7 @@ elasticsearch:
   indexPrefix: local
 
 auth:
-  # IP 는 쿠키 Domain 으로 못 쓴다.
   rootDomain:
-  # http 로 뜬다.
   cookieSecure: false
   externalUrl: http://127.0.0.1:5173
   jwt:
