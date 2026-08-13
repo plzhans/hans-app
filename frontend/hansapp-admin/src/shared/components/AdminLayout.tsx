@@ -82,7 +82,7 @@ export function AdminLayout({
   }, [collapsed]);
 
   return (
-    <div className="min-h-full">
+    <div>
       <Sidebar
         collapsed={collapsed}
         open={drawerOpen}
@@ -99,9 +99,15 @@ export function AdminLayout({
         />
       )}
 
+      {/*
+        **화면 높이를 뷰포트 단위로 잡는다.** `min-h-full`(=100%)은 부모의 height 가 auto 면
+        0 으로 풀려, 내용이 짧은 화면에서 이 칸이 내용 높이까지만 서고 푸터가 중간에 뜬다 —
+        html·body·#root 에 height:100% 를 줘도 그 사이에 auto 인 칸이 하나만 있으면 끊긴다.
+        `dvh` 는 모바일에서 주소창이 접혔다 펴져도 100vh 처럼 튀지 않는다.
+      */}
       <div
         className={cn(
-          'flex min-h-full flex-col transition-all duration-200',
+          'flex min-h-dvh flex-col transition-all duration-200',
           collapsed ? 'lg:ml-16' : 'lg:ml-60',
         )}
       >
