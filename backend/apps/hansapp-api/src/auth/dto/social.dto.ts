@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEmail, IsNotEmptyObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmptyObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
 
 import { ClientLocaleDto, ConsentDto } from './auth.dto';
 
@@ -11,11 +18,23 @@ export class SocialRegisterRequestDto {
   readonly ticket!: string;
 
   @ApiPropertyOptional({
-    description: 'provider 가 이메일을 주지 않은 경우 사용자가 입력한 이메일',
+    description:
+      '사용자가 고른 이메일. provider 가 이메일을 주지 않았거나(email_required), ' +
+      '준 값이 검증된 것이 아닐 때(email_editable) 쓴다. ' +
+      'provider 가 검증한 이메일이 있으면 그 값이 우선한다.',
   })
   @IsOptional()
   @IsEmail()
   readonly email?: string;
+
+  @ApiPropertyOptional({
+    description: '사용자가 고른 표시 이름. 비우면 provider 가 준 이름을 쓴다.',
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  readonly name?: string;
 
   @ApiPropertyOptional({
     description: 'provider 가 이메일을 검증하지 않은 경우(code_required) 메일로 받은 인증 코드',
@@ -47,11 +66,23 @@ export class SocialRegisterCodeRequestDto {
   readonly ticket!: string;
 
   @ApiPropertyOptional({
-    description: 'provider 가 이메일을 주지 않은 경우 사용자가 입력한 이메일',
+    description:
+      '사용자가 고른 이메일. provider 가 이메일을 주지 않았거나(email_required), ' +
+      '준 값이 검증된 것이 아닐 때(email_editable) 쓴다. ' +
+      'provider 가 검증한 이메일이 있으면 그 값이 우선한다.',
   })
   @IsOptional()
   @IsEmail()
   readonly email?: string;
+
+  @ApiPropertyOptional({
+    description: '사용자가 고른 표시 이름. 비우면 provider 가 준 이름을 쓴다.',
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  readonly name?: string;
 }
 
 /** 연동 시작 토큰 응답. 프론트가 GET /auth/:provider?link_token= 로 넘겨 연동을 시작한다. */

@@ -24,6 +24,32 @@ import { TokenResponseDto } from './dto/auth.dto';
 import { SocialRegisterCodeRequestDto, SocialRegisterRequestDto } from './dto/social.dto';
 import { requestMeta, respondTokens, setLoginCookies } from './refresh-cookie';
 
+/** 실패·가입 화면에서 원래 흐름을 이어 가기 위해 다시 실어 보내는 값. */
+interface Relay {
+  clientId?: string;
+  clientState?: string;
+  codeChallenge?: string;
+}
+
+/**
+ * 우리 화면(인증웹)에 내려놓을 때, **어디로 돌아가야 하는지**를 함께 싣는다.
+ *
+ * 외부 앱이면 로그인 릴레이 파라미터 그대로다 — 사용자가 그 화면에서 일을 마치면
+ * 인가코드가 그 앱까지 이어진다. 자사면 `return` 하나면 된다(허용 오리진만 따라간다).
+ * 이름을 갈라 쓰는 이유는 그 둘이 검증 규칙이 다르기 때문이다.
+ */
+function appendResume(url: URL, returnTo: string | undefined, relay?: Relay): void {
+  if (!returnTo) return;
+  if (relay?.clientId) {
+    url.searchParams.set('client_id', relay.clientId);
+    url.searchParams.set('redirect_uri', returnTo);
+    if (relay.codeChallenge) url.searchParams.set('code_challenge', relay.codeChallenge);
+    if (relay.clientState) url.searchParams.set('state', relay.clientState);
+    return;
+  }
+  url.searchParams.set('return', returnTo);
+}
+
 /**
  * 소셜 로그인(인증) 엔드포인트. 백엔드가 provider 콜백을 받아 처리한 뒤,
  * 결과(인가코드/가입티켓/연동/에러)를 프론트(SPA)로 리다이렉트한다.
@@ -82,6 +108,7 @@ export class SocialController {
       {
         ticket: dto.ticket,
         email: dto.email,
+        name: dto.name,
         code: dto.code,
         consent: dto.consent,
         clientLocale: dto.clientLocale,
@@ -121,18 +148,14 @@ export class SocialController {
       throw new BadRequestException('Social profile is unavailable.');
     }
     const state = typeof req.query.state === 'string' ? req.query.state : '';
-    const { outcome, returnTo, clientState, clientId } = await this.social.handleCallback(
-      profile,
-      state,
-      requestMeta(req),
-      lang,
-    );
+    const { outcome, returnTo, clientState, clientId, codeChallenge } =
+      await this.social.handleCallback(profile, state, requestMeta(req), lang);
     // **자사 로그인은 여기서 끝난다.** 쿠키를 심고 원래 있던 자리로 돌려보낸다 —
     // 인가코드를 만들어 프론트가 교환하게 하는 왕복이 없다.
     if (outcome.kind === 'session') {
       setLoginCookies(res, outcome.tokens);
     }
-    res.redirect(this.buildRedirect(clientId, returnTo, outcome, clientState));
+    res.redirect(this.buildRedirect(clientId, returnTo, outcome, clientState, codeChallenge));
   }
 
   /**
@@ -161,12 +184,37 @@ export class SocialController {
    * 인증웹 주소를 모르면(설정 누락) null 을 돌려 예전 동작으로 물러난다 — 보낼 데가 없는데
    * 실패까지 삼키면 사용자는 빈 화면만 본다.
    */
-  private errorLandingUrl(error: string, returnTo: string | undefined): string | null {
+  private errorLandingUrl(
+    error: string,
+    returnTo: string | undefined,
+    relay?: Relay,
+  ): string | null {
     const base = this.authConfig.externalUrl;
     if (!base) return null;
     const url = new URL(`${base}/login`);
     url.searchParams.set('error', error);
-    if (returnTo) url.searchParams.set('return', returnTo);
+    appendResume(url, returnTo, relay);
+    return url.toString();
+  }
+
+  /**
+   * 가입을 마칠 화면(인증웹 콜백)으로 보낸다.
+   *
+   * **pending 은 돌아갈 곳으로 보내면 안 된다.** 티켓을 받아 동의를 받고 이메일·이름을
+   * 확정하는 화면은 인증웹에만 있다 — 포털이든 외부 앱이든 그 값을 어떻게 다뤄야 하는지
+   * 모른다. 실제로 포털로 돌려보내 fragment 만 달린 첫 화면이 열린 적이 있다.
+   *
+   * 이어 갈 값(어디로 돌아가야 하는지)은 함께 실어 보낸다 — 가입이 끝나면 그쪽으로 잇는다.
+   */
+  private pendingLandingUrl(
+    outcome: CallbackOutcome,
+    returnTo: string | undefined,
+    relay?: Relay,
+  ): string | null {
+    const base = this.authConfig.externalUrl;
+    if (!base) return null;
+    const url = this.withOutcome(new URL(`${base}/callback`), outcome);
+    appendResume(url, returnTo, relay);
     return url.toString();
   }
 
@@ -183,6 +231,7 @@ export class SocialController {
     returnTo: string | undefined,
     outcome: CallbackOutcome,
     clientState?: string,
+    codeChallenge?: string,
   ): string {
     /*
       **실패는 자사 앱으로 돌려보내지 않는다.**
@@ -196,12 +245,23 @@ export class SocialController {
       를 한 번 더 눌러야 제자리가 된다. 원래 가려던 곳은 return 으로 실어 보내 문제를 풀고
       나면 이어서 갈 수 있게 한다.
 
-      **외부 앱(clientId)은 예외다.** OAuth 는 실패도 redirect_uri 로 돌려주게 돼 있고
-      (RFC 6749 §4.1.2.1), 그 앱들은 그렇게 받도록 만들어져 있다. 여기서 규약을 어기면
-      그 앱은 사용자가 어디로 사라졌는지 알 수 없다.
+      **외부 앱에도 돌려보내지 않는다.** OAuth 가 실패를 redirect_uri 로 돌려주게 한 것은
+      (RFC 6749 §4.1.2.1) `invalid_request`·`access_denied` 처럼 **그 앱이 처리할 수 있는
+      프로토콜 오류**를 두고 하는 말이다. 여기서 나는 것은 그런 종류가 아니다 —
+      "이 이메일로 가입된 계정이 있다", "탈퇴 후 재가입 제한기간이다" 는 우리 인증 서버
+      안에서 사용자가 풀어야 하는 일이고, 아직 로그인이 끝나지도 않은 상태다.
+
+      돌려보내면 그 앱은 읽을 줄 모르는 값을 받아 오류 화면을 띄우고, 사용자는 문제를 풀
+      방법이 있는 화면(로그인·가입)에서 멀어진다. 실제로 medifinder 가 `email_exists` 를
+      받아 그렇게 끝났다. 사용자가 여기서 문제를 풀면 `return` 으로 원래 앱까지 이어진다.
     */
-    if (outcome.kind === 'error' && !clientId) {
-      const landing = this.errorLandingUrl(outcome.error, returnTo);
+    const relay: Relay = { clientId, clientState, codeChallenge };
+    if (outcome.kind === 'error') {
+      const landing = this.errorLandingUrl(outcome.error, returnTo, relay);
+      if (landing) return landing;
+    }
+    if (outcome.kind === 'pending') {
+      const landing = this.pendingLandingUrl(outcome, returnTo, relay);
       if (landing) return landing;
     }
     // 자사인데 돌아갈 곳이 없다 = 인증웹에 직접 와서 로그인한 경우. 우리가 내려놓는다.
@@ -247,9 +307,16 @@ export class SocialController {
         if (outcome.email) {
           secret.set('email', outcome.email);
         }
+        // 이름도 개인정보라 fragment 로 보낸다(이메일과 같은 이유).
+        if (outcome.name) {
+          secret.set('name', outcome.name);
+        }
         url.hash = secret.toString();
         if (outcome.emailRequired) {
           url.searchParams.set('email_required', '1');
+        }
+        if (outcome.emailEditable) {
+          url.searchParams.set('email_editable', '1');
         }
         if (outcome.codeRequired) {
           url.searchParams.set('code_required', '1');
