@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_LANGUAGE, isSupportedLanguage } from '@/shared/i18n';
-import { locationTermsFor } from '../content';
+import { locationTermsDoc } from '../content';
 import { LegalDocumentView } from '../components/LegalDocumentView';
-import { translationNotice } from '../notice';
+import { legalNotices } from '../notice';
 
 export default function LocationTerms() {
   const { t, i18n } = useTranslation();
@@ -10,8 +10,8 @@ export default function LocationTerms() {
 
   return (
     <LegalDocumentView
-      doc={locationTermsFor(lang)}
-      notice={translationNotice(lang, t)}
+      doc={locationTermsDoc}
+      notices={legalNotices(locationTermsDoc, lang, t)}
     />
   );
 }

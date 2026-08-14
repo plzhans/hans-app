@@ -32,6 +32,12 @@ export interface LegalDoc {
   title: string;
   /** "시행일: 2026년 8월 5일" — 개정 이력을 따지는 기준이라 본문 맨 위에 둔다. */
   effective: string;
+  /**
+   * 같은 시행일을 기계가 읽는 형태로(`YYYY-MM-DD`). **effective 를 파싱하지 않는다** —
+   * 사람이 읽는 쪽은 "시행일:" 같은 말머리가 붙고 표기도 바뀌는데, 거기서 날짜를 긁어내면
+   * 문구를 다듬을 때마다 조용히 깨진다. 시행 전 공지 배너가 이 값으로 판단한다(../notice.ts).
+   */
+  effectiveDate: string;
   /** 조문 앞의 총칙 성격 문단. */
   intro: string[];
   sections: LegalSection[];

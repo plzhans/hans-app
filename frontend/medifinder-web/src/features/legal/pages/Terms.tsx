@@ -1,14 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_LANGUAGE, isSupportedLanguage } from '@/shared/i18n';
-import { termsFor } from '../content';
+import { termsDoc } from '../content';
 import { LegalDocumentView } from '../components/LegalDocumentView';
-import { translationNotice } from '../notice';
+import { legalNotices } from '../notice';
 
 export default function Terms() {
   const { t, i18n } = useTranslation();
   const lang = isSupportedLanguage(i18n.language) ? i18n.language : DEFAULT_LANGUAGE;
 
   return (
-    <LegalDocumentView doc={termsFor(lang)} notice={translationNotice(lang, t)} />
+    <LegalDocumentView doc={termsDoc} notices={legalNotices(termsDoc, lang, t)} />
   );
 }

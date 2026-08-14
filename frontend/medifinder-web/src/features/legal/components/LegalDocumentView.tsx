@@ -8,22 +8,25 @@ import type { LegalBlock, LegalDoc } from '../content';
  */
 export function LegalDocumentView({
   doc,
-  notice,
+  notices = [],
 }: {
   doc: LegalDoc;
-  /** 정본이 아닌 언어에서 띄우는 안내. 한국어 화면에서는 없다. */
-  notice?: string;
+  /** 본문 위에 띄우는 안내(개정 예고, 언어 안내). 없으면 아무것도 그리지 않는다. */
+  notices?: string[];
 }) {
   return (
     <article className="mx-auto max-w-3xl px-4 py-8 text-sm leading-relaxed text-ink-body">
       <h1 className="text-xl font-bold text-ink">{doc.title}</h1>
       <p className="mt-1 text-xs text-ink-subtle">{doc.effective}</p>
 
-      {notice && (
-        <p className="mt-4 rounded-lg bg-surface-subtle px-3 py-2 text-xs text-ink-muted">
+      {notices.map((notice) => (
+        <p
+          key={notice}
+          className="mt-4 rounded-lg bg-surface-subtle px-3 py-2 text-xs text-ink-muted"
+        >
           {notice}
         </p>
-      )}
+      ))}
 
       {doc.intro.map((paragraph, index) => (
         <p key={index} className="mt-4">
