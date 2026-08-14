@@ -20,6 +20,33 @@
     "home": "홈",
     "search": "병원 검색"
   },
+  "auth": {
+    "login": "로그인",
+    "logout": "로그아웃",
+    "processing": "로그인 처리 중이에요",
+    "processingHint": "잠시만 기다려 주세요.",
+    "myPage": "마이페이지",
+    "account": "내 계정",
+    "failed": "로그인을 마치지 못했어요.",
+    "backHome": "홈으로"
+  },
+  "me": {
+    "loginRequired": "로그인하면 내 계정 정보를 볼 수 있어요.",
+    "account": "계정",
+    "name": "이름",
+    "email": "이메일",
+    "userId": "회원번호",
+    "tier": "등급",
+    "joinedAt": "가입일",
+    "connection": "연동 정보",
+    "accountType": "계정",
+    "hansappAccount": "HansApp 계정",
+    "linked": "연결된 소셜",
+    "linkedNone": "없음",
+    "manageAccount": "계정 관리",
+    "manageAccountHint": "이름·비밀번호·소셜 연동은 HansApp 계정에서 바꿉니다.",
+    "logoutHint": "이 브라우저의 MediFinder 로그인만 해제합니다. HansApp 계정은 유지됩니다."
+  },
   "home": {
     "heroTitle": "가까운 병원을 찾아보세요",
     "heroSubtitle": "병원을 검색하고 진료 정보를 확인하세요.",

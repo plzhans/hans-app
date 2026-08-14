@@ -7,7 +7,8 @@ elasticsearch:
 auth:
   rootDomain:
   cookieSecure: false
-  externalUrl: http://127.0.0.1:5173
+  # 인증웹 dev server(5273). 라우터 프리픽스(/auth)까지 포함한다.
+  externalUrl: http://127.0.0.1:5273/auth
   jwt:
     issuer: http://127.0.0.1:3000
     allowedIssuers:

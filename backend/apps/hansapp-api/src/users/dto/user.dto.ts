@@ -80,6 +80,13 @@ export class MeResponseDto {
   @ApiProperty({ description: '권한', example: 'USER' })
   readonly role!: string;
 
+  @ApiProperty({
+    description: '회원 등급. 앱 생성 한도를 정한다.',
+    enum: ['BASIC', 'PRO', 'UNLIMITED'],
+    example: 'BASIC',
+  })
+  readonly tier!: string;
+
   @ApiProperty({ description: '최초 가입 수단', example: 'EMAIL' })
   readonly joinType!: string;
 

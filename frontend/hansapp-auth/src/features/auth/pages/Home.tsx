@@ -104,6 +104,8 @@ export default function Home() {
               <dl className="mt-2 space-y-2 rounded-lg bg-gray-50 p-4 text-sm">
                 <Row label="이메일" value={me.email} />
                 <Row label="이름" value={me.name ?? '-'} />
+                {/* 배포 직후에는 캐시된 옛 응답에 등급이 없을 수 있다(TTL 만큼). 빈칸 대신 '-'. */}
+                <Row label="등급" value={me.tier ? tierLabel(me.tier) : '-'} />
                 <Row label="가입일" value={formatDate(me.createdAt)} />
                 <Row label="가입수단" value={providerLabel(me.joinType)} />
                 <Row
@@ -227,6 +229,19 @@ function SectionButton({
       {children}
     </button>
   );
+}
+
+/**
+ * 회원 등급. **번역하지 않고 고유명사로 둔다** — 서비스 안팎에서 부르는 이름이 갈리면
+ * 문의를 받을 때 서로 다른 말을 하게 된다(관리자 콘솔도 같은 값을 그대로 쓴다).
+ */
+function tierLabel(value: string): string {
+  const labels: Record<string, string> = {
+    BASIC: 'Basic',
+    PRO: 'Pro',
+    UNLIMITED: 'Unlimited',
+  };
+  return labels[value] ?? value;
 }
 
 /** `EMAIL`·`GOOGLE` 같은 서버 값을 사람이 읽는 말로. 모르는 값은 그대로 보여준다. */

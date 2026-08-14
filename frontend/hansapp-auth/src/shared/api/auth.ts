@@ -20,6 +20,8 @@ export interface Me {
   emailVerified: boolean;
   name?: string | null;
   role: string;
+  /** 회원 등급(BASIC·PRO·UNLIMITED). 앱 생성 한도를 정한다. */
+  tier: string;
   joinType: string;
   createdAt: string;
   /** 비밀번호가 설정돼 있는가. 소셜로만 가입했으면 false — 비밀번호 변경을 띄우지 않는다. */

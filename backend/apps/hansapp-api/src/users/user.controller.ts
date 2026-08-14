@@ -85,6 +85,7 @@ export class UserController {
       emailVerified: profile.emailVerified,
       name: profile.name,
       role: profile.role,
+      tier: profile.tier,
       joinType: profile.joinType,
       language: profile.language,
       timeZone: profile.timeZone,

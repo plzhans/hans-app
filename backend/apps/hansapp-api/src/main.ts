@@ -178,6 +178,15 @@ async function bootstrap() {
       return;
     }
 
+    // OIDC discovery·JWKS 는 **누구나 읽으라고 내놓은 공개 문서**다. 외부 앱은 이걸 읽어야
+    // 로그인 주소와 토큰 검증 공개키를 알 수 있는데, 자격증명을 실을 수 없는 요청이라
+    // 아래 규칙(인증 헤더가 있어야 통과)에 걸려 브라우저가 응답을 버렸다.
+    // 비밀이 아닌 값이고 쿠키도 주지 않으므로 오리진을 가리지 않는다.
+    if (req.path.startsWith('/.well-known/')) {
+      callback(null, { origin: true, maxAge: CORS_MAX_AGE_SEC });
+      return;
+    }
+
     if (isFirstPartyOrigin(origin, rootDomain)) {
       callback(null, {
         origin,

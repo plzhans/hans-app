@@ -29,6 +29,8 @@ export interface MeProfile {
   readonly emailVerified: boolean;
   readonly name: string | null;
   readonly role: string;
+  /** 등급(BASIC·PRO·UNLIMITED). 앱 생성 한도를 정한다. */
+  readonly tier: string;
   readonly joinType: string;
   readonly language: string | null;
   readonly timeZone: string | null;
@@ -81,6 +83,7 @@ export class ProfileCache {
         emailVerified: user.emailVerified,
         name: user.name,
         role: user.role,
+        tier: user.tier,
         joinType: user.joinType,
         language: user.language,
         timeZone: user.timeZone,

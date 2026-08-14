@@ -17,6 +17,8 @@ import { AiSearchProvider } from '@/features/ai-search/model/AiSearchPanel';
 import { trackPageView } from '@/shared/analytics/gtag';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/shared/i18n';
 import { stripLang } from '@/shared/i18n/routing';
+import { useAuth } from '@/shared/auth/useAuth';
+import { authClient } from '@/shared/auth/authClient';
 
 const Home = lazy(() => import('@/features/home/pages/Home'));
 const Search = lazy(() => import('@/features/search/pages/Search'));
@@ -28,6 +30,15 @@ const Terms = lazy(() => import('@/features/legal/pages/Terms'));
 const LocationTerms = lazy(() => import('@/features/legal/pages/LocationTerms'));
 const Privacy = lazy(() => import('@/features/legal/pages/Privacy'));
 const NotFound = lazy(() => import('@/features/home/pages/NotFound'));
+const AuthCallback = lazy(() => import('@/features/auth/pages/AuthCallback'));
+const MyPage = lazy(() => import('@/features/me/pages/MyPage'));
+
+/**
+ * 로그인 콜백 경로. 언어 트리 **밖**에 둔다 — 인가코드를 받을 주소는 인증 서버에 등록해 둔
+ * 값이라 언어마다 달라질 수 없다(등록된 redirect_uri 와 정확히 일치해야 코드가 발급된다).
+ * 돌아갈 자리는 로그인을 시작할 때 저장해 두므로 언어 접두사도 그대로 복원된다.
+ */
+const CALLBACK_PATH = '/auth/callback';
 
 function PageLoader() {
   return (
@@ -51,8 +62,37 @@ function RouteTracker() {
     const isRedirectingPrefix =
       pathname === `/${DEFAULT_LANGUAGE}` || pathname.startsWith(`/${DEFAULT_LANGUAGE}/`);
     if (isRedirectingPrefix) return;
+    // 콜백 URL 에는 인가코드가 쿼리로 붙어 있다. page_location 은 전체 URL 이라 그대로
+    // 보내면 자격증명이 애널리틱스에 남는다. 통로 화면이라 집계할 값도 아니다.
+    if (pathname === CALLBACK_PATH) return;
     trackPageView();
   }, [pathname, search]);
+  return null;
+}
+
+/**
+ * 저장된 토큰으로 로그인 상태를 복원한다. 앱당 한 번.
+ *
+ * **콜백 화면에서는 하지 않는다** — 거기서는 인가코드 교환이 상태를 세우고, 둘이 같이 돌면
+ * 아직 토큰이 없는 시점의 판단(익명)이 교환 결과를 덮어쓸 수 있다.
+ */
+function AuthBootstrap() {
+  const { pathname } = useLocation();
+  const isCallback = pathname === CALLBACK_PATH;
+  useEffect(() => {
+    if (isCallback) return;
+    void useAuth.getState().bootstrap();
+  }, [isCallback]);
+
+  // 다른 탭에서 같은 세션이 끝났으면 이 탭도 익명으로 돌린다. 토큰 회전(refreshed)은
+  // SDK 가 저장소까지 맞춰 주므로 화면이 할 일이 없다.
+  useEffect(
+    () =>
+      authClient.onSessionChange((event) => {
+        if (event === 'signedOut') useAuth.getState().signedOutElsewhere();
+      }),
+    [],
+  );
   return null;
 }
 
@@ -68,6 +108,7 @@ function Root() {
     */
     <AiSearchProvider>
       <RouteTracker />
+      <AuthBootstrap />
       <ScrollRestoration />
       <Suspense fallback={<PageLoader />}>
         <Outlet />
@@ -101,6 +142,9 @@ const pages: RouteObject[] = [
     children: [
       { index: true, element: <Home /> },
       { path: 'search', element: <Search /> },
+      // 마이페이지. 로그인해야 볼 내용이 있지만 라우트를 막지는 않는다 —
+      // 익명이면 화면이 로그인 버튼을 띄운다(주소를 직접 쳐서 온 경우까지 같은 자리에서 처리).
+      { path: 'me', element: <MyPage /> },
       // 약관·방침은 푸터에서만 들어오는 읽기 화면이라 목록 껍데기를 그대로 쓴다.
       //
       // 셋 다 /terms 아래 한 단계로 둔다. 포털(plzhans.com)도 같은 규칙이라 두 서비스의
@@ -151,6 +195,8 @@ const router = createRouter([
   {
     element: <Root />,
     children: [
+      // 로그인 콜백. 언어 트리보다 먼저 둔다(언어와 무관한 고정 주소다).
+      { path: CALLBACK_PATH, element: <AuthCallback /> },
       // 기본 언어의 접두사 URL 은 정식 URL 로 되돌린다. 언어 트리보다 먼저 매칭돼야 한다.
       { path: `/${DEFAULT_LANGUAGE}/*`, element: <StripKoPrefix /> },
       { path: `/${DEFAULT_LANGUAGE}`, element: <StripKoPrefix /> },

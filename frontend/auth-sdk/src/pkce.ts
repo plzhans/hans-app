@@ -17,8 +17,13 @@ import { Preferences } from '@capacitor/preferences';
  * 콜백 URL 이 state 를 그대로 돌려주므로 어느 verifier 를 꺼낼지도 알 수 있다.
  */
 
-/** 저장 키 접두사. state 를 붙여 흐름마다 분리한다. */
-const PREFIX = 'hansapp.pkce.';
+/**
+ * 저장 키 접두사. 앱마다 다르게 받는다.
+ *
+ * **한 오리진에 여러 앱이 있을 수 있다** — 로컬은 모두 127.0.0.1 이고, 쿠키는 포트를 가리지
+ * 않는다. 공용 접두사를 쓰면 옆 앱이 시작한 로그인의 verifier 를 서로 지우게 된다.
+ * 여기에 state 를 덧붙여 같은 앱 안에서도 흐름마다 분리한다.
+ */
 
 /** 보관 유효기간. 인가코드 수명(30초)보다 넉넉하되, 버려진 항목이 오래 남지 않게. */
 const TTL_MS = 10 * 60 * 1000;
@@ -56,8 +61,8 @@ async function sha256base64url(value: string): Promise<string> {
  * verifier·state 를 만들어 보관하고, 인가 요청에 실을 값만 돌려준다.
  * verifier 는 여기서 밖으로 나가지 않는다.
  */
-export async function createPkceRequest(): Promise<PkceRequest> {
-  await sweepExpired();
+export async function createPkceRequest(prefix: string): Promise<PkceRequest> {
+  await sweepExpired(prefix);
 
   // 32 bytes → base64url 43자. RFC 7636 이 요구하는 43~128자 범위의 최소값이다.
   const verifier = randomBase64url(32);
@@ -65,7 +70,7 @@ export async function createPkceRequest(): Promise<PkceRequest> {
   const codeChallenge = await sha256base64url(verifier);
 
   const stored: Stored = { verifier, expiresAt: Date.now() + TTL_MS };
-  await Preferences.set({ key: PREFIX + state, value: JSON.stringify(stored) });
+  await Preferences.set({ key: prefix + state, value: JSON.stringify(stored) });
 
   return { state, codeChallenge };
 }
@@ -74,9 +79,9 @@ export async function createPkceRequest(): Promise<PkceRequest> {
  * 콜백에서 state 로 verifier 를 꺼낸다. **꺼내면 지운다**(1회용).
  * 없으면 null — 이 브라우저가 시작하지 않은 흐름이라는 뜻이라, 교환하면 안 된다.
  */
-export async function takeVerifier(state: string | null): Promise<string | null> {
+export async function takeVerifier(prefix: string, state: string | null): Promise<string | null> {
   if (!state) return null;
-  const key = PREFIX + state;
+  const key = prefix + state;
   const { value } = await Preferences.get({ key });
   await Preferences.remove({ key });
   if (!value) return null;
@@ -92,12 +97,12 @@ export async function takeVerifier(state: string | null): Promise<string | null>
  * 만료된 항목을 지운다. 사용자가 로그인을 중단하면 항목이 그대로 남으므로,
  * 새 흐름을 시작할 때마다 한 번씩 쓸어낸다.
  */
-async function sweepExpired(): Promise<void> {
+async function sweepExpired(prefix: string): Promise<void> {
   const { keys } = await Preferences.keys();
   const now = Date.now();
   await Promise.all(
     keys
-      .filter((k) => k.startsWith(PREFIX))
+      .filter((k) => k.startsWith(prefix))
       .map(async (key) => {
         const { value } = await Preferences.get({ key });
         if (!value) return;

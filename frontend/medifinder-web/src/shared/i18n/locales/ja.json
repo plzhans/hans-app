@@ -20,6 +20,33 @@
     "home": "ホーム",
     "search": "病院検索"
   },
+  "auth": {
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "processing": "ログイン処理中です",
+    "processingHint": "少々お待ちください。",
+    "myPage": "マイページ",
+    "account": "アカウント",
+    "failed": "ログインを完了できませんでした。",
+    "backHome": "ホームへ"
+  },
+  "me": {
+    "loginRequired": "ログインするとアカウント情報を確認できます。",
+    "account": "アカウント",
+    "name": "名前",
+    "email": "メールアドレス",
+    "userId": "会員番号",
+    "tier": "グレード",
+    "joinedAt": "登録日",
+    "connection": "連携情報",
+    "accountType": "アカウント",
+    "hansappAccount": "HansApp アカウント",
+    "linked": "連携中のソーシャル",
+    "linkedNone": "なし",
+    "manageAccount": "アカウント管理",
+    "manageAccountHint": "名前・パスワード・ソーシャル連携は HansApp アカウントで変更します。",
+    "logoutHint": "このブラウザの MediFinder のログインのみ解除します。HansApp アカウントは維持されます。"
+  },
   "home": {
     "heroTitle": "近くの病院を探す",
     "heroSubtitle": "病院を検索し、診療情報を確認できます。",
