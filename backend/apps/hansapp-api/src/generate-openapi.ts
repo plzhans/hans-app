@@ -92,7 +92,26 @@ async function generate(): Promise<void> {
   console.log(`✅ OpenAPI spec exported to ${outPath}`);
 }
 
-generate().catch((error) => {
-  console.error('❌ Failed to generate OpenAPI spec', error);
-  process.exit(1);
-});
+/**
+ * 스펙을 쓰고 나면 **직접 끝낸다.**
+ *
+ * app.close() 로 Nest 는 정리되지만 그것과 무관하게 열린 핸들이 남는다 — 큐(BullMQ)가
+ * 자기 Redis 연결을 들고 있고, 그 연결이 살아 있는 한 이벤트 루프는 끝나지 않는다.
+ * 그래서 스펙은 다 나왔는데 프로세스가 멈춰 있는 것처럼 보였다(CI 에서는 타임아웃까지 간다).
+ *
+ * 한 번 뽑고 끝나는 일회성 명령이라, 남은 연결을 하나씩 찾아 닫는 것보다 여기서 끊는 편이
+ * 단순하고 오래 간다 — 큐·캐시가 늘어나도 이 자리는 그대로다.
+ */
+function exit(code: number): void {
+  process.exitCode = code;
+  // stdout 이 파이프면 쓰기가 비동기다. 빈 write 의 콜백은 앞의 출력이 다 나간 뒤에 돌아
+  // 마지막 줄이 잘리지 않는다.
+  process.stdout.write('', () => process.exit(code));
+}
+
+generate()
+  .then(() => exit(0))
+  .catch((error) => {
+    console.error('❌ Failed to generate OpenAPI spec', error);
+    exit(1);
+  });
