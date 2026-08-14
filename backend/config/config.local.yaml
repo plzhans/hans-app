@@ -12,7 +12,7 @@ auth:
   jwt:
     issuer: http://127.0.0.1:3000
     allowedIssuers:
-      - http://develop.plzhans.com
+      - https://develop-api.plzhans.com
       - http://127.0.0.1:3000
 
 apps-api:

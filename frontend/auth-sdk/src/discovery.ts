@@ -55,8 +55,9 @@ interface CachedDiscovery {
  *
  * **token_endpoint·jwks_uri 는 apiBaseUrl 과 같은 오리진일 때만 받아들인다.**
  * 서버는 이 둘을 `issuer` 로 조립하는데, issuer 는 토큰의 `iss` 클레임에 쓰는 **이름**이라
- * API 주소와 같으리라는 보장이 없다(develop 은 issuer 가 웹 호스트로 잡혀 있다).
- * 그대로 믿으면 토큰 교환이 API 가 아닌 곳으로 날아가 로그인이 통째로 실패한다.
+ * API 주소와 같으리라는 보장이 없다 — 설정을 잘못 잡으면 웹 호스트가 들어가기도 한다
+ * (실제로 develop 이 그랬다). 그대로 믿으면 토큰 교환이 API 가 아닌 곳으로 날아가
+ * 로그인이 통째로 실패한다.
  * 로그인 UI(authorization_endpoint)는 애초에 다른 호스트라 이 검사를 하지 않는다.
  */
 export async function discoverEndpoints({
