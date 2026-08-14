@@ -172,17 +172,22 @@ async function bootstrap() {
   const CORS_MAX_AGE_SEC = 600;
 
   app.enableCors((req: Request, callback: (err: Error | null, options: CorsOptions) => void) => {
-    const origin = req.headers.origin;
-    if (!origin) {
-      callback(null, { origin: true, maxAge: CORS_MAX_AGE_SEC });
-      return;
-    }
-
     // OIDC discovery·JWKS 는 **누구나 읽으라고 내놓은 공개 문서**다. 외부 앱은 이걸 읽어야
     // 로그인 주소와 토큰 검증 공개키를 알 수 있는데, 자격증명을 실을 수 없는 요청이라
     // 아래 규칙(인증 헤더가 있어야 통과)에 걸려 브라우저가 응답을 버렸다.
     // 비밀이 아닌 값이고 쿠키도 주지 않으므로 오리진을 가리지 않는다.
+    //
+    // **요청 Origin 을 되비추지 않고 `*` 로 준다.** 되비추면 응답이 Origin 마다 달라져
+    // `Vary: Origin` 이 붙고, 공용 캐시가 오리진 수만큼 사본을 따로 들게 된다.
+    // 이 두 문서는 누가 요청하든 같은 값이라 사본 하나로 충분하다(컨트롤러가 한 시간 캐시).
+    // 그래서 Origin 유무를 보기 **전에** 먼저 가른다 — 헤더 없는 요청까지 같은 응답이어야 한다.
     if (req.path.startsWith('/.well-known/')) {
+      callback(null, { origin: '*', maxAge: CORS_MAX_AGE_SEC });
+      return;
+    }
+
+    const origin = req.headers.origin;
+    if (!origin) {
       callback(null, { origin: true, maxAge: CORS_MAX_AGE_SEC });
       return;
     }
