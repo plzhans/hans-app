@@ -20,6 +20,33 @@
     "home": "Home",
     "search": "Search"
   },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "processing": "Signing you in",
+    "processingHint": "This will only take a moment.",
+    "myPage": "My page",
+    "account": "My account",
+    "failed": "We couldn't finish signing you in.",
+    "backHome": "Back to home"
+  },
+  "me": {
+    "loginRequired": "Log in to see your account details.",
+    "account": "Account",
+    "name": "Name",
+    "email": "Email",
+    "userId": "Member number",
+    "tier": "Tier",
+    "joinedAt": "Joined",
+    "connection": "Connection",
+    "accountType": "Account",
+    "hansappAccount": "HansApp account",
+    "linked": "Linked accounts",
+    "linkedNone": "None",
+    "manageAccount": "Manage account",
+    "manageAccountHint": "Change your name, password, and social links in your HansApp account.",
+    "logoutHint": "Signs you out of MediFinder on this browser only. Your HansApp account stays signed in."
+  },
   "home": {
     "heroTitle": "Find a hospital near you",
     "heroSubtitle": "Search hospitals and check their care information.",

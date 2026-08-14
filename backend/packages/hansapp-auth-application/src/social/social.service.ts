@@ -37,16 +37,32 @@ export type CallbackOutcome =
   // 코드로 우회할 이유가 없다. 코드가 없으면 훔칠 것도 없어 PKCE 도 등장하지 않는다.
   // (컨트롤러가 이 토큰으로 쿠키를 심고 returnTo 로 바로 보낸다.)
   | { kind: 'session'; tokens: AuthTokens }
-  | { kind: 'code'; code: string } // 외부 앱 로그인/자동연동 → 릴레이 인가코드
-  // 신규 → 가입 티켓. emailRequired: provider 가 이메일을 안 줘 입력이 필요.
-  // codeRequired: provider 가 이메일을 검증하지 않아 우리 코드 인증이 필요(구글만 false).
-  // email: provider 가 준 이메일(프리필용). 없으면(카카오 등) 사용자가 입력한다.
+  /*
+    외부 앱 로그인/자동연동 → 릴레이 인가코드.
+
+    tokens 는 **우리 도메인의 세션**이다(있으면 컨트롤러가 쿠키로 심는다). 사용자가 방금
+    우리 로그인 화면에서 인증했으니 HansApp 에도 로그인된 것이 맞다 — 그러지 않으면 포털에
+    갔을 때 다시 로그인해야 한다. 코드는 그 사실 위에 얹혀 그 앱으로 나간다.
+  */
+  | { kind: 'code'; code: string; tokens?: AuthTokens }
+  /*
+    신규 → 가입 티켓.
+      emailRequired  provider 가 이메일을 아예 안 줘서 입력이 **필수**다.
+      emailEditable  provider 의 이메일이 검증된 값이 아니라 사용자가 **바꿀 수 있다**.
+                     네이버·라인처럼 검증 신호가 없는 곳의 이메일은 identity 가 아니라
+                     연락처라, 우리 계정의 주소로 그대로 굳히면 안 된다.
+      codeRequired   provider 가 검증하지 않아 우리 코드 인증이 필요하다(구글만 false).
+      email          프리필용. 없으면 사용자가 처음부터 입력한다.
+      name           provider 가 준 표시 이름(프리필용). 사용자가 고칠 수 있다.
+  */
   | {
       kind: 'pending';
       ticket: string;
       emailRequired: boolean;
+      emailEditable: boolean;
       codeRequired: boolean;
       email?: string;
+      name?: string;
     }
   | { kind: 'linked' } // 연동 완료
   | { kind: 'error'; error: string };
@@ -65,6 +81,14 @@ export interface CallbackResult {
   clientId?: string;
   /** 클라이언트가 보낸 state. 최종 리다이렉트에 그대로 실어 돌려준다(우리는 해석하지 않는다). */
   clientState?: string;
+  /**
+   * 그 클라이언트의 PKCE challenge.
+   *
+   * 실패해서 로그인 화면으로 되돌릴 때 **이 흐름을 이어 갈 수 있게** 함께 넘긴다 —
+   * 사용자가 거기서 문제를 풀고 로그인하면 인가코드가 원래 앱으로 이어져야 하는데,
+   * 그러려면 로그인 화면이 client_id·redirect_uri 와 함께 이 값을 다시 들고 있어야 한다.
+   */
+  codeChallenge?: string;
 }
 
 /** OAuthProvider → 가입수단(AuthProvider). 키 이름이 같아 그대로 매핑된다. */
@@ -135,6 +159,7 @@ export class SocialService {
       returnTo: state.returnTo,
       clientState: state.clientState,
       clientId: state.clientId,
+      codeChallenge: state.codeChallenge,
     };
   }
 
@@ -161,15 +186,27 @@ export class SocialService {
       return this.completeLogin(existing.userId, state, toJoinType(profile.provider), meta);
     }
 
-    // 미연동 → 이메일 충돌 검사 후 자동연동/신규가입
+    /*
+      미연동 → 신규 가입 흐름.
+
+      **provider 가 검증한 이메일일 때만 기존 계정과 대조한다.** 네이버·라인처럼 검증 신호가
+      없는 곳의 이메일은 identity 가 아니라 사용자가 바꿀 수 있는 연락처다(toNaver 주석 참고).
+      그 값으로 "이미 가입된 이메일" 이라고 막으면 두 가지가 잘못된다 —
+
+        · 연동할 수도 없으면서 가입도 막는다. 사용자는 아무 데도 못 간다.
+        · 남의 이메일을 자기 소셜 연락처로 적어 두고 눌러 보면 그 주소의 가입 여부가 드러난다.
+
+      그래서 검증되지 않은 이메일은 **아무 판단에도 쓰지 않고** 가입 화면의 기본값으로만
+      건넨다. 거기서 사용자가 쓸 주소를 정하고, 우리 코드 인증으로 소유를 확인한다.
+    */
     const email = profile.email ? normalizeEmail(profile.email) : null;
-    if (email) {
+    if (email && profile.emailVerified) {
       const active = await this.users.findActiveByEmail(email);
       if (active) {
         // 자동 연동: **양쪽 이메일이 모두 검증된 경우에만** 안전하다(계정 탈취 방지).
         // provider 가 검증한 이메일(구글 등)이 이미 검증된 계정과 같으면 = 같은 사람이므로
         // 그 계정에 이 소셜을 연동하고 로그인시킨다.
-        if (profile.emailVerified && active.emailVerified) {
+        if (active.emailVerified) {
           await this.oauths.create({
             userId: active.id,
             provider: profile.provider,
@@ -193,8 +230,8 @@ export class SocialService {
           await this.notifySocialChange(active, 'SOCIAL_LINKED', profile.provider, locale);
           return this.completeLogin(active.id, state, toJoinType(profile.provider), meta);
         }
-        // 한쪽이라도 미검증이면 자동연동 금지 — 소유가 증명되지 않아 탈취 위험이 있다.
-        // (기존 계정에 연동하려면 그 계정으로 로그인해 직접 연동해야 한다.)
+        // 기존 계정이 이메일을 검증한 적이 없으면 자동연동 금지 — 소유가 증명되지 않아
+        // 탈취 위험이 있다. (그 계정으로 로그인해 직접 연동해야 한다.)
         return { kind: 'error', error: 'email_exists' };
       }
       const withdrawn = await this.withdrawals.findActiveByEmail(email, new Date());
@@ -216,8 +253,10 @@ export class SocialService {
       kind: 'pending',
       ticket,
       emailRequired: !email,
+      emailEditable: !profile.emailVerified,
       codeRequired: !profile.emailVerified,
       email: email ?? undefined,
+      name: profile.name ?? undefined,
     };
   }
 
@@ -228,8 +267,26 @@ export class SocialService {
   }
 
   /**
-   * 소셜 가입 코드 발송. 티켓의 이메일(네이버·라인 등) 또는 사용자가 입력한 이메일(카카오 등)로
-   * 인증 코드를 보낸다. provider 가 이미 검증한 이메일이면 코드가 필요 없다(호출하지 않는다).
+   * 이 가입에 쓸 이메일을 정한다. **코드 발송과 가입 확정이 같은 답을 봐야 한다** —
+   * 갈리면 A 로 코드를 보내고 B 로 계정을 만들거나, 사용자가 고친 주소를 두고 엉뚱한 주소의
+   * 중복을 검사하게 된다(실제로 발송 쪽이 티켓 값을 그대로 써서 그렇게 됐다).
+   *
+   * **검증된 provider 이메일만 고정값이다.** 그건 우리가 소유를 확인한 주소라 바꿔 들어오는
+   * 것을 허용하면 코드 인증 없이 아무 주소로나 계정을 만들 수 있다. 검증되지 않은 값
+   * (네이버·라인)은 화면에 채워 준 기본값일 뿐이라, 사용자가 고른 주소가 있으면 그쪽이다.
+   */
+  private resolveRegisterEmail(
+    payload: { email?: string | null; emailVerified: boolean },
+    input?: string | null,
+  ): string {
+    const providerEmail = payload.email ? normalizeEmail(payload.email) : null;
+    if (payload.emailVerified && providerEmail) return providerEmail;
+    return normalizeEmail(input ?? providerEmail ?? '');
+  }
+
+  /**
+   * 소셜 가입 코드 발송. 사용자가 고른 이메일로 보낸다(검증된 provider 이메일이면 그 값).
+   * provider 가 이미 검증한 이메일이면 코드가 필요 없다(호출하지 않는다).
    */
   async requestRegisterCode(
     ticket: string,
@@ -237,7 +294,7 @@ export class SocialService {
     locale?: string,
   ): Promise<void> {
     const payload = this.tickets.verifyRegister(ticket);
-    const email = normalizeEmail(payload.email ?? emailInput ?? '');
+    const email = this.resolveRegisterEmail(payload, emailInput);
     if (!email) {
       throw new BadRequestException('Email is required.');
     }
@@ -258,6 +315,8 @@ export class SocialService {
     input: {
       ticket: string;
       email?: string | null;
+      /** 가입 화면에서 고른 표시 이름. 비우면 provider 가 준 이름을 쓴다. */
+      name?: string | null;
       code?: string | null;
       consent: ConsentInput;
       /** 브라우저에서 뽑아 온 지역 설정. 이메일 가입과 같은 규칙으로 좁혀 저장한다. */
@@ -277,7 +336,8 @@ export class SocialService {
       throw new ConflictException('Social account already linked.');
     }
 
-    const email = normalizeEmail(payload.email ?? input.email ?? '');
+    // 발송 때와 **같은 규칙**으로 정한다(resolveRegisterEmail 주석 참고).
+    const email = this.resolveRegisterEmail(payload, input.email);
     if (!email) {
       throw new BadRequestException('Email is required.');
     }
@@ -285,7 +345,7 @@ export class SocialService {
 
     // provider 가 준 검증 이메일을 그대로 쓸 때만 provider 검증으로 인정한다(사용자 입력은 미검증).
     const providerVerified =
-      !!payload.email && normalizeEmail(payload.email) === email && payload.emailVerified;
+      payload.emailVerified && !!payload.email && normalizeEmail(payload.email) === email;
 
     // provider 가 검증하지 않았으면 우리 코드로 소유를 증명해야 한다.
     if (!providerVerified) {
@@ -302,7 +362,12 @@ export class SocialService {
       email,
       emailVerified: true,
       password: null,
-      name: payload.name,
+      /*
+        **이름은 사용자가 고른 값이 이긴다.** provider 의 표시 이름은 그 서비스에서 쓰던
+        별명이라, 우리 계정에서까지 그 이름이어야 할 이유가 없다. 안 고쳤으면 화면이
+        기본값(provider 이름)을 그대로 돌려보내므로 결과는 같다.
+      */
+      name: input.name?.trim() || payload.name,
       joinType: toJoinType(payload.provider),
       ...resolveUserLocale(input.clientLocale ?? {}),
     });
@@ -360,28 +425,42 @@ export class SocialService {
     provider: AuthProvider,
     meta: RequestMeta,
   ): Promise<CallbackOutcome> {
+    const user = await this.users.findById(userId);
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      return { kind: 'error', error: 'invalid_account' };
+    }
+    const persistent = state.persistent ?? false;
+
     if (state.clientId) {
       // state 의 clientId 를 코드에 박는다. 이 값은 진입 시 가드가 정했고 서명으로 보호된다 —
       // 그래야 토큰 교환 때 "이 코드는 medifinder 것" 을 서버가 알 수 있다.
       //
-      // "로그인 상태 유지" 도 같이 박는다. 세션은 콜백이 아니라 **교환 시점**에 만들어지는데,
-      // 그 요청에는 사용자의 선택이 없다 — 코드가 유일한 운반 수단이다.
+      // "로그인 상태 유지" 도 같이 박는다. 그 앱의 세션은 콜백이 아니라 **교환 시점**에
+      // 만들어지는데, 그 요청에는 사용자의 선택이 없다 — 코드가 유일한 운반 수단이다.
       const code = await this.tokens.issueAuthCode(
         userId,
         state.clientId,
         state.codeChallenge ?? null,
         provider,
-        state.persistent ?? false,
+        persistent,
       );
-      return { kind: 'code', code };
-    }
-    const user = await this.users.findById(userId);
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      return { kind: 'error', error: 'invalid_account' };
+      /*
+        **우리 세션도 함께 만든다.** 사용자는 우리 로그인 화면에서 인증했다 — 그 사실은
+        어느 앱이 보냈는지와 무관하다. 이게 없으면 medifinder 로 로그인한 사람이 포털에
+        가서 다시 로그인해야 했다(이메일 로그인 경로는 이미 이렇게 하고 있었다).
+
+        쿠키 수명은 "로그인 상태 유지" 를 따른다 — 안 골랐으면 세션 쿠키라 브라우저를
+        닫을 때 사라진다.
+      */
+      return {
+        kind: 'code',
+        code,
+        tokens: await this.login.complete(user, provider, meta, persistent),
+      };
     }
     return {
       kind: 'session',
-      tokens: await this.login.complete(user, provider, meta, state.persistent ?? false),
+      tokens: await this.login.complete(user, provider, meta, persistent),
     };
   }
 

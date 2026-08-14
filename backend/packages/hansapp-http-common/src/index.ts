@@ -16,3 +16,16 @@ export { PageResponseDto } from './page.response.dto';
 export { ApiPageResponse } from './api-page-response.decorator';
 // enum 필드 한 줄(문서·변환·검증). 응답 변환은 ClassSerializerInterceptor 가 실행한다.
 export { EnumField } from './enum-field.decorator';
+
+// 컨트롤러 선언과 문서 노출 범위. 앱마다 규칙이 갈리면 "왜 저쪽만 나오지" 가 된다.
+export {
+  ApiController,
+  InternalApiController,
+  InternalApiEndpoint,
+  API_CONTROLLER_KEY,
+  INTERNAL_EXTENSION,
+  SHOW_INTERNAL_API,
+} from './api-controller.decorator';
+export { gateNonApiControllers, retagInternalOperations } from './swagger-api-gate';
+// Swagger UI 섹션 정렬자. 브라우저로 실려 나가므로 자기 완결이어야 한다(파일 주석 참고).
+export { swaggerTagsSorter, adminSwaggerTagsSorter } from './swagger-tags-sorter';

@@ -1,6 +1,7 @@
-import { Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Get, HttpCode, Param, Post } from '@nestjs/common';
 import { BadRequestException } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import {
   ALL_PROFILES_MATCH,
   CachePurgeService,
@@ -125,8 +126,8 @@ export class SessionCountDto {
  *
  * 경로가 `/api/*` 인 것은 refresh 쿠키(path=/auth)가 실리지 않게 하려는 것이다.
  */
-@ApiTags('admin-maintenance')
-@Controller('api/maintenance')
+@ApiTags('maintenance')
+@ApiController('api/maintenance')
 export class MaintenanceController {
   constructor(
     private readonly caches: CachePurgeService,

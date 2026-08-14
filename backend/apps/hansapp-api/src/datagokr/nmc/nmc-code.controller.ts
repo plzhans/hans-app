@@ -1,5 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { NmcCodeService } from '@hansapp/application';
 import type { CodeInfoResponse } from '@krdata/nmc';
 
@@ -21,7 +22,7 @@ const RESPONSE_SCHEMA = 'NmcCodeInfoResponse';
  */
 @ApiTags('nmc')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('data-go-kr/nmc/codes')
+@ApiController('data-go-kr/nmc/codes')
 export class NmcCodeController {
   constructor(private readonly nmcCodeService: NmcCodeService) {}
 

@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Stethoscope } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { useLangPath } from '@/shared/i18n/routing';
+import { useAuth } from '@/shared/auth/useAuth';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { UserMenu } from './UserMenu';
 
 /**
  * 목록 계열(첫 화면·검색)의 전역 헤더.
@@ -47,8 +49,38 @@ export function Header() {
             {t('nav.search')}
           </NavLink>
           <LanguageSwitcher />
+          <AuthAction />
         </nav>
       </div>
     </header>
+  );
+}
+
+/**
+ * 헤더 오른쪽 끝의 계정 자리. **로그인 버튼과 사용자 메뉴 중 하나만** 있다.
+ *
+ * 확인이 끝나기 전에는 둘 다 그리지 않는다 — 저장된 토큰을 읽는 데 한 틱이 걸리는데,
+ * 그동안 로그인 버튼을 그려 두면 이미 로그인한 사람에게 매번 그 버튼이 번쩍이고 이름으로
+ * 바뀐다. 대신 같은 크기의 자리 표시자를 둬서 그 순간 옆 메뉴들이 밀리지 않게 한다.
+ */
+function AuthAction() {
+  const { t } = useTranslation();
+  const status = useAuth((s) => s.status);
+  const login = useAuth((s) => s.login);
+
+  if (status === 'loading') {
+    return <div className="h-8 w-16 animate-pulse rounded-full bg-surface-subtle" />;
+  }
+  if (status === 'authenticated') {
+    return <UserMenu />;
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => void login()}
+      className="rounded-full bg-brand px-3.5 py-1.5 text-sm font-bold text-white transition-transform duration-100 ease-native active:scale-[0.97]"
+    >
+      {t('auth.login')}
+    </button>
   );
 }

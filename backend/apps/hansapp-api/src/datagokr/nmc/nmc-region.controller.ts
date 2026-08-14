@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Get, Param, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { NmcRegionService, NmcSubjectService } from '@hansapp/application';
 
 import { Auth } from '../../auth/auth.decorator';
@@ -20,7 +21,7 @@ import { NmcRegionResponseDto, NmcSubjectResponseDto } from '../dto/krdata-envel
  */
 @ApiTags('nmc')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('data-go-kr/nmc')
+@ApiController('data-go-kr/nmc')
 export class NmcRegionController {
   constructor(
     private readonly regionService: NmcRegionService,

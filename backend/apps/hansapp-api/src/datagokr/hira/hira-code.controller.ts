@@ -1,5 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { HiraCodeService, type HiraCodeResponse } from '@hansapp/application';
 
 import { Auth } from '../../auth/auth.decorator';
@@ -33,7 +34,7 @@ const RESPONSE_SCHEMA = {
  */
 @ApiTags('hira')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('data-go-kr/hira/codes')
+@ApiController('data-go-kr/hira/codes')
 export class HiraCodeController {
   constructor(private readonly hiraCodeService: HiraCodeService) {}
 

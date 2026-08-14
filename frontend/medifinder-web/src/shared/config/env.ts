@@ -5,6 +5,15 @@
  * 비밀값을 넣으면 안 된다.
  */
 
+/**
+ * 계정 화면(마이페이지)이 있는 인증웹 주소.
+ *
+ * 계정은 MediFinder 것이 아니라 여러 서비스가 함께 쓰는 HansApp 계정이라, 보고 고치는 자리도
+ * 서비스마다 두지 않고 한 곳에 모은다. 비어 있으면(로컬에서 인증웹을 안 띄운 경우)
+ * 죽은 링크를 만들지 않도록 메뉴에서 그 줄을 감춘다.
+ */
+export const AUTH_WEB_URL = (import.meta.env.VITE_AUTH_WEB_URL as string | undefined) ?? '';
+
 /** 실행 환경 이름(local|develop|production). 백엔드 APP_ENV 와 같은 이름을 쓴다. */
 export const APP_ENV =
   (import.meta.env.VITE_APP_ENV as string | undefined) ?? 'local';

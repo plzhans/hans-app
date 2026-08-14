@@ -1,7 +1,6 @@
 import {
   Body,
   ClassSerializerInterceptor,
-  Controller,
   Delete,
   Get,
   HttpCode,
@@ -13,7 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
+import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
 import { BoardPostAdminService } from '@hansapp/admin-application';
 import { AuthorType } from '@hansapp/common';
 import { AdminAccountService, CurrentAdmin } from '@hansapp/admin-application/auth';
@@ -36,7 +35,7 @@ import {
  * 반면 글 하나를 보고 고치는 것은 `/api/posts/:id` 다 — 글 번호만으로 찾아간다.
  */
 @ApiTags('board-post')
-@Controller('api')
+@ApiController('api')
 /*
   **응답의 enum 을 이름으로 바꾸는 것은 이 인터셉터다**(@EnumField 의 @Transform 을 실행한다).
   전역으로 켜지 않는다 — 켜는 순간 회원·앱·설정·로그 응답까지 전부 이 직렬화를 타므로,

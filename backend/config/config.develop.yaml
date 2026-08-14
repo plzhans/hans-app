@@ -3,9 +3,9 @@
 auth:
   externalUrl: https://develop-auth.plzhans.com
   jwt:
-    issuer: http://develop.plzhans.com
+    # discovery 문서를 내는 오리진과 같아야 한다(= API 주소).
+    issuer: https://develop-api.plzhans.com
     allowedIssuers:
-      - http://develop.plzhans.com
       - http://127.0.0.1:3000
 
 apps-api:
@@ -18,7 +18,6 @@ apps-api:
     clientIpHeader: cf-connecting-ip
   swagger:
     enabled: true
-    ipRestricted: false
 
 admin:
   jwt:

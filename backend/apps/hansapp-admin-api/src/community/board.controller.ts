@@ -1,7 +1,6 @@
 import {
   Body,
   ClassSerializerInterceptor,
-  Controller,
   Delete,
   Get,
   HttpCode,
@@ -12,6 +11,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { BoardAdminService } from '@hansapp/admin-application';
 
 import {
@@ -33,7 +33,7 @@ import {
  * 경로가 `/api/*` 인 것은 refresh 쿠키(path=/auth)가 이 요청들에 실리지 않게 하려는 것이다.
  */
 @ApiTags('board')
-@Controller('api/boards')
+@ApiController('api/boards')
 // 응답의 enum 을 이름으로 바꾸는 인터셉터(@EnumField 참고). 전역이 아니라 여기서만 켠다.
 @UseInterceptors(ClassSerializerInterceptor)
 export class BoardController {

@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Header,
-  NotFoundException,
-  Param,
-  ParseIntPipe,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Get, Header, NotFoundException, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   HealthcareHospitalService,
@@ -21,7 +12,7 @@ import type { SupportedLang } from '@hansapp/common';
 import { DETAIL_CACHE_CONTROL } from '../common/cache-control';
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
-import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
+import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
 import { ApiScrollResponse } from '../common/dto/api-scroll-response.decorator';
 import { ScrollResponseDto } from '../common/dto/scroll.response.dto';
 import {
@@ -46,7 +37,7 @@ import { HospitalNonPaymentDto, NonPaymentRequestResultDto } from './dto/npay.dt
  */
 @ApiTags('healthcare')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('healthcare/hospitals')
+@ApiController('healthcare/hospitals')
 export class HealthcareHospitalController {
   constructor(
     private readonly service: HealthcareHospitalService,

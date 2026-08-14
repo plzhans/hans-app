@@ -7,12 +7,13 @@ import {
 } from '@/shared/api/auth';
 import { hasSessionHint } from '@/shared/api/session';
 import { takeVerifier } from '@/shared/auth/pkce';
-import { isFirstPartyReturn } from '@/shared/auth/returnTo';
+import { goAfterLogin, readAfterLoginParams } from '@/shared/auth/afterLogin';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { Button } from '@/shared/ui/Button';
 import { FieldRow } from '@/shared/ui/FieldRow';
 import { TextField } from '@/shared/ui/TextField';
+import { AlertBox } from '@/shared/ui/AlertBox';
 import { socialErrorMessage } from '../socialError';
 import { AuthCard } from '../components/AuthCard';
 import {
@@ -53,6 +54,8 @@ export default function Callback() {
   const ticketRef = useRef<string | null>(null);
   const [emailEditable, setEmailEditable] = useState(false);
   const [email, setEmail] = useState('');
+  /** 표시 이름. provider 가 준 값을 채워 두고, 사용자가 고칠 수 있다. */
+  const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   /** provider 가 이메일을 검증하지 않아 우리 코드 인증이 필요한가(구글은 false). */
@@ -65,10 +68,21 @@ export default function Callback() {
   // 로그인 완료 후 이동: 1st-party return(자사 앱) 있으면 그리로, 아니면 인증웹 내 정보로.
   // return 은 콜백 URL 의 ret= 로 온다(백엔드 서명 state 의 returnTo 로 왕복). 1st-party 만 따른다
   // (백엔드가 이미 rootDomain 으로 검증했으므로 여기선 방어적 이중 확인).
-  const goAfterAuth = () => {
-    const back = new URLSearchParams(window.location.search).get('ret');
-    if (back && isFirstPartyReturn(back)) window.location.href = back;
-    else navigate('/me', { replace: true });
+  /**
+   * 가입·로그인이 끝난 뒤 원래 가려던 곳으로 잇는다.
+   *
+   * **로그인 화면과 같은 규칙을 쓴다**(goAfterLogin) — 외부 앱에서 시작한 흐름이면 인가코드를
+   * 만들어 그 앱으로 보내고, 자사면 `return` 으로 돌아간다. 백엔드가 이 화면으로 내려놓을 때
+   * 그 값들을 함께 실어 보낸다(social.controller 의 appendResume).
+   *
+   * 예전에는 자사 복귀(`ret`)만 봤다. 그래서 외부 앱에서 시작해 가입까지 마친 사용자가
+   * 그 앱으로 돌아가지 못하고 우리 마이페이지에 떨어졌다.
+   */
+  const goAfterAuth = async () => {
+    if (await goAfterLogin(readAfterLoginParams(new URLSearchParams(window.location.search)))) {
+      return;
+    }
+    navigate('/me', { replace: true });
   };
 
   useEffect(() => {
@@ -87,8 +101,15 @@ export default function Callback() {
     const code = params.get('code');
     const pending = secret.get('pending');
     const emailRequired = params.get('email_required') === '1';
+    /*
+      provider 가 준 이메일이 **검증된 값이 아니라** 사용자가 바꿀 수 있다는 뜻이다.
+      네이버·라인의 이메일은 그 서비스에 적어 둔 연락처일 뿐이라 우리 계정의 주소로
+      그대로 굳히면 안 된다(백엔드 social.service 주석 참고).
+    */
+    const emailEditableParam = params.get('email_editable') === '1';
     const codeRequired = params.get('code_required') === '1';
     const prefillEmail = secret.get('email') ?? '';
+    const prefillName = secret.get('name') ?? '';
 
     /*
       읽었으면 주소창에서 지운다. fragment 는 서버로 안 가지만 **브라우저 히스토리와 공유한
@@ -108,7 +129,7 @@ export default function Callback() {
     ) => {
       try {
         await authenticate(await promise);
-        goAfterAuth();
+        await goAfterAuth();
       } catch (e) {
         setPhase('error');
         setMessage(errorMessage(e, '로그인 처리에 실패했습니다.'));
@@ -143,7 +164,8 @@ export default function Callback() {
       // **바로 가입시키지 않는다**(위 주석 참고). 동의를 받을 화면을 반드시 지난다.
       ticketRef.current = pending;
       setEmail(prefillEmail);
-      setEmailEditable(emailRequired);
+      setName(prefillName);
+      setEmailEditable(emailRequired || emailEditableParam);
       setCodeNeeded(codeRequired);
       setPhase('register');
       return;
@@ -155,7 +177,7 @@ export default function Callback() {
       if (hasSessionHint()) {
         await bootstrap();
         if (useAuthStore.getState().status === 'authenticated') {
-          goAfterAuth();
+          await goAfterAuth();
           return;
         }
       }
@@ -209,9 +231,10 @@ export default function Callback() {
         email.trim() || undefined,
         // 코드 인증이 필요 없는 provider(구글)는 코드를 보내지 않는다.
         codeNeeded ? code.trim() : undefined,
+        name.trim() || undefined,
       );
       await authenticate(tokens);
-      goAfterAuth();
+      await goAfterAuth();
     } catch (e) {
       setMessage(errorMessage(e, '가입에 실패했습니다.'));
     } finally {
@@ -247,8 +270,20 @@ export default function Callback() {
             onChange={(e) => setEmail(e.target.value)}
             disabled={!emailEditable || codeSent}
             hint={
-              emailEditable ? undefined : '소셜 계정에서 가져온 이메일입니다.'
+              emailEditable
+                ? '이 주소로 로그인하게 됩니다. 소셜 계정의 이메일과 달라도 됩니다.'
+                : '소셜 계정에서 확인된 이메일입니다.'
             }
+          />
+
+          <TextField
+            label="이름"
+            type="text"
+            autoComplete="name"
+            placeholder="표시할 이름"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            hint="서비스에서 보일 이름입니다. 나중에 마이페이지에서 바꿀 수 있습니다."
           />
 
           {codeNeeded && codeSent && (
@@ -276,7 +311,7 @@ export default function Callback() {
 
           {message && (
             <FieldRow as="div">
-              <p className="text-sm text-red-500">{message}</p>
+              <AlertBox>{message}</AlertBox>
             </FieldRow>
           )}
 

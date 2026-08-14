@@ -32,9 +32,41 @@ pnpm api:gen      # docs/openapi/hansapp-openapi.json → src/shared/api/schema.
 |---|---|
 | `VITE_HANSAPP_BASE_URL` | hansapp-api base URL (공유 백엔드) |
 | `VITE_HANSAPP_CLIENT_ID` | hansapp WEB 클라이언트 ID. `X-Client-Id` 헤더로 전송된다. 공개값이며, 서버가 이 ID 에 등록된 오리진과 요청 `Origin` 을 대조한다 |
+| `VITE_AUTH_WEB_URL` | 로그인 UI(인증웹) base URL. 마이페이지 링크에 쓴다. 로그인 이동 주소 자체는 discovery 가 정한다 |
 
 > 서비스 키(`sk_...`)는 **프론트에 두지 않는다.** 오리진 검사를 받지 않는 비밀값이라
 > 번들에 포함되는 순간 그대로 유출된다 — 서버-서버 호출에서만 쓴다.
+
+## 로그인
+
+백엔드가 없는 앱이라 **OAuth 2.0 인가 코드 + PKCE(S256)** 로 직접 토큰을 받는다
+(`@hansapp/auth-sdk`). 엔드포인트는 `/.well-known/openid-configuration` 에서 읽고,
+access token 은 JWKS 공개키로 브라우저에서 검증한다.
+
+**리디렉션 URI 를 클라이언트에 등록해 둬야 한다.** 등록값과 정확히 일치해야 인가 코드가 나온다.
+
+| 환경 | redirect URI |
+|---|---|
+| local | `http://127.0.0.1:5173/auth/callback` |
+| develop | `https://develop.medifinder.kr/auth/callback` |
+| production | `https://medifinder.kr/auth/callback` |
+
+```bash
+hansapp-cli app redirect --app <appId> --client <clientId> \
+  --add https://medifinder.kr/auth/callback
+```
+
+토큰은 **세션 쿠키**(`medifinder.auth`)에 둔다 — 브라우저를 닫으면 로그아웃되고, 열려 있는
+동안은 모든 탭이 공유한다. Capacitor 쿠키 API 를 쓰므로 네이티브에서도 같은 코드로 돈다.
+
+로그인 이후는 이 앱 안에서 끝난다. 마이페이지(`/me`)는 로그인할 때 받아 둔 `GET /users/me`
+캐시를 그리는 **읽기 전용** 화면이고, 로그아웃은 이 브라우저의 토큰만 지운다 — HansApp 계정
+세션은 건드리지 않는다(다른 서비스까지 로그아웃시키지 않는다). 이름·비밀번호·소셜 연동을
+고치는 자리는 HansApp 인증웹 하나로 두고, 마이페이지에서 링크로 보낸다.
+
+> 쿠키는 **포트를 가리지 않는다.** 로컬에서 앱을 전부 127.0.0.1 로 띄우면 이름이 겹치는
+> 순간 옆 앱과 세션을 덮어쓴다. 그래서 저장 키에 앱 접두사(`medifinder.auth`)를 붙이고,
+> PKCE·탭 통신 채널 이름도 그 접두사에서 파생시킨다.
 
 ## 문서
 

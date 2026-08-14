@@ -1,15 +1,6 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  ParseIntPipe,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { Body, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { EnvLlmModelAdminService } from '@hansapp/admin-application';
 import { CurrentAdmin } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
@@ -30,8 +21,8 @@ import {
  * 업체에 실제로 있는 모델을 물어보는 것은 `/api/llm/keys/models` 다 — 그쪽은 잠긴 값을
  * 열어야 해서 키 쪽에 있다.
  */
-@ApiTags('admin-llm')
-@Controller('api/llm/models')
+@ApiTags('llm')
+@ApiController('api/llm/models')
 export class EnvLlmModelController {
   constructor(private readonly models: EnvLlmModelAdminService) {}
 

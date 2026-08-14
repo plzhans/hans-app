@@ -14,14 +14,18 @@ import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
 import { logConfigSummary, resolveConfigPath } from '@hansapp/common';
 import { isFirstPartyOrigin, normalizeRootDomain } from '@hansapp/auth-application';
-import { HealthService, SlackNotifyService, SwaggerAccessService } from '@hansapp/application';
-import { HttpErrorFilter, StripNullInterceptor, requestIdMiddleware } from '@hansapp/http-common';
+import { HealthService, SlackNotifyService } from '@hansapp/application';
+import {
+  HttpErrorFilter,
+  StripNullInterceptor,
+  requestIdMiddleware,
+  swaggerTagsSorter,
+} from '@hansapp/http-common';
 
 import { AppModule } from './app.module';
 import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initRefreshCookie } from './auth/refresh-cookie';
-import { createSwaggerAccessMiddleware } from './common/swagger-access.middleware';
 import { OPENAPI_JSON_PATH, SWAGGER_PATH, buildOpenApiDocument } from './swagger';
 
 // --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
@@ -130,6 +134,28 @@ async function verifyInfrastructure(app: NestExpressApplication, logger: Logger)
   }
 }
 
+/**
+ * **클라이언트 ID 없이도 열어 두는 경로.** 브라우저가 부르는 게 정상인데 X-Client-Id 를
+ * 실을 수 없는 자리들이다 — 규약에 그 자리가 없거나, 애초에 공개하려고 내놓은 문서다.
+ *
+ * 예외를 코드 곳곳에 흩지 않고 여기 모은다. 새로 생기면 한 줄 더하면 되고, 무엇이 열려
+ * 있는지도 이 표만 보면 된다.
+ *
+ *   public   누구에게나 같은 응답이라 오리진을 가리지 않고 `*` 로 준다. 되비추면
+ *            `Vary: Origin` 이 붙어 공용 캐시가 오리진 수만큼 사본을 따로 든다.
+ *   reflect  요청 오리진을 되비춘다. 쿠키는 주지 않는다(credentials 없음).
+ */
+const OPEN_PATHS: { prefix: string; mode: 'public' | 'reflect' }[] = [
+  // OIDC discovery·JWKS. 외부 앱은 이걸 읽어야 로그인 주소와 검증 공개키를 안다.
+  { prefix: '/.well-known/', mode: 'public' },
+  /*
+    OAuth 프로토콜. 토큰 교환은 인가코드와 PKCE verifier 로 스스로를 증명하므로 클라이언트
+    ID 를 실을 자리가 규약에 없다. 오리진 검사는 서버가 코드에 박힌 클라이언트로 직접 한다
+    (OAuthTokenService.assertExchangeOrigin).
+  */
+  { prefix: '/oauth/', mode: 'reflect' },
+];
+
 async function bootstrap() {
   const httpsOptions = readHttpsOptions();
 
@@ -160,11 +186,10 @@ async function bootstrap() {
   const rootDomain = normalizeRootDomain(appConfig.getStringOrDefault('auth.rootDomain'));
 
   // CORS. **인가가 아니라 최소 관문**이다 — 실제 검증(키/클라 status·오리진)은 AuthGuard 가 한다.
+  //  - 열린 경로(OPEN_PATHS): 클라이언트 ID 없이도 통과
   //  - Origin 없음(서버·curl·네이티브): CORS 대상 아님 → 통과
   //  - 1st-party(APP_ROOT_DOMAIN 범위): 통과 + credentials(refresh 쿠키가 오가야 함)
-  //  - 그 외: 인증 헤더를 실을 요청만 통과. 쿠키는 안 준다(credentials 없음 → 타 사이트가
-  //          쿠키를 실어 /oauth/token 을 호출해 응답을 읽는 것을 브라우저가 막는다).
-  //  프리플라이트는 헤더 "이름"만 예고하므로 access-control-request-headers 를 같이 본다.
+  //  - 그 외: **X-Client-Id 를 실을 요청만** 통과. 쿠키는 안 준다(credentials 없음).
   //
   // maxAge: 프리플라이트 응답을 브라우저가 캐시하는 시간(초). X-Client-Id 는 커스텀 헤더라
   // GET 이어도 매번 프리플라이트가 붙는데, 기본 캐시가 아주 짧아(크롬 5초) 호출마다 왕복이 2배가 된다.
@@ -172,6 +197,15 @@ async function bootstrap() {
   const CORS_MAX_AGE_SEC = 600;
 
   app.enableCors((req: Request, callback: (err: Error | null, options: CorsOptions) => void) => {
+    const open = OPEN_PATHS.find((rule) => req.path.startsWith(rule.prefix));
+
+    // 공개 문서는 **Origin 유무를 보기 전에** 가른다 — 헤더 없는 요청까지 같은 응답이어야
+    // 공용 캐시가 사본을 하나만 든다(OPEN_PATHS 주석 참고).
+    if (open?.mode === 'public') {
+      callback(null, { origin: '*', maxAge: CORS_MAX_AGE_SEC });
+      return;
+    }
+
     const origin = req.headers.origin;
     if (!origin) {
       callback(null, { origin: true, maxAge: CORS_MAX_AGE_SEC });
@@ -187,14 +221,24 @@ async function bootstrap() {
       return;
     }
 
-    const asked = String(req.headers['access-control-request-headers'] ?? '');
-    const hasAuthKey =
-      /x-client-id|authorization/i.test(asked) ||
-      !!req.headers['x-client-id'] ||
-      !!req.headers.authorization;
+    /*
+      **브라우저에서 부르려면 X-Client-Id 가 있어야 한다.** 여기서 보는 것은 그것 하나다.
+
+      이 분기가 거르려는 것은 "등록되지 않은 사이트가 우리 API 를 브라우저에서 그대로 붙여
+      서비스하는 것" 이다. 서버 대 서버 호출은 어차피 CORS 밖이라 못 막는다 — 브라우저에서
+      오는 것만이라도 등록된 클라이언트로 좁히자는 뜻이고, 그 신원이 곧 X-Client-Id 다.
+
+      **access token 은 보지 않는다.** 토큰이 있고 없고는 "이 사람이 누구인가" 이지
+      "이 사이트가 붙여 써도 되는가" 가 아니다. 전자는 AuthGuard 가 볼 문제다.
+      섞어 두면 판단 기준이 둘이 되고, 실제로 그래서 토큰 교환이 조용히 막혔다.
+
+      프리플라이트는 헤더 "이름" 만 예고하므로 access-control-request-headers 를 함께 본다.
+    */
+    const announced = String(req.headers['access-control-request-headers'] ?? '');
+    const hasClientId = /x-client-id/i.test(announced) || !!req.headers['x-client-id'];
 
     callback(null, {
-      origin: hasAuthKey ? origin : false,
+      origin: hasClientId || open ? origin : false,
       maxAge: CORS_MAX_AGE_SEC,
     });
   });
@@ -206,28 +250,16 @@ async function bootstrap() {
   // SPA fetch 엔 기존 JSON 을 응답한다(소셜 로그인 콜백이 주소창에 JSON 을 노출하지 않게).
   app.useGlobalFilters(new HttpErrorFilter());
 
-  // Swagger 문서 노출. **기본은 꺼짐이고, 열 환경이 yaml 에 명시로 켠다**(config-defaults.ts).
-  //   local·develop : 켜고 ipRestricted 를 풀어 그대로 공개
-  //   production    : 켜되 env_swagger_allowed_ip 에 등록된 IP 만 (아래 미들웨어)
+  /*
+    Swagger 문서 노출. **기본은 꺼짐이고, 열 환경이 yaml 에 명시로 켠다**(config-defaults.ts).
+    지금 켜는 환경은 local·develop 뿐이고 **production 은 열지 않는다.**
+
+    한때 운영에서도 열고 IP 허용목록(env_swagger_allowed_ip)으로 막았지만, 문서를 운영에
+    띄울 이유가 없어지면서 그 장치를 통째로 걷었다 — 열지 않으면 잠글 것도 없다.
+  */
   const swaggerEnabled = appConfig.getBoolOrDefault('apps-api.swagger.enabled');
-  // 켠 뒤의 기본은 잠근 쪽이다. 목록을 채워야 열리는 게 불편한 환경이 yaml 에서 푼다.
-  const swaggerIpRestricted = appConfig.getBoolOrDefault('apps-api.swagger.ipRestricted');
 
   if (swaggerEnabled) {
-    if (swaggerIpRestricted) {
-      // ⚠️ **SwaggerModule.setup 보다 먼저** 등록해야 한다. setup 은 Express 핸들러를 직접
-      // 붙이므로 나중에 걸면 문서가 먼저 응답하고 이 미들웨어는 지나간다.
-      app.use(
-        createSwaggerAccessMiddleware({
-          service: app.get(SwaggerAccessService),
-          // rate limit 과 같은 헤더를 쓴다(production: cf-connecting-ip). 판정 기준이
-          // 두 군데서 갈리면 "왜 한쪽만 막히지" 가 된다.
-          clientIpHeader:
-            appConfig.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined,
-        }),
-      );
-    }
-
     const document = buildOpenApiDocument(app);
     SwaggerModule.setup(SWAGGER_PATH, app, document, {
       // OpenAPI JSON 스펙을 /openapi.json 으로 서빙 (스프링 springdoc 구조와 통일)
@@ -236,6 +268,8 @@ async function bootstrap() {
       explorer: true,
       swaggerOptions: {
         url: `/${OPENAPI_JSON_PATH}`,
+        // 섹션 순서. 이 함수는 브라우저로 실려 나간다(자기 완결이어야 한다 — 정의부 주석 참고).
+        tagsSorter: swaggerTagsSorter,
       },
     });
   }
@@ -274,13 +308,9 @@ async function bootstrap() {
     // OpenAPI(JSON) 스펙 경로는 Swagger UI 가 내부적으로 로드·노출하므로
     // 부팅 로그에는 사람이 접속하는 Swagger UI 링크만 남긴다.
     //
-    // IP 제한이 걸렸는지도 같이 남긴다. **조용히 열려 있는 게 최악이다** — 로그에
-    // 링크만 있으면 제한이 꺼진 채 뜬 것을 아무도 눈치채지 못한다.
-    logger.log(
-      `📚 Swagger UI: ${baseUrl}/${SWAGGER_PATH}${
-        swaggerIpRestricted ? ' (IP restricted — env_swagger_allowed_ip)' : ' (open to everyone)'
-      }`,
-    );
+    // 문서에는 잠금이 없다. **조용히 열려 있는 게 최악이라** 켜졌다는 사실을 남긴다 —
+    // 운영에서 이 줄이 보이면 설정이 잘못된 것이다.
+    logger.log(`📚 Swagger UI: ${baseUrl}/${SWAGGER_PATH} (open to everyone)`);
   } else {
     logger.log('📚 Swagger is disabled by config (apps-api.swagger.enabled)');
   }

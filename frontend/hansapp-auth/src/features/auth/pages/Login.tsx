@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui/Button';
 import { FieldRow } from '@/shared/ui/FieldRow';
 import { TextField } from '@/shared/ui/TextField';
 import { socialErrorMessage } from '../socialError';
+import { AlertBox } from '@/shared/ui/AlertBox';
 import { AuthCard } from '../components/AuthCard';
 import { SocialButtons } from '../components/SocialButtons';
 
@@ -79,10 +80,11 @@ export default function Login() {
       // 광고를 켜는 화면은 지금 여기 하나다. PC 에서 카드가 두 배가 되고 오른쪽이 광고 단이다.
       ads
     >
+      {/* 소셜 흐름이 실패해 이 화면으로 되돌아온 경우. 같은 사유가 가입 화면에도 뜨므로 상자를 공유한다. */}
       {socialError && (
-        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {socialErrorMessage(socialError)}
-        </p>
+        <div className="mb-4">
+          <AlertBox>{socialErrorMessage(socialError)}</AlertBox>
+        </div>
       )}
       <form onSubmit={onSubmit} className="space-y-3">
         <TextField

@@ -1,21 +1,6 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  ParseIntPipe,
-  Patch,
-  Post,
-} from '@nestjs/common';
-import {
-  ApiCreatedResponse,
-  ApiExcludeController,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { InternalApiController } from '@hansapp/http-common';
 import { Auth, AuthType, CurrentUser, LlmKeyService } from '@hansapp/auth-application';
 import type { AuthUser, LlmKeyView } from '@hansapp/auth-application';
 
@@ -24,16 +9,15 @@ import { CreateLlmKeyDto, LlmKeyDto, UpdateLlmKeyDto } from './dto/llm-key.dto';
 /**
  * 앱이 자기 이름으로 쓸 LLM 업체 키(BYOK) 관리. 앱 상세 화면의 AI/LLM 탭이 부른다.
  *
- * **스펙에 싣지 않는다(@ApiExcludeController).** AppsController 와 같은 이유다 — 여기는
+ * **대외 스펙에 싣지 않는다(@InternalApiController).** AppsController 와 같은 이유다 — 여기는
  * 우리 개발자 콘솔이 부르는 자리이고, 연동하는 쪽이 업체 키를 넣는 것은 화면에서 할 일이다.
  *
  * **키 원문은 어느 응답에도 실리지 않는다.** 저장 직후에도 다시 보여주지 않고 뒤 4자만 남는다 —
  * 다시 볼 수 있게 두면 "화면에서만 가리면 된다" 로 흘러가고, 그 순간 응답 JSON 에는 남는다.
  * */
-@ApiExcludeController()
 @ApiTags('apps')
 @Auth(AuthType.Jwt)
-@Controller('apps/:appId/llm-keys')
+@InternalApiController('apps/:appId/llm-keys')
 export class LlmKeyController {
   constructor(private readonly keys: LlmKeyService) {}
 

@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Body,
-  Controller,
   GatewayTimeoutException,
   HttpException,
   Logger,
@@ -11,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import type { Request } from 'express';
 
 import type { RequestWithId } from '@hansapp/http-common';
@@ -57,7 +57,7 @@ import { AiSearchRequestDto, AiSearchResponseDto } from './dto/ai-search.dto';
 // "AI 로 뭘 할 수 있나" 쪽이라, `/ai/capabilities` 와 같은 페이지에 있어야 말이 된다.
 @ApiTags('ai')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('healthcare/ai-search')
+@ApiController('healthcare/ai-search')
 export class HealthcareAiSearchController {
   private readonly logger = new Logger(HealthcareAiSearchController.name);
 
@@ -88,9 +88,12 @@ export class HealthcareAiSearchController {
         안 보내면 기본 모델이다. 그 밖에 넘기는 것은 **누가 물었나** 뿐이고, 그건 하루 몫을
         누구 통에서 깎을지 정하는 데만 쓴다.
 
-        가드가 둘 중 하나를 채워 놓는다:
-          user      access token 으로 사람이 식별됐다 (로그인 붙은 뒤)
-          apiAccess 클라이언트 앱·서비스 키로 들어왔다 (지금은 이쪽뿐이다)
+        가드가 채워 놓는다:
+          user      access token 으로 사람이 식별됐다
+          apiAccess 어느 앱을 통해 들어왔나 — 로그인 전이면 클라이언트 ID·서비스 키에서,
+                    로그인했으면 **토큰의 app 클레임**에서 온다(헤더는 보지 않는다)
+
+        그래서 로그인 요청은 둘 다 채워진다. 우리 웹에서 직접 로그인한 세션만 앱이 없다.
 
         **숫자 id(appId)로 센다. clientId 문자열은 쓰지 않는다** — 그건 추측 불가한 40자라
         사실상 자격증명이고, Redis 키에 평문으로 두면 KEYS 한 번에 다 보인다(질문을 해시로

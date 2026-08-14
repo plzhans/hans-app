@@ -16,8 +16,6 @@ apps-api:
   proxy:
     trust: 1
     clientIpHeader: cf-connecting-ip
-  swagger:
-    enabled: true
   sentry:
     enabled: true
 

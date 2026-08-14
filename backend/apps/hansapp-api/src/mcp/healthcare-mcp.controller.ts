@@ -1,6 +1,5 @@
 import { Controller, Post, Req, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ApiExcludeController } from '@nestjs/swagger';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { toNodeHandler } from '@modelcontextprotocol/node';
 import { HealthcareMcpServer } from '@hansapp/mcp';
@@ -32,8 +31,8 @@ import { AuthType } from '../auth/auth-type.enum';
  *
  * [Swagger 에서 뺀 이유]
  * REST 가 아니라 RPC 라 문서화할 리소스가 없다. 도구 목록은 `tools/list` 가 스스로 답한다.
+ * 그래서 `@ApiController` 를 달지 않는다 — 문서는 그것이 달린 클래스만 대상으로 한다.
  */
-@ApiExcludeController()
 @Auth(AuthType.Jwt, AuthType.ApiKey)
 @Controller('mcp/healthcare')
 export class HealthcareMcpController {

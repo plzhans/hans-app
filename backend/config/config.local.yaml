@@ -7,18 +7,18 @@ elasticsearch:
 auth:
   rootDomain:
   cookieSecure: false
-  externalUrl: http://127.0.0.1:5173
+  # 인증웹 dev server(5273). 라우터 프리픽스(/auth)까지 포함한다.
+  externalUrl: http://127.0.0.1:5273/auth
   jwt:
     issuer: http://127.0.0.1:3000
     allowedIssuers:
-      - http://develop.plzhans.com
+      - https://develop-api.plzhans.com
       - http://127.0.0.1:3000
 
 apps-api:
   externalUrl: http://127.0.0.1:3000
   swagger:
     enabled: true
-    ipRestricted: false
 
 admin:
   jwt:

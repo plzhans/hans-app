@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Get, Param, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
@@ -21,7 +22,7 @@ import {
  */
 @ApiTags('business')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('nts/business')
+@ApiController('nts/business')
 export class BusinessController {
   constructor(private readonly service: BusinessService) {}
 

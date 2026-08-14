@@ -20,6 +20,8 @@ export interface Me {
   emailVerified: boolean;
   name?: string | null;
   role: string;
+  /** 회원 등급(BASIC·PRO·UNLIMITED). 앱 생성 한도를 정한다. */
+  tier: string;
   joinType: string;
   createdAt: string;
   /** 비밀번호가 설정돼 있는가. 소셜로만 가입했으면 false — 비밀번호 변경을 띄우지 않는다. */
@@ -154,18 +156,20 @@ export function socialRegisterRequestCode(
   });
 }
 
-/** 소셜 신규 가입 확정(pending 티켓 + 필요 시 이메일·인증 코드). */
+/** 소셜 신규 가입 확정(pending 티켓 + 사용자가 고른 이메일·이름 + 필요 시 인증 코드). */
 export function socialRegister(
   ticket: string,
   consent: ConsentPayload,
   email?: string,
   code?: string,
+  name?: string,
 ): Promise<TokenResponse> {
   return apiFetch('/auth/social/register', {
     method: 'POST',
     body: JSON.stringify({
       ticket,
       email,
+      name,
       code,
       consent,
       clientLocale: detectClientLocale(),

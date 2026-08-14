@@ -1,15 +1,7 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  HttpCode,
-  Post,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { BadRequestException, Body, Delete, HttpCode, Post, Req, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { ApiController } from '@hansapp/http-common';
 import type { Request, Response } from 'express';
 import { Auth, AuthType, CurrentUser, OAuthTokenService, Public } from '@hansapp/auth-application';
 import type { AuthTokens, AuthUser } from '@hansapp/auth-application';
@@ -34,8 +26,8 @@ import {
  *
  * refresh token 은 httpOnly 쿠키로만 오간다. access token 만 바디로 반환한다.
  */
-@ApiTags('oauth')
-@Controller('oauth')
+@ApiTags('auth')
+@ApiController('oauth')
 export class OAuthController {
   constructor(private readonly grants: OAuthTokenService) {}
 

@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { resolveAppEnv } from '@hansapp/common';
+import { SHOW_INTERNAL_API } from '@hansapp/http-common';
 import { config as loadDotenv } from 'dotenv';
 import { loadServerConfig } from './config';
 import { buildOpenApiDocument, parseServersSpec } from './swagger';
@@ -59,6 +60,18 @@ function resolveServersArg(): ReturnType<typeof parseServersSpec> {
  * Prisma $connect(onModuleInit) 등 provider 생명주기가 실행되지 않아 DB 없이도 동작한다.
  */
 async function generate(): Promise<void> {
+  // 여기서 나온 스펙은 레포에 커밋된다(DEFAULT_OUT). 내부 API 노출이 켜진 채로 돌면
+  // 대외 스펙에 내부 엔드포인트가 조용히 섞여 들어간다.
+  //
+  // **되돌릴 수 없어서 막는다.** 노출 여부는 데코레이터가 import 시점에 이미 확정하므로
+  // (SHOW_INTERNAL_API), 이 함수가 실행될 무렵엔 끌 방법이 없다. 그래서 생성을 중단한다.
+  if (SHOW_INTERNAL_API) {
+    throw new Error(
+      'OPENAPI_INTERNAL is enabled. The generated spec would include internal-only endpoints. ' +
+        'Unset OPENAPI_INTERNAL before running openapi:gen.',
+    );
+  }
+
   // 스펙만 뽑을 때도 모듈 그래프를 구성하려면 설정이 필요하다. DB 에 연결하지는 않는다.
   const appConfig = loadServerConfig(__dirname, resolveAppEnv(), loadDotenv);
 
@@ -79,7 +92,26 @@ async function generate(): Promise<void> {
   console.log(`✅ OpenAPI spec exported to ${outPath}`);
 }
 
-generate().catch((error) => {
-  console.error('❌ Failed to generate OpenAPI spec', error);
-  process.exit(1);
-});
+/**
+ * 스펙을 쓰고 나면 **직접 끝낸다.**
+ *
+ * app.close() 로 Nest 는 정리되지만 그것과 무관하게 열린 핸들이 남는다 — 큐(BullMQ)가
+ * 자기 Redis 연결을 들고 있고, 그 연결이 살아 있는 한 이벤트 루프는 끝나지 않는다.
+ * 그래서 스펙은 다 나왔는데 프로세스가 멈춰 있는 것처럼 보였다(CI 에서는 타임아웃까지 간다).
+ *
+ * 한 번 뽑고 끝나는 일회성 명령이라, 남은 연결을 하나씩 찾아 닫는 것보다 여기서 끊는 편이
+ * 단순하고 오래 간다 — 큐·캐시가 늘어나도 이 자리는 그대로다.
+ */
+function exit(code: number): void {
+  process.exitCode = code;
+  // stdout 이 파이프면 쓰기가 비동기다. 빈 write 의 콜백은 앞의 출력이 다 나간 뒤에 돌아
+  // 마지막 줄이 잘리지 않는다.
+  process.stdout.write('', () => process.exit(code));
+}
+
+generate()
+  .then(() => exit(0))
+  .catch((error) => {
+    console.error('❌ Failed to generate OpenAPI spec', error);
+    exit(1);
+  });

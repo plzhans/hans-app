@@ -27,6 +27,9 @@
     "seouldata:codegen": "pnpm --filter \"@seouldata/*\" codegen",
     "kr-go:codegen": "pnpm --filter \"@kr-go/*\" codegen",
     "openapi:gen": "pnpm --filter hansapp-api openapi:gen",
+    "openapi:gen:local": "pnpm --filter hansapp-api openapi:gen:local",
+    "openapi:gen:dev": "pnpm --filter hansapp-api openapi:gen:dev",
+    "openapi:gen:prod": "pnpm --filter hansapp-api openapi:gen:prod",
     "hansapp-batch": "SWC_NODE_PROJECT=apps/hansapp-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapp-batch/src/main.ts",
     "vworld:codegen": "pnpm --filter \"@vworld/*\" codegen"
   },

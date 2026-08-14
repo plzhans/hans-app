@@ -128,13 +128,10 @@ apps-api:
   #  trust: 1
   #  # rate limit·로그가 쓸 클라 IP 를 뽑을 헤더. 미설정이면 req.ip.
   #  clientIpHeader: cf-connecting-ip
-  # API 문서(/docs, /openapi.json) 노출.
+  # API 문서(/docs, /openapi.json) 노출. 켜면 잠금 없이 누구나 본다 — 운영에서는 켜지 않는다.
   #swagger:
   #  # default: false
   #  enabled: false
-  #  # true 면 env_swagger_allowed_ip 에 등록된 IP 만 통과한다(그 외 403, 목록이 비면 전부 403).
-  #  # 판정 IP 는 proxy.clientIpHeader 에서 뽑는다. default: true
-  #  ipRestricted: true
   # 에러 추적(Sentry). dsn 이 비면 켜지 않는다. environment·release 는 코드가 부팅 때 붙인다.
   sentry:
     # default: false

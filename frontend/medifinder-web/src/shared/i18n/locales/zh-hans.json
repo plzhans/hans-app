@@ -20,6 +20,33 @@
     "home": "首页",
     "search": "医院搜索"
   },
+  "auth": {
+    "login": "登录",
+    "logout": "退出登录",
+    "processing": "正在登录",
+    "processingHint": "请稍候。",
+    "myPage": "我的页面",
+    "account": "我的账户",
+    "failed": "未能完成登录。",
+    "backHome": "返回首页"
+  },
+  "me": {
+    "loginRequired": "登录后可查看账户信息。",
+    "account": "账户",
+    "name": "姓名",
+    "email": "邮箱",
+    "userId": "会员编号",
+    "tier": "等级",
+    "joinedAt": "注册日期",
+    "connection": "关联信息",
+    "accountType": "账户",
+    "hansappAccount": "HansApp 账户",
+    "linked": "已关联的社交账号",
+    "linkedNone": "无",
+    "manageAccount": "账户管理",
+    "manageAccountHint": "姓名、密码和社交账号关联请在 HansApp 账户中修改。",
+    "logoutHint": "仅退出本浏览器的 MediFinder 登录，HansApp 账户仍保持登录。"
+  },
   "home": {
     "heroTitle": "查找附近的医院",
     "heroSubtitle": "搜索医院并查看诊疗信息。",

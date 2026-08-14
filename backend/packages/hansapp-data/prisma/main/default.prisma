@@ -1644,48 +1644,10 @@ model HealthcareHospitalSection {
   @@map("healthcare_hospital_section")
 }
 
-/// Swagger(/docs, /openapi.json) 접근을 허용할 IP 목록.
-///
-/// [왜 테이블인가]
-/// production 은 API 문서를 열어두되 정해진 IP 에서만 보게 한다. 이 목록은 사람이 자리를
-/// 옮기거나 회선이 바뀌면 같이 바뀌는 값이라 **배포와 생애주기가 다르다** — 설정 파일이나
-/// 환경변수에 두면 IP 하나 추가하는 데 재배포가 붙는다.
-///
-/// [env_ 접두사]
-/// 서비스 도메인 테이블(healthcare_*·hira_*·nmc_*)과 성격이 다르다. 이건 서비스 데이터가
-/// 아니라 **운영 환경을 다루는 테이블**이라, 목록에서 섞여 보이지 않게 접두사로 갈라 둔다.
-///
-/// [⚠️ 이 테이블만으로는 안전하지 않다]
-/// 판정에 쓰는 IP 는 Cloudflare 가 붙이는 CF-Connecting-IP 헤더에서 나온다
-/// (config.production.yaml 의 apps-api.proxy.clientIpHeader). 그 헤더는 **Cloudflare 만
-/// 붙일 수 있어야** 신뢰된다 — 오리진이 직접 노출돼 있으면 공격자가 오리진 IP 로 접속해
-/// 헤더를 위조하면 그대로 통과한다. 방화벽에서 443 을 Cloudflare 대역만 받도록 잠가야
-/// 이 테이블이 실제 의미를 갖는다. (같은 전제가 client-ip.ts 주석에도 적혀 있다.)
-model EnvSwaggerAllowedIp {
-  id Int @id @default(autoincrement())
-
-  /// 허용할 단일 IP 또는 CIDR 대역. "1.2.3.4" · "1.2.3.0/24" · "2001:db8::1" · "2001:db8::/32"
-  /// IPv6 최대 표기(39자)에 프리픽스(/128)까지 담을 수 있게 넉넉히 잡는다.
-  ipAddress String @unique @map("ip_address") @db.VarChar(64)
-
-  /// 누구/어디인가. "사무실 고정회선", "재택(2026-07 임시)" 처럼 사람이 알아볼 메모.
-  /// 목록이 쌓이면 "이 IP 왜 열려 있지" 를 판단할 근거가 이것뿐이다.
-  description String? @db.VarChar(255)
-
-  /// 지우지 않고 끌 수 있게 둔다. 잠깐만 열어주는 항목(재택·외부 협업)이 생긴다.
-  enabled Boolean @default(true)
-
-  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
-
-  @@index([enabled], map: "idx_env_swagger_ip_enabled")
-  @@map("env_swagger_allowed_ip")
-}
-
 /// 서비스 설정 값. **설정 파일이 아니라 화면에서 관리하는 값들이다.**
 ///
-/// `env_` 접두사는 EnvSwaggerAllowedIp 와 같은 뜻이다 — 서비스 데이터가 아니라 운영을
-/// 다루는 테이블이라 목록에서 섞이지 않게 갈라 둔다.
+/// `env_` 접두사는 서비스 데이터가 아니라 **운영을 다루는 테이블**이라는 뜻이다.
+/// 도메인 테이블(healthcare_*·hira_*·nmc_*)과 목록에서 섞이지 않게 갈라 둔다.
 ///
 /// [왜 파일이 아니라 DB 인가]
 /// 메일 계정이나 연동 서비스키가 바뀔 때마다 .env 를 고치고 재배포하는 대신 화면에서 바꾼다.

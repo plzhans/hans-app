@@ -11,8 +11,8 @@
     "build:develop": "dotenv -e .env.develop.local -e .env.develop -- vite build",
     "build:production": "dotenv -e .env.production -- vite build",
     "preview": "vite preview --port 5173 --strictPort",
-    "spec:local": "pnpm -C ../../backend openapi:gen:local",
-    "spec:dev": "pnpm -C ../../backend openapi:gen:dev",
+    "spec:local": "pnpm -C ../../backend run openapi:gen:local",
+    "spec:dev": "pnpm -C ../../backend run openapi:gen:dev",
     "api:gen": "orval",
     "api:sync": "pnpm spec:local && pnpm api:gen"
   },

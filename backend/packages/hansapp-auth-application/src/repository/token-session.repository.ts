@@ -17,6 +17,8 @@ export class TokenSessionRepository {
     expiresAt: Date;
     /** "로그인 상태 유지" 선택. 쿠키를 영속으로 심을지 정한다. */
     persistent: boolean;
+    /** 이 세션을 만든 앱(App.id). null 이면 1st-party. */
+    appId: number | null;
   }): Promise<UserTokenSession> {
     return this.prisma.userTokenSession.create({ data: input });
   }

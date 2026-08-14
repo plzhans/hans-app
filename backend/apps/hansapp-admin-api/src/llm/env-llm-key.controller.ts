@@ -1,15 +1,6 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  ParseIntPipe,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { Body, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { EnvLlmKeyAdminService } from '@hansapp/admin-application';
 import { CurrentAdmin } from '@hansapp/admin-application/auth';
 import type { AdminAuthUser } from '@hansapp/admin-application/auth';
@@ -28,8 +19,8 @@ import {
  * 알고 값만 바뀌지만, 이쪽은 행이 늘고 준다 — LOCAL 은 여러 대를 붙일 수 있다.
  * 그래서 화면도 앱 클라이언트처럼 목록 + 상세 모달이다.
  */
-@ApiTags('admin-llm')
-@Controller('api/llm/keys')
+@ApiTags('llm')
+@ApiController('api/llm/keys')
 export class EnvLlmKeyController {
   constructor(private readonly keys: EnvLlmKeyAdminService) {}
 

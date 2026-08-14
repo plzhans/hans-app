@@ -1,12 +1,7 @@
-import { Body, Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
-import {
-  ApiCreatedResponse,
-  ApiExcludeController,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, HttpCode, Post, Req, Res } from '@nestjs/common';
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { InternalApiController } from '@hansapp/http-common';
 import type { Request, Response } from 'express';
 import {
   AuthService,
@@ -37,15 +32,14 @@ import { requestMeta, respondTokens } from './refresh-cookie';
  * refresh token 은 httpOnly 쿠키로만 내려가고, 바디에는 access token 만 담는다.
  */
 /**
- * **스펙에 싣지 않는다(@ApiExcludeController).** 여기 있는 것은 전부 우리 인증웹이 부르는
+ * **대외 스펙에 싣지 않는다(@InternalApiController).** 여기 있는 것은 전부 우리 인증웹이 부르는
  * 자리다(`@FirstPartyOnly()` — 오리진 가드가 외부 호출을 막는다). 연동하는 쪽이 구현하는
  * 것은 `/oauth/*` 프로토콜이고, 가입·로그인·비밀번호 재설정은 그 인증웹의 **내부 흐름**이다.
  *
  * 스펙의 뜻을 한 문장으로 지킨다: **스펙에 있는 것 = 외부가 부를 수 있는 것.**
  */
-@ApiExcludeController()
 @ApiTags('auth')
-@Controller('auth')
+@InternalApiController('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,

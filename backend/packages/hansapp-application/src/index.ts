@@ -136,12 +136,6 @@ export { JobQueueService, JOB_NPAY_WEB } from './common/job-queue.service';
 export type { Job, JobStatus } from './common/job-queue.service';
 
 /**
- * Swagger 문서 접근 IP 허용목록 판정. production 에서 /docs·/openapi.json 앞에 세운다.
- * 미들웨어는 앱(apps-api)에 있고 이 서비스가 판정만 한다.
- */
-export { SwaggerAccessService } from './env/swagger-access.service';
-
-/**
  * 서버 기동·종료 슬랙 알림. main.ts 가 부팅 끝에 notifyServerStarted 를 부르고,
  * 종료는 Nest 종료 훅으로 이 서비스가 스스로 알린다(app.enableShutdownHooks() 필요).
  */
@@ -156,8 +150,6 @@ export type { SlackNotifyConfig } from './notify/slack-notify.config';
  */
 export { HealthService } from './health/health.service';
 export type { HealthCheckResult } from './health/health.service';
-export { matchesAllowedIp, parseIp } from './env/ip-match';
-export type { ParsedIp } from './env/ip-match';
 
 /*
   외부 API 를 요청마다 부르는 둘. 클라이언트는 팩토리로 만들고(싱글턴 아님) 서비스키는

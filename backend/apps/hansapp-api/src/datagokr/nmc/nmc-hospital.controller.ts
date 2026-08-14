@@ -1,5 +1,6 @@
-import { Controller, Get, Header, Param, Query } from '@nestjs/common';
+import { Get, Header, Param, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { NmcHospitalService } from '@hansapp/application';
 import type { HospitalFullDownResponse } from '@krdata/nmc';
 
@@ -23,7 +24,7 @@ const RESPONSE_SCHEMA = 'NmcHospitalFullDownResponse';
  */
 @ApiTags('nmc')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('data-go-kr/nmc/hospitals')
+@ApiController('data-go-kr/nmc/hospitals')
 export class NmcHospitalController {
   constructor(private readonly nmcHospitalService: NmcHospitalService) {}
 

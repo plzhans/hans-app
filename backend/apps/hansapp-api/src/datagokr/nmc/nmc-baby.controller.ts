@@ -1,5 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { NmcBabyService } from '@hansapp/application';
 import type { BabyHospitalListResponse } from '@krdata/nmc';
 
@@ -17,7 +18,7 @@ import { MirrorListRequestDto } from '../dto/mirror-list.request.dto';
  */
 @ApiTags('nmc')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('data-go-kr/nmc/baby-hospitals')
+@ApiController('data-go-kr/nmc/baby-hospitals')
 export class NmcBabyController {
   constructor(private readonly babyService: NmcBabyService) {}
 

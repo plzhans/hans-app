@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Put, Req } from '@nestjs/common';
+import { Body, Get, Param, Put, Req } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import type { Request } from 'express';
 import { SettingAdminService } from '@hansapp/admin-application';
 import { CurrentAdmin } from '@hansapp/admin-application/auth';
@@ -18,8 +19,8 @@ import { SettingGroupDto, SettingSaveRequestDto } from './dto/setting.dto';
  * **쓰기 엔드포인트는 관리자 API 에만 둔다.** 서비스 API(hansapp-api)는 같은 계층을
  * 읽기용으로만 쓴다.
  */
-@ApiTags('admin-setting')
-@Controller('api/settings')
+@ApiTags('settings')
+@ApiController('api/settings')
 export class SettingController {
   constructor(private readonly settings: SettingAdminService) {}
 
