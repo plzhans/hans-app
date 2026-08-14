@@ -201,27 +201,82 @@ export class HansAppAuthClient {
     return verifyAccessToken(session.accessToken, jwksUri);
   }
 
-  /** 저장된 access token. 없으면 null. 만료 검증은 fetchWithAuth 의 401 재시도에 맡긴다. */
+  /** 저장된 access token 을 **그대로** 준다. 만료가 임박했는지는 보지 않는다. */
   async getAccessToken(): Promise<string | null> {
     return (await this.getSession())?.accessToken ?? null;
   }
 
-  /** access token 을 붙여 API 를 호출한다. 401 이면 refresh 후 1회 재시도. */
-  async fetchWithAuth(path: string, init: RequestInit = {}): Promise<Response> {
+  /**
+   * 지금 써도 되는 access token. **만료가 가까우면 먼저 회전시킨다.**
+   *
+   * 만료된 뒤 401 을 받고 회전하는 길도 있지만(fetchWithAuth), 그 경우 사용자는 왕복을
+   * 한 번 더 기다린다. 보내기 전에 남은 수명을 보고 미리 바꾸면 그 왕복이 사라진다.
+   *
+   * **여유를 두는 이유.** 지금 유효해도 요청이 서버에 닿는 사이 만료될 수 있고, 기기 시계가
+   * 조금 어긋나 있을 수도 있다. 그래서 "아직 안 만료됨" 이 아니라 "적어도 이만큼 남음" 을 본다.
+   *
+   * 회전은 단일 비행 + 탭 간 락으로 묶여 있어(refresh) 동시에 여러 요청이 이 자리를 지나도
+   * 실제 호출은 한 번이다.
+   *
+   * @param minTtlSec 남아 있어야 할 최소 수명(초). 이보다 적게 남았으면 회전시킨다.
+   */
+  async getFreshAccessToken(minTtlSec = 300): Promise<string | null> {
+    const session = await this.getSession();
+    if (!session) return null;
+
+    const exp = readClaims(session.accessToken)?.exp;
+    // exp 가 없는 토큰은 남은 수명을 알 수 없다. 미리 회전시킬 근거가 없으니 그대로 쓴다.
+    if (typeof exp !== 'number') return session.accessToken;
+    if (exp * 1000 - Date.now() > minTtlSec * 1000) return session.accessToken;
+
+    // 회전에 실패했다면 세션이 끝난 것이다(SDK 가 저장소를 비웠다).
+    if (!(await this.refresh())) return null;
+    return (await this.getSession())?.accessToken ?? null;
+  }
+
+  /**
+   * API 를 호출한다. **토큰 관리는 여기서 끝난다** — 쓰는 쪽은 이 함수만 부르면 된다.
+   *
+   *   로그인 상태면 access token 을 붙인다. 익명이면 안 붙이고 그대로 보낸다.
+   *   보내기 전에 만료가 가까우면 미리 회전시킨다(getFreshAccessToken).
+   *   그래도 401 이면 한 번 더 회전시켜 재시도한다 — 서버가 세션을 끊은 경우까지 덮는다.
+   *
+   * 회전을 밖에서 챙기게 두면 SDK 를 쓰는 앱마다 같은 코드를 다시 쓰게 되고, 한 곳만
+   * 빠뜨려도 그 경로에서만 로그아웃되는 버그가 난다.
+   *
+   * @param pathOrUrl `/users/me` 처럼 apiBaseUrl 기준 경로, 또는 `http…` 로 시작하는 절대 URL.
+   */
+  async fetchWithAuth(pathOrUrl: string, init: RequestInit = {}): Promise<Response> {
+    const url = /^https?:\/\//.test(pathOrUrl)
+      ? pathOrUrl
+      : `${this.config.apiBaseUrl}${pathOrUrl}`;
+
     const call = async (): Promise<Response> => {
       const headers = new Headers(init.headers);
-      const s = await this.getSession();
-      if (s) headers.set('Authorization', `Bearer ${s.accessToken}`);
+      const token = await this.getFreshAccessToken();
+      if (token) headers.set('Authorization', `Bearer ${token}`);
       if (init.body && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json');
       }
-      return fetch(`${this.config.apiBaseUrl}${path}`, { ...init, headers });
+      return fetch(url, { ...init, headers });
     };
-    let res = await call();
-    if (res.status === 401 && (await this.refresh())) {
-      res = await call();
-    }
-    return res;
+    const hadToken = (await this.getSession()) !== null;
+    const res = await call();
+    if (res.status !== 401) return res;
+
+    // 회전에 성공하면 새 토큰으로 한 번 더.
+    if (await this.refresh()) return call();
+
+    /*
+      회전까지 실패했다 = 세션이 끝났다(만료·서버 폐기). 저장소는 이미 비워졌다.
+
+      **토큰을 들고 있었다면 익명으로 한 번 더 시도한다.** 로그인해야만 열리는 자원이면
+      어차피 다시 401 이지만, 누구나 볼 수 있는 자원이면 그대로 열린다 — 세션이 끊겼다고
+      병원 목록까지 안 보이는 것은 사용자가 이해할 수 없는 실패다.
+
+      처음부터 익명이었다면 재시도는 같은 요청을 두 번 보내는 것일 뿐이라 하지 않는다.
+    */
+    return hadToken ? call() : res;
   }
 
   /**

@@ -1,16 +1,17 @@
 import i18n from '@/shared/i18n';
+import { authClient } from '@/shared/auth/authClient';
 
 /**
  * orval react-query 생성 코드가 사용하는 HTTP mutator.
  *
  * 인증/언어 헤더는 여기 한 곳에서만 주입한다. 생성된 훅/함수는 인증을 모른다.
- * - 인증: X-Client-Id (공개 클라이언트 ID)
+ * - 앱: X-Client-Id (공개 클라이언트 ID)
+ * - 사용자: 로그인했으면 access token — **SDK 가 알아서 붙인다**(아래 주석 참고)
  * - 언어: Accept-Language 로 서버 다국어(LangText) 응답 언어 지정
  *
  * 반환값은 응답 본문(payload)이다. orval 의 fetch 래핑(status/headers)은
  * orval.config.ts 의 includeHttpResponseReturnType:false 로 꺼 두었다.
  */
-const BASE_URL = import.meta.env.VITE_HANSAPP_BASE_URL ?? '';
 
 /**
  * 공개 클라이언트 ID. 브라우저 요청의 인증 수단이다.
@@ -30,7 +31,17 @@ export const reactFetch = async <T>(url: string, options?: RequestInit): Promise
     headers.set('X-Client-Id', CLIENT_ID);
   }
 
-  const res = await fetch(`${BASE_URL}${url}`, { ...options, headers });
+  /*
+    **호출을 SDK 에 맡긴다.** 로그인 상태면 access token 이 붙고, 만료가 가까우면 보내기 전에
+    회전시키며, 그래도 401 이면 한 번 더 회전시켜 재시도한다 — 그 절차 전부가 SDK 안에 있다.
+    익명이면 아무것도 붙지 않아 지금까지와 똑같이 클라이언트 ID 로만 나간다.
+
+    클라이언트 ID 는 그대로 함께 보낸다. 그건 "어느 앱이 부르는가" 이고 토큰은 "누가 부르는가"
+    라, 둘 다 사실이기 때문이다.
+
+    base URL 도 SDK 가 붙인다(apiBaseUrl). 두 곳에서 같은 환경변수를 읽던 것을 한 곳으로 모았다.
+  */
+  const res = await authClient.fetchWithAuth(url, { ...options, headers });
 
   if (!res.ok) {
     // react-query 의 isError 로 흐르도록 던진다. 서버 에러 본문을 최대한 담는다.
