@@ -3,4 +3,8 @@ Allow: /
 # 로그인이 필요한 콘솔 구간은 크롤링 제외.
 Disallow: /apps
 
+# 크롤러는 robots.txt 를 루트에서만 읽는다. /docs 는 VitePress 가 따로 만든 사이트맵을
+# 갖고 있어, 여기서 같이 가리켜 주지 않으면 아무도 찾아가지 않는다.
+# 두 줄 다 절대 URL이어야 한다 — 상대 경로는 크롤러가 조용히 무시한다.
 Sitemap: https://plzhans.com/sitemap.xml
+Sitemap: https://plzhans.com/docs/sitemap.xml

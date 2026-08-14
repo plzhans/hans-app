@@ -1,10 +1,15 @@
 import { Gnb } from '@/shared/components/Gnb';
 import { Footer } from '@/shared/components/Footer';
+import { useNoIndex } from '@/shared/seo/useNoIndex';
 import { privacyDoc, LegalDocumentView } from '../content';
 
-
-/** HansApp 계정 개인정보처리방침. **로그인 없이 열려야 한다** — 가입 화면이 여기를 링크한다. */
+/**
+ * HansApp 계정 개인정보처리방침. **로그인 없이 열려야 한다** — 가입 화면이 여기를 링크한다.
+ * 검색에는 노출하지 않는다.
+ */
 export default function Privacy() {
+  useNoIndex();
+
   return (
     <div className="flex min-h-full flex-col">
       <Gnb />
