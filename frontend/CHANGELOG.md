@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.1](https://github.com/plzhans/hans-app/compare/release-frontend/v0.9.0...release-frontend/v0.9.1) (2026-08-14)
+
+
+### 버그 수정
+
+* **front:** 포탈 상단 GNB 고정을 푼다 ([479ab0a](https://github.com/plzhans/hans-app/commit/479ab0aaffcfa1582bb3dfe0851acef45d90439d))
+* **front:** 포털 사이트맵을 인덱스로 묶고 약관을 크롤링에서 막는다 ([a8fc9e2](https://github.com/plzhans/hans-app/commit/a8fc9e23af73c40d63453b8086b459f7d282cb6d))
+* **medifinder:** 사이트맵을 추가하고 약관을 크롤링에서 막는다 ([8596e70](https://github.com/plzhans/hans-app/commit/8596e70c45c7941eea3498d85bbfda08f8628e77))
+
 ## [0.9.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.8.0...release-frontend/v0.9.0) (2026-08-14)
 
 
