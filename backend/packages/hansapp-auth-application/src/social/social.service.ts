@@ -37,7 +37,14 @@ export type CallbackOutcome =
   // 코드로 우회할 이유가 없다. 코드가 없으면 훔칠 것도 없어 PKCE 도 등장하지 않는다.
   // (컨트롤러가 이 토큰으로 쿠키를 심고 returnTo 로 바로 보낸다.)
   | { kind: 'session'; tokens: AuthTokens }
-  | { kind: 'code'; code: string } // 외부 앱 로그인/자동연동 → 릴레이 인가코드
+  /*
+    외부 앱 로그인/자동연동 → 릴레이 인가코드.
+
+    tokens 는 **우리 도메인의 세션**이다(있으면 컨트롤러가 쿠키로 심는다). 사용자가 방금
+    우리 로그인 화면에서 인증했으니 HansApp 에도 로그인된 것이 맞다 — 그러지 않으면 포털에
+    갔을 때 다시 로그인해야 한다. 코드는 그 사실 위에 얹혀 그 앱으로 나간다.
+  */
+  | { kind: 'code'; code: string; tokens?: AuthTokens }
   /*
     신규 → 가입 티켓.
       emailRequired  provider 가 이메일을 아예 안 줘서 입력이 **필수**다.
@@ -418,28 +425,42 @@ export class SocialService {
     provider: AuthProvider,
     meta: RequestMeta,
   ): Promise<CallbackOutcome> {
+    const user = await this.users.findById(userId);
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      return { kind: 'error', error: 'invalid_account' };
+    }
+    const persistent = state.persistent ?? false;
+
     if (state.clientId) {
       // state 의 clientId 를 코드에 박는다. 이 값은 진입 시 가드가 정했고 서명으로 보호된다 —
       // 그래야 토큰 교환 때 "이 코드는 medifinder 것" 을 서버가 알 수 있다.
       //
-      // "로그인 상태 유지" 도 같이 박는다. 세션은 콜백이 아니라 **교환 시점**에 만들어지는데,
-      // 그 요청에는 사용자의 선택이 없다 — 코드가 유일한 운반 수단이다.
+      // "로그인 상태 유지" 도 같이 박는다. 그 앱의 세션은 콜백이 아니라 **교환 시점**에
+      // 만들어지는데, 그 요청에는 사용자의 선택이 없다 — 코드가 유일한 운반 수단이다.
       const code = await this.tokens.issueAuthCode(
         userId,
         state.clientId,
         state.codeChallenge ?? null,
         provider,
-        state.persistent ?? false,
+        persistent,
       );
-      return { kind: 'code', code };
-    }
-    const user = await this.users.findById(userId);
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      return { kind: 'error', error: 'invalid_account' };
+      /*
+        **우리 세션도 함께 만든다.** 사용자는 우리 로그인 화면에서 인증했다 — 그 사실은
+        어느 앱이 보냈는지와 무관하다. 이게 없으면 medifinder 로 로그인한 사람이 포털에
+        가서 다시 로그인해야 했다(이메일 로그인 경로는 이미 이렇게 하고 있었다).
+
+        쿠키 수명은 "로그인 상태 유지" 를 따른다 — 안 골랐으면 세션 쿠키라 브라우저를
+        닫을 때 사라진다.
+      */
+      return {
+        kind: 'code',
+        code,
+        tokens: await this.login.complete(user, provider, meta, persistent),
+      };
     }
     return {
       kind: 'session',
-      tokens: await this.login.complete(user, provider, meta, state.persistent ?? false),
+      tokens: await this.login.complete(user, provider, meta, persistent),
     };
   }
 

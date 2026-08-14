@@ -150,9 +150,16 @@ export class SocialController {
     const state = typeof req.query.state === 'string' ? req.query.state : '';
     const { outcome, returnTo, clientState, clientId, codeChallenge } =
       await this.social.handleCallback(profile, state, requestMeta(req), lang);
-    // **자사 로그인은 여기서 끝난다.** 쿠키를 심고 원래 있던 자리로 돌려보낸다 —
-    // 인가코드를 만들어 프론트가 교환하게 하는 왕복이 없다.
+    /*
+      **로그인이 성립했으면 우리 쿠키를 심는다.**
+
+      자사 흐름(session)은 여기서 끝난다 — 인가코드를 만들어 프론트가 교환하게 하는 왕복이
+      없다. 외부 앱(code)도 마찬가지로 심는다: 사용자는 우리 로그인 화면에서 인증했으므로
+      HansApp 에도 로그인된 것이 맞다. 그 앱이 받을 코드는 별개로 함께 나간다.
+    */
     if (outcome.kind === 'session') {
+      setLoginCookies(res, outcome.tokens);
+    } else if (outcome.kind === 'code' && outcome.tokens) {
       setLoginCookies(res, outcome.tokens);
     }
     res.redirect(this.buildRedirect(clientId, returnTo, outcome, clientState, codeChallenge));
