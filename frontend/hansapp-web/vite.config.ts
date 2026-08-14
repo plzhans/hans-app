@@ -33,12 +33,18 @@ export default defineConfig(({ mode }) => {
     검색 색인은 **운영 빌드에서만** 연다. develop 도메인(develop.plzhans.com)이 그대로
     공개돼 있어, 열어 두면 운영과 같은 내용이 두 주소로 색인된다.
 
+    **vite 의 mode 로 판별하면 안 된다.** package.json 의 build:develop 은
+    `dotenv -e .env.develop -- vite build` 라 --mode 를 주지 않는다. 그래서 develop 빌드에서도
+    mode 는 'production' 이고, 환경 구분은 dotenv 가 넣어 준 VITE_APP_ENV 에만 남는다.
+
     .env 에 두지 않고 여기서 만든다 — 환경이 늘 때마다 세 파일에 같은 판단을 베껴 적지 않게.
     index.html 은 %VITE_ROBOTS% 로 받는다. Vite 는 .env 파일보다 process.env 를 먼저 보므로
     여기서 심으면 그대로 치환된다.
   */
   process.env.VITE_ROBOTS =
-    mode === 'production' ? 'index, follow' : 'noindex, nofollow';
+    process.env.VITE_APP_ENV === 'production'
+      ? 'index, follow'
+      : 'noindex, nofollow';
 
   return {
     plugins: [react()],
