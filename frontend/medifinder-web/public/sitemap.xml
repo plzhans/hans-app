@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://medifinder.kr/</loc>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://medifinder.kr/"/>
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://medifinder.kr/en-us/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://medifinder.kr/ja/"/>
+    <xhtml:link rel="alternate" hreflang="zh-hans" href="https://medifinder.kr/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://medifinder.kr/"/>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://medifinder.kr/en-us/</loc>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://medifinder.kr/"/>
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://medifinder.kr/en-us/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://medifinder.kr/ja/"/>
+    <xhtml:link rel="alternate" hreflang="zh-hans" href="https://medifinder.kr/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://medifinder.kr/"/>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://medifinder.kr/ja/</loc>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://medifinder.kr/"/>
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://medifinder.kr/en-us/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://medifinder.kr/ja/"/>
+    <xhtml:link rel="alternate" hreflang="zh-hans" href="https://medifinder.kr/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://medifinder.kr/"/>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://medifinder.kr/zh-hans/</loc>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://medifinder.kr/"/>
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://medifinder.kr/en-us/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://medifinder.kr/ja/"/>
+    <xhtml:link rel="alternate" hreflang="zh-hans" href="https://medifinder.kr/zh-hans/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://medifinder.kr/"/>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://medifinder.kr/search</loc>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://medifinder.kr/search"/>
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://medifinder.kr/en-us/search"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://medifinder.kr/ja/search"/>
+    <xhtml:link rel="alternate" hreflang="zh-hans" href="https://medifinder.kr/zh-hans/search"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://medifinder.kr/search"/>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://medifinder.kr/en-us/search</loc>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://medifinder.kr/search"/>
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://medifinder.kr/en-us/search"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://medifinder.kr/ja/search"/>
+    <xhtml:link rel="alternate" hreflang="zh-hans" href="https://medifinder.kr/zh-hans/search"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://medifinder.kr/search"/>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://medifinder.kr/ja/search</loc>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://medifinder.kr/search"/>
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://medifinder.kr/en-us/search"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://medifinder.kr/ja/search"/>
+    <xhtml:link rel="alternate" hreflang="zh-hans" href="https://medifinder.kr/zh-hans/search"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://medifinder.kr/search"/>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://medifinder.kr/zh-hans/search</loc>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://medifinder.kr/search"/>
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://medifinder.kr/en-us/search"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://medifinder.kr/ja/search"/>
+    <xhtml:link rel="alternate" hreflang="zh-hans" href="https://medifinder.kr/zh-hans/search"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://medifinder.kr/search"/>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>
