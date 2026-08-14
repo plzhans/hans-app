@@ -49,6 +49,9 @@ const PRIVATE_TAGS = new Set([
  */
 const TAG_RENAME: Record<string, string> = {
   users: 'account', // 사용자 — 토큰 발급(oauth)과 한 그룹으로 묶인다
+  // 백엔드가 인증 관련 컨트롤러를 auth 하나로 모았다. 문서는 "토큰" 페이지 이름을 유지한다 —
+  // 밖으로 나간 링크(/apis/oauth)가 있고, 읽는 사람에게는 그 페이지가 곧 토큰 발급이다.
+  auth: 'oauth',
 };
 
 /**
