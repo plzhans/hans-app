@@ -1,6 +1,7 @@
-import { Controller, Get, Logger, Query, Req, Res } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiExcludeController } from '@nestjs/swagger';
+import { Get, Logger, Query, Req, Res } from '@nestjs/common';
+import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { ApiController } from '@hansapp/http-common';
 import type { Request, Response } from 'express';
 import {
   AdminGoogleClient,
@@ -33,12 +34,13 @@ const LINK_RETURN_PATH = '/me';
  * (세션 힌트 쿠키를 보고 `/auth/token` 호출)를 그대로 타므로 새 교환 절차가 없다.
  */
 /*
-  **스웨거에 싣지 않는다.** 이 문서가 답하는 질문은 "콘솔이 부르는 업무 API 가 무엇인가"
-  인데, `/auth/*` 는 그 콘솔에 들어가기 위한 흐름(쿠키·리다이렉트·티켓)이라 성격이 다르다 —
-  섞어 두면 목록이 길어질 뿐 아니라, 문서를 보고 부를 수 있는 것처럼 읽힌다.
+  **업무 API 와 섞이지 않게 태그를 따로 준다.** AdminAuthController 와 같은 이유다 —
+  `/auth/*` 는 콘솔에 들어가기 위한 흐름이라 업무 목록과 성격이 다르다.
+
+  태그는 명시한다 — 없으면 Nest 가 클래스명으로 자동 태깅해(AdminSocial) 표기가 혼자 갈린다.
 */
-@ApiExcludeController()
-@Controller('auth')
+@ApiTags('auth-social')
+@ApiController('auth')
 export class AdminSocialController {
   private readonly logger = new Logger(AdminSocialController.name);
 
@@ -59,15 +61,21 @@ export class AdminSocialController {
     return { google: await this.google.isConfigured() };
   }
 
+  /**
+   * 소셜 로그인 시작. 브라우저를 구글 인가 화면으로 302 시킨다.
+   * `link_token` 이 있으면 로그인이 아니라 현재 계정에 **연동**하는 의도로 시작한다.
+   *
+   * **문서에 싣지 않는다. 애초에 API 가 아니다.** 브라우저 내비게이션이라 fetch 로 부르면
+   * CORS 에 막히고, 통과해도 구글의 로그인 HTML 을 받을 뿐이다. 실제 사용법은
+   * `location.href = ...` 하나뿐인데, 목록에 있으면 부를 수 있는 것처럼 읽힌다.
+   *
+   * 바로 위 `social/providers` 는 남는다 — 그건 화면이 실제로 부르는 JSON 이다.
+   */
   @Get('social/google')
   @AdminPublic()
+  @ApiExcludeEndpoint()
   // 구글로 나가는 리다이렉트를 무한정 찍어내지 않게 막는다. 사람이 누르는 버튼이다.
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
-  @ApiOperation({
-    summary: '구글 로그인/연동 시작',
-    description:
-      '구글 인가 화면으로 리다이렉트한다. `link_token` 이 있으면 로그인이 아니라 **연동**으로 시작한다.',
-  })
   async start(
     @Req() req: Request,
     @Res() res: Response,
@@ -104,14 +112,16 @@ export class AdminSocialController {
     res.redirect(await this.google.authorizeUrl({ redirectUri: googleCallbackUrl(req), state }));
   }
 
+  /**
+   * 구글이 인가코드를 실어 브라우저를 돌려보내는 곳(승인된 리디렉션 URI).
+   * 로그인이 성립하면 쿠키를 심고 콘솔로 리다이렉트한다.
+   *
+   * **문서에 싣지 않는다.** 부르는 주체가 구글이고, 우리 화면조차 이 주소를 직접 부르지 않는다.
+   */
   @Get('social/google/callback')
   @AdminPublic()
+  @ApiExcludeEndpoint()
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
-  @ApiOperation({
-    summary: '구글 콜백',
-    description:
-      '구글이 인가코드를 실어 보내는 곳이다(승인된 리디렉션 URI). 로그인이 성립하면 쿠키를 심고 콘솔로 리다이렉트한다.',
-  })
   async callback(
     @Req() req: Request,
     @Res() res: Response,

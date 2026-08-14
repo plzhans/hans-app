@@ -1,5 +1,6 @@
-import { Controller, Get, Req, ServiceUnavailableException } from '@nestjs/common';
+import { Get, Req, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import type { Request } from 'express';
 
 import { AiModelService, HealthcareAiSearchService } from '@hansapp/application';
@@ -37,7 +38,7 @@ type AuthedRequest = Request & {
  */
 @ApiTags('ai')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('ai')
+@ApiController('ai')
 export class AiCapabilitiesController {
   constructor(
     private readonly aiSearch: HealthcareAiSearchService,

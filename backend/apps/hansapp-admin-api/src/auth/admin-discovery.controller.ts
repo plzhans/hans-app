@@ -1,5 +1,6 @@
-import { Controller, Get, Inject, Res } from '@nestjs/common';
+import { Get, Inject, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import type { Response } from 'express';
 import { ADMIN_AUTH_CONFIG, AdminPublic } from '@hansapp/admin-application/auth';
 import type { AdminAuthConfig } from '@hansapp/admin-application/auth';
@@ -23,8 +24,8 @@ const MAX_AGE_SEC = 60;
  * 그래도 공개 API 와 같은 자리에 같은 이름으로 두는 편이 낫다 — 두 API 를 함께 다루는
  * 사람이 "여기는 왜 없지" 를 확인하러 코드를 뒤지지 않아도 된다.
  */
-@ApiTags('admin-auth')
-@Controller('.well-known')
+@ApiTags('auth')
+@ApiController('.well-known')
 export class AdminDiscoveryController {
   constructor(@Inject(ADMIN_AUTH_CONFIG) private readonly config: AdminAuthConfig) {}
 

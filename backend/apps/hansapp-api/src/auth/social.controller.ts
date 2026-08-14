@@ -2,7 +2,6 @@ import {
   Inject,
   BadRequestException,
   Body,
-  Controller,
   Get,
   HttpCode,
   Post,
@@ -10,7 +9,8 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiExcludeController, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { InternalApiController } from '@hansapp/http-common';
 import type { Request, Response } from 'express';
 import { FirstPartyOnly, Public, SocialAuthGuard, SocialService } from '@hansapp/auth-application';
 import type { CallbackOutcome, SocialProfile } from '@hansapp/auth-application';
@@ -29,13 +29,12 @@ import { requestMeta, respondTokens, setLoginCookies } from './refresh-cookie';
  * 결과(인가코드/가입티켓/연동/에러)를 프론트(SPA)로 리다이렉트한다.
  * 최종 로그인 토큰 교환은 /oauth/token 이 담당한다.
  *
- * **스펙에 싣지 않는다(@ApiExcludeController).** 리다이렉트 둘은 애초에 API 가 아니고
+ * **대외 스펙에 싣지 않는다(@InternalApiController).** 리다이렉트 둘은 애초에 API 가 아니고
  * (302 라 fetch 로 부를 수 없다), 가입 확정 둘은 콜백이 돌려준 티켓을 우리 인증웹이 쓰는
  * 자리다. 외부 앱은 이 왕복을 몰라도 된다 — `/oauth/authorize` 로 시작하면 우리가 대신 돈다.
  */
-@ApiExcludeController()
 @ApiTags('auth-social')
-@Controller('auth')
+@InternalApiController('auth')
 export class SocialController {
   constructor(
     private readonly social: SocialService,

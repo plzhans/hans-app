@@ -1,5 +1,6 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Get, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { HealthcareMetaService } from '@hansapp/application';
 
 import { Auth } from '../auth/auth.decorator';
@@ -23,7 +24,7 @@ import { SubwayStationListDto } from './dto/transport.dto';
  */
 @ApiTags('transport')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('transport')
+@ApiController('transport')
 export class TransportController {
   constructor(private readonly service: HealthcareMetaService) {}
 

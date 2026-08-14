@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { resolveAppEnv } from '@hansapp/common';
+import { SHOW_INTERNAL_API } from '@hansapp/http-common';
 import { config as loadDotenv } from 'dotenv';
 import { loadServerConfig } from './config';
 import { buildOpenApiDocument, parseServersSpec } from './swagger';
@@ -59,6 +60,18 @@ function resolveServersArg(): ReturnType<typeof parseServersSpec> {
  * Prisma $connect(onModuleInit) 등 provider 생명주기가 실행되지 않아 DB 없이도 동작한다.
  */
 async function generate(): Promise<void> {
+  // 여기서 나온 스펙은 레포에 커밋된다(DEFAULT_OUT). 내부 API 노출이 켜진 채로 돌면
+  // 대외 스펙에 내부 엔드포인트가 조용히 섞여 들어간다.
+  //
+  // **되돌릴 수 없어서 막는다.** 노출 여부는 데코레이터가 import 시점에 이미 확정하므로
+  // (SHOW_INTERNAL_API), 이 함수가 실행될 무렵엔 끌 방법이 없다. 그래서 생성을 중단한다.
+  if (SHOW_INTERNAL_API) {
+    throw new Error(
+      'OPENAPI_INTERNAL is enabled. The generated spec would include internal-only endpoints. ' +
+        'Unset OPENAPI_INTERNAL before running openapi:gen.',
+    );
+  }
+
   // 스펙만 뽑을 때도 모듈 그래프를 구성하려면 설정이 필요하다. DB 에 연결하지는 않는다.
   const appConfig = loadServerConfig(__dirname, resolveAppEnv(), loadDotenv);
 

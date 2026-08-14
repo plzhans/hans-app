@@ -1,6 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
+import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
 import { AuthLogService } from '@hansapp/admin-application';
 
 import { AuthLogDto, AuthLogQueryDto } from './dto/auth-log.dto';
@@ -12,8 +12,8 @@ import { AuthLogDto, AuthLogQueryDto } from './dto/auth-log.dto';
  * 대상을 안 가리고 기간으로 훑는다. 특히 `anonymousOnly` 로 보는 행(없는 계정으로의
  * 로그인 시도)은 어느 회원에도 안 붙어 회원 상세에서는 영영 안 보인다.
  */
-@ApiTags('admin-log')
-@Controller('api/logs')
+@ApiTags('logs')
+@ApiController('api/logs')
 export class AuthLogController {
   constructor(private readonly logs: AuthLogService) {}
 

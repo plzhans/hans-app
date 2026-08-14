@@ -1,6 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
+import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
 import { LlmUsageLogService } from '@hansapp/admin-application';
 
 import { LlmUsageLogDto, LlmUsageLogQueryDto } from './dto/llm-usage-log.dto';
@@ -14,8 +14,8 @@ import { LlmUsageLogDto, LlmUsageLogQueryDto } from './dto/llm-usage-log.dto';
  *
  * 경로가 `/api/*` 인 것은 refresh 쿠키(path=/auth)가 이 요청들에 실리지 않게 하려는 것이다.
  */
-@ApiTags('admin-log')
-@Controller('api/logs')
+@ApiTags('logs')
+@ApiController('api/logs')
 export class LlmUsageLogController {
   constructor(private readonly logs: LlmUsageLogService) {}
 

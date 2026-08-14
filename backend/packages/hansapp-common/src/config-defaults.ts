@@ -137,11 +137,8 @@ export const CONFIG_DEFAULTS = {
   // ── hansapp-api ─────────────────────────────────────────────────────────────
   'apps-api.name': 'HansApp',
   'apps-api.web.port': 3000,
-  // 문서를 열려면 그 환경이 명시로 켠다.
+  // 문서를 열려면 그 환경이 명시로 켠다. 켜면 잠금이 없으므로 운영은 켜지 않는다.
   'apps-api.swagger.enabled': false,
-  // 켠 뒤의 기본은 **잠근 쪽**이다 — 등록된 IP 만 본다(목록이 비면 아무도 못 본다).
-  // 개발에서 목록을 채워야 열리면 불편하기만 해서, 그런 환경이 명시로 푼다.
-  'apps-api.swagger.ipRestricted': true,
   'apps-api.sentry.enabled': false,
   // 켠 뒤의 기본은 운영 기준 10%. 트래픽이 적은 환경이 자기 yaml 에서 올린다.
   'apps-api.sentry.tracesSampleRate': 0.1,

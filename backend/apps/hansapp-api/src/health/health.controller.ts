@@ -1,5 +1,4 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
-import { ApiExcludeController } from '@nestjs/swagger';
 import { HealthService } from '@hansapp/application';
 
 import { Public } from '../auth/public.decorator';
@@ -24,14 +23,13 @@ interface CheckView {
  *   GET /health        프로세스가 응답하나. 의존성을 안 본다. → 재시작 판단용
  *   GET /health/ready  MySQL·Redis·ES 까지 닿나. 못 닿으면 503. → 트래픽 투입 판단용
  *
- * **스펙에 싣지 않는다(@ApiExcludeController).** 인프라가 부르는 자리이지 연동하는 쪽이
- * 쓰는 API 가 아니다. 루트(`GET /`)도 같은 이유로 빠져 있다.
+ * **스펙에 싣지 않는다.** 인프라가 부르는 자리이지 연동하는 쪽이 쓰는 API 가 아니다.
+ * `@ApiController` 를 달지 않는 것으로 빠진다 — 루트(`GET /`)도 같은 이유다.
  *
  * 점검 자체는 [`HealthService`](@hansapp/application)가 한다 — 부팅 때 같은 것을 보고,
  * CLI 도 같은 것을 본다. 여기서 다시 구현하면 "부팅은 통과했는데 readiness 는 실패" 같은
  * 어긋남이 생긴다.
  */
-@ApiExcludeController()
 @Controller('health')
 export class HealthController {
   constructor(private readonly health: HealthService) {}

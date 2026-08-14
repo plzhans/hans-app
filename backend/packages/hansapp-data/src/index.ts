@@ -54,7 +54,6 @@ export type {
   // AI(ai.prisma) 도메인 모델
   AppLlmKey,
   // 운영 환경(env_*) 테이블. 서비스 데이터가 아니라 서버 운영을 다루는 모델이다.
-  EnvSwaggerAllowedIp,
   EnvSetting,
 } from '../generated/main';
 

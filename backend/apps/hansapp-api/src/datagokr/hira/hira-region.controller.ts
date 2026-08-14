@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Get, Param, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { HiraRegionService, HiraSubjectService } from '@hansapp/application';
 
 import { Auth } from '../../auth/auth.decorator';
@@ -18,7 +19,7 @@ import { HiraRegionResponseDto } from '../dto/krdata-envelope.dto';
  */
 @ApiTags('hira')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('data-go-kr/hira')
+@ApiController('data-go-kr/hira')
 export class HiraRegionController {
   constructor(
     private readonly regionService: HiraRegionService,

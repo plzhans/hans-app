@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Body,
-  Controller,
   Delete,
   Get,
   HttpCode,
@@ -13,7 +12,8 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController, InternalApiEndpoint } from '@hansapp/http-common';
 import type { Request, Response } from 'express';
 import {
   Auth,
@@ -53,11 +53,11 @@ import {
  * [스펙에 싣는 것은 조회 하나뿐이다]
  * **스펙에 있는 것 = 외부가 부를 수 있는 것.** 연동한 앱이 access token 으로 부를 만한 것은
  * `GET /users/me` 뿐이고, 나머지(이름·비밀번호·기기·동의·소셜연동·탈퇴)는 계정 관리라
- * 우리 인증웹 화면에서 한다. 그래서 **기본값이 @ApiExcludeEndpoint** 다 —
+ * 우리 인증웹 화면에서 한다. 그래서 **기본값이 @InternalApiEndpoint** 다 —
  * 새 엔드포인트를 여기 추가하면 일단 빠지고, 대외에 열 것만 골라서 뺀다.
  */
 @ApiTags('users')
-@Controller('users')
+@ApiController('users')
 export class UserController {
   constructor(
     private readonly authService: AuthService,
@@ -97,7 +97,7 @@ export class UserController {
 
   @Patch('me')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @HttpCode(204)
   @ApiOperation({
     summary: '내 정보 수정',
@@ -122,7 +122,7 @@ export class UserController {
 
   @Delete('me')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @HttpCode(204)
   @ApiOperation({
     summary: '회원 탈퇴',
@@ -140,7 +140,7 @@ export class UserController {
 
   @Put('me/password')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @HttpCode(204)
   @ApiOperation({
     summary: '비밀번호 변경·설정',
@@ -161,7 +161,7 @@ export class UserController {
 
   @Get('me/sessions')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @ApiOperation({
     summary: '로그인한 기기 목록',
     description:
@@ -183,7 +183,7 @@ export class UserController {
 
   @Delete('me/sessions/:sessionId')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @HttpCode(204)
   @ApiOperation({
     summary: '기기 로그아웃',
@@ -199,7 +199,7 @@ export class UserController {
 
   @Delete('me/sessions')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @HttpCode(204)
   @ApiOperation({
     summary: '모든 기기에서 로그아웃',
@@ -219,7 +219,7 @@ export class UserController {
 
   @Get('me/consents')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @ApiOperation({
     summary: '내 동의 기록',
     description:
@@ -237,7 +237,7 @@ export class UserController {
 
   @Post('me/socials/link-token')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @ApiOperation({
     summary: '소셜 연동 시작 토큰 발급',
     description:
@@ -251,7 +251,7 @@ export class UserController {
 
   @Delete('me/socials/:provider')
   @Auth(AuthType.Jwt)
-  @ApiExcludeEndpoint()
+  @InternalApiEndpoint()
   @HttpCode(204)
   @ApiOperation({
     summary: '소셜 연동 해제',

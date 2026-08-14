@@ -3,6 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
 
 import { resolveAppEnv, type AppEnv } from '@hansapp/common';
+import { gateNonApiControllers, retagInternalOperations } from '@hansapp/http-common';
 
 import { buildInfo } from './build-info';
 import { mergeKrDataSchemas } from './krdata-schemas';
@@ -126,7 +127,14 @@ export function buildOpenApiDocument(
     builder.addServer(server.url, server.description);
   }
 
+  // 문서의 제1조건. @ApiController 로 선언하지 않은 컨트롤러를 통째로 걷어낸다.
+  // createDocument 보다 먼저 돌아야 한다 — 스캐너가 클래스 판정을 그 시점에 읽는다.
+  gateNonApiControllers(app);
+
   const document = SwaggerModule.createDocument(app, builder.build());
+
+  // 내부 전용 API 를 켰을 때만 의미가 있다. 공개 문서에서는 대상이 없어 아무 일도 하지 않는다.
+  retagInternalOperations(document);
 
   // nmc/hira 응답은 원본 API 구조를 그대로 돌려준다. 그 스키마(필드 설명 포함)는
   // 우리가 소유한 SDK 스펙에 이미 있으므로 문서에 합쳐 넣고 $ref 로 가리킨다.

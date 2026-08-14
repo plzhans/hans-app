@@ -1,6 +1,5 @@
 import {
   ClassSerializerInterceptor,
-  Controller,
   Get,
   Header,
   Param,
@@ -11,7 +10,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
+import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
 import { BoardReadService } from '@hansapp/application';
 import { Public } from '@hansapp/auth-application';
 
@@ -39,7 +38,7 @@ import {
  */
 @ApiTags('board')
 @Public()
-@Controller('boards')
+@ApiController('boards')
 @UseInterceptors(ClassSerializerInterceptor)
 export class BoardController {
   constructor(private readonly boards: BoardReadService) {}

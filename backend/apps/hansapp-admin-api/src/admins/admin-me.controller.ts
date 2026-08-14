@@ -1,15 +1,6 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  NotFoundException,
-  Patch,
-  Post,
-  Req,
-} from '@nestjs/common';
+import { Body, Delete, Get, HttpCode, NotFoundException, Patch, Post, Req } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import type { Request } from 'express';
 import {
   AdminAuthService,
@@ -38,8 +29,8 @@ import { AdminMeResponseDto, AdminUpdateLocaleRequestDto } from '../auth/dto/adm
  * **그래서 `me` 는 `:id` 보다 먼저 등록돼야 한다** — 컨트롤러 등록 순서(app.module)가
  * 그것을 지킨다. 뒤에 서면 `/api/admins/me` 가 `:id` 에 잡혀 400 이 된다.
  */
-@ApiTags('admin-me')
-@Controller('api/admins/me')
+@ApiTags('admins.me')
+@ApiController('api/admins/me')
 export class AdminMeController {
   constructor(
     private readonly auth: AdminAuthService,

@@ -1,4 +1,5 @@
-import { Controller, Get, Header, Param, Query } from '@nestjs/common';
+import { Get, Header, Param, Query } from '@nestjs/common';
+import { ApiController } from '@hansapp/http-common';
 import {
   ApiExcludeEndpoint,
   ApiOkResponse,
@@ -42,7 +43,7 @@ const ASM_SCHEMA = 'HiraHospitalAssessmentResponse';
  */
 @ApiTags('hira')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('data-go-kr/hira/hospitals')
+@ApiController('data-go-kr/hira/hospitals')
 export class HiraHospitalController {
   constructor(private readonly hiraHospitalService: HiraHospitalService) {}
 

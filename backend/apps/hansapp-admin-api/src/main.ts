@@ -12,7 +12,12 @@ import { SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { logConfigSummary, resolveConfigPath } from '@hansapp/common';
 import { HealthService } from '@hansapp/admin-application';
-import { HttpErrorFilter, StripNullInterceptor, requestIdMiddleware } from '@hansapp/http-common';
+import {
+  HttpErrorFilter,
+  StripNullInterceptor,
+  requestIdMiddleware,
+  adminSwaggerTagsSorter,
+} from '@hansapp/http-common';
 
 import { AppModule } from './app.module';
 import { appConfig, appEnv } from './boot-config';
@@ -168,7 +173,11 @@ async function bootstrap() {
     SwaggerModule.setup(SWAGGER_PATH, app, document, {
       jsonDocumentUrl: OPENAPI_JSON_PATH,
       explorer: true,
-      swaggerOptions: { url: `/${OPENAPI_JSON_PATH}` },
+      swaggerOptions: {
+        url: `/${OPENAPI_JSON_PATH}`,
+        // 섹션 순서. 이 함수는 브라우저로 실려 나간다(자기 완결이어야 한다 — 정의부 주석 참고).
+        tagsSorter: adminSwaggerTagsSorter,
+      },
     });
   }
 

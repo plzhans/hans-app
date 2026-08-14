@@ -14,14 +14,18 @@ import cookieParser from 'cookie-parser';
 import type { Request } from 'express';
 import { logConfigSummary, resolveConfigPath } from '@hansapp/common';
 import { isFirstPartyOrigin, normalizeRootDomain } from '@hansapp/auth-application';
-import { HealthService, SlackNotifyService, SwaggerAccessService } from '@hansapp/application';
-import { HttpErrorFilter, StripNullInterceptor, requestIdMiddleware } from '@hansapp/http-common';
+import { HealthService, SlackNotifyService } from '@hansapp/application';
+import {
+  HttpErrorFilter,
+  StripNullInterceptor,
+  requestIdMiddleware,
+  swaggerTagsSorter,
+} from '@hansapp/http-common';
 
 import { AppModule } from './app.module';
 import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initRefreshCookie } from './auth/refresh-cookie';
-import { createSwaggerAccessMiddleware } from './common/swagger-access.middleware';
 import { OPENAPI_JSON_PATH, SWAGGER_PATH, buildOpenApiDocument } from './swagger';
 
 // --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
@@ -220,28 +224,16 @@ async function bootstrap() {
   // SPA fetch 엔 기존 JSON 을 응답한다(소셜 로그인 콜백이 주소창에 JSON 을 노출하지 않게).
   app.useGlobalFilters(new HttpErrorFilter());
 
-  // Swagger 문서 노출. **기본은 꺼짐이고, 열 환경이 yaml 에 명시로 켠다**(config-defaults.ts).
-  //   local·develop : 켜고 ipRestricted 를 풀어 그대로 공개
-  //   production    : 켜되 env_swagger_allowed_ip 에 등록된 IP 만 (아래 미들웨어)
+  /*
+    Swagger 문서 노출. **기본은 꺼짐이고, 열 환경이 yaml 에 명시로 켠다**(config-defaults.ts).
+    지금 켜는 환경은 local·develop 뿐이고 **production 은 열지 않는다.**
+
+    한때 운영에서도 열고 IP 허용목록(env_swagger_allowed_ip)으로 막았지만, 문서를 운영에
+    띄울 이유가 없어지면서 그 장치를 통째로 걷었다 — 열지 않으면 잠글 것도 없다.
+  */
   const swaggerEnabled = appConfig.getBoolOrDefault('apps-api.swagger.enabled');
-  // 켠 뒤의 기본은 잠근 쪽이다. 목록을 채워야 열리는 게 불편한 환경이 yaml 에서 푼다.
-  const swaggerIpRestricted = appConfig.getBoolOrDefault('apps-api.swagger.ipRestricted');
 
   if (swaggerEnabled) {
-    if (swaggerIpRestricted) {
-      // ⚠️ **SwaggerModule.setup 보다 먼저** 등록해야 한다. setup 은 Express 핸들러를 직접
-      // 붙이므로 나중에 걸면 문서가 먼저 응답하고 이 미들웨어는 지나간다.
-      app.use(
-        createSwaggerAccessMiddleware({
-          service: app.get(SwaggerAccessService),
-          // rate limit 과 같은 헤더를 쓴다(production: cf-connecting-ip). 판정 기준이
-          // 두 군데서 갈리면 "왜 한쪽만 막히지" 가 된다.
-          clientIpHeader:
-            appConfig.getStringOrDefault('apps-api.proxy.clientIpHeader') || undefined,
-        }),
-      );
-    }
-
     const document = buildOpenApiDocument(app);
     SwaggerModule.setup(SWAGGER_PATH, app, document, {
       // OpenAPI JSON 스펙을 /openapi.json 으로 서빙 (스프링 springdoc 구조와 통일)
@@ -250,6 +242,8 @@ async function bootstrap() {
       explorer: true,
       swaggerOptions: {
         url: `/${OPENAPI_JSON_PATH}`,
+        // 섹션 순서. 이 함수는 브라우저로 실려 나간다(자기 완결이어야 한다 — 정의부 주석 참고).
+        tagsSorter: swaggerTagsSorter,
       },
     });
   }
@@ -288,13 +282,9 @@ async function bootstrap() {
     // OpenAPI(JSON) 스펙 경로는 Swagger UI 가 내부적으로 로드·노출하므로
     // 부팅 로그에는 사람이 접속하는 Swagger UI 링크만 남긴다.
     //
-    // IP 제한이 걸렸는지도 같이 남긴다. **조용히 열려 있는 게 최악이다** — 로그에
-    // 링크만 있으면 제한이 꺼진 채 뜬 것을 아무도 눈치채지 못한다.
-    logger.log(
-      `📚 Swagger UI: ${baseUrl}/${SWAGGER_PATH}${
-        swaggerIpRestricted ? ' (IP restricted — env_swagger_allowed_ip)' : ' (open to everyone)'
-      }`,
-    );
+    // 문서에는 잠금이 없다. **조용히 열려 있는 게 최악이라** 켜졌다는 사실을 남긴다 —
+    // 운영에서 이 줄이 보이면 설정이 잘못된 것이다.
+    logger.log(`📚 Swagger UI: ${baseUrl}/${SWAGGER_PATH} (open to everyone)`);
   } else {
     logger.log('📚 Swagger is disabled by config (apps-api.swagger.enabled)');
   }

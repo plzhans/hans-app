@@ -1,5 +1,6 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Get, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import type { Response } from 'express';
 import { JwtKeyService, Public } from '@hansapp/auth-application';
 
@@ -44,8 +45,8 @@ const NOT_CACHEABLE = 'no-store';
  * MSA 소비자는 여기서 공개키(kid별)를 가져가 access token 을 검증한다. 개인키는 절대 노출되지 않는다.
  * 대칭(HS256) 폴백 모드면 keys 는 빈 배열이다(노출할 공개키 없음).
  */
-@ApiTags('oauth')
-@Controller('.well-known')
+@ApiTags('auth')
+@ApiController('.well-known')
 export class JwksController {
   constructor(private readonly keys: JwtKeyService) {}
 

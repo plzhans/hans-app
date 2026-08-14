@@ -1,6 +1,5 @@
 import {
   Body,
-  Controller,
   Delete,
   Get,
   HttpCode,
@@ -15,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
+import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
 import { AdminActionLogReadService, AdminEmailService } from '@hansapp/admin-application';
 import {
   AdminAccountService,
@@ -55,8 +54,8 @@ import {
  *
  * 경로가 `/api/*` 인 것은 refresh 쿠키(path=/auth)가 이 요청들에 실리지 않게 하려는 것이다.
  */
-@ApiTags('admin-account')
-@Controller('api/admins')
+@ApiTags('admins')
+@ApiController('api/admins')
 export class AdminAccountController {
   constructor(
     private readonly accounts: AdminAccountService,

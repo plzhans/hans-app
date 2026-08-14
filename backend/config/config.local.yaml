@@ -19,7 +19,6 @@ apps-api:
   externalUrl: http://127.0.0.1:3000
   swagger:
     enabled: true
-    ipRestricted: false
 
 admin:
   jwt:

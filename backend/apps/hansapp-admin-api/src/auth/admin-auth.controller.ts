@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Body,
-  Controller,
   Delete,
   Get,
   HttpCode,
@@ -10,13 +9,9 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import {
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiExcludeController,
-} from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { ApiController } from '@hansapp/http-common';
 import type { Request, Response } from 'express';
 import { AdminEmailService } from '@hansapp/admin-application';
 import {
@@ -46,12 +41,15 @@ import {
  * 업무 API 는 `/api/*` 아래에 둬서 쿠키가 실리지 않게 한다.
  */
 /*
-  **스웨거에 싣지 않는다.** 이 문서가 답하는 질문은 "콘솔이 부르는 업무 API 가 무엇인가"
-  인데, `/auth/*` 는 그 콘솔에 들어가기 위한 흐름(쿠키·리다이렉트·티켓)이라 성격이 다르다 —
-  섞어 두면 목록이 길어질 뿐 아니라, 문서를 보고 부를 수 있는 것처럼 읽힌다.
+  **업무 API 와 섞이지 않게 태그를 따로 준다.** 이 문서가 답하는 질문은 "콘솔이 부르는 업무
+  API 가 무엇인가" 인데, `/auth/*` 는 그 콘솔에 들어가기 위한 흐름(쿠키·리다이렉트·티켓)이라
+  성격이 다르다. 한때 문서에서 아예 뺐지만, 섹션이 갈리면 목록을 어지럽히지 않으면서 콘솔을
+  만드는 쪽이 로그인 흐름을 찾아볼 수 있다.
+
+  태그는 명시한다 — 없으면 Nest 가 클래스명으로 자동 태깅해(AdminAuth) 표기가 혼자 갈린다.
 */
-@ApiExcludeController()
-@Controller('auth')
+@ApiTags('auth')
+@ApiController('auth')
 export class AdminAuthController {
   constructor(
     private readonly auth: AdminAuthService,

@@ -21,10 +21,8 @@ import { NtsClientFactory } from './business/nts-client.factory';
 import { BusinessService } from './business/business.service';
 import { JusoClientFactory } from './address/juso-client.factory';
 import { AddressService } from './address/address.service';
-import { EnvSwaggerAllowedIpRepository } from './env/env-swagger-allowed-ip.repository';
 import { buildHealthConfig, HEALTH_CONFIG } from './health/health.config';
 import { HealthService } from './health/health.service';
-import { SwaggerAccessService } from './env/swagger-access.service';
 import { buildSlackNotifyConfig, SLACK_NOTIFY_CONFIG } from './notify/slack-notify.config';
 import { SlackNotifyService } from './notify/slack-notify.service';
 import { HiraCodeService } from './hira/hira-code.service';
@@ -171,10 +169,6 @@ export class ApplicationModule {
         RegionService,
         // 작업 큐. 서버가 넣고 배치(CLI)가 꺼낸다 — MQ 대체품이다.
         JobQueueService,
-        // Swagger 문서 접근 IP 허용목록(env_swagger_allowed_ip). production 에서 /docs 를
-        // 열어두고 등록된 IP 만 통과시키는 데 쓴다 — main.ts 의 미들웨어가 이 서비스를 부른다.
-        EnvSwaggerAllowedIpRepository,
-        SwaggerAccessService,
         // 서버 기동·종료 슬랙 알림. 설정(SLACK_*)이 비면 스스로 조용해진다 — 부팅은 정상이다.
         // 종료 알림은 Nest 종료 훅으로 스스로 나가므로, 앱은 시작만 알려주면 된다.
         {
@@ -220,9 +214,6 @@ export class ApplicationModule {
         RegionService,
         // 작업 큐. 서버가 넣고 배치(CLI)가 꺼낸다 — MQ 대체품이다.
         JobQueueService,
-        // main.ts 가 app.get() 으로 꺼내 Swagger 앞단 미들웨어에 넘긴다.
-        // 리포지토리는 내보내지 않는다(규약: 바깥에는 서비스만 보인다).
-        SwaggerAccessService,
         // main.ts 가 부팅 마지막에 app.get() 으로 꺼내 시작을 알린다.
         SlackNotifyService,
         // main.ts 가 리슨 전에 app.get() 으로 꺼내 인프라 접속을 확인한다.

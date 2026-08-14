@@ -21,6 +21,7 @@
   "dependencies": {
     "@hansapp/common": "workspace:*",
     "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
     "@nestjs/swagger": "^11.4.5",
     "@sentry/nestjs": "^10.68.0",
     "class-transformer": "^0.5.1",

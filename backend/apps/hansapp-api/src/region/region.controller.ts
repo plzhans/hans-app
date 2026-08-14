@@ -1,5 +1,6 @@
-import { Controller, Get, NotFoundException, Query } from '@nestjs/common';
+import { Get, NotFoundException, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { RegionService } from '@hansapp/application';
 
 import { Lang } from '../common/lang.decorator';
@@ -27,7 +28,7 @@ import { RegionPointDto, RegionReverseRequestDto } from './dto/region-reverse.dt
  */
 @ApiTags('address')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('address/regions')
+@ApiController('address/regions')
 export class RegionController {
   constructor(private readonly service: RegionService) {}
 

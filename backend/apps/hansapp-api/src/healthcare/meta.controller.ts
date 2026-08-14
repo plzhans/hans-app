@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { HealthcareMetaService } from '@hansapp/application';
 
 import { Lang } from '../common/lang.decorator';
@@ -30,7 +31,7 @@ import {
  */
 @ApiTags('healthcare-meta')
 @Auth(AuthType.Jwt, AuthType.ApiKey)
-@Controller('healthcare/meta')
+@ApiController('healthcare/meta')
 export class HealthcareMetaController {
   constructor(private readonly service: HealthcareMetaService) {}
 

@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { SyncStateService } from '@hansapp/admin-application';
 
 /**
@@ -10,8 +11,8 @@ import { SyncStateService } from '@hansapp/admin-application';
  *
  * 경로가 `/api/*` 인 것은 refresh 쿠키(path=/auth)가 실리지 않게 하려는 것이다.
  */
-@ApiTags('admin-sync')
-@Controller('api/sync-state')
+@ApiTags('sync')
+@ApiController('api/sync-state')
 export class SyncStateController {
   constructor(private readonly syncState: SyncStateService) {}
 

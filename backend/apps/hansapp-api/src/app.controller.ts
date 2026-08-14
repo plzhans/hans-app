@@ -1,12 +1,13 @@
-import { Controller, Get } from '@nestjs/common';
+import { Get } from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiController } from '@hansapp/http-common';
 import { AppService } from './app.service';
 import { Public } from './auth/public.decorator';
 import { buildInfo } from './build-info';
 import { BuildInfoDto } from './dto/build-info.dto';
 
 @ApiTags('app')
-@Controller()
+@ApiController()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 

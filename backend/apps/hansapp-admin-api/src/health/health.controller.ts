@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiExcludeController } from '@nestjs/swagger';
+import { ApiOperation } from '@nestjs/swagger';
 import { AdminPublic } from '@hansapp/admin-application/auth';
 
 import { buildInfo } from '../build-info';
@@ -11,7 +11,6 @@ import { buildInfo } from '../build-info';
  * 그래서 여기서는 프로세스가 응답하는지만 본다.
  */
 // 헬스체크. 모니터링이 부르는 자리라 업무 API 문서에 낄 이유가 없다.
-@ApiExcludeController()
 @Controller()
 export class HealthController {
   @Get('health')
