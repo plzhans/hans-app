@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.8.0...release-frontend/v0.9.0) (2026-08-14)
+
+
+### 기능
+
+* **front:** 약관을 검색 색인에서 뺀다 ([ee13fb8](https://github.com/plzhans/hans-app/commit/ee13fb8f56a165ed87c2752e0d1eac7db8cb79ee))
+* **front:** 포털 첫 화면에 서비스 목록과 공유 메타를 넣는다 ([5bf9a95](https://github.com/plzhans/hans-app/commit/5bf9a9526c8b076007589eaa91dec95b0a18a222))
+
+
+### 버그 수정
+
+* **front:** develop 빌드에서 robots 판별이 뒤집히던 것을 고친다 ([d4b5746](https://github.com/plzhans/hans-app/commit/d4b5746a1e7d4255042e9821f9840845f5bf703d))
+* **front:** develop 이 운영과 같이 색인되는 것을 막는다 ([631b621](https://github.com/plzhans/hans-app/commit/631b6215a38f86e4d3d41d2af70f3547bdde6475))
+* **front:** robots.txt 가 문서 사이트맵을 가리키게 한다 ([37b86d5](https://github.com/plzhans/hans-app/commit/37b86d56d4bbebfeb5500b117394d9c44e784b8f))
+
 ## [0.8.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.7.0...release-frontend/v0.8.0) (2026-08-14)
 
 
