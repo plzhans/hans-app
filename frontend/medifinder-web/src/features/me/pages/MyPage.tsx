@@ -1,9 +1,11 @@
 import { useEffect, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LogOut, UserRound } from 'lucide-react';
 import { AUTH_WEB_URL } from '@/shared/config/env';
 import { displayName } from '@/shared/auth/api';
 import { useAuth } from '@/shared/auth/useAuth';
+import { useLangPath } from '@/shared/i18n/routing';
 import { Spinner } from '@/shared/ui/Spinner';
 
 /**
@@ -24,6 +26,8 @@ export default function MyPage() {
   const login = useAuth((s) => s.login);
   const logout = useAuth((s) => s.logout);
   const reloadMe = useAuth((s) => s.reloadMe);
+  const navigate = useNavigate();
+  const path = useLangPath();
 
   useEffect(() => {
     if (status === 'authenticated' && !me) void reloadMe();
@@ -104,7 +108,14 @@ export default function MyPage() {
         )}
         <button
           type="button"
-          onClick={() => void logout()}
+          onClick={() => {
+            /*
+              로그아웃하면 이 화면에는 볼 것이 없다. 그대로 두면 방금까지 자기 정보가 있던
+              자리에 "로그인이 필요해요" 가 뜨는데, 나가겠다고 누른 사람에게는 다시 들어오라는
+              말로 읽힌다. 히스토리에도 남기지 않는다 — 뒤로가기로 그 화면에 되돌아오게 된다.
+            */
+            void logout().then(() => navigate(path('/'), { replace: true }));
+          }}
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm font-bold text-ink ring-1 ring-line active:bg-surface-subtle"
         >
           <LogOut className="h-4 w-4" />
