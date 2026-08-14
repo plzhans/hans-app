@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.8.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.7.0...release-frontend/v0.8.0) (2026-08-14)
+
+
+### 기능
+
+* **admin:** 관리자 계정 관리·등급·기록·비밀번호 찾기 ([690441c](https://github.com/plzhans/hans-app/commit/690441c1a45f279924c1cb28a2a1217eca46f970))
+* **admin:** 관리자 계정·세션을 회원 쪽 구조로 맞춘다 ([f78305d](https://github.com/plzhans/hans-app/commit/f78305db3c7a29fb2446fa199810ef2cd7bbe599))
+* **admin:** 관리자 창을 한 줄 배치로 정리하고 언어·시간대를 연다 ([8f3ef4d](https://github.com/plzhans/hans-app/commit/8f3ef4d31f2993e2f06e024c28de6b596c45fb20))
+* **admin:** 관리자 콘솔에 구글 로그인과 연동을 넣는다 ([4281244](https://github.com/plzhans/hans-app/commit/4281244b0c906b77dbaf90eb1b9f4866d92139af))
+* **admin:** 관리자 콘솔용 구글 클라이언트 입력란을 넣고 설정 캐시를 안내한다 ([7175a15](https://github.com/plzhans/hans-app/commit/7175a1576765103b09b602cac5799df987af1012))
+* **admin:** 로그인 기록에 수단을 남기고 보여준다 ([377a34e](https://github.com/plzhans/hans-app/commit/377a34e93dddb55ab90a0ad82f433d825cd873d3))
+* **admin:** 외부 연동 설정에 Redirect URI 를 보여준다 ([f696a6b](https://github.com/plzhans/hans-app/commit/f696a6bcc9fd3aca3c4fe0f16e8f0e6d61eca122))
+* **admin:** 정리하기에 관리자 캐시와 전체 로그아웃을 붙인다 ([bd8194c](https://github.com/plzhans/hans-app/commit/bd8194ce5cf094b0670f810b15a6bfe6cdea4a23))
+* **admin:** 하단에 푸터를 놓고 빌드 버전을 드러낸다 ([8b333c1](https://github.com/plzhans/hans-app/commit/8b333c14c07166efc3381f8d8c9a7355669c0a59))
+* **admin:** 회원 상세에 앱 탭을 붙이고 등급·언어·시간대를 고친다 ([072a07b](https://github.com/plzhans/hans-app/commit/072a07ba304f6b4577b475eb1a798bebd3ed8e0e))
+* **auth-sdk:** 요청에 클라이언트 ID 를 붙인다 ([05eb2b0](https://github.com/plzhans/hans-app/commit/05eb2b0ef1a83221890700173489c2afdeab007d))
+* **auth-sdk:** 토큰 부착과 회전을 SDK 가 맡는다 ([789b3de](https://github.com/plzhans/hans-app/commit/789b3def89df792d9f303dd29edc00644c38485c))
+* **auth-web:** 소셜 가입에서 이메일·이름을 고른다 ([d7abe91](https://github.com/plzhans/hans-app/commit/d7abe91fb2106525c3bf5d3d70f93cf66b48c9c4))
+* **auth:** 로그인 화면 영어화와 세로 정렬 수정 ([eb64f3b](https://github.com/plzhans/hans-app/commit/eb64f3bd78bf8d1faed05a6a8c7ef4f8d568fc9f))
+* **auth:** 세션 키를 회원과 묶고 캐시 정리 통로를 연다 ([099163e](https://github.com/plzhans/hans-app/commit/099163e23ddf376ee81519b41659f12e2dc1b016))
+* **auth:** 인증웹 PC 레이아웃 정리와 푸터 ([c99f355](https://github.com/plzhans/hans-app/commit/c99f3557d573f498465336e1d3068846482f76c0))
+* **board:** 게시판 단위 캐시 삭제와 목록 캐시 탭 ([578b7e4](https://github.com/plzhans/hans-app/commit/578b7e46900b64b47d0e58641a30a9411b38a2e8))
+* **community:** 게시판·게시글 기능 ([084c67c](https://github.com/plzhans/hans-app/commit/084c67cfd6f9713b1677a46b902c345ba319a80c))
+* **community:** 게시판·글 소프트 삭제와 복구, 캐싱 탭 ([24b8d74](https://github.com/plzhans/hans-app/commit/24b8d74561c6bbcb54f4daa4862797d4454627d0))
+* **community:** 좋아요 스위치와 글의 "게시판 따름" 설정 ([5bb2794](https://github.com/plzhans/hans-app/commit/5bb27948664f3b6cbcb9fae57f66c148e33b3c03))
+* **community:** 포털 노출 다듬기와 콘솔 보기/편집 분리 ([e46eb67](https://github.com/plzhans/hans-app/commit/e46eb67189bb819b6421b204c26972c37b04d111))
+* **docs:** HOME 링크를 달고 주소를 .env 로 옮긴다 ([8bb5683](https://github.com/plzhans/hans-app/commit/8bb56837411cfda7dec45122b088334456b5f956))
+* **docs:** 검색 노출을 갖추고 /docs 밑으로 옮긴다 ([7a320ea](https://github.com/plzhans/hans-app/commit/7a320ea74a5c4aa9cddcf5dfc049cb934a16bd21))
+* **docs:** 구조화 데이터를 넣고 포털 문서 링크를 /docs 로 돌린다 ([46e7a4d](https://github.com/plzhans/hans-app/commit/46e7a4d1358fb0aca2b760f36f6781cd05bb71af))
+* **front:** 푸터에 빌드 시각을 보여준다 ([8eb428c](https://github.com/plzhans/hans-app/commit/8eb428cbe187a97cf90542c4988c6c6a8ddef3e8))
+* **legal:** 약관 주소를 /terms 로 모으고 앱 등록에 API 약관 동의를 받는다 ([e8608d7](https://github.com/plzhans/hans-app/commit/e8608d7f33eadd5159d3858474bcf2876019baed))
+* **medifinder:** 로그인을 붙인다 ([6fff062](https://github.com/plzhans/hans-app/commit/6fff06246926855930adac52f48214f086b40a44))
+* **medifinder:** 마이페이지에서 로그아웃하면 홈으로 보낸다 ([c5d2592](https://github.com/plzhans/hans-app/commit/c5d2592e4b57412974c75b86951499df3b7e3fd9))
+* **medifinder:** 푸터에서 버전과 빌드 시각을 열어 본다 ([7f7dd53](https://github.com/plzhans/hans-app/commit/7f7dd5392073722a8ea8ac6915c3a3f1ac5dcdef))
+* **user:** 로그인 기기 관리와 내 정보 캐시 ([615a0c3](https://github.com/plzhans/hans-app/commit/615a0c3ffd9a4a7132b3d5ced86c2926864422e8))
+
+
+### 버그 수정
+
+* **admin:** 콘솔 푸터를 화면 바닥에 붙인다 ([ac1f98a](https://github.com/plzhans/hans-app/commit/ac1f98a5b8084e1a1f4acf853426a0f6048b02fd))
+* **config:** develop issuer 를 API 오리진으로 맞춘다 ([b9fbf92](https://github.com/plzhans/hans-app/commit/b9fbf92864fe0399a2d7e2b1ba6dd5c2898b18e0))
+* **docs:** auth 태그를 토큰 페이지로 잇는다 ([db17671](https://github.com/plzhans/hans-app/commit/db176719f8487fb4edf8b37a99e708888540027e))
+* **docs:** 주소에서 .html 을 뗀다 ([d5506e6](https://github.com/plzhans/hans-app/commit/d5506e64688984cdf6bced96d7496cb20cc86697))
+
+
+### 구조 변경
+
+* **admin:** 정비 화면의 규모를 갈래마다 따로 센다 ([cfb972a](https://github.com/plzhans/hans-app/commit/cfb972a514270bbb3b772ab1fd3e2c310d52e0c8))
+* **auth:** 소셜 버튼 글자를 굵기 빼고 한 단계 줄인다 ([c05135c](https://github.com/plzhans/hans-app/commit/c05135cb782ab6c6de4b042785f514e698dc5b89))
+
 ## [0.7.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.6.0...release-frontend/v0.7.0) (2026-08-10)
 
 
