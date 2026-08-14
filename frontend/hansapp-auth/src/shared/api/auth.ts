@@ -156,18 +156,20 @@ export function socialRegisterRequestCode(
   });
 }
 
-/** 소셜 신규 가입 확정(pending 티켓 + 필요 시 이메일·인증 코드). */
+/** 소셜 신규 가입 확정(pending 티켓 + 사용자가 고른 이메일·이름 + 필요 시 인증 코드). */
 export function socialRegister(
   ticket: string,
   consent: ConsentPayload,
   email?: string,
   code?: string,
+  name?: string,
 ): Promise<TokenResponse> {
   return apiFetch('/auth/social/register', {
     method: 'POST',
     body: JSON.stringify({
       ticket,
       email,
+      name,
       code,
       consent,
       clientLocale: detectClientLocale(),
