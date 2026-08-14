@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.16.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.15.0...release-backend/v0.16.0) (2026-08-14)
+
+
+### 기능
+
+* **admin:** discovery 문서를 연다 ([91e3bc6](https://github.com/plzhans/hans-app/commit/91e3bc68e630c2c2f7080167037fdcea152b0305))
+* **admin:** 관리자 계정 관리·등급·기록·비밀번호 찾기 ([690441c](https://github.com/plzhans/hans-app/commit/690441c1a45f279924c1cb28a2a1217eca46f970))
+* **admin:** 관리자 계정·세션을 회원 쪽 구조로 맞춘다 ([f78305d](https://github.com/plzhans/hans-app/commit/f78305db3c7a29fb2446fa199810ef2cd7bbe599))
+* **admin:** 관리자 콘솔에 구글 로그인과 연동을 넣는다 ([4281244](https://github.com/plzhans/hans-app/commit/4281244b0c906b77dbaf90eb1b9f4866d92139af))
+* **admin:** 관리자 콘솔용 구글 클라이언트 입력란을 넣고 설정 캐시를 안내한다 ([7175a15](https://github.com/plzhans/hans-app/commit/7175a1576765103b09b602cac5799df987af1012))
+* **admin:** 로그인 기록에 수단을 남기고 보여준다 ([377a34e](https://github.com/plzhans/hans-app/commit/377a34e93dddb55ab90a0ad82f433d825cd873d3))
+* **admin:** 외부 연동 설정에 Redirect URI 를 보여준다 ([f696a6b](https://github.com/plzhans/hans-app/commit/f696a6bcc9fd3aca3c4fe0f16e8f0e6d61eca122))
+* **admin:** 정리하기에 관리자 캐시와 전체 로그아웃을 붙인다 ([bd8194c](https://github.com/plzhans/hans-app/commit/bd8194ce5cf094b0670f810b15a6bfe6cdea4a23))
+* **admin:** 회원 상세에 앱 탭을 붙이고 등급·언어·시간대를 고친다 ([072a07b](https://github.com/plzhans/hans-app/commit/072a07ba304f6b4577b475eb1a798bebd3ed8e0e))
+* **auth:** access token 에 발급 앱을 싣는다 ([17c5446](https://github.com/plzhans/hans-app/commit/17c5446fcc6d2d3404a5c90003cbc03f3e7405e5))
+* **auth:** 세션 키를 회원과 묶고 캐시 정리 통로를 연다 ([099163e](https://github.com/plzhans/hans-app/commit/099163e23ddf376ee81519b41659f12e2dc1b016))
+* **board:** 게시판 단위 캐시 삭제와 목록 캐시 탭 ([578b7e4](https://github.com/plzhans/hans-app/commit/578b7e46900b64b47d0e58641a30a9411b38a2e8))
+* **board:** 목록 캐싱과 await 괄호 금지 규칙 ([2d2a84d](https://github.com/plzhans/hans-app/commit/2d2a84d3c3e5bfd4204d1b163d515ab841135f15))
+* **community:** 게시판·게시글 기능 ([084c67c](https://github.com/plzhans/hans-app/commit/084c67cfd6f9713b1677a46b902c345ba319a80c))
+* **community:** 게시판·글 소프트 삭제와 복구, 캐싱 탭 ([24b8d74](https://github.com/plzhans/hans-app/commit/24b8d74561c6bbcb54f4daa4862797d4454627d0))
+* **community:** 좋아요 스위치와 글의 "게시판 따름" 설정 ([5bb2794](https://github.com/plzhans/hans-app/commit/5bb27948664f3b6cbcb9fae57f66c148e33b3c03))
+* **community:** 포털 노출 다듬기와 콘솔 보기/편집 분리 ([e46eb67](https://github.com/plzhans/hans-app/commit/e46eb67189bb819b6421b204c26972c37b04d111))
+* **deploy:** 이름이 안 맞는 요청을 받는 기본 서버를 둔다 ([ea52137](https://github.com/plzhans/hans-app/commit/ea521370dd185e2e27ca27244fe8437a060fb4d6))
+* **legal:** 약관 주소를 /terms 로 모으고 앱 등록에 API 약관 동의를 받는다 ([e8608d7](https://github.com/plzhans/hans-app/commit/e8608d7f33eadd5159d3858474bcf2876019baed))
+* **medifinder:** 로그인을 붙인다 ([6fff062](https://github.com/plzhans/hans-app/commit/6fff06246926855930adac52f48214f086b40a44))
+* **swagger:** 문서 대상을 @ApiController 로 선언한다 ([79837b9](https://github.com/plzhans/hans-app/commit/79837b9d13bc6996c38f7270ad2f7c86e6d90237))
+* **user:** 로그인 기기 관리와 내 정보 캐시 ([615a0c3](https://github.com/plzhans/hans-app/commit/615a0c3ffd9a4a7132b3d5ced86c2926864422e8))
+
+
+### 버그 수정
+
+* **api:** swagger CLI 플러그인을 걷어낸다 ([fac1b06](https://github.com/plzhans/hans-app/commit/fac1b066608f770c7e51e91b13c3a47a1fb816a7))
+* **api:** 토큰 교환의 프리플라이트를 막지 않는다 ([18af632](https://github.com/plzhans/hans-app/commit/18af632f8b4c9b46be45b5783543a8d7dabf0340))
+* **auth:** 검증 안 된 소셜 이메일로 가입을 막지 않는다 ([d7cd688](https://github.com/plzhans/hans-app/commit/d7cd688588c59457c529c408ac044c9a76fa3e34))
+* **auth:** 외부 앱으로 소셜 로그인해도 HansApp 에 로그인된다 ([dfd5913](https://github.com/plzhans/hans-app/commit/dfd5913e65cea38812ef15193fd46936fbe4e746))
+* **batch:** EventPublisherModule 을 등록한다 ([80d46c1](https://github.com/plzhans/hans-app/commit/80d46c1e9fb921156029a4901d6c1b9d0bfc022c))
+* **board:** 글 상세 조회의 반환 타입을 명시한다 ([b6e7092](https://github.com/plzhans/hans-app/commit/b6e7092797cd5d45deb99531ec7550943be87270))
+* **config:** develop issuer 를 API 오리진으로 맞춘다 ([b9fbf92](https://github.com/plzhans/hans-app/commit/b9fbf92864fe0399a2d7e2b1ba6dd5c2898b18e0))
+* **docs:** auth 태그를 토큰 페이지로 잇는다 ([db17671](https://github.com/plzhans/hans-app/commit/db176719f8487fb4edf8b37a99e708888540027e))
+* **openapi:** 스펙을 뽑고 프로세스를 끝낸다 ([041461f](https://github.com/plzhans/hans-app/commit/041461fcf43faf55a05b10851868b59036e5947d))
+
+
+### 성능
+
+* **oauth:** well-known 응답을 캐시한다 ([6a4fdd0](https://github.com/plzhans/hans-app/commit/6a4fdd02b6f4a3163745ace8f276febf709083f0))
+
+
+### 구조 변경
+
+* **admin:** 정비 화면의 규모를 갈래마다 따로 센다 ([cfb972a](https://github.com/plzhans/hans-app/commit/cfb972a514270bbb3b772ab1fd3e2c310d52e0c8))
+* **api:** CORS 판정을 클라이언트 ID 하나로 좁힌다 ([9ffcea5](https://github.com/plzhans/hans-app/commit/9ffcea5f903450ab108099b4bdc78db27caf603a))
+* **page:** Page.map 으로 목록 변환을 조회 자리에 붙인다 ([ca5cf40](https://github.com/plzhans/hans-app/commit/ca5cf40bbb0a71fc8de33e2983fd794162d643e8))
+
+
+### 문서
+
+* **krdata:** 운영계정 신청 문안과 첨부 화면을 남긴다 ([193dee7](https://github.com/plzhans/hans-app/commit/193dee72c4784a861868de98667306c9f375af3a))
+* **oauth:** discovery·JWKS 를 스웨거에 노출한다 ([eacf59b](https://github.com/plzhans/hans-app/commit/eacf59b4828eb6ca6a5847b419260ac5838f555a))
+
 ## [0.15.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.14.1...release-backend/v0.15.0) (2026-08-10)
 
 
