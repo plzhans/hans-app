@@ -21,7 +21,6 @@ export interface LlmUsageLogEntry {
   readonly feature: string;
   readonly promptName: string;
   readonly promptHash: string;
-  readonly questionHash: string;
   readonly provider: string;
   readonly model: string;
   readonly inputTokens: number;
@@ -83,7 +82,6 @@ export class LlmUsageLogService {
         feature: row.feature,
         promptName: row.promptName,
         promptHash: row.promptHash,
-        questionHash: row.questionHash,
         provider: row.provider,
         model: row.model,
         inputTokens: row.inputTokens,

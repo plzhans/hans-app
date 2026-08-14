@@ -897,7 +897,6 @@ export class HealthcareAiSearchService {
         feature: PROMPT_NAME,
         promptName: PROMPT_NAME,
         promptHash: prompt.hash,
-        questionHash,
         provider: cached.provider,
         model: cached.model,
         inputTokens: 0,
@@ -1042,7 +1041,6 @@ export class HealthcareAiSearchService {
       feature: PROMPT_NAME,
       promptName: PROMPT_NAME,
       promptHash: prompt.hash,
-      questionHash,
       provider,
       model,
       inputTokens: usage.inputTokens,
@@ -1414,8 +1412,16 @@ function cleanQuestion(raw: string): string {
 }
 
 /**
- * 질문의 신원(sha256 앞 128비트). **캐시 키와 사용 기록이 같은 값을 쓴다** —
- * 원문은 복원할 수 없으면서 "같은 질문인가" 는 판별된다.
+ * 질문의 신원(sha256 앞 128비트). **캐시 키에만 쓴다 — 어디에도 저장하지 않는다.**
+ *
+ * 예전에는 이 값을 `llm_usage` 에도 남겼다. 질문 원문이 아니니 안전하다고 봤는데 아니었다 —
+ * "정신과" 처럼 후보가 적은 질문은 진료과 이름을 전부 해시해 대조하면 밀리초 만에 되돌아온다.
+ * 그 값이 회원번호와 같은 줄에 있었으므로 "누가 무엇을 물었나" 가 복원될 수 있었다.
+ * 세는 코드도 없이 담아만 두던 값이라 컬럼을 없앴다.
+ *
+ * **캐시 키로 쓰는 것은 그대로 안전하다.** 이 값은 요청을 처리하는 동안에만 존재하고
+ * Redis 키 안에서 끝난다 — 되돌릴 사람이 그 키를 손에 넣었다면 이미 질문을 직접 볼 수 있다.
+ * 되돌리기가 문제가 되는 것은 값이 **회원번호와 함께 오래 남을 때**다.
  */
 function questionHashOf(question: string): string {
   // cleanQuestion 이 이미 지나간 값이다. 대소문자만 더 지운다 — "ENT" 와 "ent" 는 같은
