@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /terms
+Disallow: /*/terms
+
+Sitemap: https://medifinder.kr/sitemap.xml

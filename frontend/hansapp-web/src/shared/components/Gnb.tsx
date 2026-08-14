@@ -20,7 +20,7 @@ export function Gnb() {
   const status = useAuthStore((s) => s.status);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur">
+    <header className="border-b border-gray-200 bg-white">
       <div className={cn(PAGE_CONTAINER, 'flex h-14 items-center justify-between')}>
         <div className="flex items-center gap-6">
           <Link to="/" className="text-lg font-extrabold text-primary">

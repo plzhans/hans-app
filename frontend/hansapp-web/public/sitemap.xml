@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!--
-    공개 페이지만 넣는다. /apps · /apps/:id 는 로그인이 필요한 콘솔이라 색인 대상이 아니다.
-    URL·lastmod 는 배포 도메인/변경 시 갱신한다.
-  -->
-  <url>
-    <loc>https://plzhans.com/</loc>
-    <lastmod>2026-07-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://plzhans.com/sitemap-pages.xml</loc>
+    <lastmod>2026-08-14</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://plzhans.com/docs/sitemap.xml</loc>
+  </sitemap>
+</sitemapindex>
