@@ -211,8 +211,22 @@ async function bootstrap() {
       !!req.headers['x-client-id'] ||
       !!req.headers.authorization;
 
+    /*
+      **OAuth 프로토콜 엔드포인트는 자격증명 헤더가 없어도 연다.**
+
+      토큰 교환은 인가코드와 PKCE verifier 로 스스로를 증명한다 — 그래서 Authorization 도
+      X-Client-Id 도 싣지 않는다. 위 규칙("인증 헤더를 실을 요청만 통과")에 그대로 걸리는데,
+      본문이 JSON 이라 프리플라이트가 먼저 뜨고 그게 막히면 **브라우저가 요청 자체를 보내지
+      않는다.** 외부 앱의 로그인이 콜백 화면에서 끝나던 원인이 이것이었다.
+
+      열어도 되는 이유는 CORS 가 이 경로의 관문이 아니기 때문이다 — 코드에 박힌 클라이언트의
+      등록 오리진과 요청 Origin 을 서버가 대조한다(OAuthTokenService.assertExchangeOrigin).
+      쿠키도 주지 않는다(credentials 없음). 1st-party 의 쿠키 흐름은 위 분기가 이미 처리했다.
+    */
+    const isOAuthEndpoint = req.path.startsWith('/oauth/');
+
     callback(null, {
-      origin: hasAuthKey ? origin : false,
+      origin: hasAuthKey || isOAuthEndpoint ? origin : false,
       maxAge: CORS_MAX_AGE_SEC,
     });
   });
