@@ -134,6 +134,28 @@ async function verifyInfrastructure(app: NestExpressApplication, logger: Logger)
   }
 }
 
+/**
+ * **클라이언트 ID 없이도 열어 두는 경로.** 브라우저가 부르는 게 정상인데 X-Client-Id 를
+ * 실을 수 없는 자리들이다 — 규약에 그 자리가 없거나, 애초에 공개하려고 내놓은 문서다.
+ *
+ * 예외를 코드 곳곳에 흩지 않고 여기 모은다. 새로 생기면 한 줄 더하면 되고, 무엇이 열려
+ * 있는지도 이 표만 보면 된다.
+ *
+ *   public   누구에게나 같은 응답이라 오리진을 가리지 않고 `*` 로 준다. 되비추면
+ *            `Vary: Origin` 이 붙어 공용 캐시가 오리진 수만큼 사본을 따로 든다.
+ *   reflect  요청 오리진을 되비춘다. 쿠키는 주지 않는다(credentials 없음).
+ */
+const OPEN_PATHS: { prefix: string; mode: 'public' | 'reflect' }[] = [
+  // OIDC discovery·JWKS. 외부 앱은 이걸 읽어야 로그인 주소와 검증 공개키를 안다.
+  { prefix: '/.well-known/', mode: 'public' },
+  /*
+    OAuth 프로토콜. 토큰 교환은 인가코드와 PKCE verifier 로 스스로를 증명하므로 클라이언트
+    ID 를 실을 자리가 규약에 없다. 오리진 검사는 서버가 코드에 박힌 클라이언트로 직접 한다
+    (OAuthTokenService.assertExchangeOrigin).
+  */
+  { prefix: '/oauth/', mode: 'reflect' },
+];
+
 async function bootstrap() {
   const httpsOptions = readHttpsOptions();
 
@@ -164,11 +186,10 @@ async function bootstrap() {
   const rootDomain = normalizeRootDomain(appConfig.getStringOrDefault('auth.rootDomain'));
 
   // CORS. **인가가 아니라 최소 관문**이다 — 실제 검증(키/클라 status·오리진)은 AuthGuard 가 한다.
+  //  - 열린 경로(OPEN_PATHS): 클라이언트 ID 없이도 통과
   //  - Origin 없음(서버·curl·네이티브): CORS 대상 아님 → 통과
   //  - 1st-party(APP_ROOT_DOMAIN 범위): 통과 + credentials(refresh 쿠키가 오가야 함)
-  //  - 그 외: 인증 헤더를 실을 요청만 통과. 쿠키는 안 준다(credentials 없음 → 타 사이트가
-  //          쿠키를 실어 /oauth/token 을 호출해 응답을 읽는 것을 브라우저가 막는다).
-  //  프리플라이트는 헤더 "이름"만 예고하므로 access-control-request-headers 를 같이 본다.
+  //  - 그 외: **X-Client-Id 를 실을 요청만** 통과. 쿠키는 안 준다(credentials 없음).
   //
   // maxAge: 프리플라이트 응답을 브라우저가 캐시하는 시간(초). X-Client-Id 는 커스텀 헤더라
   // GET 이어도 매번 프리플라이트가 붙는데, 기본 캐시가 아주 짧아(크롬 5초) 호출마다 왕복이 2배가 된다.
@@ -176,16 +197,11 @@ async function bootstrap() {
   const CORS_MAX_AGE_SEC = 600;
 
   app.enableCors((req: Request, callback: (err: Error | null, options: CorsOptions) => void) => {
-    // OIDC discovery·JWKS 는 **누구나 읽으라고 내놓은 공개 문서**다. 외부 앱은 이걸 읽어야
-    // 로그인 주소와 토큰 검증 공개키를 알 수 있는데, 자격증명을 실을 수 없는 요청이라
-    // 아래 규칙(인증 헤더가 있어야 통과)에 걸려 브라우저가 응답을 버렸다.
-    // 비밀이 아닌 값이고 쿠키도 주지 않으므로 오리진을 가리지 않는다.
-    //
-    // **요청 Origin 을 되비추지 않고 `*` 로 준다.** 되비추면 응답이 Origin 마다 달라져
-    // `Vary: Origin` 이 붙고, 공용 캐시가 오리진 수만큼 사본을 따로 들게 된다.
-    // 이 두 문서는 누가 요청하든 같은 값이라 사본 하나로 충분하다(컨트롤러가 한 시간 캐시).
-    // 그래서 Origin 유무를 보기 **전에** 먼저 가른다 — 헤더 없는 요청까지 같은 응답이어야 한다.
-    if (req.path.startsWith('/.well-known/')) {
+    const open = OPEN_PATHS.find((rule) => req.path.startsWith(rule.prefix));
+
+    // 공개 문서는 **Origin 유무를 보기 전에** 가른다 — 헤더 없는 요청까지 같은 응답이어야
+    // 공용 캐시가 사본을 하나만 든다(OPEN_PATHS 주석 참고).
+    if (open?.mode === 'public') {
       callback(null, { origin: '*', maxAge: CORS_MAX_AGE_SEC });
       return;
     }
@@ -205,28 +221,24 @@ async function bootstrap() {
       return;
     }
 
-    const asked = String(req.headers['access-control-request-headers'] ?? '');
-    const hasAuthKey =
-      /x-client-id|authorization/i.test(asked) ||
-      !!req.headers['x-client-id'] ||
-      !!req.headers.authorization;
-
     /*
-      **OAuth 프로토콜 엔드포인트는 자격증명 헤더가 없어도 연다.**
+      **브라우저에서 부르려면 X-Client-Id 가 있어야 한다.** 여기서 보는 것은 그것 하나다.
 
-      토큰 교환은 인가코드와 PKCE verifier 로 스스로를 증명한다 — 그래서 Authorization 도
-      X-Client-Id 도 싣지 않는다. 위 규칙("인증 헤더를 실을 요청만 통과")에 그대로 걸리는데,
-      본문이 JSON 이라 프리플라이트가 먼저 뜨고 그게 막히면 **브라우저가 요청 자체를 보내지
-      않는다.** 외부 앱의 로그인이 콜백 화면에서 끝나던 원인이 이것이었다.
+      이 분기가 거르려는 것은 "등록되지 않은 사이트가 우리 API 를 브라우저에서 그대로 붙여
+      서비스하는 것" 이다. 서버 대 서버 호출은 어차피 CORS 밖이라 못 막는다 — 브라우저에서
+      오는 것만이라도 등록된 클라이언트로 좁히자는 뜻이고, 그 신원이 곧 X-Client-Id 다.
 
-      열어도 되는 이유는 CORS 가 이 경로의 관문이 아니기 때문이다 — 코드에 박힌 클라이언트의
-      등록 오리진과 요청 Origin 을 서버가 대조한다(OAuthTokenService.assertExchangeOrigin).
-      쿠키도 주지 않는다(credentials 없음). 1st-party 의 쿠키 흐름은 위 분기가 이미 처리했다.
+      **access token 은 보지 않는다.** 토큰이 있고 없고는 "이 사람이 누구인가" 이지
+      "이 사이트가 붙여 써도 되는가" 가 아니다. 전자는 AuthGuard 가 볼 문제다.
+      섞어 두면 판단 기준이 둘이 되고, 실제로 그래서 토큰 교환이 조용히 막혔다.
+
+      프리플라이트는 헤더 "이름" 만 예고하므로 access-control-request-headers 를 함께 본다.
     */
-    const isOAuthEndpoint = req.path.startsWith('/oauth/');
+    const announced = String(req.headers['access-control-request-headers'] ?? '');
+    const hasClientId = /x-client-id/i.test(announced) || !!req.headers['x-client-id'];
 
     callback(null, {
-      origin: hasAuthKey || isOAuthEndpoint ? origin : false,
+      origin: hasClientId || open ? origin : false,
       maxAge: CORS_MAX_AGE_SEC,
     });
   });
