@@ -37,8 +37,10 @@ export class LoginService {
     meta: RequestMeta,
     /** "로그인 상태 유지". 기본은 유지 — 소셜·가입 등 선택을 받을 자리가 없는 경로가 그대로 쓴다. */
     persistent = true,
+    /** 이 로그인을 중계한 앱(App.id). 우리 웹에서 직접 로그인했으면 null. */
+    appId: number | null = null,
   ): Promise<AuthTokens> {
-    const tokens = await this.tokens.issueLogin(user.id, user.role, meta, persistent);
+    const tokens = await this.tokens.issueLogin(user.id, user.role, meta, persistent, appId);
     await this.log.record({
       userId: user.id,
       action: AuthLogAction.LOGIN,

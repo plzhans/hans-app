@@ -64,6 +64,8 @@ export interface IssuedSession {
   readonly expiresAt: Date;
   /** "로그인 상태 유지" 선택. 쿠키를 영속으로 심을지 정한다. */
   readonly persistent: boolean;
+  /** 이 세션을 만든 앱(App.id). null 이면 1st-party. access token 의 `app` 클레임이 된다. */
+  readonly appId: number | null;
 }
 
 /** refresh 검증·rotate 결과. */
@@ -137,11 +139,18 @@ export class TokenService {
 
   // ---- access token (JWT) ----
 
-  issueAccessToken(userId: number, role: UserRole, sessionId: number): string {
+  issueAccessToken(
+    userId: number,
+    role: UserRole,
+    sessionId: number,
+    /** 이 세션을 만든 앱. 1st-party 면 null 이고 클레임을 넣지 않는다. */
+    appId: number | null = null,
+  ): string {
     const payload: AccessTokenPayload = {
       sub: String(userId),
       role,
       sid: sessionId,
+      ...(appId === null ? {} : { app: appId }),
     };
     return this.accessKeys.sign(payload);
   }
@@ -165,6 +174,8 @@ export class TokenService {
     userId: number,
     meta: { userAgent?: string | null; ip?: string | null },
     persistent = true,
+    /** 이 로그인을 중계한 앱. 1st-party 면 null. */
+    appId: number | null = null,
   ): Promise<IssuedSession> {
     /*
       **세션 식별자는 난수 숫자다.** 이 값 자체는 비밀이 아니다 — refresh 는 secret 이,
@@ -186,6 +197,7 @@ export class TokenService {
       ip: meta.ip ?? null,
       expiresAt,
       persistent,
+      appId,
     });
     // 발급 확인용 로그. ip 는 resolveClientIp 로 통일된 값이라, CDN/프록시 뒤에서 진짜 클라 IP 가
     // 제대로 잡히는지 이 로그로 검증할 수 있다.
@@ -197,6 +209,7 @@ export class TokenService {
         composeSignedToken([String(userId), String(sessionId)], secret, this.refreshTagKey),
       expiresAt,
       persistent,
+      appId,
     };
   }
 
@@ -251,6 +264,8 @@ export class TokenService {
       expiresAt,
       // 갱신해도 처음 선택을 그대로 이어 간다(요청만 보고는 알 수 없다).
       persistent: session.persistent,
+      // 앱도 마찬가지다 — 세션에 적힌 값이 정본이고, 갱신 요청의 헤더는 보지 않는다.
+      appId: session.appId,
     };
   }
 
@@ -260,15 +275,17 @@ export class TokenService {
     role: UserRole,
     meta: { userAgent?: string | null; ip?: string | null },
     persistent = true,
+    appId: number | null = null,
   ): Promise<AuthTokens> {
-    const session = await this.createSession(userId, meta, persistent);
+    const session = await this.createSession(userId, meta, persistent, appId);
     return this.buildTokens(userId, role, session);
   }
 
   /** 세션(신규/rotate)에 access token 을 얹어 토큰 묶음을 만든다. */
   buildTokens(userId: number, role: UserRole, session: IssuedSession): AuthTokens {
     return {
-      accessToken: this.issueAccessToken(userId, role, session.sessionId),
+      // 앱은 **세션이 기억한다.** 갱신으로 다시 찍는 토큰도 같은 앱을 달고 나간다.
+      accessToken: this.issueAccessToken(userId, role, session.sessionId, session.appId),
       tokenType: 'Bearer',
       expiresIn: this.config.accessTokenTtlSec,
       refreshToken: session.refreshToken,

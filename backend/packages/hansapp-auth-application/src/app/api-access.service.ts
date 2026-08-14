@@ -8,7 +8,13 @@ import { AccessCache } from './access-cache.service';
 /** API 접근 주체. 가드가 request.apiAccess 에 채운다. */
 export interface ApiAccess {
   appId: number;
-  via: 'service' | 'client';
+  /**
+   * 앱을 알아낸 경로.
+   *   service  서비스 키(sk_)
+   *   client   X-Client-Id 헤더
+   *   token    사용자 access token 의 `app` 클레임 — 헤더보다 이쪽이 우선이다(AuthGuard 참고)
+   */
+  via: 'service' | 'client' | 'token';
   /** via='service' */
   keyId?: number;
   /** via='client' */

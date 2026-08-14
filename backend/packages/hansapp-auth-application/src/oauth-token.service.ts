@@ -123,26 +123,34 @@ export class OAuthTokenService {
   }
 
   /**
-   * 토큰 교환 요청의 Origin 을 코드의 발급 대상과 대조한다.
+   * 토큰 교환 요청의 Origin 을 코드의 발급 대상과 대조하고, **그 클라이언트의 앱을 돌려준다.**
    *
-   * Origin 이 없으면(서버-서버·네이티브·curl) 통과시킨다 — 브라우저 교차출처 위협이 아니고,
+   * Origin 이 없으면(서버-서버·네이티브·curl) 대조는 건너뛴다 — 브라우저 교차출처 위협이 아니고,
    * Origin 은 브라우저만 강제로 채우는 헤더라 없다고 의심할 근거가 없다. FirstPartyGuard 와 같은 규칙이다.
+   * 그 경우에도 **앱은 알아내야 한다** — 세션에 남길 값이라 검사 여부와 무관하다.
+   *
+   * @returns 이 코드를 받은 앱(App.id). 1st-party 면 null.
    */
-  private async assertExchangeOrigin(clientId: string | null, origin?: string): Promise<void> {
-    if (!origin) {
-      return;
-    }
+  private async resolveExchangeClient(
+    clientId: string | null,
+    origin?: string,
+  ): Promise<number | null> {
     if (!clientId) {
-      if (!isFirstPartyOrigin(origin, this.config.rootDomain)) {
+      // 1st-party: 등록된 클라이언트가 없으므로 서비스 루트 도메인으로만 판별한다.
+      if (origin && !isFirstPartyOrigin(origin, this.config.rootDomain)) {
         throw new ForbiddenException('Origin not allowed.');
       }
-      return;
+      return null;
     }
     const client = await this.access.getClient(clientId);
-    const origins = (client?.origins as string[] | null) ?? [];
-    if (!client || client.status !== AppStatus.ACTIVE || !origins.includes(origin)) {
+    if (!client || client.status !== AppStatus.ACTIVE) {
       throw new ForbiddenException('Origin not allowed.');
     }
+    const origins = (client.origins as string[] | null) ?? [];
+    if (origin && !origins.includes(origin)) {
+      throw new ForbiddenException('Origin not allowed.');
+    }
+    return client.appId;
   }
 
   /**
@@ -163,7 +171,8 @@ export class OAuthTokenService {
     const { userId, clientId, codeChallenge, provider, persistent } =
       await this.tokens.consumeAuthCode(code);
     assertCodeVerifier(codeChallenge, codeVerifier);
-    await this.assertExchangeOrigin(clientId, requestOrigin);
+    // 검사와 함께 **어느 앱의 코드였는지**를 받아 세션에 남긴다(토큰의 app 클레임이 된다).
+    const appId = await this.resolveExchangeClient(clientId, requestOrigin);
     const user = await this.users.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Account is not available.');
@@ -172,7 +181,7 @@ export class OAuthTokenService {
     // 이메일 로그인처럼 코드에 provider 가 없는 경로(1st-party 릴레이)는 joinType 으로 떨어진다.
     // **"로그인 상태 유지" 는 코드에서 온다.** 이 요청은 그 앱의 서버 대 서버 교환이라
     // 사용자의 선택을 물어볼 화면이 없다 — 콜백이 코드에 실어 보낸 값을 그대로 쓴다.
-    return this.login.complete(user, provider ?? user.joinType, meta, persistent);
+    return this.login.complete(user, provider ?? user.joinType, meta, persistent, appId);
   }
 
   /** grant_type=refresh_token. rotate 후 새 access/refresh 발급(refresh 는 로그 대상 아님 — 폭증 방지). */

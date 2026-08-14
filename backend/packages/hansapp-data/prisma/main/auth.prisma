@@ -143,6 +143,13 @@ model UserTokenSession {
   userAgent String? @map("user_agent") @db.VarChar(255)
   ip        String? @db.VarChar(45)
 
+  /// 이 세션을 만든 앱(App.id). **null 이면 1st-party**(우리 웹에서 직접 로그인).
+  ///
+  /// 인가코드에만 있던 클라이언트 정보를 여기 남긴다 — 그러지 않으면 코드를 교환하는 순간
+  /// "어느 앱을 통해 들어온 세션인가" 가 사라져, 갱신으로 새로 찍는 access token 에 그 사실을
+  /// 실을 수 없다. 사용량을 앱별로 세는 근거가 이 값이다.
+  appId Int? @map("app_id")
+
   /// 만료 시각. rotate 마다 갱신(연장)된다.
   expiresAt DateTime @map("expires_at")
 

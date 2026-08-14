@@ -19,8 +19,15 @@ type AuthedRequest = Request & { user?: AuthUser; apiAccess?: ApiAccess };
  * - @Public() 라우트는 우회한다(로그인·가입·소셜 콜백 등).
  * - AuthType.ApiKey: 외부 앱의 API 접근(서비스 키 Bearer sk_... 또는 X-Client-Id). request.apiAccess 채움.
  * - AuthType.Jwt: 사용자 access token(JWT). request.user 채움.
- * - 둘 다 선언된 라우트는, 요청에 API 접근 자격(sk_/X-Client-Id)이 있으면 그쪽을, 없으면 JWT 를 쓴다.
  * - 어느 방식도 통과 못 하면 401.
+ *
+ * **둘 다 실려 오면 사용자 토큰이 이기고, X-Client-Id 헤더는 무시한다.**
+ * 그때 앱은 **토큰의 `app` 클레임**에서 읽는다 — 서버가 인가코드를 발급할 때 정해 세션에
+ * 적어 둔 값이라 위조할 수 없다. 헤더는 부르는 쪽이 아무 값이나 넣을 수 있어서 토큰을 발급한
+ * 앱과 다를 수 있고, 그 값으로 사용량을 세면 남의 몫으로 기록된다.
+ *
+ * 예전에는 앱 자격이 있으면 거기서 끝냈다. 그러면 브라우저가 두 헤더를 함께 보낼 때 사람이
+ * 보이지 않아, 사용량이 로그인 여부와 무관하게 앱 통에서만 깎였다.
  *
  * refresh token 은 여기서 다루지 않는다 — /oauth/token 에서만 교환된다.
  *
@@ -52,38 +59,55 @@ export class AuthGuard implements CanActivate {
       context.getClass(),
     ]) ?? [AuthType.Jwt];
 
-    // API 접근(서비스 키/클라이언트)을 지원하고, 요청에 그 자격이 실려 있으면 우선 처리한다.
-    if (authTypes.includes(AuthType.ApiKey) && this.apiAccess.hasCredentials(request)) {
+    const bearer = this.extractToken(request);
+    // 서비스 키(sk_)도 Bearer 로 오므로 사용자 토큰과 갈라 둔다.
+    const userToken = bearer && !bearer.startsWith('sk_') ? bearer : null;
+    const hasApiCredentials = this.apiAccess.hasCredentials(request);
+
+    // 사용자 토큰이 이긴다(위 주석 참고). 앱은 헤더가 아니라 토큰이 말한다.
+    if (authTypes.includes(AuthType.Jwt) && userToken) {
+      const { user, appId } = await this.authenticateUser(userToken);
+      request.user = user;
+      if (appId !== undefined) {
+        request.apiAccess = { appId, via: 'token' };
+      }
+      return true;
+    }
+
+    // 앱·서비스 키만 실린 요청(로그인 전 브라우저, 서버-서버 호출).
+    if (authTypes.includes(AuthType.ApiKey) && hasApiCredentials) {
       request.apiAccess = await this.apiAccess.authenticate(request);
       return true;
     }
 
-    // 사용자 access token(JWT).
     if (authTypes.includes(AuthType.Jwt)) {
-      const token = this.extractToken(request);
-      if (!token) {
-        throw new UnauthorizedException('Authentication token is required.');
-      }
-      const payload = this.tokenService.verifyAccessToken(token);
-      /*
-        **끊긴 세션의 토큰인지 본다.** 서명은 폐기를 알지 못한다 — 관리자가 기기를 끊었거나
-        본인이 로그아웃했으면 여기서 막힌다. 캐시 히트가 대부분이라 비용은 메모리 조회다.
+      throw new UnauthorizedException('Authentication token is required.');
+    }
+    throw new UnauthorizedException('Authentication credentials are required.');
+  }
 
-        토큰의 `exp` 를 함께 넘긴다 — 캐시가 그 시각을 넘겨 판단을 들고 있지 않게 한다.
-      */
-      const userId = Number(payload.sub);
-      if (!(await this.sessions.isLive(userId, payload.sid, payload.exp))) {
-        throw new UnauthorizedException('Session is no longer valid.');
-      }
-      request.user = {
+  /** access token 을 검증해 요청에 실을 사용자와 발급 앱으로 바꾼다. */
+  private async authenticateUser(token: string): Promise<{ user: AuthUser; appId?: number }> {
+    const payload = this.tokenService.verifyAccessToken(token);
+    /*
+      **끊긴 세션의 토큰인지 본다.** 서명은 폐기를 알지 못한다 — 관리자가 기기를 끊었거나
+      본인이 로그아웃했으면 여기서 막힌다. 캐시 히트가 대부분이라 비용은 메모리 조회다.
+
+      토큰의 `exp` 를 함께 넘긴다 — 캐시가 그 시각을 넘겨 판단을 들고 있지 않게 한다.
+    */
+    const userId = Number(payload.sub);
+    if (!(await this.sessions.isLive(userId, payload.sid, payload.exp))) {
+      throw new UnauthorizedException('Session is no longer valid.');
+    }
+    return {
+      user: {
         userId,
         role: payload.role,
         sessionId: payload.sid,
-      };
-      return true;
-    }
-
-    throw new UnauthorizedException('Authentication credentials are required.');
+      },
+      // 1st-party 로그인에는 앱이 없다(클레임 자체가 빠진다).
+      appId: payload.app,
+    };
   }
 
   /** Authorization: Bearer <token> 에서 토큰을 추출한다. 스킴은 대소문자 무관(RFC 7235). */
