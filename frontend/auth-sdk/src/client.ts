@@ -253,6 +253,14 @@ export class HansAppAuthClient {
 
     const call = async (): Promise<Response> => {
       const headers = new Headers(init.headers);
+      /*
+        **브라우저에서 부르는 요청에는 클라이언트 ID 가 있어야 한다.** 서버가 이 값으로
+        "등록된 사이트에서 온 호출인가" 를 가리고, 없으면 CORS 단계에서 막는다.
+
+        부르는 쪽이 이미 넣었으면 두 번 정하지 않는다 — 같은 앱이 여러 클라이언트 ID 를
+        쓰는 구성(환경별 분리 등)에서 SDK 설정이 호출부를 덮으면 진단하기 어렵다.
+      */
+      if (!headers.has('X-Client-Id')) headers.set('X-Client-Id', this.config.clientId);
       const token = await this.getFreshAccessToken();
       if (token) headers.set('Authorization', `Bearer ${token}`);
       if (init.body && !headers.has('Content-Type')) {
