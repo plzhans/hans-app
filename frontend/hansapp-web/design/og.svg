@@ -1,0 +1,36 @@
+<!--
+  공유 미리보기(og:image) 원본. 고친 뒤 아래 명령으로 public/og.png 를 다시 굽는다.
+
+    resvg design/og.svg public/og.png
+
+  맥에 설치된 글꼴(Helvetica Neue · Menlo · Noto Sans KR)로 그린다. 다른 기계에서 구우면
+  글자 모양이 달라질 수 있으니, 결과 PNG 를 저장소에 함께 둔다.
+
+  hansapp-docs/public/og.png 과 배경·격자·여백을 맞춰 뒀다. 둘 중 하나만 바꾸지 않는다.
+  화면 주소나 엔드포인트 경로는 넣지 않는다 — 이미지에 구워지면 바뀌어도 못 고친다.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="glow" cx="0.9" cy="0.16" r="0.72">
+      <stop offset="0" stop-color="#A8B1FF" stop-opacity="0.15" />
+      <stop offset="1" stop-color="#A8B1FF" stop-opacity="0" />
+    </radialGradient>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M0.5 0 V60 M0 0.5 H60" fill="none" stroke="#FFFFFF" stroke-opacity="0.026" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="#1B1B1F" />
+  <rect width="1200" height="630" fill="url(#grid)" />
+  <rect width="1200" height="630" fill="url(#glow)" />
+
+  <text x="88" y="88" font-family="Menlo" font-size="24.5" letter-spacing="1.8" fill="#A8B1FF">PORTAL</text>
+  <text x="1110" y="88" text-anchor="end" font-family="Menlo" font-size="23.5" fill="#818290">plzhans.com</text>
+
+  <text x="88" y="301" font-family="Helvetica Neue" font-weight="900" font-stretch="condensed"
+        font-size="112" letter-spacing="2.5" fill="#FFFFFF">HansApp</text>
+
+  <rect x="88" y="361" width="91" height="4.5" fill="#A8B1FF" />
+
+  <text x="88" y="428" font-family="Noto Sans KR" font-weight="500" font-size="33" fill="#A6A6AD">직접 만든 서비스를 한 곳에서</text>
+</svg>

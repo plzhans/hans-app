@@ -4,68 +4,38 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HansApp · 직접 만든 서비스 포털</title>
-    <meta
-      name="description"
-      content="MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를 한 곳에서. 하나의 계정으로 연결됩니다."
-    />
-    <meta
-      name="keywords"
-      content="HansApp, plzhans, MediFinder, 병원 찾기, Telegram Exporter, 텔레그램 대화 내보내기, Hans API"
-    />
-    <meta name="robots" content="index, follow" />
+    <meta name="description" content="MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를 한 곳에서. 하나의 계정으로 연결됩니다." />
+    <meta name="robots" content="%VITE_ROBOTS%" />
     <meta name="theme-color" content="#2563EB" />
     <link rel="canonical" href="https://plzhans.com/" />
 
-    <!-- Open Graph (카카오톡·페이스북 등 공유 미리보기) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="HansApp" />
     <meta property="og:locale" content="ko_KR" />
     <meta property="og:url" content="https://plzhans.com/" />
     <meta property="og:title" content="HansApp · 직접 만든 서비스 포털" />
-    <meta
-      property="og:description"
-      content="MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를 한 곳에서. 하나의 계정으로 연결됩니다."
-    />
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:description" content="MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를 한 곳에서. 하나의 계정으로 연결됩니다." />
+    <meta property="og:image" content="https://%VITE_APP_ROOT_DOMAIN%/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="HansApp 서비스 포털" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="HansApp · 직접 만든 서비스 포털" />
-    <meta
-      name="twitter:description"
-      content="MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를 한 곳에서."
-    />
+    <meta name="twitter:description" content="MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를 한 곳에서." />
+    <meta name="twitter:image" content="https://%VITE_APP_ROOT_DOMAIN%/og.png" />
+
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!--
-      글꼴은 **렌더를 막지 않게** 받는다. 평범한 stylesheet 로 두면 이 외부 요청이 끝날 때까지
-      브라우저가 첫 페인트를 미루고, 그러면 위의 부팅 화면조차 안 보인다(흰 화면 그대로다).
-      media="print" 로 받아 두고 다 받은 뒤 all 로 바꾸는 것이 그 우회다.
-      URL 에 display=swap 이 이미 있어 글꼴 교체 방식은 달라지지 않는다.
-    -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
       media="print"
       onload="this.media='all'"
     />
     <noscript>
-      <link
+      <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
       />
     </noscript>
-    <!--
-      **부팅 전 화면.** JS 번들이 내려와 React 가 뜨기까지는 #root 가 비어 있어 흰 화면이다.
-      다른 사이트에서 넘어오는 경우(포털 → 인증웹) 사용자는 그 흰 화면을 "멈췄다" 로 읽는다.
-      여기 인라인으로 넣어 두면 **문서가 도착하는 즉시** 칠해진다 — 추가 요청이 없어서다.
-
-      지우는 코드는 없다. React 18 의 createRoot 는 첫 렌더에서 컨테이너의 기존 자식을 걷어내므로,
-      **React 가 실제로 그릴 때** 교체된다(먼저 지웠다가 다시 비는 깜빡임이 없다).
-
-      모양은 앱의 FullScreenSpinner 와 똑같이 맞춘다 — 다르면 넘어가는 순간 한 번 더 깜빡인다.
-      globals.css 는 번들에 들어 있어 아직 없으므로 높이 규칙도 여기서 준다.
-    -->
     <style>
       html,
       body,
@@ -76,9 +46,14 @@
       #boot {
         display: flex;
         height: 100%;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        color: #9ca3af;
+        gap: 14px;
+        box-sizing: border-box;
+        padding: 24px;
+        text-align: center;
+        color: #6b7280;
         font-size: 14px;
         font-family:
           'Noto Sans KR',
@@ -88,11 +63,98 @@
           Roboto,
           sans-serif;
       }
+      #boot h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #111827;
+      }
+      #boot p {
+        margin: 0;
+        max-width: 30rem;
+        line-height: 1.7;
+      }
+      #boot nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px 18px;
+      }
+      #boot a {
+        color: #2563eb;
+        text-decoration: none;
+      }
     </style>
-
   </head>
   <body>
-    <div id="root"><div id="boot">불러오는 중…</div></div>
+    <div id="root">
+      <div id="boot">
+        <h1>HansApp</h1>
+        <p>
+          MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를
+          한 곳에서. 하나의 계정으로 연결됩니다.
+        </p>
+        <nav>
+          <a href="%VITE_LINK_DOCS%">Docs</a>
+          <a href="%VITE_LINK_MEDIFINDER%">MediFinder</a>
+          <a href="https://telegram-exporter.plzhans.com">Telegram Exporter</a>
+          <a href="https://blog.plzhans.com">Blog</a>
+        </nav>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://%VITE_APP_ROOT_DOMAIN%/#website",
+            "url": "https://%VITE_APP_ROOT_DOMAIN%/",
+            "name": "HansApp",
+            "description": "MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를 한 곳에서. 하나의 계정으로 연결됩니다.",
+            "inLanguage": "ko-KR",
+            "publisher": { "@id": "https://%VITE_APP_ROOT_DOMAIN%/#organization" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://%VITE_APP_ROOT_DOMAIN%/#organization",
+            "name": "HansApp",
+            "url": "https://%VITE_APP_ROOT_DOMAIN%/",
+            "sameAs": ["https://blog.plzhans.com"]
+          },
+          {
+            "@type": "ItemList",
+            "name": "HansApp 서비스",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Docs",
+                "url": "https://%VITE_APP_ROOT_DOMAIN%/docs"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "MediFinder",
+                "url": "%VITE_LINK_MEDIFINDER%"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Telegram Exporter",
+                "url": "https://telegram-exporter.plzhans.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 4,
+                "name": "Blog",
+                "url": "https://blog.plzhans.com"
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </body>
 </html>
