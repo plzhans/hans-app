@@ -136,7 +136,7 @@ describe('${} 자리표시자', () => {
     // `-` 가 기본값의 첫 글자로 먹혀 조용히 틀린 값이 되는 것을 막는다.
     writeConfig('config.develop', 'redis:\n  url: ${REDIS_URL:-x}\n');
 
-    expect(() => load()).toThrow(/bash 문법/);
+    expect(() => load()).toThrow(/uses bash syntax/);
   });
 
   it('경로 이름 오버라이드가 자리표시자보다 이긴다', () => {
@@ -225,7 +225,7 @@ describe('환경변수 이름 충돌', () => {
     writeConfig('config.develop', 'apps:\n  api:\n    port: 1\napps-api:\n  port: 2\n');
     delete process.env.APPS_API_PORT;
 
-    expect(() => load()).toThrow(/같은 환경변수 이름/);
+    expect(() => load()).toThrow(/collapse to the same environment variable name/);
   });
 });
 
@@ -262,7 +262,7 @@ describe('yaml 병합', () => {
   });
 
   it('설정 파일이 하나도 없으면 부팅을 거부한다', () => {
-    expect(() => load()).toThrow(/설정 파일이 없다/);
+    expect(() => load()).toThrow(/No config file/);
   });
 });
 
@@ -272,7 +272,7 @@ describe('값 읽기', () => {
     writeConfig('config.develop', 'auth:\n  jwt:\n    secret:\n');
 
     expect(() => load().getSection('auth').getSection('jwt').getString('secret')).toThrow(
-      '필수 설정이 없다: auth.jwt.secret',
+      'Required setting is missing: auth.jwt.secret',
     );
   });
 
@@ -280,7 +280,7 @@ describe('값 읽기', () => {
     writeConfig('config.develop', 'apps-api:\n  web:\n    port: 삼천\n');
 
     expect(() => load().getNumber('apps-api.web.port')).toThrow(
-      /apps-api.web.port 는 숫자여야 한다/,
+      /Setting apps-api\.web\.port must be a number/,
     );
   });
 

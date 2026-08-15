@@ -65,9 +65,9 @@ const BASH_PLACEHOLDER = /\$\{[A-Z0-9_]+:-/;
 function interpolateString(raw: string, env: NodeJS.ProcessEnv, path: string): string {
   if (BASH_PLACEHOLDER.test(raw)) {
     throw new Error(
-      `설정 ${path} 에 bash 문법 \${VAR:-기본값} 이 있다: ${raw}\n` +
-        '이 프로젝트는 Spring 문법을 쓴다 — 콜론 하나로 붙일 것: ${VAR:기본값}. ' +
-        '(기본값은 env 에 키가 없을 때만 쓰인다. 빈값은 값으로 인정된다.)',
+      `Setting ${path} uses bash syntax \${VAR:-default}: ${raw}\n` +
+        'This project uses Spring syntax — one colon: ${VAR:default}. ' +
+        '(The default applies only when the key is absent from env. An empty string counts as a value.)',
     );
   }
   return raw.replace(PLACEHOLDER, (_, name: string, fallback?: string) => {
@@ -159,8 +159,8 @@ function applyEnvOverrides(
     const owner = claimed.get(name);
     if (owner !== undefined) {
       throw new Error(
-        `설정 경로 ${owner} 와 ${path} 가 같은 환경변수 이름(${name})으로 접힌다.\n` +
-          '둘 중 하나의 yaml 키를 바꿀 것 — 지금 상태로는 환경변수로 둘을 구별할 수 없다.',
+        `Settings ${owner} and ${path} collapse to the same environment variable name (${name}).\n` +
+          'Rename one of the yaml keys — as it stands, no environment variable can tell them apart.',
       );
     }
     claimed.set(name, path);
@@ -245,7 +245,7 @@ function present(raw: unknown): boolean {
 function toNumber(raw: unknown, path: string): number {
   const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
   if (!Number.isFinite(n)) {
-    throw new Error(`설정 ${path} 는 숫자여야 한다. 받은 값: ${String(raw)}`);
+    throw new Error(`Setting ${path} must be a number. Received: ${String(raw)}`);
   }
   return n;
 }
@@ -257,7 +257,7 @@ function toBool(raw: unknown, path: string): boolean {
   const v = String(raw).trim().toLowerCase();
   if (v === 'true') return true;
   if (v === 'false') return false;
-  throw new Error(`설정 ${path} 는 true/false 여야 한다. 받은 값: ${String(raw)}`);
+  throw new Error(`Setting ${path} must be true or false. Received: ${String(raw)}`);
 }
 
 function toStringArray(raw: unknown): string[] {
@@ -284,7 +284,7 @@ function toDurationSec(raw: unknown, path: string): number {
   const matched = /^(\d+)\s*([smhd])?$/.exec(String(raw).trim());
   if (!matched) {
     throw new Error(
-      `설정 ${path} 는 기간(예: 30s, 5m, 1h, 7d)이어야 한다. 받은 값: ${String(raw)}`,
+      `Setting ${path} must be a duration (for example 30s, 5m, 1h, 7d). Received: ${String(raw)}`,
     );
   }
   return Number(matched[1]) * DURATION_UNIT[matched[2] ?? 's'];
@@ -339,7 +339,7 @@ class ConfigSection implements ConfigSource {
   private required(path: string): unknown {
     const raw = this.at(path);
     if (!present(raw)) {
-      throw new Error(`필수 설정이 없다: ${this.absolute(path)}`);
+      throw new Error(`Required setting is missing: ${this.absolute(path)}`);
     }
     return raw;
   }
@@ -377,8 +377,8 @@ class ConfigSection implements ConfigSource {
     const found = configDefaultOf(absolute);
     if (found === undefined) {
       throw new Error(
-        `설정 기본값이 없다: ${absolute}. ` +
-          'config-defaults.ts 에 등록하거나 호출부에서 기본값을 넘길 것.',
+        `No default for setting ${absolute}. ` +
+          'Register it in config-defaults.ts, or pass a default at the call site.',
       );
     }
     return found;
@@ -502,9 +502,9 @@ export function createConfigSource(
   // 처럼 **결과**만 보이고 원인(yaml 을 못 찾음)이 안 보인다.
   if (Object.keys(merged).length === 0) {
     throw new Error(
-      `설정 파일이 없다: config/config.yaml 도 config/config.${env}.yaml 도 못 찾았다. ` +
-        '컨테이너라면 배포가 두 장 다 마운트했는지 확인할 것 — 환경 파일에는 달라지는 ' +
-        '값만 있어 정본(config.yaml)이 빠지면 반쪽짜리 설정이 된다.',
+      `No config file: neither config/config.yaml nor config/config.${env}.yaml was found. ` +
+        'In a container, check that the deployment mounted both — the environment file holds only ' +
+        'the values that differ, so without config.yaml the settings are half missing.',
     );
   }
   const interpolated = interpolate(merged, process.env) as Record<string, unknown>;
@@ -528,8 +528,8 @@ export function requireSettings(cfg: ConfigSource, paths: readonly string[]): vo
   const missing = paths.filter((path) => !cfg.getStringOrDefault(path));
   if (missing.length === 0) return;
   throw new Error(
-    `필수 설정이 없다:\n${missing
+    `Required settings are missing:\n${missing
       .map((path) => `  ${path}  (환경변수 ${envNameOf(path)})`)
-      .join('\n')}\n` + 'config/.env.<환경> 또는 config/config.<환경>.yaml 에 채울 것.',
+      .join('\n')}\n` + 'Fill them in config/.env.<env> or config/config.<env>.yaml.',
   );
 }

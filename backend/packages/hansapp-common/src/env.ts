@@ -41,12 +41,12 @@ export function resolveAppEnv(explicit?: string): AppEnv {
   const value = explicit ?? process.env.APP_ENV;
   if (!value) {
     throw new Error(
-      `APP_ENV 가 없다. 가능한 값: ${APP_ENVS.join(', ')}. ` +
-        'env 파일(config/.env)이나 환경변수로 지정할 것.',
+      `APP_ENV is not set. Available: ${APP_ENVS.join(', ')}. ` +
+        'Set it in the env file (config/.env) or as an environment variable.',
     );
   }
   if (!isAppEnv(value)) {
-    throw new Error(`알 수 없는 환경: ${value}. 가능한 값: ${APP_ENVS.join(', ')}`);
+    throw new Error(`Unknown environment: ${value}. Available: ${APP_ENVS.join(', ')}`);
   }
   return value;
 }
@@ -87,8 +87,8 @@ export function rootDir(fromDir: string): string {
   const found = findRootDir(fromDir);
   if (!found) {
     throw new Error(
-      `워크스페이스 루트를 못 찾았다 (pnpm-workspace.yaml 없음). 시작 위치: ${fromDir}\n` +
-        `배포된 서버에서 불렀다면 그게 버그다 — 런타임 코드는 rootDir 을 쓰면 안 된다.`,
+      `Workspace root not found (no pnpm-workspace.yaml). Started from: ${fromDir}\n` +
+        `If this ran on a deployed server it is a bug — runtime code must not use rootDir.`,
     );
   }
   return found;

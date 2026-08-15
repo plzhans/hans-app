@@ -44,7 +44,9 @@ export function logConfigSummary(cfg: ConfigSource, log: (line: string) => void)
     화면에서 아무리 켜도 메일이 안 나가서 "왜 안 오지" 를 가장 오래 헤매게 되는 자리다.
   */
   if (cfg.getBoolOrDefault('mail.forceDisabled')) {
-    log('Config Mail : ⚠️ 강제 차단(mail.forceDisabled) — DB 설정과 무관하게 안 나간다');
+    log(
+      'Config Mail : ⚠️ Force-disabled (mail.forceDisabled) — no mail is sent regardless of DB settings',
+    );
   }
   /*
     **OAuth 도 여기서 안 찍는다.** 메일·서비스키와 같은 이유다 — 값이 DB(env_setting)에
