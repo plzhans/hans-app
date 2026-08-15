@@ -19,6 +19,9 @@ apps-api:
   externalUrl: http://127.0.0.1:3000
   swagger:
     enabled: true
+  error:
+    # 오류 응답에 debug 객체(원문 메시지·스택)를 싣는다. 로컬에서만 켠다.
+    debug: true
 
 admin:
   jwt:
@@ -35,3 +38,5 @@ apps-admin-api:
       - http://localhost:5275
   swagger:
     enabled: true
+  error:
+    debug: true

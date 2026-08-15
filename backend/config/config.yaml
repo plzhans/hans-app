@@ -193,8 +193,8 @@ apps-admin-api:
   sentry:
     # default: false
     #enabled: false
-    # 공개 API 와 다른 프로젝트를 쓴다.
-    dsn: ''
+    # 공개 API 와 다른 프로젝트를 쓴다. 전송 전용 공개 엔드포인트라 비밀이 아니다.
+    dsn: https://d955366296cc14900ce2691aa616f4e6@o4507886343159808.ingest.de.sentry.io/4511914842194000
     # default: 0.1
     #tracesSampleRate: 0.1
 

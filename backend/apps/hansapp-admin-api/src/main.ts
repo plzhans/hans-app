@@ -1,7 +1,7 @@
 // ⚠️ **이 import 가 항상 첫 줄이어야 한다.** Sentry 는 http·express 를 monkey-patch 해서 요청을
 // 추적하는데, 그 모듈이 Sentry.init 보다 먼저 require 되면 조용히 아무것도 계측되지 않는다.
 // instrument 가 부팅 설정(boot-config)을 읽고 Sentry.init 까지 끝낸다.
-import { sentryStatusLine } from './instrument';
+import { sentryEnabled, sentryStatusLine } from './instrument';
 
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -17,6 +17,7 @@ import {
   StripNullInterceptor,
   requestIdMiddleware,
   adminSwaggerTagsSorter,
+  reportBootFailure,
 } from '@hansapp/http-common';
 
 import { AppModule } from './app.module';
@@ -24,7 +25,7 @@ import { appConfig, appEnv } from './boot-config';
 import { buildInfo } from './build-info';
 import { initAdminCookie } from './auth/admin-cookie';
 import { initAdminSocial } from './auth/admin-social-flow';
-import { serveAdminSpa } from './static-spa';
+import { isAdminSpaServed, serveAdminSpa } from './static-spa';
 import { OPENAPI_JSON_PATH, SWAGGER_PATH, buildOpenApiDocument } from './swagger';
 
 // --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
@@ -57,7 +58,7 @@ function readHttpsOptions() {
   // 한쪽만 설정된 건 설정 실수다. 조용히 HTTP 로 떨어뜨리면 관리자 화면이 평문으로 뜬다.
   if (hasCert !== hasKey) {
     throw new Error(
-      'apps-admin-api.web.sslCertificate 와 sslCertificateKey 는 둘 다 설정하거나 둘 다 비워야 한다',
+      'apps-admin-api.web.sslCertificate and sslCertificateKey must both be set or both be empty.',
     );
   }
   if (!hasCert) return undefined;
@@ -72,7 +73,8 @@ function readCertFile(configPath: string, value: string): Buffer {
   const resolved = resolveConfigPath(__dirname, value);
   if (!existsSync(resolved)) {
     throw new Error(
-      `${configPath} 가 가리키는 파일이 없다: ${value} (resolved: ${resolved}, cwd: ${process.cwd()})`,
+      `${configPath} points to a missing file: ${value} ` +
+        `(resolved: ${resolved}, cwd: ${process.cwd()})`,
     );
   }
   return readFileSync(resolved);
@@ -97,7 +99,7 @@ async function verifyInfrastructure(app: NestExpressApplication, logger: Logger)
         logger.error(`❌ ${line}`);
         fatal.push(name);
       } else {
-        logger.warn(`⚠️ ${line} (관리자 API 는 이것 없이도 뜬다)`);
+        logger.warn(`⚠️ ${line} (the admin API starts without it)`);
       }
     } else if (status === 'skipped') {
       logger.warn(`⚠️ ${line}`);
@@ -107,7 +109,7 @@ async function verifyInfrastructure(app: NestExpressApplication, logger: Logger)
   }
 
   if (fatal.length > 0) {
-    throw new Error(`인프라 접속 실패: ${fatal.join(', ')}`);
+    throw new Error(`Infrastructure check failed: ${fatal.join(', ')}`);
   }
 }
 
@@ -149,16 +151,26 @@ async function bootstrap() {
     조용하다 — 서버가 요청을 정상 처리했기 때문이다(막는 것은 브라우저다). 그래서 어느 쪽이
     문제인지 한참 헤매게 된다. 실제로 develop 설정(목록이 빈다)으로 띄워 놓고 로컬 프론트로
     붙었을 때 그랬다.
+
+    **비었다는 사실만으로는 정상인지 사고인지 못 가른다.** 가르는 것은 화면이 어디 있느냐다 —
+    SPA 를 이 서버가 같이 내보내면 같은 오리진이라 CORS 는 아예 필요가 없고, 안 내보내면
+    화면이 다른 곳에 있다는 뜻이라 그때만 걱정할 일이다. 그래서 문구를 셋으로 나눈다.
+    한 줄에 두 상황을 같이 적어 두면 정상 배포에서도 경고문으로 읽힌다.
   */
   const corsStatusLine =
     corsOrigins.length > 0
       ? `🌐 CORS   : ${corsOrigins.join(', ')}`
-      : '🌐 CORS   : 꺼짐 — apps-admin-api.cors.origins 가 비었다 ' +
-        '(같은 오리진 배포면 정상. 다른 포트의 프론트에서 부르면 브라우저가 막는다)';
+      : isAdminSpaServed(appConfig)
+        ? '🌐 CORS   : not needed — the admin SPA is served from the same origin'
+        : '🌐 CORS   : off — if the console is served from another origin, the browser will block it ' +
+          '(list that origin in apps-admin-api.cors.origins)';
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors(new StripNullInterceptor());
-  app.useGlobalFilters(new HttpErrorFilter());
+  // 오류가 밖으로 나가는 유일한 문. 상태 코드 변환·로그·Sentry 보고가 여기서 한 번씩 지난다.
+  app.useGlobalFilters(
+    new HttpErrorFilter({ debug: appConfig.getBoolOrDefault('apps-admin-api.error.debug') }),
+  );
 
   /*
     Swagger. **기본은 꺼짐이고, 열 환경이 yaml 에 명시로 켠다**(config-defaults.ts).
@@ -214,10 +226,19 @@ async function bootstrap() {
 
   // 부팅 시퀀스의 **마지막 라인** — 여기까지 찍혔으면 요청을 받을 준비가 끝났다는 신호다.
   logger.log(
-    `✅ ${appConfig.env} 관리자 API 부팅 완료 — ${baseUrl} (pid ${process.pid}, v${buildInfo().version})`,
+    `✅ ${appConfig.env} admin API started — ${baseUrl} (pid ${process.pid}, v${buildInfo().version})`,
   );
 }
-bootstrap().catch((error) => {
+/*
+  **부팅에서 죽으면 Sentry 로 알린다.** 요청 오류는 전역 예외 필터가 보고하지만, 부팅 실패는
+  그 필터가 서기도 전이라 아무도 안 알린다 — CI 로 배포되는 서비스에서는 컨테이너가 재시작을
+  반복하는 것을 누가 로그를 열어 보기 전까지 모르게 된다.
+
+  **보고를 기다린 뒤에 죽는다.** 전송이 비동기라 곧바로 exit 하면 이벤트가 큐에 담긴 채로
+  사라진다 — 보고한 줄 알았는데 아무것도 안 가는 것이 제일 나쁘다.
+*/
+bootstrap().catch(async (error) => {
   new Logger('Bootstrap').error('❌ Failed to start admin API', error);
+  await reportBootFailure(error, sentryEnabled);
   process.exit(1);
 });

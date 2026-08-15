@@ -1,7 +1,7 @@
 // ⚠️ **이 import 가 항상 첫 줄이어야 한다.** Sentry 는 http·express 를 monkey-patch 해서 요청을
 // 추적하는데, 그 모듈이 Sentry.init 보다 먼저 require 되면 조용히 아무것도 계측되지 않는다.
 // instrument 가 부팅 설정(boot-config)을 읽고 Sentry.init 까지 끝낸다.
-import { sentryStatusLine } from './instrument';
+import { sentryEnabled, sentryStatusLine } from './instrument';
 
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -20,6 +20,7 @@ import {
   StripNullInterceptor,
   requestIdMiddleware,
   swaggerTagsSorter,
+  reportBootFailure,
 } from '@hansapp/http-common';
 
 import { AppModule } from './app.module';
@@ -74,7 +75,7 @@ function readHttpsOptions() {
   // 한쪽만 설정된 건 설정 실수다. 조용히 HTTP 로 떨어뜨리면 운영이 평문으로 뜬다.
   if (hasCert !== hasKey) {
     throw new Error(
-      'apps-api.web.sslCertificate 와 sslCertificateKey 는 둘 다 설정하거나 둘 다 비워야 한다',
+      'apps-api.web.sslCertificate and sslCertificateKey must both be set or both be empty.',
     );
   }
   if (!hasCert) return undefined;
@@ -100,7 +101,8 @@ function readCertFile(configPath: string, value: string): Buffer {
   const resolved = resolveConfigPath(__dirname, value);
   if (!existsSync(resolved)) {
     throw new Error(
-      `${configPath} 가 가리키는 파일이 없다: ${value} (resolved: ${resolved}, cwd: ${process.cwd()})`,
+      `${configPath} points to a missing file: ${value} ` +
+        `(resolved: ${resolved}, cwd: ${process.cwd()})`,
     );
   }
   return readFileSync(resolved);
@@ -130,7 +132,7 @@ async function verifyInfrastructure(app: NestExpressApplication, logger: Logger)
 
   const failed = results.filter((r) => r.status === 'failed');
   if (failed.length > 0) {
-    throw new Error(`인프라 접속 실패: ${failed.map((r) => r.name).join(', ')}`);
+    throw new Error(`Infrastructure check failed: ${failed.map((r) => r.name).join(', ')}`);
   }
 }
 
@@ -246,9 +248,17 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   // 응답에서 값이 없는(null) 프로퍼티를 제거한다(스프링 non_null 정책과 통일).
   app.useGlobalInterceptors(new StripNullInterceptor());
-  // 전역 예외 필터. 브라우저 페이지 이동(Accept: text/html)엔 HTML 에러 페이지를,
-  // SPA fetch 엔 기존 JSON 을 응답한다(소셜 로그인 콜백이 주소창에 JSON 을 노출하지 않게).
-  app.useGlobalFilters(new HttpErrorFilter());
+  /*
+    전역 예외 필터. 오류가 밖으로 나가는 유일한 문이다 — 상태 코드 변환·로그·Sentry 보고가
+    전부 여기서 한 번씩 지난다. 브라우저 페이지 이동(Accept: text/html)엔 HTML 에러 페이지를,
+    SPA fetch 엔 JSON 을 응답한다(소셜 로그인 콜백이 주소창에 JSON 을 노출하지 않게).
+
+    debug 를 켜면 **서버가 깨진 응답에만** 원문 메시지·스택이 실린다(400·429 는 코드와 문장이
+    이미 다 말하므로 붙지 않는다). 운영은 끈다(config-defaults 기본값).
+  */
+  app.useGlobalFilters(
+    new HttpErrorFilter({ debug: appConfig.getBoolOrDefault('apps-api.error.debug') }),
+  );
 
   /*
     Swagger 문서 노출. **기본은 꺼짐이고, 열 환경이 yaml 에 명시로 켠다**(config-defaults.ts).
@@ -317,7 +327,7 @@ async function bootstrap() {
 
   // 부팅 시퀀스의 **마지막 라인** — 여기까지 찍혔으면 요청을 받을 준비가 끝났다는 신호다.
   // 위 로그들이 중간에 끊기면 준비 전에 죽은 것이므로, 이 한 줄을 준비 완료의 기준으로 삼는다.
-  logger.log(`✅ ${appConfig.env} 서버 부팅 완료 — ${baseUrl} (pid ${process.pid})`);
+  logger.log(`✅ ${appConfig.env} server started — ${baseUrl} (pid ${process.pid})`);
 
   // 슬랙 알림은 부팅 완료 로그 **뒤에** 보낸다. 준비가 끝났다고 알리는 메시지이므로
   // 그 판정 기준이 되는 로그보다 앞설 이유가 없고, 슬랙이 느려도 부팅 로그는 제때 찍힌다.
@@ -328,7 +338,16 @@ async function bootstrap() {
     version: buildInfo().version,
   });
 }
-bootstrap().catch((error) => {
+/*
+  **부팅에서 죽으면 Sentry 로 알린다.** 요청 오류는 전역 예외 필터가 보고하지만, 부팅 실패는
+  그 필터가 서기도 전이라 아무도 안 알린다 — CI 로 배포되는 서비스에서는 컨테이너가 재시작을
+  반복하는 것을 누가 로그를 열어 보기 전까지 모르게 된다.
+
+  **보고를 기다린 뒤에 죽는다.** 전송이 비동기라 곧바로 exit 하면 이벤트가 큐에 담긴 채로
+  사라진다 — 보고한 줄 알았는데 아무것도 안 가는 것이 제일 나쁘다.
+*/
+bootstrap().catch(async (error) => {
   new Logger('Bootstrap').error('❌ Failed to start application', error);
+  await reportBootFailure(error, sentryEnabled);
   process.exit(1);
 });

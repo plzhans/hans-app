@@ -43,8 +43,8 @@ export const sentryEnabled = Boolean(dsn);
 export const sentryStatusLine = dsn
   ? `🛰  Sentry : ${appConfig.env} / ${buildInfo.tagVersion} (traces ${tracesSampleRate})`
   : enabled
-    ? '🛰  Sentry : 비활성 — apps-batch.sentry.dsn 없음'
-    : '🛰  Sentry : 비활성 — SENTRY_ENABLED=false';
+    ? '🛰  Sentry : disabled — apps-batch.sentry.dsn is not set'
+    : '🛰  Sentry : disabled — SENTRY_ENABLED=false';
 
 /**
  * 남은 이벤트를 전송하고 기다린다. **배치는 끝나면 프로세스가 죽는다** —
