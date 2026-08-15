@@ -108,7 +108,7 @@ export class HiraDetailSyncService {
     for (;;) {
       if (alive.size === 0) {
         limitReached = true;
-        this.logger.warn('HIRA 오퍼레이션 전부 일일 한도에 걸렸다. 내일 이어받는다.');
+        this.logger.warn('Every HIRA operation hit the daily quota. Resuming tomorrow.');
         break;
       }
 
@@ -119,7 +119,7 @@ export class HiraDetailSyncService {
       if (budget < activeOps.length) {
         limitReached = total > processed;
         if (limitReached) {
-          this.logger.log(`콜 한도(${options.limit})에 도달했다. 다음 실행에서 이어받는다.`);
+          this.logger.log(`Reached the call limit (${options.limit}). Resuming on the next run.`);
         }
         break;
       }
@@ -148,11 +148,13 @@ export class HiraDetailSyncService {
       processed += targets.length;
 
       if (alive.size < before) {
-        this.logger.warn(`일일 한도 초과 — 남은 오퍼레이션: ${[...alive].join(', ') || '없음'}`);
+        this.logger.warn(
+          `Daily quota exceeded. Remaining operations: ${[...alive].join(', ') || 'none'}`,
+        );
       }
 
       this.logger.log(
-        `HIRA 상세 ${processed.toLocaleString()}/${total.toLocaleString()} 병원 (콜 ${calls.toLocaleString()})`,
+        `HIRA details ${processed.toLocaleString()}/${total.toLocaleString()} hospitals (${calls.toLocaleString()} calls)`,
       );
     }
 
@@ -217,12 +219,12 @@ export class HiraDetailSyncService {
         calls += 1;
 
         // --debug 로만 보인다. 병원 하나에 11줄이 찍힌다.
-        this.logger.debug(`${ykiho.slice(0, 10)}… ${op.padEnd(10)} ${items.length}행`);
+        this.logger.debug(`${ykiho.slice(0, 10)}… ${op.padEnd(10)} ${items.length} rows`);
       } catch (error) {
         if (error instanceof KrDataQuotaError) {
           alive.delete(op);
           this.logger.warn(
-            `HIRA ${op} 일일 한도 초과(${error.errorCode}). 이 오퍼레이션만 중단한다.`,
+            `HIRA ${op} hit the daily quota (${error.errorCode}). Stopping this operation only.`,
           );
           continue;
         }

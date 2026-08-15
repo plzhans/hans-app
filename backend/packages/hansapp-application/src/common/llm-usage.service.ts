@@ -10,8 +10,6 @@ export interface LlmUsageInput {
   feature: string;
   promptName: string;
   promptHash: string;
-  /** 정규화한 질문의 해시. 캐시 키에 쓰는 값과 같다 — 원문 복원은 불가능하다. */
-  questionHash: string;
   provider: string;
   model: string;
   inputTokens: number;
@@ -49,7 +47,6 @@ export class LlmUsageService {
           feature: input.feature,
           promptName: input.promptName,
           promptHash: input.promptHash,
-          questionHash: input.questionHash,
           provider: input.provider,
           model: input.model,
           inputTokens: input.inputTokens,
@@ -63,7 +60,7 @@ export class LlmUsageService {
       });
     } catch (error) {
       this.logger.warn(
-        `LLM 사용량 적재 실패(${input.feature}/${input.promptName}): ${String(error)}`,
+        `Failed to store LLM usage (${input.feature}/${input.promptName}): ${String(error)}`,
       );
     }
   }

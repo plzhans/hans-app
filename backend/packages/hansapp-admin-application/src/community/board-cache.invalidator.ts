@@ -44,7 +44,7 @@ export class BoardCacheInvalidator {
     try {
       await this.cache.del(BOARD_LIST_KEY);
     } catch (error) {
-      this.logger.warn(`게시판 목록 캐시를 지우지 못했다: ${String(error)}`);
+      this.logger.warn(`Failed to evict board list cache: ${String(error)}`);
     }
   }
 

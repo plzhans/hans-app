@@ -15,6 +15,8 @@ export * from './config-summary';
 export * from './build-info';
 // 되돌릴 수 없게 굳히는 단방향 해시와 토큰 조립. 인증 계층(공개·admin)이 함께 쓴다.
 export * from './token-crypto';
+// 응용 계층이 던지는 오류(계열 + 코드). HTTP 상태로 옮기는 것은 http-common 의 필터가 한다.
+export * from './error';
 
 /**
  * 목록 조회 공통 페이지 결과. 응용 계층 서비스가 반환하고,

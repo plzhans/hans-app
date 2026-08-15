@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapp/application';
-import { parseTimeRange } from '@hansapp/common';
+import { InternalError, parseTimeRange } from '@hansapp/common';
 
 import { isSubjectAllowed } from '@hansapp/data/seed';
 
@@ -363,8 +363,8 @@ export class HealthcareDetailBuildService {
     await this.repo.insertMismatches(resolved);
 
     this.logger.warn(
-      `계열 불일치 ${rows.length.toLocaleString()}건을 기록했다(제외하지 않았다). ` +
-        `healthcare_subject_mismatch 에서 확인하라.`,
+      `Recorded ${rows.length.toLocaleString()} subject-family mismatches (not excluded). ` +
+        `See healthcare_subject_mismatch.`,
     );
   }
 
@@ -644,10 +644,11 @@ export class HealthcareDetailBuildService {
     // any 하나만 끼어들면 사라진다. `DELETE FROM <이거>` 를 WHERE 없이 치는 자리라
     // 방어를 두 겹으로 둔다.
     if (!(REBUILD_TABLES as readonly string[]).includes(table)) {
-      throw new Error(
-        `replace() 로 지울 수 있는 테이블이 아니다: ${table}. ` +
-          `번역(healthcare_hospital_i18n)처럼 다시 만들 수 없는 것은 여기 오면 안 된다.`,
-      );
+      throw new InternalError({
+        message:
+          `replace() cannot clear this table: ${table}. ` +
+          'Tables that cannot be rebuilt (such as healthcare_hospital_i18n) must never reach here.',
+      });
     }
   }
 
@@ -681,8 +682,8 @@ export class HealthcareDetailBuildService {
     await this.repo.insertRows(table, columns, insertable);
 
     this.logger.log(
-      `${table}: ${insertable.length.toLocaleString()}행` +
-        (locked.length > 0 ? ` (잠금 ${locked.length}행 보존)` : ''),
+      `${table}: ${insertable.length.toLocaleString()} rows` +
+        (locked.length > 0 ? ` (${locked.length} locked rows kept)` : ''),
     );
   }
 

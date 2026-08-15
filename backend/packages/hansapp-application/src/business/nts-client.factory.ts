@@ -1,5 +1,7 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ServiceErrorCode } from '../error';
 import { NtsClient } from '@kr-go/nts';
+import { UnavailableError } from '@hansapp/common';
 
 import { SettingCache } from '../setting/setting-cache.service';
 
@@ -25,15 +27,18 @@ export class NtsClientFactory {
 
   /**
    * @param serviceKey 주면 그 키로, 안 주면 서버 키(DB)로 만든다.
-   * @throws ServiceUnavailableException 키가 없을 때. **부팅은 막지 않는다** — 키 없이도
+   * @throws UnavailableError 키가 없을 때. **부팅은 막지 않는다** — 키 없이도
    *   서버는 뜨고, 이 API 를 부르는 순간에만 실패한다는 기존 방침을 그대로 지킨다.
+   *
+   *   서버 잘못으로 올린다(설정이 빠진 것이지 요청이 틀린 게 아니다). 그래서 "키가 없다" 는
+   *   말은 응답이 아니라 로그·Sentry 로만 간다 — 우리 설정 상태를 밖에 알릴 이유가 없다.
    */
   async create(serviceKey?: string): Promise<NtsClient> {
     const key = serviceKey ?? (await this.settings.getString(NTS_KEY));
     if (!key) {
-      throw new ServiceUnavailableException(
-        'The public data portal service key is not configured.',
-      );
+      throw new UnavailableError(ServiceErrorCode.BUSINESS_PROVIDER_UNAVAILABLE, {
+        message: `The public data portal service key is not configured (${NTS_KEY}).`,
+      });
     }
     return new NtsClient({ serviceKey: key });
   }

@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
-import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import {
+  UnauthorizedError,
   composeSignedToken,
   hmacSha256hex,
   parseSignedToken,
@@ -8,6 +8,8 @@ import {
   sha256hex,
   timingSafeEqualHex,
 } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { ADMIN_AUTH_CONFIG } from './admin-auth.config';
 import type { AdminAuthConfig } from './admin-auth.config';
@@ -184,19 +186,27 @@ export class AdminTokenService {
       REFRESH_ID_PARTS,
     );
     if (!parsed) {
-      throw new UnauthorizedException('Invalid refresh token.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_REFRESH_TOKEN_INVALID, {
+        message: 'Invalid refresh token.',
+      });
     }
     const session = await this.sessions.findOwned(ownerOf(parsed.ids), sessionIdOf(parsed.ids));
     if (!session) {
-      throw new UnauthorizedException('Session not found.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_LLM_MODEL_NOT_FOUND, {
+        message: 'Session not found.',
+      });
     }
     if (session.expiresAt.getTime() <= Date.now()) {
       await this.sessions.deleteOwned(session.adminId, session.sessionId);
       await this.sessionCache.invalidate(session.adminId, [session.sessionId]);
-      throw new UnauthorizedException('Session expired. Please sign in again.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_SESSION_EXPIRED, {
+        message: 'Session expired. Please sign in again.',
+      });
     }
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
-      throw new UnauthorizedException('Refresh token mismatch.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_REFRESH_TOKEN_MISMATCH, {
+        message: 'Refresh token mismatch.',
+      });
     }
 
     const newSecret = randomToken(24);

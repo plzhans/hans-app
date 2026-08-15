@@ -16,7 +16,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.build.json",
+    "test": "jest"
   },
   "dependencies": {
     "@hansapp/common": "workspace:*",
@@ -30,7 +31,23 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
     "@types/node": "^26.1.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "typescript": "^5.9.3"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "testEnvironment": "node"
   }
 }

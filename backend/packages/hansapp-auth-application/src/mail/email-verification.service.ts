@@ -1,11 +1,17 @@
-import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { AuthErrorCode } from '../error';
 import { EmailVerifyPurpose } from '@hansapp/data';
 
 import { OTP_CONFIG } from './mail.config';
 import type { OtpConfig } from './mail.config';
 import { EmailVerificationRepository } from './email-verification.repository';
 import { AuthEmailService } from './auth-email.service';
-import { hmacSha256hex, randomNumericCode, timingSafeEqualHex } from '@hansapp/common';
+import {
+  TooManyRequestsError,
+  hmacSha256hex,
+  randomNumericCode,
+  timingSafeEqualHex,
+} from '@hansapp/common';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -22,6 +28,8 @@ function normalizeEmail(email: string): string {
  */
 @Injectable()
 export class EmailVerificationService {
+  private readonly logger = new Logger(EmailVerificationService.name);
+
   constructor(
     @Inject(OTP_CONFIG) private readonly config: OtpConfig,
     private readonly repo: EmailVerificationRepository,
@@ -67,10 +75,10 @@ export class EmailVerificationService {
     const since = new Date(now.getTime() - 60 * 60 * 1000);
     const sent = await this.repo.countSince(emailHash, since);
     if (sent >= this.config.maxSendsPerHour) {
-      throw new HttpException(
-        'Too many verification emails. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
+      this.logger.debug(
+        `Verification mail blocked: sent=${sent} maxPerHour=${this.config.maxSendsPerHour}`,
       );
+      throw new TooManyRequestsError(AuthErrorCode.AUTH_VERIFICATION_EMAIL_RATE_LIMITED);
     }
 
     // 재발송 쿨다운(직전 발송으로부터 최소 간격).
@@ -78,10 +86,10 @@ export class EmailVerificationService {
     if (last) {
       const elapsedSec = (now.getTime() - last.createdAt.getTime()) / 1000;
       if (elapsedSec < this.config.resendCooldownSec) {
-        throw new HttpException(
-          'A code was sent recently. Please wait before requesting another.',
-          HttpStatus.TOO_MANY_REQUESTS,
+        this.logger.debug(
+          `Verification mail blocked: elapsed=${elapsedSec}s cooldown=${this.config.resendCooldownSec}s`,
         );
+        throw new TooManyRequestsError(AuthErrorCode.AUTH_VERIFICATION_RESEND_TOO_SOON);
       }
     }
 

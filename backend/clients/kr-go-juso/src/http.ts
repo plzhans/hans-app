@@ -169,7 +169,7 @@ function parseBody(body: string): unknown {
   }
 
   const hint = ERROR_BAD_KEY.has(common.errorCode)
-    ? ' (검색 API 승인키를 확인하라. 재시도해도 소용없다.)'
+    ? ' (Check the JUSO API key. Retrying will not help.)'
     : '';
 
   throw new JusoError(`${common.errorMessage ?? 'JUSO API error'}${hint}`, common.errorCode, {

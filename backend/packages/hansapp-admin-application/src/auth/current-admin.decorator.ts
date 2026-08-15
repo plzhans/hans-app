@@ -1,4 +1,6 @@
-import { ExecutionContext, UnauthorizedException, createParamDecorator } from '@nestjs/common';
+import { ExecutionContext, createParamDecorator } from '@nestjs/common';
+import { UnauthorizedError } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 import type { Request } from 'express';
 
 import type { AdminAuthUser } from './admin-auth-user';
@@ -8,7 +10,9 @@ export const CurrentAdmin = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AdminAuthUser => {
     const request = ctx.switchToHttp().getRequest<Request & { admin?: AdminAuthUser }>();
     if (!request.admin) {
-      throw new UnauthorizedException('No admin authentication context.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_UNAUTHORIZED, {
+        message: 'No admin authentication context.',
+      });
     }
     return request.admin;
   },

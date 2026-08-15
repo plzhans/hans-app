@@ -1,5 +1,7 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { AuthErrorCode } from '../error';
 import { JwtService } from '@nestjs/jwt';
+import { BadRequestError } from '@hansapp/common';
 import { OAuthProvider } from '@hansapp/data';
 
 import { AUTH_CONFIG } from '../auth.config';
@@ -187,10 +189,12 @@ export class SocialTicketService {
     try {
       payload = this.jwt.verify<T>(token);
     } catch {
-      throw new BadRequestException('Invalid or expired token.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_TICKET_INVALID);
     }
     if (payload.token_use !== expected) {
-      throw new BadRequestException('Token purpose mismatch.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_TICKET_INVALID, {
+        message: 'Token purpose mismatch.',
+      });
     }
     return payload;
   }

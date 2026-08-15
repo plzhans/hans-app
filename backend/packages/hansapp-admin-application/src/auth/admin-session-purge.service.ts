@@ -59,7 +59,7 @@ export class AdminSessionPurgeService {
 
     const admins = new Set(rows.map((row) => row.adminId)).size;
     this.logger.warn(
-      `관리자 전체 로그아웃 — 세션 ${rows.length}개 / 관리자 ${admins}명 / 캐시 잔여 ${cacheLeft}건`,
+      `Signed out all admins: ${rows.length} sessions / ${admins} admins / ${cacheLeft} cache entries left`,
     );
     return { sessions: rows.length, admins, cacheLeft };
   }

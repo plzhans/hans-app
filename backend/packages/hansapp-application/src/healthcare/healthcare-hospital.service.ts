@@ -1,7 +1,8 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ServiceErrorCode } from '../error';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import { Page } from '@hansapp/common';
+import { BadRequestError, Page } from '@hansapp/common';
 import { TIER_NAMES } from '@hansapp/data/seed';
 import type {
   HealthcareHospital as HospitalModel,
@@ -187,9 +188,9 @@ export class HealthcareHospitalService {
       DB 에 옮겨 구현하지 않는 이유는 저장소(assertNoGeoQuery) 주석에 있다.
     */
     if (command.db && (order.by === 'distance' || filter.bbox)) {
-      throw new BadRequestException(
-        'db=true does not support coordinate-based queries (sort=distance, map bounds).',
-      );
+      throw new BadRequestError(ServiceErrorCode.HOSPITAL_QUERY_INVALID, {
+        message: 'db=true does not support coordinate-based queries (sort=distance, map bounds).',
+      });
     }
 
     const source: HospitalScrollSource = command.db ? this.repo : this.searchRepo;
@@ -341,7 +342,9 @@ export class HealthcareHospitalService {
   private buildOrder(command: HospitalFilterCommand): HospitalSearchOrder {
     if (command.sort !== 'distance') return DEFAULT_SEARCH_ORDER;
     if (!command.origin) {
-      throw new BadRequestException('sort=distance requires origin coordinates (lat, lon).');
+      throw new BadRequestError(ServiceErrorCode.HOSPITAL_QUERY_INVALID, {
+        message: 'sort=distance requires origin coordinates (lat, lon).',
+      });
     }
     return { by: 'distance', origin: command.origin };
   }

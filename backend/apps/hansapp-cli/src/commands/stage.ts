@@ -70,7 +70,7 @@ function parseOps(values: string[] | undefined): readonly string[] | undefined {
   const unknown = values.filter((op) => !(HIRA_ALL_OPS as readonly string[]).includes(op));
   if (unknown.length > 0) {
     throw new Error(
-      `알 수 없는 오퍼레이션: ${unknown.join(', ')}\n사용 가능: ${HIRA_ALL_OPS.join(', ')}`,
+      `Unknown operation: ${unknown.join(', ')}\nAvailable: ${HIRA_ALL_OPS.join(', ')}`,
     );
   }
   return values;
@@ -80,7 +80,7 @@ function parseOps(values: string[] | undefined): readonly string[] | undefined {
 function parseStage<T extends number>(value: string, stages: readonly T[]): T {
   const stage = Number(value);
   if (!stages.includes(stage as T)) {
-    throw new Error(`알 수 없는 단계: ${value}\n사용 가능: ${stages.join(', ')}`);
+    throw new Error(`Unknown stage: ${value}\nAvailable: ${stages.join(', ')}`);
   }
   return stage as T;
 }

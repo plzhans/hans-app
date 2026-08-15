@@ -1,29 +1,26 @@
-import { DEFAULT_LANGUAGE, type SupportedLanguage } from '@/shared/i18n';
 import type { LegalDoc } from './types';
-import termsKo from './terms.ko.json';
-import termsEn from './terms.en.json';
-import privacyKo from './privacy.ko.json';
-import privacyEn from './privacy.en.json';
-import locationKo from './location.ko.json';
-import locationEn from './location.en.json';
+import terms from './terms.ko.json';
+import privacy from './privacy.ko.json';
+import location from './location.ko.json';
 
 export type { LegalDoc, LegalSection, LegalBlock } from './types';
 
 /**
  * 이용약관·개인정보처리방침의 본문. **조문은 JSON 에 있고 코드에는 없다.**
  *
- * 조문은 코드가 아니라 문서다 — 개정은 조 단위로 일어나고, 번역본을 대조하거나 밖에 검토를
- * 맡길 때 파일을 그대로 건네야 한다. 여기(.ts)에는 그 문서를 고를 규칙만 둔다.
+ * 조문은 코드가 아니라 문서다 — 개정은 조 단위로 일어나고, 밖에 검토를 맡길 때 파일을 그대로
+ * 건네야 한다. 여기(.ts)에는 그 문서를 고를 규칙만 둔다.
  *
  * [문서를 고칠 때 지킬 것]
  *
- * 1. **정본은 한국어다.** 서비스가 한국 법을 따르고 조문도 한국어로 썼다. 영어본은 사람이
- *    옮긴 번역이고, 두 본이 어긋나면 한국어본이 우선한다(각 문서 머리말에도 그렇게 적혀 있다).
- *    한국어본의 조를 고치면 영어본의 같은 번호도 같이 고쳐야 한다.
+ * 1. **한국어 한 벌만 둔다.** 서비스가 한국 법을 따르고 조문도 한국어로 썼다. 번역본은 두지
+ *    않는다 — 조문은 화면 문구와 달리 오역이 어색함으로 끝나지 않고 약속의 내용을 바꾼다.
+ *    두 벌을 두면 개정할 때 한쪽만 고치는 일이 반드시 생기는데, 화면 문구와 달리 조문이
+ *    어긋난 것은 눈에 띄지 않는다.
  *
- * 2. **번역은 두 벌만 둔다.** 조문은 화면 문구와 달리 기계 번역으로 때울 수 없다 — 틀리면
- *    문구가 어색한 게 아니라 약속의 내용이 달라진다. 일본어·중국어 화면에서는 영어본을
- *    보여주고(그 언어 이용자에게 한국어본보다 읽힌다), 그 사실을 페이지가 함께 알린다.
+ * 2. **한국어가 아닌 화면에도 이 문서를 보여주고, 그 사실을 화면 언어로 알린다**(../notice.ts).
+ *    가입 동의 화면(hansapp-auth)도 한국어 전용이라 이용자가 겪는 언어가 어긋나지 않는다.
+ *    다시 번역본을 올린다면 기계 번역이 아니라 전문 번역이어야 한다.
  *
  * 3. **방침에 적힌 항목은 전부 코드에서 확인한 것이다.** 방침은 홍보문이 아니라 "우리가
  *    무엇을 만지는지" 의 목록이라, 남의 방침에서 흔한 조항을 옮겨 오면 그 순간 거짓이 된다.
@@ -33,7 +30,12 @@ export type { LegalDoc, LegalSection, LegalBlock } from './types';
  *    넣으면 "있지도 않은 서비스의 약관" 이 된다.
  *
  *    지금 방침이 딛고 선 구현:
- *      · 회원가입 없음        — shared/auth 는 어디에서도 import 되지 않는다(로그인 UI 가 없다)
+ *      · 계정 로그인          — shared/auth·features/me. 계정 자체는 HansApp 계정 계층이 갖고
+ *                               (frontend/legal 의 계정 방침이 다룬다) 여기서는 조회해 보여주기만
+ *                               한다. 그래서 방침은 항목을 다시 적지 않고 그쪽으로 넘긴다
+ *      · AI 검색              — features/ai-search. 질문은 Anthropic 으로 나가고(제5조·제7조),
+ *                               서버에는 원문 대신 해시만 남는다(LlmUsage). 대화는 sessionStorage
+ *                               **업체를 바꾸면 제5조 위탁 표와 제7조 국외이전 표를 함께 고쳐야 한다**
  *      · 위치 좌표            — lib/geolocation.ts(이용자가 누를 때만), clinic/api.ts 의 snapToGrid
  *                               (약 1km 격자로 반올림해 보낸다), useMyCoords(세션 동안만 들고 있음)
  *      · 오류 진단            — monitoring/instrument.ts 의 Sentry(DSN 이 있을 때만 켜진다)
@@ -43,8 +45,12 @@ export type { LegalDoc, LegalSection, LegalBlock } from './types';
  *      · 쿠키                 — 위 GA 가 심는 _ga·_ga_* 둘뿐이다. 광고 스크립트는 없다
  *                               (방침에는 이름을 적지 않는다 — 아래 참고)
  *
- *    **기능을 늘릴 때 방침을 같이 고쳐야 한다.** 로그인을 열면 개인정보처리방침
- *    제1조·제3조가 사실과 어긋난다. 분석·광고 도구를 더 붙이면 제11조도 함께 봐야 한다.
+ *    **기능을 늘릴 때 방침을 같이 고쳐야 한다.** 로그인과 AI 검색을 붙였을 때 방침이 한동안
+ *    뒤처져 있었다(2026-08-22 개정으로 맞췄다). 분석·광고 도구를 더 붙이면 제12조도 함께 봐야 한다.
+ *
+ *    **연령에 관한 조는 두지 않는다.** 생년월일을 받지 않아 만 14세 여부를 확인할 방법이 없다 —
+ *    남의 방침에서 흔한 조항이지만, 확인하지 못하는 것을 적으면 그 순간 거짓이 된다. 계정 쪽에
+ *    연령 확인이 붙으면 그때는 계정 방침이 다룬다(../MEMBERSHIP.md).
  *
  *    **GA 는 도구 이름도 쿠키 이름도 보유 개월 수도 적지 않는다.** 국내 대형 서비스의 방침을
  *    훑어 보고 맞춘 수준이다 — 그쪽은 GA 를 "외부 분석 툴" 로 뭉뚱그린다. 위탁·국외이전 표의
@@ -62,24 +68,8 @@ export type { LegalDoc, LegalSection, LegalBlock } from './types';
  * JSON 은 구조까지는 지켜 주지 않는다(조 하나를 통째로 빠뜨려도 파일은 유효하다).
  * 여기서 한 번 LegalDoc 으로 못 박아 두면, 최소한 형태가 어긋난 문서는 타입 검사에서 걸린다.
  */
-const docs = {
-  terms: { ko: termsKo as LegalDoc, en: termsEn as LegalDoc },
-  privacy: { ko: privacyKo as LegalDoc, en: privacyEn as LegalDoc },
-  location: { ko: locationKo as LegalDoc, en: locationEn as LegalDoc },
-} as const;
-
-/** 이 언어 화면에 보여줄 문서가 정본(한국어)인가. */
-export function isLegalOriginal(lang: SupportedLanguage): boolean {
-  return lang === DEFAULT_LANGUAGE;
-}
-
-export function termsFor(lang: SupportedLanguage): LegalDoc {
-  return lang === 'ko' ? docs.terms.ko : docs.terms.en;
-}
-
-export function privacyFor(lang: SupportedLanguage): LegalDoc {
-  return lang === 'ko' ? docs.privacy.ko : docs.privacy.en;
-}
+export const termsDoc = terms as LegalDoc;
+export const privacyDoc = privacy as LegalDoc;
 
 /**
  * 위치기반서비스 이용약관. **이용약관과 한 문서로 합치지 않는다.**
@@ -89,6 +79,4 @@ export function privacyFor(lang: SupportedLanguage): LegalDoc {
  * 스토어 심사를 받을 때 이 파일 하나를 그대로 낼 수 있다. 같은 업계(바비톡 등)가 전부 따로
  * 두는 이유도 같다.
  */
-export function locationTermsFor(lang: SupportedLanguage): LegalDoc {
-  return lang === 'ko' ? docs.location.ko : docs.location.en;
-}
+export const locationTermsDoc = location as LegalDoc;

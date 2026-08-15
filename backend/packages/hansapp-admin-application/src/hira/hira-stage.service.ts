@@ -87,7 +87,7 @@ export class HiraStageService {
     } catch (error) {
       if (error instanceof KrDataQuotaError) {
         this.logger.warn(
-          `HIRA ${stage}단계 — 일일 호출 한도 초과(${error.errorCode}). 내일 이어받는다.`,
+          `HIRA stage ${stage} hit the daily quota (${error.errorCode}). Resuming tomorrow.`,
         );
         return { total: 0, processed: 0, calls: 0, limitReached: true };
       }
@@ -140,34 +140,34 @@ export class HiraStageService {
   private async stage1(): Promise<SyncOutcome> {
     const outcome: SyncOutcome = { total: 0, processed: 0, calls: 0 };
 
-    this.logger.log('HIRA 1단계 (1/6) 코드 6종');
+    this.logger.log('HIRA stage 1 (1/6) six code tables');
     for (const result of await this.code.sync()) {
       outcome.calls += result.pages;
       outcome.processed += result.upserted;
     }
 
-    this.logger.log('HIRA 1단계 (2/6) 병원 전체 (hospital list)');
+    this.logger.log('HIRA stage 1 (2/6) full hospital list');
     const hospital = await this.hospital.sync({ full: true });
     outcome.calls += hospital.pages;
     outcome.processed += hospital.upserted;
     outcome.total = hospital.totalCount;
 
-    this.logger.log('HIRA 1단계 (3/6) 진료과목 역조회 (dgsbjtCd)');
+    this.logger.log('HIRA stage 1 (3/6) reverse lookup by subject (dgsbjtCd)');
     const subject = await this.subject.sync();
     outcome.calls += subject.calls;
     outcome.processed += subject.processed;
 
-    this.logger.log('HIRA 1단계 (4/6) 전문병원 역조회 (srchCd)');
+    this.logger.log('HIRA stage 1 (4/6) reverse lookup by specialty (srchCd)');
     const specialty = await this.specialty.sync();
     outcome.calls += specialty.calls;
     outcome.processed += specialty.processed;
 
-    this.logger.log('HIRA 1단계 (5/6) 병원평가 등급 (목록형)');
+    this.logger.log('HIRA stage 1 (5/6) assessment grades (list)');
     const assessment = await this.assessment.sync();
     outcome.calls += assessment.calls;
     outcome.processed += assessment.processed;
 
-    this.logger.log('HIRA 1단계 (6/6) 비급여 진료비 (목록형)');
+    this.logger.log('HIRA stage 1 (6/6) non-payment fees (list)');
     const npay = await this.npay.sync();
     outcome.calls += npay.calls;
     outcome.processed += npay.processed;

@@ -1,4 +1,6 @@
-import { BadRequestException, Body, Delete, HttpCode, Post, Req, Res } from '@nestjs/common';
+import { Body, Delete, HttpCode, Post, Req, Res } from '@nestjs/common';
+import { AuthErrorCode } from '@hansapp/auth-application';
+import { BadRequestError } from '@hansapp/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ApiController } from '@hansapp/http-common';
@@ -67,7 +69,9 @@ export class OAuthController {
     let tokens: AuthTokens;
     if (dto.grant_type === 'authorization_code') {
       if (!dto.code) {
-        throw new BadRequestException('code is required.');
+        throw new BadRequestError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+          message: 'code is required.',
+        });
       }
       tokens = await this.grants.exchangeAuthorizationCode(
         dto.code,
@@ -79,7 +83,9 @@ export class OAuthController {
       const fromBody = dto.refresh_token;
       const refreshToken = fromBody ?? readRefreshCookie(req);
       if (!refreshToken) {
-        throw new BadRequestException('refresh_token is required.');
+        throw new BadRequestError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+          message: 'refresh_token is required.',
+        });
       }
       if (!fromBody) {
         this.grants.assertFirstPartyOrigin(origin);

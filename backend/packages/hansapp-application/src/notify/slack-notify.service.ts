@@ -93,11 +93,11 @@ export class SlackNotifyService implements OnApplicationShutdown {
       return 'Slack notify is disabled (SLACK_BOT_TOKEN / SLACK_WEBHOOK_URL not set)';
     }
     if (this.notifier.transport !== 'bot-token') {
-      return 'Slack notify: incoming webhook (SLACK_BOT_TOKEN 이 없어 스레드는 못 답니다)';
+      return 'Slack notify: incoming webhook (SLACK_BOT_TOKEN is not set, so replies cannot be threaded)';
     }
     return this.deployThreadRef
-      ? 'Slack notify: chat.postMessage (배포 스레드에 기동을 답니다)'
-      : 'Slack notify: chat.postMessage (종료 알림을 스레드로 답니다)';
+      ? 'Slack notify: chat.postMessage (startup is replied into the deploy thread)'
+      : 'Slack notify: chat.postMessage (shutdown is replied into the thread)';
   }
 
   /**

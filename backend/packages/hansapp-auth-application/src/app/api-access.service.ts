@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { AuthErrorCode, ServiceKeyInvalidError } from '../error';
 import { AppClientType, AppStatus } from '@hansapp/data';
 import type { Request } from 'express';
 
-import { sha256hex, timingSafeEqualHex } from '@hansapp/common';
+import { UnauthorizedError, sha256hex, timingSafeEqualHex } from '@hansapp/common';
 import { AccessCache } from './access-cache.service';
 
 /** API 접근 주체. 가드가 request.apiAccess 에 채운다. */
@@ -32,6 +33,8 @@ export interface ApiAccess {
  */
 @Injectable()
 export class ApiAccessService {
+  private readonly logger = new Logger(ApiAccessService.name);
+
   constructor(private readonly cache: AccessCache) {}
 
   /** 요청에 서비스 키(sk_ 베어러) 또는 X-Client-Id 가 있는지(= API 접근을 시도하는지). */
@@ -50,29 +53,27 @@ export class ApiAccessService {
     if (clientId) {
       return this.viaClient(clientId, req);
     }
-    throw new UnauthorizedException(
-      'Service key (Authorization: Bearer) or X-Client-Id header is required.',
-    );
+    throw new UnauthorizedError(AuthErrorCode.APP_CREDENTIALS_REQUIRED);
   }
 
   /** 서비스 키 검증: 파싱 → 캐시 조회 → status·해시 확인. 오리진은 무시. */
   private async viaServiceKey(token: string): Promise<ApiAccess> {
     const parsed = parseServiceKey(token);
     if (!parsed) {
-      throw new UnauthorizedException('Malformed service key.');
+      throw new ServiceKeyInvalidError({ message: 'Malformed service key.' });
     }
     const key = await this.cache.getApiKey(parsed.appId, parsed.keyId);
     // 존재 여부·해시는 상태와 무관하게 먼저 본다. PENDING 안내를 해시 검증보다 앞에 두면
     // 아무 키나 넣어보고 appId/keyId 가 실재하는지 떠볼 수 있다(enumeration).
     if (!key || !timingSafeEqualHex(key.keyHash, sha256hex(token))) {
-      throw new UnauthorizedException('Invalid service key.');
+      throw new ServiceKeyInvalidError();
     }
     // 진짜 키임이 확인된 뒤에만 미승인 사유를 알려 준다.
     if (key.status === AppStatus.PENDING) {
-      throw new UnauthorizedException('This app is pending approval.');
+      throw new UnauthorizedError(AuthErrorCode.APP_PENDING_APPROVAL);
     }
     if (key.status !== AppStatus.ACTIVE) {
-      throw new UnauthorizedException('Invalid service key.');
+      throw new ServiceKeyInvalidError();
     }
     return { appId: key.appId, via: 'service', keyId: key.id };
   }
@@ -81,21 +82,24 @@ export class ApiAccessService {
   private async viaClient(clientId: string, req: Request): Promise<ApiAccess> {
     const client = await this.cache.getClient(clientId);
     if (!client) {
-      throw new UnauthorizedException('Invalid client.');
+      throw new UnauthorizedError(AuthErrorCode.APP_CLIENT_INVALID);
     }
     // clientId 는 추측 불가한 40자라, 그걸 아는 것 자체가 존재를 아는 것이다 —
     // PENDING 사유를 알려도 새로 새는 정보가 없다(서비스 키와 상황이 다르다).
     if (client.status === AppStatus.PENDING) {
-      throw new UnauthorizedException('This app is pending approval.');
+      throw new UnauthorizedError(AuthErrorCode.APP_PENDING_APPROVAL);
     }
     if (client.status !== AppStatus.ACTIVE) {
-      throw new UnauthorizedException('Invalid client.');
+      throw new UnauthorizedError(AuthErrorCode.APP_CLIENT_INVALID);
     }
     if (client.type === AppClientType.WEB) {
       const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
       const origins = (client.origins as string[] | null) ?? [];
       if (!origin || !origins.includes(origin)) {
-        throw new UnauthorizedException('Origin not allowed.');
+        this.logger.debug(
+          `Client rejected: origin not registered (clientId=${clientId} origin=${origin ?? '-'})`,
+        );
+        throw new UnauthorizedError(AuthErrorCode.APP_ORIGIN_NOT_ALLOWED);
       }
     }
     return {

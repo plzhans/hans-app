@@ -37,12 +37,12 @@ export class EventConsumer implements OnModuleInit, OnModuleDestroy {
 
     if (!this.redisUrl) {
       // Redis 가 없는 환경에서도 프로세스는 떠야 한다. 소비만 쉰다.
-      this.logger.warn('큐가 없어 이벤트를 소비하지 않는다');
+      this.logger.warn('No queue, so events are not consumed');
       return;
     }
     if (this.handlers.size === 0) {
       // 처리기가 하나도 없는데 워커를 띄우면 잡을 꺼내 놓고 버리게 된다.
-      this.logger.log('처리기가 없어 워커를 띄우지 않는다');
+      this.logger.log('No handlers registered, so no worker is started');
       return;
     }
 
@@ -51,7 +51,7 @@ export class EventConsumer implements OnModuleInit, OnModuleDestroy {
       concurrency: this.concurrency,
     });
     this.logger.log(
-      `이벤트 소비 시작 — ${[...this.handlers.keys()].join(', ')} (동시 ${this.concurrency})`,
+      `Consuming events: ${[...this.handlers.keys()].join(', ')} (concurrency ${this.concurrency})`,
     );
   }
 

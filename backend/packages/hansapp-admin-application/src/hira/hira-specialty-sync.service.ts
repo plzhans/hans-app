@@ -39,7 +39,7 @@ export class HiraSpecialtySyncService {
 
     if (codes.length === 0) {
       // 코드가 없으면 돌 축이 없다. 1단계의 코드 동기화가 먼저다.
-      this.logger.warn('HIRA 전문병원코드가 비어 있다. 코드 동기화(1단계 1/4)가 먼저다.');
+      this.logger.warn('HIRA specialty codes are empty. Run the code sync (stage 1, 1/4) first.');
       return { total: 0, processed: 0, calls: 0 };
     }
 
@@ -85,7 +85,7 @@ export class HiraSpecialtySyncService {
         pageNo += 1;
       }
 
-      this.logger.log(`HIRA 전문병원 ${cd}(${name ?? '?'}) ${fetched.toLocaleString()}건`);
+      this.logger.log(`HIRA specialty ${cd}(${name ?? '?'}) ${fetched.toLocaleString()} rows`);
     }
 
     await this.removeStale(startedAt);
@@ -121,7 +121,7 @@ export class HiraSpecialtySyncService {
     const removed = await this.repo.removeStale(startedAt);
 
     if (removed > 0) {
-      this.logger.log(`HIRA 전문병원 지정 해제 ${removed.toLocaleString()}건 정리`);
+      this.logger.log(`Cleared ${removed.toLocaleString()} revoked HIRA specialty designations`);
     }
     return removed;
   }

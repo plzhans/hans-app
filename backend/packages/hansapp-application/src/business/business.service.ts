@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ServiceErrorCode } from '../error';
+import { BadRequestError, UnavailableError } from '@hansapp/common';
 import { NtsError } from '@kr-go/nts';
 import type { BusinessStatus } from '@kr-go/nts';
 
@@ -52,6 +54,8 @@ const CLIENT_ERROR_CODES = new Set([
  */
 @Injectable()
 export class BusinessService {
+  private readonly logger = new Logger(BusinessService.name);
+
   constructor(private readonly nts: NtsClientFactory) {}
 
   /** 사업자번호로 상태(계속/휴업/폐업)·과세유형을 조회한다. */
@@ -86,9 +90,12 @@ export class BusinessService {
   }
 
   /**
-   * 국세청 호출을 감싸 NtsError 를 HTTP 예외로 바꾼다.
-   * - 입력 문제(TOO_LARGE_REQUEST 등) → 400
-   * - 그 외(점검·5xx·네트워크) → 503. 국세청 점검 중이면 여기로 온다.
+   * 국세청 호출을 감싸 NtsError 를 응용 계층 오류로 바꾼다.
+   * - 입력 문제(TOO_LARGE_REQUEST 등) → 요청 잘못
+   * - 그 외(점검·5xx·네트워크) → 바깥이 지금 안 되는 것. 국세청 점검 중이면 여기로 온다.
+   *
+   * **국세청 결과코드는 응답에 싣지 않는다.** 우리가 어느 공공 API 를 어떻게 부르는지는
+   * 밖에서 알 일이 아니다 — 추적에 필요하니 log 로 넘겨 서버 로그에만 남긴다.
    */
   private async call<T>(fn: () => Promise<T>): Promise<T> {
     try {
@@ -96,11 +103,13 @@ export class BusinessService {
     } catch (error) {
       if (error instanceof NtsError) {
         if (CLIENT_ERROR_CODES.has(error.errorCode)) {
-          throw new BadRequestException(`Invalid business lookup request (${error.errorCode}).`);
+          this.logger.debug(`NTS rejected the request: code=${error.errorCode} ${error.message}`);
+          throw new BadRequestError(ServiceErrorCode.BUSINESS_QUERY_INVALID, { cause: error });
         }
-        throw new ServiceUnavailableException(
-          'The NTS business registration service is temporarily unavailable.',
-        );
+        this.logger.warn(`NTS call failed: code=${error.errorCode} ${error.message}`);
+        throw new UnavailableError(ServiceErrorCode.BUSINESS_PROVIDER_UNAVAILABLE, {
+          cause: error,
+        });
       }
       throw error;
     }

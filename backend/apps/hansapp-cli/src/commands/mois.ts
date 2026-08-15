@@ -24,7 +24,7 @@ interface RegionSyncCommandOptions {
 /** --mode 값 검증. 오타를 조용히 넘기면 의도와 다른 정책으로 2만 행을 덮어쓴다. */
 function parseMode(value: string): RegionSyncMode {
   if (!(REGION_SYNC_MODES as readonly string[]).includes(value)) {
-    throw new Error(`알 수 없는 모드: ${value}\n사용 가능: ${REGION_SYNC_MODES.join(', ')}`);
+    throw new Error(`Unknown mode: ${value}\nAvailable: ${REGION_SYNC_MODES.join(', ')}`);
   }
   return value as RegionSyncMode;
 }

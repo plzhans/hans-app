@@ -144,6 +144,6 @@ async function preview(res: Response): Promise<string> {
     const body = await res.text();
     return body.slice(0, 200);
   } catch {
-    return '(본문 없음)';
+    return '(no body)';
   }
 }

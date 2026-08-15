@@ -1,4 +1,5 @@
-import { Body, Delete, Get, HttpCode, NotFoundException, Patch, Post, Req } from '@nestjs/common';
+import { Body, Delete, Get, HttpCode, Patch, Post, Req } from '@nestjs/common';
+import { AdminNotFoundError } from '@hansapp/admin-application';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiController } from '@hansapp/http-common';
 import type { Request } from 'express';
@@ -71,7 +72,7 @@ export class AdminMeController {
 
     if (!me) {
       // 토큰은 유효한데 계정이 사라졌다. 세션 정리가 못 따라온 경우다.
-      throw new NotFoundException('Admin not found.');
+      throw new AdminNotFoundError();
     }
     return me;
   }

@@ -271,7 +271,7 @@ export class HealthcareBuildService {
 
     if (unmappedClass > 0 || unmappedRegion > 0) {
       this.logger.warn(
-        `매핑 실패 — 종별 ${unmappedClass}건 · 지역 ${unmappedRegion}건. 시드를 확인하라.`,
+        `Unmapped rows: ${unmappedClass} by class, ${unmappedRegion} by region. Check the seed.`,
       );
     }
 

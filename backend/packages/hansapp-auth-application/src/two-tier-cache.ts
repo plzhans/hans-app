@@ -84,7 +84,7 @@ export class TwoTierCache<T> {
         **캐시가 흔들려도 본업을 실패로 만들지 않는다.** 여기서 던지면 "저장하지 못했습니다"
         가 뜨는데 DB 는 이미 바뀐 뒤다. 남은 캐시는 길어야 sharedTtlSec 뒤에 사라진다.
       */
-      this.logger.error(`캐시를 지우지 못했다 — ${key}`, error);
+      this.logger.error(`Failed to evict cache entry: ${key}`, error);
     }
   }
 

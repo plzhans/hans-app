@@ -16,8 +16,8 @@ import {
 /** 이름 규칙(앱·클라이언트 공통): 영어 대소문자와 하이픈(-)만. */
 const NAME_PATTERN = /^[a-zA-Z-]+$/;
 const APP_NAME_PATTERN = NAME_PATTERN;
-const APP_NAME_MESSAGE = '앱 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
-const CLIENT_NAME_MESSAGE = '클라이언트 이름은 영어와 하이픈(-)만 사용할 수 있습니다.';
+const APP_NAME_MESSAGE = 'name must contain only English letters and hyphens.';
+const CLIENT_NAME_MESSAGE = 'name must contain only English letters and hyphens.';
 
 /**
  * 앱 등록. **API 이용약관 동의가 반드시 실린다** — 없으면 서버가 거절한다.
@@ -219,7 +219,8 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-z0-9][a-z0-9-]{1,29}$/, {
-    message: 'Client ID 는 소문자·숫자·하이픈만, 2~30자, 하이픈으로 시작할 수 없습니다.',
+    message:
+      'clientId must be 2-30 characters of lowercase letters, digits, or hyphens, and cannot start with a hyphen.',
   })
   readonly clientId?: string;
 

@@ -26,6 +26,17 @@ export const API_BASE_URL = (
 export const SESSION_HINT_COOKIE =
   import.meta.env.VITE_SESSION_HINT_COOKIE_NAME ?? 'hansapp.admin_session';
 
+/**
+ * Sentry DSN. 전송 전용 공개 엔드포인트라 비밀이 아니다(번들에 박혀도 된다).
+ *
+ * **비면 Sentry 를 아예 켜지 않는다**(로컬 기본값).
+ */
+export const SENTRY_DSN = (import.meta.env.VITE_SENTRY_DSN as string | undefined) ?? '';
+
+/** 성능 트레이스 표본 비율(0=끔, 1=전부). 숫자가 아니면 0 으로 본다. */
+export const SENTRY_TRACES_SAMPLE_RATE =
+  Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE) || 0;
+
 /** 빌드 신원(버전-커밋). vite.config.ts 의 define 이 넣는다. */
 export const APP_RELEASE = __APP_RELEASE__;
 

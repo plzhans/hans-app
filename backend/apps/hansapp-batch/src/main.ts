@@ -1,8 +1,8 @@
 // ⚠️ **이 import 가 항상 첫 줄이어야 한다.** Sentry 는 계측 대상 모듈(http·prisma)이 require 되기
 // 전에 init 돼야 하고, 그러지 않으면 조용히 아무것도 계측되지 않는다.
 // reflect-metadata(NestJS DI 가 데코레이터 메타데이터를 읽는 데 필요) 도 여기서 먼저 로드한다.
-import * as Sentry from '@sentry/nestjs';
 import { flushSentry, sentryEnabled, sentryStatusLine } from './instrument';
+import { reportBootFailure } from '@hansapp/http-common';
 
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -58,15 +58,16 @@ async function bootstrap(): Promise<void> {
 
   app.get(BatchScheduler).register();
   app.enableShutdownHooks();
-  logger.log('배치 대기 중. 크론 시각에 실행된다.');
+  logger.log('Batch is idle. It runs at the cron time.');
 }
 
-bootstrap().catch((error: unknown) => {
+bootstrap().catch(async (error: unknown) => {
   console.error(describeError(error));
   // 부팅/실행이 통째로 실패한 경우다. 이건 무조건 알아야 하므로 Sentry 에 남기고,
   // 전송이 끝난 뒤에 종료한다(exit 이 먼저면 이벤트가 유실된다).
-  if (sentryEnabled) {
-    Sentry.captureException(error);
-  }
-  void flushSentry().finally(() => process.exit(1));
+  //
+  // **세 앱이 같은 헬퍼를 쓴다.** level·태그가 앱마다 갈리면 "부팅 실패" 알림 규칙에서
+  // 한 앱만 조용히 빠진다 — 그게 제일 알아채기 어려운 구멍이다.
+  await reportBootFailure(error, sentryEnabled);
+  process.exit(1);
 });

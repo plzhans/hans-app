@@ -19,6 +19,7 @@
  *   apps-*.proxy.clientIpHeader   Cloudflare 뒤가 아닌데 켜면 아무나 헤더를 지어낸다 (여기 없음)
  *   apps-*.sentry.enabled         DSN 이 붙은 프로젝트로 이벤트가 나간다 — 켠 환경만 보낸다
  *   apps-*.swagger.enabled        문서는 공개면이다. 열 이유가 있는 환경만 연다
+ *   apps-*.error.debug            서버가 깨진 응답에 내부(원문 메시지·스택)를 싣는다 — 운영은 끈다
  *
  * ── 여기 없는 것 ──────────────────────────────────────────────────────────────
  * 환경마다 달라야 해서 기본값이 있을 수 없는 값(issuer·externalUrl·rootDomain),
@@ -142,6 +143,8 @@ export const CONFIG_DEFAULTS = {
   'apps-api.sentry.enabled': false,
   // 켠 뒤의 기본은 운영 기준 10%. 트래픽이 적은 환경이 자기 yaml 에서 올린다.
   'apps-api.sentry.tracesSampleRate': 0.1,
+  // 서버가 깨진 오류 응답에 debug 객체(원문 메시지·스택)를 싣는다. 켜면 내부가 그대로 나간다.
+  'apps-api.error.debug': false,
 
   // ── hansapp-admin-api ───────────────────────────────────────────────────────
   'apps-admin-api.name': 'hansapp-admin-api',
@@ -151,6 +154,7 @@ export const CONFIG_DEFAULTS = {
   'apps-admin-api.swagger.enabled': false,
   'apps-admin-api.sentry.enabled': false,
   'apps-admin-api.sentry.tracesSampleRate': 0.1,
+  'apps-admin-api.error.debug': false,
 
   // ── hansapp-batch ───────────────────────────────────────────────────────────
   'apps-batch.name': 'hansapp-batch',

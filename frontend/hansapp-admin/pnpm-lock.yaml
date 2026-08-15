@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@hansapp/api-error':
+        specifier: link:../api-error
+        version: link:../api-error
       '@sentry/react':
         specifier: ^10.68.0
         version: 10.69.0(react@19.2.8)

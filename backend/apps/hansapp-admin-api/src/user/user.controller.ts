@@ -3,13 +3,14 @@ import {
   Delete,
   Get,
   HttpCode,
-  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
 } from '@nestjs/common';
+import { NotFoundError } from '@hansapp/common';
+import { AdminErrorCode, AdminUserNotFoundError } from '@hansapp/admin-application';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
 import {
@@ -80,7 +81,7 @@ export class UserController {
   async detail(@Param('id', ParseIntPipe) id: number): Promise<UserDetailDto> {
     const user = await this.users.findById(id);
     if (!user) {
-      throw new NotFoundException(`User not found: ${id}`);
+      throw new AdminUserNotFoundError();
     }
     return new UserDetailDto(user);
   }
@@ -121,7 +122,7 @@ export class UserController {
     // 없는 회원도 빈 목록이 나온다. 주소를 잘못 짚은 것과 구별되게 먼저 확인한다.
     const user = await this.users.findById(id);
     if (!user) {
-      throw new NotFoundException(`User not found: ${id}`);
+      throw new AdminUserNotFoundError();
     }
 
     const apps = await this.apps.listByUser(id);
@@ -141,7 +142,7 @@ export class UserController {
   async cacheState(@Param('id', ParseIntPipe) id: number): Promise<CacheStateDto> {
     const user = await this.users.findById(id);
     if (!user) {
-      throw new NotFoundException(`User not found: ${id}`);
+      throw new AdminUserNotFoundError();
     }
     return new CacheStateDto(await this.profileCache.inspect(id));
   }
@@ -157,7 +158,7 @@ export class UserController {
   async purgeCache(@Param('id', ParseIntPipe) id: number): Promise<void> {
     const user = await this.users.findById(id);
     if (!user) {
-      throw new NotFoundException(`User not found: ${id}`);
+      throw new AdminUserNotFoundError();
     }
     await this.profileCache.purge(id);
   }
@@ -172,7 +173,7 @@ export class UserController {
     // 없는 회원도 빈 목록이 나온다. 주소를 잘못 짚은 것과 구별되게 먼저 확인한다.
     const user = await this.users.findById(id);
     if (!user) {
-      throw new NotFoundException(`User not found: ${id}`);
+      throw new AdminUserNotFoundError();
     }
 
     /*
@@ -250,7 +251,7 @@ export class UserController {
   async revokeAllSessions(@Param('id', ParseIntPipe) id: number): Promise<void> {
     const user = await this.users.findById(id);
     if (!user) {
-      throw new NotFoundException(`User not found: ${id}`);
+      throw new AdminUserNotFoundError();
     }
     await this.sessionAdmin.revokeAll(id);
   }
@@ -274,7 +275,7 @@ export class UserController {
     */
     const removed = await this.sessionAdmin.revokeOne(id, sessionId);
     if (removed.length === 0) {
-      throw new NotFoundException(`Session not found: ${sessionId}`);
+      throw new NotFoundError(AdminErrorCode.ADMIN_SESSION_NOT_FOUND);
     }
   }
 
@@ -296,7 +297,7 @@ export class UserController {
     */
     const user = await this.users.findById(id);
     if (!user) {
-      throw new NotFoundException(`User not found: ${id}`);
+      throw new AdminUserNotFoundError();
     }
 
     const page = await this.logs.list({
@@ -326,7 +327,7 @@ export class UserController {
       rows.some((row) => row.sessionId === sessionId) ||
       cached.some((entry) => entry.sessionId === sessionId);
     if (!mine) {
-      throw new NotFoundException(`Session not found: ${sessionId}`);
+      throw new NotFoundError(AdminErrorCode.ADMIN_SESSION_NOT_FOUND);
     }
   }
 }

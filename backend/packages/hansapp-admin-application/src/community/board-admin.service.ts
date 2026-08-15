@@ -1,9 +1,6 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { BadRequestError } from '@hansapp/common';
+import { AdminBoardNameInUseError, AdminBoardNotFoundError, AdminErrorCode } from '../error';
 import type { BoardStatus, BoardWriteRole } from '@hansapp/common';
 import type { Board } from '@hansapp/data';
 
@@ -128,12 +125,12 @@ export class BoardAdminService {
    */
   async restore(id: number, rawName: string): Promise<BoardSummary> {
     const board = await this.boards.findDeletedById(id);
-    if (!board) throw new NotFoundException(`Deleted board not found: ${id}`);
+    if (!board) throw new AdminBoardNotFoundError();
 
     const name = normalizeName(rawName);
     const owner = await this.boards.findByName(name);
     if (owner && owner.id !== id) {
-      throw new ConflictException(`Board name already exists: ${name}`);
+      throw new AdminBoardNameInUseError();
     }
     const restored = await this.boards.restore(id, name);
     await this.cache.invalidateBoard(name);
@@ -143,7 +140,7 @@ export class BoardAdminService {
   async create(input: BoardCreateInput): Promise<BoardSummary> {
     const name = normalizeName(input.name);
     if (await this.boards.findByName(name)) {
-      throw new ConflictException(`Board name already exists: ${name}`);
+      throw new AdminBoardNameInUseError();
     }
     const board = await this.boards.create({
       name,
@@ -171,7 +168,7 @@ export class BoardAdminService {
       name = normalizeName(input.name);
       const owner = await this.boards.findByName(name);
       if (owner && owner.id !== id) {
-        throw new ConflictException(`Board name already exists: ${name}`);
+        throw new AdminBoardNameInUseError();
       }
     }
 
@@ -229,7 +226,7 @@ export class BoardAdminService {
 
   private async mustFind(id: number): Promise<Board> {
     const board = await this.boards.findById(id);
-    if (!board) throw new NotFoundException(`Board not found: ${id}`);
+    if (!board) throw new AdminBoardNotFoundError();
     return board;
   }
 }
@@ -254,9 +251,7 @@ function switches(input: {
 function normalizeName(raw: string): string {
   const name = raw.trim().toLowerCase();
   if (!NAME_PATTERN.test(name)) {
-    throw new BadRequestException(
-      'Board name must be 2-50 characters of lowercase letters, digits, or hyphens.',
-    );
+    throw new BadRequestError(AdminErrorCode.ADMIN_BOARD_NAME_INVALID);
   }
   return name;
 }

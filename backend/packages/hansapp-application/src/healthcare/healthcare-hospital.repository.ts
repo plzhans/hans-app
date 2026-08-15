@@ -6,6 +6,7 @@ import {
   type HiraHospitalAsm,
 } from '@hansapp/data';
 import { INPATIENT_TIERS } from '@hansapp/data/seed';
+import { InternalError } from '@hansapp/common';
 import type { SupportedLang } from '@hansapp/common';
 
 import type { HospitalBbox, HospitalCoords } from './dto/hospital.result';
@@ -78,13 +79,21 @@ export type HospitalSearchOrder = { by: 'default' } | { by: 'distance'; origin: 
  * 둘 다 틀린 답을 맞는 척 주는 것이라, 실패하는 편이 낫다.
  */
 function assertNoGeoQuery(filter: HospitalSearchFilter, order: HospitalSearchOrder): void {
+  /*
+    **여기 걸리면 우리 잘못이다.** 서비스가 이미 같은 조합을 400 으로 돌려보내므로, 이 줄까지
+    온 것은 그 검사를 지나쳐 부르는 경로가 생겼다는 뜻이다 — 요청자가 고칠 것은 없다.
+  */
   if (order.by === 'distance') {
-    throw new Error('Distance sorting is not supported by the database source. Use Elasticsearch.');
+    throw new InternalError({
+      message: 'Distance sorting is not supported by the database source. Use Elasticsearch.',
+    });
   }
   if (filter.bbox) {
-    throw new Error(
-      'Map bounds (bbox) filtering is not supported by the database source. Use Elasticsearch.',
-    );
+    throw new InternalError({
+      message:
+        'Map bounds (bbox) filtering is not supported by the database source. Use Elasticsearch. ' +
+        `bbox=${JSON.stringify(filter.bbox)}`,
+    });
   }
 }
 

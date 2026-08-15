@@ -115,7 +115,7 @@ export class SyncStateService {
     const ageMs = Date.now() - startedAt;
     if (ageMs > STALE_LOCK_HOURS * 60 * 60 * 1000) {
       this.logger.warn(
-        `${jobKey(job)} 가 ${Math.round(ageMs / 3_600_000)}시간째 running 이다. 죽은 잠금으로 보고 다시 실행한다.`,
+        `${jobKey(job)} has been running for ${Math.round(ageMs / 3_600_000)}h. Treating it as a stale lock and running again.`,
       );
       return false;
     }
@@ -157,7 +157,7 @@ export class SyncStateService {
    */
   async fail(job: SyncJob, error: unknown, elapsedMs: number): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
-    this.logger.error(`${jobKey(job)} 실패: ${message}`);
+    this.logger.error(`${jobKey(job)} failed: ${message}`);
 
     await this.repo.update(jobKey(job), {
       status: 'failed',

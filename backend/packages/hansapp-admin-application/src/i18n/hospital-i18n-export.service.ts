@@ -1,4 +1,6 @@
 import { createReadStream, createWriteStream, existsSync } from 'node:fs';
+import { AdminErrorCode } from '../error';
+import { ConflictError } from '@hansapp/common';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -109,7 +111,7 @@ export class HospitalI18nExportService {
 
     result.elapsedMs = Date.now() - started;
     // 출력은 CLI 가 소유한다. 여기서 또 찍으면 같은 경로가 두 번 나온다.
-    this.logger.debug(`${options.lang}: ${result.lines}줄 → ${file}`);
+    this.logger.debug(`${options.lang}: ${result.lines} lines → ${file}`);
     return result;
   }
 
@@ -173,15 +175,15 @@ export class HospitalI18nExportService {
       return;
     }
 
-    throw new Error(
-      [
-        `${file} 에 이미 번역이 채워져 있다 (${filled.toLocaleString()}번째 줄).`,
-        '덮어쓰면 그 번역이 사라진다. 되돌릴 수 없다.',
+    throw new ConflictError(AdminErrorCode.ADMIN_EXPORT_WOULD_OVERWRITE, {
+      message: [
+        `${file} already has translations filled in (line ${filled.toLocaleString()}).`,
+        'Overwriting would lose them, and that cannot be undone.',
         '',
-        '  적재했다면  : 먼저 적재하고 다시 뽑아라 (적재된 건 다음 export 에서 빠진다)',
-        '  버릴 거라면 : --force',
+        '  Already imported : import first, then export again (imported rows drop out next time)',
+        '  Discarding it    : --force',
       ].join('\n'),
-    );
+    });
   }
 
   /** 번역이 하나라도 채워진 첫 줄 번호(1-base). 없으면 null. 찾는 즉시 멈춘다. */

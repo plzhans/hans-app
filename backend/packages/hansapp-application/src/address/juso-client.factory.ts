@@ -1,5 +1,7 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ServiceErrorCode } from '../error';
 import { JusoClient } from '@kr-go/juso';
+import { UnavailableError } from '@hansapp/common';
 
 import { SettingCache } from '../setting/setting-cache.service';
 
@@ -16,12 +18,15 @@ export class JusoClientFactory {
 
   /**
    * @param confmKey 주면 그 키로, 안 주면 서버 키(DB)로 만든다.
-   * @throws ServiceUnavailableException 키가 없을 때. 부팅은 막지 않는다.
+   * @throws UnavailableError 키가 없을 때. 부팅은 막지 않는다. 서버 잘못으로 올리므로
+   *   "키가 없다" 는 말은 로그·Sentry 로만 가고 응답에는 실리지 않는다.
    */
   async create(confmKey?: string): Promise<JusoClient> {
     const key = confmKey ?? (await this.settings.getString(JUSO_KEY));
     if (!key) {
-      throw new ServiceUnavailableException('The road name address service key is not configured.');
+      throw new UnavailableError(ServiceErrorCode.ADDRESS_PROVIDER_UNAVAILABLE, {
+        message: `The road name address service key is not configured (${JUSO_KEY}).`,
+      });
     }
     return new JusoClient({ confmKey: key });
   }

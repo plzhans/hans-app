@@ -60,10 +60,10 @@ export class CachePurgeService {
       }
     } catch (error) {
       // 훑다 끊겨도 지운 만큼은 반영됐다. 다시 누르면 나머지를 잡는다.
-      this.logger.error(`캐시 정리 중 오류 — ${match}`, error);
+      this.logger.error(`Cache purge failed: ${match}`, error);
     }
 
-    if (remove) this.logger.warn(`캐시 정리 — ${match} ${removed}건`);
+    if (remove) this.logger.warn(`Cache purged: ${match} (${removed} entries)`);
     return { removed, connected: true };
   }
 

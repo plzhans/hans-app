@@ -33,7 +33,7 @@ export class SessionCacheSweeper {
     const cached = await this.cache.scanAll();
     if (cached.length === 0) {
       // 캐시가 비었거나 Redis 를 안 쓰는 환경(로컬 폴백)이다. 후자는 고아가 생기지 않는다.
-      this.logger.log('세션 캐시 정리 — 훑을 항목 없음');
+      this.logger.log('Session cache sweep: nothing to scan');
       return;
     }
 
@@ -44,11 +44,11 @@ export class SessionCacheSweeper {
         removed += await this.sweepChunk(chunk);
       } catch (error) {
         // 한 묶음이 실패해도 나머지는 계속 본다. 놓친 것은 다음 회차가 잡는다.
-        this.logger.error('세션 캐시 정리 중 오류', error);
+        this.logger.error('Session cache sweep failed', error);
       }
     }
 
-    this.logger.log(`세션 캐시 정리 — ${cached.length}건 확인 / ${removed}건 삭제`);
+    this.logger.log(`Session cache sweep: ${cached.length} checked / ${removed} removed`);
   }
 
   /**

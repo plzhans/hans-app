@@ -1,4 +1,5 @@
-import { loadBuildInfo, type BuildInfo } from '@hansapp/common';
+import { loadBuildInfo } from '@hansapp/common';
+import type { BuildInfo } from '@hansapp/common';
 
 export type { BuildInfo };
 

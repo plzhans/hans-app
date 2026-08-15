@@ -55,7 +55,7 @@ export class AuthLogService {
       }
       await this.prisma.userAuthLog.create({ data });
     } catch (error) {
-      this.logger.warn(`인증 이벤트 로그 적재 실패(action=${input.action}): ${String(error)}`);
+      this.logger.warn(`Failed to store auth event log (action=${input.action}): ${String(error)}`);
     }
   }
 }

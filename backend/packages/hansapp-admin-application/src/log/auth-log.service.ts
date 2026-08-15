@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { Page } from '@hansapp/common';
+import { Injectable } from '@nestjs/common';
+import { BadRequestError, Page } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 import type { AuthLogAction, AuthLogResult } from '@hansapp/data';
 
 import { UserReadRepository } from '../user/user-read.repository';
@@ -56,7 +57,9 @@ export class AuthLogService {
       더 잘 답하므로, 여기서 기간을 빼 주는 예외를 만들 이유도 없다.
     */
     if (!query.from) {
-      throw new BadRequestException('A start time (from) is required.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_LOG_RANGE_REQUIRED, {
+        message: 'A start time (from) is required.',
+      });
     }
 
     /*

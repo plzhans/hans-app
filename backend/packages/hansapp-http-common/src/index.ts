@@ -6,6 +6,8 @@
  * 그래서 앱(apps/*)이 아니라 패키지에 둔다.
  */
 export { HttpErrorFilter } from './http-error.filter';
+// 부팅에서 죽었을 때 Sentry 로 알린다. 전역 필터가 서기 전이라 필터가 못 잡는 자리다.
+export { reportBootFailure } from './boot-failure';
 export { requestIdMiddleware, REQUEST_ID_HEADER } from './request-id.middleware';
 export type { RequestWithId } from './request-id.middleware';
 export { resolveClientIp } from './client-ip';

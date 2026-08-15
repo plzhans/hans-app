@@ -1,5 +1,6 @@
 import { Get, HttpCode, Param, Post } from '@nestjs/common';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestError } from '@hansapp/common';
+import { AdminErrorCode } from '@hansapp/admin-application';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { ApiController } from '@hansapp/http-common';
 import {
@@ -225,7 +226,7 @@ export class MaintenanceController {
 function resolveTarget(target: string): string {
   const match = CACHE_TARGETS[target as CacheTarget];
   if (!match) {
-    throw new BadRequestException(`Unknown cache target: ${target}`);
+    throw new BadRequestError(AdminErrorCode.ADMIN_CACHE_TARGET_UNKNOWN);
   }
   return match;
 }

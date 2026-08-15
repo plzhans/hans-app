@@ -77,7 +77,7 @@ export class RegionCache implements OnApplicationBootstrap {
     this.byCode = byCode;
     this.all = all;
     this.childrenByParent = childrenByParent;
-    this.logger.log(`region_code ${rows.length}건 메모리 로드`);
+    this.logger.log(`Loaded ${rows.length} region_code rows into memory`);
   }
 
   /** cd 한 건. 없으면 undefined. */

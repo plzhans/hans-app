@@ -1,9 +1,11 @@
-import { Get, NotFoundException, Query } from '@nestjs/common';
+import { Get, Query } from '@nestjs/common';
+import { ServiceErrorCode } from '@hansapp/application';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiController } from '@hansapp/http-common';
 import { RegionService } from '@hansapp/application';
 
 import { Lang } from '../common/lang.decorator';
+import { NotFoundError } from '@hansapp/common';
 import type { SupportedLang } from '@hansapp/common';
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
@@ -81,7 +83,7 @@ export class RegionController {
   ): Promise<RegionPointDto> {
     const point = await this.service.reverse(query.lat, query.lon, lang);
     if (!point) {
-      throw new NotFoundException('No region found for the given coordinates');
+      throw new NotFoundError(ServiceErrorCode.REGION_NOT_FOUND);
     }
     return point;
   }

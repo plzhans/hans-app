@@ -35,7 +35,7 @@ export class AdminMailSettingsSource implements EmailSettingsSource {
       if (!this.warned) {
         this.warned = true;
         this.logger.warn(
-          'mail.forceDisabled=true — DB 설정과 무관하게 발송을 막는다. 본문은 콘솔로 나간다.',
+          'mail.forceDisabled=true — sending is blocked regardless of the database setting. Bodies go to the console.',
         );
       }
       return { enabled: false, from: DEFAULT_FROM, smtp: null };

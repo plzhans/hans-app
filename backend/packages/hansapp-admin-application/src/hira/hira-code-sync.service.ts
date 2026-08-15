@@ -76,7 +76,7 @@ export class HiraCodeSyncService {
       fetched += items.length;
 
       this.logger.log(
-        `HIRA 코드[${tp}] page=${pageNo} rows=${items.length} 누적=${fetched}/${totalCount}`,
+        `HIRA codes[${tp}] page=${pageNo} rows=${items.length} total=${fetched}/${totalCount}`,
       );
 
       if (fetched >= totalCount) {
@@ -119,7 +119,7 @@ export class HiraCodeSyncService {
 
     const skipped = items.length - rows.length;
     if (skipped > 0) {
-      this.logger.warn(`[${tp}] 코드값이 없어 건너뛴 항목 ${skipped}건`);
+      this.logger.warn(`[${tp}] skipped ${skipped} items with no code value`);
     }
 
     return this.repo.upsertCodes(rows);

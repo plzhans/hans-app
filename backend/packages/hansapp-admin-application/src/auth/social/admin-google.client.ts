@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { NotFoundError } from '@hansapp/common';
+import { AdminErrorCode, AdminGoogleSignInFailedError } from '../../error';
 
 import { SettingCache } from '../../setting/setting-cache.service';
 
@@ -91,12 +93,12 @@ export class AdminGoogleClient {
         **응답 본문을 그대로 내보내지 않는다.** 여기에는 client_id 가 섞여 오고, 사람에게
         보여 줄 만한 문장도 아니다. 사유는 로그에서 본다.
       */
-      throw new UnauthorizedException('Google sign-in failed.');
+      throw new AdminGoogleSignInFailedError();
     }
 
     const token = (await response.json()) as { id_token?: string };
     if (!token.id_token) {
-      throw new UnauthorizedException('Google sign-in failed.');
+      throw new AdminGoogleSignInFailedError();
     }
     return decodeIdToken(token.id_token);
   }
@@ -115,7 +117,9 @@ export class AdminGoogleClient {
   private async requireCredentials(): Promise<{ clientId: string; clientSecret: string }> {
     const credentials = await this.readCredentials();
     if (!credentials.clientId || !credentials.clientSecret) {
-      throw new NotFoundException('Google sign-in is not configured.');
+      throw new NotFoundError(AdminErrorCode.ADMIN_GOOGLE_NOT_CONFIGURED, {
+        message: 'Google sign-in is not configured.',
+      });
     }
     return credentials;
   }
@@ -131,7 +135,7 @@ export class AdminGoogleClient {
 function decodeIdToken(idToken: string): AdminGoogleProfile {
   const payload = idToken.split('.')[1];
   if (!payload) {
-    throw new UnauthorizedException('Google sign-in failed.');
+    throw new AdminGoogleSignInFailedError();
   }
 
   let claims: Record<string, unknown>;
@@ -141,12 +145,12 @@ function decodeIdToken(idToken: string): AdminGoogleProfile {
       unknown
     >;
   } catch {
-    throw new UnauthorizedException('Google sign-in failed.');
+    throw new AdminGoogleSignInFailedError();
   }
 
   const providerId = typeof claims.sub === 'string' ? claims.sub : '';
   if (!providerId) {
-    throw new UnauthorizedException('Google sign-in failed.');
+    throw new AdminGoogleSignInFailedError();
   }
 
   return {

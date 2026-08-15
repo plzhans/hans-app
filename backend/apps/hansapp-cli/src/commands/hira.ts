@@ -181,7 +181,7 @@ function codeColumns(tp: HiraCodeType): string[] {
 /** --tp 값 검증. commander 는 열거형을 모르니 여기서 막는다. */
 function parseCodeType(value: string): HiraCodeType {
   if (!isHiraCodeType(value)) {
-    throw new Error(`알 수 없는 코드 종류: ${value}\n사용 가능: ${HIRA_CODE_TYPES.join(', ')}`);
+    throw new Error(`Unknown code type: ${value}\nAvailable: ${HIRA_CODE_TYPES.join(', ')}`);
   }
   return value;
 }

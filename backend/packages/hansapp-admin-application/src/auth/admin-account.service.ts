@@ -1,10 +1,16 @@
+import { Injectable } from '@nestjs/common';
 import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { normalizeLanguageChoice, normalizeTimeZoneChoice } from '@hansapp/common';
+  BadRequestError,
+  ConflictError,
+  normalizeLanguageChoice,
+  normalizeTimeZoneChoice,
+} from '@hansapp/common';
+import {
+  AdminErrorCode,
+  AdminLocaleUnsupportedError,
+  AdminNotFoundError,
+  AdminTimeZoneUnknownError,
+} from '../error';
 import { AdminRole } from '@hansapp/data';
 import type { AdminStatus, AdminUser, OAuthProvider } from '@hansapp/data';
 
@@ -259,9 +265,7 @@ export class AdminAccountService {
         admin.role === AdminRole.SYSTEM &&
         (await this.admins.countByRole(AdminRole.SYSTEM)) <= 1
       ) {
-        throw new BadRequestException(
-          'Cannot demote the last system admin — no one could restore that role afterwards.',
-        );
+        throw new BadRequestError(AdminErrorCode.ADMIN_LAST_SYSTEM_ADMIN);
       }
       data.role = input.role;
     }
@@ -269,7 +273,7 @@ export class AdminAccountService {
     if (input.email !== undefined) {
       const email = normalizeEmail(input.email);
       if (!isEmailLike(email)) {
-        throw new BadRequestException(`Not a valid email address: ${email}`);
+        throw new BadRequestError(AdminErrorCode.ADMIN_EMAIL_INVALID);
       }
       /*
         **대소문자만 다른 값이면 바뀐 것이 아니다.** 정규화한 뒤에 비교해야 자기 자신을
@@ -278,7 +282,9 @@ export class AdminAccountService {
       if (email !== admin.email) {
         const owner = await this.admins.findByEmail(email);
         if (owner) {
-          throw new ConflictException('Email already registered.');
+          throw new ConflictError(AdminErrorCode.ADMIN_EMAIL_ALREADY_REGISTERED, {
+            message: 'Email already registered.',
+          });
         }
         data.email = email;
       }
@@ -296,7 +302,7 @@ export class AdminAccountService {
     if (input.language !== undefined && input.language !== admin.language) {
       const language = normalizeLanguageChoice(input.language);
       if (!language) {
-        throw new BadRequestException('Unsupported language.');
+        throw new AdminLocaleUnsupportedError();
       }
       data.language = language;
     }
@@ -304,7 +310,7 @@ export class AdminAccountService {
     if (input.timeZone !== undefined && input.timeZone !== admin.timeZone) {
       const timeZone = normalizeTimeZoneChoice(input.timeZone);
       if (!timeZone) {
-        throw new BadRequestException('Unknown time zone.');
+        throw new AdminTimeZoneUnknownError();
       }
       data.timeZone = timeZone;
     }
@@ -361,7 +367,9 @@ export class AdminAccountService {
 
     const admin = await this.require(id);
     if (id === actor.adminId) {
-      throw new BadRequestException('Use the password change flow for your own account.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_SELF_PASSWORD_FLOW, {
+        message: 'Use the password change flow for your own account.',
+      });
     }
     /*
       **초기화도 등급을 본다.** 이걸 빼면 상급 계정의 비밀번호를 다시 내고 그 값으로
@@ -456,20 +464,18 @@ export class AdminAccountService {
   async remove(id: number, actor: AdminActor): Promise<void> {
     const admin = await this.require(id);
     if (id === actor.adminId) {
-      throw new BadRequestException('You cannot delete your own account.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_SELF_DELETE, {
+        message: 'You cannot delete your own account.',
+      });
     }
     // 지우는 것은 고치는 것보다 무거운 조작이다. 등급 규칙이 여기서 느슨할 이유가 없다.
     assertCanManageAdmin(await this.roleOf(actor), admin.role, 'delete');
     if ((await this.admins.count()) <= 1) {
-      throw new BadRequestException(
-        'Cannot remove the last admin account — no one could sign in afterwards.',
-      );
+      throw new BadRequestError(AdminErrorCode.ADMIN_LAST_ACCOUNT);
     }
     // 마지막 시스템 관리자가 사라지면 그 등급을 되돌릴 사람이 없다(등급 강등과 같은 이유).
     if (admin.role === AdminRole.SYSTEM && (await this.admins.countByRole(AdminRole.SYSTEM)) <= 1) {
-      throw new BadRequestException(
-        'Cannot remove the last system admin — no one could restore that role afterwards.',
-      );
+      throw new BadRequestError(AdminErrorCode.ADMIN_LAST_SYSTEM_ADMIN);
     }
     /*
       **세션을 먼저 끊는다.** 행이 남는 삭제라 FK Cascade 가 돌지 않고, 캐시는 더더욱
@@ -509,7 +515,7 @@ export class AdminAccountService {
   async require(id: number): Promise<AdminUser> {
     const admin = await this.admins.findById(id);
     if (!admin) {
-      throw new NotFoundException(`Admin not found: ${id}`);
+      throw new AdminNotFoundError();
     }
     return admin;
   }
@@ -518,7 +524,7 @@ export class AdminAccountService {
   private async requireAny(id: number): Promise<AdminUser> {
     const admin = await this.admins.findByIdWithDeleted(id);
     if (!admin) {
-      throw new NotFoundException(`Admin not found: ${id}`);
+      throw new AdminNotFoundError();
     }
     return admin;
   }
@@ -534,7 +540,7 @@ export class AdminAccountService {
     const me = await this.admins.findById(actor.adminId);
     if (!me) {
       // 토큰은 유효한데 계정이 사라졌다. 방금 지워진 관리자의 토큰이 살아 있는 경우다.
-      throw new NotFoundException('Admin not found.');
+      throw new AdminNotFoundError();
     }
     return me.role;
   }

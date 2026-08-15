@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2023",
+    // **DOM 을 빼려고 적는다.** 안 적으면 target 기본값에 lib.dom 이 딸려 와 서버 코드에
+    // 브라우저 전역(open·name·close·status …)이 전부 열린다. 실제로 secret-box 의 open 을
+    // import 에서 빠뜨렸을 때 window.open 에 조용히 붙어 엉뚱한 타입 오류로만 새어 나왔다.
+    "lib": ["ES2023"],
     "module": "nodenext",
     "declaration": true,
     "outDir": "dist",

@@ -33,11 +33,19 @@ if (dsn) {
 }
 
 /**
+ * Sentry 가 **실제로 켜졌는지.** enabled 플래그가 아니라 `init` 이 돌았는지(=DSN 이 있는지)다 —
+ * 켠다고 해 두고 DSN 이 비어 있으면 아무것도 안 나가므로, 그 구분을 부르는 쪽이 알아야 한다.
+ *
+ * 부팅 실패 보고(reportBootFailure)가 이 값으로 "기다릴지 말지" 를 정한다.
+ */
+export const sentryEnabled = Boolean(dsn);
+
+/**
  * 부팅 로그 한 줄. main.ts 가 설정 요약과 같이 찍는다 —
  * "Sentry 가 켜졌는지" 를 로그만 보고 알 수 있어야 한다(조용히 꺼져 있는 게 최악이다).
  */
 export const sentryStatusLine = dsn
   ? `🛰  Sentry : ${appConfig.env} / ${buildInfo.tagVersion} (traces ${tracesSampleRate})`
   : enabled
-    ? '🛰  Sentry : 비활성 — apps-admin-api.sentry.dsn 없음'
-    : '🛰  Sentry : 비활성 — SENTRY_ENABLED=false';
+    ? '🛰  Sentry : disabled — apps-admin-api.sentry.dsn is not set'
+    : '🛰  Sentry : disabled — SENTRY_ENABLED=false';

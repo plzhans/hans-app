@@ -1,10 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import {
-  buildSettingKeyring,
-  SETTING_KEYRING,
-  type ConfigSource,
-  type SecretBoxKeys,
-} from '@hansapp/common';
+import type { ConfigSource, SecretBoxKeys } from '@hansapp/common';
+import { SETTING_KEYRING, buildSettingKeyring } from '@hansapp/common';
+
 import { DataModule, SettingReadRepository } from '@hansapp/data';
 
 import { ADMIN_AUTH_CONFIG, buildAdminAuthConfig } from './admin-auth.config';

@@ -103,7 +103,9 @@ export class HiraAsmCodeCache implements OnApplicationBootstrap {
 
     this.byCode = byCode;
     this.groups = groups;
-    this.logger.log(`hira_code(asm) ${rows.length}건 / 그룹 ${groups.length}개 메모리 로드`);
+    this.logger.log(
+      `Loaded ${rows.length} hira_code(asm) rows in ${groups.length} groups into memory`,
+    );
   }
 
   /** 항목 하나. 모르는 코드면 undefined. */

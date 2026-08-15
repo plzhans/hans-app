@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { BadRequestError, NotFoundError } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 import { EnvLlmModelReadRepository, type EnvLlmModel } from '@hansapp/data';
 
 import { EnvLlmKeyAdminService } from './env-llm-key-admin.service';
@@ -53,14 +55,18 @@ export class EnvLlmModelAdminService {
   async create(input: EnvLlmModelInput, adminId: number | null): Promise<EnvLlmModelView> {
     const keyId = input.keyId;
     if (keyId === undefined) {
-      throw new BadRequestException('keyId is required.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_MODEL_INVALID, {
+        message: 'keyId is required.',
+      });
     }
     // 없는 키에 매달리지 않게 먼저 확인한다(FK 위반을 500 으로 흘리지 않는다).
     await this.keys.get(keyId);
 
     const name = (input.name ?? '').trim();
     if (!name) {
-      throw new BadRequestException('name is required.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_MODEL_INVALID, {
+        message: 'name is required.',
+      });
     }
 
     const siblings = await this.write.findByKey(keyId);
@@ -92,9 +98,7 @@ export class EnvLlmModelAdminService {
   ): Promise<EnvLlmModelView> {
     const current = await this.require(id);
     if (input.enabled === false && current.isDefault) {
-      throw new BadRequestException(
-        'Cannot disable the default model — set another model as default first.',
-      );
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_MODEL_DEFAULT_LOCKED);
     }
     return toView(
       await this.guard(() =>
@@ -116,9 +120,7 @@ export class EnvLlmModelAdminService {
     if (row.isDefault) {
       const siblings = await this.write.findByKey(row.keyId);
       if (siblings.length > 1) {
-        throw new BadRequestException(
-          'Cannot delete the default model — set another model as default first.',
-        );
+        throw new BadRequestError(AdminErrorCode.ADMIN_LLM_MODEL_DEFAULT_LOCKED);
       }
     }
     await this.write.delete(id);
@@ -136,7 +138,9 @@ export class EnvLlmModelAdminService {
     const siblings = await this.write.findByKey(keyId);
     const known = new Set(siblings.map((m) => m.id));
     if (ids.length !== known.size || ids.some((id) => !known.has(id))) {
-      throw new BadRequestException('ids must list every model of this key exactly once.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_MODEL_INVALID, {
+        message: 'ids must list every model of this key exactly once.',
+      });
     }
     await this.write.reorder(ids, adminId);
     const rows = await this.write.findByKey(keyId);
@@ -151,7 +155,7 @@ export class EnvLlmModelAdminService {
 
   private async require(id: number): Promise<EnvLlmModel> {
     const row = await this.write.findOne(id);
-    if (!row) throw new NotFoundException(`LLM model ${id} not found.`);
+    if (!row) throw new NotFoundError(AdminErrorCode.ADMIN_LLM_MODEL_NOT_FOUND);
     return row;
   }
 
@@ -165,7 +169,9 @@ export class EnvLlmModelAdminService {
         error !== null &&
         (error as { code?: string }).code === 'P2002'
       ) {
-        throw new BadRequestException('That model is already registered for this key.');
+        throw new BadRequestError(AdminErrorCode.ADMIN_LLM_MODEL_INVALID, {
+          message: 'That model is already registered for this key.',
+        });
       }
       throw error;
     }

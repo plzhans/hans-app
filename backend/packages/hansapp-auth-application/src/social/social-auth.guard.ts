@@ -1,13 +1,8 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import {
-  BadRequestException,
-  CanActivate,
-  ExecutionContext,
-  Inject,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { AuthErrorCode, InvalidRedirectUriError, SocialFlowInvalidError } from '../error';
+import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common';
 import passport from 'passport';
+import { BadRequestError, UnauthorizedError } from '@hansapp/common';
 import { AppStatus } from '@hansapp/data';
 import type { Request, Response } from 'express';
 
@@ -49,7 +44,7 @@ function isCallbackRequest(req: Request): boolean {
 
 /**
  * passport 가 넘기는 오류를 Error 로 맞춘다. **원본을 감싸지 않고 그대로 통과시킨다** —
- * HttpException 도 여기로 오는데 감싸면 상태코드를 잃는다.
+ * AppError·HttpException 도 여기로 오는데 감싸면 계열과 오류 코드를 잃는다.
  */
 function toError(raw: unknown): Error {
   return raw instanceof Error ? raw : new Error(String(raw));
@@ -70,7 +65,7 @@ export class SocialAuthGuard implements CanActivate {
     const providerParam = Array.isArray(rawParam) ? rawParam[0] : rawParam;
     const provider = toOAuthProvider(providerParam ?? '');
     if (!provider) {
-      throw new BadRequestException('Unsupported social provider.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_PROVIDER_UNSUPPORTED);
     }
     const key = toStrategyName(provider) as SocialKey;
 
@@ -129,7 +124,11 @@ export class SocialAuthGuard implements CanActivate {
         (err: unknown, user: unknown) => {
           if (err) return reject(toError(err));
           if (!user) {
-            return reject(new UnauthorizedException('Social sign-in failed.'));
+            return reject(
+              new UnauthorizedError(AuthErrorCode.SOCIAL_PROFILE_UNAVAILABLE, {
+                message: 'Social sign-in failed.',
+              }),
+            );
           }
           (req as Request & { user?: unknown }).user = user;
           resolve(true);
@@ -177,14 +176,16 @@ export class SocialAuthGuard implements CanActivate {
     // 자사는 코드를 만들지 않고 콜백에서 쿠키를 심는다 — 훔칠 코드가 없으니 PKCE 가 막을
     // 대상도 없다. 대신 흐름을 브라우저에 묶는 일(로그인 CSRF 방어)은 state nonce 가 맡는다.
     if (clientId && !codeChallenge) {
-      throw new BadRequestException('code_challenge is required (PKCE, S256).');
+      throw new BadRequestError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+        message: 'code_challenge is required (PKCE, S256).',
+      });
     }
     // 클라이언트의 state 는 우리가 해석하지 않는다. 최종 리다이렉트에 그대로 돌려주기 위해
     // 왕복시킬 뿐이다. 크기를 남이 정하므로 상한을 둔다 — 안 두면 우리 state·URL 이 같이 부푼다.
     const clientState =
       typeof req.query.client_state === 'string' ? req.query.client_state : undefined;
     if (clientState && clientState.length > 512) {
-      throw new BadRequestException('client_state is too long (max 512).');
+      throw new BadRequestError({ message: 'client_state is too long (max 512).' });
     }
     // **"로그인 상태 유지" 는 여기서만 받을 수 있다.** provider 로 떠나면 원래 요청이 끊기고,
     // 돌아오는 콜백에는 우리 쿼리가 하나도 남지 않는다 — 지금 state 에 실어야 콜백까지 간다.
@@ -224,11 +225,13 @@ export class SocialAuthGuard implements CanActivate {
     if (clientId) {
       const client = await this.access.getClient(clientId);
       if (!client || client.status !== AppStatus.ACTIVE) {
-        throw new BadRequestException('Unknown client.');
+        throw new BadRequestError(AuthErrorCode.OAUTH_INVALID_CLIENT);
       }
       const allowed = (client.redirectUris as string[] | null) ?? [];
       if (!allowed.includes(raw)) {
-        throw new BadRequestException('redirect_uri is not a registered redirect URI.');
+        throw new InvalidRedirectUriError({
+          message: 'redirect_uri is not a registered redirect URI.',
+        });
       }
       return { returnTo: raw, clientId: client.clientId };
     }
@@ -236,7 +239,7 @@ export class SocialAuthGuard implements CanActivate {
     // 1st-party(client_id 없음): redirect_uri 가 서비스 루트 도메인(APP_ROOT_DOMAIN) 범위여야 한다
     // = SSO 쿠키 공유 범위와 일치. 그 밖으로는 코드/세션을 실어 리다이렉트하지 않는다(오픈 리다이렉트 방지).
     if (!isFirstPartyOrigin(raw, this.config.rootDomain)) {
-      throw new BadRequestException('redirect_uri not allowed.');
+      throw new InvalidRedirectUriError();
     }
     return { returnTo: raw };
   }
@@ -281,13 +284,13 @@ export class SocialAuthGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
     const raw = typeof req.query.state === 'string' ? req.query.state : '';
     if (!raw) {
-      throw new BadRequestException('Missing state.');
+      throw new SocialFlowInvalidError({ message: 'Missing state.' });
     }
     // 서명·유효기간이 먼저다. 위조된 state 의 flow_id 로 쿠키를 뒤질 이유가 없다.
     const { flowId, nonce } = this.tickets.verifyState(raw);
     if (!flowId || !nonce) {
       // 이 배포 이전에 시작된 흐름. 새로 로그인하면 정상 값이 담긴다.
-      throw new BadRequestException('Stale sign-in flow. Please try again.');
+      throw new SocialFlowInvalidError();
     }
     const name = `${FLOW_COOKIE_PREFIX}${flowId}`;
     const cookies = (req.cookies ?? {}) as Record<string, string | undefined>;
@@ -297,7 +300,9 @@ export class SocialAuthGuard implements CanActivate {
     const a = Buffer.from(seen ?? '');
     const b = Buffer.from(nonce);
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      throw new BadRequestException('Sign-in flow does not belong to this browser.');
+      throw new SocialFlowInvalidError({
+        message: 'Sign-in flow does not belong to this browser.',
+      });
     }
   }
 }

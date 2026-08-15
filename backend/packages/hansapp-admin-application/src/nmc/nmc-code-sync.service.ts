@@ -46,7 +46,9 @@ export class NmcCodeSyncService {
       upserted += await this.upsert(items);
       fetched += items.length;
 
-      this.logger.log(`NMC 코드 page=${pageNo} rows=${items.length} 누적=${fetched}/${totalCount}`);
+      this.logger.log(
+        `NMC codes page=${pageNo} rows=${items.length} total=${fetched}/${totalCount}`,
+      );
 
       if (fetched >= totalCount) {
         break;
@@ -87,7 +89,7 @@ export class NmcCodeSyncService {
 
     const skipped = items.length - rows.length;
     if (skipped > 0) {
-      this.logger.warn(`cmMid/cmSid 가 없어 건너뛴 항목 ${skipped}건`);
+      this.logger.warn(`Skipped ${skipped} items with no cmMid/cmSid`);
     }
 
     return this.repo.upsertCodes(rows);

@@ -24,23 +24,23 @@ export function normalizeRootDomain(raw: string | undefined): string | undefined
   const reason = invalidRootDomainReason(value);
   if (reason) {
     console.warn(
-      `[config] auth.rootDomain='${value}' 는 ${reason} 쿠키 Domain 으로 쓸 수 없어 무시합니다(빈값 처리). ` +
-        `루트 도메인은 점(.)을 포함한 도메인명이어야 합니다(예: plzhans.com). ` +
-        `로컬(127.0.0.1/localhost)이면 설정을 비우세요 — host-only 쿠키 + 루프백 폴백으로 동작합니다.`,
+      `[config] auth.rootDomain='${value}' is ${reason}, so it cannot be a cookie Domain — ignoring it. ` +
+        `The root domain must be a domain name containing a dot (for example plzhans.com). ` +
+        `On localhost (127.0.0.1/localhost) leave it empty — host-only cookies with a loopback fallback take over.`,
     );
     return undefined;
   }
   return value;
 }
 
-/** rootDomain 으로 못 쓰는 형태면 사유 문자열, 쓸 수 있으면 null. */
+/** rootDomain 으로 못 쓰는 형태면 사유(영어 명사구), 쓸 수 있으면 null. 위 문장에 끼워진다. */
 function invalidRootDomainReason(host: string): string | null {
   // IPv6: 콜론 포함(::1, 2001:db8::1) 또는 대괄호 형태([::1])
-  if (host.includes(':') || /^\[.*\]$/.test(host)) return 'IPv6 주소라';
+  if (host.includes(':') || /^\[.*\]$/.test(host)) return 'an IPv6 address';
   // IPv4: 1.2.3.4 형태
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return 'IPv4 주소라';
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return 'an IPv4 address';
   // 점 없는 단일 라벨(localhost 등) — 서브도메인 공유 불가 + 브라우저가 Domain 으로 거부
-  if (!host.includes('.')) return '점(.) 없는 단일 라벨(localhost 등)이라';
+  if (!host.includes('.')) return 'a single label with no dot (localhost and the like)';
   return null;
 }
 

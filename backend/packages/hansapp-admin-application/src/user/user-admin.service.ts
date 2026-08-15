@@ -1,5 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { normalizeLanguageChoice, normalizeTimeZoneChoice } from '@hansapp/common';
+import {
+  AdminLocaleUnsupportedError,
+  AdminTimeZoneUnknownError,
+  AdminUserNotFoundError,
+} from '../error';
 import type { UserTier } from '@hansapp/data';
 
 import { UserAdminRepository } from './user-admin.repository';
@@ -72,7 +77,7 @@ export class UserAdminService {
       } else {
         const language = normalizeLanguageChoice(input.language);
         if (!language) {
-          throw new BadRequestException('Unsupported language.');
+          throw new AdminLocaleUnsupportedError();
         }
         data.language = language;
       }
@@ -83,7 +88,7 @@ export class UserAdminService {
       } else {
         const timeZone = normalizeTimeZoneChoice(input.timeZone);
         if (!timeZone) {
-          throw new BadRequestException('Unknown time zone.');
+          throw new AdminTimeZoneUnknownError();
         }
         data.timeZone = timeZone;
       }
@@ -94,10 +99,10 @@ export class UserAdminService {
 
     const updated = await this.repo.updateProfile(userId, data);
     if (updated === 0) {
-      throw new NotFoundException(`User not found: ${userId}`);
+      throw new AdminUserNotFoundError();
     }
 
     await this.cache.purge(userId);
-    this.logger.log(`회원 정보 수정: userId=${userId}`);
+    this.logger.log(`User profile updated: userId=${userId}`);
   }
 }

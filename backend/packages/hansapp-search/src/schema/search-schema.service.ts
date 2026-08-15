@@ -111,7 +111,7 @@ export class SearchSchemaService {
   async ensure(name: string): Promise<IndexImportRow | undefined> {
     const def = INDEX_DEFINITIONS.find((d) => d.name === name);
     if (!def) {
-      throw new Error(`등록되지 않은 인덱스: ${name}`);
+      throw new Error(`Unregistered index: ${name}`);
     }
     if (
       await this.client.indices.existsAlias({
@@ -138,7 +138,7 @@ export class SearchSchemaService {
   async createNextVersion(name: string): Promise<string> {
     const def = INDEX_DEFINITIONS.find((d) => d.name === name);
     if (!def) {
-      throw new Error(`등록되지 않은 인덱스: ${name}`);
+      throw new Error(`Unregistered index: ${name}`);
     }
     // 시작 전에 거른다 — 맨이름 인덱스가 있으면 어차피 마지막 swapAlias 에서 실패한다.
     // 8만 건 색인을 헛으로 돌리지 말고 여기서 즉시 던진다.
@@ -151,7 +151,7 @@ export class SearchSchemaService {
     const index = versionIndexOf(name, this.indexPrefix, next);
     // 인덱스 템플릿(index_patterns: <env>-name-v*)이 생성 시점에 매핑을 붙인다(-v1 생성과 동일 경로).
     await this.client.indices.create({ index });
-    this.logger.log(`새 버전 인덱스 생성: ${index}`);
+    this.logger.log(`Created a new versioned index: ${index}`);
     return index;
   }
 
@@ -176,14 +176,14 @@ export class SearchSchemaService {
       }
     }
     await this.client.indices.updateAliases({ actions });
-    this.logger.log(`alias '${alias}' → '${toIndex}' 원자 교체`);
+    this.logger.log(`Swapped alias '${alias}' → '${toIndex}' atomically`);
     return previous;
   }
 
   /** 인덱스 1개 삭제(없어도 조용히). 스왑 후 직전 라이브 인덱스 정리·가드 실패 시 새 버전 되돌리기에 쓴다. */
   async dropIndex(index: string): Promise<void> {
     await this.client.indices.delete({ index }, { ignore: [404] });
-    this.logger.log(`인덱스 삭제: ${index}`);
+    this.logger.log(`Deleted index: ${index}`);
   }
 
   /**
@@ -198,9 +198,9 @@ export class SearchSchemaService {
     if (await this.client.indices.exists({ index: name })) {
       // alias 는 아닌데 그 이름 인덱스가 실재한다 = 맨이름 잔재.
       throw new Error(
-        `'${name}' 이 alias 가 아니라 같은 이름의 실제 인덱스로 존재한다(맨이름 잔재) — ` +
-          `같은 이름의 alias 를 만들 수 없어 색인할 수 없다. 그 인덱스를 지운 뒤 다시 시도하라 ` +
-          `(수동: DELETE /${name}, 또는 전체 정리: es schema delete).`,
+        `'${name}' exists as a real index rather than an alias (a leftover bare-name index) — ` +
+          `an alias cannot share that name, so indexing is impossible. Delete that index and retry ` +
+          `(manually: DELETE /${name}, or clean everything: es schema delete).`,
       );
     }
     // 둘 다 아니면 아직 아무것도 없음 — 최초 색인이라 정상.
@@ -231,7 +231,7 @@ export class SearchSchemaService {
       name: COMPONENT_TEMPLATE_NAME,
       ...(await readTemplate(path.join(this.schemaDir, COMPONENT_TEMPLATE_FILENAME))),
     } as estypes.ClusterPutComponentTemplateRequest);
-    this.logger.log(`component template '${COMPONENT_TEMPLATE_NAME}' 적용`);
+    this.logger.log(`Applied component template '${COMPONENT_TEMPLATE_NAME}'`);
   }
 
   private async putIndexTemplate(def: { name: string; templateFilename: string }): Promise<void> {
@@ -241,14 +241,14 @@ export class SearchSchemaService {
     // (정본 파일엔 논리이름 `name-v*` 로 두고, 적용 시점에 `<env>-name-v*` 로 맞춘다.)
     body.index_patterns = [indexPatternOf(def.name, this.indexPrefix)];
     await this.client.indices.putIndexTemplate({ name: templateName, ...body });
-    this.logger.log(`index template '${templateName}' 적용`);
+    this.logger.log(`Applied index template '${templateName}'`);
   }
 
   /** alias 가 없으면 name-v1 생성 후 연결. 있으면 그대로 둔다. 생성 시에만 createdIndex 채운다. */
   private async createIndexIfMissing(def: { name: string }): Promise<IndexImportRow> {
     const alias = aliasOf(def.name, this.indexPrefix);
     if (await this.client.indices.existsAlias({ name: alias })) {
-      this.logger.log(`alias '${alias}' 이미 존재 — 인덱스는 그대로 둔다`);
+      this.logger.log(`Alias '${alias}' already exists — leaving the index as is`);
       return { name: def.name, aliasTarget: alias };
     }
     // alias 를 새로 만들어야 하는데, 그 이름 맨이름 인덱스가 있으면 못 만든다 — 먼저 걸러 명확히 던진다.
@@ -256,7 +256,7 @@ export class SearchSchemaService {
     const initial = initialIndexOf(def.name, this.indexPrefix);
     await this.client.indices.create({ index: initial });
     await this.client.indices.putAlias({ index: initial, name: alias });
-    this.logger.log(`인덱스 '${initial}' 생성 + alias '${alias}' 연결`);
+    this.logger.log(`Created index '${initial}' and pointed alias '${alias}' at it`);
     return { name: def.name, aliasTarget: alias, createdIndex: initial };
   }
 
@@ -346,7 +346,7 @@ export class SearchSchemaService {
       { name: COMPONENT_TEMPLATE_NAME },
       { ignore: [404] },
     );
-    this.logger.log(`스키마 삭제 완료(인덱스 ${deletedIndices}개 + 템플릿 삭제)`);
+    this.logger.log(`Schema dropped (${deletedIndices} indices + templates)`);
   }
 
   /** 현황: 등록된 인덱스별로 alias→인덱스·템플릿·문서 수를 모은다. */

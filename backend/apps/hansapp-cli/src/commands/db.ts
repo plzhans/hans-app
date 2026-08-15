@@ -20,7 +20,7 @@ async function run(
   action: (service: PrismaMigrationService, target: DbTarget) => void,
 ): Promise<void> {
   if (!DB_TARGETS.includes(db)) {
-    throw new Error(`알 수 없는 DB: ${db}. 가능한 값: ${DB_TARGETS.join(', ')}`);
+    throw new Error(`Unknown database: ${db}. Available: ${DB_TARGETS.join(', ')}`);
   }
 
   await withDataContext(source, (context) => {

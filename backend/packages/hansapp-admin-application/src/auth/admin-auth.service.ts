@@ -1,17 +1,21 @@
 import { randomBytes } from 'node:crypto';
-
 import {
-  ConflictException,
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+  BadRequestError,
+  ConflictError,
+  UnauthorizedError,
+  normalizeLanguageChoice,
+  normalizeTimeZoneChoice,
+} from '@hansapp/common';
+import {
+  AdminErrorCode,
+  AdminLocaleUnsupportedError,
+  AdminNotFoundError,
+  AdminTimeZoneUnknownError,
+} from '../error';
+
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { AdminRole, AdminStatus, AdminUser } from '@hansapp/data';
-import { normalizeLanguageChoice, normalizeTimeZoneChoice } from '@hansapp/common';
 
 import { ADMIN_AUTH_CONFIG } from './admin-auth.config';
 import type { AdminAuthConfig } from './admin-auth.config';
@@ -22,9 +26,6 @@ import { AdminProfileCache } from './admin-profile-cache.service';
 import { AdminTokenService } from './admin-token.service';
 import type { AdminAuthTokens, AdminRequestMeta } from './admin-token.service';
 import { AdminUserRepository } from './admin-user.repository';
-
-/** 로그인 실패는 사유를 가리지 않고 이 문장 하나로 답한다. */
-const LOGIN_FAILED = 'Invalid email or password.';
 
 @Injectable()
 export class AdminAuthService {
@@ -82,7 +83,8 @@ export class AdminAuthService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      throw new UnauthorizedException(LOGIN_FAILED);
+      // **사유를 가리지 않는다** — 없는 계정인지 틀린 비밀번호인지 갈라 주면 계정을 떠볼 수 있다.
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_INVALID_CREDENTIALS);
     }
 
     // 평문을 손에 쥐는 유일한 순간이라 여기서 해 둔다.
@@ -111,7 +113,9 @@ export class AdminAuthService {
     const admin = await this.admins.findById(rotated.adminId);
     if (!admin || admin.status !== AdminStatus.ACTIVE) {
       await this.tokens.revokeOwnedSession(rotated.adminId, rotated.sessionId);
-      throw new UnauthorizedException('Account is not active.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_ACCOUNT_INACTIVE, {
+        message: 'Account is not active.',
+      });
     }
 
     // **여기서 DB 값을 다시 읽어 싣는다.** 비밀번호를 바꾸면 다음 갱신에서 플래그가
@@ -151,7 +155,9 @@ export class AdminAuthService {
   ): Promise<AdminAuthTokens> {
     const admin = await this.admins.findById(adminId);
     if (!admin || admin.status !== AdminStatus.ACTIVE) {
-      throw new UnauthorizedException('Account is not active.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_ACCOUNT_INACTIVE, {
+        message: 'Account is not active.',
+      });
     }
 
     if (!(await bcrypt.compare(input.currentPassword, admin.password))) {
@@ -164,12 +170,16 @@ export class AdminAuthService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      throw new UnauthorizedException('Current password does not match.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_CURRENT_PASSWORD_MISMATCH, {
+        message: 'Current password does not match.',
+      });
     }
 
     // 같은 값으로 바꾸면 강제 변경을 형식적으로 통과하는 셈이라 막는다.
     if (await bcrypt.compare(input.newPassword, admin.password)) {
-      throw new BadRequestException('New password must differ from the current one.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_PASSWORD_UNCHANGED, {
+        message: 'New password must differ from the current one.',
+      });
     }
 
     await this.admins.updatePassword(
@@ -242,10 +252,12 @@ export class AdminAuthService {
       두 통로가 같은 기준을 쓰도록 계정을 만드는 이 자리에서 막는다.
     */
     if (!isEmailLike(email)) {
-      throw new BadRequestException(`Not a valid email address: ${input.email}`);
+      throw new BadRequestError(AdminErrorCode.ADMIN_EMAIL_INVALID);
     }
     if (await this.admins.findByEmail(email)) {
-      throw new ConflictException('Email already registered.');
+      throw new ConflictError(AdminErrorCode.ADMIN_EMAIL_ALREADY_REGISTERED, {
+        message: 'Email already registered.',
+      });
     }
     const plain = input.plainPassword ?? generatePassword();
     // 만들어 준 경우에만 호출측에 돌려준다 — 받아 온 평문을 되돌려 줄 이유는 없다.
@@ -332,9 +344,7 @@ export class AdminAuthService {
   async removeAdmin(email: string): Promise<AdminUser> {
     const admin = await this.requireByEmail(email);
     if ((await this.admins.count()) <= 1) {
-      throw new BadRequestException(
-        'Cannot remove the last admin account — no one could sign in afterwards.',
-      );
+      throw new BadRequestError(AdminErrorCode.ADMIN_LAST_ACCOUNT);
     }
     await this.tokens.revokeAllByAdmin(admin.id);
     await this.admins.softDelete(admin.id, new Date());
@@ -362,7 +372,7 @@ export class AdminAuthService {
   ): Promise<AdminUser> {
     const current = await this.admins.findById(adminId);
     if (!current) {
-      throw new NotFoundException('Admin not found.');
+      throw new AdminNotFoundError();
     }
 
     const data: { language?: string; timeZone?: string } = {};
@@ -370,7 +380,7 @@ export class AdminAuthService {
     if (input.language !== undefined) {
       const language = normalizeLanguageChoice(input.language);
       if (!language) {
-        throw new BadRequestException('Unsupported language.');
+        throw new AdminLocaleUnsupportedError();
       }
       data.language = language;
     }
@@ -378,7 +388,7 @@ export class AdminAuthService {
     if (input.timeZone !== undefined) {
       const timeZone = normalizeTimeZoneChoice(input.timeZone);
       if (!timeZone) {
-        throw new BadRequestException('Unknown time zone.');
+        throw new AdminTimeZoneUnknownError();
       }
       data.timeZone = timeZone;
     }
@@ -397,7 +407,7 @@ export class AdminAuthService {
     const admin = await this.admins.findByEmail(normalizeEmail(email));
     if (!admin) {
       // CLI 경로라 계정 존재를 숨길 이유가 없다 — 오히려 오타를 알려 줘야 한다.
-      throw new NotFoundException(`Admin not found: ${email}`);
+      throw new AdminNotFoundError();
     }
     return admin;
   }

@@ -1,47 +1,72 @@
 import { ApiError } from './client';
+import { ErrorCode } from '@hansapp/api-error';
 
 /**
- * 백엔드가 영어로 던지는 예외 문구를 한국어로 옮긴다.
- *
- * **서버 메시지는 영어로 둔다** — API 를 직접 쓰는 쪽에는 그게 맞고, 화면 문구는 화면이
- * 정할 일이다. 그래서 옮기는 자리를 여기 하나로 모은다.
- *
- * 문구를 키로 쓰는 것은 서버가 코드를 따로 주지 않기 때문이다. 서버에서 문장을 바꾸면
- * 여기도 함께 고쳐야 한다(안 고치면 영어가 그대로 보인다 — 조용히 깨지지는 않는다).
+ * 번호별 한국어 안내.
  *
  * **사유만 적지 않고 다음에 할 일까지 적는다.** "이미 가입된 이메일입니다" 로 끝나면
  * 사용자는 막힌 것으로 읽는다.
  */
-const SERVER_MESSAGES: Record<string, string> = {
-  'Email already registered.':
+const MESSAGES: Record<number, string> = {
+  [ErrorCode.AUTH_INVALID_CREDENTIALS]: '이메일 또는 비밀번호가 올바르지 않습니다.',
+  [ErrorCode.AUTH_ACCOUNT_DISABLED]:
+    '사용할 수 없는 계정입니다. 탈퇴했거나 정지된 계정이 아닌지 확인해 주세요.',
+  [ErrorCode.AUTH_SESSION_EXPIRED]: '로그인 시간이 만료되었습니다. 다시 로그인해 주세요.',
+  [ErrorCode.AUTH_EMAIL_ALREADY_REGISTERED]:
     '이미 가입된 이메일입니다.\n다른 이메일을 입력하거나, 그 이메일로 로그인한 뒤 마이페이지에서 이 소셜 계정을 연동해 주세요.',
-  'Invalid or expired verification code.':
+  [ErrorCode.AUTH_VERIFICATION_CODE_REQUIRED]: '메일로 받은 인증 코드를 입력해 주세요.',
+  [ErrorCode.AUTH_VERIFICATION_CODE_INVALID]:
     '인증 코드가 맞지 않거나 시간이 지났습니다. 코드를 다시 받아 주세요.',
-  'Verification code is required.': '메일로 받은 인증 코드를 입력해 주세요.',
-  'Email is required.': '이메일을 입력해 주세요.',
-  'Social account already linked.':
+  /*
+    **429 두 개를 갈라 준다.** 예전에는 429 를 통째로 "잠시 후 다시" 로 뭉갰는데, 둘은
+    기다리는 시간이 다르다 — 쿨다운은 몇 초지만 시간당 상한은 한참이다. 같은 말로 안내하면
+    상한에 걸린 사람이 몇 초마다 다시 눌러 본다.
+  */
+  [ErrorCode.AUTH_VERIFICATION_EMAIL_RATE_LIMITED]:
+    '인증 메일을 너무 많이 보냈습니다. 한 시간 뒤에 다시 시도해 주세요.',
+  [ErrorCode.AUTH_VERIFICATION_RESEND_TOO_SOON]:
+    '방금 코드를 보냈습니다. 잠시 뒤에 다시 요청해 주세요.',
+  [ErrorCode.AUTH_CONSENT_REQUIRED]:
+    '약관이 새로 바뀌었습니다. 새로고침한 뒤 다시 확인해 주세요.',
+  [ErrorCode.SOCIAL_PROFILE_UNAVAILABLE]:
+    '소셜 계정에서 이메일을 받지 못했습니다. 해당 서비스에서 이메일 제공에 동의했는지 확인해 주세요.',
+  [ErrorCode.SOCIAL_LINK_CONFLICT]:
     '이미 연동이 끝난 소셜 계정입니다. 로그인 화면에서 다시 시도해 주세요.',
-  'Email is already in use.': '이미 사용 중인 이메일입니다.',
+  [ErrorCode.SOCIAL_PROVIDER_NOT_LINKED]: '연동되지 않은 소셜 계정입니다.',
+  [ErrorCode.SOCIAL_UNLINK_LAST_METHOD]:
+    '마지막 로그인 수단이라 해제할 수 없습니다. 비밀번호를 먼저 설정해 주세요.',
+  [ErrorCode.SOCIAL_FLOW_INVALID]:
+    '로그인 진행 정보가 만료되었습니다. 처음부터 다시 시도해 주세요.',
 };
 
-/** 백엔드 에러(NestJS { message })를 사람이 읽을 메시지로 변환한다. */
+/**
+ * 백엔드 오류를 사람이 읽을 한 줄로 바꾼다.
+ *
+ * **좁은 것부터 본다** — errorCode(사유) → status(계열) → 서버 문구. status 를 먼저 가르면
+ * 케이스마다 번호 검사를 또 넣게 되고 같은 문구가 여러 갈래에 복사된다.
+ *
+ * status 와 errorCode 는 정하는 것이 다르다. **status 는 동작**(재시도할까·다시 로그인할까),
+ * **errorCode 는 문구**(사용자에게 뭐라고 말할까)다. 여기는 문구를 정하는 자리라 번호가 먼저다.
+ */
 export function errorMessage(err: unknown, fallback = '요청을 처리하지 못했습니다.'): string {
-  if (err instanceof ApiError) {
-    // 발송 상한/쿨다운(인증 코드 429)은 백엔드 메시지가 영어라, 여기서 한국어로 매핑한다.
-    if (err.status === 429) {
-      return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
-    }
-    const body = err.body as { message?: string | string[] } | undefined;
-    const msg = body?.message;
-    if (Array.isArray(msg)) return msg.map(translate).join('\n');
-    if (typeof msg === 'string') return translate(msg);
-    return `${fallback} (HTTP ${err.status})`;
+  if (!(err instanceof ApiError)) {
+    return err instanceof Error ? err.message : fallback;
   }
-  if (err instanceof Error) return err.message;
-  return fallback;
-}
 
-/** 아는 문구면 한국어로, 모르면 그대로. 감추는 것보다 낯선 문장이 낫다. */
-function translate(message: string): string {
-  return SERVER_MESSAGES[message.trim()] ?? message;
+  const body = err.body as { errorCode?: number; message?: string | string[] } | undefined;
+
+  // 1. 번호로 아는 문구
+  const known = body?.errorCode !== undefined ? MESSAGES[body.errorCode] : undefined;
+  if (known) return known;
+
+  // 2. 입력값 검증 실패는 필드마다 한 줄씩 배열로 온다. 합치면 어느 항목인지 잃는다.
+  const msg = body?.message;
+  if (Array.isArray(msg)) return msg.join('\n');
+
+  // 3. 번호를 아직 안 옮긴 것들 — status 로 뭉뚱그려 안내한다.
+  if (err.status === 429) return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+
+  // 4. 그래도 없으면 서버 문구 그대로. 감추는 것보다 낯선 문장이 낫다.
+  if (typeof msg === 'string') return msg;
+  return `${fallback} (HTTP ${err.status})`;
 }

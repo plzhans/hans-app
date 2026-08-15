@@ -1,12 +1,14 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { AuthErrorCode, InvalidRedirectUriError } from './error';
 import { AuthLogResult, AppStatus, AuthLogAction, UserStatus } from '@hansapp/data';
-import { sha256base64url, sha256hex, timingSafeEqualHex } from '@hansapp/common';
+import {
+  BadRequestError,
+  ForbiddenError,
+  UnauthorizedError,
+  sha256base64url,
+  sha256hex,
+  timingSafeEqualHex,
+} from '@hansapp/common';
 
 import { AccessCache } from './app/access-cache.service';
 import { AUTH_CONFIG } from './auth.config';
@@ -26,6 +28,13 @@ import { AuthTokens, TokenService } from './token/token.service';
  */
 @Injectable()
 export class OAuthTokenService {
+  /*
+    **거절한 이유를 여기서 남긴다.** 밖으로 나가는 것은 코드와 한 문장뿐이고, 그래야 한다 —
+    어느 검사에서 걸렸는지까지 알려 주면 등록 상태를 밖에서 떠볼 수 있다. 대신 우리는
+    알아야 하므로 던지기 직전에 debug 로 적는다(전역 필터의 줄과 요청 id 로 이어진다).
+  */
+  private readonly logger = new Logger(OAuthTokenService.name);
+
   constructor(
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
     private readonly tokens: TokenService,
@@ -60,7 +69,7 @@ export class OAuthTokenService {
     try {
       origin = new URL(returnTo).origin;
     } catch {
-      throw new BadRequestException('Malformed redirect_uri.');
+      throw new InvalidRedirectUriError({ message: 'Malformed redirect_uri.' });
     }
 
     // 외부 앱: 등록된 리디렉션 URI 와 **정확히** 일치해야 한다(OAuth 의 redirect_uri 규칙).
@@ -68,11 +77,17 @@ export class OAuthTokenService {
     if (clientId) {
       const client = await this.access.getClient(clientId);
       if (!client || client.status !== AppStatus.ACTIVE) {
-        throw new BadRequestException('Unknown client.');
+        this.logger.debug(`Auth code rejected: unknown or inactive client (clientId=${clientId})`);
+        throw new BadRequestError(AuthErrorCode.OAUTH_INVALID_CLIENT);
       }
       const allowed = (client.redirectUris as string[] | null) ?? [];
       if (!allowed.includes(returnTo)) {
-        throw new BadRequestException('redirect_uri is not a registered redirect URI.');
+        this.logger.debug(
+          `Auth code rejected: redirect_uri not registered (clientId=${clientId} returnTo=${returnTo})`,
+        );
+        throw new InvalidRedirectUriError({
+          message: 'redirect_uri is not a registered redirect URI.',
+        });
       }
       return this.tokens.issueAuthCode(
         userId,
@@ -85,7 +100,8 @@ export class OAuthTokenService {
 
     // 1st-party(hansapp-web): 자기 자신은 클라이언트로 등록하지 않으므로 서비스 루트 도메인으로 판별한다.
     if (!isFirstPartyOrigin(origin, this.config.rootDomain)) {
-      throw new BadRequestException('redirect_uri not allowed.');
+      this.logger.debug(`Auth code rejected: return_to is not first-party (origin=${origin})`);
+      throw new InvalidRedirectUriError();
     }
     return this.tokens.issueAuthCode(
       userId,
@@ -118,7 +134,8 @@ export class OAuthTokenService {
    */
   assertFirstPartyOrigin(origin?: string): void {
     if (origin && !isFirstPartyOrigin(origin, this.config.rootDomain)) {
-      throw new ForbiddenException('Origin not allowed.');
+      this.logger.debug(`Origin rejected: not first-party (origin=${origin})`);
+      throw new ForbiddenError(AuthErrorCode.APP_ORIGIN_NOT_ALLOWED);
     }
   }
 
@@ -138,17 +155,24 @@ export class OAuthTokenService {
     if (!clientId) {
       // 1st-party: 등록된 클라이언트가 없으므로 서비스 루트 도메인으로만 판별한다.
       if (origin && !isFirstPartyOrigin(origin, this.config.rootDomain)) {
-        throw new ForbiddenException('Origin not allowed.');
+        this.logger.debug(`Token exchange rejected: not first-party (origin=${origin})`);
+        throw new ForbiddenError(AuthErrorCode.APP_ORIGIN_NOT_ALLOWED);
       }
       return null;
     }
     const client = await this.access.getClient(clientId);
     if (!client || client.status !== AppStatus.ACTIVE) {
-      throw new ForbiddenException('Origin not allowed.');
+      this.logger.debug(
+        `Token exchange rejected: unknown or inactive client (clientId=${clientId} origin=${origin ?? '-'})`,
+      );
+      throw new ForbiddenError(AuthErrorCode.APP_ORIGIN_NOT_ALLOWED);
     }
     const origins = (client.origins as string[] | null) ?? [];
     if (origin && !origins.includes(origin)) {
-      throw new ForbiddenException('Origin not allowed.');
+      this.logger.debug(
+        `Token exchange rejected: origin not registered (clientId=${clientId} origin=${origin})`,
+      );
+      throw new ForbiddenError(AuthErrorCode.APP_ORIGIN_NOT_ALLOWED);
     }
     return client.appId;
   }
@@ -175,7 +199,7 @@ export class OAuthTokenService {
     const appId = await this.resolveExchangeClient(clientId, requestOrigin);
     const user = await this.users.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Account is not available.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_ACCOUNT_DISABLED);
     }
     // **가입 방식(joinType)이 아니라 이번에 쓴 수단을 남긴다.** 콜백이 코드에 실어 보낸다.
     // 이메일 로그인처럼 코드에 provider 가 없는 경로(1st-party 릴레이)는 joinType 으로 떨어진다.
@@ -191,7 +215,7 @@ export class OAuthTokenService {
     if (!user || user.status !== UserStatus.ACTIVE) {
       // 탈퇴·정지 계정의 잔존 세션은 즉시 폐기한다.
       await this.tokens.revokeSession(rotated.userId, rotated.sessionId);
-      throw new UnauthorizedException('Account is not available.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_ACCOUNT_DISABLED);
     }
     return this.tokens.buildTokens(user.id, user.role, rotated);
   }
@@ -243,11 +267,15 @@ const CHALLENGE_LENGTH = 43;
 function assertCodeChallenge(value?: string): string {
   const challenge = value?.trim();
   if (!challenge) {
-    throw new BadRequestException('code_challenge is required (PKCE, S256).');
+    throw new BadRequestError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+      message: 'code_challenge is required (PKCE, S256).',
+    });
   }
   // S256 결과는 base64url 43자로 길이가 고정이다. 형식이 어긋나면 클라이언트 구현 오류다.
   if (challenge.length !== CHALLENGE_LENGTH || !/^[A-Za-z0-9\-_]+$/.test(challenge)) {
-    throw new BadRequestException('code_challenge must be BASE64URL(SHA256(code_verifier)).');
+    throw new BadRequestError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+      message: 'code_challenge must be BASE64URL(SHA256(code_verifier)).',
+    });
   }
   return challenge;
 }
@@ -260,17 +288,21 @@ function assertCodeChallenge(value?: string): string {
  */
 function assertCodeVerifier(challenge: string | null, verifier?: string): void {
   if (!challenge) {
-    throw new UnauthorizedException('Authorization code is not usable.');
+    throw new UnauthorizedError(AuthErrorCode.OAUTH_INVALID_GRANT);
   }
   const value = verifier?.trim();
   if (!value) {
-    throw new BadRequestException('code_verifier is required (PKCE).');
+    throw new BadRequestError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+      message: 'code_verifier is required (PKCE).',
+    });
   }
   // 양쪽을 한 번 더 hex 로 해싱해 길이를 고정한 뒤 상수시간 비교한다.
   // 그냥 비교하면 길이가 다를 때 즉시 false 라, 길이 정보가 타이밍으로 샌다.
   const expected = sha256hex(challenge);
   const actual = sha256hex(sha256base64url(value));
   if (!timingSafeEqualHex(expected, actual)) {
-    throw new UnauthorizedException('code_verifier mismatch.');
+    throw new UnauthorizedError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+      message: 'code_verifier mismatch.',
+    });
   }
 }

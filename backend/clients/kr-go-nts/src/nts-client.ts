@@ -33,7 +33,9 @@ export class NtsClient {
    */
   async getStatus(bNos: string[]): Promise<StatusResponse> {
     if (bNos.length > MAX_BATCH) {
-      throw new Error(`NTS 상태조회는 한 번에 최대 ${MAX_BATCH}건이다 (요청: ${bNos.length}건).`);
+      throw new Error(
+        `NTS status lookup accepts at most ${MAX_BATCH} per call (requested: ${bNos.length}).`,
+      );
     }
     const { data } = await getBusinessStatus({ b_no: bNos }, withNtsConfig(this.config));
     return data;
@@ -54,7 +56,7 @@ export class NtsClient {
   async validate(businesses: BusinessDescription[]): Promise<ValidateResponse> {
     if (businesses.length > MAX_BATCH) {
       throw new Error(
-        `NTS 진위확인은 한 번에 최대 ${MAX_BATCH}건이다 (요청: ${businesses.length}건).`,
+        `NTS validation accepts at most ${MAX_BATCH} per call (requested: ${businesses.length}).`,
       );
     }
     const { data } = await validateBusiness({ businesses }, withNtsConfig(this.config));

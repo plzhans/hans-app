@@ -345,7 +345,7 @@ export class AuthEmailService implements OnModuleInit {
           `Check the "cp src/mail/templates/*.html" step in @hansapp/auth-application build.`,
       );
     }
-    this.logger.log(`메일 템플릿 ${ALL_TEMPLATES.length}개 로드`);
+    this.logger.log(`Loaded ${ALL_TEMPLATES.length} mail templates`);
   }
 
   /** 인증 코드 메일 발송. code 원문은 여기서만 쓰고 저장하지 않는다. */
@@ -471,7 +471,7 @@ export class AuthEmailService implements OnModuleInit {
       });
     } catch (e) {
       this.logger.warn(
-        `계정 알림 메일 발송 실패(무시) kind=${input.kind} to=${input.to}: ${String(e)}`,
+        `Failed to send an account notice mail (ignored) kind=${input.kind} to=${input.to}: ${String(e)}`,
       );
     }
   }

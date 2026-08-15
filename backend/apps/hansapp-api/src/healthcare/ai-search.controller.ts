@@ -1,13 +1,5 @@
-import {
-  BadRequestException,
-  Body,
-  GatewayTimeoutException,
-  HttpException,
-  Logger,
-  Post,
-  Req,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Body, Logger, Post, Req } from '@nestjs/common';
+import { ServiceErrorCode } from '@hansapp/application';
 import { Throttle } from '@nestjs/throttler';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiController } from '@hansapp/http-common';
@@ -34,6 +26,14 @@ import {
 
 import { Auth } from '../auth/auth.decorator';
 import { AuthType } from '../auth/auth-type.enum';
+import {
+  AppError,
+  BadRequestError,
+  InternalError,
+  TooManyRequestsError,
+  UnavailableError,
+  UpstreamTimeoutError,
+} from '@hansapp/common';
 import type { SupportedLang } from '@hansapp/common';
 import { Lang } from '../common/lang.decorator';
 import { AiSearchRequestDto, AiSearchResponseDto } from './dto/ai-search.dto';
@@ -123,18 +123,21 @@ export class HealthcareAiSearchController {
       });
       return new AiSearchResponseDto(result);
     } catch (cause) {
-      throw this.toHttpException(cause);
+      throw this.toAppError(cause);
     }
   }
 
   /**
-   * LLM 실패를 상태코드로 옮긴다.
+   * LLM 실패를 오류 계열·코드로 옮긴다.
    *
    * **업체의 상태코드를 그대로 흘리지 않는다.** 우리 키가 틀려서 난 401 을 클라이언트에게
    * 401 로 주면 사용자는 자기가 로그인을 안 한 줄 안다 — 원인은 우리 설정이므로 5xx 가 맞다.
-   * 429 만 그대로 넘긴다(클라이언트가 물러설 수 있는 유일한 신호다).
+   * rate limit 만 그대로 넘긴다(클라이언트가 물러설 수 있는 유일한 신호다).
+   *
+   * **왜 실패했는지는 여기서 남긴다.** 업체·모델·응답 본문은 이 자리에서만 알고, 응답에는
+   * 나가지 않는다 — 우리가 어느 업체의 어느 모델을 부르는지는 밖에서 알 일이 아니다.
    */
-  private toHttpException(cause: unknown): HttpException {
+  private toAppError(cause: unknown): AppError {
     /*
       **몫 소진.** 클라이언트 잘못이 아니라 429(너무 자주 불렀다)가 아니고, 잠시 뒤 다시
       해도 안 되니 504 도 아니다. 창이 바뀌어야 풀리는 상태라 503 이 맞다.
@@ -144,21 +147,32 @@ export class HealthcareAiSearchController {
       달까지고, 개인 잔액은 시간이 지나도 안 풀린다(충전해야 한다).
     */
     if (cause instanceof AiSearchQuotaError) {
-      this.logger.error(cause.message);
-      return new ServiceUnavailableException(
-        QUOTA_MESSAGE[`${cause.owner ?? ''}:${cause.window ?? ''}`] ?? QUOTA_MESSAGE[''],
+      this.logger.debug(
+        `AI search quota exhausted: owner=${cause.owner ?? '-'} window=${cause.window ?? '-'}`,
       );
+      return new UnavailableError(ServiceErrorCode.AI_SEARCH_QUOTA_EXCEEDED, {
+        message: QUOTA_MESSAGE[`${cause.owner ?? ''}:${cause.window ?? ''}`] ?? QUOTA_MESSAGE[''],
+        cause,
+      });
     }
     if (!(cause instanceof LlmError)) {
-      // 프롬프트 파일 없음 등. 그대로 올려 500 이 되게 두되 원인은 남긴다.
-      this.logger.error(`ai search failed: ${String(cause)}`);
-      return new ServiceUnavailableException('AI search is not available');
+      // 프롬프트 파일 없음 등. 우리 코드·배포가 깨진 것이라 밖에는 아무 사정도 말하지 않는다.
+      return new InternalError(ServiceErrorCode.AI_SEARCH_UNAVAILABLE, {
+        message: `ai search failed: ${String(cause)}`,
+        cause,
+      });
     }
 
-    // **어느 모델로 부르다 실패했는지가 로그에 있어야 한다.** provider 만으로는 부족하다 —
-    // 같은 anthropic 이라도 모델마다 되는 것과 안 되는 것이 다르다. 없으면 "무엇을 불렀나"
-    // 부터 추측해야 하고, 그 추측이 틀리면 엉뚱한 데를 고치게 된다.
-    this.logger.error(
+    /*
+      **어느 모델로 부르다 실패했는지가 로그에 있어야 한다.** provider 만으로는 부족하다 —
+      같은 anthropic 이라도 모델마다 되는 것과 안 되는 것이 다르다. 없으면 "무엇을 불렀나"
+      부터 추측해야 하고, 그 추측이 틀리면 엉뚱한 데를 고치게 된다.
+
+      **업체 응답 본문(body)도 남긴다.** 남의 서버가 뭐라고 답했는지가 원인을 가르는 자리라
+      없으면 우리 문제인지 저쪽 문제인지부터 못 가린다. 이 줄은 **응답에 나가지 않는다** —
+      우리가 어느 업체의 어느 모델을 부르는지는 밖에서 알 일이 아니다.
+    */
+    this.logger.warn(
       `llm call failed (provider=${cause.provider} ` +
         `requestModel=${cause.requestModel ?? '-'} status=${cause.status ?? '-'}): ` +
         `${cause.message}${cause.body ? ` body=${cause.body}` : ''}`,
@@ -170,26 +184,39 @@ export class HealthcareAiSearchController {
     /*
       **허용 목록 밖의 모델은 400 이다.** 설정도 우리 코드도 멀쩡하고 부르는 쪽이 안 되는
       이름을 보낸 것이라, 503 으로 뭉치면 "서버가 고장났나" 로 읽혀 사람이 기다리게 된다.
+
+      **문구는 그대로 넘긴다.** 어느 이름이 막혔는지가 거기 들어 있어서, 기본 문구로 덮으면
+      부르는 쪽이 무엇을 고쳐야 하는지 알 수 없다.
     */
     if (cause instanceof LlmModelNotAllowedError) {
-      return new BadRequestException(cause.message);
+      return new BadRequestError(ServiceErrorCode.AI_SEARCH_MODEL_NOT_ALLOWED, {
+        message: cause.message,
+        cause,
+      });
     }
     if (cause instanceof LlmConfigError) {
-      return new ServiceUnavailableException('AI search is not configured');
+      return new UnavailableError(ServiceErrorCode.AI_SEARCH_NOT_CONFIGURED, { cause });
     }
-    // 조립이 덜 된 호출 = 우리 코드 버그다. 밖으로는 같은 503 이지만 로그에 이름이 남아
-    // "설정을 고쳐야 하나" 를 헷갈리지 않는다.
+    // 조립이 덜 된 호출 = 우리 코드 버그다. 설정 문제와 헷갈리지 않게 코드를 따로 둔다.
     if (cause instanceof LlmInvalidCallError) {
-      return new ServiceUnavailableException('AI search failed');
+      return new InternalError(ServiceErrorCode.AI_SEARCH_UNAVAILABLE, {
+        message: cause.message,
+        cause,
+      });
     }
     if (cause.status === undefined) {
       // 타임아웃·네트워크 실패. 잠시 뒤 다시 하면 될 수 있다.
-      return new GatewayTimeoutException('AI provider did not respond in time');
+      return new UpstreamTimeoutError(ServiceErrorCode.AI_SEARCH_PROVIDER_TIMEOUT, { cause });
     }
     if (cause.status === 429) {
-      return new HttpException('AI provider rate limit exceeded', 429);
+      // 업체가 조이는 것이지 사용자가 우리 한도를 넘긴 것이 아니다. 그래도 밖으로는 같은
+      // 429 다 — 부르는 쪽이 "잠시 물러섰다 다시" 로 읽을 수 있는 유일한 신호라서다.
+      return new TooManyRequestsError(ServiceErrorCode.AI_SEARCH_PROVIDER_RATE_LIMITED, { cause });
     }
-    return new ServiceUnavailableException('AI provider request failed');
+    return new UnavailableError(ServiceErrorCode.AI_SEARCH_UNAVAILABLE, {
+      message: 'AI provider request failed.',
+      cause,
+    });
   }
 }
 

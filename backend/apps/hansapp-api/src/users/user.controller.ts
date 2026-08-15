@@ -1,5 +1,5 @@
+import { AuthErrorCode } from '@hansapp/auth-application';
 import {
-  BadRequestException,
   Body,
   Delete,
   Get,
@@ -25,6 +25,7 @@ import {
   toOAuthProvider,
 } from '@hansapp/auth-application';
 import type { AuthUser } from '@hansapp/auth-application';
+import { BadRequestError } from '@hansapp/common';
 import type { SupportedLang } from '@hansapp/common';
 
 import { Lang } from '../common/lang.decorator';
@@ -266,7 +267,7 @@ export class UserController {
   ): Promise<void> {
     const provider = toOAuthProvider(providerParam);
     if (!provider) {
-      throw new BadRequestException('Unsupported social provider.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_PROVIDER_UNSUPPORTED);
     }
     await this.socialService.unlink(user.userId, provider, requestMeta(req), lang);
   }

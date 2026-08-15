@@ -101,7 +101,7 @@ export class HiraNmcMatchService {
     ]);
 
     this.logger.log(
-      `HIRA ${hira.length.toLocaleString()} · NMC ${nmc.length.toLocaleString()} · 확정 ${links.length.toLocaleString()}`,
+      `HIRA ${hira.length.toLocaleString()} · NMC ${nmc.length.toLocaleString()} · matched ${links.length.toLocaleString()}`,
     );
 
     // 확정된 것은 건너뛴다. --recheck 면 auto 만 다시 본다(manual 은 사람이 정한 것이라 그대로).

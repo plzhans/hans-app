@@ -1,11 +1,5 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { AuthErrorCode, VerificationCodeInvalidError } from './error';
 import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import {
@@ -16,6 +10,9 @@ import {
   AuthLogAction,
 } from '@hansapp/data';
 import {
+  BadRequestError,
+  ConflictError,
+  UnauthorizedError,
   normalizeLanguageChoice,
   normalizeTimeZoneChoice,
   resolveUserLocale,
@@ -121,7 +118,7 @@ export class AuthService {
       input.code,
     );
     if (!verified) {
-      throw new BadRequestException('Invalid or expired verification code.');
+      throw new VerificationCodeInvalidError();
     }
 
     const userLocale = resolveUserLocale(input.clientLocale ?? {});
@@ -187,7 +184,7 @@ export class AuthService {
         failReason: !user ? 'user_not_found' : 'bad_credentials',
         ...meta,
       });
-      throw new UnauthorizedException('Invalid email or password.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_INVALID_CREDENTIALS);
     }
 
     // 평문을 손에 쥐는 유일한 순간이라 여기서 해 둔다(rehashIfStale 주석 참고).
@@ -210,7 +207,9 @@ export class AuthService {
   async withdraw(userId: number, meta: RequestMeta): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user || user.status === 'WITHDRAWN') {
-      throw new BadRequestException('Account is withdrawn or does not exist.');
+      throw new BadRequestError(AuthErrorCode.AUTH_ACCOUNT_DISABLED, {
+        message: 'Account is withdrawn or does not exist.',
+      });
     }
 
     const now = new Date();
@@ -256,7 +255,9 @@ export class AuthService {
   ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Invalid account.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_ACCOUNT_DISABLED, {
+        message: 'Invalid account.',
+      });
     }
 
     if (user.password) {
@@ -270,7 +271,9 @@ export class AuthService {
           failReason: 'bad_credentials',
           ...meta,
         });
-        throw new UnauthorizedException('Current password is incorrect.');
+        throw new UnauthorizedError(AuthErrorCode.AUTH_INVALID_CREDENTIALS, {
+          message: 'Current password is incorrect.',
+        });
       }
     }
 
@@ -314,7 +317,7 @@ export class AuthService {
     const email = normalizeEmail(emailRaw);
     const user = await this.users.findActiveByEmail(email);
     if (!user) {
-      this.logSkippedReset(email, '가입된 계정 없음');
+      this.logSkippedReset(email, 'no account registered');
       return;
     }
     /*
@@ -348,11 +351,11 @@ export class AuthService {
       input.code,
     );
     if (!ok) {
-      throw new BadRequestException('Invalid or expired verification code.');
+      throw new VerificationCodeInvalidError();
     }
     const user = await this.users.findActiveByEmail(email);
     if (!user) {
-      throw new BadRequestException('Account not found.');
+      throw new BadRequestError(AuthErrorCode.USER_NOT_FOUND, { message: 'Account not found.' });
     }
     await this.users.updatePassword(user.id, await this.hashPassword(input.newPassword));
     await this.profileCache.invalidate(user.id);
@@ -376,7 +379,9 @@ export class AuthService {
   async getMeProfile(userId: number): Promise<MeProfile> {
     const profile = await this.profileCache.get(userId);
     if (!profile || profile.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Invalid account.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_ACCOUNT_DISABLED, {
+        message: 'Invalid account.',
+      });
     }
     return profile;
   }
@@ -384,7 +389,9 @@ export class AuthService {
   async getProfile(userId: number): Promise<User> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Invalid account.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_ACCOUNT_DISABLED, {
+        message: 'Invalid account.',
+      });
     }
     return user;
   }
@@ -428,7 +435,7 @@ export class AuthService {
     if (input.language !== undefined) {
       const language = normalizeLanguageChoice(input.language);
       if (!language) {
-        throw new BadRequestException('Unsupported language.');
+        throw new BadRequestError({ message: 'Unsupported language.' });
       }
       data.language = language;
     }
@@ -436,7 +443,7 @@ export class AuthService {
     if (input.timeZone !== undefined) {
       const timeZone = normalizeTimeZoneChoice(input.timeZone);
       if (!timeZone) {
-        throw new BadRequestException('Unknown time zone.');
+        throw new BadRequestError({ message: 'Unknown time zone.' });
       }
       data.timeZone = timeZone;
     }
@@ -466,7 +473,7 @@ export class AuthService {
   async revokeSession(userId: number, sessionId: number): Promise<void> {
     const removed = await this.sessions.deleteOwned(userId, sessionId);
     if (!removed) {
-      throw new BadRequestException('Session not found.');
+      throw new BadRequestError(AuthErrorCode.AUTH_SESSION_NOT_FOUND);
     }
     // 지운 뒤 캐시를 비운다. 안 비우면 그 기기가 캐시 TTL 만큼 더 통한다.
     await this.sessionCache.invalidate(userId, [sessionId]);
@@ -508,20 +515,20 @@ export class AuthService {
    */
   private logSkippedReset(email: string, reason: string): void {
     if (process.env.APP_ENV === 'production') return;
-    this.logger.warn(`[dev] 비밀번호 재설정 메일을 보내지 않았습니다 — ${reason}. to=${email}`);
+    this.logger.warn(`[dev] Password reset mail was not sent (${reason}). to=${email}`);
   }
 
   /** 이메일이 신규 가입 가능한지 검증한다(활성 계정·탈퇴 재가입 제한 모두 확인). */
   async assertEmailAvailable(email: string): Promise<void> {
     const active = await this.users.findActiveByEmail(email);
     if (active) {
-      throw new ConflictException('Email already registered.');
+      throw new ConflictError(AuthErrorCode.AUTH_EMAIL_ALREADY_REGISTERED);
     }
     const withdrawn = await this.withdrawals.findActiveByEmail(email, new Date());
     if (withdrawn) {
-      throw new ConflictException(
-        'Re-signup is restricted after withdrawal. Please try again later.',
-      );
+      throw new ConflictError(AuthErrorCode.AUTH_EMAIL_ALREADY_REGISTERED, {
+        message: 'Re-signup is restricted after withdrawal. Please try again later.',
+      });
     }
   }
 

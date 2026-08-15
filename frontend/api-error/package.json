@@ -1,0 +1,12 @@
+{
+  "name": "@hansapp/api-error",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "HansApp 플랫폼이 공유하는 백엔드 오류 번호. 인증웹·포털·관리자 콘솔이 같은 표를 읽는다.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -14,7 +14,8 @@
     "terms": "Terms of Service",
     "locationTerms": "Location-Based Services Terms",
     "privacy": "Privacy Policy",
-    "englishOnly": "This document is available in Korean and English only."
+    "koreanOnly": "This document is available in Korean only.",
+    "revisionPending": "This document has been revised and takes effect on {{date}}. The previous version applies until then."
   },
   "nav": {
     "home": "Home",

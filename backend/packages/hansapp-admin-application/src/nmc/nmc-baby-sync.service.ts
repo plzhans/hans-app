@@ -41,11 +41,11 @@ export class NmcBabySyncService {
 
     const processed = await this.repo.upsertMirror(rows);
 
-    this.logger.log(`NMC 달빛어린이병원 ${processed}건 적재`);
+    this.logger.log(`NMC after-hours children's clinics loaded: ${processed}`);
 
     if (totalCount > items.length) {
       this.logger.warn(
-        `전체 ${totalCount}건 중 ${items.length}건만 받았다. PAGE_SIZE 를 늘려야 한다.`,
+        `Received only ${items.length} of ${totalCount} rows. PAGE_SIZE needs to be raised.`,
       );
     }
 

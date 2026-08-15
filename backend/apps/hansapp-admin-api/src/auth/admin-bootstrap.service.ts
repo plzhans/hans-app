@@ -37,15 +37,15 @@ export class AdminBootstrapService implements OnApplicationBootstrap {
     if (appEnv === 'production') {
       // 조용히 넘어가지 않는다 — 켜 둔 설정이 무시되고 있다는 사실을 알아야 한다.
       this.logger.warn(
-        'admin.bootstrap.enabled 가 켜져 있지만 운영에서는 동작하지 않는다. ' +
-          '관리자 계정은 hansapp-cli admin create 로 만든다.',
+        'admin.bootstrap.enabled is on but does nothing in production. ' +
+          'Create admin accounts with `hansapp-cli admin create`.',
       );
       return;
     }
 
     if (!email) {
       this.logger.warn(
-        'admin.bootstrap.enabled 가 켜져 있지만 admin.bootstrap.email 이 비어 있다 — 건너뛴다.',
+        'admin.bootstrap.enabled is on but admin.bootstrap.email is empty — skipping.',
       );
       return;
     }
@@ -62,7 +62,9 @@ export class AdminBootstrapService implements OnApplicationBootstrap {
         plainPassword: password || undefined,
       });
 
-      this.logger.log(`관리자 계정이 없어 기본 계정을 만들었다: ${admin.email}`);
+      this.logger.log(
+        `No admin account existed, so a bootstrap account was created: ${admin.email}`,
+      );
 
       if (generatedPassword) {
         /*
@@ -75,20 +77,20 @@ export class AdminBootstrapService implements OnApplicationBootstrap {
           [
             '',
             '  ┌─────────────────────────────────────────────',
-            `  │ 초기 비밀번호 (지금만 확인 가능): ${generatedPassword}`,
-            '  │ 첫 로그인에서 비밀번호를 반드시 바꿔야 한다.',
+            `  │ Initial password (shown only now): ${generatedPassword}`,
+            '  │ The password must be changed on first sign-in.',
             '  └─────────────────────────────────────────────',
             '',
           ].join('\n'),
         );
       } else {
         this.logger.log(
-          '초기 비밀번호는 설정값(admin.bootstrap.password)을 썼다. 첫 로그인에서 변경해야 한다.',
+          'The initial password came from admin.bootstrap.password. It must be changed on first sign-in.',
         );
       }
     } catch (error) {
       // 계정을 못 만들었다고 서버를 못 뜨게 할 이유는 없다 — CLI 로 만들면 된다.
-      this.logger.error(`기본 관리자 계정 생성 실패: ${String(error)}`);
+      this.logger.error(`Failed to create the bootstrap admin account: ${String(error)}`);
     }
   }
 }

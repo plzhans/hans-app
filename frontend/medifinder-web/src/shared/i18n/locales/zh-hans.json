@@ -14,7 +14,8 @@
     "terms": "服务条款",
     "locationTerms": "基于位置服务条款",
     "privacy": "隐私政策",
-    "englishOnly": "本文件仅提供韩语和英语版本，当前显示英语版本。"
+    "koreanOnly": "本文件仅提供韩语版本。",
+    "revisionPending": "本文件已修订，将于 {{date}} 起生效。在此之前适用原内容。"
   },
   "nav": {
     "home": "首页",

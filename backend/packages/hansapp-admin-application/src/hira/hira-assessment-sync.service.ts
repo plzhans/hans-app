@@ -43,7 +43,9 @@ export class HiraAssessmentSyncService {
       upserted += await this.upsert(items);
       fetched += items.length;
 
-      this.logger.log(`HIRA 병원평가 ${fetched.toLocaleString()}/${totalCount.toLocaleString()}`);
+      this.logger.log(
+        `HIRA assessments ${fetched.toLocaleString()}/${totalCount.toLocaleString()}`,
+      );
     }
 
     return { total: totalCount, processed: upserted, calls };
@@ -57,7 +59,7 @@ export class HiraAssessmentSyncService {
 
     const skipped = items.length - rows.length;
     if (skipped > 0) {
-      this.logger.warn(`ykiho 가 없어 건너뛴 항목 ${skipped}건`);
+      this.logger.warn(`Skipped ${skipped} items with no ykiho`);
     }
 
     return this.repo.upsertMirror(rows);

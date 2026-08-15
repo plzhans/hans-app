@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestError, NotFoundError } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 import { AppStatus } from '@hansapp/data';
 
 import { AccessCacheInvalidator } from './access-cache-invalidator';
@@ -48,11 +50,13 @@ export class AppModerationService {
     }
     if (app.status === AppStatus.DISABLED) {
       // 차단을 푸는 것은 승인이 아니다 — 되살릴 대상(어디까지 켤지)이 다르다.
-      throw new BadRequestException('A blocked app cannot be approved. Unblock it instead.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_APP_STATUS_INVALID, {
+        message: 'A blocked app cannot be approved. Unblock it instead.',
+      });
     }
 
     await this.move(appId, [AppStatus.PENDING], () => this.repo.approve(appId));
-    this.logger.log(`앱 승인: appId=${appId} adminId=${adminId}`);
+    this.logger.log(`App approved: appId=${appId} adminId=${adminId}`);
   }
 
   /**
@@ -62,22 +66,24 @@ export class AppModerationService {
   async reject(appId: number, reason: string, adminId: number): Promise<void> {
     const trimmed = reason.trim();
     if (!trimmed) {
-      throw new BadRequestException('Rejection reason is required.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_APP_REJECTION_REASON_REQUIRED, {
+        message: 'Rejection reason is required.',
+      });
     }
     if (trimmed.length > REJECTION_REASON_MAX_LENGTH) {
-      throw new BadRequestException(
-        `Rejection reason must be ${REJECTION_REASON_MAX_LENGTH} characters or fewer.`,
-      );
+      throw new BadRequestError(AdminErrorCode.ADMIN_APP_REJECTION_REASON_TOO_LONG);
     }
 
     const app = await this.live(appId);
     if (app.status !== AppStatus.PENDING) {
       // 승인된 앱을 거절로 되돌리는 것은 심사가 아니라 제재다 — 차단이 그 통로다.
-      throw new BadRequestException('Only a pending app can be rejected. Block it instead.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_APP_STATUS_INVALID, {
+        message: 'Only a pending app can be rejected. Block it instead.',
+      });
     }
 
     await this.repo.reject(appId, trimmed);
-    this.logger.log(`앱 거절: appId=${appId} adminId=${adminId}`);
+    this.logger.log(`App rejected: appId=${appId} adminId=${adminId}`);
   }
 
   /**
@@ -93,7 +99,7 @@ export class AppModerationService {
     }
 
     await this.move(appId, [AppStatus.PENDING, AppStatus.ACTIVE], () => this.repo.block(appId));
-    this.logger.log(`앱 차단: appId=${appId} adminId=${adminId}`);
+    this.logger.log(`App blocked: appId=${appId} adminId=${adminId}`);
   }
 
   /**
@@ -106,18 +112,20 @@ export class AppModerationService {
   async unblock(appId: number, adminId: number): Promise<void> {
     const app = await this.live(appId);
     if (app.status !== AppStatus.DISABLED) {
-      throw new BadRequestException('Only a blocked app can be unblocked.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_APP_STATUS_INVALID, {
+        message: 'Only a blocked app can be unblocked.',
+      });
     }
 
     await this.move(appId, [AppStatus.DISABLED], () => this.repo.unblock(appId));
-    this.logger.log(`앱 차단 해제: appId=${appId} adminId=${adminId}`);
+    this.logger.log(`App unblocked: appId=${appId} adminId=${adminId}`);
   }
 
   /** 조치 대상 앱. 없거나 삭제됐으면 404 — 지워진 앱은 손댈 대상이 아니다. */
   private async live(appId: number) {
     const app = await this.repo.findLive(appId);
     if (!app) {
-      throw new NotFoundException(`App not found: ${appId}`);
+      throw new NotFoundError(AdminErrorCode.ADMIN_APP_NOT_FOUND);
     }
     return app;
   }

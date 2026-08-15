@@ -126,11 +126,6 @@ export class LlmUsageLogDto {
   })
   readonly promptHash!: string;
 
-  @ApiProperty({
-    description: '정규화한 질문의 해시. **원문은 복원할 수 없다** — 반복을 세는 용도다.',
-  })
-  readonly questionHash!: string;
-
   @ApiProperty({ description: 'LLM 업체', example: 'anthropic' })
   readonly provider!: string;
 
@@ -173,7 +168,6 @@ export class LlmUsageLogDto {
     this.feature = entry.feature;
     this.promptName = entry.promptName;
     this.promptHash = entry.promptHash;
-    this.questionHash = entry.questionHash;
     this.provider = entry.provider;
     this.model = entry.model;
     this.inputTokens = entry.inputTokens;
