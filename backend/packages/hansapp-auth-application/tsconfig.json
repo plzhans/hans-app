@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2023",
+    // **DOM 을 빼려고 적는다.** 안 적으면 target 기본값에 lib.dom 이 딸려 와 서버 코드에
+    // 브라우저 전역(open·name·close·status …)이 전부 열린다. 실제로 secret-box 의 open 을
+    // import 에서 빠뜨렸을 때 window.open 에 조용히 붙어 엉뚱한 타입 오류로만 새어 나왔다.
+    "lib": ["ES2023"],
     "module": "nodenext",
     // 선언 파일(.d.ts)은 만들지 않는다. 이 패키지의 유일한 소비자는 hansapp-api(app)이고
     // app 은 customConditions:["src"] 로 소스를 직접 읽으므로 dist 의 .d.ts 를 쓰지 않는다.

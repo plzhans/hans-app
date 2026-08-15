@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2023",
+    // **DOM 을 빼려고 적는다.** 안 적으면 target 기본값에 lib.dom 이 딸려 와 서버 코드에
+    // 브라우저 전역(open·name·close·status …)이 전부 열린다. 실제로 secret-box 의 open 을
+    // import 에서 빠뜨렸을 때 window.open 에 조용히 붙어 엉뚱한 타입 오류로만 새어 나왔다.
+    "lib": ["ES2023"],
     "module": "nodenext",
     "declaration": true,
     "outDir": "dist",
@@ -14,7 +18,7 @@
     // 데코레이터 + 타입 전용 import 조합에서 TS1272 를 그대로 잡아내려면 켜 둔다
     // (http-error.filter.ts 상단 주석 참고).
     "isolatedModules": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "moduleResolution": "nodenext",
     // 워크스페이스 패키지를 import 할 때 exports 의 "src" 조건을 켠다 — dist 의 .d.ts 가 아니라
     // 원본 .ts 로 해석돼 편집기의 "정의로 이동" 이 소스로 간다(앱 tsconfig 와 같은 설정).
