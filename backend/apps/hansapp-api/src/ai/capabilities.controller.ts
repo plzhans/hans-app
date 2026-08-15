@@ -1,4 +1,6 @@
-import { Get, Req, ServiceUnavailableException } from '@nestjs/common';
+import { Get, Req } from '@nestjs/common';
+import { ServiceErrorCode } from '@hansapp/application';
+import { UnavailableError } from '@hansapp/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiController } from '@hansapp/http-common';
 import type { Request } from 'express';
@@ -80,7 +82,9 @@ export class AiCapabilitiesController {
       (fail-closed). 물어보고 나서야 알게 되는 셈이라, 여기서 미리 실패로 알린다.
     */
     if (!snapshot.available) {
-      throw new ServiceUnavailableException('Usage counter is unavailable');
+      throw new UnavailableError(ServiceErrorCode.AI_SEARCH_UNAVAILABLE, {
+        message: 'Usage counter is unavailable.',
+      });
     }
     /*
       **모델 목록도 서버가 정한다.** 화면이 들고 있으면 설정이 바뀌는 순간 거짓말이 된다 —

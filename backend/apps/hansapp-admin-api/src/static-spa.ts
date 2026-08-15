@@ -19,15 +19,27 @@ import type { ConfigSource } from '@hansapp/common';
  */
 const API_PREFIXES = ['/api/', '/auth/', '/health', '/docs', '/openapi'];
 
+const STATIC_DIR_KEY = 'apps-admin-api.web.staticDir';
+
+/**
+ * 이 서버가 SPA 를 직접 내보내는지.
+ *
+ * **CORS 로그 문구가 이 값으로 갈린다** — 같이 내보내면 화면이 같은 오리진이라 CORS 가
+ * 아예 필요 없고, 아니면 화면이 다른 어딘가에 있다는 뜻이라 이야기가 달라진다.
+ */
+export function isAdminSpaServed(config: ConfigSource): boolean {
+  return config.getStringOrDefault(STATIC_DIR_KEY) !== '';
+}
+
 /**
  * @param dir 정적파일 디렉터리. 상대경로면 cwd 기준(컨테이너는 /app).
  *            비어 있으면 아무것도 안 붙인다 — 로컬은 Vite dev server 로 따로 띄운다.
  * @returns 부팅 로그에 찍을 한 줄.
  */
 export function serveAdminSpa(app: NestExpressApplication, config: ConfigSource): string {
-  const raw = config.getStringOrDefault('apps-admin-api.web.staticDir');
+  const raw = config.getStringOrDefault(STATIC_DIR_KEY);
   if (!raw) {
-    return '🖥  SPA    : 꺼짐 — apps-admin-api.web.staticDir 가 비었다 (로컬은 Vite dev server)';
+    return `🖥  SPA    : not served — the console runs separately (${STATIC_DIR_KEY} is empty)`;
   }
 
   const dir = isAbsolute(raw) ? raw : resolve(process.cwd(), raw);
@@ -39,8 +51,8 @@ export function serveAdminSpa(app: NestExpressApplication, config: ConfigSource)
   */
   if (!existsSync(index)) {
     throw new Error(
-      `관리자 SPA 를 찾지 못했다: ${index}\n` +
-        'apps-admin-api.web.staticDir 를 확인할 것(비우면 SPA 를 내보내지 않는다).',
+      `Admin SPA not found: ${index}\n` +
+        'Check apps-admin-api.web.staticDir (leave it empty to not serve the SPA).',
     );
   }
 

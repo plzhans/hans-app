@@ -72,7 +72,7 @@ export class HealthcareCodeCache implements OnApplicationBootstrap {
 
     this.byType = byType;
     this.byKey = byKey;
-    this.logger.log(`healthcare_code ${rows.length}건 메모리 로드`);
+    this.logger.log(`Loaded ${rows.length} healthcare_code rows into memory`);
   }
 
   /** tp 의 코드 목록(sort 순). 없으면 빈 배열. */

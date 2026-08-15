@@ -106,7 +106,7 @@ export class AdminSessionCache {
   /** 캐시 한 칸에 실제로 담긴 값. 콘솔이 들여다볼 때만 쓴다. */
   inspect(adminId: number, sessionId: number): Promise<AdminSessionCacheState> {
     return inspectCacheEntry(this.cache, adminSessionKey(adminId, sessionId), (error) =>
-      this.logger.warn(`세션 캐시를 읽지 못했다(sid=${sessionId}): ${String(error)}`),
+      this.logger.warn(`Failed to read session cache (sid=${sessionId}): ${String(error)}`),
     );
   }
 
@@ -143,7 +143,7 @@ export class AdminSessionCache {
       }
     } catch (error) {
       // 훑다 끊겨도 받아 둔 만큼은 쓴다. 부르는 쪽은 "덜 보일 수 있다" 만 감안하면 된다.
-      this.logger.error(`세션 캐시를 훑지 못했다(adminId=${adminId})`, error);
+      this.logger.error(`Failed to scan session cache (adminId=${adminId})`, error);
     }
     return found;
   }
@@ -164,11 +164,11 @@ export class AdminSessionCache {
         if (left === undefined || left === null) return true;
       } catch (error) {
         this.logger.warn(
-          `세션 캐시를 지우지 못했다(sid=${sessionId}, ${attempt}/${PURGE_ATTEMPTS}): ${String(error)}`,
+          `Failed to evict session cache (sid=${sessionId}, ${attempt}/${PURGE_ATTEMPTS}): ${String(error)}`,
         );
       }
     }
-    this.logger.error(`세션 캐시가 남았다: sid=${sessionId}`);
+    this.logger.error(`Session cache entry survived eviction: sid=${sessionId}`);
     return false;
   }
 
@@ -189,7 +189,7 @@ export class AdminSessionCache {
       if (cached) return cached.v;
     } catch (error) {
       // 캐시가 흔들려도 인증을 실패로 만들지 않는다. 원천(DB)이 답을 갖고 있다.
-      this.logger.warn(`세션 캐시를 읽지 못했다(sid=${sessionId}): ${String(error)}`);
+      this.logger.warn(`Failed to read session cache (sid=${sessionId}): ${String(error)}`);
     }
 
     const row = await this.sessions.findOwned(adminId, sessionId);
@@ -197,7 +197,7 @@ export class AdminSessionCache {
     try {
       await this.cache?.set(key, { v: value }, this.ttlSec(maxAliveSec) * 1000);
     } catch (error) {
-      this.logger.warn(`세션 캐시에 넣지 못했다(sid=${sessionId}): ${String(error)}`);
+      this.logger.warn(`Failed to write session cache (sid=${sessionId}): ${String(error)}`);
     }
     return value;
   }
@@ -215,7 +215,7 @@ export class AdminSessionCache {
         **캐시가 흔들려도 폐기를 실패로 만들지 않는다.** DB 행은 이미 지워졌고, 남은 캐시는
         길어야 상한만큼 뒤에 사라진다. 콘솔에서 부르는 쪽(purge)만 결과를 따진다.
       */
-      this.logger.error(`세션 캐시를 지우지 못했다 — ${key}`, error);
+      this.logger.error(`Failed to evict session cache: ${key}`, error);
     }
   }
 

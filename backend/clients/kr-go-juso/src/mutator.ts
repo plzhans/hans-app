@@ -20,7 +20,7 @@ export const jusoMutator = async <T>(url: string, options?: JusoRequestInit): Pr
   const config = options?.juso;
   if (!config) {
     throw new Error(
-      'JUSO config is missing. 생성된 함수를 직접 호출하지 말고 JusoClient 를 사용하라.',
+      'JUSO config is missing. Use JusoClient instead of calling the generated function directly.',
     );
   }
 

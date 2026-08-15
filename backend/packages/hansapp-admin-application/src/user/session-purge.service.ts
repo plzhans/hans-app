@@ -64,7 +64,7 @@ export class SessionPurgeService {
 
     const users = new Set(rows.map((row) => row.userId)).size;
     this.logger.warn(
-      `전체 로그아웃 — 세션 ${rows.length}개 / 회원 ${users}명 / 캐시 잔여 ${cacheLeft}건`,
+      `Signed out all users: ${rows.length} sessions / ${users} users / ${cacheLeft} cache entries left`,
     );
     return { sessions: rows.length, users, cacheLeft };
   }

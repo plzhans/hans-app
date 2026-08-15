@@ -33,7 +33,7 @@ export class CodeMapper {
     const put = (map: Map<string, string>, key: string, value: string): void => {
       const owner = map.get(key);
       if (owner !== undefined && owner !== value) {
-        throw new Error(`중복 매핑: ${key} → ${owner} / ${value}`);
+        throw new Error(`Duplicate mapping: ${key} → ${owner} / ${value}`);
       }
       map.set(key, value);
     };

@@ -53,7 +53,7 @@ export class HealthcareCodeSeedService {
     const unmapped = await this.findUnmapped();
     for (const row of unmapped) {
       this.logger.warn(
-        `시드에 없는 원본 코드: ${row.tp}/${row.src} ${row.cd}(${row.nm}) — 시드에 추가해야 한다`,
+        `Source code missing from the seed: ${row.tp}/${row.src} ${row.cd}(${row.nm}) — add it to the seed`,
       );
     }
 
@@ -82,7 +82,7 @@ export class HealthcareCodeSeedService {
           const owner = seen.get(key);
           if (owner !== undefined) {
             throw new Error(
-              `중복 매핑: ${key} 가 ${owner} 와 ${code.cd} 양쪽에 있다. 시드를 고쳐라.`,
+              `Duplicate mapping: ${key} exists in both ${owner} and ${code.cd}. Fix the seed.`,
             );
           }
           seen.set(key, code.cd);

@@ -51,7 +51,7 @@ export class AccessCacheInvalidator {
     await Promise.all(
       keys.map((key) =>
         this.cache!.del(key).catch((error: unknown) => {
-          this.logger.warn(`인증 캐시 무효화 실패: ${key} (${String(error)})`);
+          this.logger.warn(`Failed to invalidate access cache: ${key} (${String(error)})`);
         }),
       ),
     );

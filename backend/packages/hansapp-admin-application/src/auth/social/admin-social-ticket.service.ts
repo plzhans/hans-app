@@ -1,4 +1,6 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestError } from '@hansapp/common';
+import { AdminErrorCode } from '../../error';
 import { JwtService } from '@nestjs/jwt';
 
 import { ADMIN_AUTH_CONFIG, ADMIN_TOKEN_AUDIENCE } from '../admin-auth.config';
@@ -64,7 +66,9 @@ export class AdminSocialTicketService {
     const flowId = typeof claims.flow_id === 'string' ? claims.flow_id : '';
     const nonce = typeof claims.nonce === 'string' ? claims.nonce : '';
     if (!flowId || !nonce) {
-      throw new BadRequestException('Stale sign-in flow. Please try again.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_SOCIAL_FLOW_INVALID, {
+        message: 'Stale sign-in flow. Please try again.',
+      });
     }
     return {
       intent,
@@ -88,7 +92,9 @@ export class AdminSocialTicketService {
   verifyLinkTicket(raw: string): number {
     const claims = this.verify('admin_oauth_link', raw);
     if (typeof claims.admin_id !== 'number') {
-      throw new BadRequestException('Invalid link ticket.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_SOCIAL_TICKET_INVALID, {
+        message: 'Invalid link ticket.',
+      });
     }
     return claims.admin_id;
   }
@@ -117,14 +123,18 @@ export class AdminSocialTicketService {
         ...(this.config.issuer ? { issuer: this.config.issuer } : {}),
       });
     } catch {
-      throw new BadRequestException('Sign-in flow expired. Please try again.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_SOCIAL_FLOW_INVALID, {
+        message: 'Sign-in flow expired. Please try again.',
+      });
     }
     /*
       **용도를 반드시 대조한다.** 서명 키가 access token 과 같아서, 이 확인이 없으면
       access token 을 state 자리에 넣어도 통과한다(그 반대도 마찬가지다).
     */
     if (claims.token_use !== tokenUse) {
-      throw new BadRequestException('Invalid token.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_SOCIAL_TICKET_INVALID, {
+        message: 'Invalid token.',
+      });
     }
     return claims;
   }

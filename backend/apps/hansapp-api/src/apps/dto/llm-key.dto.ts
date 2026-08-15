@@ -16,7 +16,7 @@ import {
 /** 이름 규칙: 영숫자로 시작하고 점·하이픈·밑줄을 허용한다. 서비스의 검증과 맞춘다. */
 const NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 const NAME_MESSAGE =
-  '이름은 영숫자로 시작하고 영숫자·점(.)·하이픈(-)·밑줄(_)만 사용할 수 있습니다.';
+  'name must start with a letter or digit and contain only letters, digits, dots, hyphens, and underscores.';
 
 const NAME_DESCRIPTION =
   '이름(LOCAL 전용, 필수). 여러 대를 구분하는 값이다. ' +

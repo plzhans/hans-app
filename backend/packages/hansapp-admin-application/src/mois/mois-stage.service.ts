@@ -55,10 +55,10 @@ export class MoisStageService {
       const result = await this.region.sync({ mode: 'merge' });
 
       this.logger.log(
-        `법정동코드 ${result.fetched}/${result.totalCount}건 반영` +
-          ` (시도 ${result.levels.sido} · 시군구 ${result.levels.sggu}` +
-          ` · 읍면동 ${result.levels.umd} · 리 ${result.levels.ri})` +
-          (result.removed > 0 ? ` / 폐지 ${result.removed}건` : ''),
+        `Legal district codes applied: ${result.fetched}/${result.totalCount}` +
+          ` (sido ${result.levels.sido} · sigungu ${result.levels.sggu}` +
+          ` · eup/myeon/dong ${result.levels.umd} · ri ${result.levels.ri})` +
+          (result.removed > 0 ? ` / retired ${result.removed}` : ''),
       );
 
       return {
@@ -69,7 +69,7 @@ export class MoisStageService {
     } catch (error) {
       if (error instanceof KrDataQuotaError) {
         this.logger.warn(
-          `행정안전부 1단계 — 일일 호출 한도 초과(${error.errorCode}). 내일 이어받는다.`,
+          `MOIS stage 1 hit the daily quota (${error.errorCode}). Resuming tomorrow.`,
         );
         return { total: 0, processed: 0, calls: 0, limitReached: true };
       }

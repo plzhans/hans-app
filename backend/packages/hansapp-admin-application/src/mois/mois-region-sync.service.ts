@@ -119,7 +119,7 @@ export class MoisRegionSyncService {
       }
 
       this.logger.log(
-        `법정동코드 page=${pages} rows=${page.rows.length} 누적=${fetched}/${totalCount}`,
+        `Legal district codes page=${pages} rows=${page.rows.length} total=${fetched}/${totalCount}`,
       );
     }
 
@@ -162,15 +162,15 @@ export class MoisRegionSyncService {
 
     if (totalCount === 0 || fetched < totalCount) {
       this.logger.warn(
-        `전량을 받지 못했다 (${fetched}/${totalCount}). 폐지 판정을 건너뛴다 — ` +
-          '못 받은 행을 폐지로 오인하는 것보다 낡은 채로 두는 편이 낫다.',
+        `Did not receive the full set (${fetched}/${totalCount}). Skipping the retirement pass — ` +
+          'keeping stale rows is better than marking rows we never received as retired.',
       );
       return 0;
     }
 
     const removed = await this.repo.markRemoved(startedAt);
     if (removed > 0) {
-      this.logger.log(`원본에서 사라진 코드 ${removed}건을 폐지로 표시했다.`);
+      this.logger.log(`Marked ${removed} codes as retired after they vanished from the source.`);
     }
     return removed;
   }

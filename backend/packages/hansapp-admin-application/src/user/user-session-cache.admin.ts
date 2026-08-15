@@ -58,7 +58,7 @@ export class UserSessionCacheAdmin {
 
   inspect(userId: number, sessionId: number): Promise<SessionCacheState> {
     return inspectCacheEntry(this.cache, sessionKey(userId, sessionId), (error) =>
-      this.logger.warn(`세션 캐시를 읽지 못했다(sid=${sessionId}): ${String(error)}`),
+      this.logger.warn(`Failed to read session cache (sid=${sessionId}): ${String(error)}`),
     );
   }
 
@@ -112,7 +112,7 @@ export class UserSessionCacheAdmin {
       }
     } catch (error) {
       // 훑다 끊겨도 받아 둔 만큼은 쓴다. 부르는 쪽은 "덜 보일 수 있다" 만 감안하면 된다.
-      this.logger.error('세션 캐시를 훑지 못했다', error);
+      this.logger.error('Failed to scan the session cache', error);
     }
     return found;
   }
@@ -140,12 +140,12 @@ export class UserSessionCacheAdmin {
         await this.cache?.del(key);
         const left = await this.cache?.get(key);
         if (left === undefined || left === null) {
-          this.logger.log(`세션 캐시 초기화: sid=${sessionId}`);
+          this.logger.log(`Session cache cleared: sid=${sessionId}`);
           return true;
         }
       } catch (error) {
         this.logger.warn(
-          `세션 캐시를 지우지 못했다(sid=${sessionId}, ${attempt}/${PURGE_ATTEMPTS}): ${String(error)}`,
+          `Failed to evict session cache (sid=${sessionId}, ${attempt}/${PURGE_ATTEMPTS}): ${String(error)}`,
         );
       }
     }
@@ -153,7 +153,7 @@ export class UserSessionCacheAdmin {
       여기까지 오면 캐시에 남아 있다. **배치가 나중에 치운다**(SessionCacheSweeper) —
       DB 행이 없는 키를 훑어 지우므로, 놓친 것이 영영 남지는 않는다.
     */
-    this.logger.error(`세션 캐시가 남았다: sid=${sessionId}`);
+    this.logger.error(`Session cache entry survived eviction: sid=${sessionId}`);
     return false;
   }
 

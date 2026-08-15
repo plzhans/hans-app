@@ -1,4 +1,5 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ConsentRequiredError } from './error';
 import { ConsentType } from '@hansapp/data';
 
 import { AUTH_CONFIG, type AuthConfig } from './auth.config';
@@ -56,14 +57,14 @@ export class ConsentService {
    */
   assertValid(input: ConsentInput | undefined): asserts input is ConsentInput {
     if (!input) {
-      throw new BadRequestException('Consent is required.');
+      throw new ConsentRequiredError();
     }
     const { terms, privacy } = this.config.consentVersions;
     if (input.termsVersion !== terms || input.privacyVersion !== privacy) {
       // 사용자가 고칠 수 있는 상황이라(새로고침) 사유를 구분해 준다.
-      throw new BadRequestException(
-        'Terms have been updated. Please reload and review them again.',
-      );
+      throw new ConsentRequiredError({
+        message: 'Terms have been updated. Please reload and review them again.',
+      });
     }
   }
 
@@ -93,12 +94,12 @@ export class ConsentService {
    */
   assertApiTerms(version: string | undefined): asserts version is string {
     if (!version) {
-      throw new BadRequestException('API terms consent is required.');
+      throw new ConsentRequiredError({ message: 'API terms consent is required.' });
     }
     if (version !== this.config.consentVersions.apiTerms) {
-      throw new BadRequestException(
-        'API terms have been updated. Please reload and review them again.',
-      );
+      throw new ConsentRequiredError({
+        message: 'API terms have been updated. Please reload and review them again.',
+      });
     }
   }
 

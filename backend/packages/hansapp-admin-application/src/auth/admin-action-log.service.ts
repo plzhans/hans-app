@@ -66,7 +66,9 @@ export class AdminActionLogService {
       }
       await this.prisma.adminActionLog.create({ data });
     } catch (error) {
-      this.logger.warn(`관리자 행위 로그 적재 실패(action=${input.action}): ${String(error)}`);
+      this.logger.warn(
+        `Failed to store admin action log (action=${input.action}): ${String(error)}`,
+      );
     }
   }
 }

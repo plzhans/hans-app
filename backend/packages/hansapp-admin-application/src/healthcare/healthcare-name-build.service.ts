@@ -102,9 +102,9 @@ export class HealthcareNameBuildService {
     };
 
     this.logger.log(
-      `이름 재계산${dryRun ? ' (dry-run)' : ''} — 검사 ${result.scanned.toLocaleString()} / ` +
-        `변경 ${result.changed.toLocaleString()} / 법인 ${result.withCorp.toLocaleString()} / ` +
-        `잠금 ${result.locked.toLocaleString()}`,
+      `Name rebuild${dryRun ? ' (dry-run)' : ''}: scanned ${result.scanned.toLocaleString()} / ` +
+        `changed ${result.changed.toLocaleString()} / with corporation ${result.withCorp.toLocaleString()} / ` +
+        `locked ${result.locked.toLocaleString()}`,
     );
 
     return result;

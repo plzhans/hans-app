@@ -75,7 +75,7 @@ export class NmcBasicSyncService {
       if (remaining < 1) {
         limitReached = total > processed;
         if (limitReached) {
-          this.logger.log(`콜 한도(${options.limit})에 도달했다. 다음 실행에서 이어받는다.`);
+          this.logger.log(`Reached the call limit (${options.limit}). Resuming on the next run.`);
         }
         break;
       }
@@ -99,7 +99,7 @@ export class NmcBasicSyncService {
           calls += done;
           processed += done;
           this.logger.warn(
-            `NMC 일일 호출 한도 초과(${error.errorCode}). ${processed.toLocaleString()}건까지 받았다. 내일 이어받는다.`,
+            `NMC hit the daily quota (${error.errorCode}) after ${processed.toLocaleString()} rows. Resuming tomorrow.`,
           );
           return { total, processed, calls, limitReached: true };
         }
@@ -110,7 +110,7 @@ export class NmcBasicSyncService {
       processed += targets.length;
 
       this.logger.log(
-        `NMC basic ${processed.toLocaleString()}/${total.toLocaleString()} (콜 ${calls.toLocaleString()})`,
+        `NMC basic ${processed.toLocaleString()}/${total.toLocaleString()} (${calls.toLocaleString()} calls)`,
       );
     }
 
@@ -143,8 +143,8 @@ export class NmcBasicSyncService {
     // --debug 로만 보인다. 8만 건이면 로그가 8만 줄이 된다.
     this.logger.debug(
       item
-        ? `${hpid} ${asString(item.dutyName) ?? ''} — 필드 ${Object.keys(item).length}, 병상 ${asString(item.hpbdn) ?? '-'}, 과목 ${(asString(item.dgidIdName) ?? '').split(',').filter(Boolean).length}`
-        : `${hpid} — 응답 없음`,
+        ? `${hpid} ${asString(item.dutyName) ?? ''} — fields ${Object.keys(item).length}, beds ${asString(item.hpbdn) ?? '-'}, subjects ${(asString(item.dgidIdName) ?? '').split(',').filter(Boolean).length}`
+        : `${hpid} — no response`,
     );
 
     // 응답이 없어도 받았다는 사실은 남긴다. 안 그러면 매번 다시 조회한다.
@@ -186,7 +186,9 @@ export class NmcBasicSyncService {
 
     const missing = names.length - codes.length;
     if (missing > 0) {
-      this.logger.warn(`${hpid}: 코드마스터(D000)에 없는 과목명 ${missing}건 — ${names.join(',')}`);
+      this.logger.warn(
+        `${hpid}: ${missing} subject names missing from the code master (D000) — ${names.join(',')}`,
+      );
     }
   }
 }

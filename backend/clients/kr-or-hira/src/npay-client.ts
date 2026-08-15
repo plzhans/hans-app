@@ -91,7 +91,7 @@ export class HiraNpayClient {
     if (!hospitalId) {
       // 마크업이 바뀌었거나 없는 기관이다. 어느 쪽이든 조용히 넘어가면 안 된다.
       throw new HiraWebError(
-        `hospital id not found in page for ykiho=${encryptedYkiho} (마크업이 바뀌었는지 확인하라)`,
+        `hospital id not found in page for ykiho=${encryptedYkiho} (check whether the markup changed)`,
         'NO_HOSPITAL_ID',
         { responseBody: body.slice(0, 500) },
       );

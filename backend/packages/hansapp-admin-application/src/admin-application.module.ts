@@ -1,12 +1,12 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import type { ConfigSource, SecretBoxKeys } from '@hansapp/common';
 import {
-  buildSettingKeyring,
-  buildSettingOrigins,
   SETTING_KEYRING,
   SETTING_ORIGINS,
-  type ConfigSource,
-  type SecretBoxKeys,
+  buildSettingKeyring,
+  buildSettingOrigins,
 } from '@hansapp/common';
+
 import { ApplicationModule } from '@hansapp/application';
 import { DataModule, SettingReadRepository } from '@hansapp/data';
 import { EmailSender, EMAIL_SETTINGS_SOURCE } from '@hansapp/email-sender';

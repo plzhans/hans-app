@@ -1,6 +1,8 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { BadRequestError } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { AdminStatus } from '@hansapp/data';
 
@@ -321,8 +323,8 @@ const KEY_PURPOSE = 'admin-password-reset';
  * 사람에게는 어느 쪽이든 "다시 받으세요" 로 끝나는 일이고, 갈라 주면 유효한 토큰을
  * 찾아 헤매는 쪽에만 단서가 된다.
  */
-function invalidLink(): BadRequestException {
-  return new BadRequestException('This password reset link is invalid or has expired.');
+function invalidLink(): BadRequestError {
+  return new BadRequestError(AdminErrorCode.ADMIN_PASSWORD_RESET_LINK_INVALID);
 }
 
 /** 저장·대조에 쓰는 값. 원문은 메일로만 나간다. */

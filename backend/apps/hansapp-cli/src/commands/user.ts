@@ -24,7 +24,7 @@ async function run<T>(
 ): Promise<T> {
   const target = email?.trim();
   if (!target) {
-    throw new Error('--email <email> 이 필요하다.');
+    throw new Error('--email <email> is required.');
   }
   return withAuthContext(source, async (context) => {
     const apps = context.get(AppService);
@@ -32,9 +32,9 @@ async function run<T>(
     const userId = await apps.resolveUserIdByEmail(target).catch(() => {
       throw new Error(
         [
-          `사용자를 찾을 수 없다: "${target}"`,
-          `  환경 : ${source.env} (--env 로 바꾼다)`,
-          '  확인 : 그 환경 DB 에 해당 이메일로 가입된 계정이 있어야 한다.',
+          `User not found: "${target}"`,
+          `  Environment : ${source.env} (change it with --env)`,
+          '  Check       : that environment must have an account registered with this email.',
         ].join('\n'),
       );
     });
@@ -77,7 +77,7 @@ export function userCommand(source: ConfigSource): Command {
         // enum 값과 정확히 맞춰야 Prisma 가 받는다. 대소문자만 관대하게 처리한다.
         const tier = options.tier.trim().toUpperCase() as UserTier;
         if (!TIERS.includes(tier)) {
-          throw new Error(`알 수 없는 --tier: ${options.tier} (${TIERS.join(' | ')})`);
+          throw new Error(`Unknown --tier: ${options.tier} (${TIERS.join(' | ')})`);
         }
         const info = await run(source, options.email, (apps, userId) =>
           apps.setUserTier(userId, tier),

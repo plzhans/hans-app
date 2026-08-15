@@ -49,7 +49,7 @@ async function run<T>(
   const email = owner?.trim();
   if (!email) {
     throw new Error(
-      '소유자 이메일이 없다. --owner <email> 로 주거나 HANSAPP_CLI_OWNER 환경변수를 지정하라.',
+      'No owner email. Pass --owner <email> or set the HANSAPP_CLI_OWNER environment variable.',
     );
   }
   // 값이 어디서 왔는지 밝힌다(옵션 우선, 없으면 환경변수).
@@ -61,11 +61,11 @@ async function run<T>(
     const userId = await apps.resolveUserIdByEmail(email).catch(() => {
       throw new Error(
         [
-          `사용자를 찾을 수 없다: "${email}"`,
-          `  값 출처 : ${from}`,
-          `  환경    : ${source.env} (--env 로 바꾼다)`,
-          '  확인    : 그 환경 DB 에 해당 이메일로 가입된 계정이 있어야 한다.',
-          '            포털웹에서 가입/소셜 로그인을 먼저 하거나, 올바른 이메일을 지정하라.',
+          `User not found: "${email}"`,
+          `  Source      : ${from}`,
+          `  Environment : ${source.env} (change it with --env)`,
+          '  Check       : that environment must have an account registered with this email.',
+          '                Sign up (or sign in with a social account) on the portal first, or pass the right email.',
         ].join('\n'),
       );
     });
@@ -91,13 +91,13 @@ async function appendToClient(
   values: string[],
 ): Promise<void> {
   if (values.length === 0) {
-    throw new Error('추가할 값이 없다. --add <url> 를 지정하라.');
+    throw new Error('Nothing to add. Specify --add <url>.');
   }
   const result = await run(source, owner, async (apps, userId) => {
     const clients = await apps.listClients(userId, appId);
     const client = clients.find((c) => c.id === clientPk);
     if (!client) {
-      throw new Error(`클라이언트를 찾을 수 없다: ${clientPk}`);
+      throw new Error(`Client not found: ${clientPk}`);
     }
     const current = (client[field] as string[] | null) ?? [];
     const merged = Array.from(new Set([...current, ...values]));
@@ -265,7 +265,7 @@ export function appCommand(source: ConfigSource): Command {
         .option('--all', '내 앱을 **전부** 삭제한다'),
     ).action(async (options: OwnerOptions & { app?: number; all?: boolean }) => {
       if (!options.all && options.app === undefined) {
-        throw new Error('--app <id> 또는 --all 중 하나를 지정하라.');
+        throw new Error('Specify either --app <id> or --all.');
       }
       const deleted = await run(source, options.owner, async (svc, userId) => {
         // 대상 결정. --all 은 이미 삭제된 앱을 건너뛴다(중복 호출 방지).
@@ -340,7 +340,7 @@ export function appCommand(source: ConfigSource): Command {
       ) => {
         const type = options.type.toUpperCase();
         if (!['WEB', 'IOS', 'ANDROID'].includes(type)) {
-          throw new Error(`알 수 없는 --type: ${options.type} (web|ios|android)`);
+          throw new Error(`Unknown --type: ${options.type} (web|ios|android)`);
         }
         const input = {
           type,

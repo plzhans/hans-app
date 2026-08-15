@@ -1,13 +1,6 @@
-import {
-  Body,
-  Get,
-  HttpCode,
-  NotFoundException,
-  Param,
-  ParseIntPipe,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Get, HttpCode, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { NotFoundError } from '@hansapp/common';
+import { AdminErrorCode } from '@hansapp/admin-application';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
 import { AppModerationService, AppReadService } from '@hansapp/admin-application';
@@ -129,7 +122,7 @@ export class AppController {
   private async detailOf(id: number): Promise<AppDetailDto> {
     const app = await this.apps.findById(id);
     if (!app) {
-      throw new NotFoundException(`App not found: ${id}`);
+      throw new NotFoundError(AdminErrorCode.ADMIN_APP_NOT_FOUND);
     }
     return new AppDetailDto(app);
   }

@@ -92,7 +92,7 @@ export class EnvLlmKeyCache {
       this.expiresAt = Date.now() + CACHE_TTL_MS;
     } catch (error) {
       // 직전 값을 그대로 쓴다. DB 가 순간 흔들릴 때마다 AI 가 멎는 편이 더 나쁘다.
-      this.logger.error(`LLM 키를 읽지 못했다. 직전 값을 유지한다: ${String(error)}`);
+      this.logger.error(`Failed to load LLM keys, keeping the previous snapshot: ${String(error)}`);
       this.expiresAt = Date.now() + 10_000;
     }
   }
@@ -120,7 +120,7 @@ export class EnvLlmKeyCache {
   private reveal(raw: string | null, where: string): string | undefined {
     if (!raw) return undefined;
     if (!this.keyring) {
-      this.logger.error(`${where}: appSecretEncryption 키가 없어 복호화하지 못했다.`);
+      this.logger.error(`${where}: cannot decrypt, appSecretEncryption key is missing.`);
       return undefined;
     }
     return open(raw, this.keyring);

@@ -83,7 +83,7 @@ export class CacheSweeper {
         shared,
       };
     } catch (error) {
-      this.logger.warn(`캐시를 읽지 못했다(${key}): ${String(error)}`);
+      this.logger.warn(`Failed to read cache (${key}): ${String(error)}`);
       return empty;
     }
   }
@@ -121,7 +121,7 @@ export class CacheSweeper {
       return deleted;
     } catch (error) {
       // 캐시를 못 지웠다고 저장이 실패로 보이면 안 된다. TTL 이 지나면 어차피 맞춰진다.
-      this.logger.warn(`캐시를 쓸지 못했다(${prefix}*): ${String(error)}`);
+      this.logger.warn(`Failed to sweep cache (${prefix}*): ${String(error)}`);
       return 0;
     }
   }

@@ -1,4 +1,5 @@
-import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { HealthService } from '@hansapp/application';
 
 import { Public } from '../auth/public.decorator';
@@ -43,10 +44,17 @@ export class HealthController {
     };
   }
 
+  /*
+    **점검표는 오류 응답이 아니라 상태 보고다.** 그래서 예외로 올리지 않고 상태 코드만
+    직접 정한다 — 예외로 올리면 전역 필터가 `{ code, message }` 로 바꿔 버려서, 무엇이
+    실패했는지 담은 checks 가 통째로 사라진다. 그 목록을 보려고 부르는 자리다.
+
+    passthrough 를 켜서 직렬화는 Nest 에 그대로 맡긴다(res.json 을 직접 부르면 인터셉터가 빠진다).
+  */
   @Get('ready')
   @Public()
-  async readiness(): Promise<{
-    status: 'ok';
+  async readiness(@Res({ passthrough: true }) res: Response): Promise<{
+    status: 'ok' | 'unavailable';
     checks: CheckView[];
     latencyMs: number;
   }> {
@@ -67,11 +75,8 @@ export class HealthController {
     // skipped 는 실패가 아니다 — 설정하지 않은 선택 의존성(예: Redis 미설정)이다.
     const failed = results.filter((r) => r.status === 'failed');
     if (failed.length > 0) {
-      throw new ServiceUnavailableException({
-        status: 'unavailable',
-        checks,
-        latencyMs,
-      });
+      res.status(HttpStatus.SERVICE_UNAVAILABLE);
+      return { status: 'unavailable', checks, latencyMs };
     }
 
     return { status: 'ok', checks, latencyMs };

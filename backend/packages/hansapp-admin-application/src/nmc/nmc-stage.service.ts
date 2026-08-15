@@ -156,7 +156,7 @@ export class NmcStageService {
     } catch (error) {
       if (error instanceof KrDataQuotaError) {
         this.logger.warn(
-          `NMC ${stage}단계 — 일일 호출 한도 초과(${error.errorCode}). 내일 이어받는다.`,
+          `NMC stage ${stage} hit the daily quota (${error.errorCode}). Resuming tomorrow.`,
         );
         return { total: 0, processed: 0, calls: 0, limitReached: true };
       }
@@ -190,23 +190,23 @@ export class NmcStageService {
   private async stage1(): Promise<SyncOutcome> {
     const outcome: SyncOutcome = { total: 0, processed: 0, calls: 0 };
 
-    this.logger.log('NMC 1단계 (1/4) 코드마스터');
+    this.logger.log('NMC stage 1 (1/4) code master');
     const code = await this.code.sync();
     outcome.calls += code.pages;
     outcome.processed += code.upserted;
 
-    this.logger.log('NMC 1단계 (2/4) 병원 전체 (fulldown)');
+    this.logger.log('NMC stage 1 (2/4) full hospital list (fulldown)');
     const hospital = await this.hospital.sync({ full: true });
     outcome.calls += hospital.pages;
     outcome.processed += hospital.upserted;
     outcome.total = hospital.totalCount;
 
-    this.logger.log('NMC 1단계 (3/4) 달빛어린이병원');
+    this.logger.log("NMC stage 1 (3/4) after-hours children's clinics");
     const baby = await this.baby.sync();
     outcome.calls += baby.calls;
     outcome.processed += baby.processed;
 
-    this.logger.log('NMC 1단계 (4/4) 진료과목 역조회 (QD)');
+    this.logger.log('NMC stage 1 (4/4) reverse lookup by subject (QD)');
     const subject = await this.subject.sync();
     outcome.calls += subject.calls;
     outcome.processed += subject.processed;

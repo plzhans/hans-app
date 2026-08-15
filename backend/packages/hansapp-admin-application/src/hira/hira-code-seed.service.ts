@@ -53,7 +53,7 @@ export class HiraCodeSeedService {
 
     for (const row of stale) {
       await this.repo.deleteCode(row.tp, row.cd);
-      this.logger.log(`시드에서 빠진 코드 삭제: ${row.tp}/${row.cd}`);
+      this.logger.log(`Removed a code that is no longer in the seed: ${row.tp}/${row.cd}`);
     }
 
     return stale.length;

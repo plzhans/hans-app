@@ -1,3 +1,5 @@
+// 이 계층이 공개 API 로 내보내는 오류 번호와, 자주 던지는 오류 클래스.
+export * from './error';
 export { ApplicationModule } from './application.module';
 export { AiModelService } from './common/ai-model.service';
 export type { LlmModelChoice } from '@hansapp/llm';

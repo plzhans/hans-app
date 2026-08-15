@@ -1,5 +1,7 @@
-import { ForbiddenException } from '@nestjs/common';
 import { AdminRole } from '@hansapp/data';
+import { Logger } from '@nestjs/common';
+import { ForbiddenError } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 
 /**
  * 등급의 서열. **작을수록 높다.**
@@ -27,6 +29,8 @@ export const ADMIN_ROLES: AdminRole[] = [AdminRole.SYSTEM, AdminRole.ADMIN, Admi
  * (지금 관리자가 두세 명뿐이다) 아무도 서로를 못 고치게 되기 때문이다.
  * 대신 "자기 자신" 에 대한 제약(삭제·비밀번호 초기화 금지)은 등급과 무관하게 따로 있다.
  */
+const logger = new Logger('AdminRole');
+
 export function canManageRole(actor: AdminRole, target: AdminRole): boolean {
   return ADMIN_ROLE_RANK[target] >= ADMIN_ROLE_RANK[actor];
 }
@@ -37,17 +41,21 @@ export function canManageRole(actor: AdminRole, target: AdminRole): boolean {
  * **403 이다.** 인증은 통과했고 자격이 모자란 것이라, 프론트가 401 로 오해해 토큰 갱신을
  * 반복하면 안 된다(가드가 비밀번호 강제 변경을 막을 때와 같은 이유다).
  *
- * @param what 무엇을 하려 했는지. 영어 동사구 — 예외 메시지는 영어로 쓴다.
+ * @param what 무엇을 하려 했는지(영어 동사구). **응답에는 안 실린다** — 어느 동작을
+ *   시도했는지는 우리가 로그에서 볼 값이지, 거절 사유를 나눠 알려 줄 값이 아니다.
  */
 export function assertCanManageAdmin(actor: AdminRole, target: AdminRole, what: string): void {
   if (!canManageRole(actor, target)) {
-    throw new ForbiddenException(`Cannot ${what} an admin with a higher role than yours.`);
+    logger.debug(`Refused to ${what} an admin: actor=${actor} target=${target}`);
+    throw new ForbiddenError(AdminErrorCode.ADMIN_ROLE_TOO_HIGH);
   }
 }
 
 /** 자기보다 높은 등급을 내주려 하면 거절한다(계정을 만들 때·등급을 바꿀 때). */
 export function assertCanAssignRole(actor: AdminRole, role: AdminRole): void {
   if (!canManageRole(actor, role)) {
-    throw new ForbiddenException('Cannot assign a role higher than your own.');
+    throw new ForbiddenError(AdminErrorCode.ADMIN_ROLE_TOO_HIGH, {
+      message: 'Cannot assign a role higher than your own.',
+    });
   }
 }

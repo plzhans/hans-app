@@ -58,12 +58,12 @@ export class HiraNpayWebSyncService {
     try {
       const count = await this.crawl(job.target);
       await this.jobs.succeed(job.id);
-      this.logger.log(`비급여 크롤 완료 ykiho=${job.target} ${count}건`);
+      this.logger.log(`Non-payment scrape done: ykiho=${job.target} ${count} rows`);
       return { ykiho: job.target, count };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.jobs.fail(job.id, message);
-      this.logger.error(`비급여 크롤 실패 ykiho=${job.target}: ${message}`);
+      this.logger.error(`Non-payment scrape failed: ykiho=${job.target} ${message}`);
       return { ykiho: job.target, count: -1 };
     }
   }
@@ -143,7 +143,7 @@ function assertShape(item: NpayWebItem): NpayWebItem {
 
   if (bad) {
     throw new HiraWebError(
-      `비급여 item 의 모양이 다르다 (응답 구조가 바뀌었는지 확인하라): ${JSON.stringify(item).slice(0, 300)}`,
+      `Unexpected non-payment item shape (check whether the response layout changed): ${JSON.stringify(item).slice(0, 300)}`,
       'SHAPE',
     );
   }

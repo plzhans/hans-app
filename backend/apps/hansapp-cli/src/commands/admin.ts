@@ -48,9 +48,9 @@ async function readPasswordFromStdin(): Promise<string> {
   if (!password) {
     throw new Error(
       [
-        'stdin 에서 비밀번호를 읽지 못했다.',
-        "  사용 : printf '%s' '비밀번호' | hansapp-cli admin create <email> --password-stdin",
-        '  주의 : 컨테이너에서 돌린다면 docker compose run 에 -T 를 붙여야 파이프가 먹는다.',
+        'Could not read the password from stdin.',
+        "  Usage: printf '%s' '<password>' | hansapp-cli admin create <email> --password-stdin",
+        '  Note: in a container, add -T to `docker compose run` or the pipe will not work.',
       ].join('\n'),
     );
   }

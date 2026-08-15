@@ -22,6 +22,17 @@ import ExcelJS from 'exceljs';
 import { normalizeStationName } from '../src/reference/subway-station-name';
 
 const DATA_DIR = join(__dirname, '../../../data');
+
+/**
+ * 원본 파일 이름 꼴. **공공데이터포털이 주는 그대로다** — 번역하거나 바꾸면 못 찾는다.
+ *
+ * 오류 메시지에 이 값을 끼워 넣으려고 상수로 뺐다. 메시지 자체는 영어로 쓰되(규칙),
+ * 찾으라는 파일 이름은 실제 이름이어야 도움이 된다.
+ */
+const SOURCE_FILE_PATTERN = '전국 도시광역철도 역사 역사정보_*.xlsx';
+
+/** 원본 파일을 고르는 조각. 위 이름의 일부다. */
+const SOURCE_FILE_KEYWORD = '철도';
 const OUT_PATH = join(__dirname, '../src/reference/subway-station.data.json');
 
 /** 일본어 칸이 비었다고 봐야 하는 값. 대구교통공사 94역이 문자열 '없음' 으로 온다. */
@@ -72,9 +83,11 @@ function emptyToNull(value: string): string | null {
 }
 
 function findExcel(): string {
-  const files = readdirSync(DATA_DIR).filter((f) => f.includes('철도') && f.endsWith('.xlsx'));
+  const files = readdirSync(DATA_DIR).filter(
+    (f) => f.includes(SOURCE_FILE_KEYWORD) && f.endsWith('.xlsx'),
+  );
   if (files.length === 0) {
-    throw new Error(`엑셀이 없다: ${DATA_DIR}/전국 도시광역철도 역사 역사정보_*.xlsx`);
+    throw new Error(`Spreadsheet not found: ${DATA_DIR}/${SOURCE_FILE_PATTERN}`);
   }
   // 파일명 끝에 배포일자가 붙는다(_20260701). 사전순 최신이 최신 데이터다.
   return join(DATA_DIR, files.sort().reverse()[0]);
@@ -90,8 +103,8 @@ function versionOf(file: string): string {
   const match = /_(\d{8})\.xlsx$/.exec(file);
   if (!match) {
     throw new Error(
-      `파일명에서 배포일자를 못 찾았다: ${file}\n` +
-        `'..._YYYYMMDD.xlsx' 형태여야 한다. 원본을 받은 그대로 두고 이름을 바꾸지 마라.`,
+      `Could not read the release date from the file name: ${file}\n` +
+        `Expected '..._YYYYMMDD.xlsx'. Keep the file exactly as downloaded — do not rename it.`,
     );
   }
   return match[1];
@@ -111,7 +124,9 @@ async function main(): Promise<void> {
   const required = ['역명(한글)', '역명(영어)', '역명(일본어)', '운영노선'];
   for (const name of required) {
     if (!header[name]) {
-      throw new Error(`엑셀에 '${name}' 컬럼이 없다. 원본 양식이 바뀌었는지 확인하라.`);
+      throw new Error(
+        `Column '${name}' is missing from the spreadsheet. Check whether the source layout changed.`,
+      );
     }
   }
 

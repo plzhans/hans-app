@@ -52,14 +52,16 @@ export class AdminProfileCache {
       if (cached) return cached.v;
     } catch (error) {
       // 캐시가 흔들려도 조회를 실패로 만들지 않는다. 원천(DB)이 답을 갖고 있다.
-      this.logger.warn(`내 정보 캐시를 읽지 못했다(adminId=${adminId}): ${String(error)}`);
+      this.logger.warn(`Failed to read admin profile cache (adminId=${adminId}): ${String(error)}`);
     }
 
     const value = await load();
     try {
       await this.cache?.set(key, { v: value }, this.config.profileCacheTtlSec * 1000);
     } catch (error) {
-      this.logger.warn(`내 정보 캐시에 넣지 못했다(adminId=${adminId}): ${String(error)}`);
+      this.logger.warn(
+        `Failed to write admin profile cache (adminId=${adminId}): ${String(error)}`,
+      );
     }
     return value;
   }
@@ -67,7 +69,7 @@ export class AdminProfileCache {
   /** 들여다본다. **지우기 전에 지울 것이 있는지 보라고 두는 창이다.** */
   inspect(adminId: number): Promise<AdminProfileCacheState> {
     return inspectCacheEntry(this.cache, adminProfileKey(adminId), (error) =>
-      this.logger.warn(`내 정보 캐시를 읽지 못했다(adminId=${adminId}): ${String(error)}`),
+      this.logger.warn(`Failed to read admin profile cache (adminId=${adminId}): ${String(error)}`),
     );
   }
 
@@ -79,7 +81,9 @@ export class AdminProfileCache {
     try {
       await this.cache?.del(adminProfileKey(adminId));
     } catch (error) {
-      this.logger.warn(`내 정보 캐시를 지우지 못했다(adminId=${adminId}): ${String(error)}`);
+      this.logger.warn(
+        `Failed to evict admin profile cache (adminId=${adminId}): ${String(error)}`,
+      );
     }
   }
 }

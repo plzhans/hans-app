@@ -57,7 +57,7 @@ export class BoardPostCacheInvalidator {
     try {
       await this.cache.del(postCacheKey(boardName, postId));
     } catch (error) {
-      this.logger.warn(`글 캐시를 지우지 못했다(${boardName}/${postId}): ${String(error)}`);
+      this.logger.warn(`Failed to evict post cache (${boardName}/${postId}): ${String(error)}`);
     }
   }
 
@@ -100,7 +100,7 @@ export class BoardPostCacheInvalidator {
         shared: isShared(store),
       };
     } catch (error) {
-      this.logger.warn(`글 캐시를 읽지 못했다(${boardName}/${postId}): ${String(error)}`);
+      this.logger.warn(`Failed to read post cache (${boardName}/${postId}): ${String(error)}`);
       return empty;
     }
   }

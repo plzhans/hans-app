@@ -26,7 +26,7 @@ export const seoulDataMutator = async <T>(
   const config = options?.seouldata;
   if (!config) {
     throw new Error(
-      'SEOUL-DATA config is missing. 생성된 함수를 직접 호출하지 말고 SubwayClient 를 사용하라.',
+      'SEOUL-DATA config is missing. Use SubwayClient instead of calling the generated function directly.',
     );
   }
 

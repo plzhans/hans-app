@@ -1,3 +1,5 @@
+// 이 계층이 관리자 API 로 내보내는 오류 번호와, 자주 던지는 오류 클래스.
+export * from './error';
 export { AdminApplicationModule } from './admin-application.module';
 
 /** 심평원 홈페이지 비급여 크롤 적재. 큐(job_queue)를 꺼내 처리한다 — CLI/배치가 쓴다. */

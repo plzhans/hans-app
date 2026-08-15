@@ -1,5 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { SessionExpiredError } from '../error';
 import { Reflector } from '@nestjs/core';
+import { UnauthorizedError } from '@hansapp/common';
 import type { Request } from 'express';
 
 import { TokenService } from '../token/token.service';
@@ -81,9 +83,9 @@ export class AuthGuard implements CanActivate {
     }
 
     if (authTypes.includes(AuthType.Jwt)) {
-      throw new UnauthorizedException('Authentication token is required.');
+      throw new UnauthorizedError({ message: 'Authentication token is required.' });
     }
-    throw new UnauthorizedException('Authentication credentials are required.');
+    throw new UnauthorizedError({ message: 'Authentication credentials are required.' });
   }
 
   /** access token 을 검증해 요청에 실을 사용자와 발급 앱으로 바꾼다. */
@@ -97,7 +99,7 @@ export class AuthGuard implements CanActivate {
     */
     const userId = Number(payload.sub);
     if (!(await this.sessions.isLive(userId, payload.sid, payload.exp))) {
-      throw new UnauthorizedException('Session is no longer valid.');
+      throw new SessionExpiredError({ message: 'Session is no longer valid.' });
     }
     return {
       user: {

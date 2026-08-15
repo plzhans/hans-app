@@ -1,7 +1,15 @@
-import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { ServiceErrorCode } from '../error';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
-import { AuthorType, BoardStatus, Page, PostStatus, type BoardWriteRole } from '@hansapp/common';
+import {
+  NotFoundError,
+  AuthorType,
+  BoardStatus,
+  Page,
+  PostStatus,
+  type BoardWriteRole,
+} from '@hansapp/common';
 
 import { CachePrefix } from '../common/cache-keys';
 import { BoardReadRepository } from './board-read.repository';
@@ -171,7 +179,9 @@ export class BoardReadService {
     if (cached) return revive(cached);
 
     const post = await this.boards.findPublishedPost(board.id, postId);
-    if (!post) throw new NotFoundException(`Post not found: ${postId}`);
+    if (!post) {
+      throw new NotFoundError(ServiceErrorCode.BOARD_POST_NOT_FOUND);
+    }
 
     /*
       비공개 글의 본문은 쓴 사람만 본다(운영자는 콘솔에서 본다 — 공개 API 에 관리자용
@@ -212,7 +222,7 @@ export class BoardReadService {
   private async mustFindBoard(name: string) {
     const board = await this.boards.findBoardByName(name);
     if (!board || (board.status as BoardStatus) !== BoardStatus.ACTIVE) {
-      throw new NotFoundException(`Board not found: ${name}`);
+      throw new NotFoundError(ServiceErrorCode.BOARD_NOT_FOUND);
     }
     return board;
   }

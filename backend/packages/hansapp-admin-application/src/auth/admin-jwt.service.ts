@@ -1,4 +1,6 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { UnauthorizedError } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 import { JwtService } from '@nestjs/jwt';
 
 import { ADMIN_AUTH_CONFIG, ADMIN_TOKEN_AUDIENCE } from './admin-auth.config';
@@ -42,7 +44,9 @@ export class AdminJwtService {
       });
     } catch {
       // 만료·서명 불일치·aud 불일치를 구분해 알려 주지 않는다 — 공격자에게 주는 힌트다.
-      throw new UnauthorizedException('Invalid or expired token.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_TOKEN_INVALID, {
+        message: 'Invalid or expired token.',
+      });
     }
   }
 }

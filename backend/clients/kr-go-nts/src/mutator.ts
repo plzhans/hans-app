@@ -20,7 +20,7 @@ export const ntsMutator = async <T>(url: string, options?: NtsRequestInit): Prom
   const config = options?.nts;
   if (!config) {
     throw new Error(
-      'NTS config is missing. 생성된 함수를 직접 호출하지 말고 NtsClient 를 사용하라.',
+      'NTS config is missing. Use NtsClient instead of calling the generated function directly.',
     );
   }
 

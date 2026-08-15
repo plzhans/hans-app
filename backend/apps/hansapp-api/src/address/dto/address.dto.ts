@@ -22,7 +22,7 @@ export class AddressSearchRequestDto {
     example: '부산광역시 금정구 중앙대로1985번길 1',
   })
   @IsString()
-  @MinLength(2, { message: '검색어는 2글자 이상이어야 합니다.' })
+  @MinLength(2, { message: 'keyword must be at least 2 characters.' })
   readonly keyword!: string;
 
   @ApiPropertyOptional({ description: '페이지 번호', default: DEFAULT_PAGE })

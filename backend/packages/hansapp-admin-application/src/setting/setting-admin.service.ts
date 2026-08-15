@@ -1,19 +1,24 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import type {
+  SecretBoxKeys,
+  SettingField,
+  SettingFieldView,
+  SettingGroupView,
+  SettingInput,
+  SettingOrigins,
+} from '@hansapp/common';
 import {
-  seal,
-  suffixOf,
-  trimTrailingSlash,
+  BadRequestError,
+  NotFoundError,
   SETTING_GROUPS,
   SETTING_KEYRING,
   SETTING_ORIGINS,
   findSettingGroup,
-  type SecretBoxKeys,
-  type SettingField,
-  type SettingFieldView,
-  type SettingGroupView,
-  type SettingInput,
-  type SettingOrigins,
+  seal,
+  suffixOf,
+  trimTrailingSlash,
 } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 
 import { SettingCache } from './setting-cache.service';
 import { SettingWriteRepository } from './setting-write.repository';
@@ -112,7 +117,7 @@ export class SettingAdminService {
   ): Promise<SettingGroupView[]> {
     const group = findSettingGroup(groupId);
     if (!group) {
-      throw new NotFoundException(`Unknown setting group: ${groupId}`);
+      throw new NotFoundError(AdminErrorCode.ADMIN_SETTING_GROUP_NOT_FOUND);
     }
 
     const allowed = new Map(group.fields.map((f) => [f.key, f]));
@@ -121,12 +126,12 @@ export class SettingAdminService {
       // 덮어쓸 수도 있다. 그룹에 속한 키만 받는다.
       const field = allowed.get(key);
       if (!field) {
-        throw new BadRequestException(`Key does not belong to group "${groupId}": ${key}`);
+        throw new BadRequestError(AdminErrorCode.ADMIN_SETTING_KEY_INVALID);
       }
       // 표시 전용 줄은 서버가 만들어 낸 값이다. 받아서 저장하면 화면이 보여 주는 것과 서버가
       // 실제로 쓰는 값이 갈리고, 그 뒤로는 어느 쪽이 맞는지 알 수 없다.
       if (field.type === 'readonly') {
-        throw new BadRequestException(`Read-only setting: ${key}`);
+        throw new BadRequestError(AdminErrorCode.ADMIN_SETTING_READ_ONLY);
       }
     }
 
@@ -170,9 +175,7 @@ export class SettingAdminService {
     const encrypted = field.type === 'secret';
     if (encrypted && !this.keyring) {
       // 비밀값을 평문으로 저장하는 우회는 두지 않는다. 저장 자체를 거절한다.
-      throw new BadRequestException(
-        `${field.label}: appSecretEncryption 키가 없어 저장할 수 없습니다.`,
-      );
+      throw new BadRequestError(AdminErrorCode.ADMIN_SECRET_STORAGE_UNAVAILABLE);
     }
 
     await this.repository.upsert(
@@ -190,15 +193,13 @@ function normalize(field: SettingField, value: string | number | boolean): strin
   if (field.type === 'number') {
     const n = Number(value);
     if (!Number.isFinite(n)) {
-      throw new BadRequestException(`${field.label}: 숫자가 아닙니다.`);
+      throw new BadRequestError(AdminErrorCode.ADMIN_SETTING_VALUE_INVALID);
     }
     return String(n);
   }
   const text = String(value);
   if (field.type === 'select' && field.options && !field.options.includes(text)) {
-    throw new BadRequestException(
-      `${field.label}: 고를 수 없는 값입니다 (${field.options.join(', ')}).`,
-    );
+    throw new BadRequestError(AdminErrorCode.ADMIN_SETTING_VALUE_INVALID);
   }
   return text;
 }

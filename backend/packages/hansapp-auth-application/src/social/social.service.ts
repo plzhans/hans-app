@@ -1,10 +1,6 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { AuthErrorCode, VerificationCodeInvalidError } from '../error';
+import { BadRequestError, ConflictError, UnauthorizedError } from '@hansapp/common';
 import {
   AuthLogResult,
   AuthProvider,
@@ -296,7 +292,9 @@ export class SocialService {
     const payload = this.tickets.verifyRegister(ticket);
     const email = this.resolveRegisterEmail(payload, emailInput);
     if (!email) {
-      throw new BadRequestException('Email is required.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_PROFILE_UNAVAILABLE, {
+        message: 'Email is required.',
+      });
     }
     await this.authService.assertEmailAvailable(email);
     await this.emailVerification.issueAndSend(EmailVerifyPurpose.SIGNUP, email, {
@@ -333,13 +331,15 @@ export class SocialService {
     // 이미 연동됐다면(콜백 후 지연 등) 중복 가입을 막는다.
     const dup = await this.oauths.findByProvider(payload.provider, payload.providerId);
     if (dup) {
-      throw new ConflictException('Social account already linked.');
+      throw new ConflictError(AuthErrorCode.SOCIAL_LINK_CONFLICT);
     }
 
     // 발송 때와 **같은 규칙**으로 정한다(resolveRegisterEmail 주석 참고).
     const email = this.resolveRegisterEmail(payload, input.email);
     if (!email) {
-      throw new BadRequestException('Email is required.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_PROFILE_UNAVAILABLE, {
+        message: 'Email is required.',
+      });
     }
     await this.authService.assertEmailAvailable(email);
 
@@ -350,11 +350,11 @@ export class SocialService {
     // provider 가 검증하지 않았으면 우리 코드로 소유를 증명해야 한다.
     if (!providerVerified) {
       if (!input.code) {
-        throw new BadRequestException('Verification code is required.');
+        throw new BadRequestError(AuthErrorCode.AUTH_VERIFICATION_CODE_REQUIRED);
       }
       const ok = await this.emailVerification.verify(EmailVerifyPurpose.SIGNUP, email, input.code);
       if (!ok) {
-        throw new BadRequestException('Invalid or expired verification code.');
+        throw new VerificationCodeInvalidError();
       }
     }
 
@@ -478,16 +478,18 @@ export class SocialService {
   ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Invalid account.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_ACCOUNT_DISABLED, {
+        message: 'Invalid account.',
+      });
     }
     const links = await this.oauths.listByUser(userId);
     const target = links.find((l) => l.provider === provider);
     if (!target) {
-      throw new BadRequestException('Provider is not linked.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_PROVIDER_NOT_LINKED);
     }
     // 비밀번호도 없고 이 연동이 유일한 로그인 수단이면 해제 불가.
     if (!user.password && links.length <= 1) {
-      throw new BadRequestException('Cannot unlink the last sign-in method. Set a password first.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_UNLINK_LAST_METHOD);
     }
     await this.oauths.delete(userId, provider);
     await this.profileCache.invalidate(userId);

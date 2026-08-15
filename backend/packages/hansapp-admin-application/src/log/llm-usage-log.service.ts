@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { Page } from '@hansapp/common';
+import { Injectable } from '@nestjs/common';
+import { BadRequestError, Page } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 
 import { LlmUsageLogRepository } from './llm-usage-log.repository';
 import type { LlmUsageLogFilter } from './llm-usage-log.repository';
@@ -56,7 +57,9 @@ export class LlmUsageLogService {
       유일한 예외다 — 애플리케이션 로그에서 id 만 들고 넘어오는 길을 막으면 안 된다.
     */
     if (!query.from && !query.requestId) {
-      throw new BadRequestException('Either a start time (from) or a requestId is required.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_LOG_RANGE_REQUIRED, {
+        message: 'Either a start time (from) or a requestId is required.',
+      });
     }
 
     const [rows, total] = await this.repo.listPage(

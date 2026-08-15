@@ -182,7 +182,7 @@ export class AdminSocialController {
     } catch (raw) {
       const errorCode = toErrorCode(raw);
       // 사유는 로그에만 남긴다. 화면에는 코드 하나만 간다.
-      this.logger.warn(`구글 소셜 흐름 실패(code=${errorCode}): ${String(raw)}`);
+      this.logger.warn(`Google social flow failed (code=${errorCode}): ${String(raw)}`);
       res.redirect(consoleUrl(failPath, { social_error: errorCode }));
     }
   }

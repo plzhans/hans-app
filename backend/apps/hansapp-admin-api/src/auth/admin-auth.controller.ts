@@ -1,14 +1,6 @@
-import {
-  BadRequestException,
-  Body,
-  Delete,
-  Get,
-  HttpCode,
-  Post,
-  Query,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { Body, Delete, Get, HttpCode, Post, Query, Req, Res } from '@nestjs/common';
+import { BadRequestError } from '@hansapp/common';
+import { AdminErrorCode } from '@hansapp/admin-application';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ApiController } from '@hansapp/http-common';
@@ -101,7 +93,9 @@ export class AdminAuthController {
     */
     const refreshToken = readRefreshCookie(req);
     if (!refreshToken) {
-      throw new BadRequestException('Refresh token cookie is required.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_REFRESH_COOKIE_REQUIRED, {
+        message: 'Refresh token cookie is required.',
+      });
     }
     const tokens = await this.auth.refresh(refreshToken);
     return respondTokens(res, tokens);

@@ -50,7 +50,7 @@ export class HiraHospitalSyncService {
       fetched += items.length;
 
       this.logger.log(
-        `HIRA 병원 page=${currentPage} rows=${items.length} 누적=${fetched}/${totalCount}`,
+        `HIRA hospitals page=${currentPage} rows=${items.length} total=${fetched}/${totalCount}`,
       );
 
       if (!full) {
@@ -64,7 +64,9 @@ export class HiraHospitalSyncService {
 
     // 지역 목록은 병원 데이터의 집계다. 적재가 끝났으니 다시 만든다.
     const regions = await this.repo.rebuildRegions();
-    this.logger.log(`HIRA 지역 갱신: 시도 ${regions.sidos}종 / 시군구 조합 ${regions.regions}건`);
+    this.logger.log(
+      `HIRA regions updated: ${regions.sidos} sido / ${regions.regions} sido-sigungu pairs`,
+    );
 
     return {
       totalCount,
@@ -84,7 +86,7 @@ export class HiraHospitalSyncService {
 
     const skipped = items.length - rows.length;
     if (skipped > 0) {
-      this.logger.warn(`ykiho 가 없어 건너뛴 항목 ${skipped}건`);
+      this.logger.warn(`Skipped ${skipped} items with no ykiho`);
     }
 
     return this.repo.upsertMirror(rows);

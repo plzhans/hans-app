@@ -42,15 +42,15 @@ export class AuthCleanupService {
       나머지를 하루 더 쌓아 둘 이유가 없다. 실패는 각각 로그로 남고, 다음 회차에 다시 시도된다.
     */
     await Promise.allSettled([
-      this.sweep('세션', () =>
+      this.sweep('user_token_session', () =>
         this.prisma.userTokenSession.deleteMany({
           where: { expiresAt: expired },
         }),
       ),
-      this.sweep('인가코드', () =>
+      this.sweep('user_auth_code', () =>
         this.prisma.userAuthCode.deleteMany({ where: { expiresAt: expired } }),
       ),
-      this.sweep('이메일 인증', () =>
+      this.sweep('email_verification', () =>
         this.prisma.emailVerification.deleteMany({
           where: { expiresAt: expired },
         }),
@@ -62,10 +62,10 @@ export class AuthCleanupService {
   private async sweep(label: string, remove: () => Promise<{ count: number }>): Promise<void> {
     try {
       const { count } = await remove();
-      this.logger.log(`${label} 정리 — ${count}건`);
+      this.logger.log(`${label} cleanup: ${count} rows`);
     } catch (error) {
       // 던지지 않는다. 호출부가 Promise.allSettled 로 받아 나머지를 계속 지운다.
-      this.logger.error(`${label} 정리 실패`, error);
+      this.logger.error(`${label} cleanup failed`, error);
     }
   }
 }

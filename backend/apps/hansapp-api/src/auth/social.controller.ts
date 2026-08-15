@@ -1,19 +1,11 @@
-import {
-  Inject,
-  BadRequestException,
-  Body,
-  Get,
-  HttpCode,
-  Post,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Inject, Body, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { AuthErrorCode, InvalidRedirectUriError } from '@hansapp/auth-application';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InternalApiController } from '@hansapp/http-common';
 import type { Request, Response } from 'express';
 import { FirstPartyOnly, Public, SocialAuthGuard, SocialService } from '@hansapp/auth-application';
 import type { CallbackOutcome, SocialProfile } from '@hansapp/auth-application';
+import { BadRequestError } from '@hansapp/common';
 import type { SupportedLang } from '@hansapp/common';
 import { AUTH_CONFIG } from '@hansapp/auth-application';
 import type { AuthConfig } from '@hansapp/auth-application';
@@ -145,7 +137,7 @@ export class SocialController {
   ): Promise<void> {
     const profile = req.user;
     if (!profile) {
-      throw new BadRequestException('Social profile is unavailable.');
+      throw new BadRequestError(AuthErrorCode.SOCIAL_PROFILE_UNAVAILABLE);
     }
     const state = typeof req.query.state === 'string' ? req.query.state : '';
     const { outcome, returnTo, clientState, clientId, codeChallenge } =
@@ -277,7 +269,9 @@ export class SocialController {
       if (landing) return landing;
     }
     if (!returnTo) {
-      throw new BadRequestException('Missing return_to. Provide return_to when starting sign-in.');
+      throw new InvalidRedirectUriError({
+        message: 'Missing return_to. Provide return_to when starting sign-in.',
+      });
     }
     const url = new URL(returnTo);
     // 클라이언트가 보낸 state 를 그대로 반환한다(RFC 6749 §4.1.2). 그 앱이 CSRF 대조와

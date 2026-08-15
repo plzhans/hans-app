@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuthorType, Page, PostStatus } from '@hansapp/common';
+import { Injectable } from '@nestjs/common';
+import { AuthorType, BadRequestError, NotFoundError, Page, PostStatus } from '@hansapp/common';
+import { AdminBoardNotFoundError, AdminErrorCode } from '../error';
 import type { Board, BoardPost } from '@hansapp/data';
 
 import { BoardRepository } from './board.repository';
@@ -191,13 +192,13 @@ export class BoardPostAdminService {
 
   private async mustFind(id: number): Promise<BoardPost> {
     const post = await this.posts.findById(id);
-    if (!post) throw new NotFoundException(`Post not found: ${id}`);
+    if (!post) throw new NotFoundError(AdminErrorCode.ADMIN_BOARD_POST_NOT_FOUND);
     return post;
   }
 
   private async mustFindBoard(id: number): Promise<Board> {
     const board = await this.boards.findById(id);
-    if (!board) throw new NotFoundException(`Board not found: ${id}`);
+    if (!board) throw new AdminBoardNotFoundError();
     return board;
   }
 }
@@ -226,9 +227,7 @@ function decided(
   const secret = input.secret ?? false;
   if (secret && !board.secretPostEnabled) {
     // 조용히 끄지 않고 거절한다 — 비공개로 쓴 줄 알았는데 공개로 올라가면 사고다.
-    throw new BadRequestException(
-      'This board does not allow secret posts. Enable it on the board first.',
-    );
+    throw new BadRequestError(AdminErrorCode.ADMIN_BOARD_SECRET_NOT_ALLOWED);
   }
   return {
     commentEnabled: input.commentEnabled ?? null,

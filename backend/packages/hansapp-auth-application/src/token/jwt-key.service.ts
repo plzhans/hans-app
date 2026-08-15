@@ -1,5 +1,7 @@
-import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { TokenInvalidError } from '../error';
 import { JwtService } from '@nestjs/jwt';
+
 import { createPublicKey } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -55,7 +57,7 @@ export class JwtKeyService {
     // 키가 없다 → HS256 폴백. 단, 경로를 **명시**했는데 키가 없으면 설정 실수이므로
     // 조용한 강등(보안 저하) 대신 부팅을 거부한다. 미지정(기본 경로)일 때만 폴백한다.
     if (explicit) {
-      throw new Error(`AUTH_JWT_KEY_DIR=${explicit} 에 활성 서명 키(*.key)가 없다.`);
+      throw new Error(`No active signing key (*.key) in AUTH_JWT_KEY_DIR=${explicit}.`);
     }
     this.logger.warn(
       `No JWT signing keys in ${dir} — access tokens use HS256 (symmetric fallback).`,
@@ -98,7 +100,7 @@ export class JwtKeyService {
       const kid = this.readKid(token);
       const key = kid ? this.keys.get(kid) : undefined;
       if (!key) {
-        throw new UnauthorizedException('Unknown or missing key id.');
+        throw new TokenInvalidError({ message: 'Unknown or missing key id.' });
       }
       payload = this.jwt.verify<T>(token, {
         publicKey: key.publicPem,
@@ -116,7 +118,7 @@ export class JwtKeyService {
     if (allowed.length === 0) return;
     const iss = (payload as { iss?: unknown }).iss;
     if (typeof iss !== 'string' || !allowed.includes(iss)) {
-      throw new UnauthorizedException('Untrusted token issuer.');
+      throw new TokenInvalidError({ message: 'Untrusted token issuer.' });
     }
   }
 
@@ -209,7 +211,7 @@ export class JwtKeyService {
         // 파일명이 틀려도 위험하지 않다. 발급한 토큰의 kid 헤더는 여기서 계산한 값이고,
         // 검증도 그 값으로 찾는다. 파일명은 아무 데도 안 쓰인다.
         if (key.kid !== parsed.kid) {
-          this.logger.log(`${file}: kid=${key.kid} (파일명 ${parsed.kid} 은 라벨로만 쓴다)`);
+          this.logger.log(`${file}: kid=${key.kid} (filename ${parsed.kid} is a label only)`);
         }
         this.keys.set(key.kid, key);
         loaded.push(key);

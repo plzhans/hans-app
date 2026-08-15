@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ServiceErrorCode } from '../error';
 import { JusoError } from '@kr-go/juso';
 import type { AddrEng } from '@kr-go/juso';
-import { Page } from '@hansapp/common';
+import { BadRequestError, UnavailableError, Page } from '@hansapp/common';
 
 import { JusoClientFactory } from './juso-client.factory';
 
@@ -52,6 +53,8 @@ const INPUT_ERROR_CODES = new Set([
  */
 @Injectable()
 export class AddressService {
+  private readonly logger = new Logger(AddressService.name);
+
   constructor(private readonly juso: JusoClientFactory) {}
 
   /** 한글 검색어로 영문 주소를 검색한다. 결과가 없으면 빈 페이지를 돌려준다. */
@@ -76,9 +79,13 @@ export class AddressService {
   }
 
   /**
-   * 도로명주소 호출을 감싸 JusoError 를 HTTP 예외로 바꾼다.
-   * - 검색어 문제(너무 짧음·시도명 단독 등) → 400
-   * - 그 외(승인키·시스템·네트워크) → 503
+   * 도로명주소 호출을 감싸 JusoError 를 응용 계층 오류로 바꾼다.
+   * - 검색어 문제(너무 짧음·시도명 단독 등) → 요청 잘못
+   * - 그 외(승인키·시스템·네트워크) → 바깥이 지금 안 되는 것
+   *
+   * **JusoError 의 메시지를 그대로 내보내지 않는다.** 남의 서버 문구라 어느 순간 무엇이
+   * 실려 올지 우리가 통제하지 못한다(승인키 얘기가 섞여 나온 적도 있다). 결과코드는
+   * 추적에 필요하니 log 로 넘겨 서버 로그에만 남긴다.
    */
   private async call<T>(fn: () => Promise<T>): Promise<T> {
     try {
@@ -86,11 +93,11 @@ export class AddressService {
     } catch (error) {
       if (error instanceof JusoError) {
         if (INPUT_ERROR_CODES.has(error.errorCode)) {
-          throw new BadRequestException(error.message || 'Invalid search keyword.');
+          this.logger.debug(`Juso rejected the keyword: code=${error.errorCode} ${error.message}`);
+          throw new BadRequestError(ServiceErrorCode.ADDRESS_QUERY_INVALID, { cause: error });
         }
-        throw new ServiceUnavailableException(
-          'The address search service is temporarily unavailable.',
-        );
+        this.logger.warn(`Juso call failed: code=${error.errorCode} ${error.message}`);
+        throw new UnavailableError(ServiceErrorCode.ADDRESS_PROVIDER_UNAVAILABLE, { cause: error });
       }
       throw error;
     }

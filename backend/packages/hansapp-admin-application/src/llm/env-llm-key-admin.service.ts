@@ -1,5 +1,15 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { open, seal, suffixOf, SETTING_KEYRING, type SecretBoxKeys } from '@hansapp/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { SecretBoxKeys } from '@hansapp/common';
+import {
+  BadRequestError,
+  NotFoundError,
+  SETTING_KEYRING,
+  open,
+  seal,
+  suffixOf,
+} from '@hansapp/common';
+
+import { AdminErrorCode, AdminLlmProviderUnsupportedError } from '../error';
 import { fetchVendorModels } from '@hansapp/llm';
 import {
   EnvLlmKeyReadRepository,
@@ -66,6 +76,8 @@ const MULTI: LlmProvider[] = [LlmProvider.LOCAL];
 
 @Injectable()
 export class EnvLlmKeyAdminService {
+  private readonly logger = new Logger(EnvLlmKeyAdminService.name);
+
   constructor(
     private readonly read: EnvLlmKeyReadRepository,
     private readonly write: EnvLlmKeyWriteRepository,
@@ -85,7 +97,7 @@ export class EnvLlmKeyAdminService {
   async create(input: EnvLlmKeyInput, adminId: number | null): Promise<EnvLlmKeyView> {
     const provider = input.provider;
     if (!provider || !CALLABLE.includes(provider)) {
-      throw new BadRequestException(`provider must be one of ${CALLABLE.join(', ')}.`);
+      throw new AdminLlmProviderUnsupportedError();
     }
     const keyType = input.keyType ?? LlmKeyType.API_KEY;
     this.assertKeyType(provider, keyType);
@@ -118,7 +130,7 @@ export class EnvLlmKeyAdminService {
     const current = await this.require(id);
     const provider = input.provider ?? current.provider;
     if (!CALLABLE.includes(provider)) {
-      throw new BadRequestException(`provider must be one of ${CALLABLE.join(', ')}.`);
+      throw new AdminLlmProviderUnsupportedError();
     }
     const keyType = input.keyType ?? current.keyType;
     this.assertKeyType(provider, keyType);
@@ -159,9 +171,7 @@ export class EnvLlmKeyAdminService {
   async remove(id: number): Promise<void> {
     const row = await this.require(id);
     if (row.isDefault) {
-      throw new BadRequestException(
-        'Cannot delete the default key. Set another one as default first.',
-      );
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_KEY_DEFAULT_LOCKED);
     }
     await this.write.delete(id);
   }
@@ -170,7 +180,9 @@ export class EnvLlmKeyAdminService {
     const row = await this.require(id);
     // 꺼 둔 것을 기본으로 만들면 호출이 곧장 막힌다. 켠 뒤에 지정하게 한다.
     if (row.status !== EnvLlmKeyStatus.ACTIVE) {
-      throw new BadRequestException('Enable the key before making it the default.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_KEY_DEFAULT_LOCKED, {
+        message: 'Enable the key before making it the default.',
+      });
     }
     await this.write.setDefault(id, adminId);
   }
@@ -194,7 +206,7 @@ export class EnvLlmKeyAdminService {
     const row = input.id === undefined ? null : await this.require(input.id);
     const provider = input.provider ?? row?.provider;
     if (!provider || !CALLABLE.includes(provider)) {
-      throw new BadRequestException(`provider must be one of ${CALLABLE.join(', ')}.`);
+      throw new AdminLlmProviderUnsupportedError();
     }
     /*
       화면이 새 키를 보냈으면 그것으로, 안 보냈으면 저장된 것을 연다 — 마스킹된 값을
@@ -205,7 +217,9 @@ export class EnvLlmKeyAdminService {
       : this.reveal(row?.secretEncrypted ?? null);
     const baseUrl = (input.baseUrl ?? row?.baseUrl ?? '').trim() || BASE_URL[provider] || '';
     if (!baseUrl) {
-      throw new BadRequestException('baseUrl is required.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_KEY_INVALID, {
+        message: 'baseUrl is required.',
+      });
     }
 
     try {
@@ -217,11 +231,12 @@ export class EnvLlmKeyAdminService {
         allowedModels: [],
       });
     } catch (error) {
-      throw new BadRequestException(
-        `업체에 모델 목록을 물어보지 못했습니다: ${String(
-          error instanceof Error ? error.message : error,
-        )}`,
+      // 저쪽이 왜 답을 안 했는지는 우리만 알면 된다. 밖으로는 "못 물어봤다" 로 끝난다.
+      this.logger.warn(
+        `Failed to fetch the model list from ${provider}: ` +
+          `${error instanceof Error ? error.message : String(error)}`,
       );
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_PROVIDER_UNREACHABLE);
     }
   }
 
@@ -237,7 +252,7 @@ export class EnvLlmKeyAdminService {
 
   private async require(id: number): Promise<EnvLlmKey> {
     const row = await this.write.findOne(id);
-    if (!row) throw new NotFoundException(`Unknown LLM key: ${id}`);
+    if (!row) throw new NotFoundError(AdminErrorCode.ADMIN_LLM_KEY_NOT_FOUND);
     return row;
   }
 
@@ -247,7 +262,9 @@ export class EnvLlmKeyAdminService {
    */
   private assertKeyType(provider: LlmProvider, keyType: LlmKeyType): void {
     if (keyType === LlmKeyType.AUTH_TOKEN && provider !== LlmProvider.ANTHROPIC) {
-      throw new BadRequestException('AUTH_TOKEN is only for ANTHROPIC.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_LLM_KEY_INVALID, {
+        message: 'AUTH_TOKEN is only for ANTHROPIC.',
+      });
     }
   }
 
@@ -263,7 +280,7 @@ export class EnvLlmKeyAdminService {
     if (!value) return {};
     if (!this.keyring) {
       // 평문으로 저장하는 우회는 두지 않는다. 저장 자체를 거절한다.
-      throw new BadRequestException('appSecretEncryption 키가 없어 저장할 수 없습니다.');
+      throw new BadRequestError(AdminErrorCode.ADMIN_SECRET_STORAGE_UNAVAILABLE);
     }
     return { encrypted: seal(value, this.keyring), suffix: suffixOf(value) };
   }
@@ -279,9 +296,7 @@ export class EnvLlmKeyAdminService {
       return await fn();
     } catch (error) {
       if (error && typeof error === 'object' && (error as { code?: string }).code === 'P2002') {
-        throw new BadRequestException(
-          'Already registered. Hosted providers allow only one key; use a different name for local endpoints.',
-        );
+        throw new BadRequestError(AdminErrorCode.ADMIN_LLM_KEY_INVALID);
       }
       throw error;
     }
@@ -314,7 +329,9 @@ function resolveName(provider: LlmProvider, raw: string | null | undefined): str
   if (!MULTI.includes(provider)) return '';
   const name = (raw ?? '').trim();
   if (!name) {
-    throw new BadRequestException('name is required for LOCAL.');
+    throw new BadRequestError(AdminErrorCode.ADMIN_LLM_KEY_INVALID, {
+      message: 'name is required for LOCAL.',
+    });
   }
   return name;
 }
@@ -322,7 +339,9 @@ function resolveName(provider: LlmProvider, raw: string | null | undefined): str
 /** LOCAL 은 baseUrl 이 신원이다 — 기본 주소를 대신 넣으면 엉뚱한 기계로 나간다. */
 function assertBaseUrl(provider: LlmProvider, baseUrl: string | null): void {
   if (provider === LlmProvider.LOCAL && !baseUrl) {
-    throw new BadRequestException('baseUrl is required for LOCAL.');
+    throw new BadRequestError(AdminErrorCode.ADMIN_LLM_KEY_INVALID, {
+      message: 'baseUrl is required for LOCAL.',
+    });
   }
 }
 

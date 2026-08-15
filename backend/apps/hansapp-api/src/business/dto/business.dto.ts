@@ -17,7 +17,7 @@ export class BnoParamDto {
   @IsString()
   @Transform(digitsOnly)
   @Matches(/^\d{10}$/, {
-    message: '사업자등록번호는 숫자 10자리여야 합니다.',
+    message: 'bno must be 10 digits.',
   })
   readonly bno!: string;
 }
@@ -38,7 +38,7 @@ export class BusinessVerifyRequestDto {
   @IsString()
   @Transform(digitsOnly)
   @Matches(/^\d{8}$/, {
-    message: '개업일자는 YYYYMMDD 8자리여야 합니다.',
+    message: 'startDate must be 8 digits in YYYYMMDD format.',
   })
   readonly startDate!: string;
 

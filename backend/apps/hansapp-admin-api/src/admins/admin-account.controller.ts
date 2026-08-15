@@ -3,15 +3,15 @@ import {
   Delete,
   Get,
   HttpCode,
-  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
   Req,
-  ServiceUnavailableException,
 } from '@nestjs/common';
+import { NotFoundError, UnavailableError } from '@hansapp/common';
+import { AdminErrorCode, AdminNotFoundError } from '@hansapp/admin-application';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ApiPageResponse, PageResponseDto, ApiController } from '@hansapp/http-common';
@@ -85,7 +85,7 @@ export class AdminAccountController {
   async detail(@Param('id', ParseIntPipe) id: number): Promise<AdminAccountDetailDto> {
     const admin = await this.accounts.findById(id);
     if (!admin) {
-      throw new NotFoundException(`Admin not found: ${id}`);
+      throw new AdminNotFoundError();
     }
     return new AdminAccountDetailDto(admin);
   }
@@ -280,7 +280,7 @@ export class AdminAccountController {
   ): Promise<void> {
     const removed = await this.accounts.revokeSession(id, sessionId, actorOf(current, req));
     if (!removed) {
-      throw new NotFoundException(`Session not found: ${sessionId}`);
+      throw new NotFoundError(AdminErrorCode.ADMIN_SESSION_NOT_FOUND);
     }
   }
 
@@ -373,7 +373,7 @@ export class AdminAccountController {
     */
     const admin = await this.accounts.findById(id);
     if (!admin) {
-      throw new NotFoundException(`Admin not found: ${id}`);
+      throw new AdminNotFoundError();
     }
 
     const page = await this.logs.list({
@@ -403,10 +403,7 @@ export class AdminAccountController {
  */
 function assertPurged(left: readonly number[]): void {
   if (left.length === 0) return;
-  throw new ServiceUnavailableException(
-    `${left.length} cache entries could not be cleared. ` +
-      'Those sessions may keep passing until the cache expires. Retry to clear them.',
-  );
+  throw new UnavailableError(AdminErrorCode.ADMIN_CACHE_PARTIALLY_CLEARED);
 }
 
 function actorOf(current: AdminAuthUser, req: Request): AdminActor {

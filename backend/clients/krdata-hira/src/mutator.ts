@@ -58,7 +58,7 @@ export const krDataMutator = async <T>(url: string, options?: KrDataRequestInit)
   const config = options?.krdata;
   if (!config) {
     throw new Error(
-      'KR-DATA config is missing. 생성된 함수를 직접 호출하지 말고 HiraClient 를 사용하라.',
+      'KR-DATA config is missing. Use HiraClient instead of calling the generated function directly.',
     );
   }
 

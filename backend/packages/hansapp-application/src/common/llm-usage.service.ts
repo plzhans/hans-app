@@ -60,7 +60,7 @@ export class LlmUsageService {
       });
     } catch (error) {
       this.logger.warn(
-        `LLM 사용량 적재 실패(${input.feature}/${input.promptName}): ${String(error)}`,
+        `Failed to store LLM usage (${input.feature}/${input.promptName}): ${String(error)}`,
       );
     }
   }

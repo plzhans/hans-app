@@ -100,7 +100,7 @@ export class LlmService {
     const endpoint = settings.endpoint;
     if (!endpoint) {
       throw new LlmConfigError(
-        'No LLM endpoint is registered (관리자 → 설정 → AI 접속처)',
+        'No LLM endpoint is registered (admin console: /settings/llm)',
         'anthropic',
       );
     }
@@ -257,14 +257,14 @@ function assertCallable(call: LlmCall): void {
   };
 
   if (!call.model) {
-    bad('model is missing (prepare 를 거치지 않았다)');
+    bad('model is missing (prepare() was not called)');
   }
   if (!Array.isArray(call.messages) || call.messages.length === 0) {
     bad('messages is empty');
   }
   // prepare 는 시스템 메시지까지만 채운다 — 사용자 turn 누락이 가장 흔하다.
   if (!call.messages.some((m) => m.role === 'user')) {
-    bad('no user message (prepare 결과에 사용자 turn 을 붙이지 않았다)');
+    bad('no user message (no user turn was appended to the prepare() result)');
   }
   for (const [i, m] of call.messages.entries()) {
     if (typeof m.content === 'string' && m.content.trim().length === 0) {

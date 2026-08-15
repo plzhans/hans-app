@@ -56,7 +56,7 @@ export class EmailSender {
     */
     if (!settings.enabled) {
       this.logger.warn(
-        `[mail] 발송이 꺼져 있다 → 생략. to=${msg.to} subject="${msg.subject}"\n${msg.text}`,
+        `[mail] Sending is off → skipped. to=${msg.to} subject="${msg.subject}"\n${msg.text}`,
       );
       return;
     }
@@ -65,7 +65,7 @@ export class EmailSender {
     if (!transporter) {
       // 로컬에서 흐름을 돌려 볼 수 있게 본문(코드 포함)을 그대로 찍는다.
       this.logger.warn(
-        `[mail:dev] SMTP 미설정 → 발송 생략. to=${msg.to} subject="${msg.subject}"\n${msg.text}`,
+        `[mail:dev] No SMTP configured → not sending. to=${msg.to} subject="${msg.subject}"\n${msg.text}`,
       );
       return;
     }

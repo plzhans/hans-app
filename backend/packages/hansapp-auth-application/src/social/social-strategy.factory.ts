@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { AuthErrorCode } from '../error';
+import { NotFoundError } from '@hansapp/common';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import type { Profile as GoogleProfile } from 'passport-google-oauth20';
 import { Strategy as NaverStrategy } from 'passport-naver-v2';
@@ -42,7 +44,7 @@ export class SocialStrategyFactory {
   /**
    * @param key       어느 소셜인가(:provider 파라미터에서 온다)
    * @param callbackURL 요청 호스트에서 조립한 redirect_uri
-   * @throws NotFoundException 자격증명이 없을 때. **설정 안 된 provider 는 404 다** —
+   * @throws NotFoundError 자격증명이 없을 때. **설정 안 된 provider 는 404 다** —
    *   키가 .env 에 있던 시절과 같은 응답이고, 판정의 출처만 DB 로 바뀌었다.
    */
   async create(key: SocialKey, callbackURL: string): Promise<RequestStrategy> {
@@ -56,7 +58,7 @@ export class SocialStrategyFactory {
     */
     const ready = key === 'kakao' ? !!clientId : !!clientId && !!clientSecret;
     if (!ready) {
-      throw new NotFoundException(`Social provider is not configured: ${key}`);
+      throw new NotFoundError(AuthErrorCode.SOCIAL_PROVIDER_NOT_CONFIGURED);
     }
     return build(key, clientId as string, clientSecret, callbackURL);
   }

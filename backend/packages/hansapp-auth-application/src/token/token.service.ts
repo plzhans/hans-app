@@ -1,8 +1,10 @@
 import { randomInt } from 'node:crypto';
+import { AuthErrorCode, SessionExpiredError, TokenInvalidError } from '../error';
 
-import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AuthProvider, UserRole } from '@hansapp/data';
 import {
+  UnauthorizedError,
   composeSignedToken,
   hmacSha256hex,
   parseSignedToken,
@@ -159,7 +161,7 @@ export class TokenService {
     try {
       return this.accessKeys.verify<AccessTokenPayload>(token);
     } catch {
-      throw new UnauthorizedException('Invalid or expired token.');
+      throw new TokenInvalidError();
     }
   }
 
@@ -226,7 +228,7 @@ export class TokenService {
       REFRESH_ID_PARTS,
     );
     if (!parsed) {
-      throw new UnauthorizedException('Invalid refresh token.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_REFRESH_TOKEN_INVALID);
     }
     /*
       **(회원, 세션) 쌍으로 찾는다.** 세션 식별자 하나로 찾던 것을 바꾼 이유는, 그러면
@@ -235,15 +237,17 @@ export class TokenService {
     */
     const session = await this.sessions.findOwned(ownerOf(parsed.ids), sessionIdOf(parsed.ids));
     if (!session) {
-      throw new UnauthorizedException('Session not found.');
+      throw new SessionExpiredError({ message: 'Session not found.' });
     }
     if (session.expiresAt.getTime() <= Date.now()) {
       await this.sessions.delete(session.userId, session.sessionId);
       await this.sessionCache.invalidate(session.userId, [session.sessionId]);
-      throw new UnauthorizedException('Session expired. Please sign in again.');
+      throw new SessionExpiredError();
     }
     if (!timingSafeEqualHex(session.secretHash, sha256hex(parsed.secret))) {
-      throw new UnauthorizedException('Refresh token mismatch.');
+      throw new UnauthorizedError(AuthErrorCode.AUTH_REFRESH_TOKEN_INVALID, {
+        message: 'Refresh token mismatch.',
+      });
     }
 
     const newSecret = randomToken(24);
@@ -378,22 +382,30 @@ export class TokenService {
     // HMAC 태그부터 검증한다. 위조·변조·정크 코드는 여기서 DB 조회 없이 탈락한다(저사양 보호).
     const parsed = parseSignedToken(code, AUTH_CODE_PREFIX, this.authCodeTagKey);
     if (!parsed) {
-      throw new UnauthorizedException('Invalid authorization code.');
+      throw new UnauthorizedError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+        message: 'Invalid authorization code.',
+      });
     }
     const row = await this.authCodes.findById(parsed.ids[0]);
     if (!row || row.consumedAt) {
-      throw new UnauthorizedException('Authorization code is not usable.');
+      throw new UnauthorizedError(AuthErrorCode.OAUTH_INVALID_GRANT);
     }
     if (row.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('Authorization code expired.');
+      throw new UnauthorizedError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+        message: 'Authorization code expired.',
+      });
     }
     if (!timingSafeEqualHex(row.secretHash, sha256hex(parsed.secret))) {
-      throw new UnauthorizedException('Authorization code mismatch.');
+      throw new UnauthorizedError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+        message: 'Authorization code mismatch.',
+      });
     }
     // 원자적 1회 소비: 아직 소비되지 않은 건만 마킹. 경쟁 시 count=0 이면 거부.
     const consumed = await this.authCodes.consume(row.sid, new Date());
     if (consumed === 0) {
-      throw new UnauthorizedException('Authorization code already used.');
+      throw new UnauthorizedError(AuthErrorCode.OAUTH_INVALID_GRANT, {
+        message: 'Authorization code already used.',
+      });
     }
     return {
       userId: row.userId,

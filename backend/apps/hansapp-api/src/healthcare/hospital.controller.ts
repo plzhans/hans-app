@@ -1,4 +1,5 @@
-import { Get, Header, NotFoundException, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { Get, Header, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { HospitalNotFoundError } from '@hansapp/application';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   HealthcareHospitalService,
@@ -8,6 +9,7 @@ import {
 } from '@hansapp/application';
 
 import { Lang } from '../common/lang.decorator';
+
 import type { SupportedLang } from '@hansapp/common';
 import { DETAIL_CACHE_CONTROL } from '../common/cache-control';
 import { Auth } from '../auth/auth.decorator';
@@ -141,7 +143,7 @@ export class HealthcareHospitalController {
   ): Promise<HospitalDetailDto> {
     const hospital = await this.service.get(id, lang);
     if (!hospital) {
-      throw new NotFoundException(`Hospital not found: ${id}`);
+      throw new HospitalNotFoundError();
     }
     return hospital;
   }
@@ -172,7 +174,7 @@ export class HealthcareHospitalController {
       lang,
     );
     if (!result) {
-      throw new NotFoundException(`Hospital not found: ${id}`);
+      throw new HospitalNotFoundError();
     }
     return result;
   }
@@ -194,7 +196,7 @@ export class HealthcareHospitalController {
   async nonPayments(@Param('id', ParseIntPipe) id: number): Promise<HospitalNonPaymentDto> {
     const npay = await this.npay.get(id);
     if (!npay) {
-      throw new NotFoundException(`Hospital not found: ${id}`);
+      throw new HospitalNotFoundError();
     }
     return npay;
   }
@@ -215,11 +217,13 @@ export class HealthcareHospitalController {
   ): Promise<NonPaymentRequestResultDto> {
     const result = await this.npay.request(id);
     if (!result) {
-      throw new NotFoundException(`Hospital not found: ${id}`);
+      throw new HospitalNotFoundError();
     }
     if (result === 'unavailable') {
       // HIRA 연동이 없는 병원. 큐에 넣어봐야 배치가 할 수 있는 게 없다.
-      throw new NotFoundException(`Hospital has no HIRA link, non-payment data unavailable: ${id}`);
+      throw new HospitalNotFoundError({
+        message: 'Hospital has no HIRA link, non-payment data unavailable.',
+      });
     }
     return { result };
   }

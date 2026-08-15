@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { AdminErrorCode } from '../error';
+import { BadRequestError } from '@hansapp/common';
 import { HiraHospitalService } from '@hansapp/application';
 import type { HospitalListResponse } from '@krdata/hira';
 
@@ -85,10 +87,12 @@ export class HiraHospitalReadService {
       (key) => options[key] !== undefined && options[key] !== '',
     );
     if (used.length > 0) {
-      throw new Error(
-        `필터(${used.join(', ')})는 DB 모드에서 아직 지원하지 않는다. --origin 을 쓰거나 필터를 빼라.\n` +
-          'DB 미러는 JSON 컬럼이라 검색 인덱스(generated column)가 붙기 전까지 페이징만 가능하다.',
-      );
+      throw new BadRequestError(AdminErrorCode.ADMIN_QUERY_UNSUPPORTED, {
+        message:
+          `Filters (${used.join(', ')}) are not supported in database mode yet. ` +
+          'Use --origin or drop the filters — the mirror stores JSON, so only paging works ' +
+          'until generated columns are added.',
+      });
     }
   }
 }

@@ -150,17 +150,19 @@ function parseLangs(value: string): string[] {
 
   for (const lang of langs) {
     if (lang === 'ko') {
-      throw new InvalidArgumentError('ko 는 원문이라 번역 대상이 아니다. 병원 테이블에 이미 있다');
+      throw new InvalidArgumentError(
+        'ko is the source language, not a translation target — it is already in the hospital table.',
+      );
     }
     if (!(LANGS as readonly string[]).includes(lang)) {
       throw new InvalidArgumentError(
-        `${lang} 은 아직 지원하지 않는다. ${LANGS.join(' | ')} 중에서 고르라`,
+        `${lang} is not supported yet. Choose one of ${LANGS.join(' | ')}`,
       );
     }
   }
 
   if (langs.length === 0) {
-    throw new InvalidArgumentError('언어를 하나는 지정하라');
+    throw new InvalidArgumentError('Specify at least one language.');
   }
   return langs;
 }
@@ -174,13 +176,13 @@ function parseFields(value: string): I18nField[] {
   for (const field of fields) {
     if (!isI18nField(field)) {
       throw new InvalidArgumentError(
-        `${field} 은 번역 대상 필드가 아니다. ${I18N_FIELDS.join(' | ')} 중에서 고르라`,
+        `${field} is not a translatable field. Choose one of ${I18N_FIELDS.join(' | ')}`,
       );
     }
   }
 
   if (fields.length === 0) {
-    throw new InvalidArgumentError('필드를 하나는 지정하라');
+    throw new InvalidArgumentError('Specify at least one field.');
   }
   return fields as I18nField[];
 }
@@ -188,7 +190,7 @@ function parseFields(value: string): I18nField[] {
 function positiveInt(value: string, flag: string): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new InvalidArgumentError(`${flag} 은 1 이상의 정수여야 한다`);
+    throw new InvalidArgumentError(`${flag} must be an integer of 1 or more.`);
   }
   return parsed;
 }

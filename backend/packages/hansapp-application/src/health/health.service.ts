@@ -24,7 +24,7 @@ async function withTimeout<T>(name: string, task: Promise<T>): Promise<T> {
       task,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`${CHECK_TIMEOUT_MS}ms 안에 응답 없음`)),
+          () => reject(new Error(`No response within ${CHECK_TIMEOUT_MS}ms`)),
           CHECK_TIMEOUT_MS,
         );
       }),
@@ -77,7 +77,7 @@ export class HealthService {
   private async checkRedis(): Promise<HealthCheckResult> {
     const url = this.config.redisUrl;
     if (!url) {
-      return { name: 'Redis', status: 'skipped', reason: '미설정(redis.url)' };
+      return { name: 'Redis', status: 'skipped', reason: 'Not configured (redis.url)' };
     }
 
     // reconnectStrategy: false — 재접속을 끈다. 켜두면 못 붙어도 계속 재시도하며 매달려

@@ -35,7 +35,7 @@ export class BatchService {
 
   async runDaily(force = false): Promise<void> {
     if (this.running) {
-      this.logger.warn('이전 실행이 아직 안 끝났다. 이번 회차는 건너뛴다.');
+      this.logger.warn('The previous run has not finished. Skipping this round.');
       return;
     }
 
@@ -43,7 +43,7 @@ export class BatchService {
     const startedAt = Date.now();
 
     try {
-      this.logger.log('배치 시작');
+      this.logger.log('Batch started');
 
       // 일일 한도는 원본이 알려준다(resultCode 22). 우리가 세지 않는다.
       // budget 은 사고 방지용 안전판일 뿐이고 보통은 없다.
@@ -66,7 +66,7 @@ export class BatchService {
 
       const calls = mois.calls + nmc.calls + hira.calls;
       const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
-      this.logger.log(`배치 완료 — 총 ${calls.toLocaleString()}콜 / ${seconds}초`);
+      this.logger.log(`Batch done: ${calls.toLocaleString()} calls / ${seconds}s`);
     } finally {
       this.running = false;
     }
@@ -76,18 +76,20 @@ export class BatchService {
   private report(label: string, result: RunAllResult): void {
     for (const run of result.runs) {
       if (run.error) {
-        this.logger.error(`  ${label} ${run.stage}단계 실패 — ${run.error}`);
+        this.logger.error(`  ${label} stage ${run.stage} failed: ${run.error}`);
       } else if (run.result?.skipped) {
-        this.logger.log(`  ${label} ${run.stage}단계 생략 — ${run.result.skipReason}`);
+        this.logger.log(`  ${label} stage ${run.stage} skipped: ${run.result.skipReason}`);
       } else {
         this.logger.log(
-          `  ${label} ${run.stage}단계 — 콜 ${run.result?.calls.toLocaleString()} / 처리 ${run.result?.processed.toLocaleString()}`,
+          `  ${label} stage ${run.stage}: ${run.result?.calls.toLocaleString()} calls / ${run.result?.processed.toLocaleString()} processed`,
         );
       }
     }
 
     if (result.budgetExhausted) {
-      this.logger.log(`  ${label} 콜 예산 소진. 남은 단계는 다음 실행에서 이어받는다.`);
+      this.logger.log(
+        `  ${label} call budget is used up. Remaining stages resume on the next run.`,
+      );
     }
   }
 }

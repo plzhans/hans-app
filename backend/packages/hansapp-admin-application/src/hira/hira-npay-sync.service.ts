@@ -56,14 +56,18 @@ export class HiraNpaySyncService {
       upserted += await this.upsert(items);
       fetched += items.length;
 
-      this.logger.log(`HIRA 비급여 ${fetched.toLocaleString()}/${totalCount.toLocaleString()}`);
+      this.logger.log(
+        `HIRA non-payment ${fetched.toLocaleString()}/${totalCount.toLocaleString()}`,
+      );
     }
 
     // 전수를 다 받은 뒤에만 지운다. 중간에 실패해서 일부만 받았다면 살아 있는 행을 대량으로
     // 지우게 되므로, 순회가 끝까지 갔을 때(= for await 가 정상 종료) 여기 도달하는 것에 의존한다.
     const deleted = await this.deleteStale(startedAt);
     if (deleted > 0) {
-      this.logger.log(`원본에서 사라진 비급여 ${deleted.toLocaleString()}건 삭제`);
+      this.logger.log(
+        `Deleted ${deleted.toLocaleString()} non-payment rows that vanished from the source`,
+      );
     }
 
     return { total: totalCount, processed: upserted, calls };
@@ -84,7 +88,7 @@ export class HiraNpaySyncService {
     const skipped = items.length - rows.length;
     if (skipped > 0) {
       // PK 를 만들 수 없는 항목이다. 조용히 넘어가면 건수가 안 맞는 이유를 못 찾는다.
-      this.logger.warn(`ykiho/sno 가 없어 건너뛴 항목 ${skipped}건`);
+      this.logger.warn(`Skipped ${skipped} items with no ykiho/sno`);
     }
 
     return this.repo.upsertMirror(rows);

@@ -51,7 +51,7 @@ export class BatchScheduler {
     const job = new CronJob(this.config.cron, () => {
       void this.batch.runDaily().catch((error: unknown) => {
         // 여기까지 올라온 예외는 배치 자체의 버그다. 단계 실패는 이미 안에서 처리된다.
-        this.logger.error('배치 실행 중 처리되지 않은 오류', error);
+        this.logger.error('Unhandled error during the batch run', error);
         // 로그만 남기면 아무도 안 본다. 크론이 통째로 실패한 것이므로 Sentry 로 올린다.
         // (상주 모드라 프로세스가 살아 있으니 flush 는 필요 없다.)
         Sentry.captureException(error, { tags: { job: CRON_JOB_NAME } });
@@ -61,7 +61,7 @@ export class BatchScheduler {
     this.registry.addCronJob(CRON_JOB_NAME, job);
     job.start();
 
-    this.logger.log(`크론 등록 — ${CRON_JOB_NAME} ${this.config.cron}`);
+    this.logger.log(`Cron registered: ${CRON_JOB_NAME} ${this.config.cron}`);
 
     /*
       **적재와 별개 잡이다.** 공공데이터 적재는 외부 API 한도를 나눠 쓰며 단계가 이어지는
@@ -78,7 +78,7 @@ export class BatchScheduler {
         .then(() => this.sessionCacheSweeper.run())
         .catch((error: unknown) => {
           // 테이블별 실패는 서비스가 이미 삼킨다. 여기까지 오면 잡 자체의 버그다.
-          this.logger.error('인증 정리 중 처리되지 않은 오류', error);
+          this.logger.error('Unhandled error during the auth cleanup', error);
           Sentry.captureException(error, {
             tags: { job: AUTH_CLEANUP_JOB_NAME },
           });
@@ -88,6 +88,6 @@ export class BatchScheduler {
     this.registry.addCronJob(AUTH_CLEANUP_JOB_NAME, cleanupJob);
     cleanupJob.start();
 
-    this.logger.log(`크론 등록 — ${AUTH_CLEANUP_JOB_NAME} ${this.config.authCleanupCron}`);
+    this.logger.log(`Cron registered: ${AUTH_CLEANUP_JOB_NAME} ${this.config.authCleanupCron}`);
   }
 }

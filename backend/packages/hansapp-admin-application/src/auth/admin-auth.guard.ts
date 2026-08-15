@@ -1,10 +1,6 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ForbiddenError, UnauthorizedError } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
@@ -47,7 +43,9 @@ export class AdminAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AdminRequest>();
     const token = extractBearer(request);
     if (!token) {
-      throw new UnauthorizedException('Authentication token is required.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_TOKEN_REQUIRED, {
+        message: 'Authentication token is required.',
+      });
     }
 
     const payload = this.tokens.verifyAccessToken(token);
@@ -60,7 +58,9 @@ export class AdminAuthGuard implements CanActivate {
       토큰의 `exp` 를 함께 넘긴다 — 캐시가 그 시각을 넘겨 판단을 들고 있지 않게 한다.
     */
     if (!(await this.sessions.isLive(adminId, payload.sid, payload.exp))) {
-      throw new UnauthorizedException('Session is no longer valid.');
+      throw new UnauthorizedError(AdminErrorCode.ADMIN_SESSION_INVALID, {
+        message: 'Session is no longer valid.',
+      });
     }
 
     const mustChangePassword = payload.chg === true;
@@ -85,7 +85,9 @@ export class AdminAuthGuard implements CanActivate {
       if (!allowed) {
         // 401 이 아니라 403 이다. 인증은 통과했고 자격이 모자란 것이라,
         // 프론트가 401 로 오해해 토큰 갱신을 반복하는 일이 없어야 한다.
-        throw new ForbiddenException('Password change required.');
+        throw new ForbiddenError(AdminErrorCode.ADMIN_PASSWORD_CHANGE_REQUIRED, {
+          message: 'Password change required.',
+        });
       }
     }
 

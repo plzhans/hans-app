@@ -1,10 +1,5 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { AppClientNotFoundError, AppNotFoundError, AuthErrorCode } from '../error';
 import {
   App,
   AppApiKey,
@@ -17,7 +12,14 @@ import {
 } from '@hansapp/data';
 
 import { UserRepository } from '../repository/user.repository';
-import { randomToken, sha256hex } from '@hansapp/common';
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  randomToken,
+  sha256hex,
+} from '@hansapp/common';
 import { APP_LIMIT_BY_TIER } from './app.constants';
 import { AppRepository } from './app.repository';
 import { AccessCache } from './access-cache.service';
@@ -126,6 +128,8 @@ const ROLE_RANK: Record<AppRole, number> = {
  */
 @Injectable()
 export class AppService {
+  private readonly logger = new Logger(AppService.name);
+
   constructor(
     private readonly users: UserRepository,
     private readonly apps: AppRepository,
@@ -143,7 +147,7 @@ export class AppService {
   async resolveUserIdByEmail(email: string): Promise<number> {
     const user = await this.users.findByEmail(email.trim());
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw new NotFoundError(AuthErrorCode.USER_NOT_FOUND);
     }
     return user.id;
   }
@@ -155,7 +159,7 @@ export class AppService {
   async getUserTier(userId: number): Promise<UserTierInfo> {
     const user = await this.users.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw new NotFoundError(AuthErrorCode.USER_NOT_FOUND);
     }
     return {
       email: user.email,
@@ -176,7 +180,7 @@ export class AppService {
   async setUserTier(userId: number, tier: UserTier): Promise<UserTierInfo> {
     const user = await this.users.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw new NotFoundError(AuthErrorCode.USER_NOT_FOUND);
     }
     const updated = await this.users.updateTier(userId, tier);
     return {
@@ -200,15 +204,15 @@ export class AppService {
   ): Promise<App> {
     const user = await this.users.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found.');
+      throw new NotFoundError(AuthErrorCode.USER_NOT_FOUND);
     }
     const limit = APP_LIMIT_BY_TIER[user.tier];
     if (limit !== null) {
       const count = await this.apps.countOwnerApps(userId);
       if (count >= limit) {
-        throw new ForbiddenException(
-          `App limit reached (${limit}). Upgrade your tier to create more.`,
-        );
+        throw new ForbiddenError(AuthErrorCode.APP_LIMIT_REACHED, {
+          message: `App limit reached (${limit}). Upgrade your tier to create more.`,
+        });
       }
     }
     return this.apps.createAppWithOwner(userId, name.trim(), status);
@@ -218,7 +222,7 @@ export class AppService {
     await this.assertMember(userId, appId);
     const app = await this.apps.getDetail(appId);
     if (!app) {
-      throw new NotFoundException('App not found.');
+      throw new AppNotFoundError();
     }
     return app;
   }
@@ -264,7 +268,7 @@ export class AppService {
   async approveApp(appId: number): Promise<App> {
     const app = await this.apps.findApp(appId);
     if (!app) {
-      throw new NotFoundException('App not found.');
+      throw new AppNotFoundError();
     }
     if (app.status === AppStatus.ACTIVE) {
       return app; // 이미 승인됨 — 멱등.
@@ -297,10 +301,13 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const app = await this.apps.findApp(appId);
     if (!app) {
-      throw new NotFoundException('App not found.');
+      throw new AppNotFoundError();
     }
     if (app.status !== AppStatus.PENDING) {
-      throw new BadRequestException('Only a pending app can be submitted for review.');
+      this.logger.debug(`Review request rejected: appId=${appId} status=${app.status}`);
+      throw new BadRequestError(AuthErrorCode.APP_STATUS_INVALID, {
+        message: 'Only a pending app can be submitted for review.',
+      });
     }
     return this.apps.requestReview(appId);
   }
@@ -312,14 +319,17 @@ export class AppService {
   async rejectApp(appId: number, reason: string): Promise<App> {
     const trimmed = reason.trim();
     if (!trimmed) {
-      throw new BadRequestException('Rejection reason is required.');
+      throw new BadRequestError({ message: 'Rejection reason is required.' });
     }
     const app = await this.apps.findApp(appId);
     if (!app) {
-      throw new NotFoundException('App not found.');
+      throw new AppNotFoundError();
     }
     if (app.status !== AppStatus.PENDING) {
-      throw new BadRequestException('Only a pending app can be rejected.');
+      this.logger.debug(`Rejection refused: appId=${appId} status=${app.status}`);
+      throw new BadRequestError(AuthErrorCode.APP_STATUS_INVALID, {
+        message: 'Only a pending app can be rejected.',
+      });
     }
     return this.apps.reject(appId, trimmed);
   }
@@ -339,11 +349,13 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const app = await this.apps.findApp(appId);
     if (!app) {
-      throw new NotFoundException('App not found.');
+      throw new AppNotFoundError();
     }
     const count = await this.apps.countApiKeys(appId);
     if (count >= app.apiKeyLimit) {
-      throw new ForbiddenException(`Service key limit reached (${app.apiKeyLimit} per app).`);
+      throw new ForbiddenError(AuthErrorCode.APP_KEY_LIMIT_REACHED, {
+        message: `Service key limit reached (${app.apiKeyLimit} per app).`,
+      });
     }
     // 키 원문에 appId·행 id 를 박는다: sk_{appId}_{keyId}_{random}.
     //  - 키값만 봐도 어느 앱/키인지 식별 가능(로그·유출 추적)
@@ -365,7 +377,7 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const key = await this.apps.findApiKey(appId, keyId);
     if (!key) {
-      throw new NotFoundException('API key not found.');
+      throw new NotFoundError(AuthErrorCode.APP_KEY_NOT_FOUND);
     }
     const plainKey = `sk_${appId}_${keyId}_${randomToken(24)}`;
     const apiKey = await this.apps.updateApiKeyHash(keyId, {
@@ -385,7 +397,7 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const deleted = await this.apps.deleteApiKey(appId, keyId);
     if (deleted === 0) {
-      throw new NotFoundException('API key not found.');
+      throw new NotFoundError(AuthErrorCode.APP_KEY_NOT_FOUND);
     }
     await this.cache.invalidateApiKey(appId, keyId);
   }
@@ -404,7 +416,7 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const app = await this.apps.findApp(appId);
     if (!app) {
-      throw new NotFoundException('App not found.');
+      throw new AppNotFoundError();
     }
 
     // type 별 컬럼과 (WEB 만) 시크릿을 먼저 계산한다.
@@ -434,7 +446,7 @@ export class AppService {
       case AppClientType.IOS: {
         const bundleId = input.bundleId?.trim();
         if (!bundleId) {
-          throw new BadRequestException('Bundle ID is required.');
+          throw new BadRequestError({ message: 'Bundle ID is required.' });
         }
         const teamId = input.teamId?.trim();
         extra = { config: { bundleId, ...(teamId ? { teamId } : {}) } };
@@ -443,7 +455,7 @@ export class AppService {
       case AppClientType.ANDROID: {
         const packageName = input.packageName?.trim();
         if (!packageName) {
-          throw new BadRequestException('Package name is required.');
+          throw new BadRequestError({ message: 'Package name is required.' });
         }
         extra = {
           config: {
@@ -454,7 +466,9 @@ export class AppService {
         break;
       }
       default:
-        throw new BadRequestException('Unknown client type.');
+        throw new BadRequestError(AuthErrorCode.APP_CLIENT_TYPE_UNSUPPORTED, {
+          message: 'Unknown client type.',
+        });
     }
 
     const fields = {
@@ -478,7 +492,7 @@ export class AppService {
         : this.apps.createClientAutoId(fields, randomToken(9))
     ).catch((e: unknown) => {
       if (isUniqueViolation(e)) {
-        throw new ConflictException('Client ID already in use.');
+        throw new ConflictError(AuthErrorCode.APP_CLIENT_ID_IN_USE);
       }
       throw e;
     });
@@ -493,10 +507,12 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const client = await this.apps.findClient(appId, clientPk);
     if (!client) {
-      throw new NotFoundException('Client not found.');
+      throw new AppClientNotFoundError();
     }
     if (client.type !== AppClientType.WEB) {
-      throw new BadRequestException('Native clients have no secret (PKCE is used).');
+      throw new BadRequestError(AuthErrorCode.APP_CLIENT_TYPE_UNSUPPORTED, {
+        message: 'Native clients have no secret (PKCE is used).',
+      });
     }
     const secret = genClientSecret();
     await this.apps.updateClientSecret(appId, clientPk, {
@@ -523,7 +539,7 @@ export class AppService {
     await this.assertMember(userId, appId, AppRole.ADMIN);
     const client = await this.apps.findClient(appId, clientPk);
     if (!client) {
-      throw new NotFoundException('Client not found.');
+      throw new AppClientNotFoundError();
     }
 
     const data: {
@@ -563,7 +579,7 @@ export class AppService {
 
     const updated = await this.apps.updateClient(appId, clientPk, data);
     if (updated === 0) {
-      throw new NotFoundException('Client not found.');
+      throw new AppClientNotFoundError();
     }
     await this.cache.invalidateClient(client.clientId);
   }
@@ -573,7 +589,7 @@ export class AppService {
     // 캐시 무효화에 공개 clientId 가 필요하므로 삭제 전에 읽어 둔다.
     const client = await this.apps.findClient(appId, clientPk);
     if (!client) {
-      throw new NotFoundException('Client not found.');
+      throw new AppClientNotFoundError();
     }
     await this.apps.deleteClient(appId, clientPk);
     await this.cache.invalidateClient(client.clientId);
@@ -592,10 +608,10 @@ export class AppService {
   ): Promise<AppMember> {
     const membership = await this.apps.getMembership(userId, appId);
     if (!membership) {
-      throw new NotFoundException('App not found.');
+      throw new AppNotFoundError();
     }
     if (ROLE_RANK[membership.role] < ROLE_RANK[minRole]) {
-      throw new ForbiddenException('Insufficient permissions.');
+      throw new ForbiddenError(AuthErrorCode.APP_ACCESS_DENIED);
     }
     return membership;
   }

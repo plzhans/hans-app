@@ -23,12 +23,12 @@ export class EventPublisher {
 
   publish<N extends DomainEventName>(name: N, payload: DomainEventPayloads[N]): void {
     if (!this.queue) {
-      this.logger.warn(`큐가 없어 이벤트를 버린다 — ${name}`);
+      this.logger.warn(`No queue, dropping the event: ${name}`);
       return;
     }
     void this.queue.add(name, payload).catch((error: unknown) => {
       // 발행 실패가 본업(로그인·가입)을 무너뜨리면 안 된다. 남기고 넘어간다.
-      this.logger.error(`이벤트 발행 실패 — ${name}`, error);
+      this.logger.error(`Failed to publish an event: ${name}`, error);
     });
   }
 }

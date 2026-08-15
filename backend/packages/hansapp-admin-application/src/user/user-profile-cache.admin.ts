@@ -36,7 +36,7 @@ export class UserProfileCacheAdmin {
   /** 들여다본다. **지우기 전에 지울 것이 있는지 보라고 두는 창이다.** */
   inspect(userId: number): Promise<ProfileCacheState> {
     return inspectCacheEntry(this.cache, profileKey(userId), (error) =>
-      this.logger.warn(`내 정보 캐시를 읽지 못했다(userId=${userId}): ${String(error)}`),
+      this.logger.warn(`Failed to read user profile cache (userId=${userId}): ${String(error)}`),
     );
   }
 
@@ -48,10 +48,10 @@ export class UserProfileCacheAdmin {
     try {
       await this.cache?.del(profileKey(userId));
     } catch (error) {
-      this.logger.warn(`내 정보 캐시를 지우지 못했다(userId=${userId}): ${String(error)}`);
+      this.logger.warn(`Failed to evict user profile cache (userId=${userId}): ${String(error)}`);
     }
     // 각 인스턴스의 메모리 단은 이벤트를 받아 스스로 비운다.
     this.events.publish(DomainEvent.UserProfileUpdated, { userId });
-    this.logger.log(`내 정보 캐시 초기화: userId=${userId}`);
+    this.logger.log(`User profile cache cleared: userId=${userId}`);
   }
 }

@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { open, SETTING_KEYRING, type SecretBoxKeys, type SettingReader } from '@hansapp/common';
+import type { SecretBoxKeys, SettingReader } from '@hansapp/common';
+import { SETTING_KEYRING, open } from '@hansapp/common';
+
 import { SettingReadRepository } from '@hansapp/data';
 
 /**
@@ -111,7 +113,7 @@ export class SettingCache implements SettingReader {
         if (!this.keyring) {
           // 잠긴 값인데 열 키가 없다. 이 키만 설정 파일로 폴백된다.
           this.logger.error(
-            `appSecretEncryption 키링이 없어 열 수 없다(설정 파일 값으로 폴백): ${row.key}`,
+            `No appSecretEncryption keyring, cannot unseal (falling back to the config file value): ${row.key}`,
           );
           continue;
         }
@@ -123,7 +125,7 @@ export class SettingCache implements SettingReader {
             설정 전체가 죽으면 손 쓸 방법이 없다 — 그 키만 설정 파일로 폴백된다.
           */
           this.logger.error(
-            `설정 값을 열지 못했다(설정 파일 값으로 폴백): ${row.key} — ${String(error)}`,
+            `Failed to unseal a setting (falling back to the config file value): ${row.key} — ${String(error)}`,
           );
         }
       }
@@ -131,7 +133,7 @@ export class SettingCache implements SettingReader {
       this.expiresAt = Date.now() + CACHE_TTL_MS;
     } catch (error) {
       // 직전 값을 그대로 둔다. 다음 호출에서 다시 시도한다.
-      this.logger.warn(`설정을 다시 읽지 못했다: ${String(error)}`);
+      this.logger.warn(`Failed to reload settings: ${String(error)}`);
     }
   }
 }

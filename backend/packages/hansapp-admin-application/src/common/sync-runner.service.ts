@@ -66,7 +66,7 @@ export class SyncRunnerService {
 
       if (remaining !== undefined && remaining <= 0) {
         this.logger.log(
-          `${provider} 콜 예산(${options.budget})을 다 썼다. ${stage}단계부터는 다음 실행에서 이어받는다.`,
+          `${provider} call budget (${options.budget}) is used up. Resuming from stage ${stage} on the next run.`,
         );
         return { runs, calls: spent, budgetExhausted: true };
       }
@@ -82,21 +82,21 @@ export class SyncRunnerService {
 
         this.logger.log(
           result.skipped
-            ? `${provider} ${stage}단계 생략 — ${result.skipReason}`
-            : `${provider} ${stage}단계 완료 — 콜 ${result.calls.toLocaleString()} / 처리 ${result.processed.toLocaleString()}`,
+            ? `${provider} stage ${stage} skipped: ${result.skipReason}`
+            : `${provider} stage ${stage} done: ${result.calls.toLocaleString()} calls / ${result.processed.toLocaleString()} processed`,
         );
 
         // 예산이 모자라 남은 작업을 못 한 단계가 나왔다. 뒤 단계는 더더욱 못 한다.
         // 여기서 멈추지 않으면 남은 단계가 전부 "콜 0 성공" 으로 기록된다.
         if (result.limitReached) {
           this.logger.log(
-            `${provider} 콜 예산(${options.budget})을 다 썼다. 남은 단계는 다음 실행에서 이어받는다.`,
+            `${provider} call budget (${options.budget}) is used up. Remaining stages resume on the next run.`,
           );
           return { runs, calls: spent, budgetExhausted: true };
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.error(`${provider} ${stage}단계 실패 — ${message}`);
+        this.logger.error(`${provider} stage ${stage} failed: ${message}`);
         runs.push({ provider, stage, error: message });
 
         // 실패는 중단이다. 뒤 단계를 돌리지 않는다.

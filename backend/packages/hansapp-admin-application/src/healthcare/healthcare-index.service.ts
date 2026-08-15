@@ -108,7 +108,7 @@ export class HealthcareIndexService {
     const healthy = result.total > 0 && result.indexed >= result.total * SWAP_MIN_SUCCESS_RATIO;
     if (!healthy) {
       this.logger.error(
-        `재색인 결과 비정상(indexed=${result.indexed}/${result.total}, failed=${result.failed}, skipped=${result.skipped}) — alias 스왑 중단. 새 인덱스 ${newIndex} 를 삭제하고 라이브는 옛 인덱스로 유지한다.`,
+        `Reindex result looks wrong (indexed=${result.indexed}/${result.total}, failed=${result.failed}, skipped=${result.skipped}) — aborting the alias swap. Dropping the new index ${newIndex} and keeping the old one live.`,
       );
       await this.schema.dropIndex(newIndex);
       return { ...result, newIndex, swapped: false, droppedIndices: [] };
@@ -172,7 +172,7 @@ export class HealthcareIndexService {
             // 이 한 건만 버리고 계속. 조용히 넘기지 않고 집계+로그로 드러낸다.
             skipped += 1;
             logger.warn(
-              `병원 ${row.hospital.id} 문서 변환 실패 — 건너뜀: ${
+              `Failed to convert hospital ${row.hospital.id} to a document — skipping: ${
                 error instanceof Error ? error.message : String(error)
               }`,
             );
@@ -191,7 +191,7 @@ export class HealthcareIndexService {
 
     if (skipped > 0) {
       logger.warn(
-        `문서 변환 실패로 ${skipped}건을 건너뛰고 색인했다 — 개별 병원 id 는 위 경고 로그 참고.`,
+        `Indexed with ${skipped} documents skipped due to conversion failures — see the warnings above for hospital ids.`,
       );
     }
 
@@ -210,13 +210,15 @@ export class HealthcareIndexService {
     const keepIds = await this.repo.loadActiveIds();
     if (keepIds.size === 0) {
       this.logger.error(
-        '활성 병원 id 가 0건 — 대사를 건너뛴다(ES 전체 삭제 방지). DB 조회를 확인하라.',
+        'No active hospital ids — skipping reconciliation to avoid wiping the index. Check the database query.',
       );
       return 0;
     }
     const removed = await this.indexer.deleteAbsent(keepIds);
     if (removed > 0) {
-      this.logger.log(`대사: DB 에 없는(비활성 포함) 문서 ${removed}건 삭제`);
+      this.logger.log(
+        `Reconciled: removed ${removed} documents that are absent (or inactive) in the database`,
+      );
     }
     return removed;
   }

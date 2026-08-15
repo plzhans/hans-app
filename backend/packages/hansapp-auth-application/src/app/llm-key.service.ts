@@ -1,12 +1,13 @@
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { AuthErrorCode } from '../error';
 import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-  NotImplementedException,
-} from '@nestjs/common';
-import { seal, suffixOf } from '@hansapp/common';
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+  NotImplementedError,
+  seal,
+  suffixOf,
+} from '@hansapp/common';
 import { AppRole, LlmKeyVerifyState, LlmProvider, Prisma } from '@hansapp/data';
 
 import { AppService } from './app.service';
@@ -79,7 +80,9 @@ export class LlmKeyService {
     const baseUrl = this.normalizeBaseUrl(input.provider, input.baseUrl);
 
     if (!input.secret && input.provider !== LlmProvider.LOCAL) {
-      throw new BadRequestException('API key is required for this provider.');
+      throw new BadRequestError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+        message: 'API key is required for this provider.',
+      });
     }
 
     const existing = await this.keys.listByApp(appId);
@@ -89,7 +92,9 @@ export class LlmKeyService {
       if (!MULTI_KEY_PROVIDERS.has(input.provider)) {
         return this.update(userId, appId, duplicate.id, input);
       }
-      throw new BadRequestException('A key with this name already exists for this provider.');
+      throw new ConflictError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+        message: 'A key with this name already exists for this provider.',
+      });
     }
 
     const data: Prisma.AppLlmKeyUncheckedCreateInput = {
@@ -124,7 +129,7 @@ export class LlmKeyService {
 
     const current = await this.keys.findById(appId, id);
     if (!current) {
-      throw new NotFoundException('LLM key not found.');
+      throw new NotFoundError(AuthErrorCode.APP_LLM_KEY_NOT_FOUND);
     }
 
     const data: Prisma.AppLlmKeyUncheckedUpdateInput = {};
@@ -167,7 +172,7 @@ export class LlmKeyService {
 
     const current = await this.keys.findById(appId, id);
     if (!current) {
-      throw new NotFoundException('LLM key not found.');
+      throw new NotFoundError(AuthErrorCode.APP_LLM_KEY_NOT_FOUND);
     }
     await this.keys.delete(id);
   }
@@ -186,7 +191,7 @@ export class LlmKeyService {
     const keyring = this.config.keyring;
     if (!keyring) {
       this.logger.error('appSecretEncryption is not configured; refusing to store a provider key.');
-      throw new NotImplementedException('Provider key storage is not configured on this server.');
+      throw new NotImplementedError(AuthErrorCode.APP_LLM_KEY_STORAGE_UNAVAILABLE);
     }
 
     return {
@@ -206,15 +211,20 @@ export class LlmKeyService {
 
     const trimmed = name?.trim() ?? '';
     if (!trimmed) {
-      throw new BadRequestException('Name is required for this provider.');
+      throw new BadRequestError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+        message: 'Name is required for this provider.',
+      });
     }
     if (trimmed.length > NAME_MAX_LENGTH) {
-      throw new BadRequestException(`Name must be at most ${NAME_MAX_LENGTH} characters.`);
+      throw new BadRequestError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+        message: `Name must be at most ${NAME_MAX_LENGTH} characters.`,
+      });
     }
     if (!NAME_PATTERN.test(trimmed)) {
-      throw new BadRequestException(
-        'Name may contain letters, digits, dot, dash and underscore, and must start with a letter or digit.',
-      );
+      throw new BadRequestError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+        message:
+          'Name may contain letters, digits, dot, dash and underscore, and must start with a letter or digit.',
+      });
     }
     return trimmed;
   }
@@ -227,7 +237,9 @@ export class LlmKeyService {
     const trimmed = baseUrl?.trim() ?? '';
     if (!trimmed) {
       if (provider === LlmProvider.LOCAL) {
-        throw new BadRequestException('Base URL is required for this provider.');
+        throw new BadRequestError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+          message: 'Base URL is required for this provider.',
+        });
       }
       return null;
     }
@@ -236,10 +248,14 @@ export class LlmKeyService {
     try {
       parsed = new URL(trimmed);
     } catch {
-      throw new BadRequestException('Base URL must be an absolute http(s) URL.');
+      throw new BadRequestError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+        message: 'Base URL must be an absolute http(s) URL.',
+      });
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new BadRequestException('Base URL must be an absolute http(s) URL.');
+      throw new BadRequestError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+        message: 'Base URL must be an absolute http(s) URL.',
+      });
     }
     return trimmed;
   }
@@ -248,9 +264,9 @@ export class LlmKeyService {
   private normalizeLimit(value?: number | null): number | null {
     if (value === undefined || value === null) return null;
     if (!Number.isInteger(value) || value <= 0) {
-      throw new BadRequestException(
-        'Spending limits must be a positive integer in micro USD, or null for unlimited.',
-      );
+      throw new BadRequestError(AuthErrorCode.APP_LLM_KEY_INVALID, {
+        message: 'Spending limits must be a positive integer in micro USD, or null for unlimited.',
+      });
     }
     return value;
   }

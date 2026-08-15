@@ -29,7 +29,7 @@ export const vworldMutator = async <T>(url: string, options?: VworldRequestInit)
   const operation = options?.operation;
   if (!config || !operation) {
     throw new Error(
-      'VWORLD config is missing. 생성된 함수를 직접 호출하지 말고 VworldGeocoderClient 를 사용하라.',
+      'VWORLD config is missing. Use VworldGeocoderClient instead of calling the generated function directly.',
     );
   }
 

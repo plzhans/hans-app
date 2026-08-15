@@ -1,11 +1,7 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Inject, Injectable, Logger } from '@nestjs/common';
+import { AuthErrorCode } from '../error';
 import { Reflector } from '@nestjs/core';
+import { ForbiddenError } from '@hansapp/common';
 import type { Request } from 'express';
 
 import { AUTH_CONFIG } from '../auth.config';
@@ -28,6 +24,8 @@ import { FIRST_PARTY_ONLY_KEY } from './first-party.decorator';
  */
 @Injectable()
 export class FirstPartyGuard implements CanActivate {
+  private readonly logger = new Logger(FirstPartyGuard.name);
+
   constructor(
     private readonly reflector: Reflector,
     @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
@@ -44,7 +42,8 @@ export class FirstPartyGuard implements CanActivate {
 
     const origin = context.switchToHttp().getRequest<Request>().headers.origin;
     if (origin && !isFirstPartyOrigin(origin, this.config.rootDomain)) {
-      throw new ForbiddenException('Origin not allowed.');
+      this.logger.debug(`First-party guard rejected the origin: ${origin}`);
+      throw new ForbiddenError(AuthErrorCode.APP_ORIGIN_NOT_ALLOWED);
     }
     return true;
   }

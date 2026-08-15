@@ -39,6 +39,25 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
  * 통별 키 수명. 창이 닫힌 뒤에도 얼마간 남겨 둔다 — 경계 직전 증가분이 곧바로 사라지면
  * 그 몫이 안 세어진 것이 된다. `balance` 는 비워지면 안 되므로 수명을 안 건다.
  */
+/**
+ * 놀고 있는 접속에 PING 을 보내는 주기.
+ *
+ * **redis.conf 의 `timeout 300` 때문에 필요하다** — 서버가 300초 동안 명령이 없는 접속을
+ * 먼저 끊는다. 이 서비스는 접속 하나를 계속 재사용하므로, 호출이 뜸한 새벽에는 그냥 놀다가
+ * 끊기고 다시 붙기를 5분마다 반복한다(`Socket closed unexpectedly` 가 그것이다).
+ *
+ * 같이 있는 `tcp-keepalive` 로는 안 막힌다. 그쪽은 커널이 죽은 상대를 감지하는 장치고,
+ * Redis 의 `timeout` 은 마지막 **명령** 시각으로 재기 때문이다.
+ */
+const PING_INTERVAL_MS = 60_000;
+
+/**
+ * 재접속을 기다려 주는 한도. 끊긴 직후 들어온 요청이 잠깐 기다렸다 통과하라는 것이지,
+ * 붙을 때까지 매달리라는 뜻이 아니다 — 매달리면 Redis 가 죽었을 때 요청이 같이 멈춘다.
+ * 기본 재접속 backoff 가 최대 500ms 라 그 두 배면 충분하다.
+ */
+const READY_WAIT_MS = 1_000;
+
 const TTL_SEC: Record<QuotaWindow, number | undefined> = {
   day: 36 * 60 * 60,
   // 달의 최대 길이(31일)보다 넉넉히. 1일에 처음 쓴 키도 말일까지 살아 있어야 한다.
@@ -121,7 +140,7 @@ export class UsageQuotaService implements OnModuleDestroy {
     }
     if (!this.url) {
       // 구성상 Redis 가 없는 배포(로컬 등). 고장이 아니므로 막지 않는다.
-      this.warnOnce('redis.url 이 없어 사용량 한도가 적용되지 않는다');
+      this.warnOnce('redis.url is not set — usage quotas are not enforced');
       return { allowed: true, states: [] };
     }
 
@@ -257,9 +276,23 @@ export class UsageQuotaService implements OnModuleDestroy {
     if (!this.url) {
       return undefined;
     }
+    if (this.client) {
+      if (this.client.isOpen) {
+        // 살아 있고 재접속 중이다(`isReady` 는 그동안 false 다). **여기서 새로 만들면 안 된다** —
+        // 헌 것을 아무도 안 닫아서 error 리스너를 단 채 영원히 남고, 그 뒤로는 끊길 때마다
+        // 같은 경고가 접속 수만큼 찍힌다. 잠깐 기다려 보고, 안 붙으면 못 세는 것으로 다룬다.
+        return (await this.waitReady(this.client)) ? this.client : undefined;
+      }
+      // 아예 닫혔다 — 재접속을 포기했거나 종료된 것이라 기다려도 안 붙는다. 리스너를 떼고 버린다.
+      this.client.removeAllListeners();
+      this.client = undefined;
+    }
     this.connecting ??= (async () => {
       try {
-        const client: RedisClientType = createClient({ url: this.url });
+        const client: RedisClientType = createClient({
+          url: this.url,
+          pingInterval: PING_INTERVAL_MS,
+        });
         // 핸들러가 없으면 접속 오류가 'error' 이벤트로 터져 프로세스를 죽인다.
         client.on('error', (error: unknown) => {
           this.logger.warn(`redis error: ${String(error)}`);
@@ -276,6 +309,24 @@ export class UsageQuotaService implements OnModuleDestroy {
       }
     })();
     return this.connecting;
+  }
+
+  /** 재접속이 끝나기를 잠깐 기다린다. 그 안에 안 붙었으면 false 다. */
+  private async waitReady(client: RedisClientType): Promise<boolean> {
+    let settle!: (ready: boolean) => void;
+    const ready = new Promise<boolean>((resolve) => {
+      settle = resolve;
+    });
+    const onReady = (): void => settle(true);
+    const timer = setTimeout(() => settle(false), READY_WAIT_MS);
+    client.once('ready', onReady);
+    try {
+      return await ready;
+    } finally {
+      // 어느 쪽으로 끝났든 둘 다 걷는다. 안 걷으면 요청마다 리스너가 쌓인다.
+      clearTimeout(timer);
+      client.off('ready', onReady);
+    }
   }
 }
 

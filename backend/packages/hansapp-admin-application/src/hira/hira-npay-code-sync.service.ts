@@ -60,13 +60,13 @@ export class HiraNpayCodeSyncService {
         }
 
         this.logger.log(
-          `HIRA 비급여코드 스캔 ${scanned.toLocaleString()}행 / 코드 ${codes.size}종`,
+          `HIRA non-payment code scan: ${scanned.toLocaleString()} rows / ${codes.size} codes`,
         );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `요약 페이징이 ${calls}콜에서 끊겼다(${message}). 지금까지 모은 ${codes.size}종으로 적재한다.`,
+        `Summary paging stopped after ${calls} calls (${message}). Loading the ${codes.size} codes collected so far.`,
       );
     }
 

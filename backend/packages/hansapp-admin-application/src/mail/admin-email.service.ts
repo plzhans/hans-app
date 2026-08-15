@@ -90,7 +90,7 @@ export class AdminEmailService {
     const { appName, consoleUrl } = this.config;
     if (!consoleUrl) {
       this.logger.error(
-        'apps-admin-api.externalUrl 이 비어 있어 재설정 링크를 만들 수 없다 — 메일을 보내지 않는다.',
+        'apps-admin-api.externalUrl is empty, so the reset link cannot be built — not sending the mail.',
       );
       return 'SEND_FAILED';
     }
@@ -110,7 +110,7 @@ export class AdminEmailService {
       return deliverable ? 'SENT' : 'MAIL_DISABLED';
     } catch (error) {
       this.logger.error(
-        `관리자 비밀번호 재설정 메일 발송 실패: to=${input.email} ${String(error)}`,
+        `Failed to send the admin password reset mail: to=${input.email} ${String(error)}`,
       );
       return 'SEND_FAILED';
     }
@@ -162,7 +162,7 @@ export class AdminEmailService {
     } catch (error) {
       // **본문을 찍지 않는다.** 임시 비밀번호가 그대로 로그에 남는다.
       this.logger.error(
-        `관리자 안내 메일 발송 실패(${occasion}): to=${input.email} ${String(error)}`,
+        `Failed to send the admin notice mail (${occasion}): to=${input.email} ${String(error)}`,
       );
       return 'SEND_FAILED';
     }

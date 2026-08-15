@@ -1,4 +1,6 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { UnavailableError } from '@hansapp/common';
+import { AdminErrorCode } from '../error';
 import { DomainEvent } from '@hansapp/event-contract';
 import { EventPublisher } from '@hansapp/event-publisher';
 
@@ -60,7 +62,7 @@ export class UserSessionAdminService {
     }
 
     this.events.publish(DomainEvent.AuthSessionRevoked, { userId, sessionIds });
-    this.logger.log(`세션 폐기: userId=${userId} count=${sessionIds.length}`);
+    this.logger.log(`Sessions revoked: userId=${userId} count=${sessionIds.length}`);
 
     /*
       **캐시가 남았으면 알린다.** DB 행은 이미 지워졌으니 되돌릴 것은 없지만, 조치가
@@ -68,10 +70,7 @@ export class UserSessionAdminService {
       안다. 다시 눌러 재시도할 수 있고(삭제는 멱등이다), 그대로 둬도 배치가 치운다.
     */
     if (left.length > 0) {
-      throw new ServiceUnavailableException(
-        `Sessions were deleted but ${left.length} cache entries could not be cleared. ` +
-          'Those devices may keep passing until the cache expires. Retry to clear them.',
-      );
+      throw new UnavailableError(AdminErrorCode.ADMIN_USER_CACHE_PARTIALLY_CLEARED);
     }
   }
 }

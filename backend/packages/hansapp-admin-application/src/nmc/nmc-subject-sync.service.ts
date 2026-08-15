@@ -69,7 +69,7 @@ export class NmcSubjectSyncService {
         pageNo += 1;
       }
 
-      this.logger.log(`NMC 진료과목 ${code}(${name ?? '?'}) 병원 ${fetched.toLocaleString()}건`);
+      this.logger.log(`NMC subject ${code}(${name ?? '?'}) ${fetched.toLocaleString()} hospitals`);
     }
 
     return { total: subjects.length, processed, calls };

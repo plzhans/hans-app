@@ -30,7 +30,7 @@ function keyDir(source: ConfigSource): string {
 
 function assertAlg(alg: string): AccessAlg {
   if (!(ALGS as string[]).includes(alg)) {
-    throw new Error(`알 수 없는 alg: ${alg} (${ALGS.join(' | ')})`);
+    throw new Error(`Unknown alg: ${alg} (${ALGS.join(' | ')})`);
   }
   return alg as AccessAlg;
 }
