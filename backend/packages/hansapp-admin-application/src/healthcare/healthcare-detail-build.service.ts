@@ -177,8 +177,19 @@ export class HealthcareDetailBuildService {
    */
   private locks!: HospitalLocks;
 
+  /**
+   * 이번 회차 시각. **한 번 정해서 모든 표에 같은 값을 쓴다.**
+   *
+   * 표마다 NOW() 를 부르면 시각이 조금씩 달라져, 뒤따르는 스윕이 앞서 만든 행을
+   * 낡은 것으로 오해하고 지운다. 회차의 경계를 하나로 못박는 값이다.
+   */
+  private builtAt!: Date;
+
   async build(): Promise<DetailBuildResult> {
     const startedAt = Date.now();
+    // 초 단위로 자른다. built_at 이 DATETIME(0) 이라 밀리초를 남기면 저장된 값과
+    // 비교값이 어긋나 방금 넣은 행이 스윕에 걸린다.
+    this.builtAt = new Date(Math.floor(startedAt / 1000) * 1000);
     const mapper = await this.repo.loadCodeMapper();
     this.locks = await this.repo.loadLocks();
 
@@ -652,37 +663,49 @@ export class HealthcareDetailBuildService {
     }
   }
 
+  /**
+   * 하위 테이블 한 장을 이번 회차 내용으로 맞춘다.
+   *
+   * **갈아엎지 않는다.** 전량 upsert 로 있으면 고치고 없으면 넣은 뒤, 이번에 안 나온 행만
+   * 지운다. 예전에는 `DELETE FROM` 으로 통째로 비우고 다시 채웠는데 세 가지가 문제였다 —
+   * 비운 뒤 채우는 사이에 데이터가 사라져 보이고(트랜잭션이 없다), 중간에 죽으면 빈 채로
+   * 남고, 86만 행을 지웠다 넣으면서 실제로 바뀐 몇 건을 위해 표 전체를 갈았다.
+   *
+   * **잠긴 행은 값을 안 건드리고 built_at 만 찍는다.** 그러지 않으면 upsert 를 건너뛴
+   * 그 행이 낡은 채로 남아 스윕에 지워진다 — 사람이 고친 값을 배치가 지우는 최악의 경우다.
+   */
   private async replace(table: RebuildTable, columns: string, rows: BuildRow[]): Promise<void> {
     this.assertRebuildable(table);
 
     const locked = rows.filter((r) => this.locks.isRowLocked(table, r.hospitalId, r.key));
-
-    if (locked.length === 0) {
-      await this.repo.deleteAll(table);
-    } else {
-      // 잠긴 행만 남기고 지운다. 행이 몇 개 안 되므로 id 목록으로 빼도 된다.
-      const keepIds = [...new Set(locked.map((r) => r.hospitalId))];
-      await this.repo.deleteHospitalsNotIn(table, keepIds);
-      // 잠긴 병원의 행 중 **잠기지 않은 것**은 지운다 (그 병원의 다른 요일 등).
-      for (const hospitalId of keepIds) {
-        const lockedKeys = rows
-          .filter((r) => r.hospitalId === hospitalId)
-          .filter((r) => this.locks.isRowLocked(table, hospitalId, r.key))
-          .map((r) => r.key);
-
-        await this.repo.deleteHospitalRowsNotMatching(table, hospitalId, lockedKeys);
-      }
-    }
-
     const lockedSet = new Set(locked.map((r) => `${r.hospitalId}|${JSON.stringify(r.key)}`));
     const insertable = rows.filter(
       (r) => !lockedSet.has(`${r.hospitalId}|${JSON.stringify(r.key)}`),
     );
 
-    await this.repo.insertRows(table, columns, insertable);
+    /*
+      키 컬럼은 갱신 대상에서 뺀다. hospital_id 는 늘 키이고, 나머지는 행이 들고 있는
+      key 가 말해 준다(예: subject 는 subject_cd). 키를 갱신 목록에 넣으면 자기 자신을
+      자기 값으로 덮는 무의미한 SET 이 생긴다.
+    */
+    const cols = columns
+      .replace(/[()]/g, '')
+      .split(',')
+      .map((c) => c.trim());
+    const keyCols = new Set(['hospital_id', ...Object.keys(rows[0]?.key ?? {})]);
+    const updatable = cols.filter((c) => !keyCols.has(c));
+
+    await this.repo.upsertRows(table, cols, updatable, insertable, this.builtAt);
+
+    if (locked.length > 0) {
+      await this.repo.touchRows(table, locked, this.builtAt);
+    }
+
+    const removed = await this.repo.sweepStale(table, this.builtAt);
 
     this.logger.log(
       `${table}: ${insertable.length.toLocaleString()} rows` +
+        (removed > 0 ? `, ${removed.toLocaleString()} stale removed` : '') +
         (locked.length > 0 ? ` (${locked.length} locked rows kept)` : ''),
     );
   }
@@ -755,7 +778,8 @@ export class HealthcareDetailBuildService {
         hospitalId: id,
         key: { section },
         // 확인 못 했으면 출처가 있을 수 없다. 둘이 어긋나면 읽는 쪽이 판단 불가라 여기서 막는다.
-        value: [id, section, syncedAt ? source : null, syncedAt, now],
+        // built_at 은 넣지 않는다 — 나머지 표와 같이 replace() 가 회차 시각으로 찍는다.
+        value: [id, section, syncedAt ? source : null, syncedAt],
       });
     };
 
@@ -793,7 +817,7 @@ export class HealthcareDetailBuildService {
 
     await this.replace(
       'healthcare_hospital_section',
-      '(hospital_id, section, source, synced_at, built_at)',
+      '(hospital_id, section, source, synced_at)',
       values,
     );
     return values.length;

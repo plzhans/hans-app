@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { BatchRunStatus } from '@hansapp/common';
 
 import { SyncStateRepository } from './sync-state.repository';
 import { DataProvider } from './provider';
+import { CLI_RUN_CONTEXT, RunContext } from './run-context';
+import { BatchRunRepository } from '../log/batch-run.repository';
 
 /** 한 번의 실행 단위. CLI 커맨드 하나에 대응한다. */
 export interface SyncJob {
@@ -42,6 +45,33 @@ export function jobKey(job: SyncJob): string {
 }
 
 /**
+ * 도는 중에 진행분을 알리는 통로.
+ *
+ * **몇 시간짜리 단계 때문에 있다.** 닫힐 때만 기록하면 그동안 화면에는 아무 숫자도 안 뜬다.
+ * 청크가 하나 끝날 때마다 부르면 되고, 실패해도 던지지 않는다 — 진행 표시가 적재를
+ * 멈추게 할 수는 없다.
+ */
+export type ProgressReporter = (progress: {
+  processed: number;
+  calls: number;
+  total?: number;
+}) => Promise<void>;
+
+/** 한 단계 실행에 딸리는 부가 정보. 이력에 남기고 다음 실행 시각을 계산하는 데 쓴다. */
+export interface SyncRunMeta {
+  /** 어디서 온 실행인가. 생략하면 사람이 hanscli 로 부른 것으로 본다. */
+  readonly context?: RunContext;
+
+  /**
+   * 이 단계의 신선도(시간). 다음에 돌 자격이 생기는 시각을 계산한다.
+   *
+   * **여기서 계산하지 않고 받는다.** 신선도 표(STAGE_FRESHNESS_HOURS)는 단계 서비스 쪽에
+   * 있고 그쪽이 이 서비스를 쓴다 — 반대로 가져오면 서로를 물게 된다.
+   */
+  readonly freshnessHours?: number;
+}
+
+/**
  * 배치 단계의 실행 상태를 관리한다.
  *
  * 왜 필요한가: 8만 콜짜리 단계는 한 번에 못 끝난다(개발계정 일 1,000건). 중단·재개가 전제이고,
@@ -54,7 +84,10 @@ export function jobKey(job: SyncJob): string {
 export class SyncStateService {
   private readonly logger = new Logger(SyncStateService.name);
 
-  constructor(private readonly repo: SyncStateRepository) {}
+  constructor(
+    private readonly repo: SyncStateRepository,
+    private readonly history: BatchRunRepository,
+  ) {}
 
   /**
    * 마지막 성공이 maxAgeHours 이내면 true — 즉 아직 신선하니 다시 돌 필요가 없다.
@@ -137,12 +170,19 @@ export class SyncStateService {
    *
    * partial 은 "성공했지만 아직 남았다"는 뜻이라, 다음 실행에서 신선도를 무시하고 이어받는다.
    */
-  async succeed(job: SyncJob, outcome: SyncOutcome, elapsedMs: number): Promise<void> {
+  async succeed(
+    job: SyncJob,
+    outcome: SyncOutcome,
+    elapsedMs: number,
+    freshnessHours?: number,
+  ): Promise<void> {
     const now = new Date();
     await this.repo.update(jobKey(job), {
       status: outcome.limitReached ? 'partial' : 'done',
       finishedAt: now,
       lastSuccessAt: now,
+      // 남은 작업이 있으면(partial) 다음 실행이 바로 이어받아야 하므로 자격이 곧바로 생긴다.
+      nextEligibleAt: nextEligibleAt(now, outcome.limitReached ? 0 : freshnessHours),
       total: outcome.total,
       processed: outcome.processed,
       calls: outcome.calls,
@@ -162,6 +202,8 @@ export class SyncStateService {
     await this.repo.update(jobKey(job), {
       status: 'failed',
       finishedAt: new Date(),
+      // 실패했으니 다음 실행에서 바로 다시 시도해야 한다. 자격을 미루지 않는다.
+      nextEligibleAt: new Date(),
       elapsedMs,
       error: message,
     });
@@ -175,22 +217,136 @@ export class SyncStateService {
   /**
    * 실행을 감싼다. 시작·성공·실패 기록을 한곳에서 처리한다.
    * 스킵 판정은 호출부(CLI)가 한다. 여기서 하면 --force 를 이 계층까지 끌고 와야 한다.
+   *
+   * **배치와 CLI 가 같이 지나는 관문이다.** 그래서 이력도 여기 한 곳에서 쌓는다 —
+   * hanscli 로 돌린 단계가 저절로 같은 표에 남는 이유다.
    */
   async run(
     job: SyncJob,
-    body: () => Promise<SyncOutcome>,
+    body: (report: ProgressReporter) => Promise<SyncOutcome>,
+    meta: SyncRunMeta = {},
   ): Promise<SyncOutcome & { elapsedMs: number }> {
     const startedAt = Date.now();
     await this.start(job);
+    const historyId = await this.openHistory(job, meta);
 
     try {
-      const outcome = await body();
+      const outcome = await body(this.reporter(historyId));
       const elapsedMs = Date.now() - startedAt;
-      await this.succeed(job, outcome, elapsedMs);
+      await this.succeed(job, outcome, elapsedMs, meta.freshnessHours);
+      await this.closeHistory(historyId, {
+        status: outcome.limitReached ? BatchRunStatus.PARTIAL : BatchRunStatus.DONE,
+        finishedAt: new Date(),
+        elapsedMs,
+        total: outcome.total,
+        processed: outcome.processed,
+        calls: outcome.calls,
+      });
       return { ...outcome, elapsedMs };
     } catch (error) {
-      await this.fail(job, error, Date.now() - startedAt);
+      const elapsedMs = Date.now() - startedAt;
+      await this.fail(job, error, elapsedMs);
+      await this.closeHistory(historyId, {
+        status: BatchRunStatus.FAILED,
+        finishedAt: new Date(),
+        elapsedMs,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
+
+  /**
+   * 생략된 단계를 이력에 남긴다. sync_state 는 건드리지 않는다 — 아무 일도 안 일어났으므로.
+   *
+   * **이걸 부르지 않으면 이 표의 값이 절반으로 준다.** 목록 단계는 신선도가 7일이라
+   * 주 6일이 생략인데, 그 6일이 통째로 빈칸이면 배치가 살아 있었는지 알 수 없다.
+   */
+  async recordSkip(job: SyncJob, reason: string, meta: SyncRunMeta = {}): Promise<void> {
+    const context = meta.context ?? CLI_RUN_CONTEXT;
+    try {
+      await this.history.recordSkippedStageRun({
+        job: jobKey(job),
+        batchJobHistoryId: context.jobRunId,
+        provider: job.provider,
+        stage: job.stage,
+        detail: job.detail,
+        source: context.source,
+        startedAt: new Date(),
+        reason,
+      });
+    } catch (error) {
+      // 이력이 배치를 막으면 안 된다. 로그만 남기고 넘어간다.
+      this.logger.error(`${jobKey(job)} 생략 이력 기록 실패`, error);
+    }
+  }
+
+  /**
+   * 진행분을 알리는 통로를 만든다.
+   *
+   * 이력 행이 없으면(적재 실패) 아무 일도 안 하는 통로를 준다 — 호출부가 이력 여부를
+   * 신경 쓰지 않아도 되게 한다.
+   */
+  private reporter(historyId: bigint | undefined): ProgressReporter {
+    if (historyId === undefined) {
+      return () => Promise.resolve();
+    }
+
+    return async (progress) => {
+      try {
+        await this.history.updateStageProgress(historyId, progress);
+      } catch (error) {
+        // 진행 표시가 적재를 멈추게 할 수는 없다. 한 번 놓쳐도 다음 청크가 덮어쓴다.
+        this.logger.warn(`진행 기록 실패 — 실행은 계속한다: ${describe(error)}`);
+      }
+    };
+  }
+
+  /** 이력 행을 연다. 실패하면 undefined — 그 실행은 이력 없이 그냥 돈다. */
+  private async openHistory(job: SyncJob, meta: SyncRunMeta): Promise<bigint | undefined> {
+    const context = meta.context ?? CLI_RUN_CONTEXT;
+    try {
+      return await this.history.startStageRun({
+        job: jobKey(job),
+        batchJobHistoryId: context.jobRunId,
+        provider: job.provider,
+        stage: job.stage,
+        detail: job.detail,
+        source: context.source,
+        startedAt: new Date(),
+      });
+    } catch (error) {
+      this.logger.error(`${jobKey(job)} 이력 시작 기록 실패 — 실행은 계속한다`, error);
+      return undefined;
+    }
+  }
+
+  private async closeHistory(
+    id: bigint | undefined,
+    input: Parameters<BatchRunRepository['finishStageRun']>[1],
+  ): Promise<void> {
+    if (id === undefined) {
+      return;
+    }
+    try {
+      await this.history.finishStageRun(id, input);
+    } catch (error) {
+      this.logger.error('이력 종료 기록 실패', error);
+    }
+  }
+}
+
+/**
+ * 다음에 돌 자격이 생기는 시각. 신선도를 모르면(호출부가 안 넘겼으면) 비운다 —
+ * 틀린 시각을 적어 두느니 빈칸이 낫다.
+ */
+function nextEligibleAt(from: Date, freshnessHours?: number): Date | null {
+  if (freshnessHours === undefined) {
+    return null;
+  }
+  return new Date(from.getTime() + freshnessHours * 60 * 60 * 1000);
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

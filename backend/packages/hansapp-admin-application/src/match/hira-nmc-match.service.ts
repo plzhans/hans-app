@@ -342,10 +342,16 @@ export class HiraNmcMatchService {
         await this.repo.upsertLinks(confirmed);
       }
 
+      /*
+        **이번에 판정한 병원의 옛 후보는 전부 지운다.** review 인 것만 지우면,
+        review 였다가 auto 로 올라간 병원의 후보가 영영 남는다 — 확정된 병원이 수동 매칭
+        화면에 "판단해 달라" 고 계속 떠 있게 된다(실측 128건).
+        review 인 것은 바로 아래에서 새 후보로 다시 채운다.
+      */
+      await this.repo.deleteCandidates(chunk.map((d) => d.ykiho));
+
       const reviews = chunk.filter((d) => d.status === 'review');
       if (reviews.length > 0) {
-        await this.repo.deleteCandidates(reviews.map((d) => d.ykiho));
-
         const rows = reviews.flatMap((d) =>
           d.candidates.map((c, index) => ({
             ykiho: d.ykiho,

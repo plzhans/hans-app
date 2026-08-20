@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KrDataQuotaError } from '@krdata/core';
 
-import { skipReason, StageResult, StageRunOptions } from '../nmc/nmc-stage.service';
-import { SyncOutcome, SyncStateService } from '../common/sync-state.service';
+import { runMeta, skipReason, StageResult, StageRunOptions } from '../nmc/nmc-stage.service';
+import { ProgressReporter, SyncOutcome, SyncStateService } from '../common/sync-state.service';
 import { HiraCodeSyncService } from './hira-code-sync.service';
 import { HiraHospitalSyncService } from './hira-hospital-sync.service';
 import { HiraDetailSyncService, type HiraDetailOp } from './hira-detail-sync.service';
@@ -65,8 +65,12 @@ export class HiraStageService {
 
   async run(stage: HiraStage, options: StageRunOptions): Promise<StageResult> {
     const job = { provider: 'hira' as const, stage };
+    const meta = runMeta(job, options);
+
     const skip = await skipReason(this.state, job, stage, options);
     if (skip) {
+      // 생략도 이력에 남긴다. 안 남기면 "돌았는데 건너뜀" 과 "아예 안 돎" 이 같아 보인다.
+      await this.state.recordSkip(job, skip, meta);
       return {
         total: 0,
         processed: 0,
@@ -77,13 +81,17 @@ export class HiraStageService {
       };
     }
 
-    return this.state.run(job, () => this.guard(stage, options));
+    return this.state.run(job, (report) => this.guard(stage, options, report), meta);
   }
 
   /** 한도 초과는 실패가 아니다. 오늘은 여기까지라는 뜻이라 다음 실행에서 이어받는다. */
-  private async guard(stage: HiraStage, options: StageRunOptions): Promise<SyncOutcome> {
+  private async guard(
+    stage: HiraStage,
+    options: StageRunOptions,
+    report: ProgressReporter,
+  ): Promise<SyncOutcome> {
     try {
-      return await this.execute(stage, options);
+      return await this.execute(stage, options, report);
     } catch (error) {
       if (error instanceof KrDataQuotaError) {
         this.logger.warn(
@@ -95,7 +103,11 @@ export class HiraStageService {
     }
   }
 
-  private async execute(stage: HiraStage, options: StageRunOptions): Promise<SyncOutcome> {
+  private async execute(
+    stage: HiraStage,
+    options: StageRunOptions,
+    report: ProgressReporter,
+  ): Promise<SyncOutcome> {
     if (stage === 1) {
       return this.stage1();
     }
@@ -111,6 +123,7 @@ export class HiraStageService {
         limit: options.limit,
         force: options.force,
         ops: options.ops as readonly HiraDetailOp[] | undefined,
+        report,
       });
     }
 
@@ -119,6 +132,7 @@ export class HiraStageService {
       limit: options.limit,
       force: options.force,
       ops: options.ops as readonly HiraDetailOp[] | undefined,
+      report,
     });
   }
 

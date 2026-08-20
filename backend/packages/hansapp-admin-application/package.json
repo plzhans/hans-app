@@ -18,6 +18,7 @@
     }
   },
   "dependencies": {
+    "@elastic/elasticsearch": "^9.0.0",
     "@hansapp/application": "workspace:*",
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",

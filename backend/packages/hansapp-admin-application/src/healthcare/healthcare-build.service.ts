@@ -77,6 +77,14 @@ export interface BuildResult {
 
   unmappedClass: number;
   unmappedRegion: number;
+
+  /**
+   * 매칭이 붙어 두 행에서 한 행으로 합친 병원 수.
+   *
+   * 매칭이 새로 붙은 만큼 나오고, 한 번 합쳐지면 다시 나오지 않는다 —
+   * 매일 큰 수가 찍히면 매칭 규칙이 흔들리고 있다는 뜻이다.
+   */
+  merged: number;
   elapsedMs: number;
 }
 
@@ -139,7 +147,18 @@ export class HealthcareBuildService {
     const usedHpid = new Set(links.map((l) => l.hpid));
     const babySet = new Set(baby.map((b) => b.hpid));
 
-    const built: BuiltHospital[] = [];
+    /*
+      **두 배열로 나눠 담는다. 합칠 때의 순서가 곧 SQL 실행 순서다.**
+
+      매칭이 풀린 병원은 한 행이 두 행으로 갈라지는데, 그때 HIRA 행이 먼저 처리돼야
+      기존 id 가 HIRA 병원에 남는다. NMC 행이 먼저 들어가면 그 id 를 NMC 병원이 가져가고
+      HIRA 병원이 새 번호를 받는다 — 죽지는 않고 **조용히 주인이 뒤바뀐다.**
+
+      한 배열에 순서대로 밀어 넣으면 그 순서가 우연처럼 보여서, 누가 루프를 옮기거나
+      정렬을 넣으면 소리 없이 깨진다. 배열을 갈라 두면 합치는 자리에서 순서가 드러난다.
+    */
+    const hiraRows: BuiltHospital[] = [];
+    const nmcRows: BuiltHospital[] = [];
     let unmappedClass = 0;
     let unmappedRegion = 0;
     let skippedNonHospital = 0;
@@ -167,7 +186,7 @@ export class HealthcareBuildService {
       // 이름은 HIRA 를 쓴다. NMC 와 매칭됐어도 마찬가지다 — 요양기호 기준 표기가 원본이다.
       const hiraName = splitHospitalName(h.name);
 
-      built.push({
+      hiraRows.push({
         ykiho: h.ykiho,
         hpid: n?.hpid ?? null,
         source: n ? 'hira_nmc' : 'hira',
@@ -225,7 +244,7 @@ export class HealthcareBuildService {
 
       const nmcName = splitHospitalName(n.name);
 
-      built.push({
+      nmcRows.push({
         ykiho: null,
         hpid: n.hpid,
         source: 'nmc',
@@ -256,6 +275,23 @@ export class HealthcareBuildService {
       });
     }
 
+    /*
+      **갈라진 두 행을 먼저 합친다. upsert 앞이어야 한다.**
+
+      매칭이 붙으면 한 병원이 ykiho·hpid 를 둘 다 갖는 한 행이어야 하는데, 매칭 전에 만들어진
+      병원은 HIRA 행과 NMC 행으로 갈라져 있다. 그 상태로 upsert 하면 ykiho 로 찾은 행에
+      hpid 를 넣으려다 **다른 행이 쥔 hpid 와 부딪혀 1062 로 죽는다** — 유니크 키가 둘이라
+      ON DUPLICATE KEY UPDATE 가 구해 주지 못하는 자리다. 실제로 이것 때문에 빌드가
+      보름 넘게 완주하지 못했다.
+    */
+    const merged = await this.mergeSplitPairs();
+
+    /*
+      **HIRA 가 먼저다.** 위 주석 참고 — 매칭이 풀릴 때 기존 id 를 누가 지키는지가
+      이 순서로 정해진다. upsert 는 배열 순서대로 SQL 을 친다.
+    */
+    const built = [...hiraRows, ...nmcRows];
+
     await this.repo.upsertHospitals(built, locks);
 
     const result: BuildResult = {
@@ -266,6 +302,7 @@ export class HealthcareBuildService {
       skippedNonHospital,
       unmappedClass,
       unmappedRegion,
+      merged,
       elapsedMs: Date.now() - startedAt,
     };
 
@@ -276,6 +313,63 @@ export class HealthcareBuildService {
     }
 
     return result;
+  }
+
+  /**
+   * 매칭이 붙었는데 두 행으로 갈라져 있는 병원을 한 행으로 합친다. 합친 수를 돌려준다.
+   *
+   * **지는 행을 지우기만 한다.** 남은 행이 두 키를 갖는 것은 뒤따르는 upsert 가 하고,
+   * 자식은 상세 빌드가 원본에서 다시 만든다 — 옮길 것이 없다.
+   *
+   * [어느 행을 남기나]
+   * 1. **잠긴 행이 있으면 그쪽.** 사람이 손으로 고친 값이라 지우면 되돌릴 수 없다.
+   * 2. 없으면 **id 가 작은 쪽.** 먼저 만들어진 번호라 밖에 알려졌을 시간이 길다
+   *    — 사라진 id 로 들어오는 링크·색인이 깨지는 쪽을 줄인다.
+   *    (자식 데이터가 많은 쪽을 고르는 것은 뜻이 없다. 어차피 다시 만들어진다)
+   *
+   *    **어느 쪽을 남겨도 두 키가 다 채워진다.** ykiho·hpid 가 모두 upsert 갱신 대상이라
+   *    남은 행이 어느 키로 찾히든 나머지 키를 받는다. 예전에는 hpid 만 갱신 대상이라
+   *    NMC 행을 남기면 ykiho 가 영영 NULL 로 남았다(실측 15건).
+   * 3. **양쪽 다 잠겨 있으면 건드리지 않는다.** 어느 쪽을 지워도 수작업이 사라지므로
+   *    사람이 판단해야 한다. 그 병원은 이번에도 upsert 에서 걸리지만, 조용히 값을
+   *    잃는 것보다 낫다.
+   */
+  private async mergeSplitPairs(): Promise<number> {
+    const pairs = await this.repo.findSplitPairs();
+    if (pairs.length === 0) {
+      return 0;
+    }
+
+    const losers: number[] = [];
+    let blocked = 0;
+
+    for (const pair of pairs) {
+      const hiraLocked = Number(pair.hiraLocked) > 0;
+      const nmcLocked = Number(pair.nmcLocked) > 0;
+
+      if (hiraLocked && nmcLocked) {
+        blocked += 1;
+        continue;
+      }
+      if (hiraLocked) {
+        losers.push(pair.nmcId);
+      } else if (nmcLocked) {
+        losers.push(pair.hiraId);
+      } else {
+        losers.push(Math.max(pair.hiraId, pair.nmcId));
+      }
+    }
+
+    if (blocked > 0) {
+      this.logger.error(
+        `${blocked} split pair(s) are locked on both sides — merge them by hand.` +
+          ' The build will keep failing on these.',
+      );
+    }
+
+    await this.repo.deleteHospitals(losers);
+    this.logger.log(`Merged ${losers.length} split hospital(s) into one row each`);
+    return losers.length;
   }
 
   /** HIRA info 의 찾아오는 길. 공공건물 이름 + 방향 + 거리 조각을 이어 붙인다. */

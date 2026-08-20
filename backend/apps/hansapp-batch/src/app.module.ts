@@ -4,10 +4,13 @@ import { SentryModule } from '@sentry/nestjs/setup';
 import { AdminApplicationModule } from '@hansapp/admin-application';
 import { DataModule } from '@hansapp/data';
 import { EventPublisherModule } from '@hansapp/event-publisher';
+import { LockModule } from '@hansapp/lock';
+import { SearchModule } from '@hansapp/search';
 import type { ConfigSource } from '@hansapp/common';
 
 import { BATCH_CONFIG, buildBatchConfig } from './batch.config';
 import { BatchScheduler } from './batch.scheduler';
+import { BatchHealthController } from './web/health.controller';
 import { BatchService } from './batch.service';
 import { AuthCleanupService } from './auth-cleanup.service';
 import { SessionCacheSweeper } from './session-cache-sweeper.service';
@@ -36,11 +39,22 @@ export class AppModule {
           빠뜨리면 부팅이 DI 에서 죽는다 — api·admin 은 등록하고 여기만 빠져 있었다.
         */
         EventPublisherModule.forRoot(source),
+        /*
+          잡 이름 기준 분산 락. **겹침 방지의 유일한 근거다** — 프로세스 안팎을 모두 덮는다.
+          Redis 를 못 잡으면 잡은 아예 돌지 않는다(단일 실행 보장이 목적이라 그렇다).
+        */
+        LockModule.forRoot(source),
         AdminApplicationModule.forRoot(source),
+        /*
+          검색 색인(es-index 잡). AdminApplicationModule 도 SearchModule 을 쓰지만 그 안에서만
+          보이므로(export 하지 않는다) 여기서 따로 받는다 — DataModule 과 같은 사정이다.
+        */
+        SearchModule.forRoot(source),
         // 인증 정리 잡이 Prisma 를 직접 쓴다. AdminApplicationModule 도 DataModule 을 쓰지만
         // 그 모듈 안에서만 보이므로(export 하지 않는다) 여기서 따로 받는다.
         DataModule.forRoot(source),
       ],
+      controllers: [BatchHealthController],
       providers: [
         { provide: BATCH_CONFIG, useValue: buildBatchConfig(source) },
         BatchService,

@@ -33,6 +33,7 @@ export type {
   NmcHospitalSubject,
   JobQueue,
   SyncState,
+  BatchJob,
   // 인증(auth.prisma) 도메인 모델
   User,
   UserOAuth,
@@ -83,6 +84,9 @@ export type { Board, BoardPost, BoardComment } from '../generated/main';
 // 로그 DB(log 스키마) 인증 이벤트 로그. Prisma 네임스페이스도 별도 export
 // (main 과 log 는 다른 client 라 Create 입력 타입 등이 서로 다르다).
 export type { UserAuthLog, LlmUsage, AdminActionLog } from '../generated/log';
+// 배치 실행 이력(batch.prisma). **enum 은 없다** — 값 목록은 @hansapp/common 의
+// batch-codes.ts 가 정하고, 이력은 그 숫자를 담는다(스키마 주석 참고).
+export type { BatchJobHistory, SyncStateHistory } from '../generated/log';
 export { Prisma as LogPrisma } from '../generated/log';
 export { AuthLogAction, AuthLogResult, AuthProvider as LogAuthProvider } from '../generated/log';
 // 관리자 행위 로그(admin.prisma). 회원 로그와 번호 공간이 달라 표도 enum 도 갈라져 있다.

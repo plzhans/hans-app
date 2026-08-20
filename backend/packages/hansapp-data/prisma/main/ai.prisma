@@ -113,7 +113,7 @@ model AppLlmKey {
   /// 사내망 Ollama 는 우리 서버에서 닿지도 않으며, 200 이 와도 잔액까지는 알 수 없어
   /// "확인됨" 이 약속을 넘겨 버린다. 그래서 등록은 늘 UNVERIFIED 로 시작하고,
   /// **첫 실사용의 결과**가 이 값을 정한다(성공 VALID / 401·403 INVALID).
-  verifyState LlmKeyVerifyState @default(UNVERIFIED)
+  verifyState LlmKeyVerifyState @default(UNVERIFIED) @map("verify_state")
 
   /// 마지막으로 판정한 시각. 업체가 키를 폐기하면 VALID 였던 것도 나중에 INVALID 가 된다.
   verifiedAt DateTime? @map("verified_at")

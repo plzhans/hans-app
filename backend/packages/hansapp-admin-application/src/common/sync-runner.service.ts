@@ -4,6 +4,7 @@ import { HIRA_STAGES, HiraStage, HiraStageService } from '../hira/hira-stage.ser
 import { NMC_STAGES, NmcStage, NmcStageService, StageResult } from '../nmc/nmc-stage.service';
 import { MOIS_STAGES, MoisStage, MoisStageService } from '../mois/mois-stage.service';
 import { DataProvider } from './provider';
+import { RunContext } from './run-context';
 
 /** 한 단계의 실행 결과 */
 export interface StageRun {
@@ -24,6 +25,12 @@ export interface RunAllOptions {
 
   /** 신선도·중복 판정을 무시한다 */
   force?: boolean;
+
+  /**
+   * 이 실행이 어디서 왔나. 단계 이력에 그대로 내려간다.
+   * 생략하면 사람이 hanscli 로 부른 것으로 본다.
+   */
+  context?: RunContext;
 }
 
 export interface RunAllResult {
@@ -75,6 +82,7 @@ export class SyncRunnerService {
         const result = await this.runStage(provider, stage, {
           force: options.force,
           limit: remaining,
+          context: options.context,
         });
 
         spent += result.calls;
@@ -110,7 +118,7 @@ export class SyncRunnerService {
   private runStage(
     provider: DataProvider,
     stage: number,
-    options: { force?: boolean; limit?: number },
+    options: { force?: boolean; limit?: number; context?: RunContext },
   ): Promise<StageResult> {
     switch (provider) {
       case 'mois':

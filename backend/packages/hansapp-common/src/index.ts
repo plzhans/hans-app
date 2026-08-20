@@ -92,3 +92,6 @@ export type { SettingOrigins } from './setting-origins';
 // 커뮤니티(게시판·글·댓글). **enum 값이 곧 DB 값이다** — 이름으로 바꾸는 것은 HTTP 경계의
 // @EnumField 가 한다(board-codes.ts 주석 참고).
 export { AuthorType, PostStatus, CommentStatus, BoardWriteRole, BoardStatus } from './board-codes';
+
+// 배치 실행. 이력 표는 숫자를, 마스터 표는 같은 enum 의 이름을 담는다(batch-codes.ts 주석 참고).
+export { BatchRunSource, BatchRunStatus, BatchCategory } from './batch-codes';

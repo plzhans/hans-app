@@ -39,6 +39,8 @@ import { NmcCodeSyncRepository } from './nmc/nmc-code-sync.repository';
 import { NmcHospitalSyncRepository } from './nmc/nmc-hospital-sync.repository';
 import { NmcSubjectSyncRepository } from './nmc/nmc-subject-sync.repository';
 import { SyncStateRepository } from './common/sync-state.repository';
+import { BatchJobRepository } from './common/batch-job.repository';
+import { BatchJobService } from './common/batch-job.service';
 import { AppReadRepository } from './app-registry/app-read.repository';
 import { AppReadService } from './app-registry/app-read.service';
 import { AppModerationRepository } from './app-registry/app-moderation.repository';
@@ -49,6 +51,9 @@ import { AdminActionLogRepository } from './log/admin-action-log.repository';
 import { AuthLogRepository } from './log/auth-log.repository';
 import { AuthLogService } from './log/auth-log.service';
 import { LlmUsageLogRepository } from './log/llm-usage-log.repository';
+import { BatchRunRepository } from './log/batch-run.repository';
+import { BatchRunReadRepository } from './log/batch-run-read.repository';
+import { BatchRunReadService } from './log/batch-run-read.service';
 import { LlmUsageLogService } from './log/llm-usage-log.service';
 import { UserAuthLogRepository } from './user/user-auth-log.repository';
 import { UserAuthLogService } from './user/user-auth-log.service';
@@ -202,11 +207,15 @@ export class AdminApplicationModule {
         NmcHospitalSyncRepository,
         NmcSubjectSyncRepository,
         SyncStateRepository,
+        BatchJobRepository,
         UserReadRepository,
         UserAdminRepository,
         UserSessionAdminRepository,
         UserAuthLogRepository,
         LlmUsageLogRepository,
+        // 배치 실행 이력(로그 DB). 적재 단계와 잡 회차가 같은 저장소를 쓴다.
+        BatchRunRepository,
+        BatchRunReadRepository,
         AuthLogRepository,
         // 관리자 행위 기록(admin_action_log). 적재는 인증 모듈이 하고 여기서는 읽기만 한다.
         AdminActionLogRepository,
@@ -230,6 +239,7 @@ export class AdminApplicationModule {
         // ES 색인: DB 읽기(repo) + 오케스트레이션(service). ES 쓰기 프리미티브는 SearchModule 이 준다.
         HealthcareIndexRepository,
         HealthcareIndexService,
+        // 관리자 병원 목록(DB 최소조건 + ES 상세조건). 서비스 내부 의존이라 export 하지 않는다.
         /*
           서비스키는 DB(env_setting)에서 읽는다. **부팅할 때 한 번만 읽는다** —
           배치·CLI 는 명령 하나 돌고 끝나는 프로세스라 "재시작 없이 반영" 이 뜻이 없고,
@@ -269,6 +279,8 @@ export class AdminApplicationModule {
         NmcCodeReadService,
         HiraCodeReadService,
         SyncStateService,
+        BatchJobService,
+        BatchRunReadService,
         UserReadService,
         UserAdminService,
         UserProfileCacheAdmin,
@@ -361,6 +373,8 @@ export class AdminApplicationModule {
         NmcCodeReadService,
         HiraCodeReadService,
         SyncStateService,
+        BatchJobService,
+        BatchRunReadService,
         MoisQueryService,
         MoisRegionSyncService,
         MoisStageService,
@@ -375,6 +389,7 @@ export class AdminApplicationModule {
         HealthcareDetailBuildService,
         // ES 색인 오케스트레이션. CLI(es hospital)가 호출한다.
         HealthcareIndexService,
+        // 관리자 병원 목록. 컨트롤러가 주입받는다.
         // CLI 가 큐를 1건씩 돌리는 데 쓴다. 배치 서버가 붙으면 그쪽이 같은 서비스를 쓴다.
         HiraNpayWebSyncService,
         HiraNpayCodeSyncService,

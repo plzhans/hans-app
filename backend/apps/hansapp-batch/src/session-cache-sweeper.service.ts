@@ -20,6 +20,18 @@ const LOOKUP_CHUNK = 200;
  * **훑는 일은 관리자 계층이 한다**(UserSessionCacheAdmin.scanAll). 관리자 화면도 같은
  * 목록을 쓰기 때문이다 — 여기서 따로 훑으면 SCAN 을 다루는 코드가 두 벌이 된다.
  */
+/**
+ * 한 회차의 결과.
+ *
+ * **실패한 묶음 수도 올린다.** 여기서 삼키기 때문에, 안 올리면 전부 실패해도
+ * 회차가 "0건 삭제 성공" 으로 남는다.
+ */
+export interface SessionCacheSweepResult {
+  readonly checked: number;
+  readonly removed: number;
+  readonly failedChunks: number;
+}
+
 @Injectable()
 export class SessionCacheSweeper {
   private readonly logger = new Logger(SessionCacheSweeper.name);
@@ -29,26 +41,29 @@ export class SessionCacheSweeper {
     private readonly cache: UserSessionCacheAdmin,
   ) {}
 
-  async run(): Promise<void> {
+  async run(): Promise<SessionCacheSweepResult> {
     const cached = await this.cache.scanAll();
     if (cached.length === 0) {
       // 캐시가 비었거나 Redis 를 안 쓰는 환경(로컬 폴백)이다. 후자는 고아가 생기지 않는다.
       this.logger.log('Session cache sweep: nothing to scan');
-      return;
+      return { checked: 0, removed: 0, failedChunks: 0 };
     }
 
     let removed = 0;
+    let failedChunks = 0;
     for (let i = 0; i < cached.length; i += LOOKUP_CHUNK) {
       const chunk = cached.slice(i, i + LOOKUP_CHUNK);
       try {
         removed += await this.sweepChunk(chunk);
       } catch (error) {
         // 한 묶음이 실패해도 나머지는 계속 본다. 놓친 것은 다음 회차가 잡는다.
+        failedChunks += 1;
         this.logger.error('Session cache sweep failed', error);
       }
     }
 
     this.logger.log(`Session cache sweep: ${cached.length} checked / ${removed} removed`);
+    return { checked: cached.length, removed, failedChunks };
   }
 
   /**

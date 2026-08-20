@@ -228,10 +228,30 @@ search:
 apps-batch:
   # 앱 이름. default: hansapp-batch
   #name: hansapp-batch
-  # 실행 스케줄(cron). default: 0 4 * * *
-  #cron: 0 4 * * *
+  # 크론식을 해석할 타임존. default: Asia/Seoul
+  #timeZone: Asia/Seoul
   # 실행당 최대 외부 API 호출 수. 0=무제한. default: 0
   #maxCallsPerRun: 0
+  # 잡별 실행 주기(cron). 잡마다 따로 둔다 — 원본이 다르면 갱신주기도 한도도 따로 논다.
+  #jobs:
+  #  # 법정동코드 적재(지역 정본). default: 0 3 * * *
+  #  mois:
+  #    cron: 0 3 * * *
+  #  # 심평원 동기화. default: 0 4 * * *
+  #  hira:
+  #    cron: 0 4 * * *
+  #  # 국립중앙의료원 동기화. default: 0 5 * * *
+  #  nmc:
+  #    cron: 0 5 * * *
+  #  # 통합 병원 생성(외부 API 안 부름). default: 0 6 * * *
+  #  healthcare:
+  #    cron: 0 6 * * *
+  #  # 검색 색인 반영(전량). default: 30 6 * * *
+  #  es-index:
+  #    cron: 30 6 * * *
+  #  # 인증 부산물 정리. default: 0 7 * * *
+  #  auth-cleanup:
+  #    cron: 0 7 * * *
   sentry:
     # default: false
     #enabled: false

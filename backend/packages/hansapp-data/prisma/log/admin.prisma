@@ -86,6 +86,10 @@ enum AdminLogAction {
   SOCIAL_LINK
   /// 붙여 둔 소셜을 떼었다.
   SOCIAL_UNLINK
+  /// 배치 잡의 스케줄을 켰다. detail 에 잡 이름이 남는다.
+  BATCH_JOB_ENABLE
+  /// 배치 잡의 스케줄을 껐다. **수동 실행까지 막는 것은 아니다.**
+  BATCH_JOB_DISABLE
 }
 
 /// 조치 결과

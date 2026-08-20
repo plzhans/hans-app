@@ -30,6 +30,8 @@ import AdminCache from '@/features/admins/pages/AdminCache';
 import AdminActionLogs from '@/features/admins/pages/AdminActionLogs';
 import AuthLogs from '@/features/logs/pages/AuthLogs';
 import LlmUsageLogs from '@/features/logs/pages/LlmUsageLogs';
+import BatchJobs from '@/features/batch/pages/BatchJobs';
+import BatchRuns from '@/features/batch/pages/BatchRuns';
 
 function FullScreenMessage({ children }: { children: string }) {
   return (
@@ -135,6 +137,9 @@ export default function App() {
           {/* 로그 구역. 대상을 가리지 않고 기간으로 훑는 화면들이 여기 붙는다. */}
           <Route path="/logs/auth" element={<AuthLogs />} />
           <Route path="/logs/llm" element={<LlmUsageLogs />} />
+          {/* 배치. 현황 화면에서 잡을 고르면 그 잡의 이력으로 넘어간다. */}
+          <Route path="/batch" element={<BatchJobs />} />
+          <Route path="/batch/runs" element={<BatchRuns />} />
           <Route path="/settings/mail" element={<MailSettings />} />
           <Route
             path="/settings/integrations"

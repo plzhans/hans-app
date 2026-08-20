@@ -491,17 +491,98 @@ model JobQueue {
   @@map("job_queue")
 }
 
+/// 스케줄이 붙은 잡의 목록과 현황.
+///
+/// **이 표만 보면 "무슨 잡이 언제 돌고, 마지막에 어땠고, 다음은 언제인가" 가 다 나온다.**
+/// 부팅 때 스케줄러가 등록하면서 upsert 하므로 잡이 늘면 행도 저절로 는다.
+///
+/// **여기 담는 것은 스케줄이 붙은 것뿐이다.** 적재 단계(nmc.1 등)는 자기 크론이 없고
+/// daily-sync 안에서 도는 것이라 sync_state 가 맡는다. 두 표는 같은 모양의 짝이다 —
+/// 이력도 각각 batch_job_history · sync_state_history 로 따로 쌓인다(로그 DB).
+///
+/// **크론식·분류·설명은 여기가 정본이 아니다.** 정본은 코드와 config(apps-batch.cron 등)이고
+/// 이 열들은 부팅 때 실어 넣는 거울이다 — 여기를 고쳐도 주기는 안 바뀐다.
+model BatchJob {
+  /// 스케줄러 등록명과 같은 값: daily-sync | auth-cleanup
+  job String @id @db.VarChar(30)
+
+  /// 사람이 읽는 한 줄 설명. 표만 봐도 무슨 잡인지 알게 한다.
+  description String @db.VarChar(200)
+
+  /// BatchCategory 의 **이름**. HEALTHCARE | AUTH | USER
+  /// 콘솔이 잡 목록을 이 기준으로 묶는다.
+  /// 몇 행뿐인 표라 숫자가 아니라 이름을 담는다(→ @hansapp/common 의 batch-codes.ts).
+  category String @db.VarChar(20)
+
+  /// 등록된 크론식. 예: 0 4 * * *
+  cronExpression String @map("cron_expression") @db.VarChar(50)
+
+  /// 그 크론식을 해석한 타임존. 예: Asia/Seoul
+  /// **이 값이 틀리면 실행 시각이 통째로 어긋난다** — 컨테이너 TZ 를 따라가지 않도록 명시한다.
+  timeZone String @map("time_zone") @db.VarChar(40)
+
+  /// 스케줄이 살아 있나. **끄면 크론 시각이 와도 돌지 않는다.**
+  ///
+  /// **이 표에서 유일하게 DB 가 정본인 열이다.** 나머지(설명·분류·크론식)는 부팅 때 코드가
+  /// 덮어쓰는 거울이지만, 이건 관리자가 콘솔에서 끈 값이라 재부팅으로 되살아나면 안 된다.
+  /// 그래서 register() 의 upsert 가 status 와 함께 이 열을 건드리지 않는다.
+  ///
+  /// **스케줄만 끈다.** hanscli 나 --job 으로 사람이 직접 돌리는 길은 열려 있다 —
+  /// 문제가 생겨 껐는데 고친 뒤 확인할 방법이 없으면 곤란하다(Quartz 의 trigger pause 와 같다).
+  enabled Boolean @default(true)
+
+  /// BatchRunStatus 의 **이름**. IDLE | RUNNING | DONE | PARTIAL | FAILED | SKIPPED
+  status String @db.VarChar(10)
+
+  /// 마지막으로 **시작**한 시각. 성공·실패 무관.
+  lastStartedAt  DateTime? @map("last_started_at") @db.DateTime(0)
+  lastFinishedAt DateTime? @map("last_finished_at") @db.DateTime(0)
+
+  /// 마지막으로 **성공**한 시각. 실패해도 지우지 않는다 —
+  /// "언제부터 망가졌나" 는 이 값과 lastStartedAt 의 차이로 본다.
+  lastSuccessAt DateTime? @map("last_success_at") @db.DateTime(0)
+
+  lastElapsedMs Int @default(0) @map("last_elapsed_ms")
+  lastCalls     Int @default(0) @map("last_calls")
+  lastProcessed Int @default(0) @map("last_processed")
+
+  lastError String? @map("last_error") @db.Text
+
+  /// 마지막으로 이 잡을 돌린 호스트·판. 콘솔 카드가 "어디서 도는 잡인가" 를 보여준다.
+  /// 회차별 이력은 batch_job_history 에 있고, 여기는 가장 최근 것만 둔다.
+  lastHostname String? @map("last_hostname") @db.VarChar(64)
+  lastVersion  String? @map("last_version")  @db.VarChar(50)
+
+  /// 연속 실패 횟수. 성공하면 0 으로 되돌린다.
+  /// 표 한 줄만 보고 "사흘째 실패 중" 이 보이게 하는 값이다.
+  failureStreak Int @default(0) @map("failure_streak")
+
+  /// 다음 실행 예정 시각. **추정이 아니라 계산값이다** —
+  /// CronJob.nextDate() 가 알려주는 값을 그대로 넣는다. 등록 직후와 매 회차 종료 후에 다시 쓴다.
+  ///
+  /// **프로세스가 죽으면 이 값이 과거에 멈춘다.** 그래서 `next_run_at < NOW()` 인 행이
+  /// 곧 "스케줄러가 안 돌고 있다" 이다 — Sentry 가 꺼진 환경에서도 이건 항상 동작한다.
+  nextRunAt DateTime? @map("next_run_at") @db.DateTime(0)
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  @@map("batch_job")
+}
+
 model SyncState {
   /// 실행 단위 식별자. 예: nmc.1, nmc.2.A, hira.2, hira.4.equipment
   job String @id @db.VarChar(50)
 
-  /// nmc | hira
+  /// mois | nmc | hira
   provider String @db.VarChar(10)
 
   /// 단계 번호. 계획 문서(krdata-cache-plan.md)의 단계와 1:1 이다.
   stage Int
 
-  /// idle | running | done | failed
+  /// idle | running | done | partial | failed
+  ///
+  /// **소문자다.** batch_job 은 대문자(BatchRunStatus 의 이름)를 담는데, 이쪽은 이미
+  /// 소문자로 쌓인 행이 있어 그대로 둔다 — 맞추려면 데이터 변환이 붙는다.
   status String @db.VarChar(10)
 
   /// 이번 실행 시작 시각
@@ -513,6 +594,13 @@ model SyncState {
   /// 마지막으로 **성공**한 시각. 스킵 판정의 기준이다.
   /// 원본 갱신주기가 일 1회이므로, 오늘 이미 성공했으면 다시 돌리지 않는다(--force 로 무시).
   lastSuccessAt DateTime? @map("last_success_at") @db.DateTime(0)
+
+  /// 다음에 돌 자격이 생기는 시각 = lastSuccessAt + 신선도.
+  ///
+  /// **판정에 쓰는 값이 아니다.** 신선도는 코드 상수(STAGE_FRESHNESS_HOURS)가 정하고
+  /// 판정도 거기서 한다 — 이 열은 그 결과를 적어 두는 것이다. DB 만 열어 봤을 때
+  /// "nmc.1 은 다음 화요일에나 돈다" 가 바로 보이라고 둔다.
+  nextEligibleAt DateTime? @map("next_eligible_at") @db.DateTime(0)
 
   /// 처리 대상 건수
   total Int @default(0)
@@ -1337,6 +1425,15 @@ model HealthcareHospitalHours {
   /// 접수 마감 시각
   receptionEnd String? @map("reception_end") @db.VarChar(4)
 
+
+  /// 이번 빌드가 이 행을 확인한 시각.
+  ///
+  /// **원본에서 사라진 행을 가려내는 유일한 근거다.** 상세 빌드는 매번 전량을 upsert 하면서
+  /// 이 값을 회차 시각으로 찍고, 끝나면 값이 낡은 행(= 이번에 안 나온 행)만 지운다.
+  /// 예전에는 표를 통째로 비우고 다시 채웠는데, 비운 뒤 채우는 사이에 데이터가 사라져
+  /// 보이고 중간에 죽으면 빈 채로 남았다.
+  builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
+
   @@id([hospitalId, kind, day])
   @@index([day, openTime, closeTime], map: "idx_hc_hours_open")
   @@map("healthcare_hospital_hours")
@@ -1380,6 +1477,15 @@ model HealthcareHospitalBed {
   /// 정신과 폐쇄
   psyClosed Int? @map("psy_closed")
 
+
+  /// 이번 빌드가 이 행을 확인한 시각.
+  ///
+  /// **원본에서 사라진 행을 가려내는 유일한 근거다.** 상세 빌드는 매번 전량을 upsert 하면서
+  /// 이 값을 회차 시각으로 찍고, 끝나면 값이 낡은 행(= 이번에 안 나온 행)만 지운다.
+  /// 예전에는 표를 통째로 비우고 다시 채웠는데, 비운 뒤 채우는 사이에 데이터가 사라져
+  /// 보이고 중간에 죽으면 빈 채로 남았다.
+  builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
+
   @@map("healthcare_hospital_bed")
 }
 
@@ -1413,6 +1519,15 @@ model HealthcareHospitalStaff {
   /// 조산사
   midwife Int?
 
+
+  /// 이번 빌드가 이 행을 확인한 시각.
+  ///
+  /// **원본에서 사라진 행을 가려내는 유일한 근거다.** 상세 빌드는 매번 전량을 upsert 하면서
+  /// 이 값을 회차 시각으로 찍고, 끝나면 값이 낡은 행(= 이번에 안 나온 행)만 지운다.
+  /// 예전에는 표를 통째로 비우고 다시 채웠는데, 비운 뒤 채우는 사이에 데이터가 사라져
+  /// 보이고 중간에 죽으면 빈 채로 남았다.
+  builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
+
   @@map("healthcare_hospital_staff")
 }
 
@@ -1440,6 +1555,15 @@ model HealthcareHospitalSubject {
 
   /// 과목별 전문의수. 상세 조회(병원당 1콜)를 받아야 채워진다.
   specialistCnt Int? @map("specialist_cnt")
+
+
+  /// 이번 빌드가 이 행을 확인한 시각.
+  ///
+  /// **원본에서 사라진 행을 가려내는 유일한 근거다.** 상세 빌드는 매번 전량을 upsert 하면서
+  /// 이 값을 회차 시각으로 찍고, 끝나면 값이 낡은 행(= 이번에 안 나온 행)만 지운다.
+  /// 예전에는 표를 통째로 비우고 다시 채웠는데, 비운 뒤 채우는 사이에 데이터가 사라져
+  /// 보이고 중간에 죽으면 빈 채로 남았다.
+  builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
 
   @@id([hospitalId, subjectCd])
   @@index([subjectCd], map: "idx_hc_subject_cd")
@@ -1497,6 +1621,15 @@ model HealthcareHospitalEquipment {
 
   cnt Int?
 
+
+  /// 이번 빌드가 이 행을 확인한 시각.
+  ///
+  /// **원본에서 사라진 행을 가려내는 유일한 근거다.** 상세 빌드는 매번 전량을 upsert 하면서
+  /// 이 값을 회차 시각으로 찍고, 끝나면 값이 낡은 행(= 이번에 안 나온 행)만 지운다.
+  /// 예전에는 표를 통째로 비우고 다시 채웠는데, 비운 뒤 채우는 사이에 데이터가 사라져
+  /// 보이고 중간에 죽으면 빈 채로 남았다.
+  builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
+
   @@id([hospitalId, equipmentCd])
   @@index([equipmentCd], map: "idx_hc_equipment_cd")
   @@map("healthcare_hospital_equipment")
@@ -1514,6 +1647,15 @@ model HealthcareHospitalCapability {
   /// healthcare_code(tp 일치) 의 cd. 이름·i18n 은 코드표가 가진다 —
   /// 그래서 이 테이블에는 이름 컬럼을 두지 않는다(장비·과목과 같은 구조).
   cd String @db.VarChar(30)
+
+
+  /// 이번 빌드가 이 행을 확인한 시각.
+  ///
+  /// **원본에서 사라진 행을 가려내는 유일한 근거다.** 상세 빌드는 매번 전량을 upsert 하면서
+  /// 이 값을 회차 시각으로 찍고, 끝나면 값이 낡은 행(= 이번에 안 나온 행)만 지운다.
+  /// 예전에는 표를 통째로 비우고 다시 채웠는데, 비운 뒤 채우는 사이에 데이터가 사라져
+  /// 보이고 중간에 죽으면 빈 채로 남았다.
+  builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
 
   @@id([hospitalId, tp, cd])
   @@index([tp, cd], map: "idx_hc_capability_cd")

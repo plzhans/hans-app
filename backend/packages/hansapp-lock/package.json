@@ -1,0 +1,26 @@
+{
+  "name": "@hansapp/lock",
+  "version": "0.0.1",
+  "private": true,
+  "description": "잡 이름 기준 분산 락 (Redis). 여러 인스턴스에서 같은 작업이 겹쳐 도는 것을 막는다",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hansapp/common": "workspace:*",
+    "@nestjs/common": "^11.0.1",
+    "@redis/client": "^5.12.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

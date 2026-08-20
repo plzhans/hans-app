@@ -49,6 +49,9 @@ export function healthcareCommand(source: ConfigSource): Command {
             `    HIRA 만   : ${result.hiraOnly.toLocaleString()}`,
             `    NMC 만    : ${result.nmcOnly.toLocaleString()}`,
             `  병원 아님   : ${result.skippedNonHospital.toLocaleString()} (소방서·구급차 등 제외)`,
+            ...(result.merged > 0
+              ? [`  합침        : ${result.merged.toLocaleString()} (매칭이 붙어 두 행 → 한 행)`]
+              : []),
             `  종별 미매핑 : ${result.unmappedClass.toLocaleString()}`,
             `  지역 미매핑 : ${result.unmappedRegion.toLocaleString()}`,
             ...(detail

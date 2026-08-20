@@ -189,60 +189,86 @@ export class HealthcareDetailBuildRepository {
     });
   }
 
-  // --- replace (하위 테이블 갈아엎기) ---
+  // --- upsert + 스윕 (하위 테이블 갱신) ---
   //
-  // table 은 서비스가 assertRebuildable 로 이미 검증한 값이다. Prisma.raw() 로 그대로 박히므로
-  // 검증되지 않은 값을 넘기면 안 된다.
-
-  /** 테이블을 통째로 비운다. 잠긴 행이 하나도 없을 때만 부른다. */
-  async deleteAll(table: string): Promise<void> {
-    await this.prisma.$executeRaw(Prisma.sql`DELETE FROM ${Prisma.raw(table)}`);
-  }
-
-  /** 잠긴 병원(keepIds)만 남기고 나머지 병원의 행을 전부 지운다. */
-  async deleteHospitalsNotIn(table: string, keepIds: number[]): Promise<void> {
-    await this.prisma.$executeRaw(Prisma.sql`
-      DELETE FROM ${Prisma.raw(table)}
-       WHERE hospital_id NOT IN (${Prisma.join(keepIds)})
-    `);
-  }
+  // table·columns 는 서비스가 assertRebuildable 로 이미 검증한 값이다. Prisma.raw() 로
+  // 그대로 박히므로 검증되지 않은 값을 넘기면 안 된다.
+  //
+  // **갈아엎지 않는다.** 예전에는 `DELETE FROM <table>` 로 비우고 다시 채웠는데,
+  // 비운 뒤 채우는 사이에 데이터가 사라져 보이고(트랜잭션도 없다) 중간에 죽으면 빈 채로
+  // 남았다. 하위 테이블이 전부 자연키라 upsert 가 그대로 먹어서, 있으면 고치고 없으면
+  // 넣은 뒤 **이번에 안 나온 행만** 지운다.
 
   /**
-   * 잠긴 병원 안에서, **잠기지 않은 키**의 행만 지운다(그 병원의 다른 요일 등).
-   * lockedKeys 는 서비스가 이미 골라낸, 남겨야 할 행의 키 목록이다.
+   * 전량 upsert. built_at 은 늘 이번 회차 시각으로 찍는다.
+   *
+   * **built_at 을 상수로 박는 것이 중요하다.** NOW() 로 두면 청크마다 시각이 달라져
+   * 뒤따르는 스윕이 앞 청크를 낡은 것으로 오해하고 지운다.
    */
-  async deleteHospitalRowsNotMatching(
+  async upsertRows(
     table: string,
-    hospitalId: number,
-    lockedKeys: Record<string, unknown>[],
+    columns: string[],
+    updatable: string[],
+    rows: { value: unknown[] }[],
+    builtAt: Date,
   ): Promise<void> {
-    await this.prisma.$executeRaw(Prisma.sql`
-      DELETE FROM ${Prisma.raw(table)}
-       WHERE hospital_id = ${hospitalId}
-         AND NOT (${Prisma.join(
-           lockedKeys.map(
-             (key) =>
-               Prisma.sql`(${Prisma.join(
-                 Object.entries(key).map(
-                   ([col, val]) => Prisma.sql`${Prisma.raw(col)} = ${val as string | number}`,
-                 ),
-                 ' AND ',
-               )})`,
-           ),
-           ' OR ',
-         )})
-    `);
-  }
+    const cols = Prisma.raw([...columns, 'built_at'].join(', '));
+    // 키만으로 이뤄진 표(capability 등)는 고칠 것이 없다. 그래도 built_at 은 새로 찍어야
+    // 스윕에 안 걸리므로 ON DUPLICATE KEY UPDATE 절 자체는 있어야 한다.
+    const sets = Prisma.join([
+      ...updatable.map((c) => Prisma.sql`${Prisma.raw(c)} = new.${Prisma.raw(c)}`),
+      Prisma.sql`built_at = new.built_at`,
+    ]);
 
-  /** 갈아엎은 테이블에 새 행을 채운다. value 는 컬럼 순서대로의 스칼라 배열이다. */
-  async insertRows(table: string, columns: string, rows: { value: unknown[] }[]): Promise<void> {
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
       await this.prisma.$executeRaw(Prisma.sql`
-        INSERT INTO ${Prisma.raw(table)} ${Prisma.raw(columns)}
-        VALUES ${Prisma.join(chunk.map((r) => Prisma.sql`(${Prisma.join(r.value)})`))}
+        INSERT INTO ${Prisma.raw(table)} (${cols})
+        VALUES ${Prisma.join(chunk.map((r) => Prisma.sql`(${Prisma.join([...r.value, builtAt])})`))} AS new
+        ON DUPLICATE KEY UPDATE ${sets}
       `);
     }
+  }
+
+  /**
+   * 잠긴 행의 built_at 만 새로 찍는다. **값은 건드리지 않는다.**
+   *
+   * 잠긴 행은 upsert 대상에서 빠지므로 built_at 이 낡은 채로 남고, 그대로 두면 뒤따르는
+   * 스윕이 지워 버린다 — 사람이 고친 값을 배치가 지우는 최악의 경우다.
+   * "이번 회차도 이 행을 봤다" 만 표시하는 것이다.
+   */
+  async touchRows(
+    table: string,
+    rows: { hospitalId: number; key: Record<string, unknown> }[],
+    builtAt: Date,
+  ): Promise<void> {
+    for (const row of rows) {
+      const where = Prisma.join(
+        [
+          Prisma.sql`hospital_id = ${row.hospitalId}`,
+          ...Object.entries(row.key).map(
+            ([col, val]) => Prisma.sql`${Prisma.raw(col)} = ${val as string | number}`,
+          ),
+        ],
+        ' AND ',
+      );
+      await this.prisma.$executeRaw(Prisma.sql`
+        UPDATE ${Prisma.raw(table)} SET built_at = ${builtAt} WHERE ${where}
+      `);
+    }
+  }
+
+  /**
+   * 이번 회차에 안 나온 행을 지운다. **삭제 감지가 여기 한 곳으로 모인다.**
+   *
+   * 원본에서 진료과목이 빠지거나 진료시간이 줄면 그 행은 upsert 되지 않아 built_at 이
+   * 낡은 채로 남는다. 그것만 지운다 — 나머지는 손대지 않으므로 빈 창이 없다.
+   */
+  async sweepStale(table: string, builtAt: Date): Promise<number> {
+    const result = await this.prisma.$executeRaw(Prisma.sql`
+      DELETE FROM ${Prisma.raw(table)} WHERE built_at < ${builtAt}
+    `);
+    return result;
   }
 
   // --- buildSections ---

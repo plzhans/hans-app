@@ -28,20 +28,37 @@ import { PrismaService } from '@hansapp/data';
  * 딸려 온다 — 만료 행을 지우는 잡이 인증 스택 전체를 컴파일·주입하게 된다.
  * 여기서 필요한 것은 Prisma 하나뿐이고, 배치는 이미 그것을 갖고 있다.
  */
+/**
+ * 한 회차의 결과.
+ *
+ * **삼킨 실패를 실어 올린다.** 테이블별 실패는 이 서비스가 삼키므로, 돌려주지 않으면
+ * 셋 다 실패해도 회차가 성공으로 기록된다.
+ */
+export interface AuthCleanupResult {
+  /** 테이블별 삭제 건수. 실패한 테이블은 빠진다. */
+  readonly removed: Record<string, number>;
+
+  /** 전체 삭제 건수 */
+  readonly total: number;
+
+  /** 실패한 테이블. 비어 있으면 다 지웠다. */
+  readonly failed: string[];
+}
+
 @Injectable()
 export class AuthCleanupService {
   private readonly logger = new Logger(AuthCleanupService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async run(now = new Date()): Promise<void> {
+  async run(now = new Date()): Promise<AuthCleanupResult> {
     const expired = { lt: now };
 
     /*
       **한 테이블이 실패해도 나머지는 지운다.** 셋은 서로 의존이 없다 — 하나가 잠금에 걸렸다고
       나머지를 하루 더 쌓아 둘 이유가 없다. 실패는 각각 로그로 남고, 다음 회차에 다시 시도된다.
     */
-    await Promise.allSettled([
+    const swept = await Promise.all([
       this.sweep('user_token_session', () =>
         this.prisma.userTokenSession.deleteMany({
           where: { expiresAt: expired },
@@ -56,16 +73,43 @@ export class AuthCleanupService {
         }),
       ),
     ]);
+
+    const removed: Record<string, number> = {};
+    const failed: string[] = [];
+    for (const result of swept) {
+      if (result.count === undefined) {
+        failed.push(result.table);
+      } else {
+        removed[result.table] = result.count;
+      }
+    }
+
+    return {
+      removed,
+      total: Object.values(removed).reduce((sum, count) => sum + count, 0),
+      failed,
+    };
   }
 
   /** 한 테이블을 쓸고 결과를 남긴다. 0 건이어도 남긴다 — 잡이 돌긴 했는지 보여야 한다. */
-  private async sweep(label: string, remove: () => Promise<{ count: number }>): Promise<void> {
+  private async sweep(
+    table: string,
+    remove: () => Promise<{ count: number }>,
+  ): Promise<SweepResult> {
     try {
       const { count } = await remove();
-      this.logger.log(`${label} cleanup: ${count} rows`);
+      this.logger.log(`${table} cleanup: ${count} rows`);
+      return { table, count };
     } catch (error) {
-      // 던지지 않는다. 호출부가 Promise.allSettled 로 받아 나머지를 계속 지운다.
-      this.logger.error(`${label} cleanup failed`, error);
+      // 던지지 않는다. 나머지 테이블은 계속 지우고, 실패는 결과에 실어 올린다.
+      this.logger.error(`${table} cleanup failed`, error);
+      return { table };
     }
   }
+}
+
+/** 한 테이블의 결과. count 가 없으면 실패한 것이다. */
+interface SweepResult {
+  readonly table: string;
+  readonly count?: number;
 }

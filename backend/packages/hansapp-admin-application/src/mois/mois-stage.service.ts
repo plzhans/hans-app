@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KrDataQuotaError } from '@krdata/core';
 
-import { skipReason, StageResult, StageRunOptions } from '../nmc/nmc-stage.service';
+import { runMeta, skipReason, StageResult, StageRunOptions } from '../nmc/nmc-stage.service';
 import { SyncOutcome, SyncStateService } from '../common/sync-state.service';
 import { MoisRegionSyncService } from './mois-region-sync.service';
 
@@ -32,8 +32,12 @@ export class MoisStageService {
 
   async run(stage: MoisStage, options: StageRunOptions): Promise<StageResult> {
     const job = { provider: 'mois' as const, stage };
+    const meta = runMeta(job, options);
+
     const skip = await skipReason(this.state, job, stage, options);
     if (skip) {
+      // 생략도 이력에 남긴다. 안 남기면 "돌았는데 건너뜀" 과 "아예 안 돎" 이 같아 보인다.
+      await this.state.recordSkip(job, skip, meta);
       return {
         total: 0,
         processed: 0,
@@ -44,7 +48,7 @@ export class MoisStageService {
       };
     }
 
-    return this.state.run(job, () => this.guard());
+    return this.state.run(job, () => this.guard(), meta);
   }
 
   /** 한도 초과는 실패가 아니다. 오늘은 여기까지라는 뜻이라 다음 실행에서 이어받는다. */

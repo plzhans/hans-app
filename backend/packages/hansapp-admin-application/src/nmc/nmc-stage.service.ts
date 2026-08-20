@@ -1,7 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KrDataQuotaError } from '@krdata/core';
 
-import { SyncJob, SyncOutcome, SyncStateService } from '../common/sync-state.service';
+import {
+  ProgressReporter,
+  SyncJob,
+  SyncOutcome,
+  SyncRunMeta,
+  SyncStateService,
+} from '../common/sync-state.service';
+import { RunContext } from '../common/run-context';
 import { NmcBabySyncService } from './nmc-baby-sync.service';
 import { NmcBasicSyncService } from './nmc-basic-sync.service';
 import { NmcCodeSyncService } from './nmc-code-sync.service';
@@ -30,6 +37,12 @@ export interface StageRunOptions {
 
   /** 이번 실행에서 쓸 최대 API 콜 수. 개발계정 일 한도(1,000건) 대응이다. */
   limit?: number;
+
+  /**
+   * 이 실행이 어디서 왔나. 이력 표에 그대로 적힌다.
+   * **생략하면 사람이 hanscli 로 부른 것으로 본다** — 그래서 CLI 는 아무것도 안 넘긴다.
+   */
+  context?: RunContext;
 
   /**
    * 받을 오퍼레이션. HIRA 상세 단계(2~12)에서만 쓴다. 생략하면 11종 전부다.
@@ -88,6 +101,17 @@ export function freshnessHours(stage: number, provider?: string): number {
 }
 
 /**
+ * 이력·다음 실행 시각 계산에 쓸 부가 정보를 옵션에서 뽑는다.
+ * 세 기관이 같은 것을 넘기므로 여기 한 곳에 둔다.
+ */
+export function runMeta(job: SyncJob, options: StageRunOptions): SyncRunMeta {
+  return {
+    context: options.context,
+    freshnessHours: freshnessHours(job.stage, job.provider),
+  };
+}
+
+/**
  * 건너뛸 이유를 돌려준다. 없으면 undefined.
  * 배치와 CLI 가 같은 판정을 쓰도록 여기 한 곳에 둔다.
  */
@@ -128,8 +152,12 @@ export class NmcStageService {
 
   async run(stage: NmcStage, options: StageRunOptions): Promise<StageResult> {
     const job = { provider: 'nmc' as const, stage };
+    const meta = runMeta(job, options);
+
     const skip = await skipReason(this.state, job, stage, options);
     if (skip) {
+      // 생략도 이력에 남긴다. 안 남기면 "돌았는데 건너뜀" 과 "아예 안 돎" 이 같아 보인다.
+      await this.state.recordSkip(job, skip, meta);
       return {
         total: 0,
         processed: 0,
@@ -140,7 +168,7 @@ export class NmcStageService {
       };
     }
 
-    return this.state.run(job, () => this.guard(stage, options));
+    return this.state.run(job, (report) => this.guard(stage, options, report), meta);
   }
 
   /**
@@ -150,9 +178,13 @@ export class NmcStageService {
    * 다시 받으므로 문제가 없다(전량 덮어쓰기라 멱등하다). 개별 조회(2·3단계)는 서비스 안에서
    * 이미 부분 결과를 들고 나오므로 여기까지 오지 않는다.
    */
-  private async guard(stage: NmcStage, options: StageRunOptions): Promise<SyncOutcome> {
+  private async guard(
+    stage: NmcStage,
+    options: StageRunOptions,
+    report: ProgressReporter,
+  ): Promise<SyncOutcome> {
     try {
-      return await this.execute(stage, options);
+      return await this.execute(stage, options, report);
     } catch (error) {
       if (error instanceof KrDataQuotaError) {
         this.logger.warn(
@@ -164,19 +196,24 @@ export class NmcStageService {
     }
   }
 
-  private async execute(stage: NmcStage, options: StageRunOptions): Promise<SyncOutcome> {
+  private async execute(
+    stage: NmcStage,
+    options: StageRunOptions,
+    report: ProgressReporter,
+  ): Promise<SyncOutcome> {
     switch (stage) {
       case 1:
         return this.stage1();
       case 2:
         // 규모기관. 등급 순서(종합 → 병원 → 한방 → 치과 → 요양)는 서비스가 정한다.
-        return this.basic.sync({ limit: options.limit, force: options.force });
+        return this.basic.sync({ limit: options.limit, force: options.force, report });
       case 3:
         // 의원급. 병상 0·장비 0~1종이라 얻는 게 적고 74,680콜이 든다.
         return this.basic.sync({
           clinics: true,
           limit: options.limit,
           force: options.force,
+          report,
         });
     }
   }

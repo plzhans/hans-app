@@ -75,6 +75,46 @@ export function dbCommand(source: ConfigSource): Command {
     },
   );
 
+  addExamples(
+    db
+      .command('check')
+      .description(
+        '마이그레이션만으로 스키마가 그대로 재현되는지 본다 (운영 첫 배포와 같은 조건).\n' +
+          '차이가 있으면 SQL 을 찍고 1 로 종료한다 — CI 에서 그대로 쓸 수 있다',
+      )
+      /*
+        **다른 커맨드와 달리 --db 에 기본값을 두지 않는다.** 기본이 'main' 이면 log 를
+        영영 안 보게 되는데, 한쪽만 어긋나도 배포는 깨진다. 안 주면 둘 다 본다.
+      */
+      .option('--db <name>', `대상 DB. 생략하면 둘 다. ${DB_TARGETS.join(' | ')}`)
+      .action(async (options: DbOptions) => {
+        let ok = true;
+        await withDataContext(source, (context) => {
+          const service = context.get(PrismaMigrationService);
+          // --db 를 안 주면 둘 다 본다. 한쪽만 맞아도 배포는 깨진다.
+          const targets = options.db ? [options.db] : [...DB_TARGETS];
+          for (const target of targets) {
+            if (service.checkDrift(target)) {
+              console.log(`  ✅ ${target}: 마이그레이션이 스키마를 그대로 재현한다`);
+            } else {
+              ok = false;
+              console.error(`  ❌ ${target}: 마이그레이션 결과가 스키마와 다르다`);
+            }
+          }
+          return Promise.resolve();
+        });
+
+        if (!ok) {
+          console.error(
+            '\n스키마를 고쳤으면 마이그레이션을 함께 만들어라.' +
+              ' 컬럼 이름만 어긋난 것이면 @map 을 붙인다(DB 는 snake, 필드는 camel).',
+          );
+          process.exitCode = 1;
+        }
+      }),
+    ['hansapp-cli db check', 'hansapp-cli db check --db log'],
+  );
+
   db.command('generate')
     .description('Prisma Client 를 다시 생성한다 (메인·로그 모두)')
     .action(async () => {

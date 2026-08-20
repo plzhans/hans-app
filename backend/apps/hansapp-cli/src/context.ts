@@ -1,7 +1,8 @@
-import { DynamicModule, INestApplicationContext, LogLevel } from '@nestjs/common';
+import { DynamicModule, INestApplicationContext, LogLevel, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigSource } from '@hansapp/common';
 import { AdminApplicationModule, I18nModule } from '@hansapp/admin-application';
+import { EventPublisherModule } from '@hansapp/event-publisher';
 // 인증은 admin 응용 계층의 **서브패스**에 있다. 배럴(@hansapp/admin-application)에 넣으면
 // 배치·CLI 의 다른 커맨드까지 bcryptjs·@nestjs/jwt 를 지고 뜬다.
 import { AdminAuthModule } from '@hansapp/admin-application/auth';
@@ -54,11 +55,29 @@ export async function withAdminContext<T>(
   options: { verbose?: boolean; debug?: boolean } = {},
 ): Promise<T> {
   return withContext(
-    AdminApplicationModule.forRoot(source),
+    AdminRootModule.forRoot(source),
     run,
     options.verbose === true,
     options.debug === true,
   );
+}
+
+/**
+ * admin 커맨드의 루트 모듈.
+ *
+ * **AdminApplicationModule 을 혼자 띄울 수 없다.** 그 안의 서비스(UserProfileCacheAdmin 등)가
+ * EventPublisher 를 주입받는데, 그 모듈은 @Global 이라 **앱 루트가 한 번 등록해 주는 것**을
+ * 전제로 한다. 빠뜨리면 커맨드가 DI 에서 죽는다 — api·admin·batch 는 등록하고
+ * CLI 만 빠져 있었다(batch 의 app.module.ts 주석에 같은 사고가 적혀 있다).
+ */
+@Module({})
+class AdminRootModule {
+  static forRoot(source: ConfigSource): DynamicModule {
+    return {
+      module: AdminRootModule,
+      imports: [EventPublisherModule.forRoot(source), AdminApplicationModule.forRoot(source)],
+    };
+  }
 }
 
 /**

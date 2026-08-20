@@ -45,6 +45,46 @@ export class PrismaMigrationService {
     this.run(target, ['migrate', 'status']);
   }
 
+  /**
+   * **마이그레이션만으로 스키마가 그대로 재현되는지** 본다. 차이가 있으면 false.
+   *
+   * 프로덕션 첫 배포와 같은 조건이다 — 운영에서는 마이그레이션이 앱보다 먼저 돌고,
+   * 빈 DB 에 처음부터 재생해 스키마를 만든다. 그 결과가 prisma 스키마와 다르면
+   * **앱이 없는 컬럼을 찾다가 런타임에 죽는다.**
+   *
+   * `status()` 로는 못 잡는다. 그쪽은 "마이그레이션 파일이 다 적용됐나" 만 보지
+   * 결과가 스키마와 같은지는 안 본다. 실제로 app_llm_key.verify_state 가 그렇게 샜다 —
+   * 스키마에 @map 이 빠져 dev 에서는 멀쩡했고 운영에서 처음 깨질 상태였다.
+   *
+   * 섀도 DB 를 쓴다(prisma 가 만들었다 지운다). 실제 DB 는 건드리지 않는다.
+   */
+  checkDrift(target: DbTarget): boolean {
+    if (!this.config.shadowUrl) {
+      throw new Error(
+        'database.shadowUrl is required — migrations cannot be replayed without a shadow database.',
+      );
+    }
+
+    const output = this.capture(target, [
+      'migrate',
+      'diff',
+      '--from-migrations',
+      `${this.schemaPath(target)}/migrations`,
+      '--to-schema-datamodel',
+      this.schemaPath(target),
+      '--shadow-database-url',
+      this.config.shadowUrl,
+      '--script',
+    ]);
+
+    // 차이가 없으면 prisma 가 "empty migration" 주석만 낸다.
+    if (output.includes('empty migration')) {
+      return true;
+    }
+    console.error(output);
+    return false;
+  }
+
   /** Prisma Client 를 다시 생성한다. */
   generate(target: DbTarget): void {
     this.run(target, ['generate']);
@@ -57,6 +97,25 @@ export class PrismaMigrationService {
    */
   private schemaPath(target: DbTarget): string {
     return `prisma/${target}`;
+  }
+
+  /** run 과 같지만 출력을 받아 온다. diff 처럼 결과를 읽어야 하는 커맨드에 쓴다. */
+  private capture(target: DbTarget, args: string[]): string {
+    const result = spawnSync('npx', ['prisma', ...args], {
+      cwd: this.packageDir,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        DATABASE_URL: this.config.url,
+        DATABASE_LOG_URL: this.config.logUrl,
+        ...(this.config.shadowUrl ? { DATABASE_SHADOW_URL: this.config.shadowUrl } : {}),
+      },
+    });
+
+    if (result.error) {
+      throw result.error;
+    }
+    return `${result.stdout ?? ''}${result.stderr ?? ''}`;
   }
 
   private run(target: DbTarget, args: string[]): void {

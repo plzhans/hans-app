@@ -6,6 +6,7 @@ import {
   Mail,
   Plug,
   ScrollText,
+  Timer,
   ShieldCheck,
   Sparkles,
   Users,
@@ -60,6 +61,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/logs/auth', label: '인증', icon: KeyRound },
       { to: '/logs/llm', label: 'LLM 사용', icon: ScrollText },
     ],
+  },
+  {
+    /*
+      **정해진 시각에 저절로 도는 것들의 자리다.** 로그 구역과 가까워 보이지만 다르다 —
+      로그는 이미 벌어진 일을 훑는 곳이고, 여기는 **지금 돌고 있는지**를 보는 곳이다.
+    */
+    title: '배치',
+    items: [{ to: '/batch', label: '현황', icon: Timer }],
   },
   {
     // 성격이 다른 것을 한 화면에 몰지 않는다 — 메일과 연동키는 고치는 사람도 시점도 다르다.

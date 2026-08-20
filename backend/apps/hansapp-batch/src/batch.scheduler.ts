@@ -2,38 +2,22 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import * as Sentry from '@sentry/nestjs';
+import { BatchJobService } from '@hansapp/admin-application';
+import { BatchRunSource } from '@hansapp/common';
 
 import { BATCH_CONFIG, BatchConfig } from './batch.config';
 import { BatchService } from './batch.service';
-import { AuthCleanupService } from './auth-cleanup.service';
-import { SessionCacheSweeper } from './session-cache-sweeper.service';
-
-/**
- * 이 크론 잡의 이름. SchedulerRegistry 등록명과 Sentry 태그가 **같은 상수를 본다** —
- * 두 군데에 문자열을 따로 박으면 한쪽만 바뀌어 조용히 어긋난다.
- *
- * 소스 이름(krdata·nmc·hira)을 넣지 않는다. 이 크론은 특정 기관을 도는 게 아니라
- * **하루치 배치 전체**(BatchService.runDaily → NMC·HIRA 전 단계)를 돌린다.
- * 소스가 늘어도 이름은 그대로 맞다.
- */
-const CRON_JOB_NAME = 'daily-sync';
-
-/**
- * 인증 부산물 정리 잡의 이름.
- *
- * **이름에 시간을 넣지 않는다.** 크론식은 설정으로 바뀌는 값이라, `nightly-…` 같은 이름은
- * 주기를 한 번만 바꿔도 거짓이 된다. 이름은 **무엇을 하는지**만 말한다.
- *
- * `session-` 이 아니라 `auth-` 인 이유는 세션 말고도 인가코드·이메일 인증 코드를 함께
- * 쓸기 때문이다(AuthCleanupService 참고).
- */
-const AUTH_CLEANUP_JOB_NAME = 'auth-cleanup';
+import { BATCH_JOBS, type BatchJobDefinition } from './batch.jobs';
 
 /**
  * 크론 등록.
  *
+ * **잡마다 크론이 하나씩이다.** 잡 정의(BATCH_JOBS)를 훑어 그대로 등록하므로, 잡을 추가할 때
+ * 이 파일은 손대지 않는다 — 정의에 한 줄 넣으면 등록·마스터 upsert·Sentry 감시가 따라온다.
+ *
  * @Cron 데코레이터는 식을 컴파일 타임에 박아야 해서 설정으로 바꿀 수 없다.
- * 크론식을 env 로 조정하려면 SchedulerRegistry 에 직접 등록해야 한다.
+ * 크론식을 설정으로 조정하려면 SchedulerRegistry 에 직접 등록해야 한다.
+ * (그래서 Sentry 도 @SentryCron 데코레이터가 아니라 withMonitor 를 쓴다)
  */
 @Injectable()
 export class BatchScheduler {
@@ -41,53 +25,99 @@ export class BatchScheduler {
 
   constructor(
     private readonly batch: BatchService,
-    private readonly authCleanup: AuthCleanupService,
-    private readonly sessionCacheSweeper: SessionCacheSweeper,
+    private readonly jobs: BatchJobService,
     private readonly registry: SchedulerRegistry,
     @Inject(BATCH_CONFIG) private readonly config: BatchConfig,
   ) {}
 
-  register(): void {
-    const job = new CronJob(this.config.cron, () => {
-      void this.batch.runDaily().catch((error: unknown) => {
-        // 여기까지 올라온 예외는 배치 자체의 버그다. 단계 실패는 이미 안에서 처리된다.
-        this.logger.error('Unhandled error during the batch run', error);
-        // 로그만 남기면 아무도 안 본다. 크론이 통째로 실패한 것이므로 Sentry 로 올린다.
-        // (상주 모드라 프로세스가 살아 있으니 flush 는 필요 없다.)
-        Sentry.captureException(error, { tags: { job: CRON_JOB_NAME } });
-      });
-    });
-
-    this.registry.addCronJob(CRON_JOB_NAME, job);
-    job.start();
-
-    this.logger.log(`Cron registered: ${CRON_JOB_NAME} ${this.config.cron}`);
+  async register(): Promise<void> {
+    for (const definition of BATCH_JOBS) {
+      await this.add(definition);
+    }
 
     /*
-      **적재와 별개 잡이다.** 공공데이터 적재는 외부 API 한도를 나눠 쓰며 단계가 이어지는
-      파이프라인이고, 세션 정리는 우리 DB 만 만지는 독립적인 일이다. 한 잡에 묶으면
-      적재가 길어지거나 실패할 때 정리까지 밀린다.
+      **없어진 잡을 마스터에서 치운다.** 잡 이름을 바꾸거나 지우면 옛 행이 남는데,
+      그 행의 next_run_at 은 과거에 멈춰 있어 콘솔에 "예정 시각이 지났는데 안 돌았다" 로
+      영원히 뜬다 — 거짓 경보가 섞이면 진짜 경보를 안 믿게 된다.
+      이력은 로그 DB 에 그대로 남는다.
     */
-    const cleanupJob = new CronJob(this.config.authCleanupCron, () => {
-      /*
-        **캐시 정리를 DB 정리에 붙여 둔다.** 고아 캐시는 DB 행이 사라진 세션의 것이라,
-        만료 행을 치운 직후가 훑기 좋은 시점이다 — 방금 지운 것들도 함께 걸린다.
-      */
-      void this.authCleanup
-        .run()
-        .then(() => this.sessionCacheSweeper.run())
-        .catch((error: unknown) => {
-          // 테이블별 실패는 서비스가 이미 삼킨다. 여기까지 오면 잡 자체의 버그다.
-          this.logger.error('Unhandled error during the auth cleanup', error);
-          Sentry.captureException(error, {
-            tags: { job: AUTH_CLEANUP_JOB_NAME },
-          });
+    const pruned = await this.jobs.pruneExcept(BATCH_JOBS.map((job) => job.name));
+    if (pruned.length > 0) {
+      this.logger.log(`Removed jobs no longer registered: ${pruned.join(', ')}`);
+    }
+  }
+
+  /**
+   * 크론 하나를 등록하고 마스터(batch_job)에 올린다.
+   *
+   * **Sentry 감시를 여기서 함께 건다.** 표는 "무엇을 했나" 를 답하지만 "안 돌았다" 는
+   * 못 답한다 — 행이 없는 것과 프로세스가 죽은 것이 같아 보이기 때문이다. 그건 감시가 맡는다.
+   * 크론식이 설정값이라 감시 설정도 코드에서 실어 보낸다 — 주기를 바꾸면 저쪽 기대도 따라온다.
+   */
+  private async add(definition: BatchJobDefinition): Promise<void> {
+    const cronExpression = this.config.crons[definition.name];
+
+    /*
+      이번 tick 이 원래 돌기로 했던 시각.
+
+      **직전에 계산해 둔 값을 그대로 쓴다.** job.lastDate() 는 "실제로 불린 시각" 이라
+      startedAt 과 사실상 같은 값이고, 그걸 예정 시각으로 삼으면 지연이 항상 0 으로 나온다.
+      우리가 예정으로 삼았던 값(= 마스터의 next_run_at)과 비교해야 밀린 것이 보인다.
+    */
+    let expectedAt: Date | undefined;
+
+    const job = new CronJob(
+      cronExpression,
+      () => {
+        const scheduledAt = expectedAt;
+        // 이 회차가 끝난 뒤의 다음 예정 시각. 마스터의 next_run_at 이 되고,
+        // 다음 tick 에서는 그때의 예정 시각이 된다.
+        const nextRunAt = job.nextDate().toJSDate();
+        expectedAt = nextRunAt;
+
+        void Sentry.withMonitor(
+          definition.name,
+          () =>
+            this.batch.run(definition, {
+              source: BatchRunSource.CRON,
+              scheduledAt,
+              nextRunAt,
+            }),
+          {
+            schedule: { type: 'crontab', value: cronExpression },
+            timezone: this.config.timeZone,
+          },
+        ).catch((error: unknown) => {
+          // 여기까지 올라온 예외는 잡 자체의 버그다. 단계·테이블 실패는 이미 안에서 처리된다.
+          this.logger.error(`Unhandled error in ${definition.name}`, error);
+          // 로그만 남기면 아무도 안 본다. (상주 모드라 프로세스가 살아 있으니 flush 는 필요 없다)
+          Sentry.captureException(error, { tags: { job: definition.name } });
         });
+      },
+      // onComplete 는 안 쓴다.
+      null,
+      false,
+      this.config.timeZone,
+    );
+
+    this.registry.addCronJob(definition.name, job);
+    job.start();
+
+    const nextRunAt = job.nextDate().toJSDate();
+    expectedAt = nextRunAt;
+
+    await this.jobs.register({
+      job: definition.name,
+      description: definition.description,
+      category: definition.category,
+      cronExpression,
+      timeZone: this.config.timeZone,
+      nextRunAt,
     });
 
-    this.registry.addCronJob(AUTH_CLEANUP_JOB_NAME, cleanupJob);
-    cleanupJob.start();
-
-    this.logger.log(`Cron registered: ${AUTH_CLEANUP_JOB_NAME} ${this.config.authCleanupCron}`);
+    this.logger.log(
+      `Cron registered: ${definition.name} ${cronExpression} (${this.config.timeZone})` +
+        ` — next ${nextRunAt.toISOString()}`,
+    );
   }
 }

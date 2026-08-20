@@ -1,4 +1,4 @@
-import { Global, Module, type DynamicModule } from '@nestjs/common';
+import { Global, Module, type DynamicModule, type OnModuleDestroy } from '@nestjs/common';
 import type { ConfigSource } from '@hansapp/common';
 import { Queue } from 'bullmq';
 
@@ -7,6 +7,25 @@ import { EventPublisher } from './event-publisher.service';
 
 /** 큐 인스턴스 주입 토큰. 패키지 밖으로 내보내지 않는다 — 밖에서 큐를 직접 만질 일이 없다. */
 const EVENT_QUEUE = Symbol('EVENT_QUEUE');
+
+/**
+ * 큐를 들고 있다가 앱이 내려갈 때 연결을 닫는다.
+ *
+ * **끝나는 프로세스 때문에 있다.** 서버는 죽을 때까지 안 끝나서 안 닫아도 티가 안 나지만,
+ * CLI 와 배치 `--once` 는 할 일을 마치고 나가야 한다 — 열린 Redis 연결이 이벤트 루프를
+ * 붙잡고 있으면 커맨드가 끝나고도 프롬프트가 안 돌아온다.
+ *
+ * **큐를 그냥 useValue 로 두지 않고 이 껍데기를 씌운 이유가 그것이다.** 생명주기 훅은
+ * 인스턴스에 붙는데, 이 패키지는 experimentalDecorators 를 켜지 않아 모듈 클래스에
+ * 생성자 주입(@Inject)을 쓸 수 없다.
+ */
+class EventQueueHandle implements OnModuleDestroy {
+  constructor(readonly queue: Queue | null) {}
+
+  async onModuleDestroy(): Promise<void> {
+    await this.queue?.close();
+  }
+}
 
 /**
  * 이벤트 발행 모듈.
@@ -27,11 +46,13 @@ export class EventPublisherModule {
       providers: [
         {
           provide: EVENT_QUEUE,
-          useValue: url ? new Queue(EVENT_QUEUE_NAME, { connection: { url } }) : null,
+          useValue: new EventQueueHandle(
+            url ? new Queue(EVENT_QUEUE_NAME, { connection: { url } }) : null,
+          ),
         },
         {
           provide: EventPublisher,
-          useFactory: (queue: Queue | null) => new EventPublisher(queue),
+          useFactory: (handle: EventQueueHandle) => new EventPublisher(handle.queue),
           inject: [EVENT_QUEUE],
         },
       ],

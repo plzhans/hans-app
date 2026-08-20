@@ -23,6 +23,7 @@ import { SettingController } from './setting/setting.controller';
 import { EnvLlmKeyController } from './llm/env-llm-key.controller';
 import { EnvLlmModelController } from './llm/env-llm-model.controller';
 import { AuthLogController } from './logs/auth-log.controller';
+import { BatchRunController } from './logs/batch-run.controller';
 import { BoardController } from './community/board.controller';
 import { BoardPostController } from './community/board-post.controller';
 import { LlmUsageLogController } from './logs/llm-usage-log.controller';
@@ -82,6 +83,7 @@ export class AppModule {
         EnvLlmModelController,
         LlmUsageLogController,
         AuthLogController,
+        BatchRunController,
         BoardController,
         BoardPostController,
       ],

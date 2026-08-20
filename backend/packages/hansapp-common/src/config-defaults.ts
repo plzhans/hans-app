@@ -158,8 +158,30 @@ export const CONFIG_DEFAULTS = {
 
   // ── hansapp-batch ───────────────────────────────────────────────────────────
   'apps-batch.name': 'hansapp-batch',
-  'apps-batch.cron': '0 4 * * *',
+  /*
+    상주 모드가 여는 포트. **한 컴퓨터에 배치를 하나만 띄우는 가드를 겸한다** —
+    이미 떠 있으면 EADDRINUSE 로 부팅이 실패한다(Node 에는 flock 이 없어서, 커널이
+    프로세스 죽을 때 회수해 주는 성질을 포트에서 빌린다. 잠금 파일은 kill -9 뒤에 남는다).
+    3000=api, 3001=admin-api 다음 자리다.
+  */
+  'apps-batch.web.port': 3002,
+  // 어느 주소에 붙을까. 기본은 로컬만 — 컨테이너에서 헬스체크를 받으려면 0.0.0.0 으로 연다.
+  'apps-batch.web.bindAddress': '127.0.0.1',
+  // 크론식을 해석할 타임존. **비워 두면 컨테이너 TZ 를 따라가 실행 시각이 통째로 어긋난다**
+  // (UTC 컨테이너에서 04:00 은 KST 13:00 이다).
+  'apps-batch.timeZone': 'Asia/Seoul',
   'apps-batch.maxCallsPerRun': 0, // 0 = 무제한
+  /*
+    잡별 주기. **기본값의 정본은 코드다**(apps/hansapp-batch/src/batch.jobs.ts 의 defaultCron) —
+    잡이 늘 때 이 파일을 같이 고치지 않아도 되게, 여기 없으면 잡 정의의 값을 쓴다.
+    여기 적는 것은 "설정으로 덮을 수 있다" 를 문서에 드러내기 위한 것이다.
+  */
+  'apps-batch.jobs.mois.cron': '0 3 * * *',
+  'apps-batch.jobs.hira.cron': '0 4 * * *',
+  'apps-batch.jobs.nmc.cron': '0 5 * * *',
+  'apps-batch.jobs.healthcare.cron': '0 6 * * *',
+  'apps-batch.jobs.es-index.cron': '30 6 * * *',
+  'apps-batch.jobs.auth-cleanup.cron': '0 7 * * *',
   'apps-batch.sentry.enabled': false,
   // 배치는 요청 트레이스가 없다. 크론 실행 트레이스가 필요해지면 그 환경에서 올린다.
   'apps-batch.sentry.tracesSampleRate': 0,

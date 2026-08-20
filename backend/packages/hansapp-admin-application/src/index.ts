@@ -14,6 +14,8 @@ export { HiraHospitalSyncService } from './hira/hira-hospital-sync.service';
 /** 병원 ES 색인 오케스트레이션(DB→문서→ES). CLI(es hospital)가 쓴다. */
 export { HealthcareIndexService } from './healthcare/healthcare-index.service';
 export type { IndexResult, ReindexResult } from './healthcare/healthcare-index.service';
+
+/** 관리자 병원 목록(DB 최소조건 + ES 상세조건). hansapp-admin-api 컨트롤러가 쓴다. */
 export { NmcQueryService } from './nmc/nmc-query.service';
 export { NmcHospitalReadService } from './nmc/nmc-hospital-read.service';
 export type { NmcHospitalListOptions } from './nmc/nmc-hospital-read.service';
@@ -94,6 +96,22 @@ export type { MoisStage } from './mois/mois-stage.service';
 export { SyncRunnerService } from './common/sync-runner.service';
 export type { RunAllOptions, RunAllResult, StageRun } from './common/sync-runner.service';
 export { SyncStateService } from './common/sync-state.service';
+// 잡 회차 기록. 배치가 크론 콜백에서 쓴다.
+export { BatchJobService } from './common/batch-job.service';
+export type { BatchJobSpec, JobRunOutcome, OpenJobRun } from './common/batch-job.service';
+// 관리자 화면용 배치 현황·이력 조회.
+export { BatchRunReadService } from './log/batch-run-read.service';
+export type {
+  BatchOverviewView,
+  BatchJobStatusView,
+  RunningStageView,
+  JobRunView,
+  StageRunView,
+} from './log/batch-run-read.service';
+export type { BatchJobHistoryFilter } from './log/batch-run-read.repository';
+// 실행 출처. 배치만 명시하고, 안 넘기면 CLI 로 본다.
+export type { RunContext } from './common/run-context';
+export { CLI_RUN_CONTEXT } from './common/run-context';
 
 // 관리자용 회원 조회(읽기 전용). 회원 수정은 회원 본인의 통로가 하고 여기서는 보기만 한다.
 export { UserReadService } from './user/user-read.service';
@@ -166,7 +184,7 @@ export type {
 export { UserStatus, UserTier, AppStatus, AppClientType } from '@hansapp/data';
 // 인증 기록의 enum(로그 DB). 컨트롤러 DTO 가 검증·문서화에 값으로 쓴다.
 export { AuthLogAction, AuthLogResult } from '@hansapp/data';
-export type { SyncJob, SyncOutcome } from './common/sync-state.service';
+export type { SyncJob, SyncOutcome, SyncRunMeta } from './common/sync-state.service';
 export { DATA_PROVIDERS } from './common/provider';
 export type { DataProvider } from './common/provider';
 

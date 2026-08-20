@@ -5,7 +5,7 @@ import type { HospitalBasisInfoItem, NmcClient } from '@krdata/nmc';
 
 import { NmcBasicSyncRepository } from './nmc-basic-sync.repository';
 import { mapWithConcurrency } from '../common/pool';
-import { SyncOutcome } from '../common/sync-state.service';
+import { ProgressReporter, SyncOutcome } from '../common/sync-state.service';
 import { NMC_CLIENT } from '../krdata.providers';
 
 /**
@@ -41,6 +41,14 @@ export interface BasicSyncOptions {
 
   /** 이미 받은 병원도 다시 받는다 */
   force?: boolean;
+
+  /**
+   * 진행분을 알리는 통로. 청크가 끝날 때마다 부른다.
+   *
+   * 이 단계는 몇 시간을 도는데, 닫힐 때만 기록하면 그동안 화면에 아무 숫자도 안 뜬다.
+   * 생략하면 아무 데도 안 알린다(hanscli 로 부를 때).
+   */
+  report?: ProgressReporter;
 }
 
 /**
@@ -112,6 +120,9 @@ export class NmcBasicSyncService {
       this.logger.log(
         `NMC basic ${processed.toLocaleString()}/${total.toLocaleString()} (${calls.toLocaleString()} calls)`,
       );
+
+      // 같은 값을 DB 로도 보낸다. 로그로만 나가면 화면에서는 진행이 안 보인다.
+      await options.report?.({ processed, calls, total });
     }
 
     return { total, processed, calls, limitReached };
