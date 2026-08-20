@@ -1,6 +1,7 @@
 import {
   Boxes,
   Brush,
+  Hospital,
   MessageSquareText,
   KeyRound,
   Mail,
@@ -45,6 +46,11 @@ export const NAV_SECTIONS: NavSection[] = [
     // 커뮤니티. 지금은 게시판 하나뿐이고, 글 관리 화면이 생기면 여기 붙는다.
     title: '커뮤니티',
     items: [{ to: '/boards', label: '게시판', icon: MessageSquareText }],
+  },
+  {
+    // 공공데이터로 쌓은 healthcare_hospital 을 들여다보는 자리. 적재·색인은 배치가 한다.
+    title: '헬스케어',
+    items: [{ to: '/healthcare/hospitals', label: '병원', icon: Hospital }],
   },
   {
     /*

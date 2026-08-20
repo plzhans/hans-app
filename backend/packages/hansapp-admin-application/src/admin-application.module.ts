@@ -84,6 +84,9 @@ import { HealthcareNameBuildRepository } from './healthcare/healthcare-name-buil
 import { HealthcareDetailBuildRepository } from './healthcare/healthcare-detail-build.repository';
 import { HealthcareIndexRepository } from './healthcare/healthcare-index.repository';
 import { HealthcareIndexService } from './healthcare/healthcare-index.service';
+import { HealthcareHospitalListRepository } from './healthcare/healthcare-hospital-list.repository';
+import { HealthcareHospitalListSearchRepository } from './healthcare/healthcare-hospital-list-search.repository';
+import { HealthcareHospitalListService } from './healthcare/healthcare-hospital-list.service';
 import { HiraStageService } from './hira/hira-stage.service';
 import { HiraAssessmentSyncService } from './hira/hira-assessment-sync.service';
 import { HiraNpaySyncService } from './hira/hira-npay-sync.service';
@@ -240,6 +243,9 @@ export class AdminApplicationModule {
         HealthcareIndexRepository,
         HealthcareIndexService,
         // 관리자 병원 목록(DB 최소조건 + ES 상세조건). 서비스 내부 의존이라 export 하지 않는다.
+        HealthcareHospitalListRepository,
+        HealthcareHospitalListSearchRepository,
+        HealthcareHospitalListService,
         /*
           서비스키는 DB(env_setting)에서 읽는다. **부팅할 때 한 번만 읽는다** —
           배치·CLI 는 명령 하나 돌고 끝나는 프로세스라 "재시작 없이 반영" 이 뜻이 없고,
@@ -390,6 +396,7 @@ export class AdminApplicationModule {
         // ES 색인 오케스트레이션. CLI(es hospital)가 호출한다.
         HealthcareIndexService,
         // 관리자 병원 목록. 컨트롤러가 주입받는다.
+        HealthcareHospitalListService,
         // CLI 가 큐를 1건씩 돌리는 데 쓴다. 배치 서버가 붙으면 그쪽이 같은 서비스를 쓴다.
         HiraNpayWebSyncService,
         HiraNpayCodeSyncService,

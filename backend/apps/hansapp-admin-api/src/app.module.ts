@@ -27,6 +27,7 @@ import { BatchRunController } from './logs/batch-run.controller';
 import { BoardController } from './community/board.controller';
 import { BoardPostController } from './community/board-post.controller';
 import { LlmUsageLogController } from './logs/llm-usage-log.controller';
+import { HospitalController } from './healthcare/hospital.controller';
 
 @Module({})
 export class AppModule {
@@ -86,6 +87,7 @@ export class AppModule {
         BatchRunController,
         BoardController,
         BoardPostController,
+        HospitalController,
       ],
       providers: [
         // 폭주 요청을 인증 처리 전에 값싸게 쳐내려면 이쪽이 먼저다.

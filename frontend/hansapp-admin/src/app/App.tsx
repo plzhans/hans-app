@@ -32,6 +32,7 @@ import AuthLogs from '@/features/logs/pages/AuthLogs';
 import LlmUsageLogs from '@/features/logs/pages/LlmUsageLogs';
 import BatchJobs from '@/features/batch/pages/BatchJobs';
 import BatchRuns from '@/features/batch/pages/BatchRuns';
+import Hospitals from '@/features/healthcare/pages/Hospitals';
 
 function FullScreenMessage({ children }: { children: string }) {
   return (
@@ -148,6 +149,8 @@ export default function App() {
           <Route path="/settings/llm" element={<LlmSettings />} />
           {/* 값을 고치는 화면이 아니라 지우는 화면이다. 대상은 늘 서비스 전체다. */}
           <Route path="/settings/maintenance" element={<Maintenance />} />
+          {/* 헬스케어. healthcare_hospital 을 조회한다(쓰기는 빌드 파이프라인의 몫이다). */}
+          <Route path="/healthcare/hospitals" element={<Hospitals />} />
           {/* 커뮤니티. 게시판을 만들고 규칙을 정한다. */}
           <Route path="/boards" element={<Boards />} />
           <Route path="/boards/:boardId/posts" element={<Posts />} />

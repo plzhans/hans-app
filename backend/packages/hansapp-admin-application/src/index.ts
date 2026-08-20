@@ -16,6 +16,12 @@ export { HealthcareIndexService } from './healthcare/healthcare-index.service';
 export type { IndexResult, ReindexResult } from './healthcare/healthcare-index.service';
 
 /** 관리자 병원 목록(DB 최소조건 + ES 상세조건). hansapp-admin-api 컨트롤러가 쓴다. */
+export { HealthcareHospitalListService } from './healthcare/healthcare-hospital-list.service';
+export type {
+  HospitalAdminEngine,
+  HospitalAdminListQuery,
+} from './healthcare/healthcare-hospital-list.service';
+export type { HospitalAdminRow } from './healthcare/healthcare-hospital-list-search.repository';
 export { NmcQueryService } from './nmc/nmc-query.service';
 export { NmcHospitalReadService } from './nmc/nmc-hospital-read.service';
 export type { NmcHospitalListOptions } from './nmc/nmc-hospital-read.service';
