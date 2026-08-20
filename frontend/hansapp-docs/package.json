@@ -6,9 +6,9 @@
   "description": "Hans API 명세 문서 (VitePress + OpenAPI)",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "docs:dev": "vitepress dev --port 5174 --strictPort",
+    "docs:dev": "vitepress dev --port 5272 --strictPort",
     "docs:build": "vitepress build",
-    "docs:preview": "vitepress preview --port 5174 --strictPort",
+    "docs:preview": "vitepress preview --port 5272 --strictPort",
     "spec:local": "pnpm -C ../../backend run openapi:gen:local",
     "spec:dev": "pnpm -C ../../backend run openapi:gen:dev",
     "spec:prod": "pnpm -C ../../backend run openapi:gen:prod",

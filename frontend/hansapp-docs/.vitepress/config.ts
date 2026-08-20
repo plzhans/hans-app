@@ -46,22 +46,25 @@ function originFromEnv(name: string, localFallback: string): string {
 }
 
 /** 문서 자신의 도메인. 문서는 이 도메인의 /docs 밑에 산다(서브도메인을 두지 않는다). */
-const docsOrigin = originFromEnv('DOCS_ORIGIN', 'http://localhost:8801');
+const docsOrigin = originFromEnv('DOCS_ORIGIN', 'http://localhost:5272');
 
 /**
  * 포털 주소. 상단 nav 의 HOME 이 여기로 돌아간다.
  *
  * 배포 환경에서는 문서가 포털 도메인 밑이라 DOCS_ORIGIN 과 같은 값이지만 **따로 받는다** —
- * 로컬에서 이미 갈린다(문서 8801, 포털 5274). 하나로 묶으면 나중에 도로 쪼갤 때
+ * 로컬에서 이미 갈린다(문서 5272, 포털 5274). 하나로 묶으면 나중에 도로 쪼갤 때
  * 어느 쪽이 어느 뜻이었는지 알 수 없다.
  */
 const portalOrigin = originFromEnv('PORTAL_ORIGIN', 'http://127.0.0.1:5274');
 
 /**
  * 사이트가 놓이는 경로. 배포 경로를 아는 쪽(frontend/ci-build.sh)이 '/docs/' 로 넘겨준다.
- * 로컬 개발 서버는 안 넘기므로 루트로 뜬다.
+ *
+ * 로컬은 안 넘기지만 기본값도 '/docs/' 다 — hansapp-web(콘솔, 5274)이 /docs 를 이 dev
+ * 서버(5272)로 프록시하는데(hansapp-auth 의 /auth·VITE_BASE=/auth/ 와 같은 방식), 프록시는
+ * 경로를 그대로 넘기므로 이쪽 base 도 같은 접두를 알아야 자산 경로가 어긋나지 않는다.
  */
-const docsBase = process.env.DOCS_BASE ?? '/';
+const docsBase = process.env.DOCS_BASE ?? '/docs/';
 
 /**
  * 산출물을 쌓을 자리. **base 에서 유도한다.**
@@ -718,8 +721,8 @@ export default withMermaid(defineConfig({
     // mermaid 최적화(dayjs·cytoscape 등 하위 의존 pre-bundle)는 withMermaid 플러그인이
     // optimizeDeps.include 로 이미 넣는다. pnpm 에서 그 베어 이름들이 resolve 되도록
     // 하위 의존을 root 로 hoist 하는 설정은 .npmrc(public-hoist-pattern)에 있다.
-    // 포트를 지정(--port)하지 않으면 8801 을 기본으로 쓴다.
-    server: { port: 8801 },
-    preview: { port: 8801 },
+    // 포트를 지정(--port)하지 않으면 5272 를 기본으로 쓴다.
+    server: { port: 5272 },
+    preview: { port: 5272 },
   },
 }));

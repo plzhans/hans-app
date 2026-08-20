@@ -14,19 +14,13 @@ export const LINKS = {
     (import.meta.env.VITE_LINK_MEDIFINDER as string | undefined) ||
     'https://medifinder.kr',
 
-  /*
-    문서는 **포털과 같은 도메인의 /docs** 다(plzhans.com/docs · develop.plzhans.com/docs).
-    그래서 절대주소가 아니라 상대경로가 기본값이다 — 브라우저가 지금 떠 있는 도메인으로 푼다.
-
-    이러면 환경을 틀릴 수가 없다. 예전엔 기본값이 운영 주소라 **키를 빠뜨리면 develop 포털이
-    조용히 운영 문서로 보냈다**(실제로 세 파일 모두에 키가 없어서 그랬다). 상대경로에는
-    그 실패가 아예 없다.
-
-    env 는 로컬에만 둔다. 문서 개발 서버가 다른 포트(8801)에 떠서 그때만 절대주소가 필요하다.
-  */
-  docs: (import.meta.env.VITE_LINK_DOCS as string | undefined) || '/docs',
-
   // 환경 구분이 없는 것들. env 로 받을 이유가 없다.
+  //
+  // docs 는 **포털과 같은 도메인의 /docs** 다(plzhans.com/docs · develop.plzhans.com/docs,
+  // 로컬은 이 콘솔이 /docs 를 문서 dev 서버로 프록시). 상대경로라 세 환경 모두 같은 값으로
+  // 맞는다 — 예전엔 기본값이 운영 주소라 키를 빠뜨리면 develop 포털이 조용히 운영 문서로
+  // 보냈는데(실제로 그랬다), 상대경로에는 그 실패가 아예 없다.
+  docs: '/docs',
   blog: 'https://blog.plzhans.com',
   telegramExporter: 'https://telegram-exporter.plzhans.com',
 };

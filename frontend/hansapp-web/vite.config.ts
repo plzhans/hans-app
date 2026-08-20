@@ -73,11 +73,15 @@ export default defineConfig(({ mode }) => {
       // 콘솔 전용 포트(인증웹 hansapp-auth 5273, medifinder 5173 과 겹치지 않게 5274).
       port: 5274,
       strictPort: true,
-      // 단일 오리진 로컬: 이 콘솔(hans-app)이 front door. /auth/* 는 인증웹(hansapp-auth 5273)으로 프록시.
+      // 단일 오리진 로컬: 이 콘솔(hans-app)이 front door. /auth/* 는 인증웹(hansapp-auth 5273),
+      // /docs/* 는 문서(hansapp-docs 5272)로 프록시. 둘 다 경로를 그대로 넘기므로 대상 쪽
+      // base 도 같은 접두(/auth/, /docs/)로 떠 있어야 자산 경로가 어긋나지 않는다.
       //   http://127.0.0.1:5274/           → 콘솔
       //   http://127.0.0.1:5274/auth/login → 인증웹 (base=/auth/)
+      //   http://127.0.0.1:5274/docs       → 문서 (base=/docs/)
       proxy: {
         '/auth': { target: 'http://127.0.0.1:5273', changeOrigin: true },
+        '/docs': { target: 'http://127.0.0.1:5272', changeOrigin: true },
       },
     },
     build: { outDir: 'dist' },
