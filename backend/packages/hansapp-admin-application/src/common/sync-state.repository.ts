@@ -37,6 +37,38 @@ export class SyncStateRepository {
     });
   }
 
+  /**
+   * 부팅 때 단계를 등록한다. 없으면 만들고, 있으면 **설명만** 고친다.
+   *
+   * **enabled 는 절대 건드리지 않는다.** 관리자가 콘솔에서 끈 값이라 재부팅으로 되살아나면
+   * 안 된다(batch_job.register 가 status·enabled 를 피하는 것과 같은 이유). 반대로 설명은
+   * 코드가 정본이라 매번 덮어쓴다.
+   *
+   * 실행 상태(status)는 새로 만들 때만 'idle' 로 둔다 — 이미 있는 행의 상태를 되돌리면
+   * 프로세스를 올릴 때마다 이력이 끊긴다.
+   */
+  async register(key: string, provider: string, stage: number, description: string): Promise<void> {
+    await this.prisma.syncState.upsert({
+      where: { job: key },
+      create: { job: key, provider, stage, description, status: 'idle' },
+      update: { description },
+    });
+  }
+
+  /**
+   * 단계를 켜고 끈다. 관리자 콘솔만 부른다.
+   *
+   * **upsert 다.** 한 번도 안 돌고 부팅 등록도 아직 안 된 단계를 끄는 경우가 있다 —
+   * 한도 때문에 미리 꺼 두려는 상황이 정확히 그것이라, 행이 없다고 거절하면 뜻이 없다.
+   */
+  async setEnabled(key: string, provider: string, stage: number, enabled: boolean): Promise<void> {
+    await this.prisma.syncState.upsert({
+      where: { job: key },
+      create: { job: key, provider, stage, status: 'idle', enabled },
+      update: { enabled },
+    });
+  }
+
   /** 상태 한 건을 갱신한다. 갱신할 필드는 서비스가 정해서 넘긴다(성공/실패 규칙은 거기 있다). */
   async update(key: string, data: Prisma.SyncStateUpdateInput): Promise<void> {
     await this.prisma.syncState.update({ where: { job: key }, data });

@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import * as Sentry from '@sentry/nestjs';
-import { BatchJobService } from '@hansapp/admin-application';
+import { BatchJobService, stageCatalog, SyncStateService } from '@hansapp/admin-application';
 import { BatchRunSource } from '@hansapp/common';
 
 import { BATCH_CONFIG, BatchConfig } from './batch.config';
@@ -26,6 +26,7 @@ export class BatchScheduler {
   constructor(
     private readonly batch: BatchService,
     private readonly jobs: BatchJobService,
+    private readonly stages: SyncStateService,
     private readonly registry: SchedulerRegistry,
     @Inject(BATCH_CONFIG) private readonly config: BatchConfig,
   ) {}
@@ -34,6 +35,14 @@ export class BatchScheduler {
     for (const definition of BATCH_JOBS) {
       await this.add(definition);
     }
+
+    /*
+      **단계도 등록한다.** 잡보다 한 칸 아래의 손잡이다 — 관리자가 단계를 끄려면 sync_state
+      행이 먼저 있어야 하는데, 그 행은 원래 첫 실행 때 생긴다. 그러면 "아직 한 번도 안 돈
+      단계를 미리 꺼 두는" 것이 안 되는데, 한도 때문에 끄려는 상황이 정확히 그 경우다.
+      설명만 덮어쓰고 enabled 는 손대지 않는다.
+    */
+    await this.stages.register(stageCatalog());
 
     /*
       **없어진 잡을 마스터에서 치운다.** 잡 이름을 바꾸거나 지우면 옛 행이 남는데,

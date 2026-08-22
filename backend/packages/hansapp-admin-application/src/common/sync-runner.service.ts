@@ -1,8 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { HIRA_STAGES, HiraStage, HiraStageService } from '../hira/hira-stage.service';
-import { NMC_STAGES, NmcStage, NmcStageService, StageResult } from '../nmc/nmc-stage.service';
-import { MOIS_STAGES, MoisStage, MoisStageService } from '../mois/mois-stage.service';
+import {
+  HIRA_STAGE_DESCRIPTIONS,
+  HIRA_STAGES,
+  HiraStage,
+  HiraStageService,
+} from '../hira/hira-stage.service';
+import {
+  NMC_STAGE_DESCRIPTIONS,
+  NMC_STAGES,
+  NmcStage,
+  NmcStageService,
+  StageResult,
+} from '../nmc/nmc-stage.service';
+import {
+  MOIS_STAGE_DESCRIPTIONS,
+  MOIS_STAGES,
+  MoisStage,
+  MoisStageService,
+} from '../mois/mois-stage.service';
 import { DataProvider } from './provider';
 import { RunContext } from './run-context';
 
@@ -137,3 +153,37 @@ const STAGES_BY_PROVIDER: Record<DataProvider, readonly number[]> = {
   nmc: NMC_STAGES,
   hira: HIRA_STAGES,
 };
+
+/** 기관별 단계 설명. 정본은 각 기관의 단계 서비스에 있고 여기서 모으기만 한다. */
+const DESCRIPTIONS_BY_PROVIDER: Record<DataProvider, Record<number, string>> = {
+  mois: MOIS_STAGE_DESCRIPTIONS,
+  nmc: NMC_STAGE_DESCRIPTIONS,
+  hira: HIRA_STAGE_DESCRIPTIONS,
+};
+
+/** 한 단계의 명세. 부팅 등록과 관리자 목록이 같은 것을 본다. */
+export interface StageSpec {
+  readonly job: string;
+  readonly provider: DataProvider;
+  readonly stage: number;
+  readonly description: string;
+}
+
+/**
+ * 코드가 아는 모든 단계. 순서는 기관 → 단계 번호다.
+ *
+ * **관리자가 끄려면 행이 먼저 있어야 한다.** sync_state 행은 원래 첫 실행 때 생기는데,
+ * 그러면 "아직 한 번도 안 돈 단계" 를 미리 끌 수가 없다 — 한도 때문에 끄려는 상황이
+ * 정확히 그 경우다(dev 에 새 DB 를 올리자마자 꺼 두고 싶다). 그래서 부팅 때 등록한다.
+ */
+export function stageCatalog(): StageSpec[] {
+  const providers = Object.keys(STAGES_BY_PROVIDER) as DataProvider[];
+  return providers.flatMap((provider) =>
+    STAGES_BY_PROVIDER[provider].map((stage) => ({
+      job: `${provider}.${stage}`,
+      provider,
+      stage,
+      description: DESCRIPTIONS_BY_PROVIDER[provider][stage] ?? '',
+    })),
+  );
+}

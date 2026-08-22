@@ -30,6 +30,13 @@ import { NmcSubjectSyncService } from './nmc-subject-sync.service';
 export const NMC_STAGES = [1, 2, 3] as const;
 export type NmcStage = (typeof NMC_STAGES)[number];
 
+/** 단계별 한 줄 설명. 관리자 화면이 "무엇을 끄는지" 를 이걸로 보여준다(→ HIRA_STAGE_DESCRIPTIONS). */
+export const NMC_STAGE_DESCRIPTIONS: Record<NmcStage, string> = {
+  1: '목록 — 전체 병원 벌크 + 역조회 (62콜)',
+  2: '개별 상세 — 규모기관 basic (3,951콜)',
+  3: '개별 상세 — 의원급 basic (74,680콜, 운영계정 필요)',
+};
+
 /** 단계 실행 옵션 */
 export interface StageRunOptions {
   /** 오늘 이미 성공했어도 다시 돌린다. 개별 조회 단계에서는 받은 병원도 다시 받는다. */
@@ -125,6 +132,14 @@ export async function skipReason(
   if (await state.isRunning(job)) {
     return '이미 실행 중이다';
   }
+
+  // 꺼진 단계는 **수동 실행도 막는다.** batch_job.enabled 는 스케줄만 껐지만 이쪽은
+  // 목적이 한도 보호다 — dev 와 운영이 같은 서비스키를 쓰므로 hanscli 로 무심코 돌린
+  // 한 번이 그대로 운영 몫에서 빠진다. 고친 뒤 확인해야 하면 --force 로 뚫는다.
+  if (!options.force && !(await state.isEnabled(job))) {
+    return '꺼져 있다';
+  }
+
   if (options.force) {
     return undefined;
   }

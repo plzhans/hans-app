@@ -17,6 +17,28 @@ export interface SyncJob {
   detail?: string;
 }
 
+/**
+ * 부팅 때 등록할 단계 한 건.
+ *
+ * **sync-runner 의 StageSpec 을 가져다 쓰지 않는다.** 그쪽은 기관별 단계 서비스를 물고,
+ * 그 서비스들이 다시 이 파일을 물어서 서로를 물게 된다. 모양이 같으니 구조적으로 맞는다.
+ */
+export interface StageRegistration {
+  readonly job: string;
+  readonly provider: DataProvider;
+  readonly stage: number;
+  readonly description: string;
+}
+
+/** 관리자 화면이 받는 단계 한 줄. 코드 카탈로그와 DB 행을 합친 것이다. */
+export interface StageView extends StageRegistration {
+  readonly enabled: boolean;
+  readonly status: string;
+  readonly lastSuccessAt: Date | null;
+  readonly nextEligibleAt: Date | null;
+  readonly calls: number;
+}
+
 /** 실행 결과 집계 */
 export interface SyncOutcome {
   total: number;
@@ -154,6 +176,67 @@ export class SyncStateService {
     }
 
     return true;
+  }
+
+  /**
+   * 이 단계가 켜져 있나.
+   *
+   * **행이 없으면 켜진 것으로 본다.** 등록 전에 도는 순간(첫 부팅과 첫 실행 사이, 또는
+   * 등록이 실패한 뒤)이 있는데, 거기서 false 를 주면 아무것도 안 돈다 —
+   * 기록용 표의 사고가 적재를 멈추는 것은 본말전도다.
+   */
+  async isEnabled(job: SyncJob): Promise<boolean> {
+    const state = await this.repo.find(jobKey(job));
+    return state?.enabled ?? true;
+  }
+
+  /**
+   * 부팅 때 단계를 등록한다. 설명만 덮어쓰고 enabled 는 두 손 뗀다.
+   *
+   * **여기서 나는 예외는 삼킨다.** 등록은 관리자 화면을 위한 것이지 적재의 조건이 아니다
+   * (BatchJobService 와 같은 원칙).
+   */
+  async register(specs: readonly StageRegistration[]): Promise<void> {
+    for (const spec of specs) {
+      try {
+        await this.repo.register(spec.job, spec.provider, spec.stage, spec.description);
+      } catch (error) {
+        this.logger.warn(`Failed to register stage ${spec.job}: ${String(error)}`);
+      }
+    }
+  }
+
+  /** 단계를 켜고 끈다. 관리자 콘솔만 부른다. */
+  async setEnabled(spec: StageRegistration, enabled: boolean): Promise<void> {
+    await this.repo.setEnabled(spec.job, spec.provider, spec.stage, enabled);
+  }
+
+  /**
+   * 관리자 화면이 보는 단계 목록. **코드 카탈로그가 기준이고 DB 가 살을 붙인다.**
+   *
+   * DB 행만 훑으면 아직 한 번도 안 돌았고 부팅 등록도 안 된 단계가 목록에서 빠지는데,
+   * 미리 꺼 두고 싶은 단계가 정확히 그것이다. 반대로 코드에서 없어진 단계는 행이 남아 있어도
+   * 안 보여야 한다 — 끌 수 없는 것을 스위치로 내놓으면 안 된다.
+   */
+  async listStages(catalog: readonly StageRegistration[]): Promise<StageView[]> {
+    const rows = await this.repo.list();
+    const byJob = new Map(rows.map((row) => [row.job, row]));
+
+    return catalog.map((spec) => {
+      const row = byJob.get(spec.job);
+      return {
+        job: spec.job,
+        provider: spec.provider,
+        stage: spec.stage,
+        // 설명의 정본은 코드다. DB 열은 거울이라 여기서도 코드를 먼저 본다.
+        description: spec.description,
+        enabled: row?.enabled ?? true,
+        status: row?.status ?? 'idle',
+        lastSuccessAt: row?.lastSuccessAt ?? null,
+        nextEligibleAt: row?.nextEligibleAt ?? null,
+        calls: row?.calls ?? 0,
+      };
+    });
   }
 
   /** 실행 시작을 기록한다. */

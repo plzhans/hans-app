@@ -1,7 +1,23 @@
-import { Body, Get, NotFoundException, Param, Put, Query, Req } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Get,
+  NotFoundException,
+  Param,
+  Put,
+  Query,
+  Req,
+} from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiController, ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
-import { BatchJobService, BatchRunReadService } from '@hansapp/admin-application';
+import {
+  BatchJobService,
+  BatchRunReadService,
+  DATA_PROVIDERS,
+  stageCatalog,
+  SyncStateService,
+  type DataProvider,
+} from '@hansapp/admin-application';
 import {
   AdminActionLogService,
   CurrentAdmin,
@@ -16,6 +32,7 @@ import {
   BatchJobEnabledDto,
   BatchJobStatusDto,
   BatchOverviewDto,
+  BatchStageDto,
   BatchStageRunDto,
   BatchStageRunQueryDto,
 } from './dto/batch-run.dto';
@@ -36,6 +53,7 @@ export class BatchRunController {
   constructor(
     private readonly batch: BatchRunReadService,
     private readonly master: BatchJobService,
+    private readonly stageState: SyncStateService,
     private readonly actionLog: AdminActionLogService,
   ) {}
 
@@ -133,6 +151,64 @@ export class BatchRunController {
     );
   }
 
+  @Get('stages')
+  @ApiOperation({
+    summary: '단계 목록',
+    description:
+      '기관별 단계와 각각의 on/off 상태를 준다. `provider` 로 좁힐 수 있다.\n\n' +
+      '**잡 카드보다 한 칸 아래의 손잡이다.** 잡(`hira`)을 통째로 끄면 싸고 중요한 목록 ' +
+      '단계(`hira.1`)까지 멈춘다 — 원본 한도를 아끼려면 개별 상세 단계만 골라 꺼야 한다.\n\n' +
+      '`description` 에 콜 수가 함께 적혀 있으니 그걸 보고 판단하면 된다.',
+  })
+  @ApiOkResponse({ type: [BatchStageDto] })
+  async stageList(@Query('provider') provider?: string): Promise<BatchStageDto[]> {
+    const wanted = asProvider(provider);
+    const catalog = stageCatalog().filter(
+      (spec) => wanted === undefined || spec.provider === wanted,
+    );
+    const rows = await this.stageState.listStages(catalog);
+    return rows.map((row) => new BatchStageDto(row));
+  }
+
+  @Put('stages/:job/enabled')
+  @ApiOperation({
+    summary: '단계 켜기 / 끄기',
+    description:
+      '끄면 배치가 와도 그 단계를 건너뛴다. **재시작이 필요 없다** — 실행 시점에 이 값을 읽는다.\n\n' +
+      '**잡 on/off 와 효력이 다르다. 수동 실행도 막는다.** 개발서버와 운영이 같은 서비스키를 ' +
+      '쓰기 때문에, hanscli 로 무심코 돌린 한 번이 그대로 운영 몫의 일일 한도에서 빠진다. ' +
+      '고친 뒤 확인해야 하면 `--force` 로 뚫는다.\n\n' +
+      '누가 언제 바꿨는지는 관리자 행위 로그에 남는다.',
+  })
+  async setStageEnabled(
+    @Param('job') job: string,
+    @Body() body: BatchJobEnabledDto,
+    @CurrentAdmin() admin: AdminAuthUser,
+    @Req() request: Request,
+  ): Promise<BatchStageDto> {
+    // 카탈로그에 없는 단계는 끌 수도 없다 — 코드가 모르는 것을 DB 에 만들지 않는다.
+    const spec = stageCatalog().find((row) => row.job === job);
+    if (!spec) {
+      throw new NotFoundException(`batch stage ${job} not found`);
+    }
+
+    await this.stageState.setEnabled(spec, body.enabled);
+
+    // 단계를 끄면 그 단계가 멈춘다. 나중에 "왜 이 데이터가 안 들어왔나" 를 되짚을 근거를 남긴다.
+    await this.actionLog.record({
+      adminId: admin.adminId,
+      ip: request.ip ?? null,
+      userAgent: request.get('user-agent') ?? null,
+      action: body.enabled ? 'BATCH_STAGE_ENABLE' : 'BATCH_STAGE_DISABLE',
+      result: 'SUCCESS',
+      // 어느 단계인지는 여기 남긴다 — 액션을 단계마다 만들면 단계가 늘 때마다 ALTER 가 따라온다.
+      detail: { job },
+    });
+
+    const rows = await this.stageState.listStages([spec]);
+    return new BatchStageDto(rows[0]);
+  }
+
   @Get('stages/:job')
   @ApiOperation({
     summary: '단계 이력',
@@ -150,6 +226,16 @@ export class BatchRunController {
     const page = await this.batch.listStageRuns(job, query.page, query.size);
     return PageResponseDto.from(page.map((view) => new BatchStageRunDto(view)));
   }
+}
+
+function asProvider(value?: string): DataProvider | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!DATA_PROVIDERS.includes(value as DataProvider)) {
+    throw new BadRequestException(`unknown provider: ${value}`);
+  }
+  return value as DataProvider;
 }
 
 /**

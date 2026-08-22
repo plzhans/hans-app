@@ -483,3 +483,68 @@ export class BatchStageRunQueryDto {
   @Max(100)
   readonly size: number = 30;
 }
+
+/**
+ * 단계 한 줄. 관리자가 여기서 단계를 켜고 끈다.
+ *
+ * **잡 카드보다 한 칸 아래다.** 잡(hira)을 통째로 끄면 싸고 중요한 목록 단계까지 멈추므로,
+ * 원본 한도를 아끼려면 개별 상세 단계만 골라 끌 수 있어야 한다.
+ */
+export class BatchStageDto {
+  @ApiProperty({ description: '단계 키', example: 'hira.2' })
+  readonly job: string;
+
+  @ApiProperty({ description: '기관', example: 'hira' })
+  readonly provider: string;
+
+  @ApiProperty({ description: '단계 번호', example: 2 })
+  readonly stage: number;
+
+  @ApiProperty({
+    description: '무엇을 하는 단계인가. 콜 수가 함께 적혀 있어 끌지 말지를 여기서 판단한다.',
+    example: '개별 상세 — 상급종합 47개 × 10종',
+  })
+  readonly description: string;
+
+  @ApiProperty({
+    description:
+      '켜져 있나. **끄면 스케줄뿐 아니라 수동 실행도 막힌다** — hanscli 로 돌려도 건너뛴다. ' +
+      '고친 뒤 확인해야 하면 `--force` 로 뚫는다.',
+    example: true,
+  })
+  readonly enabled: boolean;
+
+  @ApiProperty({ description: '마지막 상태', example: 'done' })
+  readonly status: string;
+
+  @ApiPropertyOptional({ description: '마지막으로 성공한 시각' })
+  readonly lastSuccessAt: Date | null;
+
+  @ApiPropertyOptional({ description: '다음에 돌 자격이 생기는 시각' })
+  readonly nextEligibleAt: Date | null;
+
+  @ApiProperty({ description: '마지막 실행이 쓴 API 콜 수', example: 276 })
+  readonly calls: number;
+
+  constructor(row: {
+    job: string;
+    provider: string;
+    stage: number;
+    description: string;
+    enabled: boolean;
+    status: string;
+    lastSuccessAt: Date | null;
+    nextEligibleAt: Date | null;
+    calls: number;
+  }) {
+    this.job = row.job;
+    this.provider = row.provider;
+    this.stage = row.stage;
+    this.description = row.description;
+    this.enabled = row.enabled;
+    this.status = row.status;
+    this.lastSuccessAt = row.lastSuccessAt;
+    this.nextEligibleAt = row.nextEligibleAt;
+    this.calls = row.calls;
+  }
+}

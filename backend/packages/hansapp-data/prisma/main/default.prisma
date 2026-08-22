@@ -602,6 +602,23 @@ model SyncState {
   /// "nmc.1 은 다음 화요일에나 돈다" 가 바로 보이라고 둔다.
   nextEligibleAt DateTime? @map("next_eligible_at") @db.DateTime(0)
 
+  /// 사람이 읽는 한 줄 설명. 표만 봐도 무슨 단계인지 알게 한다.
+  /// 정본은 코드(STAGE_CATALOG)이고 여기 실린 것은 거울이다 — 부팅 때 덮어쓴다.
+  description String @default("") @db.VarChar(200)
+
+  /// 이 단계가 살아 있나. **끄면 배치가 와도 이 단계를 건너뛴다.**
+  ///
+  /// **개발서버와 운영이 같은 서비스키를 쓴다.** 원본(data.go.kr)의 일일 한도는 키 단위라
+  /// dev 가 개별 상세를 훑으면 그만큼이 운영 몫에서 빠진다. 잡 단위로는 너무 굵어서
+  /// (hira 를 통째로 끄면 목록까지 멈춘다) 단계 단위로 끊는 손잡이가 필요하다.
+  ///
+  /// **이 표에서 유일하게 DB 가 정본인 열이다.** description 과 달리 부팅 때 안 덮어쓴다 —
+  /// 관리자가 콘솔에서 끈 값이 재부팅으로 되살아나면 안 된다(batch_job.enabled 와 같은 규칙).
+  ///
+  /// **수동 실행도 막는다.** batch_job.enabled 는 스케줄만 껐지만 이쪽은 목적이 한도 보호라,
+  /// hanscli 로 무심코 돌려도 새어나가면 뜻이 없다. 확인이 필요하면 --force 로 뚫는다.
+  enabled Boolean @default(true)
+
   /// 처리 대상 건수
   total Int @default(0)
 

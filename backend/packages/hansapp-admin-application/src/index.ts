@@ -99,8 +99,13 @@ export type {
 export { MoisStageService, MOIS_STAGES } from './mois/mois-stage.service';
 export type { MoisStage } from './mois/mois-stage.service';
 
-export { SyncRunnerService } from './common/sync-runner.service';
-export type { RunAllOptions, RunAllResult, StageRun } from './common/sync-runner.service';
+export { SyncRunnerService, stageCatalog } from './common/sync-runner.service';
+export type {
+  RunAllOptions,
+  RunAllResult,
+  StageRun,
+  StageSpec,
+} from './common/sync-runner.service';
 export { SyncStateService } from './common/sync-state.service';
 // 잡 회차 기록. 배치가 크론 콜백에서 쓴다.
 export { BatchJobService } from './common/batch-job.service';

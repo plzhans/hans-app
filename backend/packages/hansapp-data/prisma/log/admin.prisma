@@ -90,6 +90,11 @@ enum AdminLogAction {
   BATCH_JOB_ENABLE
   /// 배치 잡의 스케줄을 껐다. **수동 실행까지 막는 것은 아니다.**
   BATCH_JOB_DISABLE
+  /// 배치 단계를 켰다. detail 에 단계 키(hira.2 등)가 남는다.
+  BATCH_STAGE_ENABLE
+  /// 배치 단계를 껐다. 잡과 달리 **수동 실행도 막는다**(--force 로만 뚫린다).
+  /// dev 와 운영이 같은 서비스키를 써서, 목적이 한도 보호이기 때문이다.
+  BATCH_STAGE_DISABLE
 }
 
 /// 조치 결과

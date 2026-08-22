@@ -1,5 +1,5 @@
-import { apiFetch } from '@/shared/api/client';
-import type { PageResponse } from '@/shared/api/users';
+import { apiFetch } from "@/shared/api/client";
+import type { PageResponse } from "@/shared/api/users";
 
 /*
   **값이 없는 필드는 응답에서 아예 빠진다.** 서버가 StripNullInterceptor 를 전역으로 걸어
@@ -10,18 +10,13 @@ import type { PageResponse } from '@/shared/api/users';
 
 /** 실행 결과. 서버가 숫자 코드를 이름으로 풀어서 준다. */
 export type BatchRunStatus =
-  | 'IDLE'
-  | 'RUNNING'
-  | 'DONE'
-  | 'PARTIAL'
-  | 'FAILED'
-  | 'SKIPPED';
+  "IDLE" | "RUNNING" | "DONE" | "PARTIAL" | "FAILED" | "SKIPPED";
 
 /** 어떻게 불렸나. CLI 는 사람이 hanscli 로 돌린 것이다. */
-export type BatchRunSource = 'CRON' | 'ONCE' | 'CLI' | 'ADMIN';
+export type BatchRunSource = "CRON" | "ONCE" | "CLI" | "ADMIN";
 
 /** 잡의 도메인 분류. 목록을 이 기준으로 묶는다. */
-export type BatchCategory = 'HEALTHCARE' | 'AUTH' | 'USER';
+export type BatchCategory = "HEALTHCARE" | "AUTH" | "USER";
 
 /** 지금 돌고 있는 단계 한 줄 */
 export interface RunningStage {
@@ -156,15 +151,60 @@ export interface BatchOverview {
 
 /** 잡 목록과 각각의 현황 + 회차 밖 수동 실행. 진행 중이면 runningStages 가 찬다. */
 export function getBatchOverview() {
-  return apiFetch<BatchOverview>('/api/batch/jobs');
+  return apiFetch<BatchOverview>("/api/batch/jobs");
 }
 
 /** 스케줄 켜기/끄기. 재시작 없이 즉시 반영된다. */
 export function setBatchJobEnabled(job: string, enabled: boolean) {
-  return apiFetch<BatchJobStatus>(`/api/batch/jobs/${encodeURIComponent(job)}/enabled`, {
-    method: 'PUT',
-    body: JSON.stringify({ enabled }),
-  });
+  return apiFetch<BatchJobStatus>(
+    `/api/batch/jobs/${encodeURIComponent(job)}/enabled`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    },
+  );
+}
+
+/**
+ * 단계 한 줄. 잡보다 한 칸 아래의 손잡이다.
+ *
+ * **잡을 통째로 끄면 싸고 중요한 목록 단계까지 멈춘다.** 원본(data.go.kr)의 일일 한도는
+ * 서비스키 단위인데 개발서버와 운영이 같은 키를 써서, dev 가 개별 상세를 훑으면
+ * 그만큼이 운영 몫에서 빠진다. 그래서 단계별로 끊을 수 있어야 한다.
+ */
+export interface BatchStage {
+  job: string;
+  provider: string;
+  stage: number;
+  /** 무엇을 하는 단계인가. 콜 수가 함께 적혀 있다. */
+  description: string;
+  /** 꺼지면 스케줄뿐 아니라 수동 실행도 막힌다(--force 로만 뚫린다). */
+  enabled: boolean;
+  status: string;
+  lastSuccessAt?: string | null;
+  nextEligibleAt?: string | null;
+  calls: number;
+}
+
+/** 기관별 단계와 on/off 상태. provider 로 좁힐 수 있다. */
+export function listBatchStages(provider?: string) {
+  const query = provider ? `?provider=${encodeURIComponent(provider)}` : "";
+  return apiFetch<BatchStage[]>(`/api/batch/stages${query}`);
+}
+
+/**
+ * 단계 켜기/끄기. 재시작 없이 즉시 반영된다.
+ *
+ * **잡 on/off 와 효력이 다르다** — 이쪽은 수동 실행(hanscli)까지 막는다.
+ */
+export function setBatchStageEnabled(job: string, enabled: boolean) {
+  return apiFetch<BatchStage>(
+    `/api/batch/stages/${encodeURIComponent(job)}/enabled`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    },
+  );
 }
 
 /** 회차 이력. 최근 순. */
@@ -173,15 +213,19 @@ export function listBatchRuns(params: BatchRunParams) {
     page: String(params.page),
     size: String(params.size),
   });
-  if (params.jobs?.length) query.set('jobs', params.jobs.join(','));
-  if (params.from) query.set('from', params.from);
-  if (params.to) query.set('to', params.to);
-  return apiFetch<PageResponse<BatchJobRun>>(`/api/batch/runs?${query.toString()}`);
+  if (params.jobs?.length) query.set("jobs", params.jobs.join(","));
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  return apiFetch<PageResponse<BatchJobRun>>(
+    `/api/batch/runs?${query.toString()}`,
+  );
 }
 
 /** 회차 하나와 그 안의 단계들. */
 export function getBatchRun(id: string) {
-  return apiFetch<BatchJobRunDetail>(`/api/batch/runs/${encodeURIComponent(id)}`);
+  return apiFetch<BatchJobRunDetail>(
+    `/api/batch/runs/${encodeURIComponent(id)}`,
+  );
 }
 
 /**

@@ -21,6 +21,11 @@ import { MoisRegionSyncService } from './mois-region-sync.service';
 export const MOIS_STAGES = [1] as const;
 export type MoisStage = (typeof MOIS_STAGES)[number];
 
+/** 단계별 한 줄 설명. 관리자 화면이 "무엇을 끄는지" 를 이걸로 보여준다(→ HIRA_STAGE_DESCRIPTIONS). */
+export const MOIS_STAGE_DESCRIPTIONS: Record<MoisStage, string> = {
+  1: '목록 — 법정동코드 전량 (21콜). 지역 정본이라 끄면 병원 지역이 낡는다',
+};
+
 @Injectable()
 export class MoisStageService {
   private readonly logger = new Logger(MoisStageService.name);
