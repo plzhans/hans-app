@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.10.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.9.1...release-frontend/v0.10.0) (2026-08-22)
+
+
+### 기능
+
+* **admin:** 관리자에 병원 목록 조회를 넣는다 ([dcb9951](https://github.com/plzhans/hans-app/commit/dcb99513b33ab4d312eb09e83a9abbc1b8f90570))
+* **admin:** 배치 화면을 현황·설정 탭으로 나누고 잡·단계 on/off 를 한데 모은다 ([426f8c5](https://github.com/plzhans/hans-app/commit/426f8c55652c7260f46f92a1470e4c594bed8095))
+* **admin:** 병원 상세·메타·캐시를 추가하고 HIRA·NMC 원본 미러 조회를 넣는다 ([b0d4687](https://github.com/plzhans/hans-app/commit/b0d46872369c3e1b5300b3d8a59d847c61bd51b1))
+* **batch:** 단계 단위로 켜고 끌 수 있게 한다 ([758691c](https://github.com/plzhans/hans-app/commit/758691cb5cf5c818964efe6b9ee6cfc77eef12b4))
+* **batch:** 잡별 스케줄·실행 이력·분산 락을 넣는다 ([a4fbea4](https://github.com/plzhans/hans-app/commit/a4fbea4a0199bcd00515cbbef3fac98e57db2069))
+* **frontend:** 오류 문구를 코드로 고른다 ([331a0f3](https://github.com/plzhans/hans-app/commit/331a0f39ee27754225733c52b66f0e50198bfb16))
+* **medifinder-web:** add ads.txt for AdSense ([9ef211f](https://github.com/plzhans/hans-app/commit/9ef211f46672dd11b6d4f8de1edb59c636b9f1fa))
+* **sentry:** 부팅 실패를 알리고 관리자 콘솔에도 Sentry 를 건다 ([54309d8](https://github.com/plzhans/hans-app/commit/54309d864592fcd32086b9374792836f3d2b7cf3))
+
+
+### 버그 수정
+
+* **legal:** 약관·방침을 한국어 한 벌로 두고 현행 기능을 반영한다 ([a2f3df2](https://github.com/plzhans/hans-app/commit/a2f3df2d9dbbc0ea4f1b9477d814150f5bbe7eea))
+
 ## [0.9.1](https://github.com/plzhans/hans-app/compare/release-frontend/v0.9.0...release-frontend/v0.9.1) (2026-08-14)
 
 
