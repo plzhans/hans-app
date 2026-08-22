@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.17.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.16.0...release-backend/v0.17.0) (2026-08-22)
+
+
+### 기능
+
+* **admin:** 관리자에 병원 목록 조회를 넣는다 ([dcb9951](https://github.com/plzhans/hans-app/commit/dcb99513b33ab4d312eb09e83a9abbc1b8f90570))
+* **admin:** 병원 상세·메타·캐시를 추가하고 HIRA·NMC 원본 미러 조회를 넣는다 ([b0d4687](https://github.com/plzhans/hans-app/commit/b0d46872369c3e1b5300b3d8a59d847c61bd51b1))
+* **batch:** 단계 단위로 켜고 끌 수 있게 한다 ([758691c](https://github.com/plzhans/hans-app/commit/758691cb5cf5c818964efe6b9ee6cfc77eef12b4))
+* **batch:** 잡별 스케줄·실행 이력·분산 락을 넣는다 ([a4fbea4](https://github.com/plzhans/hans-app/commit/a4fbea4a0199bcd00515cbbef3fac98e57db2069))
+* **data:** sync_state.provider 를 batch_job 참조 FK로 옮긴다 ([f56ff06](https://github.com/plzhans/hans-app/commit/f56ff06078d6274b69b251803bfa8240f0d64f8b))
+* **error:** 계층별 오류 코드 표와 전역 오류 필터를 둔다 ([40954cf](https://github.com/plzhans/hans-app/commit/40954cf2be137ab322abc7b669a2c6068b74448d))
+* **sentry:** 부팅 실패를 알리고 관리자 콘솔에도 Sentry 를 건다 ([54309d8](https://github.com/plzhans/hans-app/commit/54309d864592fcd32086b9374792836f3d2b7cf3))
+
+
+### 버그 수정
+
+* **llm:** llm_usage 에서 질문 해시를 뺀다 ([6a00507](https://github.com/plzhans/hans-app/commit/6a00507606881e76ffa82e8b936b142428dcc15c))
+
+
+### 구조 변경
+
+* **log:** 로그·예외를 영어로 쓰고 우리 오류 객체로 옮긴다 ([0b8c1fb](https://github.com/plzhans/hans-app/commit/0b8c1fb7d7e93994aed44a8106f27cfb3e45a458))
+
 ## [0.16.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.15.0...release-backend/v0.16.0) (2026-08-14)
 
 
