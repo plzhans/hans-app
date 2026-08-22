@@ -497,8 +497,9 @@ model JobQueue {
 /// 부팅 때 스케줄러가 등록하면서 upsert 하므로 잡이 늘면 행도 저절로 는다.
 ///
 /// **여기 담는 것은 스케줄이 붙은 것뿐이다.** 적재 단계(nmc.1 등)는 자기 크론이 없고
-/// daily-sync 안에서 도는 것이라 sync_state 가 맡는다. 두 표는 같은 모양의 짝이다 —
-/// 이력도 각각 batch_job_history · sync_state_history 로 따로 쌓인다(로그 DB).
+/// daily-sync 안에서 도는 것이라 sync_state 가 맡는다 — sync_state.provider 가 이 표의
+/// job 을 참조하는 자식이다(아래 stages). 이력도 각각 batch_job_history ·
+/// sync_state_history 로 따로 쌓인다(로그 DB).
 ///
 /// **크론식·분류·설명은 여기가 정본이 아니다.** 정본은 코드와 config(apps-batch.cron 등)이고
 /// 이 열들은 부팅 때 실어 넣는 거울이다 — 여기를 고쳐도 주기는 안 바뀐다.
@@ -566,6 +567,10 @@ model BatchJob {
 
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
+  /// 이 잡 안에서 도는 하위 단계들(sync_state). 잡이 아니라 코드가 정하는 관계라
+  /// FK 로 존재를 보장할 뿐 여기서 채우거나 지우지 않는다 — 쓰는 쪽은 항상 sync_state 다.
+  stages SyncState[]
+
   @@map("batch_job")
 }
 
@@ -573,8 +578,15 @@ model SyncState {
   /// 실행 단위 식별자. 예: nmc.1, nmc.2.A, hira.2, hira.4.equipment
   job String @id @db.VarChar(50)
 
-  /// mois | nmc | hira
+  /// mois | nmc | hira. **batch_job.job 을 참조하는 FK다**(아래 batchJob) — 문자열을
+  /// 손으로 맞춰 쓰던 것을 DB 가 강제하게 바꿨다. 오타·존재하지 않는 provider 는
+  /// 이제 쓰는 시점에 제약 위반으로 막힌다.
   provider String @db.VarChar(10)
+
+  /// provider 가 가리키는 잡. **onDelete: Restrict** — batch_job 은 코드가 정하는 고정
+  /// 목록이라 지울 일이 사실상 없지만, 혹시 지우려 하면 이 표에 남은 단계가 먼저
+  /// 걸린다(말없이 고아 행을 남기는 것보다 낫다).
+  batchJob BatchJob @relation(fields: [provider], references: [job], onDelete: Restrict, map: "fk_sync_state_batch_job")
 
   /// 단계 번호. 계획 문서(krdata-cache-plan.md)의 단계와 1:1 이다.
   stage Int
