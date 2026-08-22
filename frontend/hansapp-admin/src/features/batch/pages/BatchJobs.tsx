@@ -1,18 +1,14 @@
 import { Link } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ChevronRight, Pause, Play } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, ChevronRight } from 'lucide-react';
 
-import {
-  getBatchOverview,
-  setBatchJobEnabled,
-  type BatchJobStatus,
-  type RunningStage,
-} from '@/shared/api/batch';
+import { getBatchOverview, type BatchJobStatus, type RunningStage } from '@/shared/api/batch';
 import { errorMessage } from '@/shared/api/errorMessage';
 import { AdminLayout } from '@/shared/components/AdminLayout';
 import { cn } from '@/shared/lib/cn';
 import { formatDateTime } from '@/shared/lib/formatDateTime';
 import { Badge } from '@/shared/ui/Badge';
+import { BatchTabs } from '../components/BatchTabs';
 import {
   CATEGORY_LABEL,
   CATEGORY_ORDER,
@@ -72,6 +68,8 @@ export default function BatchJobs() {
       description="정해진 시각에 도는 작업들입니다. 지금 진행 상황과 마지막 결과를 봅니다."
       breadcrumbs={[{ label: '배치' }]}
     >
+      <BatchTabs current="overview" />
+
       {query.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600">
           {errorMessage(query.error, '배치 현황을 불러오지 못했습니다.')}
@@ -232,14 +230,6 @@ function StageLine({ stage, stalled }: { stage: RunningStage; stalled?: boolean 
 
 function JobCard({ job }: { job: BatchJobStatus }) {
   const running = job.status === 'RUNNING';
-  const client = useQueryClient();
-
-  const toggle = useMutation({
-    mutationFn: () => setBatchJobEnabled(job.job, !job.enabled),
-    // 서버가 정본이다. 낙관적 갱신을 하지 않고 목록을 다시 읽는다 —
-    // 껐다고 화면에 떠 있는데 실제로는 안 꺼진 것이 제일 나쁘다.
-    onSettled: () => client.invalidateQueries({ queryKey: ['batch-jobs'] }),
-  });
 
   return (
     <div
@@ -264,7 +254,7 @@ function JobCard({ job }: { job: BatchJobStatus }) {
             {job.enabled ? (
               <StatusBadge status={job.status} />
             ) : (
-              <Badge tone="gray">스케줄 중지</Badge>
+              <Badge tone="red">스케줄 중지</Badge>
             )}
             {/* 연속 실패는 한 번 실패와 무게가 다르다. 이어지고 있다는 사실 자체가 신호다. */}
             {job.failureStreak > 1 && (
@@ -277,36 +267,13 @@ function JobCard({ job }: { job: BatchJobStatus }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={() => toggle.mutate()}
-            disabled={toggle.isPending}
-            title={
-              job.enabled
-                ? '스케줄을 끕니다. 수동 실행은 계속 가능합니다.'
-                : '스케줄을 다시 켭니다.'
-            }
-            className={cn(
-              'flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition',
-              'disabled:opacity-50',
-              job.enabled
-                ? 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                : 'border-blue-300 text-blue-600 hover:bg-blue-50',
-            )}
+          {/* 켜고 끄는 건 설정 탭의 몫이다(BatchTabs) — 여기는 보기 전용이다. */}
+          <Link
+            to="/batch/stages"
+            className="text-xs font-semibold text-gray-500 hover:text-gray-800 hover:underline"
           >
-            {job.enabled ? (
-              <>
-                <Pause className="h-3 w-3" />
-                중지
-              </>
-            ) : (
-              <>
-                <Play className="h-3 w-3" />
-                시작
-              </>
-            )}
-          </button>
-
+            설정에서 켜고 끄기
+          </Link>
           <Link
             to={`/batch/runs?jobs=${encodeURIComponent(job.job)}`}
             className="flex items-center gap-0.5 text-xs font-semibold text-blue-600 hover:underline"

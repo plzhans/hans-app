@@ -62,6 +62,9 @@ export function Sidebar({ collapsed, open, onNavigate }: Props) {
               <NavLink
                 key={to}
                 to={to}
+                // 기본은 부분 일치라 "/batch" 가 "/batch/stages" 에서도 같이 켜진다.
+                // 메뉴 항목끼리 부모·자식 경로가 아니므로 정확히 일치할 때만 켠다.
+                end
                 onClick={onNavigate}
                 // 접혔을 때는 글자가 없으니 마우스를 올리면 이름이 뜨게 한다.
                 title={collapsed ? label : undefined}
