@@ -74,11 +74,11 @@ export class HospitalAdminListQueryDto {
   @MaxLength(10)
   readonly regionCd?: string;
 
-  @ApiPropertyOptional({ description: '[es 전용] 등급 코드' })
+  @ApiPropertyOptional({ description: '[es 전용] 등급 코드. 쉼표로 여러 개.', isArray: true })
   @IsOptional()
-  @IsString()
-  @MaxLength(30)
-  readonly tier?: string;
+  @Transform(toCodeArray)
+  @IsString({ each: true })
+  readonly tier?: string[];
 
   @ApiPropertyOptional({ description: '[es 전용] 응급실 운영' })
   @IsOptional()

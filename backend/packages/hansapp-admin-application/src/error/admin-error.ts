@@ -25,6 +25,21 @@ export class AdminBoardNotFoundError extends NotFoundError {
   static readonly code: AppErrorCode = AdminErrorCode.ADMIN_BOARD_NOT_FOUND;
 }
 
+/** healthcare_hospital 에 그 id 가 없다. */
+export class AdminHospitalNotFoundError extends NotFoundError {
+  static readonly code: AppErrorCode = AdminErrorCode.ADMIN_HOSPITAL_NOT_FOUND;
+}
+
+/** hira_hospital 에 그 요양기호가 없다. */
+export class AdminHiraMirrorNotFoundError extends NotFoundError {
+  static readonly code: AppErrorCode = AdminErrorCode.ADMIN_HIRA_MIRROR_NOT_FOUND;
+}
+
+/** nmc_hospital 에 그 기관ID가 없다. */
+export class AdminNmcMirrorNotFoundError extends NotFoundError {
+  static readonly code: AppErrorCode = AdminErrorCode.ADMIN_NMC_MIRROR_NOT_FOUND;
+}
+
 /** 게시판 이름이 이미 쓰이고 있다. */
 export class AdminBoardNameInUseError extends BadRequestError {
   static readonly code: AppErrorCode = AdminErrorCode.ADMIN_BOARD_NAME_IN_USE;

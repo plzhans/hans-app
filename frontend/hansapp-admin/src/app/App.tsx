@@ -1,38 +1,44 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import { useAuthStore } from '@/shared/auth/authStore';
-import Login from '@/features/auth/pages/Login';
-import ChangePassword from '@/features/auth/pages/ChangePassword';
-import ForgotPassword from '@/features/auth/pages/ForgotPassword';
-import ResetPassword from '@/features/auth/pages/ResetPassword';
-import Me from '@/features/auth/pages/Me';
-import Users from '@/features/users/pages/Users';
-import UserDetail from '@/features/users/pages/UserDetail';
-import UserApps from '@/features/users/pages/UserApps';
-import UserSessions from '@/features/users/pages/UserSessions';
-import UserAuthLogs from '@/features/users/pages/UserAuthLogs';
-import UserCache from '@/features/users/pages/UserCache';
-import Apps from '@/features/apps/pages/Apps';
-import AppDetail from '@/features/apps/pages/AppDetail';
-import MailSettings from '@/features/settings/pages/MailSettings';
-import IntegrationSettings from '@/features/settings/pages/IntegrationSettings';
-import LlmSettings from '@/features/settings/pages/LlmSettings';
-import Maintenance from '@/features/settings/pages/Maintenance';
-import Boards from '@/features/community/pages/Boards';
-import Posts from '@/features/community/pages/Posts';
-import PostView from '@/features/community/pages/PostView';
-import PostEdit from '@/features/community/pages/PostEdit';
-import Admins from '@/features/admins/pages/Admins';
-import AdminDetail from '@/features/admins/pages/AdminDetail';
-import AdminSessions from '@/features/admins/pages/AdminSessions';
-import AdminCache from '@/features/admins/pages/AdminCache';
-import AdminActionLogs from '@/features/admins/pages/AdminActionLogs';
-import AuthLogs from '@/features/logs/pages/AuthLogs';
-import LlmUsageLogs from '@/features/logs/pages/LlmUsageLogs';
-import BatchJobs from '@/features/batch/pages/BatchJobs';
-import BatchRuns from '@/features/batch/pages/BatchRuns';
-import Hospitals from '@/features/healthcare/pages/Hospitals';
+import { useAuthStore } from "@/shared/auth/authStore";
+import Login from "@/features/auth/pages/Login";
+import ChangePassword from "@/features/auth/pages/ChangePassword";
+import ForgotPassword from "@/features/auth/pages/ForgotPassword";
+import ResetPassword from "@/features/auth/pages/ResetPassword";
+import Me from "@/features/auth/pages/Me";
+import Users from "@/features/users/pages/Users";
+import UserDetail from "@/features/users/pages/UserDetail";
+import UserApps from "@/features/users/pages/UserApps";
+import UserSessions from "@/features/users/pages/UserSessions";
+import UserAuthLogs from "@/features/users/pages/UserAuthLogs";
+import UserCache from "@/features/users/pages/UserCache";
+import Apps from "@/features/apps/pages/Apps";
+import AppDetail from "@/features/apps/pages/AppDetail";
+import MailSettings from "@/features/settings/pages/MailSettings";
+import IntegrationSettings from "@/features/settings/pages/IntegrationSettings";
+import LlmSettings from "@/features/settings/pages/LlmSettings";
+import Maintenance from "@/features/settings/pages/Maintenance";
+import Boards from "@/features/community/pages/Boards";
+import Posts from "@/features/community/pages/Posts";
+import PostView from "@/features/community/pages/PostView";
+import PostEdit from "@/features/community/pages/PostEdit";
+import Admins from "@/features/admins/pages/Admins";
+import AdminDetail from "@/features/admins/pages/AdminDetail";
+import AdminSessions from "@/features/admins/pages/AdminSessions";
+import AdminCache from "@/features/admins/pages/AdminCache";
+import AdminActionLogs from "@/features/admins/pages/AdminActionLogs";
+import AuthLogs from "@/features/logs/pages/AuthLogs";
+import LlmUsageLogs from "@/features/logs/pages/LlmUsageLogs";
+import BatchJobs from "@/features/batch/pages/BatchJobs";
+import BatchRuns from "@/features/batch/pages/BatchRuns";
+import BatchStages from "@/features/batch/pages/BatchStages";
+import Hospitals from "@/features/healthcare/pages/Hospitals";
+import HospitalDetail from "@/features/healthcare/pages/HospitalDetail";
+import HospitalCache from "@/features/healthcare/pages/HospitalCache";
+import IntegrationDashboard from "@/features/integrations/pages/IntegrationDashboard";
+import MirrorHospitals from "@/features/integrations/pages/MirrorHospitals";
+import MirrorHospitalDetail from "@/features/integrations/pages/MirrorHospitalDetail";
 
 function FullScreenMessage({ children }: { children: string }) {
   return (
@@ -89,7 +95,7 @@ export default function App() {
     void bootstrap();
   }, [bootstrap]);
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return <FullScreenMessage>불러오는 중…</FullScreenMessage>;
   }
 
@@ -97,13 +103,13 @@ export default function App() {
     **서버에 닿지 못한 상태다. 로그아웃이 아니다.** 로그인 화면을 띄우면 세션이 멀쩡한데도
     비밀번호를 다시 치게 되므로, 여기서 기다렸다가 서버가 돌아오면 그대로 이어 붙인다.
   */
-  if (status === 'offline') {
+  if (status === "offline") {
     return <Offline onRetry={bootstrap} />;
   }
 
   return (
     <BrowserRouter>
-      {status === 'anonymous' ? (
+      {status === "anonymous" ? (
         <Routes>
           <Route path="/login" element={<Login />} />
           {/* 비밀번호 찾기. **로그인 전에만 갈 수 있는 곳이다.** */}
@@ -112,7 +118,7 @@ export default function App() {
           {/* 그 밖에는 어디로 가든 로그인 화면이다. */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      ) : status === 'mustChange' ? (
+      ) : status === "mustChange" ? (
         /*
           **비밀번호를 바꾸기 전에는 이 화면 하나뿐이다.**
           주소를 직접 쳐도 여기로 돌아온다. 화면을 뚫어도 서버가 403 을 주므로
@@ -141,6 +147,7 @@ export default function App() {
           {/* 배치. 현황 화면에서 잡을 고르면 그 잡의 이력으로 넘어간다. */}
           <Route path="/batch" element={<BatchJobs />} />
           <Route path="/batch/runs" element={<BatchRuns />} />
+          <Route path="/batch/stages" element={<BatchStages />} />
           <Route path="/settings/mail" element={<MailSettings />} />
           <Route
             path="/settings/integrations"
@@ -151,6 +158,39 @@ export default function App() {
           <Route path="/settings/maintenance" element={<Maintenance />} />
           {/* 헬스케어. healthcare_hospital 을 조회한다(쓰기는 빌드 파이프라인의 몫이다). */}
           <Route path="/healthcare/hospitals" element={<Hospitals />} />
+          <Route
+            path="/healthcare/hospitals/:id"
+            element={<HospitalDetail />}
+          />
+          <Route
+            path="/healthcare/hospitals/:id/cache"
+            element={<HospitalCache />}
+          />
+          {/* 연동 데이터. healthcare_hospital 과 무관하게 HIRA·NMC 원본 미러를 본다. */}
+          <Route
+            path="/hira/dashboard"
+            element={<IntegrationDashboard source="hira" />}
+          />
+          <Route
+            path="/nmc/dashboard"
+            element={<IntegrationDashboard source="nmc" />}
+          />
+          <Route
+            path="/hira/hospitals"
+            element={<MirrorHospitals source="hira" />}
+          />
+          <Route
+            path="/nmc/hospitals"
+            element={<MirrorHospitals source="nmc" />}
+          />
+          <Route
+            path="/hira/hospitals/:id"
+            element={<MirrorHospitalDetail source="hira" />}
+          />
+          <Route
+            path="/nmc/hospitals/:id"
+            element={<MirrorHospitalDetail source="nmc" />}
+          />
           {/* 커뮤니티. 게시판을 만들고 규칙을 정한다. */}
           <Route path="/boards" element={<Boards />} />
           <Route path="/boards/:boardId/posts" element={<Posts />} />

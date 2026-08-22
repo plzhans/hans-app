@@ -16,7 +16,7 @@ import { message, registerErrorCodes } from '@hansapp/common';
  *   21000  관리자 계정 관리        26000  설정·유지보수
  *   22000  관리자 소셜 로그인      27000  회원 관리
  *   23000  앱 심사                28000  로그 조회
- *   24000  커뮤니티(게시판)
+ *   24000  커뮤니티(게시판)        29000  연동 데이터(HIRA·NMC 미러)
  *
  * ── 새 번호를 다는 법 ─────────────────────────────────────────────────────────
  * 한 줄이면 된다. 문구를 안 적으면 **이름이 그대로 문구가 된다.**
@@ -172,6 +172,8 @@ export class AdminErrorCode {
   /** 검색 인덱스·alias 가 색인할 수 없는 상태다. */
   @message('The search index is not in a usable state.')
   static readonly ADMIN_SEARCH_INDEX_INVALID = 26008;
+  @message('Hospital not found.')
+  static readonly ADMIN_HOSPITAL_NOT_FOUND = 26009;
 
   // ── 회원 관리 ────────────────────────────────────────────────────────────────
   @message('User not found.')
@@ -186,6 +188,12 @@ export class AdminErrorCode {
   /** 기간 없이 전부 훑으면 로그 표를 통째로 읽는다. 시작 시각이나 요청 id 가 있어야 한다. */
   @message('A start time (from) is required.')
   static readonly ADMIN_LOG_RANGE_REQUIRED = 28000;
+
+  // ── 연동 데이터(HIRA·NMC 미러) ─────────────────────────────────────────────────
+  @message('HIRA mirror hospital not found.')
+  static readonly ADMIN_HIRA_MIRROR_NOT_FOUND = 29000;
+  @message('NMC mirror hospital not found.')
+  static readonly ADMIN_NMC_MIRROR_NOT_FOUND = 29001;
 }
 
 // **클래스 바로 밑에서 등록한다.** 자동화할 수 없는 이유는 registerErrorCodes 주석에 있다.

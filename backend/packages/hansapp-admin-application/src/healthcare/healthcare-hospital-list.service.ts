@@ -31,7 +31,7 @@ export interface HospitalAdminListQuery {
   status?: string;
   classCd?: string;
   regionCd?: string;
-  tier?: string;
+  tier?: string[];
   emergency?: boolean;
   baby?: boolean;
   subjectCds?: string[];
@@ -127,7 +127,7 @@ function toSearchFilter(query: HospitalAdminListQuery): HospitalAdminSearchFilte
     keyword: query.keyword,
     regionCds: query.regionCd ? [query.regionCd] : undefined,
     classCds: query.classCd ? [query.classCd] : undefined,
-    tiers: query.tier ? [query.tier] : undefined,
+    tiers: query.tier,
     emergency: query.emergency,
     baby: query.baby,
     subjectCds: query.subjectCds,

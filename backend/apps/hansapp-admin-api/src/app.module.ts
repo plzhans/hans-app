@@ -28,6 +28,8 @@ import { BoardController } from './community/board.controller';
 import { BoardPostController } from './community/board-post.controller';
 import { LlmUsageLogController } from './logs/llm-usage-log.controller';
 import { HospitalController } from './healthcare/hospital.controller';
+import { HiraMirrorController } from './integrations/hira-mirror.controller';
+import { NmcMirrorController } from './integrations/nmc-mirror.controller';
 
 @Module({})
 export class AppModule {
@@ -88,6 +90,8 @@ export class AppModule {
         BoardController,
         BoardPostController,
         HospitalController,
+        HiraMirrorController,
+        NmcMirrorController,
       ],
       providers: [
         // 폭주 요청을 인증 처리 전에 값싸게 쳐내려면 이쪽이 먼저다.

@@ -1,6 +1,7 @@
 import {
   Boxes,
   Brush,
+  Database,
   Hospital,
   MessageSquareText,
   KeyRound,
@@ -12,7 +13,7 @@ import {
   Sparkles,
   Users,
   type LucideIcon,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -38,19 +39,28 @@ export interface NavSection {
 export const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { to: '/users', label: '회원', icon: Users },
-      { to: '/apps', label: '앱', icon: Boxes },
+      { to: "/users", label: "회원", icon: Users },
+      { to: "/apps", label: "앱", icon: Boxes },
     ],
   },
   {
     // 커뮤니티. 지금은 게시판 하나뿐이고, 글 관리 화면이 생기면 여기 붙는다.
-    title: '커뮤니티',
-    items: [{ to: '/boards', label: '게시판', icon: MessageSquareText }],
+    title: "커뮤니티",
+    items: [{ to: "/boards", label: "게시판", icon: MessageSquareText }],
   },
   {
     // 공공데이터로 쌓은 healthcare_hospital 을 들여다보는 자리. 적재·색인은 배치가 한다.
-    title: '헬스케어',
-    items: [{ to: '/healthcare/hospitals', label: '병원', icon: Hospital }],
+    title: "헬스케어",
+    items: [{ to: "/healthcare/hospitals", label: "병원", icon: Hospital }],
+  },
+  {
+    // HIRA·NMC 원본 미러(hira_*/nmc_*). healthcare_hospital 과 무관하게 원본 자체를 본다.
+    // 각 항목은 대시보드(테이블별 건수)로 가고, 거기서 "목록 보기" 로 병원 목록에 옮겨간다.
+    title: "연동 데이터",
+    items: [
+      { to: "/hira/dashboard", label: "HIRA", icon: Database },
+      { to: "/nmc/dashboard", label: "NMC", icon: Database },
+    ],
   },
   {
     /*
@@ -62,29 +72,31 @@ export const NAV_SECTIONS: NavSection[] = [
       기록은 여기가 아니라 그 회원 상세의 탭이다 — 둘은 조회 방향도 인덱스도 다르다.
       서비스 행위 로그(좋아요·조회)가 생기면 그것도 여기 붙는다.
     */
-    title: '로그',
+    title: "로그",
     items: [
-      { to: '/logs/auth', label: '인증', icon: KeyRound },
-      { to: '/logs/llm', label: 'LLM 사용', icon: ScrollText },
+      { to: "/logs/auth", label: "인증", icon: KeyRound },
+      { to: "/logs/llm", label: "LLM 사용", icon: ScrollText },
     ],
   },
   {
     /*
       **정해진 시각에 저절로 도는 것들의 자리다.** 로그 구역과 가까워 보이지만 다르다 —
       로그는 이미 벌어진 일을 훑는 곳이고, 여기는 **지금 돌고 있는지**를 보는 곳이다.
+      현황(보기)·설정(단계 on/off, 고치기)은 한 화면 안 탭으로 갈린다(BatchTabs) —
+      사이드바 항목은 하나만 둔다.
     */
-    title: '배치',
-    items: [{ to: '/batch', label: '현황', icon: Timer }],
+    title: "배치",
+    items: [{ to: "/batch", label: "배치 설정", icon: Timer }],
   },
   {
     // 성격이 다른 것을 한 화면에 몰지 않는다 — 메일과 연동키는 고치는 사람도 시점도 다르다.
-    title: '설정',
+    title: "설정",
     items: [
-      { to: '/settings/mail', label: '메일', icon: Mail },
-      { to: '/settings/integrations', label: '외부 연동', icon: Plug },
-      { to: '/settings/llm', label: 'LLM', icon: Sparkles },
+      { to: "/settings/mail", label: "메일", icon: Mail },
+      { to: "/settings/integrations", label: "외부 연동", icon: Plug },
+      { to: "/settings/llm", label: "LLM", icon: Sparkles },
       // 값을 고치는 화면들과 성격이 다르지만(지우는 화면), 서비스 전체를 다룬다는 점이 같다.
-      { to: '/settings/maintenance', label: '정리하기', icon: Brush },
+      { to: "/settings/maintenance", label: "정리하기", icon: Brush },
     ],
   },
   {
@@ -93,7 +105,7 @@ export const NAV_SECTIONS: NavSection[] = [
       "이 콘솔에 누가 들어올 수 있는가" 다 — 설정 구역에 섞으면 값을 고치는 화면들 사이에
       계정 삭제가 끼어 성격이 흐려진다.
     */
-    title: '콘솔',
-    items: [{ to: '/admins', label: '관리자', icon: ShieldCheck }],
+    title: "콘솔",
+    items: [{ to: "/admins", label: "관리자", icon: ShieldCheck }],
   },
 ];

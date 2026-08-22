@@ -22,6 +22,46 @@ export type {
   HospitalAdminListQuery,
 } from './healthcare/healthcare-hospital-list.service';
 export type { HospitalAdminRow } from './healthcare/healthcare-hospital-list-search.repository';
+
+export { HealthcareHospitalDetailService } from './healthcare/healthcare-hospital-detail.service';
+export { HealthcareHospitalCacheInvalidator } from './healthcare/healthcare-hospital-cache.invalidator';
+export type { HospitalCacheState } from './healthcare/healthcare-hospital-cache.invalidator';
+
+export { HealthcareHospitalMetaService } from './healthcare/healthcare-hospital-meta.service';
+export type {
+  HospitalMeta,
+  HospitalMetaOption,
+  HospitalMetaRegion,
+} from './healthcare/healthcare-hospital-meta.service';
+
+export type {
+  HospitalAdminDetail,
+  HospitalAdminSubject,
+  HospitalAdminEquipment,
+  HospitalAdminCapability,
+  HospitalAdminHours,
+  HospitalAdminStaff,
+  HospitalAdminBeds,
+  HospitalAdminI18n,
+  HospitalAdminAssessmentGroup,
+  HospitalAdminAssessmentItem,
+} from './healthcare/healthcare-hospital-detail.service';
+/** 연동 데이터(HIRA 미러) 목록·상세. healthcare_hospital 과 무관하게 hira_* 원본만 본다. */
+export { HiraMirrorListService } from './hira/hira-mirror-list.service';
+export type { HiraMirrorListQuery, HiraMirrorListRow } from './hira/hira-mirror-list.service';
+export { HiraMirrorDetailService } from './hira/hira-mirror-detail.service';
+export type { HiraMirrorHospitalDetail } from './hira/hira-mirror-detail.service';
+export { HiraMirrorDashboardService } from './hira/hira-mirror-dashboard.service';
+
+/** 연동 데이터(NMC 미러) 목록·상세. healthcare_hospital 과 무관하게 nmc_* 원본만 본다. */
+export { NmcMirrorListService } from './nmc/nmc-mirror-list.service';
+export type { NmcMirrorListQuery, NmcMirrorListRow } from './nmc/nmc-mirror-list.service';
+export { NmcMirrorDetailService } from './nmc/nmc-mirror-detail.service';
+export type { NmcMirrorHospitalDetail } from './nmc/nmc-mirror-detail.service';
+export { NmcMirrorDashboardService } from './nmc/nmc-mirror-dashboard.service';
+
+export type { MirrorSection, MirrorSectionItem, MirrorTableCount } from './common/mirror-section';
+
 export { NmcQueryService } from './nmc/nmc-query.service';
 export { NmcHospitalReadService } from './nmc/nmc-hospital-read.service';
 export type { NmcHospitalListOptions } from './nmc/nmc-hospital-read.service';

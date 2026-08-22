@@ -111,10 +111,12 @@ export class HealthcareHospitalListSearchRepository {
   private buildQuery(filter: HospitalAdminSearchFilter): QueryDslQueryContainer {
     const must: QueryDslQueryContainer[] = [];
     if (filter.keyword) {
+      // name.ko/legal_name 은 keyword 타입(정확일치 전용)이라 부분검색이 안 걸린다.
+      // 분석기가 붙은 search.name.ko(text, ko_text, index_prefixes)로 찾는다 — legal_name도
+      // copy_to로 같은 필드에 들어가 있어(스키마 참고) 이 필드 하나로 병원명·법인명을 다 덮는다.
       must.push({
-        multi_match: {
-          query: filter.keyword,
-          fields: ['name.ko^3', 'legal_name'],
+        match: {
+          'search.name.ko': filter.keyword,
         },
       });
     }

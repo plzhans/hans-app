@@ -87,6 +87,11 @@ import { HealthcareIndexService } from './healthcare/healthcare-index.service';
 import { HealthcareHospitalListRepository } from './healthcare/healthcare-hospital-list.repository';
 import { HealthcareHospitalListSearchRepository } from './healthcare/healthcare-hospital-list-search.repository';
 import { HealthcareHospitalListService } from './healthcare/healthcare-hospital-list.service';
+import { HealthcareHospitalDetailRepository } from './healthcare/healthcare-hospital-detail.repository';
+import { HealthcareHospitalDetailService } from './healthcare/healthcare-hospital-detail.service';
+import { HealthcareHospitalMetaRepository } from './healthcare/healthcare-hospital-meta.repository';
+import { HealthcareHospitalMetaService } from './healthcare/healthcare-hospital-meta.service';
+import { HealthcareHospitalCacheInvalidator } from './healthcare/healthcare-hospital-cache.invalidator';
 import { HiraStageService } from './hira/hira-stage.service';
 import { HiraAssessmentSyncService } from './hira/hira-assessment-sync.service';
 import { HiraNpaySyncService } from './hira/hira-npay-sync.service';
@@ -98,6 +103,12 @@ import { HiraCodeSyncService } from './hira/hira-code-sync.service';
 import { HiraHospitalSyncService } from './hira/hira-hospital-sync.service';
 import { HiraHospitalReadService } from './hira/hira-hospital-read.service';
 import { HiraQueryService } from './hira/hira-query.service';
+import { HiraMirrorListRepository } from './hira/hira-mirror-list.repository';
+import { HiraMirrorListService } from './hira/hira-mirror-list.service';
+import { HiraMirrorDetailRepository } from './hira/hira-mirror-detail.repository';
+import { HiraMirrorDetailService } from './hira/hira-mirror-detail.service';
+import { HiraMirrorDashboardRepository } from './hira/hira-mirror-dashboard.repository';
+import { HiraMirrorDashboardService } from './hira/hira-mirror-dashboard.service';
 import {
   buildKrDataConfig,
   DEFAULT_HIRA_DETAIL_VERSION,
@@ -128,6 +139,12 @@ import { NmcCodeSyncService } from './nmc/nmc-code-sync.service';
 import { NmcHospitalSyncService } from './nmc/nmc-hospital-sync.service';
 import { NmcHospitalReadService } from './nmc/nmc-hospital-read.service';
 import { NmcQueryService } from './nmc/nmc-query.service';
+import { NmcMirrorListRepository } from './nmc/nmc-mirror-list.repository';
+import { NmcMirrorListService } from './nmc/nmc-mirror-list.service';
+import { NmcMirrorDetailRepository } from './nmc/nmc-mirror-detail.repository';
+import { NmcMirrorDetailService } from './nmc/nmc-mirror-detail.service';
+import { NmcMirrorDashboardRepository } from './nmc/nmc-mirror-dashboard.repository';
+import { NmcMirrorDashboardService } from './nmc/nmc-mirror-dashboard.service';
 
 /**
  * 관리자·배치 전용 응용 계층의 DI 진입점.
@@ -246,6 +263,11 @@ export class AdminApplicationModule {
         HealthcareHospitalListRepository,
         HealthcareHospitalListSearchRepository,
         HealthcareHospitalListService,
+        HealthcareHospitalDetailRepository,
+        HealthcareHospitalDetailService,
+        HealthcareHospitalMetaRepository,
+        HealthcareHospitalMetaService,
+        HealthcareHospitalCacheInvalidator,
         /*
           서비스키는 DB(env_setting)에서 읽는다. **부팅할 때 한 번만 읽는다** —
           배치·CLI 는 명령 하나 돌고 끝나는 프로세스라 "재시작 없이 반영" 이 뜻이 없고,
@@ -284,6 +306,19 @@ export class AdminApplicationModule {
         HiraHospitalReadService,
         NmcCodeReadService,
         HiraCodeReadService,
+        // 연동 데이터(HIRA·NMC 미러) 목록·상세·대시보드. 리포는 서비스 내부 의존이라 export 하지 않는다.
+        HiraMirrorListRepository,
+        HiraMirrorListService,
+        HiraMirrorDetailRepository,
+        HiraMirrorDetailService,
+        HiraMirrorDashboardRepository,
+        HiraMirrorDashboardService,
+        NmcMirrorListRepository,
+        NmcMirrorListService,
+        NmcMirrorDetailRepository,
+        NmcMirrorDetailService,
+        NmcMirrorDashboardRepository,
+        NmcMirrorDashboardService,
         SyncStateService,
         BatchJobService,
         BatchRunReadService,
@@ -378,6 +413,13 @@ export class AdminApplicationModule {
         HiraHospitalReadService,
         NmcCodeReadService,
         HiraCodeReadService,
+        // 연동 데이터(HIRA·NMC 미러) 목록·상세·대시보드. CLI 도 같은 서비스를 쓸 수 있게 내보낸다.
+        HiraMirrorListService,
+        HiraMirrorDetailService,
+        HiraMirrorDashboardService,
+        NmcMirrorListService,
+        NmcMirrorDetailService,
+        NmcMirrorDashboardService,
         SyncStateService,
         BatchJobService,
         BatchRunReadService,
@@ -395,8 +437,11 @@ export class AdminApplicationModule {
         HealthcareDetailBuildService,
         // ES 색인 오케스트레이션. CLI(es hospital)가 호출한다.
         HealthcareIndexService,
-        // 관리자 병원 목록. 컨트롤러가 주입받는다.
+        // 관리자 병원 목록·상세·필터 이름표·캐시 정비. 컨트롤러가 주입받는다.
         HealthcareHospitalListService,
+        HealthcareHospitalDetailService,
+        HealthcareHospitalMetaService,
+        HealthcareHospitalCacheInvalidator,
         // CLI 가 큐를 1건씩 돌리는 데 쓴다. 배치 서버가 붙으면 그쪽이 같은 서비스를 쓴다.
         HiraNpayWebSyncService,
         HiraNpayCodeSyncService,
