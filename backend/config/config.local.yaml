@@ -1,18 +1,16 @@
 # local 에서 config.yaml 과 달라지는 값만.
 
 elasticsearch:
-  # dev 클러스터를 같이 쓴다. 개인 접두사로 바꿔 쓸 수 있다.
   indexPrefix: local
 
 auth:
   rootDomain:
   cookieSecure: false
-  # 인증웹 dev server(5273). 라우터 프리픽스(/auth)까지 포함한다.
   externalUrl: http://127.0.0.1:5273/auth
   jwt:
+    # discovery 문서를 내는 오리진과 같아야 한다(= API 주소).
     issuer: http://127.0.0.1:3000
     allowedIssuers:
-      - https://develop-api.plzhans.com
       - http://127.0.0.1:3000
 
 apps-api:
@@ -20,7 +18,6 @@ apps-api:
   swagger:
     enabled: true
   error:
-    # 오류 응답에 debug 객체(원문 메시지·스택)를 싣는다. 로컬에서만 켠다.
     debug: true
 
 admin:
@@ -28,14 +25,12 @@ admin:
     issuer: http://127.0.0.1:3001
 
 apps-admin-api:
-  # 관리자 콘솔의 주소. 메일에 실리는 링크가 이 값으로 만들어진다.
-  # 로컬은 콘솔이 Vite dev server 로 따로 뜨므로 API(3001)가 아니라 5275 다.
   externalUrl: http://127.0.0.1:5275
   cors:
     # 관리자 SPA 의 Vite dev server(5273 auth · 5274 web · 5275 admin).
     origins:
       - http://127.0.0.1:5275
-      - http://localhost:5275
+
   swagger:
     enabled: true
   error:
