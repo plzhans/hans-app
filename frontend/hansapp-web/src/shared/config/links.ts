@@ -14,13 +14,12 @@ export const LINKS = {
     (import.meta.env.VITE_LINK_MEDIFINDER as string | undefined) ||
     'https://medifinder.kr',
 
+  // 환경 구분이 없는 것들. env 로 받을 이유가 없다.
+  //
   // docs 는 **이 콘솔과 같은 도메인의 /docs** 다(console.plzhans.com/docs ·
   // develop-console.plzhans.com/docs, 로컬은 이 콘솔이 문서 dev 서버로 프록시).
-  // 상대경로라 세 환경 모두 같은 값으로 맞는다 — 운영 주소를 기본값으로 두면 키를 빠뜨렸을 때
-  // develop 콘솔이 조용히 운영 문서로 보내는데, 상대경로에는 그 실패가 아예 없다.
-  docs: (import.meta.env.VITE_LINK_DOCS as string | undefined) || '/docs',
-
-  // 환경 구분이 없는 것들. env 로 받을 이유가 없다.
+  // 상대경로라 세 환경 모두 같은 값이라 env 로 받지 않는다.
+  docs: '/docs',
   blog: 'https://blog.plzhans.com',
   telegramExporter: 'https://telegram-exporter.plzhans.com',
 };
