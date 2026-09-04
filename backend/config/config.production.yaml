@@ -9,7 +9,7 @@ auth:
 
 apps-api:
   name: hansapp
-  externalUrl: https://plzhans.com
+  externalUrl: https://console.plzhans.com
   web:
     sslCertificate: ${SSL_CERTIFICATE:config/production/ssl/fullchain.pem}
     sslCertificateKey: ${SSL_CERTIFICATE_KEY:config/production/ssl/privkey.pem}

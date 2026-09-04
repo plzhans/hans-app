@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
   );
 
   /*
-    검색 색인은 **운영 빌드에서만** 연다. develop 도메인(develop.plzhans.com)이 그대로
+    검색 색인은 **운영 빌드에서만** 연다. develop 도메인(develop-console.plzhans.com)이 그대로
     공개돼 있어, 열어 두면 운영과 같은 내용이 두 주소로 색인된다.
 
     **vite 의 mode 로 판별하면 안 된다.** package.json 의 build:develop 은

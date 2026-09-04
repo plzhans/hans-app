@@ -6,7 +6,7 @@ import { createPkceRequest, takeVerifier } from './pkce';
 import { TokenStorage, type StoredTokens, type TokenPersistence } from './storage';
 
 export interface AuthClientConfig {
-  /** HansApp 웹(로그인 UI) base. 예: https://plzhans.com 또는 http://127.0.0.1:5273 */
+  /** HansApp 웹(로그인 UI) base. 예: https://auth.plzhans.com 또는 http://127.0.0.1:5273 */
   authWebUrl: string;
   /** 인증 API base. 예: https://api.plzhans.com 또는 http://127.0.0.1:3000 */
   apiBaseUrl: string;

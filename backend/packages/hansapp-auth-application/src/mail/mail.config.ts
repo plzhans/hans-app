@@ -76,6 +76,6 @@ export function buildMailConfig(source: ConfigSource): MailConfig {
     forceDisabled: source.getBoolOrDefault('mail.forceDisabled'),
     // 메일 전용이 아니라 서비스 공통 값(appName·appPublicUrl)이다 — 메일은 참조만 한다.
     appName: source.getStringOrDefault('apps-api.name'),
-    appUrl: source.getStringOrDefault('apps-api.externalUrl', 'https://plzhans.com'),
+    appUrl: source.getStringOrDefault('apps-api.externalUrl', 'https://console.plzhans.com'),
   });
 }

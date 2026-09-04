@@ -110,7 +110,7 @@ auth:
 apps-api:
   # 앱 이름. 로그·에러 보고·메일 템플릿에 쓰인다. default: HansApp
   name: hansapp-api
-  # 이 서비스의 외부 주소(포털웹). 메일 템플릿의 링크 base.
+  # 이 서비스의 외부 주소(콘솔웹 hansapp-web). 메일 템플릿의 링크 base.
   externalUrl:
   web:
     # HTTP 리슨 포트. default: 3000

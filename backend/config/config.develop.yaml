@@ -9,7 +9,7 @@ auth:
       - http://127.0.0.1:3000
 
 apps-api:
-  externalUrl: https://develop.plzhans.com
+  externalUrl: https://develop-console.plzhans.com
   web:
     sslCertificate: ${SSL_CERTIFICATE:config/develop/ssl/fullchain.pem}
     sslCertificateKey: ${SSL_CERTIFICATE_KEY:config/develop/ssl/privkey.pem}

@@ -3,4 +3,4 @@ Allow: /
 Disallow: /apps
 Disallow: /terms
 
-Sitemap: https://plzhans.com/sitemap.xml
+Sitemap: https://console.plzhans.com/sitemap.xml

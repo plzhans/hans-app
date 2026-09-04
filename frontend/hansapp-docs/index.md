@@ -44,7 +44,7 @@ features:
 
 모든 요청은 `https://api.plzhans.com` 으로 보냅니다.
 인증(`Authorization`)과 응답 언어(`Accept-Language`)는 **도메인과 무관하게 같습니다** —
-[공통](/common) 을 먼저 읽으세요. 키는 [앱 관리 콘솔](https://plzhans.com)에서 발급합니다.
+[공통](/common) 을 먼저 읽으세요. 키는 [앱 관리 콘솔](https://console.plzhans.com)에서 발급합니다.
 
 ```bash
 # 강남구의 응급실 운영 병원을 영어로

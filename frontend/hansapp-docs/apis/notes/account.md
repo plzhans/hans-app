@@ -6,5 +6,5 @@
 
 ::: tip 계정 관리는 계정 페이지에서 합니다
 비밀번호 변경·기기 로그아웃·회원 탈퇴 같은 계정 관리는 API 로 열려 있지 않습니다.
-사용자를 [plzhans.com](https://plzhans.com) 계정 화면으로 보내세요.
+사용자를 [console.plzhans.com](https://console.plzhans.com) 계정 화면으로 보내세요.
 :::

@@ -51,9 +51,8 @@ const docsOrigin = originFromEnv('DOCS_ORIGIN', 'http://localhost:5272');
 /**
  * 포털 주소. 상단 nav 의 HOME 이 여기로 돌아간다.
  *
- * 배포 환경에서는 문서가 포털 도메인 밑이라 DOCS_ORIGIN 과 같은 값이지만 **따로 받는다** —
- * 로컬에서 이미 갈린다(문서 5272, 포털 5274). 하나로 묶으면 나중에 도로 쪼갤 때
- * 어느 쪽이 어느 뜻이었는지 알 수 없다.
+ * 문서는 루트 도메인의 /docs 에 살고 포털(콘솔)은 console. 서브도메인이라 DOCS_ORIGIN 과
+ * 다르다. 로컬도 갈린다(문서 5272, 포털 5274).
  */
 const portalOrigin = originFromEnv('PORTAL_ORIGIN', 'http://127.0.0.1:5274');
 
