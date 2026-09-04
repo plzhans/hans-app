@@ -14,10 +14,10 @@ export const LINKS = {
     (import.meta.env.VITE_LINK_MEDIFINDER as string | undefined) ||
     'https://medifinder.kr',
 
-  // docs 는 **루트 도메인의 /docs** 고 이 콘솔은 console. 서브도메인이라 환경마다 절대 주소를
-  // 적는다(plzhans.com/docs · develop.plzhans.com/docs). 로컬만 상대경로다 — 이 콘솔이
-  // /docs 를 문서 dev 서버로 프록시한다. 기본값을 상대경로로 두는 이유: 키를 빠뜨리면
-  // 콘솔 자신의 /docs 로 가서 곧바로 눈에 띈다(운영 주소를 기본값으로 두면 조용히 넘어간다).
+  // docs 는 **이 콘솔과 같은 도메인의 /docs** 다(console.plzhans.com/docs ·
+  // develop-console.plzhans.com/docs, 로컬은 이 콘솔이 문서 dev 서버로 프록시).
+  // 상대경로라 세 환경 모두 같은 값으로 맞는다 — 운영 주소를 기본값으로 두면 키를 빠뜨렸을 때
+  // develop 콘솔이 조용히 운영 문서로 보내는데, 상대경로에는 그 실패가 아예 없다.
   docs: (import.meta.env.VITE_LINK_DOCS as string | undefined) || '/docs',
 
   // 환경 구분이 없는 것들. env 로 받을 이유가 없다.

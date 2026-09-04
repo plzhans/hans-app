@@ -66,7 +66,8 @@ develop      develop-api.plzhans.com   develop-auth.plzhans.com   develop-consol
 
 루트 `plzhans.com` 은 정적 랜딩 자리다. 콘솔(hansapp-web)은 `console.` 아래 산다 —
 콘솔 안에 `/apps` 경로가 있어 `apps.` 는 겹치고, `app.` 은 제품 자체를 뜻해 실체와 어긋난다.
-문서는 그대로 루트의 `/docs` 다.
+**문서는 콘솔을 따라간다**(`console.plzhans.com/docs`) — 루트를 랜딩에 통째로 내주기 때문이다.
+Route `/docs*` 도 그 호스트로 옮겨야 한다.
 
 **`develop` 을 줄이지 않는다.** `APP_ENV`·워크플로·스크립트 인자가 전부 `develop` 이라
 도메인만 `dev` 로 두면 그것 하나가 예외가 된다.

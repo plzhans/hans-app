@@ -19,7 +19,7 @@ HansApp 은 여러 원천의 데이터를 **Hans API** 하나로 통합해
 
 | | |
 | --- | --- |
-| **문서** | **https://plzhans.com/docs** — 제공 영역 · 엔드포인트 · 인증 · 사용 가이드 |
+| **문서** | **https://console.plzhans.com/docs** — 제공 영역 · 엔드포인트 · 인증 · 사용 가이드 |
 | **앱 등록** | **https://console.plzhans.com** 의 *앱 관리* — API 키와 OAuth 클라이언트를 발급합니다 |
 
 API 사용법은 문서 사이트에서 안내합니다.
@@ -103,7 +103,7 @@ TypeScript · React · Vite 로 구성됩니다.
 | -------------------------------------------- | ----------------------- | ------------------ |
 | [`hansapp-web`](frontend/hansapp-web/)       | 콘솔 (앱 관리)          | `https://console.plzhans.com` |
 | [`hansapp-auth`](frontend/hansapp-auth/)     | 로그인 · 동의 화면      | `https://auth.plzhans.com` |
-| [`hansapp-docs`](frontend/hansapp-docs/)     | API 문서 (VitePress)    | `https://plzhans.com/docs` |
+| [`hansapp-docs`](frontend/hansapp-docs/)     | API 문서 (VitePress)    | `https://console.plzhans.com/docs` |
 | [`medifinder-web`](frontend/medifinder-web/) | MediFinder              | `https://medifinder.kr`    |
 | [`auth-sdk`](frontend/auth-sdk/)             | 로그인 SDK (라이브러리) | —                  |
 

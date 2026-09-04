@@ -45,14 +45,15 @@ function originFromEnv(name: string, localFallback: string): string {
   );
 }
 
-/** 문서 자신의 도메인. 문서는 이 도메인의 /docs 밑에 산다(서브도메인을 두지 않는다). */
+/** 문서 자신의 도메인. 문서는 콘솔 도메인의 /docs 밑에 산다(서브도메인을 두지 않는다). */
 const docsOrigin = originFromEnv('DOCS_ORIGIN', 'http://localhost:5272');
 
 /**
  * 포털 주소. 상단 nav 의 HOME 이 여기로 돌아간다.
  *
- * 문서는 루트 도메인의 /docs 에 살고 포털(콘솔)은 console. 서브도메인이라 DOCS_ORIGIN 과
- * 다르다. 로컬도 갈린다(문서 5272, 포털 5274).
+ * 배포 환경에서는 문서가 콘솔 도메인 밑이라 DOCS_ORIGIN 과 같은 값이지만 **따로 받는다** —
+ * 로컬에서 이미 갈린다(문서 5272, 포털 5274). 하나로 묶으면 나중에 도로 쪼갤 때
+ * 어느 쪽이 어느 뜻이었는지 알 수 없다.
  */
 const portalOrigin = originFromEnv('PORTAL_ORIGIN', 'http://127.0.0.1:5274');
 
@@ -536,7 +537,7 @@ export default withMermaid(defineConfig({
         자기 도메인(workers.dev·남아 있는 커스텀 도메인)으로 들어오면 404 만 보인다 —
         배포가 깨진 것처럼 보이지만 멀쩡한 상태다. 그 혼동을 없애는 안전장치다.
 
-        운영 경로(plzhans.com/docs*)로는 애초에 여기 안 걸린다. Route 가 /docs* 만
+        운영 경로(console.plzhans.com/docs*)로는 애초에 여기 안 걸린다. Route 가 /docs* 만
         이 워커로 보내고 / 는 포털이 가져가기 때문이다.
 
         **정적 자산 디렉터리 루트**에 둬야 한다(outDir 이 아니라 wrangler 가 올리는 곳).
