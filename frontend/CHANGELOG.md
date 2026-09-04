@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.10.0...release-frontend/v0.11.0) (2026-09-04)
+
+
+### 기능
+
+* **frontend:** 문서를 console.plzhans.com/docs 로 옮긴다 ([6cc8a86](https://github.com/plzhans/hans-app/commit/6cc8a86f43f8b0bdff2eefb53f95110d91c053d7))
+
+
+### 구조 변경
+
+* **frontend:** docs 링크를 상대경로 상수로 되돌린다 ([e4129d0](https://github.com/plzhans/hans-app/commit/e4129d009a0a6e510ae05d14bd6c2ee380b8e4b6))
+
 ## [0.10.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.9.1...release-frontend/v0.10.0) (2026-09-04)
 
 
