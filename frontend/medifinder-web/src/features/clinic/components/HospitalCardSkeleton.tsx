@@ -19,13 +19,16 @@ export function HospitalCardSkeleton({
   return (
     // HospitalCard 의 LangLink 와 같은 상자.
     <div className="rounded-2xl border border-line bg-white p-3">
-      {/* 배지 줄. 높이는 순위 배지(h-[1.35rem])가 정한다. */}
-      <div className="h-[1.35rem] w-20 animate-pulse rounded-full bg-surface-subtle" />
+      {/*
+        **배지 줄은 그리지 않는다.** 배지(응급실·달빛·등급)는 있는 병원에만 붙어서,
+        검색 결과 10건을 재 보면 대부분(8/10)이 배지 없이 106px 이고 있는 것만 123px 이다.
+        늘 그리면 모든 카드가 23px 씩 커져, 결과가 도착할 때 목록이 줄면서 위로 당겨진다.
+      */}
 
-      {/* 이름(h3). 추천·근처 카드는 한 줄로 잘려 한 급 작다. */}
+      {/* 이름(h3). 루트 글꼴이 17px 라 h-6 = 25.5px — 실제 26px 과 맞는다. */}
       <div
         className={cn(
-          'mt-1 animate-pulse rounded bg-surface-subtle',
+          'animate-pulse rounded bg-surface-subtle',
           variant === 'search' ? 'h-6 w-2/3' : 'h-5 w-3/4',
         )}
       />
