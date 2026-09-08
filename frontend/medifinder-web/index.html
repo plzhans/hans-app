@@ -2,7 +2,18 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <!--
+      아이콘. **예전엔 type 이 svg+xml 인데 href 는 .ico 였고, 그 파일조차 없었다** —
+      SPA 폴백이 index.html 을 200 으로 돌려줘서 오류로도 안 잡혔다.
+
+      .ico 는 브라우저가 루트에서 자동으로 찾는 옛 규약이라 남기고(16·32·48 을 한 파일에
+      담았다), 최신 브라우저는 더 선명한 PNG 를 고르게 둘 다 준다.
+      작은 마크는 핀만 잘라 쓴다 — 원본 장면 전체는 16px 에서 파란 얼룩이 된다.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!--
       viewport-fit=cover: 노치 기기에서 화면 끝까지 그리게 하고, 그 대신 세이프에어리어
       값(env(safe-area-inset-*))을 CSS 로 넘겨준다. **이게 없으면 그 값이 전부 0 이라**
