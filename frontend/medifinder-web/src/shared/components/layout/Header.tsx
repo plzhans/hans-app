@@ -23,23 +23,31 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 bg-surface/85 pt-safe-top backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+        {/*
+          **줄어드는 쪽은 로고다.** 폭이 모자라면 flex 가 어딘가를 줄이는데, 로고 글자는
+          라틴이라 min-content 가 'MediFinder' 통째다 — 안 줄어든다. 그러면 대신 오른쪽
+          nav 가 눌리고, 거기 있는 한국어 버튼('로그인')은 CJK 라 min-content 가 한 글자라서
+          글자마다 줄이 바뀐다. 실제로 390px 한국어 화면에서 버튼이 세 줄로 부풀어
+          헤더 밖으로 삐져나왔다.
+          min-w-0 + truncate 로 로고가 말줄임되게 하고, 조작 버튼은 아래에서 폭을 지킨다.
+        */}
         <Link
           to={path('/')}
-          className="flex items-center gap-2 font-extrabold tracking-tight text-brand no-underline"
+          className="flex min-w-0 items-center gap-2 font-extrabold tracking-tight text-brand no-underline"
         >
           {/* 로고 아이콘도 구역 표지와 같은 연파랑 판 위에 올린다 — 화면끼리 같은 말투가 된다. */}
           <span className="flex h-[1.75rem] w-[1.75rem] items-center justify-center rounded-lg bg-brand-tint">
             <Stethoscope className="h-4 w-4" />
           </span>
-          <span>{t('app.name')}</span>
+          <span className="truncate">{t('app.name')}</span>
         </Link>
 
-        <nav className="flex items-center gap-3">
+        <nav className="flex shrink-0 items-center gap-3">
           <NavLink
             to={path('/search')}
             className={({ isActive }) =>
               cn(
-                'rounded-full px-3 py-1.5 text-sm font-bold no-underline transition-colors',
+                'whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-bold no-underline transition-colors',
                 isActive
                   ? 'bg-brand-tint text-brand-strong'
                   : 'text-ink-muted active:bg-surface-subtle',
@@ -78,7 +86,7 @@ function AuthAction() {
     <button
       type="button"
       onClick={() => void login()}
-      className="rounded-full bg-brand px-3.5 py-1.5 text-sm font-bold text-white transition-transform duration-100 ease-native active:scale-[0.97]"
+      className="whitespace-nowrap rounded-full bg-brand px-3.5 py-1.5 text-sm font-bold text-white transition-transform duration-100 ease-native active:scale-[0.97]"
     >
       {t('auth.login')}
     </button>
