@@ -25,6 +25,8 @@ import {
   type HospitalSearchParams,
 } from '@/features/clinic/api';
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
+import { HospitalCardSkeleton } from '@/features/clinic/components/HospitalCardSkeleton';
+import { useSeo } from '@/shared/seo/useSeo';
 import { cn } from '@/shared/lib/utils';
 
 /** 섹션당 노출 카드 수. */
@@ -98,6 +100,7 @@ const SECTIONS = [
 
 export default function Home() {
   const { t } = useTranslation();
+  useSeo({ title: t('seo.home.title'), description: t('seo.home.description') });
   const navigate = useNavigate();
   const path = useLangPath();
   // 채팅창은 MainLayout 의 Provider 가 들고 있다. 여기서는 열어 달라고만 한다.
@@ -316,7 +319,7 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {isPending
             ? Array.from({ length: FEATURED_SIZE }).map((_, i) => (
-                <HospitalCardSkeleton key={i} />
+                <HospitalCardSkeleton key={i} variant="brief" />
               ))
             : hospitals.map((hospital) => (
                 <HospitalCard
@@ -328,17 +331,5 @@ function FeaturedSection({ section }: { section: (typeof SECTIONS)[number] }) {
         </div>
       )}
     </section>
-  );
-}
-
-/** HospitalCard 의 껍데기. 로딩 중 자리를 잡아 첫 페이지가 흔들리지 않게 한다. */
-function HospitalCardSkeleton() {
-  return (
-    <div className="rounded-tile border border-line-subtle bg-surface p-3.5">
-      <div className="h-4 w-16 animate-pulse rounded-full bg-surface-subtle" />
-      <div className="mt-2 h-4 w-2/3 animate-pulse rounded bg-surface-subtle" />
-      <div className="mt-3 h-3 w-full animate-pulse rounded bg-surface-subtle" />
-      <div className="mt-1.5 h-3 w-1/3 animate-pulse rounded bg-surface-subtle" />
-    </div>
   );
 }

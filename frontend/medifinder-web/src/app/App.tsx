@@ -40,9 +40,20 @@ const MyPage = lazy(() => import('@/features/me/pages/MyPage'));
  */
 const CALLBACK_PATH = '/auth/callback';
 
+/**
+ * 라우트 청크를 받는 동안 자리를 잡는 화면.
+ *
+ * **한 화면 높이를 채운다.** 예전엔 60vh 였는데, 그러면 레이아웃(min-h-full)이 남은 자리를
+ * 메우면서 푸터가 딱 접힘선에 걸린다 — 화면 안에 있는 것으로 잡힌다. 그 상태에서 실제
+ * 페이지가 마운트되면 푸터가 수천 px 아래로 튀고, 그게 그대로 CLS 로 계산된다.
+ * 한 화면을 채워 두면 푸터가 처음부터 접힘선 아래에 있어 그 움직임이 보이지 않는다.
+ *
+ * svh 다(vh 가 아니다). 모바일 브라우저에서 vh 는 주소창이 접히는 크기를 기준으로 잡아
+ * 실제 보이는 높이보다 커진다.
+ */
 function PageLoader() {
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="flex min-h-svh items-center justify-center">
       <Spinner />
     </div>
   );
