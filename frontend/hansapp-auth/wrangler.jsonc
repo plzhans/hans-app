@@ -17,6 +17,12 @@
 // 이름(--name)과 compatibility-date 는 배포 스크립트가 CLI 로 넘긴다. 환경마다 달라지는
 // 값이라 파일에 박으면 환경별로 파일이 갈린다 — frontend/ci-deploy.sh 참고.
 {
+  // 런타임 동작 기준일. **이 날짜의 동작으로 고정한다** — Cloudflare 가 런타임을 고쳐도
+  // 이 워커는 그대로 돈다. 올리는 것이 새 동작을 받아들이는 행위이므로, 올릴 때는
+  // 그 프로젝트에서 확인한 사람이 올린다. 배포마다 "오늘"을 쓰면 같은 커밋을 다시 배포하는
+  // 것만으로 결과가 달라져 롤백이 롤백이 아니게 된다.
+  "compatibility_date": "2026-07-01",
+
   "assets": {
     "not_found_handling": "single-page-application"
   }
