@@ -1,0 +1,32 @@
+# Cloudflare Workers 정적 자산의 응답 헤더 규칙.
+# wrangler 가 `--assets dist` 를 올릴 때 이 파일을 읽고, 파일 자체는 서빙하지 않는다.
+# vite 는 public/ 을 그대로 dist/ 로 복사하므로 여기 두면 된다.
+#
+# 규칙은 **누적**된다. /assets/* 는 아래 /* 의 헤더를 모두 받고 자기 규칙이 더해진다.
+
+/*
+  # HTTPS 로만 접속하게 브라우저에 기억시킨다. 1년.
+  #
+  # includeSubDomains 는 develop.medifinder.kr 을 포함한 모든 하위 도메인에 함께 걸린다.
+  # 전부 Cloudflare 뒤에 있어 HTTPS 로 뜨므로 안전하다.
+  # preload 는 붙이지 않는다 — 목록에 올리면 되돌리는 데 몇 달이 걸린다.
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+  # 서버가 준 Content-Type 을 브라우저가 제멋대로 추측하지 못하게 한다.
+  X-Content-Type-Options: nosniff
+
+  # 이 사이트를 iframe 에 넣지 못하게 한다(클릭재킹).
+  # 지도는 우리가 **품는** iframe 이라 이 헤더와 무관하다.
+  X-Frame-Options: DENY
+
+  # 외부로 나갈 때는 출처만 보내고 경로·쿼리는 지운다.
+  # 검색어와 지역이 URL 에 실리는 화면이 있어 그대로 흘리면 안 된다.
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # 쓰는 기능만 남긴다. 위치는 병원 거리 계산에 필요하다.
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=()
+
+/assets/*
+  # vite 가 내용 해시를 파일명에 박는다(index-Z-0_--GI.js).
+  # 내용이 바뀌면 이름이 바뀌므로 이 URL 의 응답은 영원히 같다 — 다시 물어볼 이유가 없다.
+  Cache-Control: public, max-age=31536000, immutable
