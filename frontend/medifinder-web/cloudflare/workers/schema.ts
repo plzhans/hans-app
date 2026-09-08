@@ -111,6 +111,48 @@ function prop(name: string, value: string | number) {
   return { '@type': 'PropertyValue', name, value };
 }
 
+/**
+ * 홈에만 붙는다. 서비스 자체가 무엇인지 알리는 자리다.
+ *
+ * WebSite 의 SearchAction 은 검색 결과에 **사이트 내 검색창**을 띄우는 신호다. 붙인다고
+ * 반드시 뜨지는 않지만(구글이 정한다) 이게 없으면 후보에도 안 오른다.
+ *
+ * 두 덩어리를 @graph 로 묶어 한 블록에 낸다 — script 를 둘로 나눌 이유가 없다.
+ */
+export function siteJsonLd(siteUrl: string, canonical: string, lang: string): string {
+  const data = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${siteUrl}/#organization`,
+        name: 'MediFinder',
+        url: siteUrl,
+        // 정사각 아이콘이다. 구글은 로고에 112x112 이상을 요구한다.
+        logo: `${siteUrl}/apple-touch-icon.png`,
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${siteUrl}/#website`,
+        name: 'MediFinder',
+        url: canonical,
+        inLanguage: lang,
+        publisher: { '@id': `${siteUrl}/#organization` },
+        potentialAction: {
+          '@type': 'SearchAction',
+          // 검색 화면이 읽는 쿼리 이름과 같아야 한다(useSearchState 의 `q`).
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${canonical.replace(/\/$/, '')}/search?q={search_term_string}`,
+          },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    ],
+  };
+  return script(data);
+}
+
 export function hospitalJsonLd(
   h: Hospital,
   url: string,
@@ -230,15 +272,18 @@ export function hospitalJsonLd(
   if (h.emergency) data.availableService = { '@type': 'MedicalProcedure', name: '응급실' };
   if (extra.length) data.additionalProperty = extra;
 
-  /*
-    **줄바꿈해서 낸다.** 한 줄로 뽑으면 소스 보기에서 수 KB 가 가로로 이어져 사람이 못 읽는다.
-    늘어나는 바이트는 전송 시 압축돼 사실상 사라진다 — 읽을 수 있는 쪽이 낫다.
+  return script(data);
+}
 
-    `</script>` 가 문자열 안에 들어가면 브라우저가 스크립트를 거기서 끊는다.
-    병원 소개는 사람이 쓴 자유 텍스트라 무엇이든 들어올 수 있다.
-  */
+/*
+  **줄바꿈해서 낸다.** 한 줄로 뽑으면 소스 보기에서 수 KB 가 가로로 이어져 사람이 못 읽는다.
+  늘어나는 바이트는 전송 시 압축돼 사실상 사라진다.
+
+  `</script>` 가 문자열 안에 들어가면 브라우저가 스크립트를 거기서 끊는다.
+  병원 소개는 사람이 쓴 자유 텍스트라 무엇이든 들어올 수 있다.
+*/
+function script(data: unknown): string {
   const json = JSON.stringify(data, null, 2).replace(/<\/script/gi, '<\\/script');
-  // <head> 안의 다른 태그와 들여쓰기를 맞춘다.
   const indented = json.split('\n').join('\n    ');
   return `<script type="application/ld+json">\n    ${indented}\n    </script>`;
 }

@@ -1,7 +1,7 @@
 import type { Env } from './env';
 import { langPath, type Lang } from './routing';
 import { fetchHospital } from './hospital';
-import { hospitalJsonLd } from './schema';
+import { hospitalJsonLd, siteJsonLd } from './schema';
 
 export type Meta = {
   title: string;
@@ -68,7 +68,11 @@ export async function metaFor(
   }
 
   if (path === '/') {
-    return { title: dict.seo.home.title + suffix, description: dict.seo.home.description };
+    return {
+      title: dict.seo.home.title + suffix,
+      description: dict.seo.home.description,
+      jsonLd: siteJsonLd(env.VITE_SITE_URL, `${env.VITE_SITE_URL}${langPath(path, lang)}`, lang),
+    };
   }
 
   if (path === '/search') {
