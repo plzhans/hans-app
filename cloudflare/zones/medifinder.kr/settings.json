@@ -1,0 +1,4 @@
+{
+  "zone_name": "medifinder.kr",
+  "hosts": ["medifinder.kr", "develop.medifinder.kr"]
+}

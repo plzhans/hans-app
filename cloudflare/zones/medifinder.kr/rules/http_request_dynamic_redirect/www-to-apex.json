@@ -1,0 +1,15 @@
+{
+  "ref": "www-to-apex",
+  "description": "[www-to-apex] www.medifinder.kr 을 medifinder.kr(비-www)로 301 - canonical·hreflang·sitemap 이 전부 비-www 기준이라 도메인을 하나로 모은다. dns/www-cname.json 이 먼저 있어야 동작한다(그 전에는 www 가 아예 안 뜬다).",
+  "expression": "(http.host eq \"www.medifinder.kr\")",
+  "action": "redirect",
+  "action_parameters": {
+    "from_value": {
+      "target_url": {
+        "expression": "concat(\"https://medifinder.kr\", http.request.uri.path)"
+      },
+      "status_code": 301,
+      "preserve_query_string": true
+    }
+  }
+}

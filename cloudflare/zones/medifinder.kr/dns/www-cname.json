@@ -1,0 +1,8 @@
+{
+  "type": "CNAME",
+  "name": "www.medifinder.kr",
+  "content": "medifinder.kr",
+  "proxied": true,
+  "ttl": 1,
+  "comment": "medifinder.kr(비-www)로 301 - www-to-apex 규칙 참고. cloudflare/manage-dns.sh 관리"
+}
