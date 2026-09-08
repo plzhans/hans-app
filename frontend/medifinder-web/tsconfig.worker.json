@@ -1,0 +1,16 @@
+{
+  // Cloudflare 워커(cloudflare/workers/)용. **클라이언트와 타입 세트가 반대다.**
+  //
+  //   tsconfig.app.json   lib 에 DOM. window·document 가 있고 Workers 전역은 없다.
+  //   여기                 lib 에 DOM 없음. 대신 Fetcher·HTMLRewriter·caches 가 있다.
+  //
+  // 한 설정으로 둘을 다 검사하면 워커에서 document 를 써도 통과한다 — 배포하고 나서야 깨진다.
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
+    "types": ["@cloudflare/workers-types"],
+    // 번역 JSON 을 화면과 같은 파일로 읽는다(meta.ts).
+    "resolveJsonModule": true
+  },
+  "include": ["cloudflare"]
+}

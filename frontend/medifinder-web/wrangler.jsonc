@@ -17,7 +17,55 @@
 // 이름(--name)과 compatibility-date 는 배포 스크립트가 CLI 로 넘긴다. 환경마다 달라지는
 // 값이라 파일에 박으면 환경별로 파일이 갈린다 — frontend/ci-deploy.sh 참고.
 {
+  // 런타임 동작 기준일.
+  //
+  // **ci-deploy.sh 의 CF_COMPAT_DATE 와 같은 값이어야 한다.** 배포는 그쪽이 CLI 로 넘겨
+  // 이 값을 덮으므로, 여기 적는 값은 사실상 `wrangler dev` 전용이다. 안 적으면 dev 가
+  // **오늘 날짜**를 쓰고, 그러면 로컬과 운영이 다른 기준일로 돌아
+  // "로컬에선 되는데 배포하면 안 되는" 차이가 생긴다.
+  //
+  // 둘이 갈리는 게 마음에 걸리면 ci-deploy.sh 가 --compatibility-date 를 안 넘기게 하고
+  // 이 파일을 유일한 진실로 삼으면 된다 — 다만 그 스크립트는 다른 프론트 프로젝트도 지난다.
+  "compatibility_date": "2026-07-01",
+
+  // 로컬 개발 서버(`pnpm preview:wrangler:dev`).
+  //
+  // vite preview 가 5173 을 쓰므로 겹치지 않게 6173 이다.
+  // **포트는 환경 따라 변하는 값이 아니라서 여기 둔다** — 스크립트에 --port 로 박으면
+  // 바꿀 때마다 명령줄을 고쳐야 한다.
+  "dev": {
+    "port": 6173
+  },
+
+  // 워커 진입점. **여기 생기면 배포에도 함께 올라간다** — assets 전용 Worker 가 아니게 된다.
+  // 하는 일은 응답 HTML 의 <head> 를 채우는 것뿐이다(cloudflare/workers/main.ts 참고).
+  "main": "./cloudflare/workers/main.ts",
+
   "assets": {
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+
+    // 워커가 env.ASSETS.fetch() 로 껍데기를 꺼내 쓸 손잡이.
+    "binding": "ASSETS",
+
+    // **HTML 경로만 워커를 태운다.**
+    //
+    // 기본값은 "에셋이 있으면 그걸 먼저" 라서, / 처럼 index.html 이 실제로 존재하는
+    // 경로는 워커가 아예 안 돈다. 그래서 태울 경로를 명시한다.
+    //
+    // true 로 두면 안 된다. 정적 자산 요청은 **무료·무제한**인데 워커를 거치는 순간
+    // 과금 대상이 되고, 무료 플랜에서는 일 10만 요청 상한에 함께 잡힌다.
+    // /assets/* 까지 태우면 그 자릿수가 달라진다.
+    //
+    // directory 는 여기 적지 않는다 — ci-deploy.sh 가 --assets 로 넘기고 CLI 가 이긴다.
+    // 그래서 `wrangler dev` 도 --assets 를 줘야 한다(package.json 의 preview:worker).
+    "run_worker_first": [
+      "/",
+      "/search",
+      "/hospitals/*",
+      "/terms/*",
+      "/en-us", "/en-us/*",
+      "/ja", "/ja/*",
+      "/zh-hans", "/zh-hans/*"
+    ]
   }
 }

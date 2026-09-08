@@ -2,3 +2,4 @@
 # pnpm 11 에서 빌드 스크립트(postinstall) 실행 허용 여부를 여기서 지정한다.
 allowBuilds:
   esbuild: true
+  workerd: true
