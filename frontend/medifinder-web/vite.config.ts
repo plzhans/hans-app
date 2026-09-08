@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -24,10 +24,34 @@ const gitSha = (process.env.VITE_GIT_SHA ?? process.env.GITHUB_SHA ?? 'dev')
 */
 const builtAt = new Date().toISOString();
 
+/**
+ * index.html 의 주석을 **빌드 산출물에서만** 걷어낸다.
+ *
+ * HTML 주석은 브라우저로 그대로 나가서 누구나 소스 보기로 읽는다. 그런데 이 파일의 주석은
+ * 대외 설명이 아니라 **우리끼리 보는 개발 메모**다(왜 viewport-fit 이 필요한지, 어느 봇이
+ * 이 값을 읽는지 등). 내부 판단 근거와 서비스 구조가 그대로 노출된다.
+ *
+ * 그렇다고 지우면 다시 깨질 지식을 잃는다 — viewport-fit 을 빼면 세이프에어리어 값이 전부
+ * 0 이 되는 것 같은 건, 모르면 반드시 다시 밟는다. 그래서 **소스에는 남기고 산출물에서만**
+ * 없앤다. 사람이 매번 기억하는 대신 빌드가 강제한다.
+ *
+ * apply: 'build' 라 개발 서버에서는 그대로 보인다.
+ */
+function stripHtmlComments(): Plugin {
+  return {
+    name: 'strip-html-comments',
+    apply: 'build',
+    transformIndexHtml(html) {
+      // <!doctype> 는 주석이 아니라 안 걸린다. 남는 빈 줄까지 정리한다.
+      return html.replace(/\s*<!--[\s\S]*?-->/g, '');
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   console.log(`[vite] mode=${mode}  VITE_HANSAPP_BASE_URL=${process.env.VITE_HANSAPP_BASE_URL ?? '(not set)'}`);
   return {
-    plugins: [react()],
+    plugins: [react(), stripHtmlComments()],
     // 빌드 시점에 상수로 치환된다. Sentry release 문자열을 여기서 굳힌다.
     define: {
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),
