@@ -3,9 +3,12 @@
   "version": "0.11.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n docs,auth,console,admin,medifinder -c cyan,magenta,blue,green,yellow \"pnpm -C hansapp-docs docs:dev\" \"pnpm -C hansapp-auth local\" \"pnpm -C hansapp-web local\" \"pnpm -C hansapp-admin local\" \"pnpm -C medifinder-web local\"",
-    "dev:web": "concurrently -k -n auth,console -c magenta,blue \"pnpm -C hansapp-auth local\" \"pnpm -C hansapp-web local\"",
-    "dev:admin": "pnpm -C hansapp-admin local"
+    "local": "concurrently -k -n docs,auth,console,admin,medifinder -c cyan,magenta,blue,green,yellow \"pnpm -C hansapp-docs docs:dev\" \"pnpm -C hansapp-auth local\" \"pnpm -C hansapp-web local\" \"pnpm -C hansapp-admin local\" \"pnpm -C medifinder-web local\"",
+    "local:web": "concurrently -k -n auth,console -c magenta,blue \"pnpm -C hansapp-auth local\" \"pnpm -C hansapp-web local\"",
+    "local:admin": "pnpm -C hansapp-admin local",
+    "dev": "concurrently -k -n docs,auth,console,admin,medifinder -c cyan,magenta,blue,green,yellow \"pnpm -C hansapp-docs docs:dev\" \"pnpm -C hansapp-auth dev\" \"pnpm -C hansapp-web dev\" \"pnpm -C hansapp-admin dev\" \"pnpm -C medifinder-web dev\"",
+    "dev:web": "concurrently -k -n auth,console -c magenta,blue \"pnpm -C hansapp-auth dev\" \"pnpm -C hansapp-web dev\"",
+    "dev:admin": "pnpm -C hansapp-admin dev"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
