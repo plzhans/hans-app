@@ -3,6 +3,36 @@
     "name": "MediFinder",
     "tagline": "Find hospitals across Korea, fast"
   },
+  "seo": {
+    "titleSuffix": " | MediFinder",
+    "default": {
+      "title": "Find a hospital",
+      "description": "Opening hours, night and holiday care, emergency rooms and HIRA quality ratings for hospitals across Korea."
+    },
+    "home": {
+      "title": "Find a hospital near you",
+      "description": "Find hospitals open now, night and holiday pediatric care, emergency rooms, and HIRA grade 1 hospitals by region."
+    },
+    "search": {
+      "description": "Search hospitals across Korea by region, medical department and hospital type, and check hours and contact details."
+    },
+    "hospital": {
+      "description": "Opening hours, phone number, departments and HIRA quality ratings for {{name}} in {{region}}."
+    },
+    "npay": {
+      "title": "{{name}} non-covered prices",
+      "description": "Non-covered treatment items and prices for {{name}}, as reported by the hospital to HIRA."
+    },
+    "legal": {
+      "description": "Terms and policies that apply to your use of MediFinder."
+    },
+    "me": {
+      "title": "My account"
+    },
+    "notFound": {
+      "title": "Page not found"
+    }
+  },
   "footer": {
     "liability": "MediFinder is a search service for medical institution information. It is not a party to any treatment, appointment, or transaction, and responsibility for the information provided and for the care given rests with each medical institution.",
     "disclaimer": "MediFinder is a search service that organizes and displays public data released by Korea's Health Insurance Review and Assessment Service (HIRA) and National Medical Center (NMC). We are not a party to any treatment or appointment, and responsibility for medical care rests with each medical institution.",
@@ -127,6 +157,9 @@
       "mental": "Psychiatric",
       "more": "More"
     },
+    "heading": "Search {{type}}",
+    "headingRegion": "{{type}} in {{region}}",
+    "headingKeyword": "Results for “{{keyword}}”",
     "inpatient": "Nursing / Psychiatric",
     "specialty": "Specialty",
     "specialtyHint": "Specialty hospitals designated by the Ministry of Health and Welfare; the designation review is carried out by HIRA (Health Insurance Review & Assessment Service) under delegation.",

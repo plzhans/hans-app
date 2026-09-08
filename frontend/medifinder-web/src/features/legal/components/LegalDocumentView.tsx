@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { useSeo } from '@/shared/seo/useSeo';
 import type { LegalBlock, LegalDoc } from '../content';
 
 /**
@@ -14,6 +16,11 @@ export function LegalDocumentView({
   /** 본문 위에 띄우는 안내(개정 예고, 언어 안내). 없으면 아무것도 그리지 않는다. */
   notices?: string[];
 }) {
+  const { t } = useTranslation();
+
+  // 약관·방침 셋이 같은 껍데기를 쓴다 — 제목도 여기서 한 번에 세운다.
+  useSeo({ title: doc.title, description: t('seo.legal.description') });
+
   return (
     <article className="mx-auto max-w-3xl px-4 py-8 text-sm leading-relaxed text-ink-body">
       <h1 className="text-xl font-bold text-ink">{doc.title}</h1>

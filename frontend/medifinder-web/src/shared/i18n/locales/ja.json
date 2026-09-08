@@ -3,6 +3,36 @@
     "name": "MediFinder",
     "tagline": "全国の病院をかんたんに検索"
   },
+  "seo": {
+    "titleSuffix": " | MediFinder",
+    "default": {
+      "title": "病院を探す",
+      "description": "診療時間・夜間休日診療から審査評価院の適正性評価まで、韓国全国の病院情報をまとめて確認できます。"
+    },
+    "home": {
+      "title": "近くの病院を探す",
+      "description": "今開いている病院、夜間・休日診療、救急室、審査評価院1等級の病院を地域別に探せます。"
+    },
+    "search": {
+      "description": "地域・診療科目・病院種別で韓国全国の病院を検索し、診療時間と連絡先を確認できます。"
+    },
+    "hospital": {
+      "description": "{{region}}の{{name}}の診療時間・電話番号・診療科目と審査評価院の評価結果を確認できます。"
+    },
+    "npay": {
+      "title": "{{name}} 自由診療費用",
+      "description": "{{name}}の自由診療の項目と金額。病院が審査評価院に届け出た資料をそのまま表示します。"
+    },
+    "legal": {
+      "description": "MediFinder のご利用に適用される規約と方針です。"
+    },
+    "me": {
+      "title": "マイページ"
+    },
+    "notFound": {
+      "title": "ページが見つかりません"
+    }
+  },
   "footer": {
     "liability": "MediFinderは医療機関情報を提供する検索サービスであり、診療・予約・取引の当事者ではありません。医療機関が提供する情報および診療に関する責任は、各医療機関にあります。",
     "disclaimer": "MediFinderは、健康保険審査評価院・国立中央医療院が公開する公共データを整理して表示する医療機関検索サービスです。診療・予約の当事者ではなく、医療行為に関する責任は各医療機関にあります。",
@@ -127,6 +157,9 @@
       "mental": "精神病院",
       "more": "もっと見る"
     },
+    "heading": "{{type}}を検索",
+    "headingRegion": "{{region}}の{{type}}",
+    "headingKeyword": "「{{keyword}}」の検索結果",
     "inpatient": "療養・精神",
     "specialty": "専門分野",
     "specialtyHint": "保健福祉部が指定する専門病院です。指定審査は健康保険審査評価院（審評院）が委託を受けて行います。",

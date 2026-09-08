@@ -11,8 +11,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!-- 안드로이드 크롬의 상태바 색. 스티키 내비바와 같은 흰색이라 경계가 안 보인다. -->
     <meta name="theme-color" content="#FFFFFF" />
-    <title>MediFinder · 병원 찾기</title>
-    <meta name="description" content="전국 병원을 쉽고 빠르게 찾아보세요 - MediFinder" />
+    <!--
+      **JS 를 실행하지 않는 크롤러가 읽는 값이다.** 네이버 Yeti·카카오톡 미리보기 봇이
+      여기서 멈춘다. 화면마다의 제목은 shared/seo/useSeo 가 세우는데 그건 JS 가 돌아야 한다.
+      그래서 이 두 줄은 ko 기본값(i18n 의 seo.default)과 **같은 문장으로 맞춰 둔다** —
+      한쪽만 고치면 크롤러가 보는 문장과 사람이 보는 문장이 갈린다.
+    -->
+    <title>병원 찾기 | MediFinder</title>
+    <meta
+      name="description"
+      content="진료시간·야간·휴일 진료부터 심평원 적정성평가까지, 전국 병원 정보를 한 번에 확인하세요."
+    />
     <!--
       Pretendard. dynamic-subset 은 화면에 실제로 쓰인 글자만 잘라 받는 방식이라
       한글 전체(수 MB)를 받지 않는다. 변수 서체 한 벌로 400~800 굵기가 전부 나온다.

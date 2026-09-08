@@ -1,4 +1,6 @@
 import { cn } from '@/shared/lib/utils';
+import { useSeo } from '@/shared/seo/useSeo';
+import { useTranslation } from 'react-i18next';
 import { useSearchState } from '../model/useSearchState';
 import { SearchFilters } from '../components/SearchFilters';
 import { SearchResults } from '../components/SearchResults';
@@ -8,8 +10,12 @@ export default function SearchPage() {
     상태는 전부 훅이 든다(useSearchState). 여기 남은 것은 **어떻게 배치하느냐** 뿐이다 —
     보기 모드에 따라 조건이 본문에 눕는지 레이어로 뜨는지, 결과와 지도가 칸을 어떻게 나누는지.
   */
+  const { t } = useTranslation();
   const state = useSearchState();
-  const { mapView } = state;
+  const { heading, mapView } = state;
+
+  // 제목은 화면의 h1 과 같은 문장을 쓴다 — 검색 결과에 뜨는 줄과 화면에 보이는 줄이 같다.
+  useSeo({ title: heading, description: t('seo.search.description') });
 
   return (
     /*
@@ -39,6 +45,14 @@ export default function SearchPage() {
             'max-w-3xl xl:max-w-6xl',
       )}
     >
+      {/*
+        화면 제목. **한 줄로 자른다** — 지역·진료과 이름이 길어도 두 줄로 늘어나면
+        그만큼 아래가 밀린다(조건이 늦게 도착하면 그게 그대로 레이아웃 이동이 된다).
+      */}
+      <h1 className="mb-3 truncate px-1 text-lg font-extrabold tracking-tight text-ink">
+        {heading}
+      </h1>
+
       <SearchFilters state={state} />
 
       <SearchResults state={state} />

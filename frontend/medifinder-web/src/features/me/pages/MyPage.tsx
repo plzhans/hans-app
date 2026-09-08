@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useSeo } from '@/shared/seo/useSeo';
 import { LogOut, UserRound } from 'lucide-react';
 import { AUTH_WEB_URL } from '@/shared/config/env';
 import { displayName } from '@/shared/auth/api';
@@ -21,6 +22,7 @@ import { Spinner } from '@/shared/ui/Spinner';
  */
 export default function MyPage() {
   const { t } = useTranslation();
+  useSeo({ title: t('seo.me.title') });
   const status = useAuth((s) => s.status);
   const me = useAuth((s) => s.me);
   const login = useAuth((s) => s.login);

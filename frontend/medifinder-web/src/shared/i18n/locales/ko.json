@@ -3,6 +3,36 @@
     "name": "MediFinder",
     "tagline": "전국 병원을 쉽고 빠르게"
   },
+  "seo": {
+    "titleSuffix": " | MediFinder",
+    "default": {
+      "title": "병원 찾기",
+      "description": "진료시간·야간·휴일 진료부터 심평원 적정성평가까지, 전국 병원 정보를 한 번에 확인하세요."
+    },
+    "home": {
+      "title": "가까운 병원 찾기",
+      "description": "지금 문 연 병원, 야간·휴일 진료, 응급실, 심평원 평가 1등급 병원을 지역별로 찾아보세요."
+    },
+    "search": {
+      "description": "지역·진료과목·병원 종별로 전국 병원을 검색하고 진료시간과 연락처를 확인하세요."
+    },
+    "hospital": {
+      "description": "{{region}} {{name}} 진료시간·전화번호·진료과목과 심평원 적정성평가 결과를 확인하세요."
+    },
+    "npay": {
+      "title": "{{name}} 비급여 진료비",
+      "description": "{{name}} 비급여 진료 항목과 금액. 병원이 심평원에 신고한 자료를 그대로 보여줍니다."
+    },
+    "legal": {
+      "description": "MediFinder 서비스 이용에 적용되는 약관과 방침입니다."
+    },
+    "me": {
+      "title": "내 정보"
+    },
+    "notFound": {
+      "title": "페이지를 찾을 수 없습니다"
+    }
+  },
   "footer": {
     "liability": "MediFinder는 의료기관 정보를 제공하는 검색 서비스로 진료·예약·거래의 당사자가 아니며, 의료기관이 제공한 정보와 진료에 관한 책임은 각 의료기관에 있습니다.",
     "disclaimer": "MediFinder는 건강보험심사평가원·국립중앙의료원이 공개한 공공데이터를 정리해 보여주는 의료기관 정보 검색 서비스입니다. 진료·예약의 당사자가 아니며, 의료행위에 관한 책임은 각 의료기관에 있습니다.",
@@ -127,6 +157,9 @@
       "mental": "정신병원",
       "more": "더보기"
     },
+    "heading": "{{type}} 검색",
+    "headingRegion": "{{region}} {{type}}",
+    "headingKeyword": "‘{{keyword}}’ 검색 결과",
     "inpatient": "요양·정신",
     "specialty": "전문분야",
     "specialtyHint": "보건복지부가 지정하는 전문병원이에요. 지정 심사는 건강보험심사평가원(심평원)이 위탁받아 수행합니다.",
