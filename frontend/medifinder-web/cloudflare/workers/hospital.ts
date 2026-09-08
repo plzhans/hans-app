@@ -1,4 +1,5 @@
 import type { Env } from './env';
+import type { Lang } from './routing';
 
 /**
  * 넘기면 메타를 포기하고 껍데기를 그대로 내보낸다.
@@ -71,10 +72,15 @@ export type Hospital = {
  */
 export async function fetchHospital(
   id: string,
+  lang: Lang,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Hospital | null> {
-  const key = new Request(`${env.VITE_HANSAPP_BASE_URL}/healthcare/hospitals/${id}`);
+  const url = `${env.VITE_HANSAPP_BASE_URL}/healthcare/hospitals/${id}`;
+
+  // 캐시 키에 언어를 넣는다. 같은 URL 이 언어마다 다른 응답을 주므로,
+  // 안 넣으면 먼저 채운 언어가 모든 언어에 나간다. 실제 요청은 원래 URL 로 나간다.
+  const key = new Request(`${url}?_lang=${lang}`);
   const cache = caches.default;
 
   // **캐시 조회도 try 안에 둔다.** 예전엔 밖에 있었는데, 캐시 계층이 던지면 그게 그대로
@@ -84,12 +90,15 @@ export async function fetchHospital(
     const hit = await cache.match(key);
     if (hit) return (await hit.json()) as Hospital;
 
-    const res = await fetch(key, {
+    const res = await fetch(url, {
       headers: {
         // 서버는 (client id, Origin) 쌍을 본다. Origin 이 없으면 client id 가 맞아도 401 이다.
         // 브라우저가 아니라 우리가 직접 붙인다.
         Origin: env.VITE_SITE_URL,
         'X-Client-Id': env.VITE_HANSAPP_CLIENT_ID,
+        // 화면(shared/api/mutator.ts)이 보내는 것과 같은 값. 종별·진료과목·장비 같은
+        // 코드표가 이 언어로 온다. 안 보내면 일본어 화면에 한국어 진료과목이 실린다.
+        'Accept-Language': lang,
       },
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });

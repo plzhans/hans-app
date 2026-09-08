@@ -1,12 +1,13 @@
 import type { Env } from './env';
-import type { Lang } from './routing';
-import { fetchHospital, type Hospital } from './hospital';
+import { langPath, type Lang } from './routing';
+import { fetchHospital } from './hospital';
+import { hospitalJsonLd } from './schema';
 
 export type Meta = {
   title: string;
   description: string;
-  /** 병원 상세에서만 실린다. head 가 이걸로 JSON-LD 를 만든다. */
-  hospital?: Hospital;
+  /** 병원 상세에서만 실린다. 항목 이름이 번역 파일에 있어 여기서 만든다. */
+  jsonLd?: string;
 };
 
 /**
@@ -27,7 +28,7 @@ export async function metaFor(
   // 병원 상세·비급여. 여기만 API 를 부른다.
   const hospitalMatch = /^\/hospitals\/(\d+)(\/npay)?\/?$/.exec(path);
   if (hospitalMatch) {
-    const hospital = await fetchHospital(hospitalMatch[1], env, ctx);
+    const hospital = await fetchHospital(hospitalMatch[1], lang, env, ctx);
     // 못 받으면 손대지 않는다. 껍데기의 기본 제목이 그대로 나가는 편이,
     // 병원 이름 자리가 빈 제목보다 낫다.
     if (!hospital) return null;
@@ -43,7 +44,19 @@ export async function metaFor(
     return {
       // 비급여는 가격표 화면이라 병원 자체의 구조화 데이터를 싣지 않는다 —
       // 같은 병원이 서로 다른 URL 로 두 번 선언되면 어느 쪽이 정본인지 흐려진다.
-      hospital: npay ? undefined : hospital,
+      jsonLd: npay
+        ? undefined
+        : (hospitalJsonLd(hospital, `${env.VITE_SITE_URL}${langPath(path, lang)}`, {
+            beds: dict.clinic.beds,
+            bedsTotal: dict.clinic.bedField.total,
+            bedsIcu: dict.clinic.bedField.icu,
+            specialists: dict.clinic.staffField.specialist,
+            equipment: dict.clinic.equipments,
+            specialCare: dict.clinic.specialCare,
+            assessment: dict.clinic.assessment.title,
+            location: dict.clinic.tabs.location,
+            transit: dict.clinic.transport.publicTransit,
+          }) ?? undefined),
       title:
         (npay ? fill(dict.seo.npay.title, { name: hospital.name }) : hospital.name) +
         suffix,

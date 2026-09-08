@@ -1,6 +1,5 @@
 import { LANGS, langPath, type Lang } from './routing';
 import type { Meta } from './meta';
-import { hospitalJsonLd } from './schema';
 
 /**
  * 공유 미리보기에 쓸 기본 그림. **public/og.png 로 배포된다.**
@@ -60,8 +59,8 @@ export function headTags(o: {
     `<meta property="og:image:height" content="${OG_IMAGE_SIZE.height}">`,
     `<meta property="og:image:alt" content="${esc(o.meta.title)}">`,
     `<meta name="twitter:card" content="summary_large_image">`,
-    // 병원 상세에서만 붙는다. 다른 화면에서는 null 이라 아래에서 걸러진다.
-    o.meta.hospital ? hospitalJsonLd(o.meta.hospital, canonical) : null,
+    // 병원 상세에서만 붙는다. 다른 화면에서는 undefined 라 아래에서 걸러진다.
+    o.meta.jsonLd ?? null,
   ].filter((tag): tag is string => !!tag);
 
   // 앞에 개행을 하나 두는 것은 index.html 의 마지막 <head> 태그 뒤에 이어 붙기 때문이다.

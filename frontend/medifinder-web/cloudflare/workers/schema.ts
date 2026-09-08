@@ -1,6 +1,32 @@
 import type { Hospital, TransportRoute } from './hospital';
 
 /**
+ * 항목 이름. 값은 서버가 Accept-Language 로 번역해 주지만 **이름은 화면이 붙인다.**
+ * 그래서 상세 화면이 쓰는 clinic.* 키를 그대로 받는다 — 여기서 따로 만들면
+ * 같은 뜻의 라벨이 두 벌이 되고, 화면과 검색 결과의 용어가 갈린다.
+ */
+export type SchemaLabels = {
+  /** clinic.beds — 병상 */
+  beds: string;
+  /** clinic.bedField.total — 허가 병상 */
+  bedsTotal: string;
+  /** clinic.bedField.icu — 중환자실 */
+  bedsIcu: string;
+  /** clinic.staffField.specialist — 전문의 */
+  specialists: string;
+  /** clinic.equipments — 보유 장비 */
+  equipment: string;
+  /** clinic.specialCare — 특수진료 */
+  specialCare: string;
+  /** clinic.assessment.title — 심평원 병원평가 */
+  assessment: string;
+  /** clinic.tabs.location — 위치 */
+  location: string;
+  /** clinic.transport.publicTransit — 대중교통 */
+  transit: string;
+};
+
+/**
  * 병원 상세의 구조화 데이터(JSON-LD).
  *
  * **왜 head 에 넣나.** 이 앱은 CSR 이라 크롤러가 본문을 못 읽는다. JSON-LD 는 검색엔진에
@@ -85,7 +111,11 @@ function prop(name: string, value: string | number) {
   return { '@type': 'PropertyValue', name, value };
 }
 
-export function hospitalJsonLd(h: Hospital, url: string): string | null {
+export function hospitalJsonLd(
+  h: Hospital,
+  url: string,
+  L: SchemaLabels,
+): string | null {
   if (!h.name) return null;
 
   const type = TYPE_BY_CATEGORY[h.category?.code ?? ''] ?? 'MedicalClinic';
@@ -126,15 +156,12 @@ export function hospitalJsonLd(h: Hospital, url: string): string | null {
     규제기관이 매긴 평가라 뜻이 완전히 다르다. 리뷰 별점으로 둔갑시키는 셈이 된다.
   */
   const extra: ReturnType<typeof prop>[] = [];
-  if (h.tier?.name) extra.push(prop('종별', h.tier.name));
-  if (h.category?.name) extra.push(prop('분류', h.category.name));
-
   /*
     찾아오는 길과 교통편. **주소만으로는 못 찾는 병원이 많다** — 상가 몇 동 몇 호,
     무슨 건물 몇 층 같은 정보가 여기 들어 있고, 상세 화면도 그대로 보여준다.
     "샛강역 병원" 처럼 역 이름으로 찾는 검색에도 이 줄이 닿는다.
   */
-  if (h.directions) extra.push(prop('찾아오는 길', h.directions.replace(/\s+/g, ' ').trim()));
+  if (h.directions) extra.push(prop(L.location, h.directions.replace(/\s+/g, ' ').trim()));
   const routes = [
     ...(h.transport?.subway ?? []),
     ...(h.transport?.bus ?? []),
@@ -142,23 +169,22 @@ export function hospitalJsonLd(h: Hospital, url: string): string | null {
   ];
   for (const route of routes) {
     const line = transportLine(route);
-    if (line) extra.push(prop(`대중교통 · ${route.kindName ?? '교통편'}`, line));
+    if (line) extra.push(prop(route.kindName ? `${L.transit} · ${route.kindName}` : L.transit, line));
   }
 
-  if (h.beds?.total) extra.push(prop('병상 수', h.beds.total));
-  if (h.beds?.icu) extra.push(prop('중환자실 병상', h.beds.icu));
-  if (h.staff?.doctorTotal) extra.push(prop('의사 수', h.staff.doctorTotal));
-  if (h.staff?.specialist) extra.push(prop('전문의 수', h.staff.specialist));
+  if (h.beds?.total) extra.push(prop(L.bedsTotal, h.beds.total));
+  if (h.beds?.icu) extra.push(prop(`${L.beds} · ${L.bedsIcu}`, h.beds.icu));
+  if (h.staff?.specialist) extra.push(prop(L.specialists, h.staff.specialist));
   for (const e of h.equipments ?? []) {
-    if (e.name) extra.push(prop(`보유 장비 · ${e.name}`, e.count ?? 1));
+    if (e.name) extra.push(prop(`${L.equipment} · ${e.name}`, e.count ?? 1));
   }
   for (const c of h.capabilities ?? []) {
-    if (c.name) extra.push(prop('특수 진료', c.name));
+    if (c.name) extra.push(prop(L.specialCare, c.name));
   }
   for (const g of h.assessment?.groups ?? []) {
     for (const item of g.items ?? []) {
       if (item.name && item.grade) {
-        extra.push(prop(`심평원 적정성평가 · ${item.name}`, item.grade));
+        extra.push(prop(`${L.assessment} · ${item.name}`, item.grade));
       }
     }
   }
