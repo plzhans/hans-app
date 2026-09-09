@@ -11,7 +11,7 @@
     "build:develop": "dotenv -e .env.develop.local -e .env.develop -- vite build",
     "build:production": "dotenv -e .env.production -- vite build",
     "preview": "vite preview --port 5173 --strictPort",
-    "preview:wrangler:dev": "pnpm build:develop && CI=true WRANGLER_SEND_METRICS=false pnpm dlx wrangler@4 dev --assets dist",
+    "preview:wrangler:dev": "pnpm build:develop && CI=true WRANGLER_SEND_METRICS=false pnpm --allow-build=esbuild,workerd dlx wrangler@4 dev --assets dist",
     "spec:local": "pnpm -C ../../backend run openapi:gen:local",
     "spec:dev": "pnpm -C ../../backend run openapi:gen:dev",
     "api:gen": "orval",

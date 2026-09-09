@@ -194,8 +194,11 @@ esac
 
 # `${arr[@]+"${arr[@]}"}` 인 이유: macOS 기본 bash(3.2)는 set -u 에서 **빈 배열 전개를
 # unbound variable 로 보고 죽는다.** `"${arr[@]}"` 로 줄이면 로컬에서만 터진다.
+# --allow-build 가 없으면 **pnpm 이 빌드 스크립트를 실행할지 대화형으로 묻고 거기서 멈춘다.**
+# dlx 는 임시 스토어에 새로 받으므로 프로젝트의 pnpm-workspace.yaml(allowBuilds)이 닿지 않는다.
+# wrangler 가 esbuild 로 번들하고 workerd 로 로컬 실행하므로 둘 다 필요하다.
 CI=true WRANGLER_SEND_METRICS=false \
-pnpm dlx "wrangler@$WRANGLER_VERSION" deploy \
+pnpm --allow-build=esbuild,workerd dlx "wrangler@$WRANGLER_VERSION" deploy \
   --name "$CF_WORKER_NAME" \
   --assets "$dist_dir" \
   ${var_args[@]+"${var_args[@]}"} \
