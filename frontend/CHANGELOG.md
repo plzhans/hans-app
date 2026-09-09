@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.1](https://github.com/plzhans/hans-app/compare/release-frontend/v0.12.0...release-frontend/v0.12.1) (2026-09-09)
+
+
+### 성능
+
+* **medifinder:** gtag 를 첫 화면 뒤로 미룬다 ([93b32a4](https://github.com/plzhans/hans-app/commit/93b32a46a1014a1c6df1d069d63e0c74dcd15932))
+* **medifinder:** gtag 를 첫 화면 뒤로 미룬다 ([ad6c995](https://github.com/plzhans/hans-app/commit/ad6c995d4b262a97a1e773ad27aa049defe273e8))
+
 ## [0.12.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.11.0...release-frontend/v0.12.0) (2026-09-09)
 
 
