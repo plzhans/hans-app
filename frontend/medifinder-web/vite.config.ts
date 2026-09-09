@@ -56,6 +56,9 @@ export default defineConfig(({ mode }) => {
     define: {
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),
       __APP_BUILT_AT__: JSON.stringify(builtAt),
+      // Sentry 가 문서로 안내하는 트리셰이킹 플래그. 디버그 로깅 코드를 걷어낸다(gzip 3KB).
+      // __SENTRY_TRACING__ 은 건드리지 않는다 — 트레이싱을 쓰고 있어서 끄면 깨진다.
+      __SENTRY_DEBUG__: false,
     },
     resolve: {
       alias: {
@@ -97,6 +100,16 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
+      /*
+        **manualChunks 로 벤더를 가르지 않는다.**
+
+        갈라서 배포하고 n=9 로 양쪽을 재 봤더니 Lighthouse 모바일 LCP 중앙값이 5.3s 로 같았다.
+        측정이 4.1~4.3 과 5.3 두 무리로 갈리는 이봉분포라 표본이 적으면 중앙값이 크게 흔들린다
+        (처음엔 n=3 기준선과 비교해 회귀라고 잘못 읽었다).
+
+        즉 **효과가 없다.** 얻는다는 재방문 캐시도 추정일 뿐이라, 설정을 늘리지 않는 쪽을 택한다.
+        번들 크기로 이 LCP 를 움직이려는 시도는 여기서 한계다 — 남은 건 프리렌더/SSR 이다.
+      */
     },
   };
 });

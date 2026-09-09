@@ -33,11 +33,6 @@ declare global {
 export function initGa(): void {
   if (!gaEnabled) return;
 
-  const script = document.createElement('script');
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`;
-  document.head.appendChild(script);
-
   window.dataLayer = window.dataLayer ?? [];
   // gtag 는 arguments 객체를 **그대로** dataLayer 에 밀어 넣는 규약이다. 화살표 함수로 바꾸거나
   // 나머지 매개변수를 배열로 push 하면 gtag.js 가 알아보지 못한다.
@@ -48,6 +43,30 @@ export function initGa(): void {
   window.gtag('js', new Date());
   // 첫 화면을 포함해 page_view 는 trackPageView 가 보낸다. 여기서 자동 전송을 켜 두면 두 번 잡힌다.
   window.gtag('config', MEASUREMENT_ID, { send_page_view: false });
+
+  /*
+    **스크립트 다운로드는 첫 화면이 그려진 뒤로 미룬다.**
+
+    gtag.js 는 170KB 에 실행 130ms 라 첫 화면과 자원을 다툰다. async 라 렌더를 막지는 않지만,
+    느린 회선에서는 그만큼 앱 번들이 늦게 온다.
+
+    **이벤트는 하나도 안 잃는다.** 위에서 dataLayer 와 gtag 를 이미 만들어 뒀으므로,
+    스크립트보다 먼저 불린 trackPageView 는 큐에 쌓였다가 gtag.js 가 로드되며 한꺼번에 처리된다.
+    그게 gtag 의 원래 규약이다.
+  */
+  const load = () => {
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`;
+    document.head.appendChild(script);
+  };
+  // requestIdleCallback 이 없는 브라우저(사파리)는 setTimeout 으로 다음 틱에 민다.
+  const idle = window.requestIdleCallback as typeof window.requestIdleCallback | undefined;
+  const whenIdle = (fn: () => void) =>
+    idle ? idle(fn, { timeout: 3000 }) : window.setTimeout(fn, 1);
+
+  if (document.readyState === 'complete') whenIdle(load);
+  else window.addEventListener('load', () => whenIdle(load), { once: true });
 }
 
 /**
