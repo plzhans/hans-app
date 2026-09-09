@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.12.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.11.0...release-frontend/v0.12.0) (2026-09-09)
+
+
+### 기능
+
+* **medifinder:** Pretendard 를 self-host 로 옮긴다 ([4bf0071](https://github.com/plzhans/hans-app/commit/4bf00710281f69bf0f5d7b87d3d455d74e66ca38))
+* **medifinder:** SEO 감사 대응 — 메타·구조화 데이터·CLS·보안 헤더 ([4353694](https://github.com/plzhans/hans-app/commit/435369466c76854336928f2c8ebbed6f58045bb3))
+* **medifinder:** 라우트마다 title·description·h1 을 세운다 ([747dd6a](https://github.com/plzhans/hans-app/commit/747dd6a0ea3cf995e1581f0fcb75b8ad201c2b51))
+* **medifinder:** 보안 헤더와 해시 자산 장기 캐싱을 준다 ([4eac9b1](https://github.com/plzhans/hans-app/commit/4eac9b1c32c87a2461ab69d9338d8f82fac9070a))
+* **medifinder:** 워커가 응답 HTML 의 head 를 채운다 ([f064afb](https://github.com/plzhans/hans-app/commit/f064afb2e97bba3b3f478d57136c03619cc742fc))
+* **medifinder:** 파비콘과 OG 이미지를 넣는다 ([2da8a05](https://github.com/plzhans/hans-app/commit/2da8a0567092befaaaea1d17e70b84cfac838ce7))
+* **medifinder:** 홈에 Organization·WebSite 구조화 데이터를 낸다 ([9854ed4](https://github.com/plzhans/hans-app/commit/9854ed44b01231f0db6b865026ed6da9d6725f0c))
+
+
+### 버그 수정
+
+* **frontend:** 배포가 pnpm 빌드 승인 프롬프트에서 멈추지 않는다 ([f2da8c6](https://github.com/plzhans/hans-app/commit/f2da8c6de616d9cf0468bf9c7bcf29bbf1dcc2bf))
+* **medifinder:** 골격 카드 높이를 실제 카드에 맞춘다 ([b6d5645](https://github.com/plzhans/hans-app/commit/b6d56451cb0b33a8ec1a78f834b6a4ea532760cb))
+* **medifinder:** 로딩 중 카드 자리를 미리 잡는다 ([c5d92d0](https://github.com/plzhans/hans-app/commit/c5d92d0605e99f1dcc3e1e049902282e3e8f8523))
+* **medifinder:** 워커가 화면과 같은 언어로 메타를 만든다 ([6329b26](https://github.com/plzhans/hans-app/commit/6329b26d8a24038a573b43e5626929397a257dec))
+* **medifinder:** 좁은 화면에서 로그인 버튼이 헤더 밖으로 삐져나온다 ([e19e035](https://github.com/plzhans/hans-app/commit/e19e035c5763b2aa1b8c23df95d8d950099f7bbf))
+* **medifinder:** 진료과목 칩이 도착하기 전에 자리를 잡는다 ([4178163](https://github.com/plzhans/hans-app/commit/417816308bd6b1a9f1001d3f28dae3434a7ca112))
+
+
+### 문서
+
+* **medifinder:** wrangler.jsonc 주석을 줄인다 ([35ef312](https://github.com/plzhans/hans-app/commit/35ef312295c21b3461a5932616b051416183620b))
+
 ## [0.11.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.10.0...release-frontend/v0.11.0) (2026-09-04)
 
 
