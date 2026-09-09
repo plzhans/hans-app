@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -6,6 +6,7 @@ import {
   type SupportedLanguage,
 } from '@/shared/i18n';
 import { langPath, stripLang } from '@/shared/i18n/routing';
+import { applySeo } from '@/shared/seo/useSeo';
 
 /**
  * 정식 URL 을 만들 때 쓰는 사이트 주소.
@@ -32,13 +33,32 @@ const MARK = 'data-i18n-seo';
  * 여기서 URL 구조를 먼저 잡아 두는 것은 그때 이 구조를 그대로 쓰기 위해서다.
  */
 export function LangLayout({ lang }: { lang: SupportedLanguage }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { pathname } = useLocation();
 
   // 언어는 렌더 중에 맞춘다. useEffect 로 미루면 첫 페인트가 이전 언어로 한 번 그려진다.
   if (i18n.language !== lang) {
     void i18n.changeLanguage(lang);
   }
+
+  /**
+   * 제목·설명의 **기본값**. 화면이 자기 것을 세우기 전에 먼저 깔린다.
+   *
+   * 이게 없으면 자기 제목을 세우지 않는 화면(또는 아직 데이터를 못 받은 상세)에서
+   * **직전 화면의 제목이 그대로 남는다** — 병원 상세를 보다 약관으로 넘어가면 약관 화면에
+   * 병원 이름이 붙어 있게 된다.
+   *
+   * **useLayoutEffect 다(useEffect 가 아니다).** 리액트는 레이아웃 이펙트를 자식→부모 순으로
+   * 전부 돌린 뒤에야 패시브 이펙트를 돌린다. 화면(자식)은 useSeo 로 패시브 이펙트를 쓰므로,
+   * 여기를 레이아웃 이펙트로 두어야 **기본값이 먼저, 화면 제목이 나중**이 된다.
+   * 둘 다 useEffect 면 자식이 먼저 돌아 기본값이 화면 제목을 덮어쓴다.
+   */
+  useLayoutEffect(() => {
+    applySeo(
+      { title: t('seo.default.title'), description: t('seo.default.description') },
+      t('seo.titleSuffix'),
+    );
+  }, [t, lang, pathname]);
 
   useEffect(() => {
     document.documentElement.lang = lang;

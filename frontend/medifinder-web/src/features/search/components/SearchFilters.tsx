@@ -20,6 +20,7 @@ import {
   Chip,
   FilterRow,
   InfoHintScope,
+  SubjectChipSkeleton,
 } from './SearchFilterParts';
 
 /** 자주 찾는 전문분야. 기본으로 이것만 보이고 나머지는 +N 으로 펼친다. */
@@ -389,6 +390,8 @@ export function SearchFilters({ state }: { state: SearchState }) {
       */}
       {!baby && (
       <div className="flex flex-wrap gap-1.5">
+        {/* 코드표가 도착하기 전에 칩 자리를 잡는다 — 안 그러면 아래 결과가 통째로 밀린다. */}
+        {!groups && <SubjectChipSkeleton />}
         {groups?.map((group) => {
           const codes = group.subjects.map((s) => s.code);
 

@@ -3,6 +3,36 @@
     "name": "MediFinder",
     "tagline": "轻松快速查找全国医院"
   },
+  "seo": {
+    "titleSuffix": " | MediFinder",
+    "default": {
+      "title": "查找医院",
+      "description": "从门诊时间、夜间与节假日诊疗到健保审查评价院的评价结果，一次查看韩国全国医院信息。"
+    },
+    "home": {
+      "title": "查找附近的医院",
+      "description": "按地区查找现在开诊的医院、夜间与节假日儿科诊疗、急诊室，以及审查评价院1级医院。"
+    },
+    "search": {
+      "description": "按地区、诊疗科目和医院类别检索韩国全国医院，查看门诊时间与联系方式。"
+    },
+    "hospital": {
+      "description": "查看{{region}}{{name}}的门诊时间、电话、诊疗科目和审查评价院评价结果。"
+    },
+    "npay": {
+      "title": "{{name}} 自费诊疗费用",
+      "description": "{{name}}的自费诊疗项目与金额。直接呈现医院向审查评价院申报的资料。"
+    },
+    "legal": {
+      "description": "适用于 MediFinder 服务使用的条款与政策。"
+    },
+    "me": {
+      "title": "我的信息"
+    },
+    "notFound": {
+      "title": "找不到页面"
+    }
+  },
   "footer": {
     "liability": "MediFinder 是提供医疗机构信息的检索服务，并非诊疗、预约或交易的当事方；医疗机构所提供信息及诊疗的相关责任，由各医疗机构承担。",
     "disclaimer": "MediFinder 是整理并展示韩国健康保险审查评价院、国立中央医疗院公开数据的医疗机构检索服务。我们并非诊疗或预约的当事方，医疗行为的相关责任由各医疗机构承担。",
@@ -127,6 +157,9 @@
       "mental": "精神病院",
       "more": "更多"
     },
+    "heading": "搜索{{type}}",
+    "headingRegion": "{{region}}的{{type}}",
+    "headingKeyword": "“{{keyword}}”的搜索结果",
     "inpatient": "疗养·精神",
     "specialty": "专业领域",
     "specialtyHint": "由保健福祉部指定的专门医院。指定审查由健康保险审查评价院（审评院）受委托进行。",

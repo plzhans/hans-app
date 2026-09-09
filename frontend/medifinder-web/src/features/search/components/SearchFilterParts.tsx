@@ -229,6 +229,38 @@ export function AssessmentFilter({
 }
 
 /** 선택 칩. 켜진 상태는 **저장하지 않고 계산한다** — 호출부가 active 를 넘긴다. */
+/**
+ * 진료과목 칩이 도착하기 전에 자리를 잡는다.
+ *
+ * 코드표라 목록이 거의 안 바뀌는데도 API 로 받아오므로, 도착 전에는 이 묶음이 0px 이다가
+ * 갑자기 155px(390px 화면 기준 4줄)이 된다. 그만큼 아래의 검색 결과가 통째로 밀려
+ * develop 에서 CLS 0.085 로 남아 있던 몫이 이것이었다.
+ *
+ * **폭을 하나씩 준다.** 묶음 높이는 칩이 몇 줄로 접히느냐로 정해지고, 그건 화면 폭마다
+ * 다르다. 통째로 min-height 를 주면 모바일에 맞춘 값이 데스크톱에서 빈 공간이 된다.
+ *
+ * 폭은 실제 라벨('내과'·'정신건강의학과' 등 15개)을 390px 에서 재서 rem 으로 옮긴 값이다.
+ * 코드표에 항목이 늘거나 이름이 바뀌면 조금씩 어긋난다 — 그때 다시 재면 된다.
+ */
+const SUBJECT_CHIP_WIDTHS = [
+  '3rem', '5.3rem', '6rem', '4.8rem', '4.8rem', '3rem', '5.3rem', '4.5rem',
+  '5.3rem', '6.8rem', '3.8rem', '3rem', '5.3rem', '3rem', '3rem',
+];
+
+export function SubjectChipSkeleton() {
+  return (
+    <>
+      {SUBJECT_CHIP_WIDTHS.map((width, i) => (
+        <div
+          key={i}
+          style={{ width }}
+          className="h-[2rem] animate-pulse rounded-full bg-surface-subtle"
+        />
+      ))}
+    </>
+  );
+}
+
 export function Chip({
   children,
   active,

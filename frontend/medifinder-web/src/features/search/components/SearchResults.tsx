@@ -9,8 +9,9 @@ import {
 import { Spinner } from '@/shared/ui/Spinner';
 import { cn } from '@/shared/lib/utils';
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
+import { HospitalCardSkeleton } from '@/features/clinic/components/HospitalCardSkeleton';
 import { MapView } from '@/shared/components/map/MapView';
-import type { SearchState } from '../model/useSearchState';
+import { PAGE_SIZE, type SearchState } from '../model/useSearchState';
 
 /**
  * 검색 결과 — 건수 줄 · 지도 · 카드 목록.
@@ -207,11 +208,6 @@ export function SearchResults({ state }: { state: SearchState }) {
           mapView && 'lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto',
         )}
       >
-    {isLoading && (
-      <div className="py-12 text-center">
-        <Spinner />
-      </div>
-    )}
     {/* 실패 사유마다 사용자가 할 일이 다르다 — loadErrorKey 주석 참고. */}
     {isError && (
       <p className="py-12 text-center text-danger">{t(loadErrorKey(error))}</p>
@@ -245,6 +241,15 @@ export function SearchResults({ state }: { state: SearchState }) {
       나중에 지도가 실제로 붙어도 이쪽은 손댈 일이 없다.
     */}
     <div className={cn('grid gap-2.5', !mapView && 'xl:grid-cols-2')}>
+      {/*
+        **첫 로딩에는 카드 자리를 미리 깐다.** 예전엔 스피너 한 덩어리였는데, 결과가 들어오는
+        순간 목록이 스무 장 높이로 부풀면서 아래가 통째로 밀렸다 — 모바일 CLS 0.5(임계 0.1).
+        같은 격자 안에서 갈아 끼우므로 열 수·간격이 결과와 정확히 같다.
+      */}
+      {isLoading &&
+        Array.from({ length: PAGE_SIZE }).map((_, i) => (
+          <HospitalCardSkeleton key={`skeleton-${i}`} />
+        ))}
       {items.map((h) => (
         /*
           지도에서 고른 카드를 잠깐 칠한다. 감싸는 div 에 거는 이유는 HospitalCard 가

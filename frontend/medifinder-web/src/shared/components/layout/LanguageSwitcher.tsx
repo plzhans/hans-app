@@ -72,7 +72,14 @@ export function LanguageSwitcher({
             "中文" 만 떠 있으면 그 언어를 못 읽는 사람은 전환 메뉴인 줄 모른다.
             영어는 어느 언어권에서도 대체로 알아보므로 여기가 언어 바꾸는 곳임을 안다.
             지금 언어가 뭔지는 열었을 때 목록의 체크 표시로 보인다. */}
-        {!compact && <span>Language</span>}
+        {/*
+          **좁은 화면에서는 글자를 접는다.** 390px 헤더에서 로고(126px) + 조작 묶음(272px)이
+          쓸 수 있는 358px 을 넘겨서, 넘친 만큼이 다른 항목을 눌렀다 — 한국어 '로그인' 이
+          글자마다 줄바꿈돼 헤더 밖으로 삐져나온 게 그 결과였다.
+          이 글자가 98px 로 가장 크다. 접으면 66px 이 돌아와 전부 한 줄에 선다.
+          접혀도 지구본 + aria-label 이 남아 무슨 버튼인지는 그대로 읽힌다.
+        */}
+        {!compact && <span className="hidden sm:inline">Language</span>}
       </RadixSelect.Trigger>
 
       <RadixSelect.Portal>

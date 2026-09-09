@@ -32,7 +32,8 @@ import {
   Stethoscope,
 } from 'lucide-react';
 
-const PAGE_SIZE = 20;
+/** 한 번에 받아오는 결과 수. 로딩 중 깔 골격 장수도 이 값을 쓴다(SearchResults). */
+export const PAGE_SIZE = 20;
 
 /**
  * 진입점 탭. 서로 배타적이다 — 하나만 켜진다.
@@ -640,6 +641,29 @@ export function useSearchState() {
    * 지역은 **짧은 이름이 있으면 그걸 보여준다** — "서울특별시" 는 좁은 셀렉트에서 잘린다.
    * 검색에 쓰는 값(code)은 그대로라 서버는 정식 명칭으로 매칭한다.
    */
+  /**
+   * 이 화면의 제목(h1).
+   *
+   * **적용된 조건(URL)으로 만든다** — 고르는 중인 draft 로 만들면 아직 검색하지도 않은
+   * 조건이 제목에 뜨고, 아래 결과와 어긋난다.
+   *
+   * 예전엔 이 화면에 h1 도 h2 도 없이 병원 이름(h3)부터 시작했다. 검색엔진과 스크린리더
+   * 모두 이 페이지가 무엇에 대한 목록인지 알 방법이 없었다.
+   *
+   * 조건을 다 늘어놓지는 않는다(진료과목·장비·평가까지 붙이면 한 줄을 넘긴다).
+   * **지역과 진입점**까지만 쓴다 — 그 둘이 사람들이 실제로 검색하는 말이다("송파구 병원").
+   */
+  const headingType = t(`search.tabs.${activeTab.key}`);
+  const headingRegion =
+    sggus?.find((item) => item.code === applied.region)?.name ??
+    sidos?.find((item) => item.code === (applied.region || applied.sido))?.name ??
+    '';
+  const heading = applied.q
+    ? t('search.headingKeyword', { keyword: applied.q })
+    : headingRegion
+      ? t('search.headingRegion', { region: headingRegion, type: headingType })
+      : t('search.heading', { type: headingType });
+
   const toOptions = (
     list?: { code: string; name: string; shortName?: string }[],
   ) =>
@@ -664,6 +688,7 @@ export function useSearchState() {
     focusResult,
     focusedId,
     groups,
+    heading,
     inpatient,
     isError,
     isFetching,

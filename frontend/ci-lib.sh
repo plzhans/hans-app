@@ -20,6 +20,11 @@ KNOWN_TARGETS='medifinder-web hansapp-docs hansapp-web hansapp-auth hansapp-admi
 # 빌드는 여기서 하고(ci-build.sh), 담는 것은 backend/docker/hansapp-admin.Dockerfile 이다.
 WORKER_TARGETS='medifinder-web hansapp-docs hansapp-web hansapp-auth'
 
+# **워커 스크립트(main)가 있는 대상.** 나머지는 정적 자산만 올리는 assets 전용 Worker 라
+# 런타임 변수를 받을 곳이 없다. 파일을 grep 해서 알아내지 않고 여기 적는다 —
+# 배포가 무엇을 하는지는 스크립트를 읽어서 알 수 있어야 한다.
+WORKER_SCRIPT_TARGETS='medifinder-web'
+
 group() {
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::group::$1"; else echo "▶ $1"; fi
 }

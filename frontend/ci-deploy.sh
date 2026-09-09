@@ -52,10 +52,10 @@ set -euo pipefail
 # wrangler 는 배포 도구지 배포 입력이 아니다. 기본값을 두되 올리고 싶으면 덮어쓸 수 있게 한다.
 WRANGLER_VERSION="${WRANGLER_VERSION:-4}"
 
-# Workers 런타임의 동작 기준일. **여기서만 올린다.**
-# 배포할 때마다 오늘 날짜가 들어가면 같은 산출물을 다시 올리는 것만으로 런타임이 달라져,
-# 롤백해도 예전과 같은 결과가 나온다는 보장이 사라진다. 올릴 때는 사람이 의도해서 올린다.
-CF_COMPAT_DATE="${CF_COMPAT_DATE:-2026-07-01}"
+# 런타임 동작 기준일은 **각 프로젝트의 wrangler.jsonc 가 정한다.**
+# 예전엔 여기서 --compatibility-date 로 전부에 같은 값을 밀어 넣었는데, 그러면 한 프로젝트에서
+# 검증하고 올린 날짜가 나머지 전부에 함께 적용된다. 그 날짜는 "이 워커를 어느 런타임 동작에
+# 고정할 것인가" 라서, 올리는 사람과 검증하는 사람이 같아야 한다.
 
 resolve_project "${1:-}"
 require_app_env
@@ -174,11 +174,34 @@ group "deploy ($CF_WORKER_NAME)"
 # (텔레메트리 동의, "AI 코딩 에이전트를 감지했는데 Cloudflare skills 를 설치할까?" 등).
 # CI 에는 답할 사람이 없어 배포가 거기서 멈추고, 로컬에서는 사람이 매번 다른 답을 하면
 # 로컬과 CI 가 갈린다. 배포 명령이 부수효과로 레포에 파일을 쓰는 것도 원치 않는다.
+# **워커 런타임 변수.** 빌드가 읽는 것과 **같은 .env.<환경> 파일**에서 읽어 넘긴다.
+# wrangler.jsonc 의 vars 에 적으면 값이 두 곳이 되고, 어긋나면 워커가 API 호출에 실패해
+# **화면은 멀쩡한 채로 메타만 조용히 빠진다.** 이름을 VITE_ 그대로 두는 것도 같은 이유다 —
+# 별명을 만들면 그 매핑표가 또 하나의 틀릴 수 있는 자리가 된다.
+var_args=()
+case " $WORKER_SCRIPT_TARGETS " in
+  *" $project "*)
+    env_file=".env.$APP_ENV"
+    [ -f "$env_file" ] || die "$AREA/$project/$env_file 이 없다. 워커가 쓸 값을 읽을 수 없다."
+    # shellcheck disable=SC1090
+    . "./$env_file"
+    for key in VITE_SITE_URL VITE_HANSAPP_BASE_URL VITE_HANSAPP_CLIENT_ID; do
+      [ -n "${!key:-}" ] || die "$env_file 에 $key 가 비어 있다. 워커가 그 값 없이는 동작하지 않는다."
+      var_args+=(--var "$key:${!key}")
+    done
+    ;;
+esac
+
+# `${arr[@]+"${arr[@]}"}` 인 이유: macOS 기본 bash(3.2)는 set -u 에서 **빈 배열 전개를
+# unbound variable 로 보고 죽는다.** `"${arr[@]}"` 로 줄이면 로컬에서만 터진다.
+# --allow-build 가 없으면 **pnpm 이 빌드 스크립트를 실행할지 대화형으로 묻고 거기서 멈춘다.**
+# dlx 는 임시 스토어에 새로 받으므로 프로젝트의 pnpm-workspace.yaml(allowBuilds)이 닿지 않는다.
+# wrangler 가 esbuild 로 번들하고 workerd 로 로컬 실행하므로 둘 다 필요하다.
 CI=true WRANGLER_SEND_METRICS=false \
-pnpm dlx "wrangler@$WRANGLER_VERSION" deploy \
+pnpm --allow-build=esbuild,workerd dlx "wrangler@$WRANGLER_VERSION" deploy \
   --name "$CF_WORKER_NAME" \
   --assets "$dist_dir" \
-  --compatibility-date "$CF_COMPAT_DATE" \
+  ${var_args[@]+"${var_args[@]}"} \
   --tag "$GITHUB_SHA" \
   --message "ref: $GITHUB_REF_NAME"
 endgroup

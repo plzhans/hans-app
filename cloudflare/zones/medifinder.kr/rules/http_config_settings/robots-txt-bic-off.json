@@ -1,0 +1,9 @@
+{
+  "ref": "robots-txt-bic-off",
+  "description": "[robots-txt-bic-off] robots.txt 만 Browser Integrity Check 예외 - Python urllib 등 기본 UA 로 robots.txt 를 읽는 컴플라이언스 크롤러가 403 을 받으면 사이트 전체를 크롤링 금지로 오판한다. robots.txt 외 나머지 경로는 그대로 보호된다.",
+  "expression": "(http.host eq \"medifinder.kr\" or http.host eq \"www.medifinder.kr\") and (http.request.uri.path eq \"/robots.txt\")",
+  "action": "set_config",
+  "action_parameters": {
+    "bic": false
+  }
+}

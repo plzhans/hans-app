@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useSeo } from '@/shared/seo/useSeo';
 import { useLangPath } from '@/shared/i18n/routing';
 import {
   MapPin,
@@ -346,6 +347,24 @@ export default function HospitalDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { data: hospital, isLoading, isError } = useHospitalDetail(id);
+
+  /*
+    제목은 병원 이름이다. **데이터가 오기 전에는 아무것도 넘기지 않는다**(undefined) —
+    빈 값으로 덮으면 그 사이 제목이 사라진다. LangLayout 의 기본값이 그때를 메운다.
+  */
+  const seoRegion = [
+    hospital?.location?.region?.sido?.name,
+    hospital?.location?.region?.name,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  useSeo({
+    title: hospital?.name,
+    description: hospital
+      ? t('seo.hospital.description', { region: seoRegion, name: hospital.name })
+      : undefined,
+  });
+
   const { copy, copied } = useCopyToClipboard();
   const navigate = useNavigate();
   const langPath = useLangPath();

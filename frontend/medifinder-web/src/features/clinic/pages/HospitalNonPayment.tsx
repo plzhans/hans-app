@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useSeo } from '@/shared/seo/useSeo';
 import { Receipt } from 'lucide-react';
 import { useLangPath } from '@/shared/i18n/routing';
 import { Spinner } from '@/shared/ui/Spinner';
@@ -30,6 +31,13 @@ export default function HospitalNonPaymentPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { data: hospital, isLoading } = useHospitalDetail(id);
+
+  useSeo({
+    title: hospital ? t('seo.npay.title', { name: hospital.name }) : undefined,
+    description: hospital
+      ? t('seo.npay.description', { name: hospital.name })
+      : undefined,
+  });
   const navigate = useNavigate();
   const langPath = useLangPath();
 
