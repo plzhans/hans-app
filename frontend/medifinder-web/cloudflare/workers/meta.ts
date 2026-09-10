@@ -1,9 +1,9 @@
 import type { Env } from './env';
 import { langPath, type Lang } from './routing';
-import { fetchApi, fetchHospital, fetchNearby, type Hospital, type Nearby } from './hospital';
+import { fetchHospital, fetchNearby, type Hospital, type Nearby } from './hospital';
+import { fetchHomeSections, type HomeSection } from './home';
 import { hospitalJsonLd, siteJsonLd } from './schema';
-import { HOME_QUERY_PATHS, NEARBY_SIZE } from '../../dist-server/entry-server.js';
-import type { HealthcareHospitalControllerSearch200 } from '../../src/shared/api/generated/model';
+import { NEARBY_SIZE } from '../../dist-server/entry-server.js';
 
 export type Meta = {
   title: string;
@@ -18,7 +18,7 @@ export type Meta = {
    */
   render?:
     | { kind: 'hospital'; id: number; hospital: Hospital; nearby: Nearby | null }
-    | { kind: 'home'; sections: (HealthcareHospitalControllerSearch200 | null)[] };
+    | { kind: 'home'; sections: (HomeSection | null)[] };
 };
 
 /**
@@ -89,13 +89,7 @@ export async function metaFor(
   }
 
   if (path === '/') {
-    // 여섯 섹션을 병렬로 받는다. 조건이 고정이라 언어당 URL 이 하나뿐이고,
-    // 그래서 엣지 캐시가 거의 항상 맞는다 — 실제로 API 까지 가는 건 시간당 여섯 번이다.
-    const sections = await Promise.all(
-      HOME_QUERY_PATHS.map((apiPath) =>
-        fetchApi<HealthcareHospitalControllerSearch200>(apiPath, lang, env, ctx),
-      ),
-    );
+    const sections = await fetchHomeSections(lang, env, ctx);
     return {
       // 하나도 못 받았으면 그릴 것이 없다. 껍데기를 그대로 내보낸다.
       render: sections.some(Boolean) ? { kind: 'home', sections } : undefined,
