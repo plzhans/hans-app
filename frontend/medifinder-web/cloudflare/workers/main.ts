@@ -27,17 +27,21 @@ export default {
     const asset = await env.ASSETS.fetch(request);
     if (!asset.headers.get('content-type')?.includes('text/html')) return asset;
 
+    // 프로덕션이 아니면 여기서부터 나가는 HTML 은 전부 색인 대상에서 뺀다.
+    // develop 은 프로덕션과 내용이 같아서, 색인되면 서로 중복 문서로 경쟁한다.
+    const noindexEnv = env.APP_ENV !== 'production';
+
     // 변수가 없으면 아무것도 하지 않는다. ci-deploy.sh 가 --var 를 넘기기 전에 배포되면
     // 여기가 undefined 인데, 그대로 두면 canonical 이 `undefined/hospitals/1` 로 나간다 —
     // 없는 것보다 나쁘다.
     if (!env.VITE_SITE_URL || !env.VITE_HANSAPP_BASE_URL || !env.VITE_HANSAPP_CLIENT_ID) {
-      return asset;
+      return mark(asset, noindexEnv);
     }
 
     const url = new URL(request.url);
     const { lang, path } = splitLang(url.pathname);
     const meta = await metaFor(lang, path, env, ctx);
-    if (!meta) return asset;
+    if (!meta) return mark(asset, noindexEnv);
 
     // 본문. 실패해도 <head> 는 채운 채로 내보낸다 — 브라우저는 어차피 스스로 그리므로
     // 사람에게는 아무 차이가 없고, 크롤러도 제목·구조화 데이터는 그대로 읽는다.
@@ -94,9 +98,22 @@ export default {
       });
     }
 
-    return rewriter.transform(asset);
+    return mark(rewriter.transform(asset), noindexEnv);
   },
 } satisfies ExportedHandler<Env>;
+
+/**
+ * 프로덕션이 아닌 환경의 응답에 X-Robots-Tag 를 단다.
+ *
+ * robots.txt 의 Disallow 로 막지 않는 이유는, 그러면 크롤 자체가 안 일어나 noindex 를
+ * 읽지도 못하기 때문이다. 이미 색인된 URL 은 그대로 남는다. 크롤은 열어 두고 색인만 막는다.
+ */
+function mark(res: Response, noindex: boolean): Response {
+  if (!noindex) return res;
+  const marked = new Response(res.body, res);
+  marked.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  return marked;
+}
 
 /**
  * 서버가 이미 받아 둔 데이터를 브라우저에 넘긴다. entry-client.tsx 가 이걸 읽어 캐시를

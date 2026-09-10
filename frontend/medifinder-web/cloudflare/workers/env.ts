@@ -14,6 +14,13 @@
 export interface Env {
   /** dist/ 의 정적 자산. wrangler.jsonc 의 assets.binding 이 만든다. */
   ASSETS: Fetcher;
+  /**
+   * develop | production. 프로덕션이 아니면 색인을 막는다.
+   *
+   * VITE_ 를 안 붙인다. 이건 브라우저 번들에 들어가지 않는 워커 전용 값이다.
+   * 없으면 프로덕션이 아닌 것으로 본다 — 못 받았을 때 색인되는 쪽보다 안전하다.
+   */
+  APP_ENV?: string;
   /** 예: https://medifinder.kr. canonical·og:url 의 기준이자 API 에 보낼 Origin 이다. */
   VITE_SITE_URL: string;
   /** 예: https://api.plzhans.com */
