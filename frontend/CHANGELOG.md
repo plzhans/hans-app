@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.13.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.12.1...release-frontend/v0.13.0) (2026-09-10)
+
+
+### 기능
+
+* **medifinder:** 근처 병원까지 서버에서 그리고, API 장애에 사본으로 버틴다 ([ef77b6a](https://github.com/plzhans/hans-app/commit/ef77b6aa680b56548a65206c0117e5159b627d75))
+* **medifinder:** 병원 상세·홈을 워커에서 서버 렌더링한다 ([c73d9cb](https://github.com/plzhans/hans-app/commit/c73d9cbd4e1b4399b62969760673a00efb405fef))
+* **medifinder:** 병원 상세를 워커가 서버에서 그린다 ([1a01338](https://github.com/plzhans/hans-app/commit/1a013387ad807c9ce1b40909197bbdcc8c80a2ec))
+* **medifinder:** 약관·방침을 색인에서 뺀다 ([5ad680a](https://github.com/plzhans/hans-app/commit/5ad680a87b00c941127c21c5c4073fbdcb5ef7ae))
+* **medifinder:** 홈도 서버에서 그린다 ([c7e67dc](https://github.com/plzhans/hans-app/commit/c7e67dcc33630c4f2da04cbac281229b940c6967))
+
+
+### 버그 수정
+
+* **medifinder:** develop 을 색인에서 빼고 사이트 스키마의 [@id](https://github.com/id) 를 바로잡는다 ([8e44d51](https://github.com/plzhans/hans-app/commit/8e44d51b6700d36e5324b2000894a7d9e5cd34c2))
+
+
+### 구조 변경
+
+* **medifinder:** mutator 가 서버 맥락을 받을 수 있게 한다 ([5da5210](https://github.com/plzhans/hans-app/commit/5da52104e8d04b3e7227d0953c2e3fa21ddecb84))
+* **medifinder:** 구조화 데이터를 소유자별로 나눈다 ([c03ad18](https://github.com/plzhans/hans-app/commit/c03ad18c502a86c813a4fead551f50ac5bc32209))
+* **medifinder:** 라우트 정의와 Provider 를 진입점에서 분리한다 ([715cdae](https://github.com/plzhans/hans-app/commit/715cdaed746f459b220ed6ace72c1991ef30bcb9))
+* **medifinder:** 안 쓰는 mutator 의 서버 분기를 걷어낸다 ([29c8892](https://github.com/plzhans/hans-app/commit/29c8892d7657ca1299c9e92ae648e55b8525a0b9))
+* **medifinder:** 워커의 API 호출 계층을 분리한다 ([9964543](https://github.com/plzhans/hans-app/commit/9964543112eed7477a1b0aacb635cebf5e1a399b))
+* **medifinder:** 진입점을 entry-client 로 바꾸고 hydrate 분기를 넣는다 ([9115f0b](https://github.com/plzhans/hans-app/commit/9115f0b76818e04817c5c6fa89ff3509ad6209e1))
+
+
+### 문서
+
+* **medifinder:** 워커 주석을 정리한다 ([703c82c](https://github.com/plzhans/hans-app/commit/703c82c502dae2ba25bb92caaa17c8b12392ad78))
+
 ## [0.12.1](https://github.com/plzhans/hans-app/compare/release-frontend/v0.12.0...release-frontend/v0.12.1) (2026-09-09)
 
 
