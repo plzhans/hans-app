@@ -24,6 +24,7 @@ import {
   useHospitalSearch,
   type HospitalSearchParams,
 } from '@/features/clinic/api';
+import { hospitalSearchQuery } from '@/features/clinic/api';
 import { HospitalCard } from '@/features/clinic/components/HospitalCard';
 import { HospitalCardSkeleton } from '@/features/clinic/components/HospitalCardSkeleton';
 import { useSeo } from '@/shared/seo/useSeo';
@@ -97,6 +98,14 @@ const SECTIONS = [
     } as Partial<HospitalSearchParams>,
   },
 ] as const;
+
+/**
+ * 워커가 서버에서 홈을 그릴 때 쓸 조회 조건. 화면과 같은 SECTIONS·같은 개수를 쓴다.
+ * 순서가 곧 섹션 순서다 — 워커는 이 순서대로 받아 와 그대로 돌려준다.
+ */
+export const HOME_SECTION_PARAMS = SECTIONS.map((section) =>
+  hospitalSearchQuery({ page: 1, size: FEATURED_SIZE, ...section.params }),
+);
 
 export default function Home() {
   const { t } = useTranslation();

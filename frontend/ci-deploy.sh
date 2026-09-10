@@ -189,6 +189,9 @@ case " $WORKER_SCRIPT_TARGETS " in
       [ -n "${!key:-}" ] || die "$env_file 에 $key 가 비어 있다. 워커가 그 값 없이는 동작하지 않는다."
       var_args+=(--var "$key:${!key}")
     done
+    # 워커가 색인 허용 여부를 가르는 데 쓴다. .env 가 아니라 배포 환경에서 온다 —
+    # 어느 환경으로 나가는지는 파일이 아니라 이 실행이 아는 값이다.
+    var_args+=(--var "APP_ENV:$APP_ENV")
     ;;
 esac
 

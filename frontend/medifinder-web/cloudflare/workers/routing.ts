@@ -1,6 +1,6 @@
 /**
- * 경로와 언어. **화면의 shared/i18n/routing 과 같은 규칙이다** — 규칙이 갈리면
- * 워커가 만든 canonical 과 화면이 만든 canonical 이 서로 다른 주소를 가리키게 된다.
+ * 경로와 언어. 화면의 shared/i18n/routing 과 같은 규칙을 쓴다.
+ * 갈리면 워커가 만든 canonical 과 화면이 만든 canonical 이 서로 다른 주소를 가리킨다.
  */
 
 export const LANGS = ['ko', 'en-us', 'ja', 'zh-hans'] as const;

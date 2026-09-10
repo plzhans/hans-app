@@ -170,29 +170,41 @@ function geoQuery(params: Omit<HospitalSearchParams, 'page' | 'size'>) {
   };
 }
 
+/**
+ * 화면의 필터를 API 쿼리로 옮긴다.
+ *
+ * 훅 밖으로 빼 둔 것은 워커가 서버에서 그릴 때 같은 값을 써야 하기 때문이다(entry-server).
+ * 여기서 나온 객체가 곧 react-query 의 키라, 양쪽이 갈리면 브라우저가 조용히 다시 부른다.
+ */
+export function hospitalSearchQuery(params: HospitalSearchParams) {
+  return {
+    page: params.page,
+    size: params.size,
+    region: params.region || undefined,
+    category: params.category || undefined,
+    tier: params.tier || undefined,
+    subject: params.subject || undefined,
+    specialist: params.specialist || undefined,
+    name: params.name || undefined,
+    emergency: params.emergency ? 'true' : undefined,
+    baby: params.baby ? 'true' : undefined,
+    assessment: params.assessment || undefined,
+    specialty: params.specialty || undefined,
+    special: params.special || undefined,
+    equipment: params.equipment || undefined,
+    ...geoQuery(params),
+  };
+}
+
 /** GET /healthcare/hospitals — 통합 병원 검색 */
 export function useHospitalSearch(params: HospitalSearchParams) {
   return useHealthcareHospitalControllerSearch(
-    {
-      page: params.page,
-      size: params.size,
-      region: params.region || undefined,
-      category: params.category || undefined,
-      tier: params.tier || undefined,
-      subject: params.subject || undefined,
-      specialist: params.specialist || undefined,
-      name: params.name || undefined,
-      emergency: params.emergency ? 'true' : undefined,
-      baby: params.baby ? 'true' : undefined,
-      assessment: params.assessment || undefined,
-      specialty: params.specialty || undefined,
-      special: params.special || undefined,
-      equipment: params.equipment || undefined,
-      ...geoQuery(params),
-    },
+    hospitalSearchQuery(params),
     {
       query: {
         placeholderData: (prev) => prev,
+        // 워커가 그려 보낸 목록(홈)을 마운트하자마자 다시 부르지 않게 한다.
+        staleTime: 60_000,
         // PageResponseDto.items 가 제네릭이라 스키마상 unknown[] 으로 떨어진다.
         // 이 엔드포인트의 실제 요소 타입으로 좁힌다.
         select: (data) => ({
@@ -256,7 +268,15 @@ export function useHospitalScroll(
 /** GET /healthcare/hospitals/{id} — 통합 병원 상세 */
 export function useHospitalDetail(id: string | undefined) {
   return useHealthcareHospitalControllerGet(Number(id ?? 0), {
-    query: { enabled: !!id },
+    query: {
+      enabled: !!id,
+      /*
+        워커가 서버에서 그려 보낸 상세는 이 데이터를 이미 담고 있다(entry-client.tsx).
+        기본값(staleTime 0)이면 마운트 직후 곧바로 같은 것을 다시 부른다 — 서버에서 그린
+        의미가 절반 사라진다. 병원 정보는 분 단위로 바뀌지 않으므로 1분은 안전하다.
+      */
+      staleTime: 60_000,
+    },
   });
 }
 
@@ -292,7 +312,9 @@ export function useHospitalNearby(id: string | undefined) {
   return useHealthcareHospitalControllerNearby(
     Number(id ?? 0),
     { size: NEARBY_SIZE },
-    { query: { enabled: !!id } },
+    // staleTime 은 상세와 같은 이유다(useHospitalDetail 주석 참고) —
+    // 워커가 그려 보낸 목록을 마운트하자마자 다시 부르지 않게 한다.
+    { query: { enabled: !!id, staleTime: 60_000 } },
   );
 }
 
