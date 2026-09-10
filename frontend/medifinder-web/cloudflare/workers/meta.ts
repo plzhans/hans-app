@@ -6,6 +6,8 @@ import { hospitalJsonLd, siteJsonLd } from './schema';
 export type Meta = {
   title: string;
   description: string;
+  /** 검색 결과에 내보내지 않을 화면. robots 메타로 나간다. */
+  noindex?: boolean;
   /** 병원 상세에서만 실린다. 항목 이름이 번역 파일에 있어 여기서 만든다. */
   jsonLd?: string;
 };
@@ -85,7 +87,16 @@ export async function metaFor(
   }
 
   if (path.startsWith('/terms/')) {
-    return { title: dict.seo.default.title + suffix, description: dict.seo.legal.description };
+    /*
+      약관·방침은 색인하지 않는다. 검색해서 들어올 문서가 아니고, 로케일마다 같은
+      한국어 원문이라(문서 자체가 한국어 전용) 중복 신호만 만든다.
+      크롤은 막지 않는다 — noindex 를 보려면 크롤은 돼야 한다.
+    */
+    return {
+      noindex: true,
+      title: dict.seo.default.title + suffix,
+      description: dict.seo.legal.description,
+    };
   }
 
   return { title: dict.seo.default.title + suffix, description: dict.seo.default.description };

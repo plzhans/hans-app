@@ -44,6 +44,7 @@ export function headTags(o: {
     앞에 개행을 하나 두는 것은 index.html 의 마지막 <head> 태그 뒤에 붙기 때문이다.
   */
   const tags = [
+    o.meta.noindex ? `<meta name="robots" content="noindex, follow">` : null,
     `<link rel="canonical" href="${canonical}">`,
     ...alternates,
     // 언어가 안 맞으면 여기로 — 기본 언어 URL 이다.
