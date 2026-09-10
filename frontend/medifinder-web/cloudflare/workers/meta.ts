@@ -1,8 +1,9 @@
 import type { Env } from './env';
 import { langPath, type Lang } from './routing';
-import { fetchHospital, fetchNearby, type Hospital, type Nearby } from './hospital';
+import { fetchApi, fetchHospital, fetchNearby, type Hospital, type Nearby } from './hospital';
 import { hospitalJsonLd, siteJsonLd } from './schema';
-import { NEARBY_SIZE } from '../../dist-server/entry-server.js';
+import { HOME_QUERY_PATHS, NEARBY_SIZE } from '../../dist-server/entry-server.js';
+import type { HealthcareHospitalControllerSearch200 } from '../../src/shared/api/generated/model';
 
 export type Meta = {
   title: string;
@@ -12,10 +13,12 @@ export type Meta = {
   /** 병원 상세에서만 실린다. 항목 이름이 번역 파일에 있어 여기서 만든다. */
   jsonLd?: string;
   /**
-   * 본문까지 그릴 화면이면 그 재료. 제목을 만들려고 이미 받아 둔 응답이라, 렌더가 다시
-   * 부르지 않도록 여기 실어 보낸다. nearby 는 못 받아도 나머지는 그대로 그린다.
+   * 본문까지 그릴 화면이면 그 재료. 여기서 받아 실어 보내면 렌더가 다시 부르지 않는다.
+   * 일부가 null 이어도 나머지는 그대로 그린다.
    */
-  render?: { id: number; hospital: Hospital; nearby: Nearby | null };
+  render?:
+    | { kind: 'hospital'; id: number; hospital: Hospital; nearby: Nearby | null }
+    | { kind: 'home'; sections: (HealthcareHospitalControllerSearch200 | null)[] };
 };
 
 /**
@@ -33,7 +36,7 @@ export async function metaFor(
   const dict = await loadDict(lang);
   const suffix = dict.seo.titleSuffix;
 
-  // 병원 상세·비급여. 여기만 API 를 부른다.
+  // 병원 상세·비급여.
   const hospitalMatch = /^\/hospitals\/(\d+)(\/npay)?\/?$/.exec(path);
   if (hospitalMatch) {
     const npay = !!hospitalMatch[2];
@@ -57,7 +60,9 @@ export async function metaFor(
     return {
       // 비급여 화면은 그리지 않는다. 가격표가 최다 1,048행이라 렌더 비용이 상세와 다른
       // 급이고, 크롤러에게 보여줄 값도 병원 자체의 정보가 아니다.
-      render: npay ? undefined : { id: Number(hospitalMatch[1]), hospital, nearby },
+      render: npay
+        ? undefined
+        : { kind: 'hospital', id: Number(hospitalMatch[1]), hospital, nearby },
       // 비급여는 가격표 화면이라 병원 자체의 구조화 데이터를 싣지 않는다 —
       // 같은 병원이 서로 다른 URL 로 두 번 선언되면 어느 쪽이 정본인지 흐려진다.
       jsonLd: npay
@@ -84,7 +89,16 @@ export async function metaFor(
   }
 
   if (path === '/') {
+    // 여섯 섹션을 병렬로 받는다. 조건이 고정이라 언어당 URL 이 하나뿐이고,
+    // 그래서 엣지 캐시가 거의 항상 맞는다 — 실제로 API 까지 가는 건 시간당 여섯 번이다.
+    const sections = await Promise.all(
+      HOME_QUERY_PATHS.map((apiPath) =>
+        fetchApi<HealthcareHospitalControllerSearch200>(apiPath, lang, env, ctx),
+      ),
+    );
     return {
+      // 하나도 못 받았으면 그릴 것이 없다. 껍데기를 그대로 내보낸다.
+      render: sections.some(Boolean) ? { kind: 'home', sections } : undefined,
       title: dict.seo.home.title + suffix,
       description: dict.seo.home.description,
       jsonLd: siteJsonLd(env.VITE_SITE_URL, `${env.VITE_SITE_URL}${langPath(path, lang)}`, lang),

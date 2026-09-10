@@ -34,6 +34,14 @@ export type Hospital = HospitalDetailDto;
 export type Nearby = HospitalNearbyResponseDto;
 export type TransportRoute = TransportRouteDto;
 
+/**
+ * 임의의 API 경로 하나. 홈처럼 고정 조건 목록을 받아 올 때 쓴다.
+ * 경로는 화면이 만든 것을 그대로 받는다(entry-server 의 HOME_QUERY_PATHS).
+ */
+export function fetchApi<T>(path: string, lang: Lang, env: Env, ctx: ExecutionContext) {
+  return apiGet<T>(path, lang, env, ctx);
+}
+
 /** GET /healthcare/hospitals/{id} */
 export function fetchHospital(id: string, lang: Lang, env: Env, ctx: ExecutionContext) {
   return apiGet<Hospital>(`/healthcare/hospitals/${id}`, lang, env, ctx);

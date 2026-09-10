@@ -19,7 +19,7 @@ import type { Env } from './env';
 import { splitLang } from './routing';
 import { metaFor } from './meta';
 import { headTags } from './head';
-import { renderHospital } from '../../dist-server/entry-server.js';
+import { renderHome, renderHospital } from '../../dist-server/entry-server.js';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -43,14 +43,18 @@ export default {
     // 사람에게는 아무 차이가 없고, 크롤러도 제목·구조화 데이터는 그대로 읽는다.
     let body: { html: string; state: string } | null = null;
     if (meta.render) {
+      const render = meta.render;
       try {
-        body = await renderHospital({
-          url: url.toString(),
-          lang,
-          id: meta.render.id,
-          hospital: meta.render.hospital,
-          nearby: meta.render.nearby,
-        });
+        body =
+          render.kind === 'hospital'
+            ? await renderHospital({
+                url: url.toString(),
+                lang,
+                id: render.id,
+                hospital: render.hospital,
+                nearby: render.nearby,
+              })
+            : await renderHome({ url: url.toString(), lang, sections: render.sections });
       } catch {
         body = null;
       }
