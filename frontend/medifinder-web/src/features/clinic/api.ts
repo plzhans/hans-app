@@ -300,7 +300,9 @@ export function useHospitalNearby(id: string | undefined) {
   return useHealthcareHospitalControllerNearby(
     Number(id ?? 0),
     { size: NEARBY_SIZE },
-    { query: { enabled: !!id } },
+    // staleTime 은 상세와 같은 이유다(useHospitalDetail 주석 참고) —
+    // 워커가 그려 보낸 목록을 마운트하자마자 다시 부르지 않게 한다.
+    { query: { enabled: !!id, staleTime: 60_000 } },
   );
 }
 

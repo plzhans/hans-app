@@ -17,8 +17,18 @@ import i18n from '@/shared/i18n';
 import type { SupportedLanguage } from '@/shared/i18n';
 import { Providers, createQueryClient } from '@/app/Providers';
 import { routes } from '@/app/routes';
-import { getHealthcareHospitalControllerGetQueryKey } from '@/shared/api/generated/react/healthcare/healthcare';
-import type { HospitalDetailDto } from '@/shared/api/generated/model';
+import {
+  getHealthcareHospitalControllerGetQueryKey,
+  getHealthcareHospitalControllerNearbyQueryKey,
+} from '@/shared/api/generated/react/healthcare/healthcare';
+import { NEARBY_SIZE } from '@/features/clinic/api';
+import type { HospitalDetailDto, HospitalNearbyResponseDto } from '@/shared/api/generated/model';
+
+/**
+ * 워커가 nearby 를 받아 올 때 쓸 개수. 화면(useHospitalNearby)이 정한 값을 그대로 내보낸다 —
+ * 이 값이 어긋나면 react-query 키가 달라져서 브라우저가 같은 것을 다시 부른다.
+ */
+export { NEARBY_SIZE };
 
 export type RenderResult = {
   /** <div id="root"> 안에 넣을 마크업. */
@@ -30,9 +40,9 @@ export type RenderResult = {
 /**
  * 병원 상세 한 페이지를 그린다.
  *
- * hospital 은 **워커가 이미 받아 둔 상세 응답**이다. 여기서 다시 부르지 않는다 —
- * 캐시에 직접 심어서, 화면이 그걸 로딩 없이 그대로 그린다.
- * 그 밖의 쿼리(근처 병원·비급여)는 이펙트에서 시작하므로 서버에서는 비어 있고,
+ * hospital·nearby 는 워커가 이미 받아 둔 응답이다. 여기서 다시 부르지 않는다 —
+ * 캐시에 직접 심어서 화면이 로딩 없이 그대로 그린다.
+ * 그 밖의 쿼리(비급여·지도)는 이펙트에서 시작하므로 서버에서는 비어 있고,
  * 브라우저도 같은 상태에서 첫 렌더를 시작한다.
  */
 export async function renderHospital(opts: {
@@ -40,6 +50,8 @@ export async function renderHospital(opts: {
   lang: SupportedLanguage;
   id: number;
   hospital: HospitalDetailDto;
+  /** 못 받았으면 null. 그 섹션만 브라우저가 채우고 나머지는 그대로 그린다. */
+  nearby: HospitalNearbyResponseDto | null;
 }): Promise<RenderResult> {
   // 요청마다 새 인스턴스다. 전역 i18n 의 언어를 바꾸면 같은 아이솔레이트에서 동시에 처리 중인
   // 다른 언어 요청이 그 값을 같이 본다.
@@ -50,6 +62,12 @@ export async function renderHospital(opts: {
     getHealthcareHospitalControllerGetQueryKey(opts.id),
     opts.hospital,
   );
+  if (opts.nearby) {
+    queryClient.setQueryData(
+      getHealthcareHospitalControllerNearbyQueryKey(opts.id, { size: NEARBY_SIZE }),
+      opts.nearby,
+    );
+  }
 
   const handler = createStaticHandler(routes);
   const context = await handler.query(new Request(opts.url));

@@ -49,6 +49,7 @@ export default {
           lang,
           id: meta.render.id,
           hospital: meta.render.hospital,
+          nearby: meta.render.nearby,
         });
       } catch {
         body = null;

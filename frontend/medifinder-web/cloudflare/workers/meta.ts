@@ -1,7 +1,8 @@
 import type { Env } from './env';
 import { langPath, type Lang } from './routing';
-import { fetchHospital, type Hospital } from './hospital';
+import { fetchHospital, fetchNearby, type Hospital, type Nearby } from './hospital';
 import { hospitalJsonLd, siteJsonLd } from './schema';
+import { NEARBY_SIZE } from '../../dist-server/entry-server.js';
 
 export type Meta = {
   title: string;
@@ -12,9 +13,9 @@ export type Meta = {
   jsonLd?: string;
   /**
    * 본문까지 그릴 화면이면 그 재료. 제목을 만들려고 이미 받아 둔 응답이라, 렌더가 다시
-   * 부르지 않도록 여기 실어 보낸다.
+   * 부르지 않도록 여기 실어 보낸다. nearby 는 못 받아도 나머지는 그대로 그린다.
    */
-  render?: { id: number; hospital: Hospital };
+  render?: { id: number; hospital: Hospital; nearby: Nearby | null };
 };
 
 /**
@@ -35,7 +36,13 @@ export async function metaFor(
   // 병원 상세·비급여. 여기만 API 를 부른다.
   const hospitalMatch = /^\/hospitals\/(\d+)(\/npay)?\/?$/.exec(path);
   if (hospitalMatch) {
-    const hospital = await fetchHospital(hospitalMatch[1], lang, env, ctx);
+    const npay = !!hospitalMatch[2];
+    // 병렬로 부른다. 순서대로 부르면 두 응답 시간이 더해지는데, 서로 필요 없는 값이다.
+    // 비급여는 본문을 그리지 않으므로 nearby 도 받지 않는다.
+    const [hospital, nearby] = await Promise.all([
+      fetchHospital(hospitalMatch[1], lang, env, ctx),
+      npay ? null : fetchNearby(hospitalMatch[1], NEARBY_SIZE, lang, env, ctx),
+    ]);
     // 못 받으면 손대지 않는다. 껍데기의 기본 제목이 그대로 나가는 편이,
     // 병원 이름 자리가 빈 제목보다 낫다.
     if (!hospital) return null;
@@ -46,12 +53,11 @@ export async function metaFor(
     ]
       .filter(Boolean)
       .join(' ');
-    const npay = !!hospitalMatch[2];
 
     return {
       // 비급여 화면은 그리지 않는다. 가격표가 최다 1,048행이라 렌더 비용이 상세와 다른
       // 급이고, 크롤러에게 보여줄 값도 병원 자체의 정보가 아니다.
-      render: npay ? undefined : { id: Number(hospitalMatch[1]), hospital },
+      render: npay ? undefined : { id: Number(hospitalMatch[1]), hospital, nearby },
       // 비급여는 가격표 화면이라 병원 자체의 구조화 데이터를 싣지 않는다 —
       // 같은 병원이 서로 다른 URL 로 두 번 선언되면 어느 쪽이 정본인지 흐려진다.
       jsonLd: npay

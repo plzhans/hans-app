@@ -7,5 +7,6 @@
  */
 declare module '*dist-server/entry-server.js' {
   export const renderHospital: typeof import('../../src/entry-server').renderHospital;
+  export const NEARBY_SIZE: typeof import('../../src/entry-server').NEARBY_SIZE;
   export type RenderResult = import('../../src/entry-server').RenderResult;
 }
