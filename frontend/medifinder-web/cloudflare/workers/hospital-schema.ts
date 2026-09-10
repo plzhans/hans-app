@@ -1,3 +1,8 @@
+/**
+ * 병원 하나를 설명하는 구조화 데이터. 상세에서만 내보낸다.
+ * 서비스 자체를 설명하는 것은 site-schema.ts 다.
+ */
+import { script } from './jsonld';
 import type { Hospital, TransportRoute } from './hospital';
 
 /**
@@ -89,46 +94,6 @@ function transportLine(t: TransportRoute): string | null {
 
 function prop(name: string, value: string | number) {
   return { '@type': 'PropertyValue', name, value };
-}
-
-/**
- * 홈에만 붙는다. 서비스 자체가 무엇인지 알리는 자리다.
- *
- * SearchAction 은 검색 결과에 사이트 내 검색창을 띄우는 신호다. 붙인다고 반드시
- * 뜨지는 않지만 없으면 후보에도 안 오른다.
- */
-export function siteJsonLd(siteUrl: string, canonical: string, lang: string): string {
-  const data = {
-    '@context': 'https://schema.org',
-    '@graph': [
-      {
-        '@type': 'Organization',
-        '@id': `${siteUrl}/#organization`,
-        name: 'MediFinder',
-        url: siteUrl,
-        // 정사각 아이콘이다. 구글은 로고에 112x112 이상을 요구한다.
-        logo: `${siteUrl}/apple-touch-icon.png`,
-      },
-      {
-        '@type': 'WebSite',
-        '@id': `${siteUrl}/#website`,
-        name: 'MediFinder',
-        url: canonical,
-        inLanguage: lang,
-        publisher: { '@id': `${siteUrl}/#organization` },
-        potentialAction: {
-          '@type': 'SearchAction',
-          // 검색 화면이 읽는 쿼리 이름과 같아야 한다(useSearchState 의 `q`).
-          target: {
-            '@type': 'EntryPoint',
-            urlTemplate: `${canonical.replace(/\/$/, '')}/search?q={search_term_string}`,
-          },
-          'query-input': 'required name=search_term_string',
-        },
-      },
-    ],
-  };
-  return script(data);
 }
 
 /**
@@ -255,15 +220,3 @@ export function hospitalJsonLd(
   return script(data);
 }
 
-/*
-  줄바꿈해서 낸다. 한 줄로 뽑으면 소스 보기에서 수 KB 가 가로로 이어져 못 읽는다.
-  늘어나는 바이트는 전송 시 압축된다.
-
-  `</script>` 를 이스케이프하는 것은 병원 소개가 사람이 쓴 자유 텍스트라,
-  그 문자열이 들어오면 브라우저가 스크립트를 거기서 끊기 때문이다.
-*/
-function script(data: unknown): string {
-  const json = JSON.stringify(data, null, 2).replace(/<\/script/gi, '<\\/script');
-  const indented = json.split('\n').join('\n    ');
-  return `<script type="application/ld+json">\n    ${indented}\n    </script>`;
-}

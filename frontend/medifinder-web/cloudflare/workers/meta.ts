@@ -2,7 +2,8 @@ import type { Env } from './env';
 import { langPath, type Lang } from './routing';
 import { fetchHospital, fetchNearby, type Hospital, type Nearby } from './hospital';
 import { fetchHomeSections, type HomeSection } from './home';
-import { hospitalJsonLd, siteJsonLd } from './schema';
+import { hospitalJsonLd } from './hospital-schema';
+import { siteJsonLd } from './site-schema';
 import { NEARBY_SIZE } from '../../dist-server/entry-server.js';
 
 export type Meta = {
