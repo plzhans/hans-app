@@ -2,7 +2,7 @@
 // 그 전에 Sentry.init 이 끝나야 pageload 트랜잭션과 라우팅 계측이 붙는다(VITE_SENTRY_DSN 있을 때만).
 import '@/shared/monitoring/instrument';
 
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
 import i18n from '@/shared/i18n';
 import { Providers, createQueryClient } from '@/app/Providers';
 import { initGa } from '@/shared/analytics/gtag';
@@ -22,8 +22,24 @@ i18n.on('languageChanged', () => {
   void queryClient.invalidateQueries();
 });
 
-createRoot(document.getElementById('root')!).render(
+const container = document.getElementById('root')!;
+const tree = (
   <Providers queryClient={queryClient}>
     <App />
-  </Providers>,
+  </Providers>
 );
+
+/*
+  **이미 그려진 내용이 있으면 이어받고, 없으면 새로 그린다.**
+
+  워커가 서버에서 그려 보낸 화면(병원 상세)은 hydrateRoot 로 넘겨받는다 — 다시 그리지 않고
+  이벤트만 붙이므로 깜빡임이 없다. 그 밖의 경로와 로컬 dev 서버는 #root 가 비어 있는데,
+  빈 컨테이너에 hydrate 하면 React 가 불일치로 보고 경고를 낸 뒤 통째로 다시 그린다.
+
+  한 진입점이 두 상황을 다 감당해야 해서 여기서 가른다.
+*/
+if (container.firstElementChild) {
+  hydrateRoot(container, tree);
+} else {
+  createRoot(container).render(tree);
+}
