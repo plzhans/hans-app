@@ -24,42 +24,11 @@ import { authClient } from '@/shared/auth/authClient';
  */
 const CLIENT_ID = import.meta.env.VITE_HANSAPP_CLIENT_ID as string | undefined;
 
-/**
- * 서버(워커)에서 부를 때 넘기는 맥락.
- *
- * **브라우저에서는 안 쓴다.** 거기서는 전역 i18n 과 authClient 가 답을 갖고 있다.
- * 워커는 그 둘이 없다 — 언어는 요청마다 다르고(전역 i18n 을 바꾸면 동시 요청끼리 섞인다),
- * 토큰 저장소도 없어 익명으로만 부른다. Origin 은 브라우저가 붙여 주던 것을 직접 붙인다.
- *
- * orval 이 만든 `request?: SecondParameter<typeof reactFetch>` 통로로 들어온다 —
- * 생성 코드를 고치지 않고 호출별로 넘길 수 있다.
- */
-export type SsrContext = {
-  baseUrl: string;
-  lang: string;
-  clientId: string;
-  origin: string;
-};
-
-export const reactFetch = async <T>(
-  url: string,
-  options?: RequestInit & { ssr?: SsrContext },
-): Promise<T> => {
-  const { ssr, ...init } = options ?? {};
-  const headers = new Headers(init.headers);
-  headers.set('Accept-Language', ssr ? ssr.lang : i18n.language);
-
-  const clientId = ssr ? ssr.clientId : CLIENT_ID;
-  if (clientId) {
-    headers.set('X-Client-Id', clientId);
-  }
-
-  if (ssr) {
-    // 서버는 브라우저가 아니라 Origin 이 안 붙는다. 서버가 (client id, Origin) 쌍을 보므로
-    // 없으면 client id 가 맞아도 401 이다.
-    headers.set('Origin', ssr.origin);
-    const res = await fetch(`${ssr.baseUrl}${url}`, { ...init, headers });
-    return readBody<T>(res);
+export const reactFetch = async <T>(url: string, options?: RequestInit): Promise<T> => {
+  const headers = new Headers(options?.headers);
+  headers.set('Accept-Language', i18n.language);
+  if (CLIENT_ID) {
+    headers.set('X-Client-Id', CLIENT_ID);
   }
 
   /*
@@ -72,12 +41,8 @@ export const reactFetch = async <T>(
 
     base URL 도 SDK 가 붙인다(apiBaseUrl). 두 곳에서 같은 환경변수를 읽던 것을 한 곳으로 모았다.
   */
-  const res = await authClient.fetchWithAuth(url, { ...init, headers });
-  return readBody<T>(res);
-};
+  const res = await authClient.fetchWithAuth(url, { ...options, headers });
 
-/** 응답 본문 읽기. 브라우저·서버가 같은 규칙을 쓴다. */
-async function readBody<T>(res: Response): Promise<T> {
   if (!res.ok) {
     // react-query 의 isError 로 흐르도록 던진다. 서버 에러 본문을 최대한 담는다.
     let body: unknown;
@@ -105,4 +70,4 @@ async function readBody<T>(res: Response): Promise<T> {
   const text = await res.text();
   if (!text) return undefined as T;
   return JSON.parse(text) as T;
-}
+};
