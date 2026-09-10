@@ -48,7 +48,7 @@ function stripHtmlComments(): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, isSsrBuild }) => {
   console.log(`[vite] mode=${mode}  VITE_HANSAPP_BASE_URL=${process.env.VITE_HANSAPP_BASE_URL ?? '(not set)'}`);
   return {
     plugins: [react(), stripHtmlComments()],
@@ -98,8 +98,23 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
     },
+    /**
+     * `vite build --ssr src/entry-server.tsx` 로 워커가 쓸 번들을 만들 때만 본다.
+     * 클라이언트 빌드에는 영향이 없다.
+     */
+    ssr: {
+      // 워커에는 node_modules 가 없다. 의존성을 전부 번들 안에 넣어야 한다.
+      // (기본값은 외부로 남기는 것이라 그대로 두면 런타임에 react 를 못 찾는다.)
+      noExternal: true,
+      // 노드가 아니라 웹 표준 런타임이다. react-dom/server 가 스트림 대신
+      // ReadableStream 을 쓰는 판본으로 잡히는 것도 이 조건 덕이다.
+      target: 'webworker',
+    },
     build: {
       outDir: 'dist',
+      // 워커 번들에는 public/ 이 필요 없다. 클라이언트 빌드가 이미 dist/ 로 옮겼고,
+      // 자산을 내보내는 것은 그쪽이다.
+      copyPublicDir: !isSsrBuild,
       /*
         **manualChunks 로 벤더를 가르지 않는다.**
 

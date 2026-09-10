@@ -1,7 +1,8 @@
 import { StrictMode, type ReactNode } from 'react';
+import type { i18n as I18n } from 'i18next';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
-import i18n from '@/shared/i18n';
+import defaultI18n from '@/shared/i18n';
 
 /**
  * 앱을 감싸는 껍데기. **브라우저와 서버(워커)가 같은 것을 써야** hydration 이 맞는다.
@@ -9,9 +10,15 @@ import i18n from '@/shared/i18n';
  */
 export function Providers({
   queryClient,
+  i18n = defaultI18n,
   children,
 }: {
   queryClient: QueryClient;
+  /**
+   * 서버는 요청마다 복제본을 넘긴다(entry-server.tsx). 브라우저는 문서 하나에 언어가
+   * 하나뿐이라 전역 인스턴스를 그대로 쓴다.
+   */
+  i18n?: I18n;
   children: ReactNode;
 }) {
   return (

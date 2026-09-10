@@ -256,7 +256,15 @@ export function useHospitalScroll(
 /** GET /healthcare/hospitals/{id} — 통합 병원 상세 */
 export function useHospitalDetail(id: string | undefined) {
   return useHealthcareHospitalControllerGet(Number(id ?? 0), {
-    query: { enabled: !!id },
+    query: {
+      enabled: !!id,
+      /*
+        워커가 서버에서 그려 보낸 상세는 이 데이터를 이미 담고 있다(entry-client.tsx).
+        기본값(staleTime 0)이면 마운트 직후 곧바로 같은 것을 다시 부른다 — 서버에서 그린
+        의미가 절반 사라진다. 병원 정보는 분 단위로 바뀌지 않으므로 1분은 안전하다.
+      */
+      staleTime: 60_000,
+    },
   });
 }
 

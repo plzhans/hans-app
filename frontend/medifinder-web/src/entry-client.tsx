@@ -3,6 +3,7 @@
 import '@/shared/monitoring/instrument';
 
 import { createRoot, hydrateRoot } from 'react-dom/client';
+import { hydrate, type DehydratedState } from '@tanstack/react-query';
 import i18n from '@/shared/i18n';
 import { Providers, createQueryClient } from '@/app/Providers';
 import { initGa } from '@/shared/analytics/gtag';
@@ -16,6 +17,15 @@ console.log('[app] VITE_HANSAPP_BASE_URL =', import.meta.env.VITE_HANSAPP_BASE_U
 initGa();
 
 const queryClient = createQueryClient();
+
+/*
+  워커가 그려 보낸 화면의 재료. 그 병원 상세를 이미 받아 온 상태로 시작하므로, 화면이
+  뜨자마자 같은 것을 다시 부르지 않는다(cloudflare/workers/main.ts 의 stateScript).
+
+  없으면 그냥 지나간다 — 상세가 아닌 경로와 개발 서버가 그렇다.
+*/
+const ssrState = (window as { __RQ_STATE__?: DehydratedState }).__RQ_STATE__;
+if (ssrState) hydrate(queryClient, ssrState);
 
 // 언어를 바꾸면 서버 응답(Lang 헤더 기준)이 달라지는 쿼리들을 모두 다시 가져온다.
 i18n.on('languageChanged', () => {

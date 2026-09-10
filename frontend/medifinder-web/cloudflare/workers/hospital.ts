@@ -1,5 +1,6 @@
 import type { Env } from './env';
 import type { Lang } from './routing';
+import type { HospitalDetailDto, TransportRouteDto } from '../../src/shared/api/generated/model';
 
 /**
  * 넘기면 메타를 포기하고 껍데기를 그대로 내보낸다.
@@ -15,51 +16,12 @@ const API_TIMEOUT_MS = 1500;
 /** 병원 정보는 자주 바뀌지 않는다. 엣지에 물려 두면 대부분의 요청이 API 까지 가지 않는다. */
 const CACHE_TTL = 3600;
 
-/** 지하철·버스·기타가 모두 같은 모양이다. kindName 이 '지하철'·'시내버스' 처럼 종류를 담는다. */
-export type TransportRoute = {
-  kindName?: string;
-  line?: string;
-  arrival?: string;
-  distance?: string;
-  dir?: string;
-  note?: string;
-};
-
 /**
- * 단일 조회 응답에서 **우리가 쓰는 부분만** 적는다. 생성된 전체 DTO 타입을 끌어오지 않는
- * 이유는, 그러면 그 파일이 딸고 있는 것들까지 워커 번들로 따라 들어오기 때문이다.
- * 서버가 필드를 늘려도 여기는 안 바뀌어도 된다.
+ * 화면과 같은 타입을 쓴다. 생성된 DTO 라 서버 스펙이 바뀌면 `pnpm api:sync` 한 번에 따라온다.
+ * import type 이라 번들에는 아무것도 들어가지 않는다.
  */
-export type Hospital = {
-  name: string;
-  tel?: string;
-  emergency?: boolean;
-  baby?: boolean;
-  intro?: string;
-  establishedAt?: string;
-  category?: { code?: string; name?: string };
-  tier?: { code?: string; name?: string };
-  location?: {
-    address?: string;
-    postNo?: string;
-    lat?: number;
-    lon?: number;
-    region?: { name?: string; sido?: { name?: string } };
-  };
-  directions?: string;
-  transport?: {
-    subway?: TransportRoute[];
-    bus?: TransportRoute[];
-    etc?: TransportRoute[];
-  };
-  subjects?: { name?: string; specialistCount?: number }[];
-  hours?: { kind?: string; day: number; open?: string; close?: string }[];
-  staff?: { doctorTotal?: number; specialist?: number };
-  beds?: { total?: number; icu?: number };
-  equipments?: { name?: string; count?: number }[];
-  capabilities?: { name?: string }[];
-  assessment?: { groups?: { items?: { name?: string; grade?: string }[] }[] };
-};
+export type Hospital = HospitalDetailDto;
+export type TransportRoute = TransportRouteDto;
 
 /**
  * 병원 하나를 받아온다. 실패하면 null — 부르는 쪽이 껍데기를 그대로 내보낸다.

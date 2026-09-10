@@ -7,6 +7,8 @@
 
 # build output
 **/dist/
+# 워커가 쓰는 서버 렌더 번들(medifinder-web). dist/ 와 짝이라 같이 무시한다.
+**/dist-server/
 **/build/
 **/coverage/
 

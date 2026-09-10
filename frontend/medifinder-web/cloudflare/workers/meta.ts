@@ -1,6 +1,6 @@
 import type { Env } from './env';
 import { langPath, type Lang } from './routing';
-import { fetchHospital } from './hospital';
+import { fetchHospital, type Hospital } from './hospital';
 import { hospitalJsonLd, siteJsonLd } from './schema';
 
 export type Meta = {
@@ -10,6 +10,11 @@ export type Meta = {
   noindex?: boolean;
   /** 병원 상세에서만 실린다. 항목 이름이 번역 파일에 있어 여기서 만든다. */
   jsonLd?: string;
+  /**
+   * 본문까지 그릴 화면이면 그 재료. 제목을 만들려고 이미 받아 둔 응답이라, 렌더가 다시
+   * 부르지 않도록 여기 실어 보낸다.
+   */
+  render?: { id: number; hospital: Hospital };
 };
 
 /**
@@ -44,6 +49,9 @@ export async function metaFor(
     const npay = !!hospitalMatch[2];
 
     return {
+      // 비급여 화면은 그리지 않는다. 가격표가 최다 1,048행이라 렌더 비용이 상세와 다른
+      // 급이고, 크롤러에게 보여줄 값도 병원 자체의 정보가 아니다.
+      render: npay ? undefined : { id: Number(hospitalMatch[1]), hospital },
       // 비급여는 가격표 화면이라 병원 자체의 구조화 데이터를 싣지 않는다 —
       // 같은 병원이 서로 다른 URL 로 두 번 선언되면 어느 쪽이 정본인지 흐려진다.
       jsonLd: npay
