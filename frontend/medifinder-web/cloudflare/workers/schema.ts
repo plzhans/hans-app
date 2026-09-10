@@ -1,9 +1,9 @@
 import type { Hospital, TransportRoute } from './hospital';
 
 /**
- * 항목 이름. 값은 서버가 Accept-Language 로 번역해 주지만 **이름은 화면이 붙인다.**
- * 그래서 상세 화면이 쓰는 clinic.* 키를 그대로 받는다 — 여기서 따로 만들면
- * 같은 뜻의 라벨이 두 벌이 되고, 화면과 검색 결과의 용어가 갈린다.
+ * 항목 이름. 값은 서버가 번역해 주지만 이름은 화면이 붙인다.
+ * 상세 화면이 쓰는 clinic.* 키를 그대로 받는다. 여기서 따로 만들면 같은 뜻의 라벨이
+ * 두 벌이 되어 화면과 검색 결과의 용어가 갈린다.
  */
 export type SchemaLabels = {
   /** clinic.beds — 병상 */
@@ -25,21 +25,6 @@ export type SchemaLabels = {
   /** clinic.transport.publicTransit — 대중교통 */
   transit: string;
 };
-
-/**
- * 병원 상세의 구조화 데이터(JSON-LD).
- *
- * **왜 head 에 넣나.** 이 앱은 CSR 이라 크롤러가 본문을 못 읽는다. JSON-LD 는 검색엔진에
- * "이 페이지의 사실"을 넘기려고 만들어진 형식이라, 본문 없이도 이름·주소·전화·진료시간·
- * 진료과를 정확히 전달한다. 화면에 아무 영향이 없어 레이아웃 이동 위험도 없다.
- *
- * **이미 부르고 있는 단일 조회 응답만 쓴다.** 상세 화면은 주변 병원을 따로 부르지만
- * 여기서는 부르지 않는다 — 메타 하나 붙이자고 왕복을 늘리지 않는다.
- *
- * **schema.org 에 대응이 있는 것만 고유 속성으로 쓴다.** 없는 것(병상 수·전문의 수·장비·
- * 심평원 평가)은 additionalProperty 로 내보낸다. 억지로 비슷한 속성에 밀어 넣으면
- * 형식은 통과해도 뜻이 틀린 데이터가 된다.
- */
 
 /** 종별 → schema.org 타입. 코드는 /healthcare/meta/classes 의 값이다. */
 const TYPE_BY_CATEGORY: Record<string, string> = {
@@ -92,13 +77,8 @@ function toDate(value: string | undefined): string | null {
 }
 
 /**
- * **단위(unitText)는 쓰지 않는다.** schema.org 의 unitText 는 cm·kg 처럼 물리 단위를
- * 적는 자리인데, '대'·'개'·'명' 은 한국어 수량사라 성격이 다르다. 이름에 이미
- * '병상 수'·'의사 수' 라고 적혀 있어 숫자만으로 뜻이 통한다.
- */
-/**
  * 교통편 한 줄. `9호선 샛강역 2번출구 (150M · kbs별관방향)` 처럼 만든다.
- * 지하철·버스·기타가 필드 구성이 같아 하나로 처리한다 — 빈 칸은 알아서 빠진다.
+ * 지하철·버스·기타가 필드 구성이 같아 하나로 처리한다. 빈 칸은 알아서 빠진다.
  */
 function transportLine(t: TransportRoute): string | null {
   const head = [t.line, t.arrival].filter(Boolean).join(' ').trim();
@@ -114,10 +94,8 @@ function prop(name: string, value: string | number) {
 /**
  * 홈에만 붙는다. 서비스 자체가 무엇인지 알리는 자리다.
  *
- * WebSite 의 SearchAction 은 검색 결과에 **사이트 내 검색창**을 띄우는 신호다. 붙인다고
- * 반드시 뜨지는 않지만(구글이 정한다) 이게 없으면 후보에도 안 오른다.
- *
- * 두 덩어리를 @graph 로 묶어 한 블록에 낸다 — script 를 둘로 나눌 이유가 없다.
+ * SearchAction 은 검색 결과에 사이트 내 검색창을 띄우는 신호다. 붙인다고 반드시
+ * 뜨지는 않지만 없으면 후보에도 안 오른다.
  */
 export function siteJsonLd(siteUrl: string, canonical: string, lang: string): string {
   const data = {
@@ -153,6 +131,19 @@ export function siteJsonLd(siteUrl: string, canonical: string, lang: string): st
   return script(data);
 }
 
+/**
+ * 병원 상세의 구조화 데이터(JSON-LD). <head> 에 실린다.
+ *
+ * 본문을 서버에서 그리게 된 뒤에도 남겨 둔다. 검색엔진에 "이 페이지의 사실"을 형식으로
+ * 넘기는 통로라, 본문을 파싱하는 것보다 정확하고 화면에 영향이 없다.
+ *
+ * schema.org 에 대응이 있는 것만 고유 속성으로 쓴다. 없는 것(병상 수·전문의 수·장비·
+ * 심평원 평가)은 additionalProperty 로 낸다. 비슷한 속성에 밀어 넣으면 형식은 통과해도
+ * 뜻이 틀린 데이터가 된다.
+ *
+ * 수량에 unitText 를 붙이지 않는다. 그 자리는 cm·kg 같은 물리 단위용이고 '대'·'명' 은
+ * 한국어 수량사다. 이름에 이미 '병상'·'전문의' 가 있어 숫자만으로 통한다.
+ */
 export function hospitalJsonLd(
   h: Hospital,
   url: string,
@@ -164,8 +155,7 @@ export function hospitalJsonLd(
   const region = h.location?.region;
 
   /*
-    진료과목은 department 로 낸다. **medicalSpecialty 를 쓰지 않는 이유**가 있다 —
-    그 속성의 값은 MedicalSpecialty 열거형(Cardiovascular 같은 정해진 값)이라
+    진료과목은 department 로 낸다. medicalSpecialty 는 값이 MedicalSpecialty 열거형이라
     '내과' 같은 한국어 문자열을 넣으면 형식상 틀린 데이터가 된다.
     department 는 Organization 을 받으므로 이름을 그대로 실을 수 있다.
   */
@@ -174,7 +164,7 @@ export function hospitalJsonLd(
     .map((s) => ({ '@type': 'MedicalClinic', name: s.name }));
 
   /*
-    진료시간. 일반 진료(general)만 낸다 — 달빛어린이 같은 다른 종류를 같은 목록에 섞으면
+    진료시간은 일반 진료(general)만 낸다. 달빛어린이 같은 다른 종류를 같은 목록에 섞으면
     "이 시간에 모든 진료를 한다" 는 뜻이 되어 사실과 달라진다.
   */
   const hours = (h.hours ?? [])
@@ -192,17 +182,13 @@ export function hospitalJsonLd(
     })
     .filter(Boolean);
 
-  /*
-    schema.org 에 고유 속성이 없는 것들. **심평원 평가등급이 여기 있는 게 핵심이다** —
-    AggregateRating 으로 매핑하면 안 된다. 그건 이용자 리뷰의 평균을 뜻하는데, 이건
-    규제기관이 매긴 평가라 뜻이 완전히 다르다. 리뷰 별점으로 둔갑시키는 셈이 된다.
-  */
+  // schema.org 에 고유 속성이 없는 것들.
+  // 심평원 평가등급을 AggregateRating 으로 매핑하지 말 것. 그건 이용자 리뷰의 평균이고
+  // 이건 규제기관 평가라, 리뷰 별점으로 둔갑한다.
   const extra: ReturnType<typeof prop>[] = [];
-  /*
-    찾아오는 길과 교통편. **주소만으로는 못 찾는 병원이 많다** — 상가 몇 동 몇 호,
-    무슨 건물 몇 층 같은 정보가 여기 들어 있고, 상세 화면도 그대로 보여준다.
-    "샛강역 병원" 처럼 역 이름으로 찾는 검색에도 이 줄이 닿는다.
-  */
+
+  // 찾아오는 길과 교통편. 상가 몇 동 몇 호처럼 주소만으로는 못 찾는 정보가 여기 있고,
+  // "샛강역 병원" 같은 역 이름 검색에도 이 줄이 닿는다.
   if (h.directions) extra.push(prop(L.location, h.directions.replace(/\s+/g, ' ').trim()));
   const routes = [
     ...(h.transport?.subway ?? []),
@@ -252,17 +238,11 @@ export function hospitalJsonLd(
     };
   }
   /*
-    **좌표(geo)는 일부러 넣지 않는다.**
+    좌표(geo)는 넣지 않는다. 빠뜨린 게 아니라 빼기로 한 것이다.
 
-    값 자체가 비밀은 아니다 — 화면이 지도를 그리려고 이미 받아 쓰고, 원본도 공개 데이터다.
-    문제는 **모아 놓은 것**이다. 모든 상세 페이지의 <head> 에 좌표를 박아 두면 페이지를
-    긁는 것만으로 전국 병원 좌표 데이터셋이 통째로 복사된다. 우리가 들인 품은 개별 값이
-    아니라 그 묶음에 있다.
-
-    잃는 것은 크지 않다. 지역 검색에서 좌표는 보조 신호이고, 주소(address)가 있으면
-    검색엔진이 알아서 지오코딩한다.
-
-    **되돌리고 싶어지면 그때 의도해서 넣을 것.** 없어서 빠진 게 아니라 빼기로 한 것이다.
+    값 자체는 공개 데이터지만, 모든 상세의 <head> 에 박아 두면 페이지를 긁는 것만으로
+    전국 병원 좌표 데이터셋이 통째로 복사된다. 지역 검색에서 좌표는 보조 신호이고
+    주소(address)가 있으면 검색엔진이 지오코딩하므로 잃는 것은 크지 않다.
   */
 
   const founded = toDate(h.establishedAt);
@@ -276,11 +256,11 @@ export function hospitalJsonLd(
 }
 
 /*
-  **줄바꿈해서 낸다.** 한 줄로 뽑으면 소스 보기에서 수 KB 가 가로로 이어져 사람이 못 읽는다.
-  늘어나는 바이트는 전송 시 압축돼 사실상 사라진다.
+  줄바꿈해서 낸다. 한 줄로 뽑으면 소스 보기에서 수 KB 가 가로로 이어져 못 읽는다.
+  늘어나는 바이트는 전송 시 압축된다.
 
-  `</script>` 가 문자열 안에 들어가면 브라우저가 스크립트를 거기서 끊는다.
-  병원 소개는 사람이 쓴 자유 텍스트라 무엇이든 들어올 수 있다.
+  `</script>` 를 이스케이프하는 것은 병원 소개가 사람이 쓴 자유 텍스트라,
+  그 문자열이 들어오면 브라우저가 스크립트를 거기서 끊기 때문이다.
 */
 function script(data: unknown): string {
   const json = JSON.stringify(data, null, 2).replace(/<\/script/gi, '<\\/script');

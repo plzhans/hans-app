@@ -21,8 +21,8 @@ export type Meta = {
 /**
  * 경로 → 이 화면의 제목·설명.
  *
- * **번역 파일은 화면과 같은 것을 쓴다.** 문장을 여기 따로 적으면 화면이 보여주는 제목과
- * 크롤러가 읽는 제목이 갈린다. 같은 파일을 읽고 같은 자리표시자를 채운다.
+ * 번역 파일은 화면과 같은 것을 쓴다. 문장을 여기 따로 적으면 화면이 보여주는 제목과
+ * 크롤러가 읽는 제목이 갈린다.
  */
 export async function metaFor(
   lang: Lang,
@@ -127,8 +127,8 @@ function fill(template: string, vars: Record<string, string>) {
 /**
  * 화면이 쓰는 번역 파일 그대로.
  *
- * 동적 import 지만 **런타임에 받아오는 게 아니다** — esbuild 가 정적 분석해서 네 로케일을
- * 전부 번들에 넣는다. 이미 안에 있는 것을 고르는 것이라 지연이 없다.
+ * 동적 import 지만 런타임에 받아오지 않는다. esbuild 가 정적 분석해서 네 로케일을 전부
+ * 번들에 넣으므로, 이미 안에 있는 것을 고르는 셈이라 지연이 없다.
  */
 async function loadDict(lang: Lang) {
   switch (lang) {
