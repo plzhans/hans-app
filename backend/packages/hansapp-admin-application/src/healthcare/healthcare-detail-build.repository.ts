@@ -36,6 +36,52 @@ export class HealthcareDetailBuildRepository {
     `);
   }
 
+  /**
+   * 자식 변경 감지에 쓸 현재 해시.
+   *
+   * **직접 등록(manual)도 뺄 수 없다.** 본체는 통째로 보존되지만 자식은 그렇지 않다 —
+   * ykiho·hpid 가 붙어 있으면 그 키로 원본이 따라붙어 과목·진료시간이 다시 만들어진다.
+   * 빼 두면 그 병원만 자식이 바뀌어도 수정 시각이 영영 안 움직인다.
+   *
+   * 자식 행이 하나도 없는 병원도 대상이다. 있던 과목이 전부 사라진 경우가 그렇고,
+   * 그건 분명한 변경이다.
+   */
+  loadDetailHashState(): Promise<{ id: number; detailHash: string | null }[]> {
+    return this.prisma.healthcareHospital.findMany({
+      where: { status: 'active' },
+      select: { id: true, detailHash: true },
+    });
+  }
+
+  /**
+   * 자식 해시를 새로 심는다. updatedAt 이 있으면 수정 시각도 함께 옮긴다.
+   *
+   * **updatedAt 이 null 이면 해시만 쓴다.** 기준선을 처음 심는 회차가 그렇다 — 내용이
+   * 달라서가 아니라 비교할 값이 없어서 다른 것이라, 수정으로 치면 전건이 오늘 바뀐 것이 된다.
+   *
+   * CASE WHEN 한 문장으로 묶는다. 행마다 UPDATE 를 날리면 왕복이 수만 번이 된다.
+   */
+  async applyDetailHashes(
+    rows: { id: number; hash: string }[],
+    updatedAt: Date | null,
+  ): Promise<void> {
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      const hashCase = Prisma.join(
+        chunk.map((r) => Prisma.sql`WHEN ${r.id} THEN ${r.hash}`),
+        ' ',
+      );
+      const ids = Prisma.join(chunk.map((r) => r.id));
+      const touch = updatedAt === null ? Prisma.empty : Prisma.sql`, updated_at = ${updatedAt}`;
+
+      await this.prisma.$executeRaw(Prisma.sql`
+        UPDATE healthcare_hospital
+           SET detail_hash = CASE id ${hashCase} END ${touch}
+         WHERE id IN (${ids})
+      `);
+    }
+  }
+
   // --- buildSubjects ---
 
   /** HIRA 신고 과목(역조회). */

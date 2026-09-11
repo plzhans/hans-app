@@ -206,12 +206,15 @@ export class BatchService {
         ` (both ${built.fromBoth.toLocaleString()} · hira ${built.hiraOnly.toLocaleString()}` +
         ` · nmc ${built.nmcOnly.toLocaleString()})` +
         // 매칭이 붙어 두 행에서 한 행으로 접힌 병원. 매일 큰 수가 나오면 매칭이 흔들린다는 뜻이다.
-        (built.merged > 0 ? ` · merged ${built.merged.toLocaleString()}` : ''),
+        (built.merged > 0 ? ` · merged ${built.merged.toLocaleString()}` : '') +
+        // 내용이 실제로 달라진 병원. 전건에 가까우면 변경 감지가 고장난 것이다.
+        ` · changed ${built.changed.toLocaleString()}`,
     );
 
     const detail = await this.detail.build();
     this.logger.log(
-      `healthcare: details — subjects ${detail.subjects.toLocaleString()} / hours ${detail.hours.toLocaleString()}`,
+      `healthcare: details — subjects ${detail.subjects.toLocaleString()} / hours ${detail.hours.toLocaleString()}` +
+        ` · changed ${detail.changed.toLocaleString()}`,
     );
 
     return {

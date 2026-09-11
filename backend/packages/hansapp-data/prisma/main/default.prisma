@@ -1332,11 +1332,31 @@ model HealthcareHospital {
   /// active | closed. 원본에서 사라져도 행은 남긴다 — 지우면 이 id 를 참조하던 것이 깨진다.
   status String @default("active") @db.VarChar(10)
 
-  /// 배치가 마지막으로 재생성한 시각
+  /// 배치가 마지막으로 재생성한 시각. **회차마다 무조건 찍힌다** — 값이 안 바뀌어도 갱신된다.
+  /// 스윕(built_at < 이번 회차 = 이번에 안 나온 행)의 근거라 그래야 한다.
+  /// "언제 바뀌었나" 는 updated_at 이다. 둘을 바꿔 쓰면 매일 전건이 수정된 것으로 보인다.
   builtAt DateTime @default(now()) @map("built_at") @db.DateTime(0)
 
+  /// 본체 행 내용의 해시. 빌드가 만든 값으로 계산해 직전 회차 값과 비교한다.
+  /// 잠긴 컬럼과 source='manual' 은 원본이 바뀌어도 저장되지 않으므로 입력에서 뺀다.
+  /// NULL 이면 아직 기준선이 없다는 뜻이다 — 그 회차는 해시만 심고 updated_at 을 안 건드린다.
+  buildHash String? @map("build_hash") @db.Char(32)
+
+  /// 자식 테이블(과목·시간·인력·병상·장비·capability) 전체를 병원 단위로 묶은 해시.
+  /// 행이 사라진 것도 여기서 잡힌다 — 지워진 행은 해시 입력에서 빠지므로 값이 달라진다.
+  /// healthcare_hospital_section 은 뺀다. 동기화 이력이라 내용이 안 바뀌어도 시각이 움직인다.
+  detailHash String? @map("detail_hash") @db.Char(32)
+
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  /// 내용이 마지막으로 바뀐 시각. **대외 API 가 노출하는 값이다.**
+  ///
+  /// 원본이 수정 시각을 주지 않아서, 빌드가 해시로 변화를 감지해 직접 찍는다.
+  /// 그래서 이 값은 원본이 바뀐 시각이 아니라 **우리가 변화를 본 시각**이고, 회차 주기만큼 늦다.
+  ///
+  /// @updatedAt 을 걸지 않는다. 그건 Prisma 클라이언트 경로에서만 도는데 빌드는 raw SQL 이라
+  /// 어차피 안 걸린다. 남겨 두면 주인이 둘로 보여서, 빌드가 찍은 값을 다른 경로가 덮는 줄 안다.
+  updatedAt DateTime @default(now()) @map("updated_at") @db.DateTime(0)
 
   /// 자식 테이블 역참조. FK(ON DELETE Cascade)로 묶여, 병원 행이 지워지면 자식도 함께 지워진다.
   /// 부모는 status 로만 관리하고 실제로는 지우지 않으므로 사실상 발동하지 않는다.

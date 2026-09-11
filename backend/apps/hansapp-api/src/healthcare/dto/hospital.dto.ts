@@ -444,6 +444,18 @@ export class HospitalSummaryDto {
   })
   readonly baby!: boolean;
 
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    example: '2026-09-10T18:03:00.000Z',
+    description:
+      '이 병원 정보가 마지막으로 바뀐 시각.\n\n' +
+      '원본은 수정 시각을 제공하지 않는다. 수집한 내용을 직전 회차와 대조해 달라진 병원에만 ' +
+      '기록하므로, **원본이 수정된 시각이 아니라 변경이 확인된 시각**이며 수집 주기만큼 늦다. ' +
+      '진료과목·진료시간 등 하위 정보의 변경도 이 값에 반영된다.',
+  })
+  readonly updatedAt!: string;
+
   @ApiPropertyOptional({
     type: Number,
     description:

@@ -52,6 +52,9 @@ export function healthcareCommand(source: ConfigSource): Command {
             ...(result.merged > 0
               ? [`  합침        : ${result.merged.toLocaleString()} (매칭이 붙어 두 행 → 한 행)`]
               : []),
+            // 내용이 실제로 달라져 수정 시각을 새로 찍은 병원. 도입 직후 한 회차는 0 이고,
+            // 그 뒤로 매 회차 전건에 가까운 수가 나오면 변경 감지가 새고 있다는 뜻이다.
+            `  변경        : ${result.changed.toLocaleString()} (본체)`,
             `  종별 미매핑 : ${result.unmappedClass.toLocaleString()}`,
             `  지역 미매핑 : ${result.unmappedRegion.toLocaleString()}`,
             ...(detail
@@ -64,6 +67,7 @@ export function healthcareCommand(source: ConfigSource): Command {
                   `    장비      : ${detail.equipments.toLocaleString()}`,
                   `    역량      : ${detail.capabilities.toLocaleString()}`,
                   `    확인상태  : ${detail.sections.toLocaleString()}`,
+                  `    변경      : ${detail.changed.toLocaleString()} (자식)`,
                 ]
               : []),
             `  소요 시간   : ${seconds}초`,

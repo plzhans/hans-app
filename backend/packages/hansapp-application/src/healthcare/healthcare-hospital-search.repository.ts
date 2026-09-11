@@ -166,6 +166,7 @@ const SEARCH_SOURCE_FIELDS = [
   'specialty_cds',
   'subway',
   'location',
+  'updated_at',
 ];
 
 /**
@@ -238,6 +239,7 @@ const NEARBY_SOURCE = [
   'location',
   'subject_cds',
   'specialist_subject_cds',
+  'updated_at',
 ];
 
 /**
@@ -813,6 +815,7 @@ function hitToListRow(doc: Partial<HealthcareHospitalDoc>, lang: SupportedLang):
     // 전문병원 지정은 병원당 최대 1건이라 첫 값을 쓴다(DB 도 단건 조인).
     specialty_cd: doc.specialty_cds?.[0] ?? null,
     region_cd: loc?.region_cd ?? null,
+    updated_at: doc.updated_at,
   };
 }
 

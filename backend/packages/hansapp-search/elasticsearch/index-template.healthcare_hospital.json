@@ -265,7 +265,8 @@
         },
         "transport": { "type": "object", "enabled": false },
 
-        "built_at": { "type": "date" }
+        "built_at": { "type": "date" },
+        "updated_at": { "type": "date" }
       }
     }
   },

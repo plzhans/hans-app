@@ -35,8 +35,12 @@ export class HealthcareNameBuildRepository {
    *
    * corp_name 은 NULL 이 될 수 있어서 CASE 에 그대로 담는다 — 규칙이 법인명을 못 가르게
    * 바뀌었으면 기존 값을 지워야 한다. 안 그러면 옛 규칙의 흔적이 남는다.
+   *
+   * **build_hash 를 비운다.** 이름은 원본이 아니라 우리 규칙이 만드는 값이라, 규칙이 바뀌어
+   * 이름이 달라져도 원본 해시는 그대로다. 그 상태로 두면 다음 빌드가 "안 바뀌었다" 로 읽고
+   * 방금 옮긴 수정 시각을 옛 값으로 되돌린다. NULL 로 두면 다음 회차가 기준선을 다시 심는다.
    */
-  async apply(updates: NameUpdate[]): Promise<void> {
+  async apply(updates: NameUpdate[], updatedAt: Date): Promise<void> {
     for (let i = 0; i < updates.length; i += CHUNK) {
       const chunk = updates.slice(i, i + CHUNK);
 
@@ -52,8 +56,10 @@ export class HealthcareNameBuildRepository {
 
       await this.prisma.$executeRaw(Prisma.sql`
         UPDATE healthcare_hospital
-           SET name      = CASE id ${nameCase} END,
-               corp_name = CASE id ${corpCase} END
+           SET name       = CASE id ${nameCase} END,
+               corp_name  = CASE id ${corpCase} END,
+               build_hash = NULL,
+               updated_at = ${updatedAt}
          WHERE id IN (${ids})
       `);
     }

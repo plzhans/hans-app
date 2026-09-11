@@ -5,6 +5,7 @@ import { InternalError, parseTimeRange } from '@hansapp/common';
 import { isSubjectAllowed } from '@hansapp/data/seed';
 
 import { CodeMapper } from './code-mapper';
+import { contentHash } from './content-hash';
 import { HealthcareDetailBuildRepository } from './healthcare-detail-build.repository';
 import { HospitalLocks } from './hospital-lock';
 
@@ -81,6 +82,11 @@ const SECTION_SIDE: Record<SectionName, 'hira' | 'nmc' | 'both'> = {
 type RebuildTable = (typeof REBUILD_TABLES)[number];
 
 export interface DetailBuildResult {
+  /**
+   * 자식이 실제로 달라져 updated_at 을 새로 찍은 병원 수.
+   * 도입 직후 한 회차는 0 이다 — 그때는 기준선을 심기만 한다.
+   */
+  changed: number;
   subjects: number;
   hours: number;
   staff: number;
@@ -185,11 +191,21 @@ export class HealthcareDetailBuildService {
    */
   private builtAt!: Date;
 
+  /**
+   * 이번 회차에 만든 자식 행을 병원별로 모은 것. 변경 감지에만 쓴다.
+   *
+   * 자식은 6개 표에 흩어져 있고 값이 바뀌는 것뿐 아니라 **행이 사라지는 것**도 변경이다.
+   * 표마다 따로 비교하면 사라진 행은 스윕이 지운 뒤라 비교할 대상이 없다. 병원 단위로
+   * 전부 모아 한 덩어리로 해시하면, 빠진 행은 입력에서 빠지므로 값이 저절로 달라진다.
+   */
+  private detailRows!: Map<number, string[]>;
+
   async build(): Promise<DetailBuildResult> {
     const startedAt = Date.now();
     // 초 단위로 자른다. built_at 이 DATETIME(0) 이라 밀리초를 남기면 저장된 값과
     // 비교값이 어긋나 방금 넣은 행이 스윕에 걸린다.
     this.builtAt = new Date(Math.floor(startedAt / 1000) * 1000);
+    this.detailRows = new Map();
     const mapper = await this.repo.loadCodeMapper();
     this.locks = await this.repo.loadLocks();
 
@@ -210,11 +226,68 @@ export class HealthcareDetailBuildService {
       capabilities: await this.buildCapabilities(mapper, byYkiho, byHpid),
       // **맨 뒤여야 한다.** 위에서 만든 healthcare_* 를 읽어 "값이 있나" 를 판단한다.
       sections: await this.buildSections(byYkiho, byHpid),
+      changed: 0,
       elapsedMs: 0,
     };
 
+    // 자식 표를 다 만든 뒤에 판정한다. 한 표만 바뀌어도 그 병원은 바뀐 것이다.
+    result.changed = await this.stampChanges();
+
     result.elapsedMs = Date.now() - startedAt;
     return result;
+  }
+
+  /**
+   * 자식 행 하나를 해시 입력에 담는다.
+   *
+   * **잠긴 행은 담지 않는다.** 값을 배치가 안 건드리므로(touchRows 가 built_at 만 찍는다)
+   * 원본이 어떻게 바뀌든 저장된 값은 그대로다 — 넣어 두면 저장되지도 않을 변화로 수정
+   * 시각이 움직인다. 본체에서 잠긴 컬럼을 빼는 것과 같은 이유다.
+   *
+   * **healthcare_hospital_section 은 뺀다.** 그 표가 담는 것은 병원 정보가 아니라 어느
+   * 섹션을 언제 받아 왔는지다. 같은 내용을 다시 받아도 시각이 움직이므로, 넣으면 매 회차
+   * 전건이 수정된 것이 된다.
+   */
+  private collectForHash(table: RebuildTable, rows: BuildRow[]): void {
+    if (table === 'healthcare_hospital_section') {
+      return;
+    }
+    for (const row of rows) {
+      const bucket = this.detailRows.get(row.hospitalId);
+      const entry = `${table}|${contentHash(row.key)}|${contentHash(row.value)}`;
+      if (bucket) {
+        bucket.push(entry);
+      } else {
+        this.detailRows.set(row.hospitalId, [entry]);
+      }
+    }
+  }
+
+  /**
+   * 자식이 바뀐 병원의 updated_at 을 이번 회차 시각으로 옮긴다. 바뀐 병원 수를 돌려준다.
+   *
+   * 자식 행이 하나도 없는 병원도 판정 대상이다 — 있던 과목이 전부 사라진 경우가 그렇고,
+   * 그건 분명한 변경이다. 그래서 모아 둔 것이 아니라 **활성 병원 전체**를 훑는다.
+   */
+  private async stampChanges(): Promise<number> {
+    const changed: { id: number; hash: string }[] = [];
+    const baseline: { id: number; hash: string }[] = [];
+
+    for (const state of await this.repo.loadDetailHashState()) {
+      // 행 순서는 표를 만든 순서와 원본 순서를 따라 흔들린다. 정렬해서 그 영향을 없앤다.
+      const rows = this.detailRows.get(state.id) ?? [];
+      const hash = contentHash([...rows].sort());
+
+      if (state.detailHash === hash) {
+        continue;
+      }
+      // 기준선이 없는 회차(도입 직후)는 해시만 심는다. 전건이 "오늘 수정됨" 이 되는 것을 막는다.
+      (state.detailHash === null ? baseline : changed).push({ id: state.id, hash });
+    }
+
+    await this.repo.applyDetailHashes(baseline, null);
+    await this.repo.applyDetailHashes(changed, this.builtAt);
+    return changed.length;
   }
 
   /**
@@ -694,6 +767,8 @@ export class HealthcareDetailBuildService {
       .map((c) => c.trim());
     const keyCols = new Set(['hospital_id', ...Object.keys(rows[0]?.key ?? {})]);
     const updatable = cols.filter((c) => !keyCols.has(c));
+
+    this.collectForHash(table, insertable);
 
     await this.repo.upsertRows(table, cols, updatable, insertable, this.builtAt);
 
