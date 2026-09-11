@@ -28,7 +28,8 @@
     "openapi:gen:dev": "pnpm --filter hansapp-api openapi:gen:dev",
     "openapi:gen:prod": "pnpm --filter hansapp-api openapi:gen:prod",
     "hansapp-batch": "SWC_NODE_PROJECT=apps/hansapp-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapp-batch/src/main.ts",
-    "vworld:codegen": "pnpm --filter \"@vworld/*\" codegen"
+    "vworld:codegen": "pnpm --filter \"@vworld/*\" codegen",
+    "medifinder-cli": "SWC_NODE_PROJECT=apps/medifinder-cli/tsconfig.json node -r @swc-node/register apps/medifinder-cli/src/main.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",

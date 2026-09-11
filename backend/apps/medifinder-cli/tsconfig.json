@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    // **DOM 을 빼려고 적는다.** 안 적으면 target 기본값에 lib.dom 이 딸려 와 서버 코드에
+    // 브라우저 전역(open·name·close·status …)이 전부 열린다.
+    "lib": ["ES2023"],
+
+    /*
+      **응용 계층·SDK 와 같은 해석을 쓴다.** 자세한 이유는
+      packages/medifinder-admin-application/tsconfig.json 주석에 있다 — 요약하면
+      @hans-api/sdk 가 소스 전용 ESM 패키지라 node·nodenext 로는 못 읽는다.
+    */
+    "module": "preserve",
+    "moduleResolution": "bundler",
+
+    // 산출물을 내지 않는다. 실행은 언제나 소스에서 한다(@swc-node/register).
+    "noEmit": true,
+
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    // NestJS DI 가 데코레이터 메타데이터를 읽는 데 쓴다.
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

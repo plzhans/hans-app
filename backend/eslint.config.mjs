@@ -74,4 +74,31 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    /*
+      **MediFinder 는 hans-api 의 외부 소비자다.**
+
+      같은 레포에 있지만 다른 프로젝트다. DB 도 내부 패키지도 보지 않고, 공개 스펙에서
+      생성한 SDK(@hans-api/sdk)로만 접근한다 — 다른 외부 클라이언트와 같은 자격이다.
+
+      규칙으로 막는 이유는 이게 주의로 지켜지지 않기 때문이다. @hansapp/data 하나만
+      끌어와도 medifinder 는 그 순간 hans-api 의 배포·마이그레이션에 묶인다. 한 줄이면
+      들어오고, 걷어내려면 그때는 여러 곳이다.
+    */
+    files: ['apps/medifinder-*/**/*.ts', 'packages/medifinder-*/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@hansapp/*'],
+              message:
+                'MediFinder 는 hans-api 를 공개 API 로만 읽는다. 내부 패키지를 쓰지 말 것 — 필요한 값이 공개 스펙에 없으면 스펙에 내는 쪽이 먼저다.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
