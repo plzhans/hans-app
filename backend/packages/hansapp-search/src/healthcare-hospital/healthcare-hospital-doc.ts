@@ -140,4 +140,12 @@ export interface HealthcareHospitalDoc {
   transport?: Partial<Record<Lang, unknown>>;
 
   built_at: string;
+
+  /**
+   * 내용이 마지막으로 바뀐 시각(ISO 8601). 목록·검색이 그대로 응답에 싣는다.
+   *
+   * **built_at 과 다르다.** built_at 은 회차마다 무조건 갱신되고, 이건 값이 실제로 달라진
+   * 병원만 움직인다. 목록에 내보낼 값은 이쪽이다.
+   */
+  updated_at: string;
 }

@@ -88,7 +88,8 @@ export class HealthcareNameBuildService {
     }
 
     if (!dryRun && updates.length > 0) {
-      await this.repo.apply(updates);
+      // 초 단위로 자른다. updated_at 이 DATETIME(0) 이라 밀리초는 버려진다.
+      await this.repo.apply(updates, new Date(Math.floor(Date.now() / 1000) * 1000));
     }
 
     const result: NameBuildResult = {

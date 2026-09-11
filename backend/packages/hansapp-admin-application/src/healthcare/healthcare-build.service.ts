@@ -2,7 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapp/application';
 import { hospitalTier, splitHospitalName, IGNORED_SOURCE_CODES } from '@hansapp/data/seed';
 
-import { HealthcareBuildRepository } from './healthcare-build.repository';
+import {
+  HealthcareBuildRepository,
+  HOSPITAL_FIELDS,
+  type HospitalHashState,
+  type HospitalUpsertRow,
+} from './healthcare-build.repository';
+import { HospitalLocks } from './hospital-lock';
+import { contentHash } from './content-hash';
 import { normalizeTel, hiraAreaCode, nmcAreaCode } from './phone';
 
 /** 한 병원의 통합 결과 */
@@ -85,6 +92,15 @@ export interface BuildResult {
    * 매일 큰 수가 찍히면 매칭 규칙이 흔들리고 있다는 뜻이다.
    */
   merged: number;
+
+  /**
+   * 내용이 실제로 달라져 updated_at 을 새로 찍은 병원 수.
+   *
+   * 매 회차 전건에 가까운 수가 나오면 감지가 고장난 것이다 — 원본이 같은 값을 다르게
+   * 표기하고 있다는 뜻이라(공백·배열 순서) 해시 입력을 손봐야 한다.
+   * 도입 직후 한 회차는 0 이다. 그때는 기준선을 심기만 한다.
+   */
+  changed: number;
   elapsedMs: number;
 }
 
@@ -292,7 +308,10 @@ export class HealthcareBuildService {
     */
     const built = [...hiraRows, ...nmcRows];
 
-    await this.repo.upsertHospitals(built, locks);
+    // 합치기 뒤에 읽어야 한다. 지워진 행의 해시를 기준으로 삼지 않으려는 것이다.
+    const stamped = await this.stampChanges(built, locks);
+
+    await this.repo.upsertHospitals(stamped.rows, locks);
 
     const result: BuildResult = {
       hospitals: built.length,
@@ -303,6 +322,7 @@ export class HealthcareBuildService {
       unmappedClass,
       unmappedRegion,
       merged,
+      changed: stamped.changed,
       elapsedMs: Date.now() - startedAt,
     };
 
@@ -313,6 +333,95 @@ export class HealthcareBuildService {
     }
 
     return result;
+  }
+
+  /**
+   * 행마다 이번 회차의 해시와 수정 시각을 확정한다.
+   *
+   * 원본(HIRA·NMC)은 수정 시각을 주지 않는다. 그래서 직전 회차에 만든 값의 해시와 이번 값의
+   * 해시를 맞대 보고, 다른 병원만 시각을 새로 찍는다. 안 바뀐 병원에는 **지금 DB 에 있는
+   * 시각을 그대로 다시 실어** 보내므로 upsert 가 덮어써도 값이 안 움직인다.
+   *
+   * 판정을 SQL 이 아니라 여기서 하는 이유는 built_at 때문이다. 같은 upsert 가 built_at 을
+   * 회차마다 무조건 찍어서, MySQL 이 보기에는 값이 하나도 안 바뀐 행도 늘 갱신된 행이다 —
+   * ON UPDATE CURRENT_TIMESTAMP 를 걸면 매 회차 전건이 수정된 것이 된다.
+   */
+  private async stampChanges(
+    rows: BuiltHospital[],
+    locks: HospitalLocks,
+  ): Promise<{ rows: HospitalUpsertRow[]; changed: number }> {
+    // 초 단위로 자른다. updated_at 이 DATETIME(0) 이라 밀리초는 어차피 버려진다.
+    const now = new Date(Math.floor(Date.now() / 1000) * 1000);
+
+    const byYkiho = new Map<string, HospitalHashState>();
+    const byHpid = new Map<string, HospitalHashState>();
+    for (const state of await this.repo.loadHashState()) {
+      if (state.ykiho) byYkiho.set(state.ykiho, state);
+      if (state.hpid) byHpid.set(state.hpid, state);
+    }
+
+    let changed = 0;
+    const stamped = rows.map((row): HospitalUpsertRow => {
+      /*
+        upsert 가 어느 행에 떨어질지를 같은 순서로 따라간다 — 유니크 키는 ykiho·hpid 둘이고
+        MySQL 은 먼저 맞는 쪽을 잡는다. 두 키가 서로 다른 행을 가리키는 경우는 이 시점에
+        없다. mergeSplitPairs 가 앞서 합쳐 놓는다.
+      */
+      const prev =
+        (row.ykiho ? byYkiho.get(row.ykiho) : undefined) ??
+        (row.hpid ? byHpid.get(row.hpid) : undefined);
+
+      // 새 병원. created_at 과 같은 시각이 된다.
+      if (!prev) {
+        changed += 1;
+        return { row, buildHash: this.hashOf(row, undefined, locks), updatedAt: now };
+      }
+
+      // 직접 등록은 원본이 무엇을 주든 저장되지 않는다(upsert 가 통째로 보존한다).
+      // 저장되지 않는 변화로 시각이 움직이면 거짓말이 된다.
+      if (prev.source === 'manual') {
+        return { row, buildHash: prev.buildHash, updatedAt: prev.updatedAt };
+      }
+
+      const hash = this.hashOf(row, prev, locks);
+
+      // 기준선이 없는 회차(도입 직후). 해시만 심고 시각은 그대로 둔다 —
+      // 안 그러면 전건이 "오늘 수정됨" 으로 찍힌다.
+      if (prev.buildHash === null || prev.buildHash === hash) {
+        return { row, buildHash: hash, updatedAt: prev.updatedAt };
+      }
+
+      changed += 1;
+      return { row, buildHash: hash, updatedAt: now };
+    });
+
+    return { rows: stamped, changed };
+  }
+
+  /**
+   * 본체 행 내용의 해시.
+   *
+   * **저장될 값만 넣는다.** 잠긴 컬럼은 원본이 바뀌어도 upsert 가 기존 값을 지키므로
+   * (`IF(locked, self, fresh)`) 해시 입력에서 뺀다. 넣어 두면 저장되지도 않을 변화로
+   * 수정 시각이 움직인다 — 사람이 고쳐 둔 이름을 원본이 건드릴 때마다 그렇게 된다.
+   *
+   * 잠금이 풀리면 그 필드가 입력에 돌아오면서 해시가 달라진다. 실제로 다음 회차에 원본
+   * 값으로 덮이므로 수정으로 잡히는 것이 맞다.
+   */
+  private hashOf(
+    row: BuiltHospital,
+    prev: HospitalHashState | undefined,
+    locks: HospitalLocks,
+  ): string {
+    const content: Record<string, unknown> = {};
+    for (const field of HOSPITAL_FIELDS) {
+      if (prev && locks.isFieldLocked('healthcare_hospital', prev.id, field)) {
+        continue;
+      }
+      content[field] =
+        field === 'transport' ? sortedTransport(row.transport) : row[field as keyof BuiltHospital];
+    }
+    return contentHash(content);
   }
 
   /**
@@ -509,4 +618,31 @@ export class HealthcareBuildService {
       lon: asNumber(r.lon),
     }));
   }
+}
+
+/**
+ * 해시 입력용 교통편. 수단별로 정렬한 사본을 만든다. **저장되는 값은 안 건드린다.**
+ *
+ * 원본이 같은 교통편을 다른 순서로 주는 일이 있다. 그대로 해시에 넣으면 내용이 하나도
+ * 안 바뀌었는데 순서만으로 수정된 것이 되어, 그 병원이 매 회차 갱신된 것처럼 보인다.
+ *
+ * 저장은 원본 순서를 지킨다 — 상세 화면이 그 순서로 그리고, 병원이 중요한 것을 앞에
+ * 적어 두기 때문이다. 순서가 바뀐 것을 수정으로 치지 않을 뿐이다.
+ */
+function sortedTransport(transport: HospitalTransport | null): HospitalTransport | null {
+  if (transport === null) {
+    return null;
+  }
+  const sort = (routes: TransportRoute[]): TransportRoute[] =>
+    [...routes].sort((a, b) => {
+      const left = `${a.kindName ?? ''}|${a.line ?? ''}|${a.arrival ?? ''}`;
+      const right = `${b.kindName ?? ''}|${b.line ?? ''}|${b.arrival ?? ''}`;
+      return left < right ? -1 : left > right ? 1 : 0;
+    });
+
+  return {
+    subway: sort(transport.subway),
+    bus: sort(transport.bus),
+    etc: sort(transport.etc),
+  };
 }

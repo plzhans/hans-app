@@ -5,8 +5,14 @@ import { CodeMapper } from './code-mapper';
 import { HospitalLocks } from './hospital-lock';
 import type { BuiltHospital } from './healthcare-build.service';
 
-/** 통합 병원 본체 upsert 에서 잠금 여부를 따지는 컬럼 목록. VALUES 순서와 맞춰야 한다. */
-const FIELDS = [
+/**
+ * 통합 병원 본체 upsert 에서 잠금 여부를 따지는 컬럼 목록. VALUES 순서와 맞춰야 한다.
+ *
+ * **BuiltHospital 의 키와 같다.** 변경 감지 해시가 이 목록으로 빌드 결과를 훑으므로
+ * (HealthcareBuildService.hashOf) 여기에 컬럼을 더하면 해시 입력에도 자동으로 들어간다.
+ * 이름이 어긋나면 그 필드만 조용히 감지에서 빠지니, 양쪽을 같은 글자로 유지해야 한다.
+ */
+export const HOSPITAL_FIELDS = [
   /*
     **원본 키 둘은 서로를 채워 준다.** 한 행은 ykiho 로도 hpid 로도 찾힌다(둘 다 유니크).
     hpid 로 찾힌 행에 ykiho 를 넣어야 하는 경우가 있고 그 반대도 있다 — NMC 만 있던 병원에
@@ -45,9 +51,38 @@ const FIELDS = [
   'park_paid',
   'park_note',
   'transport',
-];
+] as const;
 
 const CHUNK = 500;
+
+/**
+ * 변경 감지에 필요한 현재 상태. **값은 안 읽는다** — transport JSON 과 intro TEXT 를
+ * 8만 건 끌고 오지 않으려고 해시만 가져온다. 비교는 해시끼리만 한다.
+ */
+export interface HospitalHashState {
+  id: number;
+  ykiho: string | null;
+  hpid: string | null;
+  /** 'manual'(직접 등록)이면 원본이 무엇을 주든 저장되지 않는다. 수정 시각도 그대로 둬야 한다. */
+  source: string;
+  /** 직전 회차의 본체 해시. NULL 이면 아직 기준선이 없다. */
+  buildHash: string | null;
+  /** 지금 찍혀 있는 수정 시각. 안 바뀐 병원은 이 값을 그대로 다시 실어 보낸다. */
+  updatedAt: Date;
+}
+
+/**
+ * upsert 에 실을 한 행. 빌드 결과에 변경 감지 결과(해시·수정 시각)를 얹은 것이다.
+ *
+ * **수정 시각을 SQL 이 정하지 않는다.** 서비스가 해시를 맞대 본 뒤 행마다 확정해서 넘기고,
+ * SQL 은 받은 값을 그대로 쓴다 — 안 바뀐 병원에는 기존 값이 실려 오므로 결과적으로 보존된다.
+ * 컬럼을 일일이 비교하는 IF 나 <=> 가 SQL 에 들어가지 않는 이유다.
+ */
+export interface HospitalUpsertRow {
+  row: BuiltHospital;
+  buildHash: string | null;
+  updatedAt: Date;
+}
 
 /**
  * 통합 병원 빌드 저장소. 원본(hira·nmc·매칭·상세) 읽기와 healthcare_hospital 벌크 upsert 를 담당한다.
@@ -181,13 +216,27 @@ export class HealthcareBuildRepository {
   }
 
   /**
+   * 변경 감지에 필요한 현재 상태를 읽는다. **합치기(mergeSplitPairs) 뒤에 불러야 한다** —
+   * 합치면서 사라지는 행이 있어서, 먼저 읽으면 지워진 행의 해시를 기준으로 삼게 된다.
+   */
+  loadHashState(): Promise<HospitalHashState[]> {
+    return this.prisma.healthcareHospital.findMany({
+      select: { id: true, ykiho: true, hpid: true, source: true, buildHash: true, updatedAt: true },
+    });
+  }
+
+  /**
    * 통합 병원 본체를 upsert 한다.
    *
    * **rows 의 배열 순서가 곧 SQL 실행 순서다. 정렬하지 마라.** 매칭이 풀린 병원은 한 행이
    * 두 행으로 갈라지는데, 먼저 오는 쪽이 기존 id 를 가져간다(서비스가 HIRA 를 앞에 둔다).
    * 여기서 순서를 바꾸면 죽지는 않고 **id 주인이 조용히 뒤바뀐다.**
+   *
+   * build_hash·updated_at 은 잠금(IF)을 안 거친다. 잠금은 "원본이 준 값으로 덮지 마라" 는
+   * 규칙인데 이 둘은 원본이 준 값이 아니라 우리가 판정한 결과다. 잠긴 컬럼은 애초에 해시
+   * 입력에서 빠지므로(hashOf) 잠긴 병원의 수정 시각은 저절로 안 움직인다.
    */
-  async upsertHospitals(rows: BuiltHospital[], locks: HospitalLocks): Promise<void> {
+  async upsertHospitals(rows: HospitalUpsertRow[], locks: HospitalLocks): Promise<void> {
     const keep = (field: string): Prisma.Sql => {
       const ids = locks.lockedHospitalsFor('healthcare_hospital', field);
       const self = Prisma.raw(`healthcare_hospital.${field}`);
@@ -203,14 +252,14 @@ export class HealthcareBuildRepository {
       return Prisma.sql`${Prisma.raw(field)} = IF(${locked}, ${self}, ${fresh})`;
     };
 
-    const updates = Prisma.join(FIELDS.map(keep));
+    const updates = Prisma.join(HOSPITAL_FIELDS.map(keep));
 
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
 
       const values = Prisma.join(
         chunk.map(
-          (r) => Prisma.sql`(
+          ({ row: r, buildHash, updatedAt }) => Prisma.sql`(
             ${r.ykiho}, ${r.hpid}, ${r.source},
             ${r.name}, ${r.legal_name}, ${r.corp_name},
             ${r.addr}, ${r.tel}, ${r.homepage},
@@ -219,7 +268,7 @@ export class HealthcareBuildRepository {
             ${r.intro}, ${r.notice}, ${r.directions},
             ${r.park_qty}, ${r.park_paid}, ${r.park_note},
             ${r.transport === null ? null : Prisma.sql`CAST(${JSON.stringify(r.transport)} AS JSON)`},
-            'active', NOW(), NOW(), NOW()
+            'active', NOW(), ${buildHash}, NOW(), ${updatedAt}
           )`,
         ),
       );
@@ -231,12 +280,14 @@ export class HealthcareBuildRepository {
            lat, lon, estb_dd, emergency_yn, baby_yn,
            intro, notice, directions, park_qty, park_paid, park_note,
            transport,
-           status, built_at, created_at, updated_at)
+           status, built_at, build_hash, created_at, updated_at)
         VALUES ${values} AS new
         ON DUPLICATE KEY UPDATE
           ${updates},
           status = 'active',
-          built_at = NOW()
+          built_at = NOW(),
+          build_hash = new.build_hash,
+          updated_at = new.updated_at
       `);
     }
   }

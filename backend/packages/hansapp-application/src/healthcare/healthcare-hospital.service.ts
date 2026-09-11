@@ -77,6 +77,8 @@ interface SummarySource {
   emdongNm: string | null;
   lat: number | undefined;
   lon: number | undefined;
+  /** 내용이 마지막으로 바뀐 시각(ISO 8601). 각 경로가 자기 원천의 타입을 여기서 이미 맞춰 온다. */
+  updatedAt: string;
   /** 기준 좌표로부터의 직선거리(m). 거리순 조회일 때만 있다. */
   distance?: number;
 }
@@ -696,6 +698,7 @@ export class HealthcareHospitalService {
       tel: src.tel ?? undefined,
       emergency: src.emergency,
       baby: src.baby,
+      updatedAt: src.updatedAt,
       // 거리순으로 조회했을 때만 값이 있다. 화면은 없으면 거리 표시를 그리지 않는다.
       distance: src.distance,
       location: {
@@ -742,6 +745,7 @@ export class HealthcareHospitalService {
       emdongNm: row.emdong_nm,
       lat: this.num(row.lat),
       lon: this.num(row.lon),
+      updatedAt: toIsoString(row.updated_at),
       distance: row.distance_m,
     };
   }
@@ -775,6 +779,7 @@ export class HealthcareHospitalService {
       emdongNm: row.emdongNm,
       lat: this.num(row.lat),
       lon: this.num(row.lon),
+      updatedAt: row.updatedAt.toISOString(),
     };
   }
 
@@ -887,3 +892,23 @@ const ASTHMA_CODE = '16';
 
 /** 병원 상세 캐시 TTL(ms). 상세는 admin 배치 재빌드 때만 바뀌어 자주 안 변한다. */
 const DETAIL_CACHE_TTL_MS = 5 * 60_000;
+
+/**
+ * 수정 시각을 ISO 8601 문자열로 맞춘다.
+ *
+ * 원천마다 타입이 다르다 — DB(raw 조회)는 Date, ES(_source)는 이미 ISO 문자열이다.
+ * 두 경로의 응답이 어긋나면 클라이언트가 원천을 구분해 파싱해야 하므로 여기서 하나로 접는다.
+ *
+ * 못 알아보는 값이면 빈 문자열이다. 이 값 하나 때문에 목록 전체를 실패시키지 않는다 —
+ * 색인이 낡아 필드가 없는 문서가 섞여 있을 수 있고, 그때도 병원 목록은 보여야 한다.
+ */
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+  }
+  return '';
+}

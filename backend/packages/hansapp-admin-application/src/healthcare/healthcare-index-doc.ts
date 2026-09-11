@@ -104,6 +104,7 @@ export interface HealthcareHospitalBaseRow {
   tier: string | null;
   status: string;
   builtAt: Date;
+  updatedAt: Date;
   subjects: SubjectRow[];
   equipments: EquipmentRow[];
   capabilities: CapabilityRow[];
@@ -213,6 +214,7 @@ export function buildHealthcareHospitalDoc(
     transport: buildTransport(h.transport, row.i18n),
 
     built_at: h.builtAt.toISOString(),
+    updated_at: h.updatedAt.toISOString(),
   };
 
   // 미확보 지하철 정보는 필드 자체를 뺀다(빈 오브젝트로 문서를 채우지 않는다).

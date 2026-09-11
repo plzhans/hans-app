@@ -175,6 +175,12 @@ export interface HospitalListRow {
   region_cd: string | null;
 
   /**
+   * 내용이 마지막으로 바뀐 시각. **원천마다 타입이 다르다** — DB 는 Date, ES 는 ISO 문자열이다.
+   * 서비스가 매핑에서 ISO 문자열로 맞춘다(lat·lon 을 unknown 으로 받는 것과 같은 이유).
+   */
+  updated_at: unknown;
+
+  /**
    * 기준 좌표로부터의 직선거리(m). **거리순 조회일 때만 채워진다** — 기본 정렬에는 기준
    * 좌표가 없어 잴 것이 없고, DB 경로는 거리순 자체를 지원하지 않는다.
    *
@@ -294,7 +300,8 @@ export class HealthcareHospitalRepository implements HospitalScrollSource, Hospi
              h.class_cd,
              h.tier,
              spc.cd AS specialty_cd,
-             h.region_cd
+             h.region_cd,
+             h.updated_at
         FROM healthcare_hospital h
         -- 종별·전문병원분야·지역 이름은 조인하지 않는다 — 코드만 SELECT 하고
         -- 이름은 부팅 때 올려둔 캐시(HealthcareCodeCache·RegionCache)에서 붙인다.
