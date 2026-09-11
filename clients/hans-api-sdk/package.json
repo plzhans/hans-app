@@ -1,0 +1,34 @@
+{
+  "name": "@hans-api/sdk",
+  "version": "0.0.1",
+  "private": true,
+  "description": "hans-api 공개 스펙에서 생성한 클라이언트 SDK. 브라우저·Node 양쪽이 같은 것을 쓴다",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react.ts"
+  },
+  "scripts": {
+    "api:gen": "orval && node scripts/write-barrels.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": ">=5",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-query": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "5.101.2",
+    "@types/react": "^19.2.7",
+    "orval": "8.20.0",
+    "react": "^19.2.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,8 @@
+# 이 패키지는 어느 워크스페이스에도 속하지 않는다. medifinder-web 이 `link:` 로 물고,
+# CI 는 그 링크를 따라와 여기서 따로 install 을 돌린다(frontend/ci-build.sh 참고).
+#
+# **파일이 이것 하나를 위해 있다.** pnpm 11 은 allowBuilds 를 .npmrc 가 아니라 여기서 읽는다.
+# 없으면 install 이 ERR_PNPM_IGNORED_BUILDS 로 **exit 1** 을 내고, CI 가 그 자리에서 멈춘다.
+allowBuilds:
+  # orval 이 TypeScript 설정 파일(orval.config.ts)을 읽는 데 쓴다.
+  esbuild: true
