@@ -15,6 +15,7 @@
     "./openapi/*": "./openapi/*"
   },
   "scripts": {
+    "postinstall": "pnpm codegen",
     "codegen": "orval --config orval.config.ts",
     "build": "tsc -p tsconfig.json"
   },

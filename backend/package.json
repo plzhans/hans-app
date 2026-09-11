@@ -5,6 +5,8 @@
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "postinstall": "pnpm sdk:prepare",
+    "sdk:prepare": "pnpm --dir ../clients/hans-api-sdk install && pnpm --dir ../clients/hans-api-sdk api:gen",
     "dev:server": "SWC_NODE_PROJECT=apps/hansapp-api/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapp-api/src/main.ts",
     "start:local": "APP_ENV=local pnpm dev:server",
     "start:develop": "APP_ENV=develop pnpm dev:server",
