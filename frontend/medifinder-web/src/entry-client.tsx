@@ -8,7 +8,11 @@ import i18n from '@/shared/i18n';
 import { Providers, createQueryClient } from '@/app/Providers';
 import { initGa } from '@/shared/analytics/gtag';
 import App from '@/app/App';
+import { configureApi } from '@/shared/api/configure';
 import './globals.css';
+
+// SDK 는 인증도 언어도 모른다. 요청이 나가기 전에 이 앱의 방식을 알려준다.
+configureApi();
 
 console.log('[app] VITE_HANSAPP_BASE_URL =', import.meta.env.VITE_HANSAPP_BASE_URL ?? '(not set)');
 

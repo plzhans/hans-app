@@ -23,7 +23,8 @@ import {
   getHealthcareHospitalControllerNearbyQueryKey,
   getHealthcareHospitalControllerSearchQueryKey,
   getHealthcareHospitalControllerSearchUrl,
-} from '@/shared/api/generated/react/healthcare/healthcare';
+} from '@hans-api/sdk/react';
+import { configureApi } from '@/shared/api/configure';
 import { NEARBY_SIZE } from '@/features/clinic/api';
 import { HOME_SECTION_PARAMS } from '@/features/home/pages/Home';
 import type {
@@ -60,6 +61,15 @@ export const HOME_QUERY_PATHS: string[] = HOME_SECTION_PARAMS.map((params) =>
 );
 
 export type { RenderResult };
+
+/*
+  SSR 도중에 실제로 요청이 나가지는 않는다 — 워커가 미리 받아 둔 응답을 캐시에 심는 방식이다.
+  그래도 설정은 해 둔다. 렌더 중 호출이 하나라도 생기면 "설정 안 됨" 으로 터지는데,
+  그건 서버에서만 재현되는 종류라 알아채기가 나쁘다.
+
+  값을 담아 둘 뿐 요청을 보내지 않으므로 워커 환경에서 안전하다.
+*/
+configureApi();
 
 /**
  * 병원 상세 한 페이지.

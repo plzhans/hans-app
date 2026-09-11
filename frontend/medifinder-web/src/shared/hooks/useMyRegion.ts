@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { regionControllerReverse } from '@/shared/api/generated/react/address/address';
-import type { RegionPointDto } from '@/shared/api/generated/model';
+import { regionControllerReverse } from '@hans-api/sdk/react';
+import type { RegionPointDto } from '@hans-api/sdk/react';
 import {
   getCurrentCoords,
   getGeoPermission,

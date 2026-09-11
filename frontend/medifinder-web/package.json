@@ -16,13 +16,13 @@
     "preview:wrangler:dev": "pnpm build:develop && CI=true WRANGLER_SEND_METRICS=false pnpm --allow-build=esbuild,workerd dlx wrangler@4 dev --assets dist",
     "spec:local": "pnpm -C ../../backend run openapi:gen:local",
     "spec:dev": "pnpm -C ../../backend run openapi:gen:dev",
-    "api:gen": "orval",
-    "api:sync": "pnpm spec:local && pnpm api:gen"
+    "api:sync": "pnpm spec:local && pnpm -C ../../clients/hans-api-sdk api:gen"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.0",
     "@capacitor/geolocation": "^8.2.0",
     "@capacitor/preferences": "^8.0.1",
+    "@hans-api/sdk": "link:../../clients/hans-api-sdk",
     "@hansapp/auth-sdk": "link:../auth-sdk",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-popover": "^1.1.19",
@@ -54,7 +54,6 @@
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.20",
     "dotenv-cli": "^11.0.0",
-    "orval": "^8.20.0",
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.0",

@@ -1,4 +1,4 @@
-import type { MeResponseDto } from '@/shared/api/generated/model';
+import type { MeResponseDto } from '@hans-api/sdk/react';
 import { authClient } from './authClient';
 
 /**
