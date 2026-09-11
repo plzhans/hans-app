@@ -65,7 +65,7 @@ private 인 채로 두면 같은 레포 워크플로우에서는 `GITHUB_TOKEN` 
 
 ## 버전 갱신
 
-node 버전 목록의 유일한 진실은 워크플로우 상단의 `NODE_VERSIONS` 다. 여기만 고치면 matrix 가 따라온다.
+node 버전 목록의 정본은 워크플로우 상단의 `NODE_VERSIONS` 다. 여기만 고치면 matrix 가 따라온다.
 
 `.nvmrc` 가 `NODE_VERSIONS` 에 없는 버전을 가리키면 `setup` 잡이 실패한다. 존재하지 않는 태그를 pull 하다가 나중에 터지는 것보다 낫기 때문이다. 그러니 프론트/백엔드가 새 버전으로 갈릴 땐 `NODE_VERSIONS` 에 먼저 추가할 것.
 

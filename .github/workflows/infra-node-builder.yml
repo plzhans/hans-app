@@ -56,7 +56,7 @@ jobs:
         id: versions
         run: echo "list=$NODE_VERSIONS" >> "$GITHUB_OUTPUT"
 
-      # pnpm 은 node 버전과 무관하게 packageManager 필드가 유일한 진실이다.
+      # pnpm 버전의 정본은 packageManager 필드다. node 버전과 무관하다.
       - name: pnpm 버전 추출
         id: pnpm
         run: echo "version=$(jq -r '.packageManager | split("@")[1]' package.json)" >> "$GITHUB_OUTPUT"

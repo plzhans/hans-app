@@ -27,14 +27,14 @@ export function isSupportedLanguage(value?: string): value is SupportedLanguage 
 }
 
 /**
- * **URL 이 언어의 단일 진실 공급원이다.**
+ * 언어를 정하는 것은 URL 하나뿐이다.
  *
- * 예전엔 LanguageDetector(localStorage + navigator)가 언어를 정했다. 그러면 같은 URL 이
- * 사람마다 다른 언어를 보여준다 — 검색엔진에는 재앙이다. 크롤러가 `/en-us/hospitals/1` 을
- * 긁었는데 한국어가 나오거나, 공유한 링크가 받는 사람 브라우저 언어로 바뀐다.
+ * LanguageDetector(localStorage + navigator)를 쓰면 같은 URL 이 사람마다 다른 언어를
+ * 보여준다. 크롤러가 `/en-us/hospitals/1` 을 긁었는데 한국어가 나오고, 공유한 링크가
+ * 받는 사람 브라우저 언어로 바뀐다.
  *
- * 이제 언어는 경로 접두사로만 정해진다(`/en-us/...`). 감지기를 빼고 라우트(LangLayout)가
- * changeLanguage 를 부른다. 초기값은 기본 언어로 두고, 라우트가 곧바로 덮어쓴다.
+ * 그래서 감지기를 쓰지 않는다. 언어는 경로 접두사로만 정해지고(`/en-us/...`)
+ * 라우트(LangLayout)가 changeLanguage 를 부른다. 초기값은 기본 언어로 두고 라우트가 덮어쓴다.
  */
 void i18n.use(initReactI18next).init({
   resources: {
