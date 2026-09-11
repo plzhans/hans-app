@@ -1,0 +1,100 @@
+# medifinder.kr 사이트맵을 만들어 R2 에 올린다.
+#
+#   build → (artifact) → upload
+#
+# **be.yml 과 아무 관계가 없다.** 배포 파이프라인이 아니라 주기 실행이고, MediFinder 는
+# hans-api 의 외부 소비자라 그쪽 빌드·마이그레이션에 묶이면 안 된다. 설치도
+# `--filter medifinder-cli...` 로 두 패키지만 가져온다 — 격리가 말뿐이 아니라는 확인이기도 하다.
+#
+# [만들기와 올리기를 나눈 이유]
+# 만들다 실패하면 R2 에 손을 대지 않는다. 잘못된 사이트맵으로 덮는 것보다 지난 회차가
+# 그대로 살아 있는 편이 낫다 — 색인은 잘못 제출한 순간에 빠지고, 되돌려도 다시 잡히는 데
+# 몇 주가 걸린다. 산출물은 아티팩트로 남으므로 실패했을 때 무엇이 나왔는지 볼 수 있다.
+#
+# [부하가 커지면]
+# 전용 서버로 옮길 때는 이 파일을 지우고 cron 이 같은 두 커맨드를 부르면 된다.
+# CLI 와 응용 계층은 바뀌지 않는다.
+name: medifinder - sitemap
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '만들기만 하고 R2 에 올리지 않는다'
+        type: boolean
+        default: false
+
+  # **정기 실행은 아직 켜지 않는다.** 서비스 키와 R2 버킷이 생기기 전까지는 매일 실패만
+  # 쌓인다. 자격증명을 Secrets 에 넣은 뒤 아래 두 줄을 살린다.
+  #
+  # 시각은 병원 데이터 빌드가 끝난 **뒤**여야 한다. 앞에 돌면 어제 값으로 사이트맵을 만든다.
+  # schedule:
+  #   - cron: '0 20 * * *' # 05:00 KST
+
+# 두 실행이 겹치면 R2 에 뒤섞인 회차가 남는다. 줄을 세운다.
+concurrency:
+  group: medifinder-sitemap
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sitemap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      # **pnpm 이 먼저다.** setup-node 의 cache: pnpm 은 스토어 경로를 알아내려고
+      # pnpm 을 실행하므로, 그 전에 깔려 있어야 한다.
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: backend/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+
+      # medifinder-cli 와 그 의존성만. 워크스페이스 31개 중 2개다.
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile --filter medifinder-cli...
+
+      # 타입 검사는 be.yml 이 푸시마다 워크스페이스 전체로 돌린다. 여기서는 소스를
+      # 그대로 실행한다(@swc-node/register) — 같은 것을 두 번 볼 이유가 없다.
+      - name: 사이트맵 생성
+        env:
+          MEDIFINDER_API_BASE_URL: ${{ vars.MEDIFINDER_API_BASE_URL }}
+          MEDIFINDER_API_SERVICE_KEY: ${{ secrets.MEDIFINDER_API_SERVICE_KEY }}
+          MEDIFINDER_SITE_URL: ${{ vars.MEDIFINDER_SITE_URL }}
+        # min-urls 는 "API 가 반쯤 죽었다" 를 잡는 바닥이다. 실제 건수(약 88,000)보다
+        # 넉넉히 낮게 잡는다 — 폐업으로 자연히 줄어드는 몫까지 실패로 보면 안 된다.
+        run: pnpm medifinder-cli sitemap build --out ./out --min-urls 70000
+
+      # 실패해도 남긴다. 무엇이 나왔길래 검사에 걸렸는지는 파일을 봐야 안다.
+      - name: 산출물 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sitemap
+          path: backend/out/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: R2 업로드
+        if: ${{ !inputs.dry_run }}
+        env:
+          MEDIFINDER_API_BASE_URL: ${{ vars.MEDIFINDER_API_BASE_URL }}
+          MEDIFINDER_API_SERVICE_KEY: ${{ secrets.MEDIFINDER_API_SERVICE_KEY }}
+          MEDIFINDER_SITE_URL: ${{ vars.MEDIFINDER_SITE_URL }}
+          MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
+          MEDIFINDER_R2_ACCOUNT_ID: ${{ secrets.MEDIFINDER_R2_ACCOUNT_ID }}
+          MEDIFINDER_R2_BUCKET: ${{ vars.MEDIFINDER_R2_BUCKET }}
+          MEDIFINDER_R2_ACCESS_KEY_ID: ${{ secrets.MEDIFINDER_R2_ACCESS_KEY_ID }}
+          MEDIFINDER_R2_SECRET_ACCESS_KEY: ${{ secrets.MEDIFINDER_R2_SECRET_ACCESS_KEY }}
+        run: pnpm medifinder-cli sitemap upload --from ./out

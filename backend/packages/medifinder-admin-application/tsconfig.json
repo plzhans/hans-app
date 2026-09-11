@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    // **DOM 을 빼려고 적는다.** 안 적으면 target 기본값에 lib.dom 이 딸려 와 서버 코드에
+    // 브라우저 전역(open·name·close·status …)이 전부 열린다.
+    "lib": ["ES2023"],
+
+    /*
+      **bundler 로 둔다. node·nodenext 로 바꾸지 말 것.**
+
+      @hans-api/sdk 는 소스(.ts)를 그대로 내보내는 ESM 패키지고, 그 안의 orval 산출물은
+      확장자 없는 상대경로를 쓴다.
+        · node(=node10) 는 exports 필드를 아예 안 읽어 패키지를 못 찾는다
+        · nodenext 는 찾지만 SDK 내부를 ESM 으로 검사해 확장자 없는 import 가 전부 깨진다
+      SDK 자신과 medifinder-web(Vite)도 같은 해석을 쓴다.
+    */
+    "module": "preserve",
+    "moduleResolution": "bundler",
+
+    /*
+      **산출물을 내지 않는다. 타입 검사만 한다.**
+
+      실행은 언제나 소스에서 한다(@swc-node/register). SDK 가 소스 전용이라 dist 를 만들어도
+      그 안에서 SDK 를 다시 가리킬 방법이 없고, tsc 로 ESM 을 뽑으면 확장자가 없어 Node 가
+      못 읽는다. 그래서 emit 을 포기하고 실행 경로를 하나로 맞췄다.
+    */
+    "noEmit": true,
+
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    // NestJS DI 가 생성자 타입을 읽는 데 쓴다.
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

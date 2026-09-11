@@ -1,0 +1,10 @@
+# orval 산출물. `pnpm api:gen`(= postinstall)이 docs/openapi 스펙에서 다시 만든다.
+#
+# 커밋하지 않는 이유는 이게 **입력이 아니라 출력**이기 때문이다. 정본은 스펙 한 곳이고,
+# 여기 있는 것은 그걸 기계가 옮겨 적은 사본이라 레포에 두면 같은 사실이 두 벌이 된다.
+# hansapp-data 의 prisma 생성물도 같은 이유로 빠져 있다(backend/.gitignore).
+#
+# **주의: 이 패키지는 src 를 그대로 내보낸다(exports).** 지금은 private + link: 라 pack·deploy
+# 대상이 아니어서 괜찮지만, 언젠가 `pnpm deploy` 나 npm 배포에 들어가면 이 .gitignore 때문에
+# 생성물이 번들에서 빠진다. 그때는 빌드(dist)를 갖추는 것이 먼저다.
+src/generated/

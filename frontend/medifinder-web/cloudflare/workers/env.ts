@@ -8,8 +8,8 @@
  * 그대로 노출되는 공개값" 을 뜻한다(frontend/.env.example).
  *
  * 값은 ci-deploy.sh 가 빌드와 같은 .env.<환경> 에서 읽어 --var 로 넘긴다.
- * wrangler.jsonc 의 vars 에 적지 않는다 — 진실이 둘이 되면, 어긋났을 때 워커가 401 을 받아
- * 화면은 멀쩡한 채로 SEO 만 죽는다.
+ * wrangler.jsonc 의 vars 에 적지 않는다. 같은 값이 두 군데 있으면 어긋나고, 어긋나면
+ * 워커가 401 을 받아 화면은 멀쩡한 채로 SEO 만 죽는다.
  */
 export interface Env {
   /** dist/ 의 정적 자산. wrangler.jsonc 의 assets.binding 이 만든다. */

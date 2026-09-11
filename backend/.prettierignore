@@ -5,3 +5,10 @@
 pnpm-lock.yaml
 # prisma 생성 코드
 **/prisma/generated
+
+# orval 생성 코드. postinstall 이 만들고 git 에는 없다.
+#
+# **기계 출력이라 형식을 검사할 이유가 없다.** eslint 도 같은 경로를 무시한다
+# (eslint.config.mjs 의 ignores). 예전에는 생성물이 커밋돼 있었고 누군가 prettier 를
+# 돌려 둔 상태여서 이 규칙 없이도 통과했는데, 그건 우연이었다.
+**/src/generated

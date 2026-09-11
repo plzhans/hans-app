@@ -1,0 +1,6 @@
+# orval 산출물. `pnpm codegen`(= postinstall)이 openapi/ 의 스펙에서 다시 만든다.
+#
+# 커밋하지 않는 이유는 이게 **입력이 아니라 출력**이기 때문이다. 정본은 openapi/ 의 스펙이고,
+# 여기 있는 것은 그걸 기계가 옮겨 적은 사본이라 레포에 두면 같은 사실이 두 벌이 된다.
+# hansapp-data 의 prisma 생성물도 같은 이유로 빠져 있다(backend/.gitignore).
+src/generated/

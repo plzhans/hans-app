@@ -26,6 +26,25 @@ allowBuilds:
   # 돌릴 이유가 없고, 돌리면 오히려 실패한다 — 그 안에서는 @prisma/client 를 찾지 못해
   # `npm i @prisma/client` 를 시도하다 죽는다.
   '@hansapp/data@file:packages/hansapp-data': false
+
+  # **클라이언트 패키지도 같은 이유로 여기 있다. 값은 전부 false 다.**
+  #
+  # 이들도 postinstall(codegen)을 갖게 되면서 `pnpm deploy` 가 file: 로 주입하는 순간
+  # 승인 대상이 된다. 항목이 없으면 ERR_PNPM_IGNORED_BUILDS 로 exit 1 이다.
+  #
+  # **false 인 이유는 번들이 dist 로 돌기 때문이다.** 생성물(src/generated)은 빌드 입력이라
+  # 러너에서 이미 dist 로 컴파일돼 들어간다. 게다가 --prod 번들에는 orval(devDependency)이
+  # 없어서 돌리면 오히려 죽는다.
+  #
+  # 참고: 패키지 안에 .gitignore 가 생기면서 src/generated 는 번들에서 빠진다(확인함).
+  # 런타임은 dist 만 보므로 문제가 없다 — **소스를 내보내는 패키지였다면 달랐다.**
+  '@kr-go/juso@file:clients/kr-go-juso': false
+  '@kr-go/nts@file:clients/kr-go-nts': false
+  '@krdata/hira@file:clients/krdata-hira': false
+  '@krdata/mois@file:clients/krdata-mois': false
+  '@krdata/nmc@file:clients/krdata-nmc': false
+  '@seouldata/subway@file:clients/seouldata-subway': false
+  '@vworld/geocoder@file:clients/vworld-geocoder': false
   '@prisma/client': true
   '@prisma/engines': true
   '@scarf/scarf': false

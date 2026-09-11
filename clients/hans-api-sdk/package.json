@@ -9,6 +9,7 @@
     "./react": "./src/react.ts"
   },
   "scripts": {
+    "postinstall": "pnpm api:gen",
     "api:gen": "orval && node scripts/write-barrels.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

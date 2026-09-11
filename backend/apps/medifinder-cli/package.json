@@ -1,0 +1,25 @@
+{
+  "name": "medifinder-cli",
+  "version": "0.0.1",
+  "private": true,
+  "description": "MediFinder 운영 커맨드. 지금은 사이트맵 생성·업로드가 전부다",
+  "scripts": {
+    "start": "node -r @swc-node/register src/main.ts",
+    "build": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "@medifinder/admin-application": "workspace:*",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
+    "commander": "^14.0.2",
+    "dotenv": "^17.4.2",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.43",
+    "@types/node": "^26.1.0",
+    "typescript": "^5.9.3"
+  }
+}
