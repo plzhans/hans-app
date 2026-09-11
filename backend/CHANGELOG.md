@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.17.0...release-backend/v0.18.0) (2026-09-11)
+
+
+### 기능
+
+* **healthcare:** 병원 목록·검색·상세에 마지막 수정 시간을 낸다 ([b35eafa](https://github.com/plzhans/hans-app/commit/b35eafa00506ef819520d47f055f394f0b57d7dc))
+* **healthcare:** 병원 목록·검색·상세에 마지막 수정 시간을 낸다 ([e45fcf8](https://github.com/plzhans/hans-app/commit/e45fcf82df49b1d69b720d60b690239997bd1854))
+
 ## [0.17.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.16.0...release-backend/v0.17.0) (2026-09-04)
 
 
