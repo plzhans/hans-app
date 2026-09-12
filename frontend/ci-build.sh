@@ -75,12 +75,12 @@ case "$project" in
 
     # **link: 로 무는 워크스페이스 밖 의존성을 먼저 설치한다.**
     #
-    # medifinder-web 은 @hansapp/auth-sdk 를 `link:../auth-sdk` 로 문다. pnpm 워크스페이스가
+    # medifinder-web 은 clients/ 의 SDK 들을 link: 로 문다(@hans-api/sdk · @hans-api/auth-sdk). pnpm 워크스페이스가
     # 아니라 그냥 심볼릭 링크라, 소비자에서 install 을 돌려도 **auth-sdk 자기 의존성은
-    # 안 깔린다.** 그런데 auth-sdk 는 dist 가 아니라 src 를 내보내므로(main=src/index.ts)
+    # 안 깔린다.** 그런데 그 SDK 들은 dist 가 아니라 src 를 내보내므로(main=src/index.ts)
     # tsc 가 그 소스까지 컴파일한다 → @capacitor/preferences 를 못 찾고 죽는다.
     #
-    # 로컬에서는 auth-sdk 에 node_modules 가 남아 있어 통과한다. CI 의 깨끗한 체크아웃에서만
+    # 로컬에서는 그쪽에 node_modules 가 남아 있어 통과한다. CI 의 깨끗한 체크아웃에서만
     # 드러나는 종류라, 여기서 명시적으로 깔아 둔다.
     for linked in $(node -p "
       const d=require('./package.json').dependencies||{};
@@ -160,4 +160,4 @@ esac
 
 [ -d "$dist_dir" ] || die "빌드 산출물이 없다: $AREA/$project/$dist_dir"
 
-echo "✅ 빌드 완료 $AREA/$project ($APP_ENV) → $dist_dir"
+echo "✅ 빌드 완료 $project_label ($APP_ENV) → $dist_dir"

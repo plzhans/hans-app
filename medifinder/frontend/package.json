@@ -1,0 +1,10 @@
+{
+  "name": "medifinder-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MediFinder 프론트. 앱마다 독립 워크스페이스라 여기는 개발 편의 스크립트만 둔다",
+  "scripts": {
+    "local": "pnpm -C medifinder-web local",
+    "dev": "pnpm -C medifinder-web dev"
+  }
+}

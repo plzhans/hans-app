@@ -11,17 +11,27 @@
     {
       "name": "frontend",
       "path": "frontend"
+    },
+    {
+      "name": "medifinder-backend",
+      "path": "medifinder/backend"
+    },
+    {
+      "name": "medifinder-frontend",
+      "path": "medifinder/frontend"
     }
   ],
   "settings": {
-    // 🔧 root 폴더에서 backend/frontend 중복 표시를 숨김
+    // 🔧 root 폴더에서 backend/frontend/medifinder 중복 표시를 숨김
     // (각각은 아래 별도 폴더로 보이므로 root 에는 .husky/.gitignore 등 최상위 파일만 노출)
     //
-    // node_modules·dist 는 탐색기에서 숨긴다. 모노리포라 프로젝트(backend, frontend/*)
-    // 마다 생겨서, 안 숨기면 트리가 의존성·빌드 산출물로 덮인다. git 은 이미 .gitignore 로 뺀다.
+    // node_modules·dist 는 탐색기에서 숨긴다. 모노리포라 프로젝트(backend, frontend/*,
+    // medifinder/*)마다 생겨서, 안 숨기면 트리가 의존성·빌드 산출물로 덮인다.
+    // git 은 이미 .gitignore 로 뺀다.
     "files.exclude": {
       "backend": true,
       "frontend": true,
+      "medifinder": true,
       "**/node_modules": true,
       "**/dist": true
     },

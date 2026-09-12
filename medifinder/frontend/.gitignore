@@ -1,0 +1,20 @@
+node_modules/
+dist/
+dist-server/
+*.tsbuildinfo
+
+# 프론트 env 는 커밋한다. 값이 전부 VITE_*(API base·site url 같은 공개 상수)라 클라이언트
+# 번들에 구워져 브라우저에 그대로 노출된다 — 숨길 이유가 없다. hansapp 의 frontend/.gitignore
+# 와 같은 규칙이고, backend 쪽과는 정책이 정반대다.
+#
+# **`.env.local` 은 무시하지 않는다.** 이 레포에서 그건 개인 파일이 아니라 `local` 환경의
+# env 다. 개인 오버라이드는 `.env.<mode>.local` 이다.
+.env.*.local
+
+# **예외: 이 디렉터리 바로 아래의 .env 는 커밋하지 않는다.**
+#
+# 위 규칙은 각 앱의 VITE_* 파일(medifinder-web/.env.develop 등) 이야기다. 여기 .env 는
+# 성격이 정반대다 — deploy.sh 가 읽는 **배포 자격증명**(Cloudflare API 토큰)이 들어간다.
+# vite 는 이 파일을 아예 보지 않는다. hansapp 의 frontend/.gitignore 와 같은 예외다.
+/.env
+!/.env.example

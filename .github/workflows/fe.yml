@@ -66,7 +66,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
         run: |
-          all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          all='frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
           verify=true
           deploy=false
           toolchain=false
@@ -127,12 +127,6 @@ jobs:
               # 빌드·배포 방법이 바뀌면 전부 다시 나가야 한다.
               if printf '%s\n' "$changed" \
                  | grep -qE '^(frontend/ci-(build|deploy)\.sh|\.github/workflows/fe.*\.yml)$'; then
-                target="$target $t"
-                continue
-              fi
-              # medifinder-web 은 auth-sdk 를 link: 로 문다. 소스가 그대로 번들에 들어간다.
-              if [ "$t" = 'frontend/medifinder-web' ] \
-                 && printf '%s\n' "$changed" | grep -q '^frontend/auth-sdk/'; then
                 target="$target $t"
                 continue
               fi

@@ -1,0 +1,71 @@
+# medifinder-web 의 검증·배포. **fe*.yml 과 아무 관계가 없다.**
+#
+# medifinder 는 별개 제품이고 자기 배포 절차를 medifinder/frontend/ci-*.sh 에 갖는다.
+# hansapp 프론트가 4개를 한 워크플로로 묶는 것과 달리 여기는 앱이 하나라 파일도 하나다.
+#
+# [이 파일에는 빌드·배포 로직이 없다]
+# 환경변수를 선언하고 스크립트를 부르는 게 전부다. 로컬(medifinder/frontend/deploy.sh)도
+# 같은 스크립트를 지나므로 "로컬은 되는데 CI 는 깨지는" 차이가 생기지 않는다.
+name: medifinder - web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'medifinder/frontend/**'
+      # 프론트가 link: 로 무는 공개 SDK. 소스가 그대로 번들에 들어간다.
+      - 'clients/**'
+      - '.github/workflows/medifinder-web.yml'
+  pull_request:
+    paths:
+      - 'medifinder/frontend/**'
+      - 'clients/**'
+      - '.github/workflows/medifinder-web.yml'
+  workflow_dispatch:
+    inputs:
+      app_env:
+        description: '배포 환경 (verify = 빌드만)'
+        type: choice
+        options: [verify, develop, production]
+        default: verify
+
+permissions:
+  contents: read
+  packages: read
+
+# 같은 환경에 두 배포가 겹치면 나중 것이 먼저 끝날 수 있다. 그러면 어느 쪽이 떠 있는지 모른다.
+concurrency:
+  group: medifinder-web-${{ inputs.app_env || 'verify' }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # 배포할 때만 환경 보호 규칙을 지난다. verify 까지 그 문을 지나면 PR 검증이 막힌다.
+    environment: ${{ (inputs.app_env == 'develop' || inputs.app_env == 'production') && inputs.app_env || '' }}
+    # 매 잡마다 node/pnpm 을 까는 대신 미리 구워둔 툴체인 이미지를 쓴다. 프론트 워크플로와
+    # 같은 이미지다 — 무엇으로 빌드하는지가 레포에서 한 번만 정해진다.
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 툴체인 확인
+        run: node --version && pnpm --version
+
+      # 배포가 아니면 develop 값으로 빌드만 해 본다 — 깨지는지 보는 것이 목적이다.
+      - name: 빌드
+        run: ./medifinder/frontend/ci-build.sh
+        env:
+          APP_ENV: ${{ inputs.app_env == 'production' && 'production' || 'develop' }}
+
+      - name: 배포
+        if: ${{ inputs.app_env == 'develop' || inputs.app_env == 'production' }}
+        run: ./medifinder/frontend/ci-deploy.sh
+        env:
+          APP_ENV: ${{ inputs.app_env }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}

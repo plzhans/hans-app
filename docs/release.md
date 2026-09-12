@@ -98,7 +98,7 @@ release.yml 실행 → release-please 봇
 갱신된다 — 각 앱이 자기 `package.json` 의 version 을 빌드 신원(`__APP_RELEASE__`,
 build-info)에 박기 때문이다. backend 앱 셋도 같은 이유로 같이 갱신된다.
 
-> 나눌 때가 오면: `frontend/auth-sdk` 를 npm 에 퍼블리시하게 되는 날이다. 외부가 보는
+> 나눌 때가 오면: `clients/hans-auth-sdk` 를 npm 에 퍼블리시하게 되는 날이다. 외부가 보는
 > 버전은 자기 것이어야 한다. 그전까지는 둘로 충분하다.
 
 ### Release PR 은 하나다

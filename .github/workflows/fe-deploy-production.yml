@@ -30,7 +30,6 @@ on:
         type: choice
         options:
           - all
-          - frontend/medifinder-web
           - frontend/hansapp-docs
           - frontend/hansapp-web
           - frontend/hansapp-auth
@@ -105,7 +104,7 @@ jobs:
         env:
           INPUT_TARGET: ${{ inputs.target }}
         run: |
-          all='frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          all='frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
           if [ "$INPUT_TARGET" = 'all' ] || [ -z "$INPUT_TARGET" ]; then
             targets="$all"
           else
@@ -207,13 +206,13 @@ jobs:
           restore-keys: pnpm-${{ matrix.target }}-
 
       - name: 빌드
-        run: ./frontend/ci-build.sh "${TARGET#frontend/}"
+        run: ./frontend/ci-build.sh "$TARGET"
         env:
           TARGET: ${{ matrix.target }}
           APP_ENV: production
 
       - name: 배포
-        run: ./frontend/ci-deploy.sh "${TARGET#frontend/}"
+        run: ./frontend/ci-deploy.sh "$TARGET"
         env:
           TARGET: ${{ matrix.target }}
           APP_ENV: production

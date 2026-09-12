@@ -11,8 +11,9 @@
 AREA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # <repo>/frontend
 AREA="$(basename "$AREA_DIR")"                             # frontend
 
-# 빌드 가능한 대상. frontend/* 를 훑지 않는 이유는 auth-sdk 때문이다 — 그건 medifinder-web 이
-# link: 로 무는 라이브러리라 자기 혼자 배포되지 않는다. 소비자 번들 안으로 들어갈 뿐이다.
+# 빌드 가능한 대상. 디렉터리를 훑지 않고 여기 적는다 — frontend/ 아래에는 배포되지 않는
+# 것도 있고(api-error·legal 같은 라이브러리), medifinder-web 은 아예 frontend/ 밖에 있다
+# (target_path_for 참고).
 KNOWN_TARGETS='medifinder-web hansapp-docs hansapp-web hansapp-auth hansapp-admin'
 
 # 그중 **Cloudflare Worker 로 나가는 것.** hansapp-admin 은 여기 없다 —
@@ -78,14 +79,25 @@ usage() {
 
 # 인자를 검사하고 project · target_dir 을 세운다.
 #
+# 인자는 **대상 이름**이다. 대부분 frontend/ 아래의 디렉터리 이름 그대로지만, medifinder 는
+# 제품 단위로 따로 있어(medifinder/frontend/medifinder-web) 여기서 자리를 알려준다.
+#
+# **medifinder 가 자기 배포 스크립트를 갖지 않는 이유.** 이 파일과 ci-build/ci-deploy 는
+# Cloudflare Worker 배포 절차를 담은 한 벌이고, 복사하면 "한쪽만 고치는 날" 이 온다 —
+# 이 파일 머리에 같은 이유가 적혀 있다. 갈라야 할 것은 코드·시크릿·릴리스 주기였고
+# 그건 이미 갈렸다. 배포 절차까지 두 벌로 만들 이유는 없다.
+# 인자를 검사하고 project · target_dir 을 세운다.
+#
 # 인자는 frontend/ 아래의 **디렉터리 이름 그대로다.** 스크립트가 이미 frontend 안에 있으니
-# 경로를 다시 받을 이유가 없다. 별칭(web, docs)을 쓰지 않는 이유는, 프론트가 늘면 별칭과
-# 실제 디렉터리가 어긋나기 시작하고 별칭이 뭘 가리키는지 스크립트를 열어봐야 알게 되어서다.
+# 경로를 다시 받을 이유가 없다. 워크플로는 경로('frontend/<프로젝트>')로 부르는데, 그건
+# 경로 필터·캐시 키가 그 형태를 쓰기 때문이라 접두사만 떼어 같은 값으로 만든다.
 resolve_project() {
-  project="${1:-}"
-  [ -n "$project" ] || usage
+  local given="${1:-}"
+  [ -n "$given" ] || usage
+  project="${given#"$AREA/"}"
   target_dir="$AREA_DIR/$project"
   [ -f "$target_dir/package.json" ] || die "$AREA/$project 이 없다 (package.json 없음)"
+  project_label="$AREA/$project"
 }
 
 # APP_ENV 검사. 판단은 언제나 이 긴 이름으로 한다 — 짧은 이름과 둘 다 조건문에 쓰이기

@@ -1,0 +1,11 @@
+# medifinder 서버측 시크릿. hansapp 의 backend/.sops.yaml 과 같은 방식이다.
+#
+# **개인키만으로 암호화한다.** hansapp 쪽은 서버키를 같이 넣는데, 그건 배포가 서버에서
+# 복호화하기 때문이다. medifinder 의 값은 서버가 읽지 않는다 — CLI 와 CI 가 쓰는
+# 클라이언트 자격증명(hans-api 서비스 키 · Cloudflare 토큰)뿐이라 사람 키 하나면 된다.
+#
+# 암호화:  sops -e config/.env.production > config/.env.production.enc
+# 복호화:  sops -d config/.env.production.enc > config/.env.production
+creation_rules:
+  - path_regex: ^config/\.env\.
+    age: age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
