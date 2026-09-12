@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.19.0...release-backend/v0.19.1) (2026-09-12)
+
+
+### 버그 수정
+
+* **healthcare:** 캐시에서 온 상세의 수정 시각을 Date 로 단정하지 않는다 ([66cf48b](https://github.com/plzhans/hans-app/commit/66cf48b07f162af270fcfcb6006d50a02bad094d))
+* **healthcare:** 캐시에서 온 상세의 수정 시각을 Date 로 단정하지 않는다 ([b3c359b](https://github.com/plzhans/hans-app/commit/b3c359b1a7412c08d4d0f1baa47a9117a70908e6))
+
 ## [0.19.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.18.0...release-backend/v0.19.0) (2026-09-12)
 
 
