@@ -86,43 +86,18 @@ usage() {
 # Cloudflare Worker 배포 절차를 담은 한 벌이고, 복사하면 "한쪽만 고치는 날" 이 온다 —
 # 이 파일 머리에 같은 이유가 적혀 있다. 갈라야 할 것은 코드·시크릿·릴리스 주기였고
 # 그건 이미 갈렸다. 배포 절차까지 두 벌로 만들 이유는 없다.
-# 대상 이름 → 레포 루트 기준 경로. **워크플로의 경로 필터·캐시 키도 이 값을 쓴다.**
-# 여기 한 곳에만 적는다 — 워크플로에 따로 적으면 한쪽만 고치는 날이 온다.
-target_path_for() {
-  case "$1" in
-    medifinder-web) echo "medifinder/$AREA/$1" ;;
-    *)              echo "$AREA/$1" ;;
-  esac
-}
-
-# 경로 → 대상 이름. **마지막 조각이 곧 이름이다.**
-#   frontend/hansapp-docs            → hansapp-docs
-#   medifinder/frontend/medifinder-web → medifinder-web
-target_name_for() {
-  echo "${1##*/}"
-}
-
-# 인자를 검사하고 project · target_dir · project_label 을 세운다.
+# 인자를 검사하고 project · target_dir 을 세운다.
 #
-# **이름과 경로를 둘 다 받는다.** 사람은 이름으로 부르고(deploy.sh develop medifinder-web),
-# 워크플로는 경로로 부른다(matrix 가 경로 필터와 캐시 키에 같은 값을 쓰기 때문이다).
+# 인자는 frontend/ 아래의 **디렉터리 이름 그대로다.** 스크립트가 이미 frontend 안에 있으니
+# 경로를 다시 받을 이유가 없다. 워크플로는 경로('frontend/<프로젝트>')로 부르는데, 그건
+# 경로 필터·캐시 키가 그 형태를 쓰기 때문이라 접두사만 떼어 같은 값으로 만든다.
 resolve_project() {
   local given="${1:-}"
   [ -n "$given" ] || usage
-
-  case "$given" in
-    */*) project="$(target_name_for "$given")" ;;
-    *)   project="$given" ;;
-  esac
-
-  local repo_root
-  repo_root="$(cd "$AREA_DIR/.." && pwd)"
-  target_dir="$(cd "$repo_root/$(target_path_for "$project")" 2>/dev/null && pwd)" \
-    || die "$given 의 디렉터리를 찾을 수 없다"
-  [ -f "$target_dir/package.json" ] || die "$given 이 없다 (package.json 없음)"
-
-  # 출력용. 레포 루트 기준 경로라 어디 있는 대상인지 로그만 보고 안다.
-  project_label="${target_dir#"$repo_root/"}"
+  project="${given#"$AREA/"}"
+  target_dir="$AREA_DIR/$project"
+  [ -f "$target_dir/package.json" ] || die "$AREA/$project 이 없다 (package.json 없음)"
+  project_label="$AREA/$project"
 }
 
 # APP_ENV 검사. 판단은 언제나 이 긴 이름으로 한다 — 짧은 이름과 둘 다 조건문에 쓰이기

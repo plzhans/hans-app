@@ -19,9 +19,6 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
-      - 'medifinder/frontend/**'
-      # 프론트가 link: 로 무는 공개 SDK. 소스가 그대로 번들에 들어가므로 바뀌면 다시 빌드해야 한다.
-      - 'clients/**'
       - 'docs/openapi/**'
       - '.github/workflows/fe*.yml'
   # PR 에서도 verify 를 돌린다. 합치기 전에 깨진 것을 보는 게 요점이다.
@@ -29,9 +26,6 @@ on:
   pull_request:
     paths:
       - 'frontend/**'
-      - 'medifinder/frontend/**'
-      # 프론트가 link: 로 무는 공개 SDK. 소스가 그대로 번들에 들어가므로 바뀌면 다시 빌드해야 한다.
-      - 'clients/**'
       - 'docs/openapi/**'
       - '.github/workflows/fe*.yml'
   workflow_dispatch:
@@ -72,7 +66,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
         run: |
-          all='medifinder/frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          all='frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
           verify=true
           deploy=false
           toolchain=false
@@ -133,12 +127,6 @@ jobs:
               # 빌드·배포 방법이 바뀌면 전부 다시 나가야 한다.
               if printf '%s\n' "$changed" \
                  | grep -qE '^(frontend/ci-(build|deploy)\.sh|\.github/workflows/fe.*\.yml)$'; then
-                target="$target $t"
-                continue
-              fi
-              # medifinder-web 은 clients/ 의 SDK 들을 link: 로 문다. 소스가 그대로 번들에 들어간다.
-              if [ "$t" = 'medifinder/frontend/medifinder-web' ] \
-                 && printf '%s\n' "$changed" | grep -qE '^clients/(hans-api-sdk|hans-auth-sdk)/'; then
                 target="$target $t"
                 continue
               fi

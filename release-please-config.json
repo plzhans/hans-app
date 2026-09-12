@@ -87,14 +87,14 @@
           "type": "json",
           "path": "hansapp-docs/package.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "../medifinder/frontend/medifinder-web/package.json",
-          "jsonpath": "$.version"
         }
       ],
       "bootstrap-sha": "c447ee754ff00962b156c32426c1f7c790e40c3c"
+    },
+    "medifinder/frontend/medifinder-web": {
+      "release-type": "node",
+      "component": "release-medifinder",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }

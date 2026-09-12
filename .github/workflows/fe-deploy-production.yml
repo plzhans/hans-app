@@ -30,7 +30,6 @@ on:
         type: choice
         options:
           - all
-          - medifinder/frontend/medifinder-web
           - frontend/hansapp-docs
           - frontend/hansapp-web
           - frontend/hansapp-auth
@@ -105,7 +104,7 @@ jobs:
         env:
           INPUT_TARGET: ${{ inputs.target }}
         run: |
-          all='medifinder/frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          all='frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
           if [ "$INPUT_TARGET" = 'all' ] || [ -z "$INPUT_TARGET" ]; then
             targets="$all"
           else
