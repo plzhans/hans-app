@@ -3,7 +3,9 @@ import path from 'node:path';
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import { InjectConfig, type MedifinderConfig } from '../config';
 import type { SitemapFile } from './sitemap-file';
+import { outputDir } from './output-dir';
 
 /** 이 디렉터리에서 우리 것으로 간주하는 파일. 지울 때와 올릴 때 같은 기준을 쓴다. */
 const OURS = /^sitemap[\w-]*\.xml$/;
@@ -19,8 +21,15 @@ const OURS = /^sitemap[\w-]*\.xml$/;
 export class SitemapWriterService {
   private readonly logger = new Logger(SitemapWriterService.name);
 
+  constructor(@InjectConfig() private readonly config: MedifinderConfig) {}
+
+  /** `--out` 아래의 실제 산출 위치. 쓰는 쪽과 읽는 쪽이 같은 규칙을 쓰게 한 곳에 둔다. */
+  resolve(base: string): string {
+    return outputDir(base, this.config.appEnv);
+  }
+
   async write(dir: string, files: SitemapFile[]): Promise<string> {
-    const target = path.resolve(dir);
+    const target = this.resolve(dir);
     await mkdir(target, { recursive: true });
     await this.clear(target);
 
@@ -34,8 +43,13 @@ export class SitemapWriterService {
 
   /** 디렉터리에서 올릴 대상을 이름순으로 읽는다. upload 커맨드가 쓴다. */
   async list(dir: string): Promise<string[]> {
-    const target = path.resolve(dir);
-    const names = await readdir(target);
+    const target = this.resolve(dir);
+    // 환경이 어긋나면 여기서 걸린다 — develop 으로 만든 것을 production 으로 올리려는 경우다.
+    const names = await readdir(target).catch(() => {
+      throw new Error(
+        `No sitemap directory at ${target}. Run "sitemap build" with the same MEDIFINDER_APP_ENV.`,
+      );
+    });
     return names.filter((name) => OURS.test(name)).sort();
   }
 

@@ -69,9 +69,11 @@ jobs:
       # 그대로 실행한다(@swc-node/register) — 같은 것을 두 번 볼 이유가 없다.
       - name: 사이트맵 생성
         env:
-          MEDIFINDER_API_BASE_URL: ${{ vars.MEDIFINDER_API_BASE_URL }}
-          MEDIFINDER_API_SERVICE_KEY: ${{ secrets.MEDIFINDER_API_SERVICE_KEY }}
+          HANSAPP_BASE_URL: ${{ vars.HANSAPP_BASE_URL }}
+          HANSAPP_SERVER_KEY: ${{ secrets.HANSAPP_SERVER_KEY }}
           MEDIFINDER_SITE_URL: ${{ vars.MEDIFINDER_SITE_URL }}
+          # 산출물이 ./out/medifinder_<env>_sitemap 에 놓인다. 올리는 단계가 같은 값으로 찾는다.
+          MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
         # min-urls 는 "API 가 반쯤 죽었다" 를 잡는 바닥이다. 실제 건수(약 88,000)보다
         # 넉넉히 낮게 잡는다 — 폐업으로 자연히 줄어드는 몫까지 실패로 보면 안 된다.
         run: pnpm medifinder-cli sitemap build --out ./out --min-urls 70000
@@ -89,12 +91,12 @@ jobs:
       - name: R2 업로드
         if: ${{ !inputs.dry_run }}
         env:
-          MEDIFINDER_API_BASE_URL: ${{ vars.MEDIFINDER_API_BASE_URL }}
-          MEDIFINDER_API_SERVICE_KEY: ${{ secrets.MEDIFINDER_API_SERVICE_KEY }}
+          HANSAPP_BASE_URL: ${{ vars.HANSAPP_BASE_URL }}
+          HANSAPP_SERVER_KEY: ${{ secrets.HANSAPP_SERVER_KEY }}
           MEDIFINDER_SITE_URL: ${{ vars.MEDIFINDER_SITE_URL }}
           MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
-          MEDIFINDER_R2_ACCOUNT_ID: ${{ secrets.MEDIFINDER_R2_ACCOUNT_ID }}
-          MEDIFINDER_R2_BUCKET: ${{ vars.MEDIFINDER_R2_BUCKET }}
-          MEDIFINDER_R2_ACCESS_KEY_ID: ${{ secrets.MEDIFINDER_R2_ACCESS_KEY_ID }}
-          MEDIFINDER_R2_SECRET_ACCESS_KEY: ${{ secrets.MEDIFINDER_R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: pnpm medifinder-cli sitemap upload --from ./out

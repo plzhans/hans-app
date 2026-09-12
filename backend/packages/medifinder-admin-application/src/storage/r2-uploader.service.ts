@@ -5,6 +5,7 @@ import { AwsClient } from 'aws4fetch';
 import { Injectable, Logger } from '@nestjs/common';
 
 import { InjectConfig, requireR2, type MedifinderConfig, type R2Config } from '../config';
+import { outputDir } from '../sitemap/output-dir';
 
 const XML = 'application/xml; charset=utf-8';
 
@@ -38,8 +39,8 @@ export class R2UploaderService {
     ];
 
     for (const name of ordered) {
-      const body = await readFile(path.join(path.resolve(dir), name), 'utf8');
-      const key = `${target.prefix}/${name}`;
+      const body = await readFile(path.join(outputDir(dir, this.config.appEnv), name), 'utf8');
+      const key = `${this.config.appEnv}/${name}`;
       await this.put(client, endpoint, key, body);
       this.logger.log(`업로드 ${key}`);
     }

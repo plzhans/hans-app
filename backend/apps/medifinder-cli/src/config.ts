@@ -24,10 +24,11 @@ export function loadConfig(): MedifinderConfig {
 
   return {
     api: {
-      baseUrl: required('MEDIFINDER_API_BASE_URL'),
-      serviceKey: required('MEDIFINDER_API_SERVICE_KEY'),
+      baseUrl: required('HANSAPP_BASE_URL'),
+      serviceKey: required('HANSAPP_SERVER_KEY'),
     },
     siteUrl: required('MEDIFINDER_SITE_URL'),
+    appEnv: required('MEDIFINDER_APP_ENV'),
     r2: optionalR2(),
   };
 }
@@ -40,16 +41,15 @@ export function loadConfig(): MedifinderConfig {
  * 만들기(build)는 이 값이 없어도 돌아야 하므로 여기서 던지지 않는다.
  */
 function optionalR2(): R2Config | undefined {
-  const accountId = process.env.MEDIFINDER_R2_ACCOUNT_ID;
-  const bucket = process.env.MEDIFINDER_R2_BUCKET;
-  const accessKeyId = process.env.MEDIFINDER_R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.MEDIFINDER_R2_SECRET_ACCESS_KEY;
-  const prefix = process.env.MEDIFINDER_APP_ENV;
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const bucket = process.env.R2_BUCKET;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 
-  if (!accountId || !bucket || !accessKeyId || !secretAccessKey || !prefix) {
+  if (!accountId || !bucket || !accessKeyId || !secretAccessKey) {
     return undefined;
   }
-  return { accountId, bucket, accessKeyId, secretAccessKey, prefix };
+  return { accountId, bucket, accessKeyId, secretAccessKey };
 }
 
 /**
@@ -71,7 +71,8 @@ export function describeConfig(config: MedifinderConfig): string {
   return [
     `api  ${config.api.baseUrl}  (serviceKey ${mask(config.api.serviceKey)})`,
     `site ${config.siteUrl}`,
-    `r2   ${config.r2 ? `${config.r2.bucket}/${config.r2.prefix}` : '(설정 없음 — 업로드 불가)'}`,
+    `env  ${config.appEnv}`,
+    `r2   ${config.r2 ? `${config.r2.bucket}/${config.appEnv}` : '(설정 없음 — 업로드 불가)'}`,
   ].join('\n');
 }
 

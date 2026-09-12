@@ -1,9 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { InjectConfig, type MedifinderConfig } from '../config';
-import { HospitalCollectorService, type CollectedByTier } from './hospital-collector.service';
+import {
+  HospitalCollectorService,
+  type CollectProgress,
+  type CollectedByTier,
+} from './hospital-collector.service';
 import type { SitemapFile } from './sitemap-file';
-import { LANGS_BY_TIER, TIERS, URLS_PER_FILE, fileName, langPath, type Lang } from './sitemap-plan';
+import {
+  LANGS,
+  LANGS_BY_TIER,
+  STATIC_FILE,
+  STATIC_PATHS,
+  TIERS,
+  URLS_PER_FILE,
+  fileName,
+  langPath,
+  type Lang,
+} from './sitemap-plan';
 import { renderIndex, renderUrlSet, type IndexEntry, type SitemapEntry } from './sitemap-render';
 import { validateSitemaps } from './sitemap-validate';
 import { SitemapWriterService } from './sitemap-writer.service';
@@ -18,6 +32,8 @@ export interface BuildOptions {
    * 5만 페이지가 한꺼번에 빠진다. 값을 안 주면 검사하지 않는다.
    */
   minUrls?: number;
+  /** 수집 진행 알림. 부르는 쪽이 화면에 그린다. */
+  onProgress?: CollectProgress;
 }
 
 export interface BuildResult {
@@ -43,7 +59,7 @@ export class SitemapService {
   ) {}
 
   async build(dir: string, options: BuildOptions = {}): Promise<BuildResult> {
-    const byTier = await this.collector.collect(options.limit);
+    const byTier = await this.collector.collect(options.limit, options.onProgress);
     const files = this.render(byTier);
     const total = files.reduce((sum, file) => sum + file.locCount, 0);
 
@@ -61,9 +77,38 @@ export class SitemapService {
     return { dir: written, files, total };
   }
 
+  /**
+   * 홈 같은 정적 페이지.
+   *
+   * **lastmod 를 넣지 않는다.** 언제 바뀌었는지 알 방법이 없고, 생성 시각을 적으면 매일
+   * "오늘 수정됨" 이 된다 — 그러면 구글이 이 사이트의 lastmod 를 통째로 무시한다.
+   *
+   * 병원 페이지와 달리 **x-default 를 붙인다.** 어느 언어도 맞지 않는 방문자에게 무엇을
+   * 보여줄지 정하는 값이라, 언어 선택의 출발점인 홈에서 의미가 있다.
+   */
+  private renderStatic(): SitemapFile {
+    const siteUrl = this.config.siteUrl;
+    const entries: SitemapEntry[] = [];
+
+    for (const path of STATIC_PATHS) {
+      for (const lang of LANGS) {
+        entries.push({
+          loc: `${siteUrl}${langPath(path, lang)}`,
+          alternates: [
+            ...LANGS.map((l) => ({ hreflang: l, href: `${siteUrl}${langPath(path, l)}` })),
+            { hreflang: 'x-default', href: `${siteUrl}${path}` },
+          ],
+        });
+      }
+    }
+
+    return { name: STATIC_FILE, body: renderUrlSet(entries), locCount: entries.length };
+  }
+
   private render(byTier: CollectedByTier): SitemapFile[] {
     const siteUrl = this.config.siteUrl;
-    const files: SitemapFile[] = [];
+    // 정적 페이지를 맨 앞에 둔다 — 인덱스에서 가장 중요한 것부터 눈에 들어온다.
+    const files: SitemapFile[] = [this.renderStatic()];
 
     for (const tier of TIERS) {
       const hospitals = byTier[tier];

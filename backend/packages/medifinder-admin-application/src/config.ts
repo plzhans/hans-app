@@ -29,14 +29,19 @@ export interface R2Config {
   bucket: string;
   accessKeyId: string;
   secretAccessKey: string;
-  /** 객체 키 접두사. 워커가 APP_ENV 로 같은 값을 만들어 읽는다. */
-  prefix: string;
 }
 
 export interface MedifinderConfig {
   api: HansApiConfig;
   /** 사이트맵에 적을 사이트 주소. 예: https://medifinder.kr */
   siteUrl: string;
+  /**
+   * 환경 이름. 예: production
+   *
+   * **두 곳에 쓰인다** — 산출물 디렉터리 이름과 R2 객체 키 접두사다. 둘이 같은 값이라야
+   * "어느 환경 것이냐" 를 한 군데서만 정하게 된다. 워커도 같은 값으로 읽을 경로를 만든다.
+   */
+  appEnv: string;
   /**
    * 없을 수 있다. **sitemap build 는 R2 자격증명 없이 돌아야 한다** — 만들기만 하는 자리에
    * 업로드 권한을 요구하면 CI 에서 잡을 나눌 수 없고, 로컬에서 파일 모양만 보려는 사람도
@@ -53,7 +58,7 @@ export interface MedifinderConfig {
  */
 export function requireR2(config: MedifinderConfig): R2Config {
   if (!config.r2) {
-    throw new Error('R2 credentials are not configured. Set MEDIFINDER_R2_* to upload.');
+    throw new Error('R2 credentials are not configured. Set R2_* to upload.');
   }
   return config.r2;
 }
