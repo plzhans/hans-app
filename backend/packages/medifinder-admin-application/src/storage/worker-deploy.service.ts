@@ -11,6 +11,17 @@ import { outputDir } from '../sitemap/output-dir';
  */
 const WRANGLER_VERSION = '4';
 
+/**
+ * 런타임 동작 기준일. **값이 필요해서 적는 것이지 고를 여지가 있어서가 아니다.**
+ *
+ * wrangler 가 업로드에 이 값을 요구한다. 이 워커에는 코드가 없고 정적 자산만 있어서
+ * 런타임 동작이 달라질 자리가 없지만, 없으면 배포 자체가 거부된다.
+ *
+ * medifinder-web(wrangler.jsonc)과 같은 날짜로 둔다. 한 사이트를 이루는 두 워커가 서로
+ * 다른 기준일을 갖고 있으면, 나중에 코드가 생겼을 때 어느 쪽이 무슨 동작인지 헷갈린다.
+ */
+const COMPATIBILITY_DATE = '2026-09-08';
+
 /** 워커 이름의 환경 약칭. frontend/ci-lib.sh 의 env_short 와 같은 표다. */
 const ENV_SHORT: Record<string, string> = { develop: 'dev', production: 'prod' };
 
@@ -56,6 +67,8 @@ export class WorkerDeployService {
       name,
       '--assets',
       assets,
+      '--compatibility-date',
+      COMPATIBILITY_DATE,
     ]);
 
     return name;
