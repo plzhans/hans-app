@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.1](https://github.com/plzhans/hans-app/compare/release-frontend/v0.14.0...release-frontend/v0.14.1) (2026-09-12)
+
+
+### 구조 변경
+
+* auth-sdk 를 clients/hans-auth-sdk 로 옮긴다 ([4ca4bd6](https://github.com/plzhans/hans-app/commit/4ca4bd6368519ce629ba9a95e46003ce3d5cf916))
+* medifinder 를 제품 단위 서브트리로 가른다 ([195c762](https://github.com/plzhans/hans-app/commit/195c762d45704e13e1a0910f1845724ccc084181))
+* medifinder 를 제품 단위 서브트리로 가른다 ([f32ddfe](https://github.com/plzhans/hans-app/commit/f32ddfe6146fd8b4943fc94ccb32d9f3a3efd209))
+* **medifinder:** hansapp 과 같은 구조로 감싼다 ([8425d94](https://github.com/plzhans/hans-app/commit/8425d94b03aff2574f85c4606b0da28b7d7aa85e))
+* **medifinder:** 서브트리 이름을 hansapp 규칙에 맞춘다 ([042821a](https://github.com/plzhans/hans-app/commit/042821a036e13e81c3db5ffb6497b3a6dfa2bc11))
+* **medifinder:** 프론트 배포를 자기 것으로 가른다 ([a29fdfa](https://github.com/plzhans/hans-app/commit/a29fdfaf7c7b83b7ea40a776aa75915e49fc9351))
+
 ## [0.14.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.13.0...release-frontend/v0.14.0) (2026-09-12)
 
 
