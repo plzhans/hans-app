@@ -5,7 +5,7 @@
 # 서버측 두 패키지뿐이다.
 packages:
   - 'cli'
-  - 'application'
+  - 'admin-application'
 
 # 스크립트 실행 전 의존성 검증을 끈다. backend 와 같은 이유 — pnpm 11 은 이 설정을
 # .npmrc 가 아니라 여기서 읽는다.

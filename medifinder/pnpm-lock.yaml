@@ -42,7 +42,7 @@ importers:
         specifier: ^8.62.1
         version: 8.70.0(eslint@9.39.5)(typescript@5.9.3)
 
-  application:
+  admin-application:
     dependencies:
       '@hans-api/sdk':
         specifier: link:../../clients/hans-api-sdk
@@ -65,7 +65,7 @@ importers:
     dependencies:
       '@medifinder/admin-application':
         specifier: workspace:*
-        version: link:../application
+        version: link:../admin-application
       '@nestjs/common':
         specifier: ^11.1.27
         version: 11.2.3(reflect-metadata@0.2.2)(rxjs@7.8.2)

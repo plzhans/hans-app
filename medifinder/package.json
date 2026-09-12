@@ -2,16 +2,16 @@
   "name": "medifinder",
   "version": "0.0.0",
   "private": true,
-  "description": "MediFinder — hans-api 를 공개 API 로만 쓰는 별개 제품. 서버측 도구(cli·application)의 워크스페이스 루트",
+  "description": "MediFinder — hans-api 를 공개 API 로만 쓰는 별개 제품. 서버측 도구(cli·admin-application)의 워크스페이스 루트",
   "packageManager": "pnpm@11.10.0",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "postinstall": "pnpm sdk:prepare",
     "sdk:prepare": "pnpm --dir ../clients/hans-api-sdk install && pnpm --dir ../clients/hans-api-sdk api:gen",
     "build": "pnpm -r build",
-    "lint": "eslint \"{cli,application}/src/**/*.ts\" --fix",
-    "check": "pnpm exec eslint \"{cli,application}/src/**/*.ts\" && pnpm exec prettier --check \"{cli,application}/**/*.{ts,js,json}\"",
-    "format": "prettier --write \"{cli,application}/**/*.{ts,js,json}\"",
+    "lint": "eslint \"{cli,admin-application}/src/**/*.ts\" --fix",
+    "check": "pnpm exec eslint \"{cli,admin-application}/src/**/*.ts\" && pnpm exec prettier --check \"{cli,admin-application}/**/*.{ts,js,json}\"",
+    "format": "prettier --write \"{cli,admin-application}/**/*.{ts,js,json}\"",
     "cli": "SWC_NODE_PROJECT=cli/tsconfig.json node -r @swc-node/register cli/src/main.ts"
   },
   "devDependencies": {
