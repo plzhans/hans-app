@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { config as loadDotenv } from 'dotenv';
 
-import type { MedifinderConfig, R2Config } from '@medifinder/admin-application';
+import type { MedifinderConfig } from '@medifinder/admin-application';
 
 /** 고를 수 있는 환경. 레포의 다른 곳(APP_ENVS)과 같은 이름을 쓴다. */
 export const APP_ENVS = ['develop', 'production'] as const;
@@ -41,27 +41,7 @@ export function loadConfig(appEnv: AppEnv): MedifinderConfig {
     },
     siteUrl: required('MEDIFINDER_SITE_URL'),
     appEnv,
-    r2: optionalR2(),
   };
-}
-
-/**
- * R2 설정은 다 있을 때만 만든다.
- *
- * **하나라도 빠지면 통째로 없는 것으로 본다.** 반쯤 채워진 자격증명으로 업로드를 시도하면
- * SigV4 서명이 엉뚱하게 성립해 403 만 보게 된다 — 어느 값이 틀렸는지 응답에 안 나온다.
- * 만들기(build)는 이 값이 없어도 돌아야 하므로 여기서 던지지 않는다.
- */
-function optionalR2(): R2Config | undefined {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const bucket = process.env.R2_BUCKET;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-
-  if (!accountId || !bucket || !accessKeyId || !secretAccessKey) {
-    return undefined;
-  }
-  return { accountId, bucket, accessKeyId, secretAccessKey };
 }
 
 /**
@@ -84,7 +64,6 @@ export function describeConfig(config: MedifinderConfig): string {
     `api  ${config.api.baseUrl}  (serviceKey ${mask(config.api.serviceKey)})`,
     `site ${config.siteUrl}`,
     `env  ${config.appEnv}`,
-    `r2   ${config.r2 ? `${config.r2.bucket}/${config.appEnv}` : '(설정 없음 — 업로드 불가)'}`,
   ].join('\n');
 }
 
