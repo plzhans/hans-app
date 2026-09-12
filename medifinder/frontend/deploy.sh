@@ -7,21 +7,12 @@
 #   medifinder/frontend/deploy.sh develop
 #   medifinder/frontend/deploy.sh production -y
 #
-# 하는 일은 하나뿐이다 — **CI 가 주는 환경변수를 같은 규칙으로 채워서** 아래 둘을 순서대로 부른다.
+# CI 가 주는 환경변수를 같은 규칙으로 채워서 ci-build.sh · ci-deploy.sh 를 순서대로 부른다.
+# CI 는 둘을 다른 잡으로 나누지만(전부 빌드한 뒤 배포를 시작하려고) 로컬은 나눌 이유가 없다.
+# 로직은 어느 쪽에도 두지 않는다 — 같은 스크립트를 지나야 로컬과 CI 가 갈리지 않는다.
 #
-#   ci-build.sh   빌드
-#   ci-deploy.sh  배포
-#
-# CI 는 이 둘을 다른 잡으로 나눠 돌린다(전부 빌드한 뒤에 배포를 시작하려고).
-# 로컬에서는 나눌 이유가 없으니 여기서 이어서 부른다. 로직은 어느 쪽에도 두지 않는다.
-#
-# 노리는 것 두 가지:
-#   1. 배포를 CI 에 태워보지 않고 로컬에서 그대로 검증한다
-#   2. 급할 때 로컬이 우회로가 아니라 정식 배포 경로가 된다 — 같은 코드를 지나가므로
-#
-# [비밀값]
-# 같은 디렉터리의 .env 에서 읽는다 — medifinder/frontend/.env (gitignore).
-# 이미 셸에 export 되어 있으면 파일보다 그쪽이 이긴다(한 번만 다른 계정으로 쏠 때).
+# 자격증명은 같은 디렉터리의 .env 에서 읽는다(gitignore).
+# 이미 셸에 export 되어 있으면 그쪽이 이긴다.
 set -euo pipefail
 
 AREA_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -37,7 +28,6 @@ shift
 assume_yes=''
 [ "${1:-}" = '-y' ] && assume_yes=1
 
-# 셸에 이미 있으면 그게 이긴다. 없으면 .env 에서 읽는다.
 if [ -f "$AREA_DIR/.env" ]; then
   set -a
   # shellcheck disable=SC1090
@@ -55,7 +45,7 @@ if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
   exit 1
 fi
 
-# CI 가 넘기는 값과 같은 이름으로 채운다. 로컬에서 빠지면 ci-deploy.sh 가 거기서 멈춘다.
+# CI 가 넘기는 값과 같은 이름으로 채운다.
 export GITHUB_SHA="${GITHUB_SHA:-$(git rev-parse HEAD)}"
 export GITHUB_REF_NAME="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
 export APP_ENV
