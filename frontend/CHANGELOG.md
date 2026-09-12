@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.14.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.13.0...release-frontend/v0.14.0) (2026-09-12)
+
+
+### 기능
+
+* **medifinder:** 사이트맵 CLI 와 생성 코드 정리 ([373910f](https://github.com/plzhans/hans-app/commit/373910f44df87d5fd117e9a029d54e3223a32429))
+* **medifinder:** 사이트맵 서빙을 Worker 로 옮긴다 ([286743c](https://github.com/plzhans/hans-app/commit/286743c21e5c0e7717505873fd34933ef4592b62))
+* **medifinder:** 사이트맵 서빙을 Worker 로 옮긴다 ([1e05c44](https://github.com/plzhans/hans-app/commit/1e05c44f377b84a0d1f6a7d68b6ac3fa58dedc84))
+
+
+### 구조 변경
+
+* **medifinder:** 클라이언트 SDK 를 레포 루트로 올린다 ([46b676b](https://github.com/plzhans/hans-app/commit/46b676bb4eef20dc626492c27527ba58e26df500))
+* **medifinder:** 클라이언트 SDK 를 레포 루트로 올린다 ([d9b4105](https://github.com/plzhans/hans-app/commit/d9b410524225804919d9e8490df1f40f9806d1e8))
+
+
+### 문서
+
+* 주석의 억지 번역을 우리말로 고친다 ([a1c49c4](https://github.com/plzhans/hans-app/commit/a1c49c4125a81e552aae557cdc6996949980b750))
+
 ## [0.13.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.12.1...release-frontend/v0.13.0) (2026-09-10)
 
 
