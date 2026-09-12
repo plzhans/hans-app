@@ -58,7 +58,9 @@ Hans API 는 **AI 답변용 API** 와 **MCP** 를 함께 제공합니다.
 
 ```
 backend/     API 서버와 그 주변 — NestJS 모노레포
-frontend/    웹 앱들 — 포털 · 인증 · 문서 · 파생 서비스
+frontend/    웹 앱들 — 포털 · 인증 · 문서
+clients/     외부에 공개하는 SDK — 데이터 API · 로그인
+medifinder/  파생 서비스. 같은 구조를 한 번 감쌌다 (backend/ · frontend/)
 docs/        운영 문서 (배포 · CI · 인프라) + OpenAPI 스펙
 .github/     워크플로
 ```
@@ -104,17 +106,34 @@ TypeScript · React · Vite 로 구성됩니다.
 | [`hansapp-web`](frontend/hansapp-web/)       | 콘솔 (앱 관리)          | `https://console.plzhans.com` |
 | [`hansapp-auth`](frontend/hansapp-auth/)     | 로그인 · 동의 화면      | `https://auth.plzhans.com` |
 | [`hansapp-docs`](frontend/hansapp-docs/)     | API 문서 (VitePress)    | `https://console.plzhans.com/docs` |
-| [`medifinder-web`](frontend/medifinder-web/) | MediFinder              | `https://medifinder.kr`    |
-| [`auth-sdk`](frontend/auth-sdk/)             | 로그인 SDK (라이브러리) | —                  |
+
 
 API 서버는 `api.plzhans.com` 으로 서비스합니다.
 
 > 문서 사이트 빌드는 **[frontend/hansapp-docs/README.md](frontend/hansapp-docs/README.md)** 를 참고하세요.
 
-**MediFinder** 는 Hans API 를 활용한 파생 서비스입니다
-(병원 찾기, 한/영/일/중, [AI 검색](#ai)).
-별도 저장소로 두는 것이 맞지만 초기 단계라 관리 편의상 함께 두고 있으며,
-추후 분리할 예정입니다.
+### 공개 SDK — [clients/](clients/)
+
+hans-api 를 **외부에서** 쓰기 위한 클라이언트입니다. 소비자는 medifinder 를 포함한 외부 앱이고,
+hansapp 내부 앱은 같은 오리진이라 쓰지 않습니다.
+
+| 패키지 | 무엇 |
+| --- | --- |
+| [`hans-api-sdk`](clients/hans-api-sdk/)   | 데이터 API 클라이언트 (OpenAPI 에서 생성) |
+| [`hans-auth-sdk`](clients/hans-auth-sdk/) | 로그인 클라이언트 (PKCE · 토큰 보관 · 탭 동기화) |
+
+### MediFinder — [medifinder/](medifinder/)
+
+Hans API 를 활용한 파생 서비스입니다 (병원 찾기, 한/영/일/중, [AI 검색](#ai)).
+
+**하나의 폴더로 격리돼 있습니다.** 안쪽 구조는 레포 최상위와 같습니다 — `medifinder/backend/`
+(워크스페이스 · `config/` · 자기 eslint)와 `medifinder/frontend/`. hans-api 에는 `clients/` 의
+공개 SDK 로만 접근하고 `@hansapp/*` 를 쓰지 않습니다.
+
+| 앱 | 무엇 | 프로덕션 |
+| --- | --- | --- |
+| [`medifinder-web`](medifinder/frontend/medifinder-web/) | 웹 | `https://medifinder.kr` |
+| [`medifinder-cli`](medifinder/backend/apps/medifinder-cli/) | 사이트맵 생성·배포 | — |
 
 ---
 

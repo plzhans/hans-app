@@ -20,6 +20,8 @@ on:
     paths:
       - 'frontend/**'
       - 'medifinder/frontend/**'
+      # 프론트가 link: 로 무는 공개 SDK. 소스가 그대로 번들에 들어가므로 바뀌면 다시 빌드해야 한다.
+      - 'clients/**'
       - 'docs/openapi/**'
       - '.github/workflows/fe*.yml'
   # PR 에서도 verify 를 돌린다. 합치기 전에 깨진 것을 보는 게 요점이다.
@@ -28,6 +30,8 @@ on:
     paths:
       - 'frontend/**'
       - 'medifinder/frontend/**'
+      # 프론트가 link: 로 무는 공개 SDK. 소스가 그대로 번들에 들어가므로 바뀌면 다시 빌드해야 한다.
+      - 'clients/**'
       - 'docs/openapi/**'
       - '.github/workflows/fe*.yml'
   workflow_dispatch:
@@ -132,9 +136,9 @@ jobs:
                 target="$target $t"
                 continue
               fi
-              # medifinder-web 은 auth-sdk 를 link: 로 문다. 소스가 그대로 번들에 들어간다.
+              # medifinder-web 은 clients/ 의 SDK 들을 link: 로 문다. 소스가 그대로 번들에 들어간다.
               if [ "$t" = 'medifinder/frontend/medifinder-web' ] \
-                 && printf '%s\n' "$changed" | grep -q '^frontend/auth-sdk/'; then
+                 && printf '%s\n' "$changed" | grep -qE '^clients/(hans-api-sdk|hans-auth-sdk)/'; then
                 target="$target $t"
                 continue
               fi

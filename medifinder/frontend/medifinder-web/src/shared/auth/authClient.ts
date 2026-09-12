@@ -1,4 +1,4 @@
-import { createAuthClient } from '@hansapp/auth-sdk';
+import { createAuthClient } from '@hans-api/auth-sdk';
 
 /**
  * HansApp 로그인 SDK 클라이언트(싱글턴).

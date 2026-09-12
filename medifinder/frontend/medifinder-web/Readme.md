@@ -40,7 +40,7 @@ pnpm api:gen      # docs/openapi/hansapp-openapi.json → src/shared/api/schema.
 ## 로그인
 
 백엔드가 없는 앱이라 **OAuth 2.0 인가 코드 + PKCE(S256)** 로 직접 토큰을 받는다
-(`@hansapp/auth-sdk`). 엔드포인트는 `/.well-known/openid-configuration` 에서 읽고,
+(`@hans-api/auth-sdk`). 엔드포인트는 `/.well-known/openid-configuration` 에서 읽고,
 access token 은 JWKS 공개키로 브라우저에서 검증한다.
 
 **리디렉션 URI 를 클라이언트에 등록해 둬야 한다.** 등록값과 정확히 일치해야 인가 코드가 나온다.

@@ -11,9 +11,9 @@
 AREA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # <repo>/frontend
 AREA="$(basename "$AREA_DIR")"                             # frontend
 
-# 빌드 가능한 대상. 디렉터리를 훑지 않고 여기 적는다 — auth-sdk 는 medifinder-web 이 link:
-# 로 무는 라이브러리라 자기 혼자 배포되지 않고(소비자 번들 안으로 들어갈 뿐), medifinder-web
-# 은 아예 frontend/ 밖에 있다(target_dir_for 참고).
+# 빌드 가능한 대상. 디렉터리를 훑지 않고 여기 적는다 — frontend/ 아래에는 배포되지 않는
+# 것도 있고(api-error·legal 같은 라이브러리), medifinder-web 은 아예 frontend/ 밖에 있다
+# (target_path_for 참고).
 KNOWN_TARGETS='medifinder-web hansapp-docs hansapp-web hansapp-auth hansapp-admin'
 
 # 그중 **Cloudflare Worker 로 나가는 것.** hansapp-admin 은 여기 없다 —

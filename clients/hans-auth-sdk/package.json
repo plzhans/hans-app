@@ -1,9 +1,9 @@
 {
-  "name": "@hansapp/auth-sdk",
+  "name": "@hans-api/auth-sdk",
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "HansApp(plzhans) 로그인 SDK. 외부 앱이 plzhans 로 SSO 로그인하고 토큰을 관리한다.",
+  "description": "hans-api 로그인을 외부 앱에서 쓰기 위한 클라이언트 SDK (PKCE·토큰 보관·탭 동기화)",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
