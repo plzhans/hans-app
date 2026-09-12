@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.2](https://github.com/plzhans/hans-app/compare/release-backend/v0.19.1...release-backend/v0.19.2) (2026-09-12)
+
+
+### 구조 변경
+
+* medifinder 를 제품 단위 서브트리로 가른다 ([195c762](https://github.com/plzhans/hans-app/commit/195c762d45704e13e1a0910f1845724ccc084181))
+* medifinder 를 제품 단위 서브트리로 가른다 ([f32ddfe](https://github.com/plzhans/hans-app/commit/f32ddfe6146fd8b4943fc94ccb32d9f3a3efd209))
+
 ## [0.19.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.19.0...release-backend/v0.19.1) (2026-09-12)
 
 
