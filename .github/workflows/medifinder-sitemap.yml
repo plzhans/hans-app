@@ -51,30 +51,52 @@ concurrency:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   sitemap:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # node·pnpm·sops·age 가 버전 고정으로 들어 있는 레포 공용 툴체인 이미지다.
+    # sops 를 여기서 따로 깔지 않는 이유 — 버전이 레포와 갈라지고 아무도 안 고치게 된다.
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: medifinder/backend
     steps:
       - uses: actions/checkout@v7
 
-      # **pnpm 이 먼저다.** setup-node 의 cache: pnpm 은 스토어 경로를 알아내려고
-      # pnpm 을 실행하므로, 그 전에 깔려 있어야 한다.
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: medifinder/backend/package.json
+      # node·pnpm 은 이미지에 들어 있다. setup-node 를 쓰지 않는 이유는 그러면 이미지가
+      # 고정한 버전 위에 다른 버전을 덮어써서, 무엇으로 도는지가 두 곳에서 정해지기 때문이다.
+      - name: 툴체인 확인
+        run: node --version && pnpm --version && sops --version
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: medifinder/backend/pnpm-lock.yaml
+      # **설정을 시크릿 하나로 푼다.**
+      #
+      # 값마다 GitHub Secret 을 만들지 않는다 — 늘어나면 관리가 안 되고, 한 번 넣으면
+      # 다시 읽을 수도 없다. 대신 config/.env.<환경>.enc 를 커밋해 두고 age 키로 연다.
+      # 그 키(AGE_SECRET_KEY_FILE)는 백엔드 배포가 이미 쓰던 것이라 새로 만들 것도 없다.
+      #
+      - name: 설정 복호화
+        env:
+          AGE_SECRET_KEY: ${{ secrets.AGE_SECRET_KEY_FILE }}
+          APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
+        run: |
+          printf '%s' "$AGE_SECRET_KEY" > /tmp/age.key
+          # 값은 절대 찍지 않는다. 모양만 본다 — 잘못 들어가 있어도 sops 는 "복호화 실패"
+          # 라고만 말해서, 그 메시지로는 키가 틀린 건지 파일이 깨진 건지 구분되지 않는다.
+          grep -qE '^AGE-SECRET-KEY-1[A-Z0-9]+$' /tmp/age.key \
+            || { echo "❌ AGE_SECRET_KEY_FILE 에 개인키 줄이 없다. 키 파일 내용 전체가 들어가야 한다." >&2; exit 1; }
 
-      # medifinder 워크스페이스(cli · application). hans-api SDK 는 postinstall 이 만든다.
+          SOPS_AGE_KEY_FILE=/tmp/age.key sops -d "config/.env.$APP_ENV.enc" > "config/.env.$APP_ENV"
+          rm -f /tmp/age.key
+          echo "config/.env.$APP_ENV 준비됨 ($(grep -c '=' "config/.env.$APP_ENV") 개 키)"
+
+      # medifinder 워크스페이스(cli · admin-application). hans-api SDK 는 postinstall 이 만든다.
       - name: 의존성 설치
         run: pnpm install --frozen-lockfile
 
@@ -82,15 +104,11 @@ jobs:
       # 그대로 실행한다(@swc-node/register) — 같은 것을 두 번 볼 이유가 없다.
       - name: 사이트맵 생성
         env:
-          HANSAPP_BASE_URL: ${{ vars.HANSAPP_BASE_URL }}
-          HANSAPP_SERVER_KEY: ${{ secrets.HANSAPP_SERVER_KEY }}
-          MEDIFINDER_SITE_URL: ${{ vars.MEDIFINDER_SITE_URL }}
-          # 환경을 고르는 값이다. CI 에는 .env.<환경> 파일이 없으므로 이걸로 준다.
-          # 산출물도 ./out/medifinder_<env>_sitemap 에 놓여, 올리는 단계가 같은 값으로 찾는다.
+          # 어느 환경으로 돌지만 준다. 나머지 값은 방금 복호화한 config/.env.<환경> 에 있다.
           MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
         # min-urls 는 "API 가 반쯤 죽었다" 를 잡는 바닥이다. 실제 건수(약 88,000)보다
         # 넉넉히 낮게 잡는다 — 폐업으로 자연히 줄어드는 몫까지 실패로 보면 안 된다.
-        run: pnpm cli sitemap build --out ./out --min-urls 70000
+        run: pnpm cli sitemap build --out ./out --min-urls 70000 --env "$MEDIFINDER_APP_ENV"
 
       # 실패해도 남긴다. 무엇이 나왔길래 검사에 걸렸는지는 파일을 봐야 안다.
       - name: 산출물 보관
@@ -105,10 +123,7 @@ jobs:
       - name: 워커 배포
         if: ${{ !inputs.dry_run }}
         env:
-          HANSAPP_BASE_URL: ${{ vars.HANSAPP_BASE_URL }}
-          HANSAPP_SERVER_KEY: ${{ secrets.HANSAPP_SERVER_KEY }}
-          MEDIFINDER_SITE_URL: ${{ vars.MEDIFINDER_SITE_URL }}
           MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
           # wrangler 가 직접 읽는다. 프론트 배포가 쓰는 것과 같은 토큰이다.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: pnpm cli sitemap deploy --from ./out
+        run: pnpm cli sitemap deploy --from ./out --env "$MEDIFINDER_APP_ENV"
