@@ -20,19 +20,23 @@ export function isAppEnv(value: string): value is AppEnv {
 
 export function loadConfig(appEnv: AppEnv): MedifinderConfig {
   /*
-    **환경별 파일을 이 앱 디렉터리에서 읽는다. 현재 작업 디렉터리가 아니다.**
+    **medifinder/backend/config/ 에서 읽는다. 현재 작업 디렉터리가 아니다.**
 
-    `pnpm medifinder-cli` 는 backend/ 에서 도는데 파일은 앱 옆에 둔다. cwd 기본값을 그대로
-    쓰면 어디서 부르느냐에 따라 설정이 달라 보인다 — 같은 명령이 자리에 따라 다르게 도는
-    것은 디버깅할 수 없다.
+    hansapp 의 backend/config/ 와 같은 자리·같은 이름 규칙이다 — env 파일은 config/ 바로
+    밑에 평면으로 두고, 환경별 .env.<환경> 과 개인 오버라이드 .env.<환경>.local 이 있다.
+    시크릿은 sops 로 .enc 를 만들어 커밋한다.
 
-    `.env.<환경>` 은 레포의 다른 env 파일과 같은 규칙이다(backend/.gitignore 주석 참고).
+    cwd 기본값을 쓰지 않는 이유는 어디서 부르느냐에 따라 설정이 달라 보이기 때문이다 —
+    같은 명령이 자리에 따라 다르게 도는 것은 디버깅할 수 없다.
     **환경 이름은 파일 안에 없다** — 어느 파일을 읽을지 정하는 값이 그 파일 안에 있으면
     둘이 어긋났을 때 무엇이 맞는지 알 수 없다.
 
     이미 들어 있는 환경변수는 덮지 않는다(dotenv 기본). CI 는 파일 없이 환경변수로만 준다.
   */
-  loadDotenv({ path: path.resolve(__dirname, '..', `.env.${appEnv}`) });
+  const configDir = path.resolve(__dirname, '..', '..', '..', 'config');
+  // 개인 오버라이드가 먼저다 — dotenv 는 이미 들어 있는 값을 덮지 않으므로 먼저 읽은 쪽이 이긴다.
+  loadDotenv({ path: path.join(configDir, `.env.${appEnv}.local`) });
+  loadDotenv({ path: path.join(configDir, `.env.${appEnv}`) });
 
   return {
     api: {
