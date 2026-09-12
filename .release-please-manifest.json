@@ -1,5 +1,5 @@
 {
-  "backend": "0.19.1",
+  "backend": "0.19.2",
   "frontend": "0.14.0",
   "medifinder/frontend/medifinder-web": "1.0.0"
 }
