@@ -80,7 +80,7 @@ usage() {
 # 인자를 검사하고 project · target_dir 을 세운다.
 #
 # 인자는 **대상 이름**이다. 대부분 frontend/ 아래의 디렉터리 이름 그대로지만, medifinder 는
-# 제품 단위로 레포 루트에 따로 있어(medifinder/web) 여기서 자리를 알려준다.
+# 제품 단위로 따로 있어(medifinder/frontend/medifinder-web) 여기서 자리를 알려준다.
 #
 # **medifinder 가 자기 배포 스크립트를 갖지 않는 이유.** 이 파일과 ci-build/ci-deploy 는
 # Cloudflare Worker 배포 절차를 담은 한 벌이고, 복사하면 "한쪽만 고치는 날" 이 온다 —
@@ -90,16 +90,16 @@ usage() {
 # 여기 한 곳에만 적는다 — 워크플로에 따로 적으면 한쪽만 고치는 날이 온다.
 target_path_for() {
   case "$1" in
-    medifinder-web) echo 'medifinder/web' ;;
+    medifinder-web) echo "medifinder/$AREA/$1" ;;
     *)              echo "$AREA/$1" ;;
   esac
 }
 
-# 경로 → 대상 이름. frontend/ 접두사를 떼고 나머지 / 를 - 로 바꾼다.
-#   frontend/hansapp-docs → hansapp-docs      medifinder/web → medifinder-web
+# 경로 → 대상 이름. **마지막 조각이 곧 이름이다.**
+#   frontend/hansapp-docs            → hansapp-docs
+#   medifinder/frontend/medifinder-web → medifinder-web
 target_name_for() {
-  local rest="${1#"$AREA/"}"
-  echo "${rest//\//-}"
+  echo "${1##*/}"
 }
 
 # 인자를 검사하고 project · target_dir · project_label 을 세운다.

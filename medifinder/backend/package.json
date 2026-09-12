@@ -1,0 +1,30 @@
+{
+  "name": "medifinder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MediFinder 서버측. hans-api 를 공개 API 로만 쓴다 — @hansapp/* 에 의존하지 않는다",
+  "packageManager": "pnpm@11.10.0",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "postinstall": "pnpm sdk:prepare",
+    "sdk:prepare": "pnpm --dir ../../clients/hans-api-sdk install && pnpm --dir ../../clients/hans-api-sdk api:gen",
+    "build": "pnpm -r build",
+    "lint": "eslint \"{apps,packages}/*/src/**/*.ts\" --fix",
+    "check": "pnpm exec eslint \"{apps,packages}/*/src/**/*.ts\" && pnpm exec prettier --check \"{apps,packages}/*/**/*.{ts,js,json}\"",
+    "format": "prettier --write \"{apps,packages}/*/**/*.{ts,js,json}\"",
+    "cli": "SWC_NODE_PROJECT=apps/medifinder-cli/tsconfig.json node -r @swc-node/register apps/medifinder-cli/src/main.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.43",
+    "@types/node": "^26.1.0",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "globals": "^17.7.0",
+    "prettier": "^3.9.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.62.1"
+  }
+}

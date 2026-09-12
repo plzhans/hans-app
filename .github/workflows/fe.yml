@@ -19,7 +19,7 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
-      - 'medifinder/web/**'
+      - 'medifinder/frontend/**'
       - 'docs/openapi/**'
       - '.github/workflows/fe*.yml'
   # PR 에서도 verify 를 돌린다. 합치기 전에 깨진 것을 보는 게 요점이다.
@@ -27,7 +27,7 @@ on:
   pull_request:
     paths:
       - 'frontend/**'
-      - 'medifinder/web/**'
+      - 'medifinder/frontend/**'
       - 'docs/openapi/**'
       - '.github/workflows/fe*.yml'
   workflow_dispatch:
@@ -68,7 +68,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
         run: |
-          all='medifinder/web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          all='medifinder/frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
           verify=true
           deploy=false
           toolchain=false
@@ -133,7 +133,7 @@ jobs:
                 continue
               fi
               # medifinder-web 은 auth-sdk 를 link: 로 문다. 소스가 그대로 번들에 들어간다.
-              if [ "$t" = 'medifinder/web' ] \
+              if [ "$t" = 'medifinder/frontend/medifinder-web' ] \
                  && printf '%s\n' "$changed" | grep -q '^frontend/auth-sdk/'; then
                 target="$target $t"
                 continue

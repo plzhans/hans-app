@@ -36,7 +36,7 @@ jobs:
         env:
           INPUT_TARGET: ${{ inputs.target }}
         run: |
-          all='medifinder/web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
+          all='medifinder/frontend/medifinder-web frontend/hansapp-docs frontend/hansapp-web frontend/hansapp-auth'
           # **빈 값은 all 이 아니다.** 부르는 쪽이 "바뀐 게 없다" 는 뜻으로 비워 보내므로,
           # 여기서 넓히면 무관한 푸시가 네 프로젝트를 전부 돌린다.
           if [ "$INPUT_TARGET" = 'all' ]; then

@@ -42,30 +42,11 @@ importers:
         specifier: ^8.62.1
         version: 8.70.0(eslint@9.39.5)(typescript@5.9.3)
 
-  admin-application:
-    dependencies:
-      '@hans-api/sdk':
-        specifier: link:../../clients/hans-api-sdk
-        version: link:../../clients/hans-api-sdk
-      '@nestjs/common':
-        specifier: ^11.1.27
-        version: 11.2.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      reflect-metadata:
-        specifier: ^0.2.2
-        version: 0.2.2
-    devDependencies:
-      '@types/node':
-        specifier: ^26.1.0
-        version: 26.5.1
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  cli:
+  apps/medifinder-cli:
     dependencies:
       '@medifinder/admin-application':
         specifier: workspace:*
-        version: link:../admin-application
+        version: link:../../packages/medifinder-admin-application
       '@nestjs/common':
         specifier: ^11.1.27
         version: 11.2.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -88,6 +69,25 @@ importers:
       '@swc/core':
         specifier: ^1.15.43
         version: 1.16.2
+      '@types/node':
+        specifier: ^26.1.0
+        version: 26.5.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/medifinder-admin-application:
+    dependencies:
+      '@hans-api/sdk':
+        specifier: link:../../../../clients/hans-api-sdk
+        version: link:../../../../clients/hans-api-sdk
+      '@nestjs/common':
+        specifier: ^11.1.27
+        version: 11.2.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+    devDependencies:
       '@types/node':
         specifier: ^26.1.0
         version: 26.5.1

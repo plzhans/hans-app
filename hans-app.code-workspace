@@ -13,8 +13,12 @@
       "path": "frontend"
     },
     {
-      "name": "medifinder",
-      "path": "medifinder"
+      "name": "medifinder-backend",
+      "path": "medifinder/backend"
+    },
+    {
+      "name": "medifinder-frontend",
+      "path": "medifinder/frontend"
     }
   ],
   "settings": {

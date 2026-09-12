@@ -58,7 +58,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        working-directory: medifinder
+        working-directory: medifinder/backend
     steps:
       - uses: actions/checkout@v7
 
@@ -66,13 +66,13 @@ jobs:
       # pnpm 을 실행하므로, 그 전에 깔려 있어야 한다.
       - uses: pnpm/action-setup@v4
         with:
-          package_json_file: medifinder/package.json
+          package_json_file: medifinder/backend/package.json
 
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
-          cache-dependency-path: medifinder/pnpm-lock.yaml
+          cache-dependency-path: medifinder/backend/pnpm-lock.yaml
 
       # medifinder 워크스페이스(cli · application). hans-api SDK 는 postinstall 이 만든다.
       - name: 의존성 설치
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sitemap
-          path: medifinder/out/
+          path: medifinder/backend/out/
           retention-days: 7
           if-no-files-found: ignore
 

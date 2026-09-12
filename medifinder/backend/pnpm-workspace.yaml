@@ -1,0 +1,15 @@
+# medifinder 서버측 워크스페이스.
+#
+# hansapp 의 backend/ 와 같은 모양이다. 프론트는 앱마다 독립 워크스페이스라
+# 여기 묶이지 않는다(medifinder/frontend/, hansapp 의 frontend/ 와 같다).
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# 스크립트 실행 전 의존성 검증을 끈다. backend 와 같은 이유 — pnpm 11 은 이 설정을
+# .npmrc 가 아니라 여기서 읽는다.
+verifyDepsBeforeRun: false
+
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
