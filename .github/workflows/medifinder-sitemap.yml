@@ -1,6 +1,6 @@
-# medifinder.kr 사이트맵을 만들어 R2 에 올린다.
+# medifinder.kr 사이트맵을 만들어 Cloudflare Workers 로 올린다.
 #
-#   build → (artifact) → upload
+#   build → (artifact) → deploy
 #
 # **be.yml 과 아무 관계가 없다.** 배포 파이프라인이 아니라 주기 실행이고, MediFinder 는
 # hans-api 의 외부 소비자라 그쪽 빌드·마이그레이션에 묶이면 안 된다. 설치도
@@ -25,18 +25,26 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: '만들기만 하고 R2 에 올리지 않는다'
+        description: '만들기만 하고 배포하지 않는다'
         type: boolean
         default: false
 
-  # **정기 실행은 아직 켜지 않는다.** 서비스 키와 R2 버킷이 생기기 전까지는 매일 실패만
-  # 쌓인다. 자격증명을 Secrets 에 넣은 뒤 아래 두 줄을 살린다.
+  # **병원 데이터가 다 준비된 뒤여야 한다.**
   #
-  # 시각은 병원 데이터 빌드가 끝난 **뒤**여야 한다. 앞에 돌면 어제 값으로 사이트맵을 만든다.
-  # schedule:
-  #   - cron: '0 20 * * *' # 05:00 KST
+  #   06:00 KST  healthcare  통합 병원 데이터 생성 (updated_at 갱신)
+  #   06:30 KST  es-index    전량 재색인 — 목록 API 가 읽는 곳
+  #   08:00 KST  여기
+  #
+  # 앞에 돌면 어제 값으로 사이트맵을 만든다. 한 시간 반을 띄운 것은 배치가 늦어질 여지를
+  # 둔 것이다 — 사이트맵은 하루 한 번이라 서두를 이유가 없다.
+  #
+  # **예약 실행은 기본 브랜치에서만 돈다**(GitHub 제약). 태그로 돌리고 싶으면 수동 실행에서
+  # ref 를 고른다. 산출물이 코드가 아니라 살아 있는 API 에서 뽑은 데이터라, 검증 게이트
+  # (규격 상한·중복·min-urls)가 실질 방어다.
+  schedule:
+    - cron: '0 23 * * *' # 08:00 KST
 
-# 두 실행이 겹치면 R2 에 뒤섞인 회차가 남는다. 줄을 세운다.
+# 두 실행이 겹치면 뒤섞인 회차가 배포된다. 줄을 세운다.
 concurrency:
   group: medifinder-sitemap
   cancel-in-progress: false
