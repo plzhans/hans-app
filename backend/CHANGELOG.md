@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.19.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.18.0...release-backend/v0.19.0) (2026-09-12)
+
+
+### 기능
+
+* **medifinder:** 사이트맵 CLI 를 만든다 ([1a7c105](https://github.com/plzhans/hans-app/commit/1a7c105d090f069c4bdc34da9ab032b57cca2bd2))
+* **medifinder:** 사이트맵 CLI 와 생성 코드 정리 ([373910f](https://github.com/plzhans/hans-app/commit/373910f44df87d5fd117e9a029d54e3223a32429))
+* **medifinder:** 사이트맵 서빙을 Worker 로 옮긴다 ([286743c](https://github.com/plzhans/hans-app/commit/286743c21e5c0e7717505873fd34933ef4592b62))
+* **medifinder:** 사이트맵 서빙을 Worker 로 옮긴다 ([1e05c44](https://github.com/plzhans/hans-app/commit/1e05c44f377b84a0d1f6a7d68b6ac3fa58dedc84))
+* **medifinder:** 사이트맵에 홈을 넣고 진행상황을 보여준다 ([ebd1b85](https://github.com/plzhans/hans-app/commit/ebd1b85745262231c95794c6c1c05ef3eaf6e525))
+* **medifinder:** 사이트맵을 Workers 로 올리고 환경별로 가른다 ([fb87be3](https://github.com/plzhans/hans-app/commit/fb87be36cddeb1d5a3025003e30b398de4710b8e))
+* **medifinder:** 사이트맵을 Workers 로 올리고 환경을 --env 로 고른다 ([d03084b](https://github.com/plzhans/hans-app/commit/d03084b5a9cba8374f631202dbeb54bf2cd28509))
+
+
+### 버그 수정
+
+* **build:** 클라이언트 생성 코드를 build 에서도 만든다 ([eafdf83](https://github.com/plzhans/hans-app/commit/eafdf83a8156811ab61050a6d515448cc9e1248f))
+* **ci:** 생성 코드를 prettier 검사에서 뺀다 ([5d9d44a](https://github.com/plzhans/hans-app/commit/5d9d44a85f88698ef6b8bf6db322aee052d6495a))
+* **medifinder:** 배포에 compatibility-date 를 붙인다 ([afda13a](https://github.com/plzhans/hans-app/commit/afda13af8d769cc77d5a95bbda05a04207515a83))
+
 ## [0.18.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.17.0...release-backend/v0.18.0) (2026-09-11)
 
 
