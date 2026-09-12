@@ -13,6 +13,8 @@ export { SitemapWriterService } from './sitemap/sitemap-writer.service';
 export { WorkerDeployService } from './storage/worker-deploy.service';
 export type { SitemapFile } from './sitemap/sitemap-file';
 export { outputDir } from './sitemap/output-dir';
+export { MANIFEST_FILE, buildManifest, fetchDeployedManifest } from './sitemap/sitemap-manifest';
+export type { SitemapManifest } from './sitemap/sitemap-manifest';
 export {
   LANGS,
   LANGS_BY_TIER,

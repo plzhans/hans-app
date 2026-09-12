@@ -65,7 +65,8 @@ export function sitemapCommand(load: () => MedifinderConfig): Command {
       .description('만들어 둔 사이트맵을 Cloudflare Workers 에 올린다')
       .requiredOption('--from <dir>', '산출물이 있는 디렉터리')
       .option('--env <name>', '대상 환경. .env.<환경> 을 읽는다')
-      .action(async (options: { from: string }): Promise<void> => {
+      .option('--force', '내용이 그대로여도 올린다')
+      .action(async (options: { from: string; force?: boolean }): Promise<void> => {
         const config = announce(load());
         const name = await withApplicationContext(config, async (context) => {
           const files = await context.get(SitemapWriterService).list(options.from);
@@ -74,13 +75,25 @@ export function sitemapCommand(load: () => MedifinderConfig): Command {
               `No sitemap files found in ${options.from}. Run "sitemap build" first.`,
             );
           }
-          return context.get(WorkerDeployService).deploy(options.from);
+
+          const deployer = context.get(WorkerDeployService);
+          // 내용이 그대로면 올리지 않는다. 올려도 결과는 같지만, 배포 이력이 의미 없는
+          // 회차로 채워지고 "언제 실제로 바뀌었나" 를 되짚을 수 없게 된다.
+          if (!options.force && (await deployer.isUnchanged(options.from))) {
+            return undefined;
+          }
+          return deployer.deploy(options.from);
         });
 
         console.log('');
-        console.log(`배포 완료  → ${name}`);
+        console.log(
+          name ? `배포 완료  → ${name}` : '내용이 그대로다. 올리지 않았다 (--force 로 강제)',
+        );
       }),
-    ['medifinder-cli sitemap deploy --from ./out --env develop'],
+    [
+      'medifinder-cli sitemap deploy --from ./out --env develop',
+      'medifinder-cli sitemap deploy --from ./out --env production --force',
+    ],
   );
 
   return sitemap;

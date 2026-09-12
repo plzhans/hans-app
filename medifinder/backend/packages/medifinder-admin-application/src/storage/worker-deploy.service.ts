@@ -1,9 +1,12 @@
 import { spawn } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { Injectable, Logger } from '@nestjs/common';
 
 import { InjectConfig, type MedifinderConfig } from '../config';
 import { outputDir } from '../sitemap/output-dir';
+import { MANIFEST_FILE, fetchDeployedManifest } from '../sitemap/sitemap-manifest';
 
 /**
  * wrangler 버전. 프론트(frontend/ci-deploy.sh)와 같은 메이저를 쓴다.
@@ -45,6 +48,29 @@ export class WorkerDeployService {
   workerName(): string {
     const short = ENV_SHORT[this.config.appEnv] ?? this.config.appEnv;
     return `${short}-medifinder-sitemap`;
+  }
+
+  /**
+   * 지금 만든 것이 이미 올라가 있는 것과 같은지 본다.
+   *
+   * 산출물이 결정적이라(내용이 같으면 바이트도 같다) 지문 하나로 판정된다. 읽지 못하면
+   * undefined 를 받고 그냥 올린다 — 판단이 안 서면 올리는 쪽이 안전하다.
+   */
+  async isUnchanged(dir: string): Promise<boolean> {
+    const local = await readFile(
+      path.join(outputDir(dir, this.config.appEnv), MANIFEST_FILE),
+      'utf8',
+    )
+      .then((raw: string) => JSON.parse(raw) as { digest?: string })
+      .catch(() => undefined);
+    if (!local?.digest) return false;
+
+    const deployed = await fetchDeployedManifest(this.config.siteUrl);
+    if (!deployed) {
+      this.logger.log('배포된 매니페스트를 읽지 못했다. 비교 없이 올린다');
+      return false;
+    }
+    return deployed.digest === local.digest;
   }
 
   async deploy(dir: string): Promise<string> {

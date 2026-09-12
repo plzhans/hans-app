@@ -20,6 +20,8 @@ export function validateSitemaps(files: SitemapFile[], siteUrl: string): string[
   const problems: string[] = [];
 
   for (const file of files) {
+    // 매니페스트는 XML 이 아니다. 규격 검사 대상이 아니다.
+    if (!file.name.endsWith('.xml')) continue;
     const locs = [...file.body.matchAll(/<loc>([^<]*)<\/loc>/g)].map((match) => match[1]);
 
     if (locs.length === 0) {

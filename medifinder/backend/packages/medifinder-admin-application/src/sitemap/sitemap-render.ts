@@ -67,16 +67,24 @@ export function renderUrlSet(entries: SitemapEntry[]): string {
 
 export interface IndexEntry {
   loc: string;
-  /** 이 파일을 실제로 다시 만든 시각. 우리가 아는 사실이라 지어내는 값이 아니다. */
-  lastmod: string;
+  /**
+   * 이 조각 안에서 가장 최근 lastmod. 값이 없으면 생략한다.
+   *
+   * 생성 시각을 적지 않는다 — 내용이 그대로여도 매 회차 달라져서, 구글에게 전 조각이
+   * 바뀌었다고 말하게 된다.
+   */
+  lastmod?: string;
 }
 
 export function renderIndex(entries: IndexEntry[]): string {
   const body = entries
-    .map(
-      (entry) =>
-        `  <sitemap>\n    <loc>${escapeXml(entry.loc)}</loc>\n    <lastmod>${entry.lastmod}</lastmod>\n  </sitemap>`,
-    )
+    .map((entry) => {
+      const lines = [`    <loc>${escapeXml(entry.loc)}</loc>`];
+      if (entry.lastmod) {
+        lines.push(`    <lastmod>${entry.lastmod}</lastmod>`);
+      }
+      return `  <sitemap>\n${lines.join('\n')}\n  </sitemap>`;
+    })
     .join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</sitemapindex>\n`;

@@ -7,6 +7,7 @@ import {
   type CollectedByTier,
 } from './hospital-collector.service';
 import type { SitemapFile } from './sitemap-file';
+import { MANIFEST_FILE, buildManifest } from './sitemap-manifest';
 import {
   LANGS,
   LANGS_BY_TIER,
@@ -73,6 +74,14 @@ export class SitemapService {
       throw new Error(`Sitemap validation failed:\n  - ${problems.join('\n  - ')}`);
     }
 
+    // 배포된 것과 견줄 지문. 산출물과 같이 올라가고, 다음 회차가 이걸 읽어 바뀐 게
+    // 있는지 판정한다.
+    files.push({
+      name: MANIFEST_FILE,
+      body: `${JSON.stringify(buildManifest(files), null, 2)}\n`,
+      locCount: 0,
+    });
+
     const written = await this.writer.write(dir, files);
     return { dir: written, files, total };
   }
@@ -102,6 +111,7 @@ export class SitemapService {
       }
     }
 
+    // 정적 페이지는 lastmod 가 없다(언제 바뀌었는지 알 방법이 없다). 인덱스에서도 생략된다.
     return { name: STATIC_FILE, body: renderUrlSet(entries), locCount: entries.length };
   }
 
@@ -126,17 +136,22 @@ export class SitemapService {
             name: fileName(tier, lang, index + 1, chunks.length),
             body: renderUrlSet(entries),
             locCount: entries.length,
+            lastmod: latestLastmod(entries),
           });
         }
       }
     }
 
-    // 인덱스의 lastmod 는 **이 파일을 실제로 다시 만든 시각**이다. 우리가 아는 사실이라
-    // 지어내는 값이 아니다 — 병원의 lastmod 와 근거가 다르다.
-    const generatedAt = new Date().toISOString();
+    /*
+      인덱스의 lastmod 는 그 조각 안에서 가장 최근 값이다. 생성 시각이 아니다.
+
+      생성 시각을 쓰면 내용이 그대로여도 매 회차 달라진다 — 구글에게는 전 조각이 바뀌었다고
+      말하는 셈이라 9만 URL 을 다시 긁게 만들고, 우리도 "바뀐 것이 있나" 를 비교할 수 없다.
+      담긴 URL 에 lastmod 가 하나도 없으면 생략한다.
+    */
     const index: IndexEntry[] = files.map((file) => ({
       loc: `${siteUrl}/${file.name}`,
-      lastmod: generatedAt,
+      lastmod: file.lastmod,
     }));
     files.push({
       name: 'sitemap.xml',
@@ -171,6 +186,17 @@ function toEntry(
         ? langs.map((l) => ({ hreflang: l, href: `${siteUrl}${langPath(bare, l)}` }))
         : undefined,
   };
+}
+
+/** 담긴 URL 중 가장 최근 lastmod. 하나도 없으면 undefined. */
+function latestLastmod(entries: SitemapEntry[]): string | undefined {
+  let latest: string | undefined;
+  for (const entry of entries) {
+    if (entry.lastmod && (latest === undefined || entry.lastmod > latest)) {
+      latest = entry.lastmod;
+    }
+  }
+  return latest;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {

@@ -8,7 +8,7 @@ import type { SitemapFile } from './sitemap-file';
 import { outputDir } from './output-dir';
 
 /** 이 디렉터리에서 우리 것으로 간주하는 파일. 지울 때와 올릴 때 같은 기준을 쓴다. */
-const OURS = /^sitemap[\w-]*\.xml$/;
+const OURS = /^sitemap[\w-]*\.(xml|json)$/;
 
 /**
  * 만든 사이트맵을 지정한 경로에 쓴다.
