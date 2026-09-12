@@ -376,40 +376,6 @@ importers:
         specifier: ^26.1.0
         version: 26.1.0
 
-  apps/medifinder-cli:
-    dependencies:
-      '@medifinder/admin-application':
-        specifier: workspace:*
-        version: link:../../packages/medifinder-admin-application
-      '@nestjs/common':
-        specifier: ^11.1.27
-        version: 11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core':
-        specifier: ^11.1.27
-        version: 11.1.27(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.27)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.3
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      reflect-metadata:
-        specifier: ^0.2.2
-        version: 0.2.2
-    devDependencies:
-      '@swc-node/register':
-        specifier: ^1.11.1
-        version: 1.11.1(@swc/core@1.15.43)(@swc/types@0.1.27)(typescript@5.9.3)
-      '@swc/core':
-        specifier: ^1.15.43
-        version: 1.15.43
-      '@types/node':
-        specifier: ^26.1.0
-        version: 26.1.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   clients/kr-go-juso:
     devDependencies:
       orval:
@@ -953,25 +919,6 @@ importers:
       '@types/node':
         specifier: ^24.13.2
         version: 24.13.2
-
-  packages/medifinder-admin-application:
-    dependencies:
-      '@hans-api/sdk':
-        specifier: link:../../../clients/hans-api-sdk
-        version: link:../../../clients/hans-api-sdk
-      '@nestjs/common':
-        specifier: ^11.1.27
-        version: 11.1.27(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      reflect-metadata:
-        specifier: ^0.2.2
-        version: 0.2.2
-    devDependencies:
-      '@types/node':
-        specifier: ^26.1.0
-        version: 26.1.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
 
   packages/slack-notify: {}
 

@@ -3,8 +3,8 @@
 #   build → (artifact) → deploy
 #
 # **be.yml 과 아무 관계가 없다.** 배포 파이프라인이 아니라 주기 실행이고, MediFinder 는
-# hans-api 의 외부 소비자라 그쪽 빌드·마이그레이션에 묶이면 안 된다. 설치도
-# `--filter medifinder-cli...` 로 두 패키지만 가져온다 — 격리가 말뿐이 아니라는 확인이기도 하다.
+# hans-api 의 외부 소비자다. medifinder/ 가 자기 워크스페이스라 설치도 여기서 닫힌다 —
+# 예전에는 backend 워크스페이스에 섞여 있어 `--filter` 로 걸러내야 했다.
 #
 # [만들기와 올리기를 나눈 이유]
 # 만들다 실패하면 배포하지 않는다. 잘못된 사이트맵으로 덮는 것보다 지난 회차가 그대로
@@ -58,7 +58,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        working-directory: backend
+        working-directory: medifinder
     steps:
       - uses: actions/checkout@v7
 
@@ -66,17 +66,17 @@ jobs:
       # pnpm 을 실행하므로, 그 전에 깔려 있어야 한다.
       - uses: pnpm/action-setup@v4
         with:
-          package_json_file: backend/package.json
+          package_json_file: medifinder/package.json
 
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
-          cache-dependency-path: backend/pnpm-lock.yaml
+          cache-dependency-path: medifinder/pnpm-lock.yaml
 
-      # medifinder-cli 와 그 의존성만. 워크스페이스 31개 중 2개다.
+      # medifinder 워크스페이스(cli · application). hans-api SDK 는 postinstall 이 만든다.
       - name: 의존성 설치
-        run: pnpm install --frozen-lockfile --filter medifinder-cli...
+        run: pnpm install --frozen-lockfile
 
       # 타입 검사는 be.yml 이 푸시마다 워크스페이스 전체로 돌린다. 여기서는 소스를
       # 그대로 실행한다(@swc-node/register) — 같은 것을 두 번 볼 이유가 없다.
@@ -90,7 +90,7 @@ jobs:
           MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
         # min-urls 는 "API 가 반쯤 죽었다" 를 잡는 바닥이다. 실제 건수(약 88,000)보다
         # 넉넉히 낮게 잡는다 — 폐업으로 자연히 줄어드는 몫까지 실패로 보면 안 된다.
-        run: pnpm medifinder-cli sitemap build --out ./out --min-urls 70000
+        run: pnpm cli sitemap build --out ./out --min-urls 70000
 
       # 실패해도 남긴다. 무엇이 나왔길래 검사에 걸렸는지는 파일을 봐야 안다.
       - name: 산출물 보관
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sitemap
-          path: backend/out/
+          path: medifinder/out/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -111,4 +111,4 @@ jobs:
           MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
           # wrangler 가 직접 읽는다. 프론트 배포가 쓰는 것과 같은 토큰이다.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: pnpm medifinder-cli sitemap deploy --from ./out
+        run: pnpm cli sitemap deploy --from ./out

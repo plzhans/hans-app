@@ -209,4 +209,4 @@ pnpm --allow-build=esbuild,workerd dlx "wrangler@$WRANGLER_VERSION" deploy \
   --message "ref: $GITHUB_REF_NAME"
 endgroup
 
-echo "✅ $AREA/$project ($APP_ENV) → $CF_WORKER_NAME"
+echo "✅ $project_label ($APP_ENV) → $CF_WORKER_NAME"

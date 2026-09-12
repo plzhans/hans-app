@@ -11,8 +11,9 @@
 AREA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # <repo>/frontend
 AREA="$(basename "$AREA_DIR")"                             # frontend
 
-# 빌드 가능한 대상. frontend/* 를 훑지 않는 이유는 auth-sdk 때문이다 — 그건 medifinder-web 이
-# link: 로 무는 라이브러리라 자기 혼자 배포되지 않는다. 소비자 번들 안으로 들어갈 뿐이다.
+# 빌드 가능한 대상. 디렉터리를 훑지 않고 여기 적는다 — auth-sdk 는 medifinder-web 이 link:
+# 로 무는 라이브러리라 자기 혼자 배포되지 않고(소비자 번들 안으로 들어갈 뿐), medifinder-web
+# 은 아예 frontend/ 밖에 있다(target_dir_for 참고).
 KNOWN_TARGETS='medifinder-web hansapp-docs hansapp-web hansapp-auth hansapp-admin'
 
 # 그중 **Cloudflare Worker 로 나가는 것.** hansapp-admin 은 여기 없다 —
@@ -78,14 +79,50 @@ usage() {
 
 # 인자를 검사하고 project · target_dir 을 세운다.
 #
-# 인자는 frontend/ 아래의 **디렉터리 이름 그대로다.** 스크립트가 이미 frontend 안에 있으니
-# 경로를 다시 받을 이유가 없다. 별칭(web, docs)을 쓰지 않는 이유는, 프론트가 늘면 별칭과
-# 실제 디렉터리가 어긋나기 시작하고 별칭이 뭘 가리키는지 스크립트를 열어봐야 알게 되어서다.
+# 인자는 **대상 이름**이다. 대부분 frontend/ 아래의 디렉터리 이름 그대로지만, medifinder 는
+# 제품 단위로 레포 루트에 따로 있어(medifinder/web) 여기서 자리를 알려준다.
+#
+# **medifinder 가 자기 배포 스크립트를 갖지 않는 이유.** 이 파일과 ci-build/ci-deploy 는
+# Cloudflare Worker 배포 절차를 담은 한 벌이고, 복사하면 "한쪽만 고치는 날" 이 온다 —
+# 이 파일 머리에 같은 이유가 적혀 있다. 갈라야 할 것은 코드·시크릿·릴리스 주기였고
+# 그건 이미 갈렸다. 배포 절차까지 두 벌로 만들 이유는 없다.
+# 대상 이름 → 레포 루트 기준 경로. **워크플로의 경로 필터·캐시 키도 이 값을 쓴다.**
+# 여기 한 곳에만 적는다 — 워크플로에 따로 적으면 한쪽만 고치는 날이 온다.
+target_path_for() {
+  case "$1" in
+    medifinder-web) echo 'medifinder/web' ;;
+    *)              echo "$AREA/$1" ;;
+  esac
+}
+
+# 경로 → 대상 이름. frontend/ 접두사를 떼고 나머지 / 를 - 로 바꾼다.
+#   frontend/hansapp-docs → hansapp-docs      medifinder/web → medifinder-web
+target_name_for() {
+  local rest="${1#"$AREA/"}"
+  echo "${rest//\//-}"
+}
+
+# 인자를 검사하고 project · target_dir · project_label 을 세운다.
+#
+# **이름과 경로를 둘 다 받는다.** 사람은 이름으로 부르고(deploy.sh develop medifinder-web),
+# 워크플로는 경로로 부른다(matrix 가 경로 필터와 캐시 키에 같은 값을 쓰기 때문이다).
 resolve_project() {
-  project="${1:-}"
-  [ -n "$project" ] || usage
-  target_dir="$AREA_DIR/$project"
-  [ -f "$target_dir/package.json" ] || die "$AREA/$project 이 없다 (package.json 없음)"
+  local given="${1:-}"
+  [ -n "$given" ] || usage
+
+  case "$given" in
+    */*) project="$(target_name_for "$given")" ;;
+    *)   project="$given" ;;
+  esac
+
+  local repo_root
+  repo_root="$(cd "$AREA_DIR/.." && pwd)"
+  target_dir="$(cd "$repo_root/$(target_path_for "$project")" 2>/dev/null && pwd)" \
+    || die "$given 의 디렉터리를 찾을 수 없다"
+  [ -f "$target_dir/package.json" ] || die "$given 이 없다 (package.json 없음)"
+
+  # 출력용. 레포 루트 기준 경로라 어디 있는 대상인지 로그만 보고 안다.
+  project_label="${target_dir#"$repo_root/"}"
 }
 
 # APP_ENV 검사. 판단은 언제나 이 긴 이름으로 한다 — 짧은 이름과 둘 다 조건문에 쓰이기
