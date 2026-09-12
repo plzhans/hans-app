@@ -13,6 +13,7 @@ export { SitemapService, type BuildOptions, type BuildResult } from './sitemap/s
 export type { CollectProgress } from './sitemap/hospital-collector.service';
 export { SitemapWriterService } from './sitemap/sitemap-writer.service';
 export { R2UploaderService } from './storage/r2-uploader.service';
+export { WorkerDeployService } from './storage/worker-deploy.service';
 export type { SitemapFile } from './sitemap/sitemap-file';
 export { outputDir } from './sitemap/output-dir';
 export {

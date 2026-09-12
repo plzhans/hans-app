@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import {
-  R2UploaderService,
   SitemapService,
   SitemapWriterService,
+  WorkerDeployService,
   type CollectProgress,
   type MedifinderConfig,
 } from '@medifinder/admin-application';
@@ -29,6 +29,7 @@ export function sitemapCommand(load: () => MedifinderConfig): Command {
       .command('build')
       .description('hans-api 를 훑어 사이트맵을 만든다. 지정한 경로에 쓴다')
       .requiredOption('--out <dir>', '산출물을 쓸 디렉터리')
+      .option('--env <name>', '대상 환경. .env.<환경> 을 읽는다')
       .option(
         '--limit <count>',
         '받아 올 최대 병원 수. 100건 단위로 끊기므로 뒤쪽 등급이 통째로 빠질 수 있다 (개발용)',
@@ -60,26 +61,26 @@ export function sitemapCommand(load: () => MedifinderConfig): Command {
 
   addExamples(
     sitemap
-      .command('upload')
-      .description('만들어 둔 사이트맵을 R2 에 올린다')
+      .command('deploy')
+      .description('만들어 둔 사이트맵을 Cloudflare Workers 에 올린다')
       .requiredOption('--from <dir>', '산출물이 있는 디렉터리')
+      .option('--env <name>', '대상 환경. .env.<환경> 을 읽는다')
       .action(async (options: { from: string }): Promise<void> => {
         const config = announce(load());
-        const names = await withApplicationContext(config, async (context) => {
+        const name = await withApplicationContext(config, async (context) => {
           const files = await context.get(SitemapWriterService).list(options.from);
           if (files.length === 0) {
             throw new Error(
               `No sitemap files found in ${options.from}. Run "sitemap build" first.`,
             );
           }
-          await context.get(R2UploaderService).uploadDir(options.from, files);
-          return files;
+          return context.get(WorkerDeployService).deploy(options.from);
         });
 
         console.log('');
-        console.log(`업로드 완료  ${names.length}개 파일`);
+        console.log(`배포 완료  → ${name}`);
       }),
-    ['medifinder-cli sitemap upload --from ./out'],
+    ['medifinder-cli sitemap deploy --from ./out --env develop'],
   );
 
   return sitemap;

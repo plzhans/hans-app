@@ -7,9 +7,14 @@
 # `--filter medifinder-cli...` 로 두 패키지만 가져온다 — 격리가 말뿐이 아니라는 확인이기도 하다.
 #
 # [만들기와 올리기를 나눈 이유]
-# 만들다 실패하면 R2 에 손을 대지 않는다. 잘못된 사이트맵으로 덮는 것보다 지난 회차가
-# 그대로 살아 있는 편이 낫다 — 색인은 잘못 제출한 순간에 빠지고, 되돌려도 다시 잡히는 데
-# 몇 주가 걸린다. 산출물은 아티팩트로 남으므로 실패했을 때 무엇이 나왔는지 볼 수 있다.
+# 만들다 실패하면 배포하지 않는다. 잘못된 사이트맵으로 덮는 것보다 지난 회차가 그대로
+# 살아 있는 편이 낫다 — 색인은 잘못 제출한 순간에 빠지고, 되돌려도 다시 잡히는 데 몇 주가
+# 걸린다. 산출물은 아티팩트로 남으므로 실패했을 때 무엇이 나왔는지 볼 수 있다.
+#
+# [올리는 방식]
+# 정적 자산만 담은 Worker(<환경약칭>-medifinder-sitemap)로 올린다. R2 를 쓰면 버킷·액세스
+# 키가 새로 필요하고 웹 워커에 바인딩과 분기를 넣어야 하는데, 이쪽은 그게 없고 자격증명도
+# 프론트 배포가 쓰던 것을 그대로 쓴다.
 #
 # [부하가 커지면]
 # 전용 서버로 옮길 때는 이 파일을 지우고 cron 이 같은 두 커맨드를 부르면 된다.
@@ -72,7 +77,8 @@ jobs:
           HANSAPP_BASE_URL: ${{ vars.HANSAPP_BASE_URL }}
           HANSAPP_SERVER_KEY: ${{ secrets.HANSAPP_SERVER_KEY }}
           MEDIFINDER_SITE_URL: ${{ vars.MEDIFINDER_SITE_URL }}
-          # 산출물이 ./out/medifinder_<env>_sitemap 에 놓인다. 올리는 단계가 같은 값으로 찾는다.
+          # 환경을 고르는 값이다. CI 에는 .env.<환경> 파일이 없으므로 이걸로 준다.
+          # 산출물도 ./out/medifinder_<env>_sitemap 에 놓여, 올리는 단계가 같은 값으로 찾는다.
           MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
         # min-urls 는 "API 가 반쯤 죽었다" 를 잡는 바닥이다. 실제 건수(약 88,000)보다
         # 넉넉히 낮게 잡는다 — 폐업으로 자연히 줄어드는 몫까지 실패로 보면 안 된다.
@@ -88,15 +94,13 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: R2 업로드
+      - name: 워커 배포
         if: ${{ !inputs.dry_run }}
         env:
           HANSAPP_BASE_URL: ${{ vars.HANSAPP_BASE_URL }}
           HANSAPP_SERVER_KEY: ${{ secrets.HANSAPP_SERVER_KEY }}
           MEDIFINDER_SITE_URL: ${{ vars.MEDIFINDER_SITE_URL }}
           MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: pnpm medifinder-cli sitemap upload --from ./out
+          # wrangler 가 직접 읽는다. 프론트 배포가 쓰는 것과 같은 토큰이다.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm medifinder-cli sitemap deploy --from ./out

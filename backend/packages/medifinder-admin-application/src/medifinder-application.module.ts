@@ -6,6 +6,7 @@ import { HospitalCollectorService } from './sitemap/hospital-collector.service';
 import { SitemapService } from './sitemap/sitemap.service';
 import { SitemapWriterService } from './sitemap/sitemap-writer.service';
 import { R2UploaderService } from './storage/r2-uploader.service';
+import { WorkerDeployService } from './storage/worker-deploy.service';
 
 /**
  * MediFinder 응용 계층의 루트 모듈.
@@ -37,8 +38,15 @@ export class MedifinderApplicationModule {
         SitemapWriterService,
         SitemapService,
         R2UploaderService,
+        WorkerDeployService,
       ],
-      exports: [MEDIFINDER_CONFIG, SitemapService, SitemapWriterService, R2UploaderService],
+      exports: [
+        MEDIFINDER_CONFIG,
+        SitemapService,
+        SitemapWriterService,
+        R2UploaderService,
+        WorkerDeployService,
+      ],
     };
   }
 }

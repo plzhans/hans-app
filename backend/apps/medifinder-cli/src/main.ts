@@ -6,8 +6,29 @@ import { Command } from 'commander';
 import { describeError } from '@medifinder/admin-application';
 
 import { sitemapCommand } from './commands/sitemap';
-import { loadConfig } from './config';
+import { APP_ENVS, isAppEnv, loadConfig, type AppEnv } from './config';
 import { addExamples, localizeHelp } from './help';
+
+/**
+ * 어느 환경으로 돌지 정한다. `.env.<환경>` 중 무엇을 읽을지가 여기서 갈린다.
+ *
+ * **commander 를 기다리지 않고 argv 를 직접 본다.** 커맨드마다 옵션을 선언해 두면
+ * 하나 빠뜨렸을 때 조용히 다른 환경으로 도는데, 그 사고는 올린 뒤에야 드러난다.
+ */
+function resolveAppEnv(): AppEnv {
+  const index = process.argv.indexOf('--env');
+  const explicit = index >= 0 ? process.argv[index + 1] : undefined;
+  // CI 는 파일이 없으므로 환경변수로 준다.
+  const value = explicit ?? process.env.MEDIFINDER_APP_ENV;
+
+  if (!value) {
+    throw new Error(`--env is required. One of: ${APP_ENVS.join(' | ')}`);
+  }
+  if (!isAppEnv(value)) {
+    throw new Error(`Unknown env "${value}". One of: ${APP_ENVS.join(' | ')}`);
+  }
+  return value;
+}
 
 /**
  * MediFinder 운영 CLI.
@@ -24,11 +45,12 @@ import { addExamples, localizeHelp } from './help';
 const program = new Command()
   .name('medifinder-cli')
   .description('MediFinder 운영 커맨드')
-  .addCommand(sitemapCommand(loadConfig));
+  .option('--env <name>', `대상 환경. ${APP_ENVS.join(' | ')} 중 하나. .env.<환경> 을 읽는다`)
+  .addCommand(sitemapCommand(() => loadConfig(resolveAppEnv())));
 
 addExamples(program, [
-  'medifinder-cli sitemap build --out ./out',
-  'medifinder-cli sitemap upload --from ./out',
+  'medifinder-cli sitemap build --out ./out --env develop',
+  'medifinder-cli sitemap build --out ./out --env production',
 ]);
 
 // 커맨드 트리를 다 만든 뒤 호출해야 하위 커맨드까지 적용된다.
