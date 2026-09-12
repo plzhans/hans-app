@@ -5,7 +5,6 @@ import { configureTransport } from './hansapi/transport';
 import { HospitalCollectorService } from './sitemap/hospital-collector.service';
 import { SitemapService } from './sitemap/sitemap.service';
 import { SitemapWriterService } from './sitemap/sitemap-writer.service';
-import { R2UploaderService } from './storage/r2-uploader.service';
 import { WorkerDeployService } from './storage/worker-deploy.service';
 
 /**
@@ -37,16 +36,9 @@ export class MedifinderApplicationModule {
         HospitalCollectorService,
         SitemapWriterService,
         SitemapService,
-        R2UploaderService,
         WorkerDeployService,
       ],
-      exports: [
-        MEDIFINDER_CONFIG,
-        SitemapService,
-        SitemapWriterService,
-        R2UploaderService,
-        WorkerDeployService,
-      ],
+      exports: [MEDIFINDER_CONFIG, SitemapService, SitemapWriterService, WorkerDeployService],
     };
   }
 }

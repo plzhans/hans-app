@@ -3,4 +3,4 @@ Allow: /
 Disallow: /terms
 Disallow: /*/terms
 
-Sitemap: https://medifinder.kr/sitemap.xml
+Sitemap: __SITE_URL__/sitemap.xml

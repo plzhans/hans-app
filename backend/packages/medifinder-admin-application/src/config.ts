@@ -24,13 +24,6 @@ export interface HansApiConfig {
   serviceKey: string;
 }
 
-export interface R2Config {
-  accountId: string;
-  bucket: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-}
-
 export interface MedifinderConfig {
   api: HansApiConfig;
   /** 사이트맵에 적을 사이트 주소. 예: https://medifinder.kr */
@@ -38,27 +31,8 @@ export interface MedifinderConfig {
   /**
    * 환경 이름. 예: production
    *
-   * **두 곳에 쓰인다** — 산출물 디렉터리 이름과 R2 객체 키 접두사다. 둘이 같은 값이라야
-   * "어느 환경 것이냐" 를 한 군데서만 정하게 된다. 워커도 같은 값으로 읽을 경로를 만든다.
+   * **두 곳에 쓰인다** — 산출물 디렉터리 이름과 배포할 Worker 이름이다. 둘이 같은 값이라야
+   * "어느 환경 것이냐" 를 한 군데서만 정하게 된다.
    */
   appEnv: string;
-  /**
-   * 없을 수 있다. **sitemap build 는 R2 자격증명 없이 돌아야 한다** — 만들기만 하는 자리에
-   * 업로드 권한을 요구하면 CI 에서 잡을 나눌 수 없고, 로컬에서 파일 모양만 보려는 사람도
-   * 자격증명을 구해야 한다. 없으면 업로드하는 순간에 드러난다.
-   */
-  r2?: R2Config;
-}
-
-/**
- * R2 설정을 꺼낸다. 없으면 여기서 죽는다.
- *
- * 업로드 직전에 부른다 — 파일을 다 만든 뒤에 자격증명이 없다고 죽는 편이,
- * 만들지도 않고 죽는 것보다 낫다. 산출물은 남으므로 자격증명만 채워 다시 올리면 된다.
- */
-export function requireR2(config: MedifinderConfig): R2Config {
-  if (!config.r2) {
-    throw new Error('R2 credentials are not configured. Set R2_* to upload.');
-  }
-  return config.r2;
 }

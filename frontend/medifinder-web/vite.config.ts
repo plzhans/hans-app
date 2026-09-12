@@ -1,6 +1,6 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 
 /**
@@ -48,10 +48,48 @@ function stripHtmlComments(): Plugin {
   };
 }
 
+/**
+ * robots.txt 의 Sitemap 줄을 이 환경의 주소로 채운다.
+ *
+ * **상대경로를 쓸 수 없다.** sitemaps.org 규격과 구글 모두 Sitemap 지시자에 절대 URL 을
+ * 요구한다. 그래서 소스에는 자리표시자를 두고 빌드가 채운다 — public/ 파일은 Vite 가
+ * 그대로 복사할 뿐 치환하지 않으므로, 여기서 산출물만 덮어쓴다.
+ *
+ * 박아 두면 develop 이 운영 사이트맵을 가리킨다. 피해가 크지는 않지만(develop 은
+ * X-Robots-Tag 로 색인을 막는다) "크롤은 열어 두고 색인만 막는다"(main.ts)는 방침과
+ * 어긋난다 — 크롤을 열어 놓고 정작 자기 사이트맵은 안 알려주는 셈이 된다.
+ *
+ * 워커가 동적으로 만들지 않는 이유는 그러면 정적 자산 요청이 워커를 타기 때문이다
+ * (wrangler.jsonc 의 run_worker_first 주석 참고).
+ */
+function siteUrlInRobots(): Plugin {
+  return {
+    name: 'site-url-in-robots',
+    apply: 'build',
+    // 클라이언트 번들에만 건다. SSR 번들(dist-server)에는 robots.txt 가 없다.
+    closeBundle() {
+      if (this.environment?.config.build.ssr) return;
+
+      const siteUrl = process.env.VITE_SITE_URL;
+      if (!siteUrl) {
+        this.error('VITE_SITE_URL 이 없다. robots.txt 의 Sitemap 주소를 채울 수 없다.');
+      }
+
+      const target = path.resolve(__dirname, 'dist/robots.txt');
+      const filled = readFileSync(target, 'utf8').replaceAll('__SITE_URL__', siteUrl);
+      if (filled.includes('__SITE_URL__')) {
+        this.error('robots.txt 치환이 끝나지 않았다.');
+      }
+      writeFileSync(target, filled);
+      console.log(`[vite] robots.txt Sitemap → ${siteUrl}/sitemap.xml`);
+    },
+  };
+}
+
 export default defineConfig(({ mode, isSsrBuild }) => {
   console.log(`[vite] mode=${mode}  VITE_HANSAPP_BASE_URL=${process.env.VITE_HANSAPP_BASE_URL ?? '(not set)'}`);
   return {
-    plugins: [react(), stripHtmlComments()],
+    plugins: [react(), stripHtmlComments(), siteUrlInRobots()],
     // 빌드 시점에 상수로 치환된다. Sentry release 문자열을 여기서 굳힌다.
     define: {
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),
