@@ -1,5 +1,5 @@
 {
-  "name": "medifinder",
+  "name": "medifinder-backend",
   "version": "0.0.0",
   "private": true,
   "description": "MediFinder 서버측. hans-api 를 공개 API 로만 쓴다 — @hansapp/* 에 의존하지 않는다",
