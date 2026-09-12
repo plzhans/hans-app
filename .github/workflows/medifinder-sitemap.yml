@@ -24,6 +24,11 @@ name: medifinder - sitemap
 on:
   workflow_dispatch:
     inputs:
+      app_env:
+        description: '대상 환경'
+        type: choice
+        options: [production, develop]
+        default: production
       dry_run:
         description: '만들기만 하고 배포하지 않는다'
         type: boolean
@@ -46,7 +51,7 @@ on:
 
 # 두 실행이 겹치면 뒤섞인 회차가 배포된다. 줄을 세운다.
 concurrency:
-  group: medifinder-sitemap
+  group: medifinder-sitemap-${{ inputs.app_env || 'production' }}
   cancel-in-progress: false
 
 permissions:
@@ -81,10 +86,12 @@ jobs:
       # 다시 읽을 수도 없다. 대신 config/.env.<환경>.enc 를 커밋해 두고 age 키로 연다.
       # 그 키(AGE_SECRET_KEY_FILE)는 백엔드 배포가 이미 쓰던 것이라 새로 만들 것도 없다.
       #
+      # 예약 실행에는 inputs 가 없어 기본값을 식에서 준다. 이 워크플로는 운영 사이트맵을
+      # 매일 올리는 것이 일이라 production 이 기본이고, develop 은 확인용이다.
       - name: 설정 복호화
         env:
           AGE_SECRET_KEY: ${{ secrets.AGE_SECRET_KEY_FILE }}
-          APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
+          APP_ENV: ${{ inputs.app_env || 'production' }}
         run: |
           printf '%s' "$AGE_SECRET_KEY" > /tmp/age.key
           # 값은 절대 찍지 않는다. 모양만 본다 — 잘못 들어가 있어도 sops 는 "복호화 실패"
@@ -105,7 +112,7 @@ jobs:
       - name: 사이트맵 생성
         env:
           # 어느 환경으로 돌지만 준다. 나머지 값은 방금 복호화한 config/.env.<환경> 에 있다.
-          MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
+          MEDIFINDER_APP_ENV: ${{ inputs.app_env || 'production' }}
         # min-urls 는 "API 가 반쯤 죽었다" 를 잡는 바닥이다. 실제 건수(약 88,000)보다
         # 넉넉히 낮게 잡는다 — 폐업으로 자연히 줄어드는 몫까지 실패로 보면 안 된다.
         run: pnpm cli sitemap build --out ./out --min-urls 70000 --env "$MEDIFINDER_APP_ENV"
@@ -123,7 +130,7 @@ jobs:
       - name: 워커 배포
         if: ${{ !inputs.dry_run }}
         env:
-          MEDIFINDER_APP_ENV: ${{ vars.MEDIFINDER_APP_ENV }}
+          MEDIFINDER_APP_ENV: ${{ inputs.app_env || 'production' }}
           # wrangler 가 직접 읽는다. 프론트 배포가 쓰는 것과 같은 토큰이다.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: pnpm cli sitemap deploy --from ./out --env "$MEDIFINDER_APP_ENV"
