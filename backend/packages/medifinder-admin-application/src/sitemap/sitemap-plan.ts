@@ -27,22 +27,38 @@ export const URLS_PER_FILE = 45_000;
 /**
  * tier 마다 어느 언어를 낼지.
  *
- * 의원급을 한국어만 내는 것은 번역이 아직 잠정값(기계번역)이라서다. 동네 의원 7만 곳을
- * 네 언어로 제출하면 품질이 낮은 문서를 대량으로 내미는 셈이 된다.
- * 외국인이 찾는 것은 상급종합·병원급이라 그쪽만 네 언어로 낸다.
+ * **의원급만 한국어다. 가르는 기준은 분량이다.**
  *
- * 요양·정신병원도 한국어만 낸다. 장기 입원 시설이라 찾는 사람이 보호자·환자 본인이고,
- * 외국어로 들어오는 수요가 사실상 없다.
+ * 번역이 아직 기계번역 잠정값인데 의원은 7만 곳이라, 네 언어로 내면 품질이 낮은 문서
+ * 31만 개를 한꺼번에 내미는 셈이 된다. 나머지 등급은 다 합쳐도 4,600곳이라 같은 걱정이
+ * 성립하지 않는다 — 그리고 프론트는 등급으로 언어를 막지 않으므로, 빼면 **실재하는
+ * 페이지를 사이트맵에서만 감추는** 꼴이 된다.
  *
- * 전량 다국어로 돌리려면 아래를 전부 LANGS 로 바꾸면 된다. 그 외에 고칠 곳은 없다.
+ * 의원급까지 다국어로 돌리려면 TIER1 을 LANGS 로 바꾼다. 그 외에 고칠 곳은 없다.
  */
 export const LANGS_BY_TIER: Record<Tier, readonly Lang[]> = {
   TIER3: LANGS,
   TIER2: LANGS,
   TIER1: [DEFAULT_LANG],
-  NURSING: [DEFAULT_LANG],
-  MENTAL: [DEFAULT_LANG],
+  NURSING: LANGS,
+  MENTAL: LANGS,
 };
+
+/**
+ * 병원 말고 사이트맵에 넣을 페이지.
+ *
+ * **API 로는 알 수 없어서 여기 적는다.** 정적 화면이라 목록이 거의 안 바뀐다.
+ *
+ * `/search` 는 일부러 뺐다. 구글은 사이트 내부 검색 결과의 색인을 권하지 않고(조건 조합마다
+ * URL 이 생기고 내용이 겹친다), 워커가 서버 렌더하는 것도 홈과 병원 상세뿐이라 크롤러가
+ * 받는 것은 제목·설명뿐인 껍데기다. 홈에서 링크로 닿으므로 발견되지 않는 것도 아니다.
+ *
+ * `/terms/*` 도 뺀다 — robots.txt 가 막고 noindex 도 붙는다. 사이트맵에 넣으면 말이 어긋난다.
+ */
+export const STATIC_PATHS: readonly string[] = ['/'];
+
+/** 정적 페이지 사이트맵의 파일 이름. */
+export const STATIC_FILE = 'sitemap-static.xml';
 
 /** `/hospitals/1` → `/ja/hospitals/1`. 기본 언어는 접두사가 없다. */
 export function langPath(path: string, lang: Lang): string {

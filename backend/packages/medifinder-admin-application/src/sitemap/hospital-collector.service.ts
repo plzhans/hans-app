@@ -28,6 +28,15 @@ export interface CollectedHospital {
 export type CollectedByTier = Record<Tier, CollectedHospital[]>;
 
 /**
+ * 얼마나 받았는지 알린다. **한 페이지(100건)마다 부른다** — 전량이 몇 분씩 걸리는데
+ * 그동안 아무 소리가 없으면 멈춘 것과 구분되지 않는다.
+ *
+ * 그리는 일은 부르는 쪽(CLI)이 한다. 이 계층은 숫자만 넘긴다 — 터미널인지 로그 파일인지에
+ * 따라 한 줄을 갱신할지 여러 줄을 쌓을지가 갈리는데, 그건 출력하는 쪽이 아는 사정이다.
+ */
+export type CollectProgress = (received: number, done: boolean) => void;
+
+/**
  * 병원 전량을 훑어 tier 로 나눈다.
  *
  * **두 번 훑는다.** 기본 조회가 NURSING·MENTAL 을 빼기 때문이고, 그 둘 말고는 tier 로
@@ -45,7 +54,7 @@ export class HospitalCollectorService {
    * @param limit 받아 올 최대 건수. 개발용이다 — 전량은 900회 남짓 걸리는데,
    *              파일 모양만 확인하려고 매번 그걸 다 돌릴 이유가 없다.
    */
-  async collect(limit?: number): Promise<CollectedByTier> {
+  async collect(limit?: number, onProgress?: CollectProgress): Promise<CollectedByTier> {
     const result: CollectedByTier = {
       TIER3: [],
       TIER2: [],
@@ -55,9 +64,18 @@ export class HospitalCollectorService {
     };
 
     // 기본 조회. TIER1·TIER2·TIER3 가 여기서 다 나온다.
-    let received = await this.scrollInto(result, undefined, 0, limit);
+    let received = await this.scrollInto(result, undefined, 0, limit, onProgress);
     // 빠진 둘을 채운다.
-    received = await this.scrollInto(result, EXCLUDED_BY_DEFAULT.join(','), received, limit);
+    received = await this.scrollInto(
+      result,
+      EXCLUDED_BY_DEFAULT.join(','),
+      received,
+      limit,
+      onProgress,
+    );
+
+    // 마지막 한 번. 부르는 쪽이 진행 표시를 정리하고 다음 줄로 넘어갈 자리다.
+    onProgress?.(received, true);
 
     for (const tier of TIERS) {
       this.logger.log(`${tier} ${result[tier].length}`);
@@ -76,6 +94,7 @@ export class HospitalCollectorService {
     tier: string | undefined,
     alreadyReceived: number,
     limit?: number,
+    onProgress?: CollectProgress,
   ): Promise<number> {
     let nextToken: string | undefined;
     let received = alreadyReceived;
@@ -102,9 +121,7 @@ export class HospitalCollectorService {
       }
 
       received += items.length;
-      if (received % 10_000 < PAGE_SIZE) {
-        this.logger.log(`받는 중 ${received}`);
-      }
+      onProgress?.(received, false);
 
       nextToken = response.nextToken;
       if (!nextToken || items.length === 0) {

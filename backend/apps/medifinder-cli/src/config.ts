@@ -10,24 +10,37 @@ import { config as loadDotenv } from 'dotenv';
 
 import type { MedifinderConfig, R2Config } from '@medifinder/admin-application';
 
-export function loadConfig(): MedifinderConfig {
+/** 고를 수 있는 환경. 레포의 다른 곳(APP_ENVS)과 같은 이름을 쓴다. */
+export const APP_ENVS = ['develop', 'production'] as const;
+export type AppEnv = (typeof APP_ENVS)[number];
+
+export function isAppEnv(value: string): value is AppEnv {
+  return (APP_ENVS as readonly string[]).includes(value);
+}
+
+export function loadConfig(appEnv: AppEnv): MedifinderConfig {
   /*
-    **.env 는 이 앱 디렉터리에서 읽는다. 현재 작업 디렉터리가 아니다.**
+    **환경별 파일을 이 앱 디렉터리에서 읽는다. 현재 작업 디렉터리가 아니다.**
 
-    `pnpm medifinder-cli` 는 backend/ 에서 도는데 .env 는 앱 옆에 둔다. cwd 기본값을
-    그대로 쓰면 어디서 부르느냐에 따라 설정이 달라 보인다 — 같은 명령이 자리에 따라
-    다르게 도는 것은 디버깅할 수 없다.
+    `pnpm medifinder-cli` 는 backend/ 에서 도는데 파일은 앱 옆에 둔다. cwd 기본값을 그대로
+    쓰면 어디서 부르느냐에 따라 설정이 달라 보인다 — 같은 명령이 자리에 따라 다르게 도는
+    것은 디버깅할 수 없다.
 
-    이미 들어 있는 환경변수는 덮지 않는다(dotenv 기본). CI 는 .env 없이 환경변수로만 준다.
+    `.env.<환경>` 은 레포의 다른 env 파일과 같은 규칙이다(backend/.gitignore 주석 참고).
+    **환경 이름은 파일 안에 없다** — 어느 파일을 읽을지 정하는 값이 그 파일 안에 있으면
+    둘이 어긋났을 때 무엇이 맞는지 알 수 없다.
+
+    이미 들어 있는 환경변수는 덮지 않는다(dotenv 기본). CI 는 파일 없이 환경변수로만 준다.
   */
-  loadDotenv({ path: path.resolve(__dirname, '..', '.env') });
+  loadDotenv({ path: path.resolve(__dirname, '..', `.env.${appEnv}`) });
 
   return {
     api: {
-      baseUrl: required('MEDIFINDER_API_BASE_URL'),
-      serviceKey: required('MEDIFINDER_API_SERVICE_KEY'),
+      baseUrl: required('HANSAPP_BASE_URL'),
+      serviceKey: required('HANSAPP_SERVER_KEY'),
     },
     siteUrl: required('MEDIFINDER_SITE_URL'),
+    appEnv,
     r2: optionalR2(),
   };
 }
@@ -40,16 +53,15 @@ export function loadConfig(): MedifinderConfig {
  * 만들기(build)는 이 값이 없어도 돌아야 하므로 여기서 던지지 않는다.
  */
 function optionalR2(): R2Config | undefined {
-  const accountId = process.env.MEDIFINDER_R2_ACCOUNT_ID;
-  const bucket = process.env.MEDIFINDER_R2_BUCKET;
-  const accessKeyId = process.env.MEDIFINDER_R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.MEDIFINDER_R2_SECRET_ACCESS_KEY;
-  const prefix = process.env.MEDIFINDER_APP_ENV;
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const bucket = process.env.R2_BUCKET;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 
-  if (!accountId || !bucket || !accessKeyId || !secretAccessKey || !prefix) {
+  if (!accountId || !bucket || !accessKeyId || !secretAccessKey) {
     return undefined;
   }
-  return { accountId, bucket, accessKeyId, secretAccessKey, prefix };
+  return { accountId, bucket, accessKeyId, secretAccessKey };
 }
 
 /**
@@ -71,7 +83,8 @@ export function describeConfig(config: MedifinderConfig): string {
   return [
     `api  ${config.api.baseUrl}  (serviceKey ${mask(config.api.serviceKey)})`,
     `site ${config.siteUrl}`,
-    `r2   ${config.r2 ? `${config.r2.bucket}/${config.r2.prefix}` : '(설정 없음 — 업로드 불가)'}`,
+    `env  ${config.appEnv}`,
+    `r2   ${config.r2 ? `${config.r2.bucket}/${config.appEnv}` : '(설정 없음 — 업로드 불가)'}`,
   ].join('\n');
 }
 

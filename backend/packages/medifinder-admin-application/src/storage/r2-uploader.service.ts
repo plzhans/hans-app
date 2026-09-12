@@ -5,11 +5,16 @@ import { AwsClient } from 'aws4fetch';
 import { Injectable, Logger } from '@nestjs/common';
 
 import { InjectConfig, requireR2, type MedifinderConfig, type R2Config } from '../config';
+import { outputDir } from '../sitemap/output-dir';
 
 const XML = 'application/xml; charset=utf-8';
 
 /**
- * R2 업로드.
+ * R2 업로드. **지금은 쓰이지 않는다.**
+ *
+ * 사이트맵은 Workers 정적 자산으로 올린다(WorkerDeployService). 이 파일을 남겨 두는 것은,
+ * medifinder.kr 이 Custom Domain 으로 붙어 있어 라우트를 떼어낼 수 없는 것으로 판명되면
+ * 웹 워커에 R2 바인딩을 거는 쪽으로 되돌아갈 수 있기 때문이다. 그 판단이 끝나면 지운다.
  *
  * R2 는 S3 호환 API 만 제공하고, 그건 SigV4 서명을 요구한다. AWS SDK 전체를 끌어오는 대신
  * 서명만 하는 aws4fetch 를 쓴다 — 우리가 쓰는 것은 PutObject 하나뿐이다.
@@ -38,8 +43,8 @@ export class R2UploaderService {
     ];
 
     for (const name of ordered) {
-      const body = await readFile(path.join(path.resolve(dir), name), 'utf8');
-      const key = `${target.prefix}/${name}`;
+      const body = await readFile(path.join(outputDir(dir, this.config.appEnv), name), 'utf8');
+      const key = `${this.config.appEnv}/${name}`;
       await this.put(client, endpoint, key, body);
       this.logger.log(`업로드 ${key}`);
     }
