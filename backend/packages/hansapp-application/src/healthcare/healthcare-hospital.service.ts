@@ -779,7 +779,14 @@ export class HealthcareHospitalService {
       emdongNm: row.emdongNm,
       lat: this.num(row.lat),
       lon: this.num(row.lon),
-      updatedAt: row.updatedAt.toISOString(),
+      /*
+        **toIsoString 을 거친다. Date 라고 단정하면 안 된다.**
+
+        이 행은 상세 캐시(Redis)에서 올 수 있고, 거기서는 JSON 을 거치면서 Date 가 문자열이
+        된다. 캐시 미스면 Prisma 엔티티라 Date 고, 히트면 문자열이다 — 그래서 첫 요청만
+        성공하고 그 뒤 5분이 전부 500 이 났다. 목록 매핑이 같은 헬퍼를 쓰는 이유와 같다.
+      */
+      updatedAt: toIsoString(row.updatedAt),
     };
   }
 
