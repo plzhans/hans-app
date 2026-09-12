@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 # 같은 환경에 두 배포가 겹치면 나중 것이 먼저 끝날 수 있다. 그러면 어느 쪽이 떠 있는지 모른다.
 concurrency:
@@ -42,18 +43,18 @@ jobs:
     runs-on: ubuntu-latest
     # 배포할 때만 환경 보호 규칙을 지난다. verify 까지 그 문을 지나면 PR 검증이 막힌다.
     environment: ${{ (inputs.app_env == 'develop' || inputs.app_env == 'production') && inputs.app_env || '' }}
+    # 매 잡마다 node/pnpm 을 까는 대신 미리 구워둔 툴체인 이미지를 쓴다. 프론트 워크플로와
+    # 같은 이미지다 — 무엇으로 빌드하는지가 레포에서 한 번만 정해진다.
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: medifinder/frontend/medifinder-web/package.json
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: medifinder/frontend/medifinder-web/pnpm-lock.yaml
+      - name: 툴체인 확인
+        run: node --version && pnpm --version
 
       # 배포가 아니면 develop 값으로 빌드만 해 본다 — 깨지는지 보는 것이 목적이다.
       - name: 빌드
