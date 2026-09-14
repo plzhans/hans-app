@@ -16,15 +16,25 @@
  * 스크립트고, 여기는 이 앱과 함께 배포되는 런타임 코드다.
  */
 import type { Env } from './env';
-import { splitLang } from './routing';
+import { canonicalPath, splitLang } from './routing';
 import { metaFor } from './meta';
 import { headTags } from './head';
 import { renderHome, renderHospital } from '../../dist-server/entry-server.js';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    // 정적 자산은 손대지 않는다. 껍데기(HTML)만 고친다.
-    const asset = await env.ASSETS.fetch(request);
+    const url = new URL(request.url);
+
+    // 주소를 하나로 모은다. 끝 슬래시·기본 언어 접두사가 붙은 주소는 여기서 301 로
+    // 되돌린다 — 그냥 두면 같은 문서가 두 주소로 색인된다.
+    const canonical = canonicalPath(url.pathname);
+    if (canonical !== url.pathname) {
+      return Response.redirect(`${url.origin}${canonical}${url.search}`, 301);
+    }
+
+    // 껍데기를 직접 집는다. 요청 경로로 집으면 안 된다 — not_found_handling 이
+    // 404-page 라서, /search 처럼 실제 파일이 없는 경로는 404 문서가 돌아온다.
+    const asset = await env.ASSETS.fetch(new URL('/index.html', url));
     if (!asset.headers.get('content-type')?.includes('text/html')) return asset;
 
     // 프로덕션이 아니면 여기서부터 나가는 HTML 은 전부 색인 대상에서 뺀다.
@@ -38,10 +48,15 @@ export default {
       return mark(asset, noindexEnv);
     }
 
-    const url = new URL(request.url);
     const { lang, path } = splitLang(url.pathname);
     const meta = await metaFor(lang, path, env, ctx);
     if (!meta) return mark(asset, noindexEnv);
+
+    // 없는 문서. 껍데기는 그대로 내보낸다 — 브라우저가 404 화면을 그린다.
+    // 상태 코드만 바꾸면 크롤러는 색인하지 않고 사람은 평소와 같은 화면을 본다.
+    if (meta.notFound) {
+      return mark(notFound(asset, meta.title, meta.description), noindexEnv);
+    }
 
     // 본문. 실패해도 <head> 는 채운 채로 내보낸다 — 브라우저는 어차피 스스로 그리므로
     // 사람에게는 아무 차이가 없고, 크롤러도 제목·구조화 데이터는 그대로 읽는다.
@@ -101,6 +116,30 @@ export default {
     return mark(rewriter.transform(asset), noindexEnv);
   },
 } satisfies ExportedHandler<Env>;
+
+/**
+ * 없는 문서를 404 로 내보낸다. 본문은 껍데기 그대로이고 제목과 설명만 바꾼다.
+ *
+ * 예전에는 이 경우에도 200 이 나갔다. SPA 폴백이 모든 미매칭 경로에 index.html 을
+ * 200 으로 돌려줬기 때문이다. 사이트맵에 9만 개 URL 이 올라가 있고 병원 ID 는
+ * 폐업으로 사라지므로, 그대로 두면 soft 404 가 계속 쌓인다.
+ */
+function notFound(asset: Response, title: string, description: string): Response {
+  const html = new HTMLRewriter()
+    .on('title', {
+      element(e) {
+        e.setInnerContent(title);
+      },
+    })
+    .on('meta[name="description"]', {
+      element(e) {
+        e.setAttribute('content', description);
+      },
+    })
+    .transform(asset);
+
+  return new Response(html.body, { status: 404, headers: html.headers });
+}
 
 /**
  * 프로덕션이 아닌 환경의 응답에 X-Robots-Tag 를 단다.

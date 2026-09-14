@@ -1,3 +1,7 @@
+# Cloudflare Managed robots.txt 가 이 내용 앞에 붙는다.
+# 서비스되는 파일은 이것보다 길다 — 배포 후 /robots.txt 로 확인할 것.
+# Sitemap 줄의 자리표시자는 빌드가 채운다(vite.config.ts).
+
 User-agent: *
 Allow: /
 

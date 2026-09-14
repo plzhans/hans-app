@@ -27,7 +27,17 @@ const FRESH_TTL = 3600;
 const FALLBACK_TTL = 604800; // 7일
 
 /**
- * API 를 한 번 부른다. 실패하면 오래된 사본, 그것도 없으면 null.
+ * 조회 결과. `null` 하나로 뭉뚱그리면 "없는 병원" 과 "API 가 죽음" 이 같아진다 —
+ * 앞은 404 를 줘야 하고 뒤는 절대 404 를 주면 안 된다. 장애 때 404 를 내보내면
+ * 멀쩡한 8만 페이지가 색인에서 빠진다.
+ */
+export type ApiResult<T> =
+  | { status: 'ok'; data: T }
+  | { status: 'missing' }
+  | { status: 'error' };
+
+/**
+ * API 를 한 번 부른다. 실패하면 오래된 사본, 그것도 없으면 error.
  *
  * 캐시가 두 겹이다.
  *
@@ -48,7 +58,7 @@ export async function apiGet<T>(
   lang: Lang,
   env: Env,
   ctx: ExecutionContext,
-): Promise<T | null> {
+): Promise<ApiResult<T>> {
   const url = `${env.VITE_HANSAPP_BASE_URL}${path}${path.includes('?') ? '&' : '?'}_lang=${lang}`;
   const fallbackKey = new Request(`${url}&_fallback=1`);
   const cache = caches.default;
@@ -67,6 +77,8 @@ export async function apiGet<T>(
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
       cf: { cacheTtl: FRESH_TTL, cacheEverything: true },
     });
+    // 404 는 장애가 아니라 답이다. 사본을 찾아볼 것도 없이 그대로 돌려준다.
+    if (res.status === 404) return { status: 'missing' };
     if (!res.ok) throw new Error(`api ${res.status}`);
 
     const body = await res.text();
@@ -82,7 +94,7 @@ export async function apiGet<T>(
         }),
       ),
     );
-    return parsed;
+    return { status: 'ok', data: parsed };
   } catch {
     // 타임아웃·네트워크 오류·5xx. 여기까지 왔으면 API 를 못 쓰는 상태다.
     //
@@ -91,10 +103,10 @@ export async function apiGet<T>(
     // 여기서 무슨 일이 나든 화면은 떠야 한다.
     try {
       const stale = await cache.match(fallbackKey);
-      if (stale) return (await stale.json()) as T;
+      if (stale) return { status: 'ok', data: (await stale.json()) as T };
     } catch {
       /* 사본까지 못 읽으면 포기한다 */
     }
-    return null;
+    return { status: 'error' };
   }
 }

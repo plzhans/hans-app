@@ -17,7 +17,12 @@ export type Hospital = HospitalDetailDto;
 export type Nearby = HospitalNearbyResponseDto;
 export type TransportRoute = TransportRouteDto;
 
-/** GET /healthcare/hospitals/{id} */
+/**
+ * GET /healthcare/hospitals/{id}
+ *
+ * 결과를 눕히지 않고 그대로 넘긴다. 없는 병원이면 404 를 줘야 하는데, API 장애까지
+ * 같이 404 로 처리하면 서버가 흔들릴 때마다 멀쩡한 상세가 색인에서 빠진다.
+ */
 export function fetchHospital(id: string, lang: Lang, env: Env, ctx: ExecutionContext) {
   return apiGet<Hospital>(`/healthcare/hospitals/${id}`, lang, env, ctx);
 }
@@ -32,12 +37,19 @@ export function fetchHospital(id: string, lang: Lang, env: Env, ctx: ExecutionCo
  * size 는 화면이 정한 값을 받아 쓴다. 어긋나면 react-query 키가 달라져서 브라우저가
  * 조용히 같은 것을 다시 부른다.
  */
-export function fetchNearby(
+export async function fetchNearby(
   id: string,
   size: number,
   lang: Lang,
   env: Env,
   ctx: ExecutionContext,
 ) {
-  return apiGet<Nearby>(`/healthcare/hospitals/${id}/nearby?size=${size}`, lang, env, ctx);
+  // 본문의 부속이라 못 받아도 상세는 그대로 그린다. 404 와 장애를 가릴 이유가 없다.
+  const result = await apiGet<Nearby>(
+    `/healthcare/hospitals/${id}/nearby?size=${size}`,
+    lang,
+    env,
+    ctx,
+  );
+  return result.status === 'ok' ? result.data : null;
 }
