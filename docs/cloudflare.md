@@ -60,14 +60,23 @@ hostname 을 등록된 것으로 알지 못해 서빙하지 못한다). 그래�
 ### 도메인 이름 규칙
 
 ```
-production   api.plzhans.com           auth.plzhans.com           console.plzhans.com
-develop      develop-api.plzhans.com   develop-auth.plzhans.com   develop-console.plzhans.com
+production   plzhans.com           api.plzhans.com           auth.plzhans.com           console.plzhans.com
+develop      develop.plzhans.com   develop-api.plzhans.com   develop-auth.plzhans.com   develop-console.plzhans.com
+             └ 랜딩 + /docs
 ```
 
-루트 `plzhans.com` 은 정적 랜딩 자리다. 콘솔(hansapp-web)은 `console.` 아래 산다 —
+루트(`plzhans.com` · `develop.plzhans.com`)는 정적 랜딩 자리다. 콘솔(hansapp-web)은 `console.` 아래 산다 —
 콘솔 안에 `/apps` 경로가 있어 `apps.` 는 겹치고, `app.` 은 제품 자체를 뜻해 실체와 어긋난다.
-**문서는 콘솔을 따라간다**(`console.plzhans.com/docs`) — 루트를 랜딩에 통째로 내주기 때문이다.
-Route `/docs*` 도 그 호스트로 옮겨야 한다.
+
+**문서는 루트 도메인의 `/docs` 다**(`plzhans.com/docs`). 랜딩이 원페이지라 루트 도메인에
+색인될 것이 한 장뿐인데, 문서를 그 밑에 두면 같은 도메인의 콘텐츠로 얹힌다.
+랜딩은 커스텀 도메인이고 `/docs*` 는 Route 로 덮어써 문서 워커가 가져간다 — 콘솔에서
+쓰던 방식 그대로다.
+
+develop 도 같은 모양이다(`develop.plzhans.com/docs`). 루트는 `dev-plzhans-landing` 이
+잡는다 — 운영 랜딩과 같은 소스를 다른 baseURL 로 구운 사본이라 색인은 막아 둔다
+(`hugo -e develop` 이 robots.txt Disallow 와 noindex 메타를 켠다). 랜딩은 다른 레포
+(`hans-blog`)에 있고 `make landing-develop` 이 빌드와 배포를 같이 한다.
 
 **`develop` 을 줄이지 않는다.** `APP_ENV`·워크플로·스크립트 인자가 전부 `develop` 이라
 도메인만 `dev` 로 두면 그것 하나가 예외가 된다.

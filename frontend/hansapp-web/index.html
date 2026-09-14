@@ -95,7 +95,8 @@
           한 곳에서. 하나의 계정으로 연결됩니다.
         </p>
         <nav>
-          <a href="/docs">Docs</a>
+          <a href="%VITE_LINK_PORTAL%">손원철 (plzhans)</a>
+          <a href="%VITE_LINK_DOCS%">Docs</a>
           <a href="%VITE_LINK_MEDIFINDER%">MediFinder</a>
           <a href="https://telegram-exporter.plzhans.com">Telegram Exporter</a>
           <a href="https://blog.plzhans.com">Blog</a>
@@ -103,6 +104,13 @@
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
+    <!--
+      구조화 데이터. **주인(publisher)은 포털이 내는 Person 을 가리킨다**
+      (plzhans.com/#person — 랜딩이 실제로 선언하는 노드다).
+      여기서 같은 도메인에 #organization 을 따로 세우면, 한 루트 도메인에 주인이 둘인
+      셈이 되어 기계가 어느 쪽을 믿을지 알 수 없다. 문서(hansapp-docs)도 같은 노드를
+      가리킨다 — 세 사이트가 한 사람에게 묶이는 것이 역참조의 핵심이다.
+    -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -114,14 +122,7 @@
             "name": "HansApp",
             "description": "MediFinder 병원 찾기, Telegram Exporter, Hans API 등 직접 만든 서비스를 한 곳에서. 하나의 계정으로 연결됩니다.",
             "inLanguage": "ko-KR",
-            "publisher": { "@id": "https://%VITE_APP_ROOT_DOMAIN%/#organization" }
-          },
-          {
-            "@type": "Organization",
-            "@id": "https://%VITE_APP_ROOT_DOMAIN%/#organization",
-            "name": "HansApp",
-            "url": "https://%VITE_APP_ROOT_DOMAIN%/",
-            "sameAs": ["https://blog.plzhans.com"]
+            "publisher": { "@id": "https://%VITE_APP_ROOT_DOMAIN%/#person" }
           },
           {
             "@type": "ItemList",
@@ -131,7 +132,7 @@
                 "@type": "ListItem",
                 "position": 1,
                 "name": "Docs",
-                "url": "%VITE_SITE_URL%/docs"
+                "url": "%VITE_LINK_DOCS%"
               },
               {
                 "@type": "ListItem",

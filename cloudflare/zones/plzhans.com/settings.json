@@ -1,0 +1,13 @@
+{
+  "zone_name": "plzhans.com",
+  "hosts": [
+    "plzhans.com",
+    "develop.plzhans.com",
+    "console.plzhans.com",
+    "develop-console.plzhans.com",
+    "auth.plzhans.com",
+    "develop-auth.plzhans.com",
+    "api.plzhans.com",
+    "develop-api.plzhans.com"
+  ]
+}

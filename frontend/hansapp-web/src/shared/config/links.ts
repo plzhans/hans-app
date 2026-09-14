@@ -14,12 +14,22 @@ export const LINKS = {
     (import.meta.env.VITE_LINK_MEDIFINDER as string | undefined) ||
     'https://medifinder.kr',
 
-  // 환경 구분이 없는 것들. env 로 받을 이유가 없다.
+  // docs 는 **환경마다 호스트가 다르다.** 운영은 루트 도메인으로 갈라져 나갔고
+  // (plzhans.com/docs), develop 은 아직 이 콘솔 밑이며(develop-console.plzhans.com/docs),
+  // 로컬은 이 콘솔이 문서 dev 서버로 프록시한다.
   //
-  // docs 는 **이 콘솔과 같은 도메인의 /docs** 다(console.plzhans.com/docs ·
-  // develop-console.plzhans.com/docs, 로컬은 이 콘솔이 문서 dev 서버로 프록시).
-  // 상대경로라 세 환경 모두 같은 값이라 env 로 받지 않는다.
-  docs: '/docs',
+  // **기본값을 상대경로로 둔다.** medifinder 와 반대다 — 여기서 기본값을 운영 주소로 두면
+  // 키를 빠뜨린 develop 이 운영 문서로 새는데, 상대경로면 자기 도메인의 /docs 로 떨어져
+  // develop·로컬이 그대로 맞는다. 운영만 키를 적으면 된다.
+  docs: (import.meta.env.VITE_LINK_DOCS as string | undefined) || '/docs',
+
+  // 포털(루트 도메인의 랜딩). 콘솔에서 되돌아가는 유일한 통로다 —
+  // 랜딩은 콘솔·문서를 가리키는데 콘솔에서 올라가는 길이 없으면 참조가 한쪽으로만 흐른다.
+  portal:
+    (import.meta.env.VITE_LINK_PORTAL as string | undefined) ||
+    'https://plzhans.com',
+
+  // 환경 구분이 없는 것들. env 로 받을 이유가 없다.
   blog: 'https://blog.plzhans.com',
   telegramExporter: 'https://telegram-exporter.plzhans.com',
 };

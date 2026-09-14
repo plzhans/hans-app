@@ -128,8 +128,9 @@ case "$project" in
     # (Sentry 의 environment 태그가 이 값이다 → .vitepress/config.ts).
     export DOCS_ENV="$APP_ENV"
 
-    # 문서는 포털 도메인의 **/docs 밑**에 놓인다(plzhans.com/docs · develop.plzhans.com/docs).
-    # 서브도메인(docs.plzhans.com)을 따로 두지 않고 포털 하나로 모으기 때문이다.
+    # 문서는 그 환경 **루트 도메인의 /docs 밑**에 놓인다(운영 plzhans.com/docs ·
+    # develop develop.plzhans.com/docs). 서브도메인(docs.plzhans.com)을 따로 두지 않고
+    # 루트 하나로 모으기 때문이다. 환경 구분은 경로가 아니라 도메인이 한다.
     #
     # **이 값이 곧 산출물에 구워진다.** VitePress 는 HTML 에 /docs/assets/... 처럼 절대경로를
     # 박으므로, base 가 틀리면 페이지는 뜨는데 CSS·JS 를 못 받아 화면이 깨진다.
@@ -141,6 +142,17 @@ case "$project" in
     group "install ($project)"
     pnpm install --frozen-lockfile
     endgroup
+
+    # **산출물 디렉터리를 통째로 비운다.**
+    #
+    # VitePress 가 비우는 것은 outDir(.vitepress/dist/docs)뿐이고 그 위는 손대지 않는다.
+    # 그런데 wrangler 에 넘기는 자산 디렉터리는 .vitepress/dist 통째다(ci-lib.sh 의
+    # dist_dir_for). base 가 '/' 이던 시절의 산출물이 dist 루트에 남아 있으면 그게 매 배포마다
+    # 같이 올라간다 — 실제로 localhost 가 박힌 canonical 이 운영 워커에 올라간 적이 있다.
+    #
+    # CI 는 매번 새 체크아웃이라 겪지 않는다. 로컬 배포(frontend/deploy.sh)가 정식 경로인
+    # 이상 빌드가 직접 치워야 한다.
+    rm -rf .vitepress/dist
 
     # build:dev / build:prod 는 쓰지 않는다. 그것들은 스펙을 재생성하는데(spec:*),
     # 재생성이 NestFactory.create(AppModule) 로 앱을 부팅해서 **살아있는 DB** 를 요구한다.

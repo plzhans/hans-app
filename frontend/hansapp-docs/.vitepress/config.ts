@@ -45,17 +45,29 @@ function originFromEnv(name: string, localFallback: string): string {
   );
 }
 
-/** 문서 자신의 도메인. 문서는 콘솔 도메인의 /docs 밑에 산다(서브도메인을 두지 않는다). */
+/** 문서 자신의 도메인. 문서는 루트 도메인의 /docs 밑에 산다(서브도메인을 두지 않는다). */
 const docsOrigin = originFromEnv('DOCS_ORIGIN', 'http://localhost:5272');
 
 /**
  * 포털 주소. 상단 nav 의 HOME 이 여기로 돌아간다.
  *
- * 배포 환경에서는 문서가 콘솔 도메인 밑이라 DOCS_ORIGIN 과 같은 값이지만 **따로 받는다** —
+ * 배포 환경에서는 문서가 포털 도메인 밑이라 DOCS_ORIGIN 과 같은 값이지만 **따로 받는다** —
  * 로컬에서 이미 갈린다(문서 5272, 포털 5274). 하나로 묶으면 나중에 도로 쪼갤 때
  * 어느 쪽이 어느 뜻이었는지 알 수 없다.
+ *
+ * 가리키는 실체는 그 환경 루트 도메인의 랜딩이다(운영 plzhans.com, develop develop.plzhans.com).
  */
 const portalOrigin = originFromEnv('PORTAL_ORIGIN', 'http://127.0.0.1:5274');
+
+/**
+ * 빵부스러기 첫 단계에 찍히는 포털 이름.
+ *
+ * **다른 레포(hans-blog)의 랜딩이 쓰는 제목과 맞춘 값이다.** env 로 받지 않는 이유는
+ * 환경이 달라도 같은 값이기 때문이다 — 갈리는 것은 도메인뿐이라 그쪽만 env 로 받는다.
+ * 랜딩이 제목을 바꾸면 여기도 같이 고쳐야 한다. 어긋나도 화면은 멀쩡하고 검색 결과의
+ * 주소 자리 표기만 달라지므로, 빌드로는 잡히지 않는다.
+ */
+const portalName = '손원철 (plzhans)';
 
 /**
  * 사이트가 놓이는 경로. 배포 경로를 아는 쪽(frontend/ci-build.sh)이 '/docs/' 로 넘겨준다.
@@ -450,7 +462,27 @@ export default withMermaid(defineConfig({
 
       기계가 문서를 읽는 통로이기도 하다 — API 문서라 그쪽 값이 더 클 수 있다.
     */
-    const site = { '@type': 'WebSite', name: 'Hans API', url: siteUrl };
+    /*
+      **이 문서 사이트의 신원.** 포털과 같은 도메인에 살기 때문에 @id 가 필요하다 —
+      없으면 한 도메인에 이름이 다른 WebSite 노드가 둘 뜨고, 기계는 둘이 무슨 사이인지
+      알 수 없다. @id 를 주고 isPartOf·publisher 로 포털 쪽 노드를 가리키면
+      "이 도메인의 하위 사이트이고 주인은 저 사람" 이 한 번에 읽힌다.
+
+      가리키는 @id 는 포털이 실제로 내는 것과 **글자까지 같아야 한다**
+      (랜딩 Hugo 가 baseURL 로 만든다 → `https://plzhans.com/#website` · `#person`).
+      환경마다 도메인이 다르므로 PORTAL_ORIGIN 에서 유도한다.
+    */
+    const portalSiteId = `${portalOrigin}/#website`;
+    const portalPersonId = `${portalOrigin}/#person`;
+    const site = {
+      '@id': `${siteUrl}#website`,
+      '@type': 'WebSite',
+      name: 'Hans API',
+      url: siteUrl,
+      inLanguage: 'ko-KR',
+      isPartOf: { '@id': portalSiteId },
+      publisher: { '@id': portalPersonId },
+    };
     const ld: Array<Record<string, unknown>> = [];
     const tag = (pageData.params as { tag?: string } | undefined)?.tag;
     const isHome = pageData.relativePath === 'index.md';
@@ -459,11 +491,9 @@ export default withMermaid(defineConfig({
     if (pageData.relativePath === '404.md') return tags;
 
     if (isHome) {
-      ld.push({
-        ...site,
-        description,
-        publisher: { '@type': 'Organization', name: 'Hans API', url: docsOrigin },
-      });
+      // publisher 는 site 가 이미 포털의 Person 을 가리킨다. 여기서 이름만 같은
+      // Organization 을 새로 만들면 주인이 둘로 갈라진다.
+      ld.push({ ...site, description });
     } else {
       // 홈에는 빵부스러기를 넣지 않는다 — 자기 자신 하나뿐이라 의미가 없다.
       const group = tag ? breadcrumbGroupOf(tag) : null;
@@ -475,7 +505,13 @@ export default withMermaid(defineConfig({
         중간 단계는 item 이 필수라 주소를 비울 수도 없다(구글 규격). 그래서 뺀다 —
         같은 곳을 두 번 가리키는 것보다 한 단계 짧은 쪽이 맞다.
       */
+      /*
+        빵부스러기는 **포털에서 시작한다.** 문서가 포털 도메인의 하위 디렉터리라
+        실제 경로 계층이 그렇다(plzhans.com/ › plzhans.com/docs/ › 이 페이지).
+        검색 결과의 주소 자리에 포털이 함께 뜨는 것이 역참조 신호이기도 하다.
+      */
       const trail = [
+        { name: portalName, url: `${portalOrigin}/` },
         { name: 'Hans API', url: siteUrl },
         ...(group && group.url !== url ? [group] : []),
         { name: pageData.title, url },
@@ -517,9 +553,12 @@ export default withMermaid(defineConfig({
    * 정적 파일 하나로는 못 가른다.
    *
    * **다만 문서가 /docs 밑에 있으면 우리가 낼 수 없다.** 크롤러는 도메인 루트의
-   * /robots.txt 만 읽는다 — /docs/robots.txt 는 쳐다보지 않는다. 그 자리는 포털
-   * (frontend/hansapp-web)의 것이라, 여기서는 내용만 알려 주고 파일은 만들지 않는다.
+   * /robots.txt 만 읽는다 — /docs/robots.txt 는 쳐다보지 않는다. 그 자리는 그 도메인의
+   * 루트를 쥔 랜딩의 것이라, 여기서는 내용만 알려 주고 파일은 만들지 않는다.
    * 있으나 마나 한 파일을 놔두면 "robots 는 처리했다" 고 착각하게 된다.
+   *
+   * 사이트맵도 같은 이유로 루트가 물어 줘야 한다 — 루트의 sitemap.xml 이 인덱스가 되어
+   * {siteUrl}sitemap.xml 을 가리켜야 문서 페이지가 색인 대상에 들어온다.
    *
    * develop 색인 차단은 robots.txt 가 아니라 transformHead 의 noindex 메타가 맡는다.
    * 그쪽은 페이지마다 붙으므로 문서가 어느 경로에 있든 동작한다.
@@ -537,8 +576,8 @@ export default withMermaid(defineConfig({
         자기 도메인(workers.dev·남아 있는 커스텀 도메인)으로 들어오면 404 만 보인다 —
         배포가 깨진 것처럼 보이지만 멀쩡한 상태다. 그 혼동을 없애는 안전장치다.
 
-        운영 경로(console.plzhans.com/docs*)로는 애초에 여기 안 걸린다. Route 가 /docs* 만
-        이 워커로 보내고 / 는 포털이 가져가기 때문이다.
+        운영 경로(plzhans.com/docs*)로는 애초에 여기 안 걸린다. Route 가 /docs* 만
+        이 워커로 보내고 / 는 랜딩이 가져가기 때문이다.
 
         **정적 자산 디렉터리 루트**에 둬야 한다(outDir 이 아니라 wrangler 가 올리는 곳).
         301 이 아니라 302 를 쓴다 — 안전장치일 뿐이라 브라우저에 영구 캐시될 이유가 없고,
@@ -551,9 +590,57 @@ export default withMermaid(defineConfig({
         'utf-8',
       );
       console.log(`[hansapp-docs] _redirects: / → ${docsBase} (302)`);
+
+      /*
+        응답 헤더의 charset 을 채운다.
+
+        Workers 정적 자산은 Content-Type 에 charset 을 안 붙인다(GitHub Pages 는 붙인다).
+        HTTP 헤더는 문서 안의 <meta charset> 보다 **세다** — 헤더만 보는 클라이언트는
+        한글을 ISO-8859-1 로 읽어 깨뜨린다. 포털(랜딩)이 같은 이유로 이미 고쳤다.
+
+        **경로를 열거한다. 와일드카드를 못 쓴다.** cleanUrls 라 페이지 주소에 .html 이
+        없어서 `/docs/*.html` 같은 패턴이 안 맞고, 그렇다고 `/docs/*` 로 뭉뚱그리면
+        같은 접두 아래 있는 .js·.css 까지 text/html 로 덮어써 사이트가 죽는다.
+        그래서 산출물의 .html 을 훑어 실제 주소만 적는다 — 페이지가 늘어도 따라온다.
+
+        **정적 자산 디렉터리 루트**에 둬야 한다(_redirects 와 같은 자리).
+      */
+      const pagePaths: string[] = [];
+      const walk = (dir: string, prefix: string) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const next = join(dir, entry.name);
+          if (entry.isDirectory()) {
+            walk(next, `${prefix}${entry.name}/`);
+          } else if (entry.name.endsWith('.html')) {
+            // cleanUrls 가 켜져 있어 실제 요청 주소는 확장자가 없다.
+            // index.html 은 디렉터리 주소 그 자체가 된다.
+            const name = entry.name.slice(0, -'.html'.length);
+            pagePaths.push(name === 'index' ? prefix : `${prefix}${name}`);
+          }
+        }
+      };
+      walk(siteConfig.outDir, docsBase);
+
+      const headerLines = [
+        '# .vitepress/config.ts 가 생성한다. 손으로 고치지 말 것.',
+        '# Workers 정적 자산이 Content-Type 에 charset 을 안 붙여서 여기서 채운다.',
+        '',
+        ...pagePaths
+          .sort()
+          .map((path) => `${path}\n  Content-Type: text/html; charset=utf-8\n`),
+        `${docsBase}sitemap.xml\n  Content-Type: application/xml; charset=utf-8\n`,
+      ];
+      writeFileSync(
+        join(assetsRoot, '_headers'),
+        `${headerLines.join('\n')}\n`,
+        'utf-8',
+      );
+      console.log(
+        `[hansapp-docs] _headers: charset 지정 ${pagePaths.length}쪽 + sitemap.xml`,
+      );
       console.log(
         `[hansapp-docs] robots.txt: 생략 — 문서가 ${docsBase} 밑이라 우리가 낼 수 없다.` +
-          `\n  ${docsOrigin}/robots.txt 를 포털(hansapp-web)이 내야 한다. 필요한 내용:\n` +
+          `\n  ${docsOrigin}/robots.txt 를 그 도메인의 루트가 내야 한다. 필요한 내용:\n` +
           body.replace(/^/gm, '    '),
       );
       return;

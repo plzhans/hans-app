@@ -1,0 +1,15 @@
+{
+  "ref": "develop-console-docs-to-root",
+  "description": "[develop-console-docs-to-root] develop-console.plzhans.com/docs* 를 develop.plzhans.com/docs* 로 301 - console-docs-to-root 의 develop 짝이다. develop 은 색인 대상이 아니라 SEO 상 의미는 없고, 운영과 같은 모양을 유지해 설정 실수가 develop 에서 먼저 드러나게 하려는 것이다.",
+  "expression": "(http.host eq \"develop-console.plzhans.com\" and (http.request.uri.path eq \"/docs\" or starts_with(http.request.uri.path, \"/docs/\")))",
+  "action": "redirect",
+  "action_parameters": {
+    "from_value": {
+      "target_url": {
+        "expression": "concat(\"https://develop.plzhans.com\", http.request.uri.path)"
+      },
+      "status_code": 301,
+      "preserve_query_string": true
+    }
+  }
+}
