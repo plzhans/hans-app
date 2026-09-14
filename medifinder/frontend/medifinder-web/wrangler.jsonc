@@ -21,25 +21,33 @@
   "main": "./cloudflare/workers/main.ts",
 
   "assets": {
-    // 이 앱은 SPA 다. /search 같은 경로는 실제 파일이 아니라 브라우저에서 그린다.
-    // 못 찾은 경로에 index.html 을 200 으로 돌려준다.
-    "not_found_handling": "single-page-application",
+    // 라우트에 없는 경로는 404 다. Cloudflare 가 dist/404.html 을 404 상태로 내보낸다
+    // (그 파일은 index.html 사본이라 SPA 가 그대로 떠서 NotFound 화면을 그린다).
+    //
+    // single-page-application 으로 두면 안 된다. 모든 미매칭 경로에 index.html 을 200 으로
+    // 돌려줘서, 오타 난 주소까지 색인 대상이 된다. 실제 SPA 경로는 아래 run_worker_first 에
+    // 전부 적혀 있고 워커가 /index.html 을 직접 집어다 쓴다.
+    "not_found_handling": "404-page",
 
     // 워커가 env.ASSETS.fetch() 로 껍데기를 꺼낼 때 쓴다.
     "binding": "ASSETS",
 
-    // HTML 경로만 워커를 태운다.
+    // 이 앱이 가진 경로를 전부 적는다. 여기 없으면 워커가 돌지 않고 404 문서가 나간다.
     //
-    // 기본값은 에셋이 있으면 그걸 먼저 주는 것이라, / 처럼 index.html 이 실제로 있는
-    // 경로는 워커가 안 돈다. 그래서 태울 경로를 적는다.
+    // not_found_handling 이 404-page 라 목록에서 빠진 SPA 경로는 그대로 404 가 된다.
+    // 라우트를 추가하면 cloudflare/workers/routing.ts 의 matchRoute 와 여기를 같이 고칠 것.
     //
     // true 로 두면 안 된다. 정적 자산 요청은 무료·무제한인데 워커를 거치면 과금 대상이
     // 되고, 무료 플랜의 일 10만 요청 상한에도 함께 잡힌다.
     "run_worker_first": [
       "/",
-      "/search",
+      "/search", "/search/",
+      "/me", "/me/",
+      "/auth/callback",
       "/hospitals/*",
-      "/terms/*",
+      "/terms", "/terms/*",
+      "/privacy", "/privacy/",
+      "/ko", "/ko/*",
       "/en-us", "/en-us/*",
       "/ja", "/ja/*",
       "/zh-hans", "/zh-hans/*"

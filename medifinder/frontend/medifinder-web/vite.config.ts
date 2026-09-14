@@ -86,10 +86,34 @@ function siteUrlInRobots(): Plugin {
   };
 }
 
+/**
+ * dist/404.html 을 index.html 사본으로 만든다.
+ *
+ * wrangler.jsonc 의 not_found_handling 이 404-page 라 Cloudflare 가 없는 경로에
+ * 이 파일을 404 상태로 내보낸다. 내용이 index.html 과 같으므로 SPA 가 그대로 떠서
+ * NotFound 화면을 그린다 — 사람은 평소와 같은 화면을 보고 크롤러는 404 를 받는다.
+ *
+ * 손으로 관리하지 않는 이유는 index.html 이 참조하는 번들 파일명에 해시가 붙어서다.
+ * public/ 에 따로 두면 배포할 때마다 낡은 해시를 가리킨다.
+ */
+function notFoundPage(): Plugin {
+  return {
+    name: 'not-found-page',
+    apply: 'build',
+    closeBundle() {
+      if (this.environment?.config.build.ssr) return;
+
+      const dist = path.resolve(__dirname, 'dist');
+      writeFileSync(path.join(dist, '404.html'), readFileSync(path.join(dist, 'index.html')));
+      console.log('[vite] dist/404.html ← index.html');
+    },
+  };
+}
+
 export default defineConfig(({ mode, isSsrBuild }) => {
   console.log(`[vite] mode=${mode}  VITE_HANSAPP_BASE_URL=${process.env.VITE_HANSAPP_BASE_URL ?? '(not set)'}`);
   return {
-    plugins: [react(), stripHtmlComments(), siteUrlInRobots()],
+    plugins: [react(), stripHtmlComments(), siteUrlInRobots(), notFoundPage()],
     // 빌드 시점에 상수로 치환된다. Sentry release 문자열을 여기서 굳힌다.
     define: {
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),

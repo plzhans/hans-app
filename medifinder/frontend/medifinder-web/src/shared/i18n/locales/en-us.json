@@ -30,7 +30,8 @@
       "title": "My account"
     },
     "notFound": {
-      "title": "Page not found"
+      "title": "Page not found",
+      "description": "This page does not exist. The address may have changed or the page may have been removed."
     }
   },
   "footer": {

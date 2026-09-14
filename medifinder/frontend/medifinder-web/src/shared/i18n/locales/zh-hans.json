@@ -30,7 +30,8 @@
       "title": "我的信息"
     },
     "notFound": {
-      "title": "找不到页面"
+      "title": "找不到页面",
+      "description": "未找到该页面。地址可能已更改或页面已被删除。"
     }
   },
   "footer": {

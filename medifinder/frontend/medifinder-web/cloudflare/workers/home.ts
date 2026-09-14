@@ -14,8 +14,10 @@ export type HomeSection = HealthcareHospitalControllerSearch200;
  *
  * 조건이 고정이라 언어당 캐시할 URL 이 여섯 개뿐이다. 상세와 달리 미스가 거의 나지 않는다.
  */
-export function fetchHomeSections(lang: Lang, env: Env, ctx: ExecutionContext) {
-  return Promise.all(
+export async function fetchHomeSections(lang: Lang, env: Env, ctx: ExecutionContext) {
+  const results = await Promise.all(
     HOME_QUERY_PATHS.map((path) => apiGet<HomeSection>(path, lang, env, ctx)),
   );
+  // 홈은 섹션이 비어도 나머지를 그린다. 404 와 장애를 가릴 이유가 없다.
+  return results.map((r) => (r.status === 'ok' ? r.data : null));
 }
