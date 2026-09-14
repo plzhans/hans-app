@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/plzhans/hans-app/compare/release-medifinder/v1.0.1...release-medifinder/v1.0.2) (2026-09-14)
+
+
+### 되돌림
+
+* **medifinder:** 렌더 차단 CSS 인라인을 되돌린다 ([0bc2ab1](https://github.com/plzhans/hans-app/commit/0bc2ab169d851bd9dee13155dff2d3064bc3eacd))
+* **medifinder:** 렌더 차단 CSS 인라인을 되돌린다 ([33fea1b](https://github.com/plzhans/hans-app/commit/33fea1b8cf97c8c610f0ed9ae9e362463f34cd03))
+
 ## [1.0.1](https://github.com/plzhans/hans-app/compare/release-medifinder/v1.0.0...release-medifinder/v1.0.1) (2026-09-14)
 
 
