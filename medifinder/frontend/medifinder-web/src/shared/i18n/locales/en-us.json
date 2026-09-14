@@ -17,6 +17,7 @@
       "description": "Search hospitals across Korea by region, medical department and hospital type, and check hours and contact details."
     },
     "hospital": {
+      "title": "{{name}} - {{category}} in {{region}}",
       "description": "Opening hours, phone number, departments and HIRA quality ratings for {{name}} in {{region}}."
     },
     "npay": {

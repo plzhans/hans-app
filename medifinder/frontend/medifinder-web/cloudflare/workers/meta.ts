@@ -88,8 +88,13 @@ export async function metaFor(
             assessment: dict.clinic.assessment.title,
             location: dict.clinic.tabs.location,
             transit: dict.clinic.transport.publicTransit,
-          }) ?? undefined),
-      title: (npay ? fill(dict.seo.npay.title, { name: detail.name }) : detail.name) + suffix,
+            emergency: dict.home.sections.emergency.title,
+          }, { url: env.VITE_SITE_URL, lang }) ?? undefined),
+      title:
+        (npay
+          ? fill(dict.seo.npay.title, { name: detail.name })
+          : hospitalTitle(dict.seo.hospital.title, detail.name, detail.category?.name, region)) +
+        suffix,
       description: fill(npay ? dict.seo.npay.description : dict.seo.hospital.description, {
         name: detail.name,
         region,
@@ -143,6 +148,26 @@ export async function metaFor(
     title: dict.seo.default.title + suffix,
     description: dict.seo.default.description,
   };
+}
+
+/**
+ * 병원 상세의 제목.
+ *
+ * 이름만 쓰면 네 언어의 제목이 전부 같아진다 — 병원 이름은 번역본이 없어서다.
+ * 그러면 hreflang 으로 묶인 네 문서가 검색 결과에서 서로 구별되지 않는다.
+ * 종별(서버가 번역해 준다)과 지역을 붙여 언어마다 다른 제목이 나오게 한다.
+ *
+ * 둘 중 하나라도 비면 서식을 쓰지 않고 이름만 낸다. `- in` 처럼 토막 난 제목이
+ * 남는 것보다 짧은 편이 낫다.
+ */
+function hospitalTitle(
+  template: string,
+  name: string,
+  category: string | undefined,
+  region: string,
+): string {
+  if (!category || !region) return name;
+  return fill(template, { name, category, region });
 }
 
 /** i18next 와 같은 `{{name}}` 자리표시자. 비는 자리 때문에 생긴 빈칸도 정리한다. */

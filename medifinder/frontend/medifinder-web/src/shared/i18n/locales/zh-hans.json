@@ -17,6 +17,7 @@
       "description": "按地区、诊疗科目和医院类别检索韩国全国医院，查看门诊时间与联系方式。"
     },
     "hospital": {
+      "title": "{{name}} - {{region}}{{category}}",
       "description": "查看{{region}}{{name}}的门诊时间、电话、诊疗科目和审查评价院评价结果。"
     },
     "npay": {

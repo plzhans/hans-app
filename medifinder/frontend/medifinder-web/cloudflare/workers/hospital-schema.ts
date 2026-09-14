@@ -29,6 +29,8 @@ export type SchemaLabels = {
   location: string;
   /** clinic.transport.publicTransit — 대중교통 */
   transit: string;
+  /** home.sections.emergency.title — 응급실 */
+  emergency: string;
 };
 
 /** 종별 → schema.org 타입. 코드는 /healthcare/meta/classes 의 값이다. */
@@ -113,6 +115,7 @@ export function hospitalJsonLd(
   h: Hospital,
   url: string,
   L: SchemaLabels,
+  site: { url: string; lang: string },
 ): string | null {
   if (!h.name) return null;
 
@@ -185,8 +188,17 @@ export function hospitalJsonLd(
   const data: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': type,
+    /*
+      @id 가 없으면 이 노드를 가리킬 방법이 없다. 언어마다 다른 문서이므로 canonical 을
+      기준으로 잡는다 — 네 언어가 같은 @id 를 쓰면 inLanguage 가 서로 모순된다
+      (site-schema.ts 의 WebSite·WebPage 가 같은 이유로 갈라져 있다).
+    */
+    '@id': `${url}#hospital`,
     name: h.name,
     url,
+    inLanguage: site.lang,
+    // 이 병원 문서가 어느 사이트의 것인지. 없으면 그래프에서 떠 있는 노드가 된다.
+    isPartOf: { '@id': `${site.url}/#website` },
   };
 
   if (h.intro) data.description = h.intro.replace(/\s+/g, ' ').trim().slice(0, 500);
@@ -214,7 +226,7 @@ export function hospitalJsonLd(
   if (founded) data.foundingDate = founded;
   if (departments.length) data.department = departments;
   if (hours.length) data.openingHoursSpecification = hours;
-  if (h.emergency) data.availableService = { '@type': 'MedicalProcedure', name: '응급실' };
+  if (h.emergency) data.availableService = { '@type': 'MedicalProcedure', name: L.emergency };
   if (extra.length) data.additionalProperty = extra;
 
   return script(data);
