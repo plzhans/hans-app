@@ -87,6 +87,58 @@ function siteUrlInRobots(): Plugin {
 }
 
 /**
+ * 렌더 차단 스타일시트를 <head> 안으로 들여온다.
+ *
+ * 둘 다 압축하면 작다(앱 7.4KB · 폰트 8.3KB). 느린 이유는 전송량이 아니라 왕복이다 —
+ * HTML 을 받고 파싱해서 <link> 를 발견한 다음에야 요청이 나가고, 그동안 화면은 비어 있다.
+ * PageSpeed 모바일 기준으로 둘이 합쳐 1,340ms 를 잡아먹고 있었다.
+ *
+ * JS 로 주입하는 방식(vite-plugin-css-injected-by-js)은 쓰지 않는다. 그러면 스타일이
+ * 번들 실행 뒤에 붙어서 FCP 가 더 늦어지고 화면이 한 번 번쩍인다.
+ *
+ * **상대 url() 은 절대경로로 바꾼다.** 폰트 CSS 의 url(./woff2-dynamic-subset/...) 92개는
+ * 원래 그 CSS 파일 위치를 기준으로 풀리는데, HTML 안으로 들어오면 문서 주소를 기준으로
+ * 풀린다. /hospitals/22303 에서 열면 /hospitals/woff2-dynamic-subset/... 을 찾다가
+ * 폰트가 통째로 404 난다.
+ */
+function inlineStyles(): Plugin {
+  return {
+    name: 'inline-styles',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        return html.replace(
+          /<link\b[^>]*\brel="stylesheet"[^>]*>/g,
+          (tag) => {
+            const href = /\bhref="([^"]+)"/.exec(tag)?.[1];
+            if (!href?.startsWith('/') || !href.endsWith('.css')) return tag;
+
+            const name = href.slice(1);
+            const asset = ctx.bundle?.[name];
+            const css =
+              asset && asset.type === 'asset'
+                ? String(asset.source)
+                : readFileSync(path.resolve(__dirname, 'public', name), 'utf8');
+
+            const base = path.posix.dirname(href);
+            const absolute = css.replace(
+              /url\(\s*(['"]?)(?!https?:|data:|\/|#)([^'")]+)\1\s*\)/g,
+              (_m, quote: string, target: string) =>
+                `url(${quote}${path.posix.join(base, target)}${quote})`,
+            );
+
+            // 본문에 </style> 이 들어 있으면 태그가 거기서 닫힌다. 폰트 라이선스 주석처럼
+            // 우리가 쓰지 않은 문자열이 섞여 있으므로 막아 둔다.
+            return `<style>${absolute.replace(/<\/style/gi, '<\\/style')}</style>`;
+          },
+        );
+      },
+    },
+  };
+}
+
+/**
  * dist/404.html 을 index.html 사본으로 만든다.
  *
  * wrangler.jsonc 의 not_found_handling 이 404-page 라 Cloudflare 가 없는 경로에
@@ -113,7 +165,7 @@ function notFoundPage(): Plugin {
 export default defineConfig(({ mode, isSsrBuild }) => {
   console.log(`[vite] mode=${mode}  VITE_HANSAPP_BASE_URL=${process.env.VITE_HANSAPP_BASE_URL ?? '(not set)'}`);
   return {
-    plugins: [react(), stripHtmlComments(), siteUrlInRobots(), notFoundPage()],
+    plugins: [react(), stripHtmlComments(), inlineStyles(), siteUrlInRobots(), notFoundPage()],
     // 빌드 시점에 상수로 치환된다. Sentry release 문자열을 여기서 굳힌다.
     define: {
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),
