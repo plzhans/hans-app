@@ -20,6 +20,10 @@
       "section": "성능"
     },
     {
+      "type": "revert",
+      "section": "되돌림"
+    },
+    {
       "type": "refactor",
       "section": "구조 변경"
     },
