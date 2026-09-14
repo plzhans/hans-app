@@ -71,6 +71,16 @@ export async function metaFor(
       .join(' ');
 
     return {
+      /*
+        비급여는 색인하지 않는다.
+
+        본문을 그리지 않기로 했으므로(아래) 크롤러가 받는 것은 36자짜리 껍데기다.
+        상세마다 하나씩 달려 있어 병원 수만큼 생기는데, 내용 없는 문서를 그 규모로
+        내밀면 크롤 예산만 깎인다. 사람에게는 상세에서 링크로 닿으므로 지장이 없다.
+
+        본문을 서버에서 그리게 되면 그때 푼다. /search 와 같은 이유다.
+      */
+      noindex: npay,
       // 비급여 화면은 그리지 않는다. 가격표가 최다 1,048행이라 렌더 비용이 상세와 다른
       // 급이고, 크롤러에게 보여줄 값도 병원 자체의 정보가 아니다.
       render: npay ? undefined : { kind: 'hospital', id: Number(id), hospital: detail, nearby },
