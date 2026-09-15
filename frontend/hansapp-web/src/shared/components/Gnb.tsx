@@ -9,10 +9,14 @@ import { PAGE_CONTAINER } from '@/shared/ui/layout';
 const MENU = [
   // MediFinder 는 상단 헤더에서 일단 뺀다(링크 설정은 links.ts 에 남겨 둠).
   //
-  // newTab 은 **다른 사이트로 나갈 때만** 준다. 문서는 같은 도메인의 /docs 라
-  // 새 탭에 띄우면 탭만 쌓이고, 문서 상단의 HOME 으로 되돌아올 수도 있다.
+  // newTab 은 **다른 사이트로 나갈 때만** 준다. 문서는 이제 포털 도메인의 /docs 라
+  // 호스트가 다르지만, 같은 서비스의 한 부분이라 새 탭을 띄우지 않는다 —
+  // 탭만 쌓이고, 문서 상단의 HOME 으로 포털까지 이어서 갈 수 있다.
   { label: 'Blog', href: LINKS.blog, newTab: true },
   { label: 'Docs', href: LINKS.docs },
+  // 포털로 올라가는 길. 문서 상단의 HOME 과 **같은 이름**을 쓴다 — 두 사이트를 오가는
+  // 사람에게 같은 자리의 같은 말이 같은 곳으로 가야 한다.
+  { label: 'HOME', href: LINKS.portal },
 ];
 
 /** 상단 글로벌 내비게이션. 서비스 바로가기 메뉴 + 로그인 상태별 버튼. */

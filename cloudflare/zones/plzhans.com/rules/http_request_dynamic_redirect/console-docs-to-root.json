@@ -1,0 +1,15 @@
+{
+  "ref": "console-docs-to-root",
+  "description": "[console-docs-to-root] console.plzhans.com/docs* 를 plzhans.com/docs* 로 301 - 문서를 콘솔 밑에서 루트 도메인으로 옮겼다. 콘솔 시절 주소가 색인되어 있고 외부 링크도 남아 있어 끊지 않고 넘긴다. 리다이렉트 규칙은 워커 라우팅보다 먼저 돌아서, 이 규칙이 켜지면 console.plzhans.com/docs* Route 는 더 이상 타지 않는다(그 Route 는 확인 후 수동으로 지운다).",
+  "expression": "(http.host eq \"console.plzhans.com\" and (http.request.uri.path eq \"/docs\" or starts_with(http.request.uri.path, \"/docs/\")))",
+  "action": "redirect",
+  "action_parameters": {
+    "from_value": {
+      "target_url": {
+        "expression": "concat(\"https://plzhans.com\", http.request.uri.path)"
+      },
+      "status_code": 301,
+      "preserve_query_string": true
+    }
+  }
+}
