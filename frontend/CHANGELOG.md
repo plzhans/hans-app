@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.14.1...release-frontend/v0.15.0) (2026-09-15)
+
+
+### 기능
+
+* **frontend:** 문서를 루트 도메인의 /docs 로 옮긴다 ([#84](https://github.com/plzhans/hans-app/issues/84)) ([af293f7](https://github.com/plzhans/hans-app/commit/af293f717806a51075442fd28ace7962323df00c))
+
 ## [0.14.1](https://github.com/plzhans/hans-app/compare/release-frontend/v0.14.0...release-frontend/v0.14.1) (2026-09-12)
 
 
