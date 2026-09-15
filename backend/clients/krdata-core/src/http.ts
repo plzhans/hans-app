@@ -1,5 +1,6 @@
 import { KrDataConfig, maskServiceKey, resolveConfig, ResolvedKrDataConfig } from './config';
-import { isQuotaExceeded, KrDataError, KrDataQuotaError } from './error';
+import { KrDataError, KrDataQuotaError } from './error';
+import { classifyKrDataFailure, KrDataVerdict } from './gateway-code';
 
 /**
  * 응답 봉투. orval 의 fetch 클라이언트가 mutator 반환값으로 기대하는 형태다.
@@ -18,9 +19,8 @@ export type KrDataFetch = (url: string, options?: RequestInit) => Promise<KrData
  * 생성된 코드가 만든 URL(path + 쿼리)을 받아서 다음을 처리한다.
  *  - baseUrl 접두
  *  - ServiceKey / _type=json 주입
- *  - 5xx·네트워크 오류 재시도
- *  - XML 에러 응답 감지
- *  - resultCode 검사 및 items 정규화
+ *  - 응답 해석(HTTP 상태·게이트웨이 봉투·부처 봉투)과 오류 판정
+ *  - 판정이 retry 인 오류의 재시도
  */
 export function createKrDataFetch(config: KrDataConfig): KrDataFetch {
   const resolved = resolveConfig(config);
@@ -29,13 +29,7 @@ export function createKrDataFetch(config: KrDataConfig): KrDataFetch {
     url: string,
     options: RequestInit = {},
   ): Promise<KrDataResponse> {
-    const requestUrl = buildUrl(resolved, url);
-    const response = await sendWithRetry(resolved, requestUrl, options);
-    return {
-      status: response.status,
-      data: parseBody(resolved, requestUrl, response.body),
-      headers: response.headers,
-    };
+    return send(resolved, buildUrl(resolved, url), options);
   };
 }
 
@@ -63,22 +57,37 @@ function toEndpoint(url: string): string {
   return path.split('/').filter(Boolean).slice(-2).join('/');
 }
 
-interface RawResponse {
-  status: number;
-  body: string;
-  headers: Headers;
+/**
+ * 실패를 예외로 만들기 전 단계.
+ *
+ * **바로 던지지 않는 이유는 재시도 때문이다.** 시도 횟수를 알아야 메시지를 완성할 수 있는데,
+ * 그건 루프만 안다. 해석하는 쪽은 사실만 모아 넘기고 예외는 루프가 만든다.
+ */
+interface KrDataFailure {
+  readonly message: string;
+  readonly code: string;
+  readonly verdict: KrDataVerdict;
+  readonly responseBody?: string;
+  readonly cause?: unknown;
 }
 
-/** 5xx 와 네트워크 오류만 재시도한다. 4xx 는 재시도하지 않고 즉시 실패시킨다. */
-async function sendWithRetry(
+/**
+ * 한 번 부르고, 판정이 retry 면 다시 부른다.
+ *
+ * **해석까지 루프 안에 있다.** 게이트웨이 오류는 HTTP 200 으로도 오기 때문이다 — 본문을
+ * 읽고 나서야 실패인 줄 아는 응답을 루프 밖에서 해석하면 재시도 대상이 아예 되지 못한다.
+ */
+async function send(
   config: ResolvedKrDataConfig,
   requestUrl: string,
   options: RequestInit,
-): Promise<RawResponse> {
+): Promise<KrDataResponse> {
   const endpoint = toEndpoint(requestUrl);
-  let lastError: unknown;
+  let failure: KrDataFailure | undefined;
 
   for (let attempt = 1; attempt <= config.maxRetry; attempt++) {
+    failure = undefined;
+
     try {
       const response = await fetch(requestUrl, {
         ...options,
@@ -87,143 +96,229 @@ async function sendWithRetry(
       });
 
       const body = await response.text();
+      const result = interpret(config, response.status, body);
 
-      if (response.status < 500) {
-        if (response.status === 401) {
-          throw new KrDataError(
-            `KR-DATA API unauthorized (status=401), service key: ${maskServiceKey(config.serviceKey)}`,
-            '401',
-            { responseBody: body, endpoint },
-          );
-        }
-        if (!response.ok) {
-          // 403 은 한도가 아니라 **권한 거부**다. 키마다 API 별로 활용신청·승인이 따로라,
-          // 어느 키로 거부됐는지 모르면 원인을 못 짚는다. 키 앞 5글자를 함께 남긴다.
-          const who =
-            response.status === 403 ? ` (service key: ${maskServiceKey(config.serviceKey)})` : '';
-          const message = `KR-DATA API returned non-OK response (status=${response.status})${who}: ${body}`;
-
-          // 한도 초과는 **HTTP 429** 로도 온다 ("API token quota exceeded").
-          // 실측(2026-07)에서 이 경로로 왔다. resultCode 22 만 보면 놓친다.
-          // 장애가 아니라 "오늘은 여기까지"이므로 따로 구분한다. 재시도하지 않는다(콜만 버린다).
-          if (isQuotaExceeded(String(response.status), body)) {
-            throw new KrDataQuotaError(message, String(response.status), body, endpoint);
-          }
-
-          throw new KrDataError(message, String(response.status), {
-            responseBody: body,
-            endpoint,
-          });
-        }
-        return { status: response.status, body, headers: response.headers };
+      if (!('failure' in result)) {
+        return { status: response.status, data: result.data, headers: response.headers };
       }
-
-      lastError = new KrDataError(
-        `KR-DATA API returned non-OK response (status=${response.status}): ${body}`,
-        String(response.status),
-        { responseBody: body, endpoint },
-      );
+      failure = result.failure;
     } catch (error) {
-      // 4xx 로 이미 판정한 에러는 재시도하지 않는다.
-      if (error instanceof KrDataError) {
-        throw error;
-      }
-      lastError = error;
+      // 네트워크 오류·타임아웃. 원본이 답을 못 준 것이라 다시 불러 볼 값어치가 있다.
+      failure = {
+        message: `KR-DATA API request failed: ${error instanceof Error ? error.message : String(error)}`,
+        code: 'UNKNOWN',
+        verdict: { disposition: 'retry', minDelayMs: 0, keyRelated: false, known: false },
+        cause: error,
+      };
     }
+
+    if (failure.verdict.disposition !== 'retry' || attempt === config.maxRetry) {
+      throw toError(failure, endpoint, attempt);
+    }
+    await sleep(delayFor(config, failure.verdict, attempt));
   }
 
-  if (lastError instanceof Error) {
-    throw new KrDataError(
-      `KR-DATA API request failed after ${config.maxRetry} attempts: ${lastError.message}`,
-      'UNKNOWN',
-      { cause: lastError, endpoint },
-    );
-  }
-  throw new KrDataError(`KR-DATA API request failed after ${config.maxRetry} attempts`, 'UNKNOWN', {
+  /* 루프는 반드시 반환하거나 던진다. maxRetry 가 0 이하일 수 없도록 resolveConfig 가 막는다. */
+  throw toError(
+    failure ?? {
+      message: 'KR-DATA API request failed without a response',
+      code: 'UNKNOWN',
+      verdict: { disposition: 'fail', minDelayMs: 0, keyRelated: false, known: false },
+    },
     endpoint,
+    config.maxRetry,
+  );
+}
+
+/** 지수 백오프. 코드가 요구하는 최소 대기가 더 길면 그쪽을 따른다. */
+function delayFor(config: ResolvedKrDataConfig, verdict: KrDataVerdict, attempt: number): number {
+  const backoff = config.retryDelayMs * 2 ** (attempt - 1);
+  return Math.min(Math.max(backoff, verdict.minDelayMs), MAX_RETRY_DELAY_MS);
+}
+
+/** 백오프 상한. maxRetry 를 크게 잡아도 한 콜이 분 단위로 늘어지지 않게 막는다. */
+const MAX_RETRY_DELAY_MS = 10_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function toError(failure: KrDataFailure, endpoint: string, attempts: number): KrDataError {
+  const message =
+    attempts > 1 ? `${failure.message} (after ${attempts} attempts)` : failure.message;
+
+  if (failure.verdict.disposition === 'quota') {
+    return new KrDataQuotaError(message, failure.code, failure.responseBody, endpoint);
+  }
+  return new KrDataError(message, failure.code, {
+    cause: failure.cause,
+    responseBody: failure.responseBody,
+    endpoint,
+    disposition: failure.verdict.disposition,
   });
 }
 
-function parseBody(config: ResolvedKrDataConfig, requestUrl: string, body: string): unknown {
-  const endpoint = toEndpoint(requestUrl);
+/**
+ * 응답 하나를 읽어 성공이면 페이로드를, 실패면 사실 묶음을 돌려준다.
+ *
+ * 실패는 세 층에서 나온다. 층마다 형식이 다를 뿐 판정은 한 표가 한다.
+ *  1. 게이트웨이 봉투 — `OpenAPI_ServiceResponse.cmmMsgHeader`. **JSON 으로도 XML 로도,
+ *     HTTP 200 으로도 4xx 로도 온다.** 그래서 상태코드를 보기 전에 본문부터 본다.
+ *  2. HTTP 상태 — 봉투를 못 읽었을 때의 단서.
+ *  3. 부처 봉투 — `response.header.resultCode`. 성공 코드는 부처마다 다르다.
+ */
+function interpret(
+  config: ResolvedKrDataConfig,
+  status: number,
+  body: string,
+): { data: unknown } | { failure: KrDataFailure } {
+  const isXml = body.trimStart().startsWith('<');
+  const gateway = isXml ? readXmlError(body) : readJsonGatewayError(body);
 
-  // _type=json 을 줘도 서비스키 오류 등 일부 에러는 XML 로 온다.
-  if (body.trimStart().startsWith('<')) {
-    const code = extractXmlErrorCode(body);
-    const message = `KR-DATA API returned an XML error: ${extractXmlErrorMessage(body)} (service key: ${maskServiceKey(config.serviceKey)})`;
+  if (gateway) {
+    const verdict = classifyKrDataFailure({
+      status,
+      code: gateway.code,
+      errMsg: gateway.errMsg,
+      body,
+    });
+    return {
+      failure: {
+        message: describe(config, gateway, verdict),
+        code: gateway.code,
+        verdict,
+        responseBody: body,
+      },
+    };
+  }
 
-    // 한도 초과는 XML 로도 온다. 장애가 아니라 "오늘은 여기까지"라서 따로 구분한다.
-    if (isQuotaExceeded(code, body)) {
-      throw new KrDataQuotaError(message, code, body, endpoint);
-    }
+  if (isXml) {
+    // 봉투로 못 읽은 XML. 게이트웨이가 아닌 무언가가 답한 것이라 본문 앞부분만 남긴다.
+    const verdict = classifyKrDataFailure({ status, body });
+    return {
+      failure: {
+        message: `KR-DATA API returned an unreadable XML response: ${body.slice(0, 200)}`,
+        code: 'XML_ERROR',
+        verdict,
+        responseBody: body,
+      },
+    };
+  }
 
-    throw new KrDataError(message, code, { responseBody: body, endpoint });
+  if (status < 200 || status >= 300) {
+    const verdict = classifyKrDataFailure({ status, body });
+    const who = verdict.keyRelated ? ` (service key: ${maskServiceKey(config.serviceKey)})` : '';
+    return {
+      failure: {
+        message: `KR-DATA API returned non-OK response (status=${status})${who}: ${body.slice(0, 500)}`,
+        code: String(status),
+        verdict,
+        responseBody: body,
+      },
+    };
   }
 
   let payload: unknown;
   try {
     payload = JSON.parse(body);
   } catch (error) {
-    throw new KrDataError('Failed to parse KR-DATA API response', 'PARSE_ERROR', {
-      cause: error,
-      responseBody: body,
-      endpoint,
-    });
-  }
-
-  // 게이트웨이 인증 에러가 **JSON 으로도 온다.** XML 만 보면 놓친다.
-  // 행정안전부(1741000)에 type=json 으로 잘못된 키를 보내면 이 형태다. (2026-08 실측)
-  //   {"OpenAPI_ServiceResponse":{"cmmMsgHeader":{"errMsg":…,"returnAuthMsg":…,"returnReasonCode":…}}}
-  // 여기서 못 잡으면 인증 실패가 정상 응답으로 통과해 빈 결과처럼 보인다.
-  const gatewayError = extractGatewayError(payload);
-  if (gatewayError) {
-    const message = `KR-DATA API returned a gateway error: ${gatewayError.message} (service key: ${maskServiceKey(config.serviceKey)})`;
-    if (isQuotaExceeded(gatewayError.code, body)) {
-      throw new KrDataQuotaError(message, gatewayError.code, body, endpoint);
-    }
-    throw new KrDataError(message, gatewayError.code, {
-      responseBody: body,
-      endpoint,
-    });
+    return {
+      failure: {
+        message: 'Failed to parse KR-DATA API response',
+        code: 'PARSE_ERROR',
+        verdict: { disposition: 'fail', minDelayMs: 0, keyRelated: false, known: false },
+        responseBody: body,
+        cause: error,
+      },
+    };
   }
 
   const header = config.envelope.readHeader(payload);
   if (header?.resultCode !== undefined && !config.envelope.isSuccess(header.resultCode)) {
-    const message = `KR-DATA API returned an error: ${header.resultMsg ?? 'unknown'}`;
-
-    // 한도 초과는 장애가 아니다. 배치가 "오늘은 여기까지"로 다룰 수 있게 따로 구분한다.
-    if (isQuotaExceeded(header.resultCode, body)) {
-      throw new KrDataQuotaError(message, header.resultCode, body, endpoint);
-    }
-
-    throw new KrDataError(message, header.resultCode, {
-      responseBody: body,
-      endpoint,
-    });
+    const verdict = classifyKrDataFailure({ code: header.resultCode, body });
+    return {
+      failure: {
+        message: `KR-DATA API returned an error: ${header.resultMsg ?? 'unknown'}`,
+        code: header.resultCode,
+        verdict,
+        responseBody: body,
+      },
+    };
   }
 
   config.envelope.normalize(payload);
-  return payload;
+  return { data: payload };
 }
 
-/** 게이트웨이가 JSON 으로 준 인증·서비스 에러. 정상 응답이면 undefined. */
-function extractGatewayError(payload: unknown): { code: string; message: string } | undefined {
-  if (typeof payload !== 'object' || payload === null) {
+/** 게이트웨이 오류 한 줄. 표에 있는 코드면 우리 설명을, 없으면 원본 문구를 쓴다. */
+function describe(
+  config: ResolvedKrDataConfig,
+  gateway: GatewayError,
+  verdict: KrDataVerdict,
+): string {
+  const detail = verdict.summary ?? gateway.detail;
+  const unknown = verdict.known ? '' : ' — not in the known gateway code table';
+  const who = verdict.keyRelated ? ` (service key: ${maskServiceKey(config.serviceKey)})` : '';
+  return `KR-DATA API returned a gateway error: ${gateway.errMsg} (code ${gateway.code}) ${detail}${unknown}${who}`;
+}
+
+interface GatewayError {
+  readonly code: string;
+  readonly errMsg: string;
+  /** 원본이 준 한국어 안내(returnAuthMsg). 표에 없는 코드일 때 유일한 단서다. */
+  readonly detail: string;
+}
+
+/**
+ * 게이트웨이가 JSON 으로 준 오류. 정상 응답이면 undefined.
+ *
+ *   {"OpenAPI_ServiceResponse":{"cmmMsgHeader":{"errMsg":…,"returnAuthMsg":…,"returnReasonCode":…}}}
+ *
+ * **HTTP 200 으로도 온다.** 상태코드만 보면 인증 실패가 정상 응답으로 통과해 빈 결과처럼 보인다.
+ */
+function readJsonGatewayError(body: string): GatewayError | undefined {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
     return undefined;
   }
-  const envelope = (payload as Record<string, unknown>).OpenAPI_ServiceResponse;
-  if (typeof envelope !== 'object' || envelope === null) {
+
+  const envelope = asRecord(asRecord(payload)?.OpenAPI_ServiceResponse);
+  const header = asRecord(envelope?.cmmMsgHeader);
+  if (!header) {
     return undefined;
   }
-  const header = (envelope as Record<string, unknown>).cmmMsgHeader;
-  if (typeof header !== 'object' || header === null) {
-    return undefined;
-  }
-  const fields = header as Record<string, unknown>;
+
   return {
-    code: asText(fields.returnReasonCode) ?? 'GATEWAY_ERROR',
-    message: asText(fields.returnAuthMsg) ?? asText(fields.errMsg) ?? 'unknown',
+    code: asText(header.returnReasonCode) ?? 'GATEWAY_ERROR',
+    errMsg: asText(header.errMsg) ?? 'UNKNOWN',
+    detail: asText(header.returnAuthMsg) ?? '',
   };
+}
+
+/** `_type=json` 을 줘도 일부 오류는 XML 로 온다. 태그 이름은 JSON 과 같다. */
+function readXmlError(body: string): GatewayError | undefined {
+  const code = matchTag(body, 'returnReasonCode') ?? matchTag(body, 'resultCode');
+  const errMsg = matchTag(body, 'errMsg');
+  if (!code && !errMsg) {
+    return undefined;
+  }
+  return {
+    code: code ?? 'XML_ERROR',
+    errMsg: errMsg ?? 'UNKNOWN',
+    detail: matchTag(body, 'returnAuthMsg') ?? matchTag(body, 'resultMsg') ?? '',
+  };
+}
+
+function matchTag(body: string, tag: string): string | undefined {
+  return new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(body)?.[1]?.trim() || undefined;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
 /** 원시값이면 문자열로, 아니면 undefined. 객체가 섞여 와도 "[object Object]" 를 남기지 않는다. */
@@ -235,21 +330,4 @@ function asText(value: unknown): string | undefined {
     return String(value);
   }
   return undefined;
-}
-
-function extractXmlErrorMessage(body: string): string {
-  return (
-    matchTag(body, 'returnAuthMsg') ??
-    matchTag(body, 'errMsg') ??
-    matchTag(body, 'resultMsg') ??
-    body.slice(0, 200)
-  );
-}
-
-function extractXmlErrorCode(body: string): string {
-  return matchTag(body, 'returnReasonCode') ?? matchTag(body, 'resultCode') ?? 'XML_ERROR';
-}
-
-function matchTag(body: string, tag: string): string | undefined {
-  return new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(body)?.[1]?.trim() || undefined;
 }
