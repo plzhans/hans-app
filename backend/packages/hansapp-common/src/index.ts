@@ -13,6 +13,7 @@ export * from './config-source';
 export * from './connection-url';
 export * from './config-summary';
 export * from './build-info';
+export * from './sentry-trace-targets';
 // 되돌릴 수 없게 굳히는 단방향 해시와 토큰 조립. 인증 계층(공개·admin)이 함께 쓴다.
 export * from './token-crypto';
 // 응용 계층이 던지는 오류(계열 + 코드). HTTP 상태로 옮기는 것은 http-common 의 필터가 한다.
