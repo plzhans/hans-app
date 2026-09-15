@@ -2,6 +2,7 @@
 import 'reflect-metadata';
 
 import * as Sentry from '@sentry/nestjs';
+import { buildTracePropagationTargets } from '@hansapp/common';
 
 import { appConfig, buildInfo } from './boot-config';
 
@@ -29,6 +30,11 @@ if (dsn) {
     // 어느 산출물에서 났는지. tagVersion 은 0.0.1-a1b2c3d 형태로 docker 태그와 같은 문자열이다.
     release: buildInfo.tagVersion,
     tracesSampleRate,
+    /*
+      추적 헤더(sentry-trace·baggage)를 붙일 대상. **주지 않으면 나가는 모든 요청에 붙는다** —
+      남의 API 가 그 헤더를 거부하면 우리 호출이 통째로 깨진다(config.yaml 의 sentry 참고).
+    */
+    tracePropagationTargets: buildTracePropagationTargets(appConfig),
     // 숫자 버전만으로는 어느 커밋인지 모른다. 커밋·브랜치를 모든 이벤트에 붙인다.
     initialScope: {
       tags: { sha: buildInfo.sha, branch: buildInfo.branch },

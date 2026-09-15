@@ -55,6 +55,15 @@ slack:
 #  # 공유 캐시(Redis) TTL(초). default: 600
 #  sharedTtlSec: 600
 
+# 오류 추적(Sentry) 공통 설정. 앱별 enabled·dsn·tracesSampleRate 는 apps-*.sentry 에 있다.
+sentry:
+  # 추적 헤더(sentry-trace·baggage)를 붙일 호스트. 하위 도메인 포함.
+  # 여기 없는 주소에는 붙지 않는다. 비우면 어디에도 붙이지 않는다.
+  tracePropagationTargets:
+    - localhost
+    - 127.0.0.1
+    - plzhans.com
+
 auth:
   # 서비스 루트 도메인(앞 점 없이). SSO 쿠키 Domain 과 1st-party 판단이 여기서 파생된다.
   # IP 로 뜨는 환경(127.0.0.1)에는 설정할 수 없다 — 비우면 host-only 쿠키로 폴백한다.

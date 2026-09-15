@@ -2,6 +2,7 @@
 import 'reflect-metadata';
 
 import * as Sentry from '@sentry/nestjs';
+import { buildTracePropagationTargets } from '@hansapp/common';
 
 import { appConfig, buildInfo } from './boot-config';
 
@@ -26,6 +27,11 @@ if (dsn) {
     environment: appConfig.env,
     release: buildInfo.tagVersion,
     tracesSampleRate,
+    /*
+      추적 헤더(sentry-trace·baggage)를 붙일 대상. **주지 않으면 나가는 모든 요청에 붙는다** —
+      남의 API 가 그 헤더를 거부하면 우리 호출이 통째로 깨진다(config.yaml 의 sentry 참고).
+    */
+    tracePropagationTargets: buildTracePropagationTargets(appConfig),
     initialScope: {
       tags: { sha: buildInfo.sha, branch: buildInfo.branch },
     },
