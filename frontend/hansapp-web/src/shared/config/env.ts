@@ -37,6 +37,19 @@ export const APP_ENV =
   (import.meta.env.VITE_APP_ENV as string | undefined) ?? 'local';
 
 /**
+ * 이 콘솔의 공개 주소(끝에 / 없음). VITE_SITE_URL 로 주입.
+ *
+ * canonical 을 라우트마다 세울 때 쓴다. index.html 의 canonical·og:url 도 빌드가 같은
+ * 값으로 치환하므로 **둘이 같은 주소를 가리켜야 한다**.
+ *
+ * 비면 canonical 을 건드리지 않는다 — 주소를 모르는 채로 상대경로를 넣으면 현재 페이지를
+ * 가리키는 셈이라, 정본을 선언하지 않는 것보다 나쁘다.
+ */
+export const SITE_URL = (
+  (import.meta.env.VITE_SITE_URL as string | undefined) ?? ''
+).replace(/\/+$/, '');
+
+/**
  * Sentry DSN. 비밀이 아니다 — 이벤트 전송 전용 공개 엔드포인트라 어차피 번들에 구워진다.
  * **비면 Sentry 를 아예 켜지 않는다**(로컬 기본값).
  */

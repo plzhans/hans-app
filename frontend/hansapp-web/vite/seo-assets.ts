@@ -46,7 +46,8 @@ const BAKED_ROUTES = [
  * 여기가 비면 콘솔 페이지를 광고할 곳이 없다.
  *
  * 약관은 뺀다(BAKED_ROUTES 에서 noindex 로 굽는다). /apps 는 로그인 게이트라 뺀다.
- * /board 는 아직 안 싣는다 — canonical 이 전부 홈을 가리켜서, 실어도 홈의 중복으로 합쳐진다.
+ * /board 는 아직 안 싣는다 — canonical 은 CanonicalTag 가 라우트마다 세우므로 더는 막히지
+ * 않지만, 글 목록이 동적이라 만드는 쪽(AUTO_SITEMAPS)이 생겨야 한다.
  */
 const STATIC_SITEMAP = { file: 'sitemap-pages.xml', routes: ['/'] };
 
