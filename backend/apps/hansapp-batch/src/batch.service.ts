@@ -150,29 +150,60 @@ export class BatchService {
     options: { source?: BatchRunSource; force?: boolean },
   ): Promise<void> {
     const source = options.source ?? BatchRunSource.ONCE;
-    const context: RunContext = { source };
 
     /*
       **잡 락과 같은 자리를 쓴다**(키가 단계 키일 뿐이다). 단계 서비스도 자체로 겹침을
       보지만(sync_state.status), 그 값은 프로세스가 끊기면 굳는다 — 락은 TTL 로 풀린다.
     */
     const result = await this.lock.withLock(spec.job, async () => {
+      /*
+        **단계 하나를 돌려도 회차를 연다.** 회차가 없으면 이 실행은 콘솔 어디에도 뜨지
+        않는다 — 단계 이력 행은 쌓이지만 부모가 없어 회차 목록이 집어낼 자리가 없고,
+        버튼을 누른 사람이 결과를 볼 곳이 사라진다.
+
+        **부모 잡 이름으로 연다**(hira.7 이 아니라 hira). 그래야 크론으로 돈 회차와 같은
+        줄에 서고 잡 필터에도 걸린다. 무엇을 돌린 것인지는 밑에 매달린 단계 행이 말해 준다.
+
+        마스터는 안 건드린다 — 이유는 startStandalone 주석 참고.
+      */
+      const run = await this.jobs.startStandalone(spec.provider, source);
+      const context: RunContext = { jobRunId: run.historyId, source };
+
       const startedAt = Date.now();
       this.logger.log(`${spec.job}: started`);
-      const outcome = await this.runner.runStage(spec.provider, spec.stage, {
-        force: options.force,
-        context,
-      });
-      const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
-      this.logger.log(
-        outcome.skipped
-          ? `${spec.job}: skipped — ${outcome.skipReason}`
-          : `${spec.job}: done — ${outcome.calls.toLocaleString()} calls / ${seconds}s`,
-      );
+
+      try {
+        const outcome = await this.runner.runStage(spec.provider, spec.stage, {
+          force: options.force,
+          context,
+        });
+        const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+        this.logger.log(
+          outcome.skipped
+            ? `${spec.job}: skipped — ${outcome.skipReason}`
+            : `${spec.job}: done — ${outcome.calls.toLocaleString()} calls / ${seconds}s`,
+        );
+
+        await this.jobs.finishStandalone(run, {
+          status: outcome.skipped ? BatchRunStatus.SKIPPED : BatchRunStatus.DONE,
+          calls: outcome.calls,
+          processed: outcome.processed,
+        });
+      } catch (error) {
+        /*
+          회차는 닫고 예외는 그대로 올린다. 안 닫으면 RUNNING 으로 굳어 실패한 회차가
+          도는 중으로 보인다. 기록과 Sentry 보고는 guarded 가 하므로 여기서는 안 찍는다.
+        */
+        await this.jobs.finishStandalone(run, {
+          status: BatchRunStatus.FAILED,
+          error: describe(error),
+        });
+        throw error;
+      }
     });
 
     if (result === LOCK_NOT_ACQUIRED) {
-      // 단계 실행은 회차가 없어 생략을 적을 자리도 없다. 로그로만 남긴다.
+      // 회차를 열기 전이라 적을 자리가 없다. 로그로만 남긴다.
       this.logger.warn(`${spec.job}: skipped — could not acquire the lock`);
     }
   }

@@ -171,7 +171,17 @@ export class BatchRunRepository {
     });
   }
 
-  /** 단계 실행을 닫는다. */
+  /**
+   * 단계 실행을 닫는다.
+   *
+   * **집계는 안 넘어온 것을 0 으로 덮지 않는다.** 실패로 닫는 쪽은 예외만 들고 오므로
+   * 그때까지의 콜 수를 못 넘긴다. 0 을 쓰면 updateStageProgress 가 써 둔 진행분까지
+   * 같이 지워져, 38분을 돌고 275콜을 태운 회차가 `0콜` 로 남는다 — 원본 한도를 얼마나
+   * 썼는지는 실패했을 때 가장 알고 싶은 값이다. undefined 는 Prisma 가 "이 칼럼은 빼고"
+   * 로 읽으므로 직전 값이 그대로 남는다.
+   *
+   * error 만 반대다. 성공으로 닫을 때 앞선 오류 문구를 지워야 해서 null 로 덮는다.
+   */
   async finishStageRun(id: bigint, input: StageRunFinish): Promise<void> {
     await this.prisma.syncStateHistory.update({
       where: { id },
@@ -179,9 +189,9 @@ export class BatchRunRepository {
         status: input.status,
         finishedAt: input.finishedAt,
         elapsedMs: input.elapsedMs,
-        total: input.total ?? 0,
-        processed: input.processed ?? 0,
-        calls: input.calls ?? 0,
+        total: input.total,
+        processed: input.processed,
+        calls: input.calls,
         error: input.error ?? null,
       },
     });
