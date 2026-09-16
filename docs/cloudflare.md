@@ -97,6 +97,10 @@ develop 도 같은 모양이다(`develop.plzhans.com/docs`). 루트는 `dev-plzh
 **Route 는 1회 수동 작업이다.** 본체는 커스텀 도메인이고 그 위에 더 구체적인 Route 를
 얹는다(랜딩 + `/docs*` 와 같은 방식).
 
+대시보드에서 한다 — 배포 토큰에도 `cloudflare/` 도구가 쓰는 토큰에도 **Workers Routes 권한이
+없다.** 둘 다 `/zones/<id>/workers/routes` 에서 Authentication error 가 난다. 규칙을 코드로
+관리하려면 토큰에 Workers Routes · Edit 를 더해야 하는데, 규칙이 두 줄뿐이라 지금은 손으로 한다.
+
 ```
 console.plzhans.com/sitemap-auto-*          →  prod-hansapp-web-sitemap
 develop-console.plzhans.com/sitemap-auto-*  →  dev-hansapp-web-sitemap
