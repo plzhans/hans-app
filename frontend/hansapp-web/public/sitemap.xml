@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  콘솔의 사이트맵 인덱스. 문서(/docs)는 여기 없다 — 루트 도메인으로 갈라져 나가서
-  plzhans.com/sitemap.xml 이 물고 있다. 한 문서를 두 인덱스가 물면 중복 색인이 된다.
--->
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
-    <loc>https://console.plzhans.com/sitemap-pages.xml</loc>
-    <lastmod>2026-08-14</lastmod>
+    <loc>__SITE_URL__/sitemap-pages.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>__SITE_URL__/sitemap-auto-board.xml</loc>
   </sitemap>
 </sitemapindex>

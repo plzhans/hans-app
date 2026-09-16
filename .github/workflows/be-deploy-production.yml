@@ -326,6 +326,9 @@ jobs:
         run: ./scripts/deploy/ci-deploy.sh
         env:
           APP_ENV: production
+          # 이 라인이 admin 컨테이너를 띄우므로 관리자 서명키를 같이 나른다.
+          # **기본은 나가지 않는다** — 새 배포 라인에 이 줄이 없으면 그 호스트는 키를 못 받는다.
+          DEPLOY_ADMIN_SECRETS: 'true'
           # 실패했을 때 어느 단계에서 멈췄는지 스크립트가 스레드에 남긴다.
           # deploy 쪽은 이 값을 서버로도 넘겨 앱 기동 알림이 스레드에 붙게 한다.
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

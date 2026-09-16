@@ -25,6 +25,7 @@
     "@hansapp/email-sender": "workspace:*",
     "@hansapp/event-contract": "workspace:*",
     "@hansapp/event-publisher": "workspace:*",
+    "@hansapp/jwt": "workspace:*",
     "@hansapp/llm": "workspace:*",
     "@hansapp/search": "workspace:*",
     "@kr-go/juso": "workspace:*",

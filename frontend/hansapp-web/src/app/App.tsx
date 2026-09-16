@@ -11,6 +11,7 @@ import { subscribeAuth } from '@/shared/auth/authChannel';
 import { watchSessionHint } from '@/shared/auth/sessionWatch';
 import { startLogin } from '@/shared/auth/login';
 import { trackPageView } from '@/shared/analytics/gtag';
+import { CanonicalTag } from '@/shared/seo/CanonicalTag';
 import Dashboard from '@/features/home/pages/Dashboard';
 import Apps from '@/features/apps/pages/Apps';
 import AppDetail from '@/features/apps/pages/AppDetail';
@@ -82,6 +83,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <RouteTracker />
+      <CanonicalTag />
       <Routes>
         {/* 공개 대시보드 */}
         <Route path="/" element={<Dashboard />} />

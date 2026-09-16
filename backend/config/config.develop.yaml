@@ -22,6 +22,10 @@ apps-api:
 admin:
   jwt:
     issuer: https://develop-admin.plzhans.com
+    # 로컬(APP_ENV=local)이 이 DB 를 함께 보므로 거기서 발급한 토큰도 받는다.
+    # auth.jwt.allowedIssuers 와 같은 이유다.
+    allowedIssuers:
+      - http://127.0.0.1:3001
 
 apps-admin-api:
   externalUrl: https://develop-admin.plzhans.com
@@ -30,3 +34,7 @@ apps-admin-api:
     clientIpHeader: cf-connecting-ip
   swagger:
     enabled: true
+
+apps-batch:
+  # 앞단 nginx 가 TLS 를 끝내고 프록시하는 주소. 관리자 API 가 여기로 실행을 요청한다.
+  externalUrl: https://develop-batch.plzhans.com

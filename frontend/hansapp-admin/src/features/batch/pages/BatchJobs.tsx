@@ -267,12 +267,12 @@ function JobCard({ job }: { job: BatchJobStatus }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          {/* 켜고 끄는 건 설정 탭의 몫이다(BatchTabs) — 여기는 보기 전용이다. */}
+          {/* 켜고 끄는 것도 손으로 돌리는 것도 설정 탭의 몫이다(BatchTabs) — 여기는 보기 전용이다. */}
           <Link
             to="/batch/stages"
             className="text-xs font-semibold text-gray-500 hover:text-gray-800 hover:underline"
           >
-            설정에서 켜고 끄기
+            설정에서 실행·켜고 끄기
           </Link>
           <Link
             to={`/batch/runs?jobs=${encodeURIComponent(job.job)}`}

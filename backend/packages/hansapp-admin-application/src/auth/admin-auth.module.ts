@@ -93,6 +93,12 @@ export class AdminAuthModule {
       exports: [
         ADMIN_AUTH_CONFIG,
         AdminAuthService,
+        /*
+          서명 키를 든 쪽. **토큰을 만드는 것 말고 두 가지 때문에 밖으로 낸다** —
+          공개키셋(JWKS)을 내보내는 컨트롤러가 읽고, 내부 서비스로 나가는 요청(배치의
+          "지금 실행")을 서명한다.
+        */
+        AdminJwtService,
         AdminAccountService,
         AdminPasswordResetService,
         AdminTokenService,

@@ -104,6 +104,11 @@ export BE_HANSAPP_DEPLOY_SSH_KNOWN_HOSTS_FILE="${BE_HANSAPP_DEPLOY_SSH_KNOWN_HOS
 # 평소 로컬은 VPN 이 이미 붙어 있어 비어 있다. 값을 채우면 ci-deploy.sh 가 그 설정으로
 # 연결한다 — **CI 설정을 로컬에서 시험할 때** 쓰라고 열어 둔다. CI 왕복 없이 확인된다.
 export BE_WIREGUARD_PEER_CONF_FILE="${BE_WIREGUARD_PEER_CONF_FILE:-}"
+# 관리자 서명키(config/admin/<환경>/)를 같이 나를지. **기본은 안 나른다.**
+# 그 키 하나로 관리자 토큰을 찍을 수 있어서, 기본이 "나감" 이면 새 배포 라인을 만들며
+# 제외를 깜빡한 날 그대로 사고다. 깜빡해서 안 나가면 관리자 토큰이 HS256 으로 떨어져
+# 배치 수동 실행만 막힌다(로그인은 그대로). 켜려면 backend/.env 에 DEPLOY_ADMIN_SECRETS=true.
+export DEPLOY_ADMIN_SECRETS="${DEPLOY_ADMIN_SECRETS:-}"
 
 # 서버가 private 이미지를 받을 때 쓸 GHCR 토큰. CI 는 GITHUB_TOKEN 이 자동으로 들어오지만
 # 로컬엔 그런 게 없어서, .env 에 없으면 gh CLI 로그인에서 빌려 온다.
@@ -150,7 +155,9 @@ fi
 #
 # --skip-migrate 는 이미 돌렸거나 스키마 변경이 없는 게 확실할 때의 우회로다.
 if [ -z "$skip_migrate" ]; then
-  "$(dirname "$0")/migrate.sh" "$APP_ENV" "$assume_yes"
+  # **태그 자리를 비우면 안 된다.** migrate.sh 는 위치 인자로 받아서(<환경> [태그] [-y]),
+  # 빼고 넘기면 -y 가 태그로 들어가 `hansapp-cli:-y` 를 당기려다 죽는다.
+  "$(dirname "$0")/migrate.sh" "$APP_ENV" "$IMAGE_TAG" "$assume_yes"
   echo
 fi
 

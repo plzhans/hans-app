@@ -159,6 +159,13 @@ export const CONFIG_DEFAULTS = {
   // ── hansapp-batch ───────────────────────────────────────────────────────────
   'apps-batch.name': 'hansapp-batch',
   /*
+    앞단 nginx 를 지나 이 프로세스에 닿는 주소. **관리자 API 가 "지금 실행" 을 여기로 보낸다.**
+
+    부르는 쪽이 아니라 여기에 두는 것은 주소의 주인이 배치이기 때문이다 — 사본이 둘이면
+    옮길 때 한쪽만 고쳐져 조용히 못 붙는다. 비어 있으면 콘솔의 수동 실행이 막힌다.
+  */
+  'apps-batch.externalUrl': '',
+  /*
     상주 모드가 여는 포트. **한 컴퓨터에 배치를 하나만 띄우는 가드를 겸한다** —
     이미 떠 있으면 EADDRINUSE 로 부팅이 실패한다(Node 에는 flock 이 없어서, 커널이
     프로세스 죽을 때 회수해 주는 성질을 포트에서 빌린다. 잠금 파일은 kill -9 뒤에 남는다).
@@ -172,7 +179,7 @@ export const CONFIG_DEFAULTS = {
   'apps-batch.timeZone': 'Asia/Seoul',
   'apps-batch.maxCallsPerRun': 0, // 0 = 무제한
   /*
-    잡별 주기. **기본값의 정본은 코드다**(apps/hansapp-batch/src/batch.jobs.ts 의 defaultCron) —
+    잡별 주기. **기본값의 정본은 코드다**(@hansapp/admin-application 의 job-catalog.ts, defaultCron) —
     잡이 늘 때 이 파일을 같이 고치지 않아도 되게, 여기 없으면 잡 정의의 값을 쓴다.
     여기 적는 것은 "설정으로 덮을 수 있다" 를 문서에 드러내기 위한 것이다.
   */

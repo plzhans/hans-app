@@ -11,6 +11,8 @@ import type { ConfigSource } from '@hansapp/common';
 import { BATCH_CONFIG, buildBatchConfig } from './batch.config';
 import { BatchScheduler } from './batch.scheduler';
 import { BatchHealthController } from './web/health.controller';
+import { BatchJobRunController } from './web/job-run.controller';
+import { RUN_VERIFIER, buildRunVerifier } from './web/run-verifier';
 import { BatchService } from './batch.service';
 import { AuthCleanupService } from './auth-cleanup.service';
 import { SessionCacheSweeper } from './session-cache-sweeper.service';
@@ -24,6 +26,8 @@ import { SessionCacheSweeper } from './session-cache-sweeper.service';
 @Module({})
 export class AppModule {
   static forRoot(source: ConfigSource): DynamicModule {
+    const config = buildBatchConfig(source);
+
     return {
       module: AppModule,
       imports: [
@@ -54,9 +58,16 @@ export class AppModule {
         // 그 모듈 안에서만 보이므로(export 하지 않는다) 여기서 따로 받는다.
         DataModule.forRoot(source),
       ],
-      controllers: [BatchHealthController],
+      controllers: [BatchHealthController, BatchJobRunController],
       providers: [
-        { provide: BATCH_CONFIG, useValue: buildBatchConfig(source) },
+        { provide: BATCH_CONFIG, useValue: config },
+        /*
+          수동 실행 요청을 검증하는 쪽. 관리자 API 의 JWKS 에서 공개키를 받아 온다.
+
+          **발급자 주소(admin.jwt.issuer)가 없으면 null 이고 그 기능이 꺼진다.** 검증할 수 없는
+          상태로 열어 두면 이 포트에 닿는 누구나 적재를 돌릴 수 있다 — 조용히 통과시키느니 막는다.
+        */
+        { provide: RUN_VERIFIER, useValue: buildRunVerifier(config.adminIssuer) },
         BatchService,
         AuthCleanupService,
         SessionCacheSweeper,

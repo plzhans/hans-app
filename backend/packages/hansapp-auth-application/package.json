@@ -18,6 +18,7 @@
   "dependencies": {
     "@hansapp/common": "workspace:*",
     "@hansapp/data": "workspace:*",
+    "@hansapp/jwt": "workspace:*",
     "@hansapp/email-sender": "workspace:*",
     "@hansapp/event-consumer": "workspace:*",
     "@hansapp/event-contract": "workspace:*",

@@ -5,7 +5,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
 import type { ConfigSource } from '@hansapp/common';
 import { AdminApplicationModule } from '@hansapp/admin-application';
 import { EventPublisherModule } from '@hansapp/event-publisher';
-import { AdminAuthGuard, AdminAuthModule } from '@hansapp/admin-application/auth';
+import { AdminAuthGuard, AdminAuthModule, AdminJwtService } from '@hansapp/admin-application/auth';
 import { resolveClientIp } from '@hansapp/http-common';
 
 import { AdminAuthController } from './auth/admin-auth.controller';
@@ -24,6 +24,7 @@ import { EnvLlmKeyController } from './llm/env-llm-key.controller';
 import { EnvLlmModelController } from './llm/env-llm-model.controller';
 import { AuthLogController } from './logs/auth-log.controller';
 import { BatchRunController } from './logs/batch-run.controller';
+import { BatchRunnerClient } from './logs/batch-runner.client';
 import { BoardController } from './community/board.controller';
 import { BoardPostController } from './community/board-post.controller';
 import { LlmUsageLogController } from './logs/llm-usage-log.controller';
@@ -99,6 +100,22 @@ export class AppModule {
         // 전역 인증 가드. @AdminPublic() 라우트는 우회한다.
         // 가드 본체는 AdminAuthModule 이 제공·export 하므로 인스턴스를 재사용한다(useExisting).
         { provide: APP_GUARD, useExisting: AdminAuthGuard },
+        /*
+          배치 프로세스를 부르는 쪽("지금 실행").
+
+          **주소는 배치가 선언한 것을 읽는다**(apps-batch.externalUrl). 부르는 쪽에 사본을 두면
+          배치가 주소를 옮길 때 두 곳을 고쳐야 하고, 한쪽만 고치면 조용히 못 붙는다.
+          배치도 같은 방식으로 관리자 주소를 admin.jwt.issuer 에서 읽는다.
+
+          설정을 여기서 읽어 넣어 주는 것은, 어느 앱이 무엇을 읽는지가 이 자리에 모여 있어야
+          하기 때문이다 — 클라이언트가 ConfigSource 를 직접 들면 설정 키가 코드에 흩어진다.
+        */
+        {
+          provide: BatchRunnerClient,
+          inject: [AdminJwtService],
+          useFactory: (jwt: AdminJwtService) =>
+            new BatchRunnerClient(config.getStringOrDefault('apps-batch.externalUrl'), jwt),
+        },
         // 부팅 시 관리자 계정이 없으면 기본 계정을 만든다(local·develop 전용).
         // **앱 계층에 두는 이유**는 이 동작이 "서버가 뜰 때" 로 한정돼야 하기 때문이다 —
         // AdminAuthModule 은 CLI 도 띄운다.

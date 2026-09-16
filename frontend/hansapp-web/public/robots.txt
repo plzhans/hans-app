@@ -1,6 +1,2 @@
 User-agent: *
-Allow: /
-Disallow: /apps
-Disallow: /terms
-
-Sitemap: https://console.plzhans.com/sitemap.xml
+Disallow: /

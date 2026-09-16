@@ -375,6 +375,38 @@ command -v sops >/dev/null || die "sops 가 없다. 복호화는 배포하는 �
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
+# admin 경계 시크릿 — **명시한 배포만 나른다**
+#
+# `config/admin/<환경>/` 은 공용 번들(`config/<환경>/`) **밖**이라 위 루프가 건드리지 않는다.
+# admin 컨테이너를 띄우는 배포 라인만 DEPLOY_ADMIN_SECRETS 로 켠다.
+#
+# **기본이 "안 나감" 이어야 한다.** 관리자 서명키는 그것 하나로 관리자 토큰을 찍을 수 있어서,
+# 새 배포 라인을 만들며 제외를 깜빡하면 그날로 사고다. 반대로 켜는 걸 깜빡하면 관리자 토큰이
+# HS256 으로 떨어져 **배치 수동 실행만** 막힌다 — 로그인은 그대로 된다.
+# 한쪽은 조용히 새고 다른 쪽은 기능이 꺼지니, 깜빡했을 때 뒤쪽으로 넘어져야 한다.
+if [ "${DEPLOY_ADMIN_SECRETS:-}" = "1" ] || [ "${DEPLOY_ADMIN_SECRETS:-}" = "true" ]; then
+  admin_secrets="config/admin/$APP_ENV"
+  # 켰는데 없으면 멈춘다. 조용히 건너뛰면 "켰으니 갔겠지" 와 구별이 안 된다.
+  [ -d "$AREA_DIR/$admin_secrets" ] || die "DEPLOY_ADMIN_SECRETS 를 켰는데 $admin_secrets 가 없다."
+  echo "admin 경계 시크릿:"
+  (
+    cd "$AREA_DIR"
+    find "$admin_secrets" -type f -name '*.enc' | while IFS= read -r f; do
+      out="$work/${f%.enc}"
+      mkdir -p "$(dirname "$out")"
+      case "$f" in
+        *.key.enc | *.pem.enc) sops --decrypt --input-type binary --output-type binary "$f" > "$out" ;;
+        *)                     sops --decrypt "$f" > "$out" ;;
+      esac
+      chmod 600 "$out"
+      echo "  $f → ${f%.enc}"
+    done
+  )
+else
+  echo "admin 경계 시크릿: 건너뜀 (DEPLOY_ADMIN_SECRETS 미설정)"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 서비스별 env — **.env.<서비스> 로 나눠 파일째 나른다**
 #
 # compose 옆의 `.env` 는 보간용(IMAGE_TAG·uid)이라 성격이 다르다. 서비스가 집어갈 값은

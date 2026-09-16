@@ -32,15 +32,6 @@ export { AppClientType, AppStatus, UserTier } from '@hansapp/data';
 export { LlmKeyVerifyState, LlmProvider } from '@hansapp/data';
 export { TokenService } from './token/token.service';
 export { JwtKeyService } from './token/jwt-key.service';
-export {
-  generateAccessKeyPair,
-  publicJwkFromPem,
-  publicPemFromPem,
-  jwkThumbprint,
-  algForCurve,
-  type AccessAlg,
-  type GeneratedKey,
-} from './token/jwt-keygen';
 export type { AuthTokens } from './token/token.service';
 export { AuthLogService } from './log/auth-log.service';
 

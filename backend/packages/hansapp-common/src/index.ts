@@ -96,3 +96,5 @@ export { AuthorType, PostStatus, CommentStatus, BoardWriteRole, BoardStatus } fr
 
 // 배치 실행. 이력 표는 숫자를, 마스터 표는 같은 enum 의 이름을 담는다(batch-codes.ts 주석 참고).
 export { BatchRunSource, BatchRunStatus, BatchCategory } from './batch-codes';
+export { BATCH_RUN_AUDIENCE, BATCH_RUN_TOKEN_TTL_SEC } from './batch-run-token';
+export type { BatchRunTarget, BatchRunTokenClaims } from './batch-run-token';
