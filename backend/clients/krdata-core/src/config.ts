@@ -3,6 +3,7 @@ import { KRDATA_STANDARD_ENVELOPE, KrDataEnvelope } from './envelope';
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
 const DEFAULT_READ_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_RETRY = 3;
+const DEFAULT_RETRY_DELAY_MS = 500;
 
 /** 공공데이터포털 설정 */
 export interface KrDataConfig {
@@ -24,6 +25,14 @@ export interface KrDataConfig {
   maxRetry?: number;
 
   /**
+   * 재시도 사이 대기의 기준값 (ms). 시도마다 두 배로 늘린다.
+   *
+   * 게이트웨이가 흔들릴 때 곧바로 다시 때리면 같은 응답을 받는다. 코드가 최소 대기를
+   * 요구하면(초당 한도 등) 그쪽이 이긴다 — gateway-code 의 minDelayMs 참고.
+   */
+  retryDelayMs?: number;
+
+  /**
    * 응답 봉투 어댑터. 기본값은 표준 봉투(`response.body.items.item`)다.
    * 부처가 다른 봉투를 쓰면 기관별 클라이언트가 주입한다.
    */
@@ -41,6 +50,7 @@ export function resolveConfig(config: KrDataConfig): ResolvedKrDataConfig {
     baseUrl: config.baseUrl.replace(/\/+$/, ''),
     readTimeoutMs: positiveOr(config.readTimeoutMs, DEFAULT_READ_TIMEOUT_MS),
     maxRetry: positiveOr(config.maxRetry, DEFAULT_MAX_RETRY),
+    retryDelayMs: positiveOr(config.retryDelayMs, DEFAULT_RETRY_DELAY_MS),
     envelope: config.envelope ?? KRDATA_STANDARD_ENVELOPE,
   };
 }
@@ -63,4 +73,9 @@ function positiveOr(value: number | undefined, fallback: number): number {
   return value !== undefined && value > 0 ? value : fallback;
 }
 
-export { DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, DEFAULT_MAX_RETRY };
+export {
+  DEFAULT_CONNECT_TIMEOUT_MS,
+  DEFAULT_READ_TIMEOUT_MS,
+  DEFAULT_MAX_RETRY,
+  DEFAULT_RETRY_DELAY_MS,
+};
