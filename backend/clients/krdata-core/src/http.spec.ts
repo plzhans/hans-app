@@ -88,6 +88,27 @@ describe('createKrDataFetch 재시도', () => {
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(1_000);
   });
 
+  /*
+    **상태코드와 헤더가 없으면 원인을 못 좁힌다.** 같은 게이트웨이 오류가 어떤 날은 200 으로
+    어떤 날은 5xx 로 오는데, 200 이면 게이트웨이가 정책으로 거절한 것이고 5xx 면 인프라가
+    흔들린 것이다. 그 구별이 로그에 안 남아 운영에서 아흐레를 못 밝힌 적이 있다.
+  */
+  it('실패에 HTTP 상태와 응답 헤더를 함께 남긴다', async () => {
+    stubFetch([{ status: 200, body: gatewayBody('NO_OPENAPI_SERVICE_ERROR', '12') }]);
+
+    const error = await fetcher('/svc/op').then(
+      () => undefined,
+      (e: unknown) => e as KrDataError,
+    );
+
+    expect(error).toBeInstanceOf(KrDataError);
+    if (!error) throw new Error('오류가 나야 한다');
+    expect(error.httpStatus).toBe(200);
+    expect(error.responseHeaders).toContain('content-type=application/json');
+    // 이력 표에는 메시지 한 줄만 남는다. 거기에도 상태가 있어야 한다.
+    expect(error.message).toContain('[HTTP 200]');
+  });
+
   it('소진하면 시도 횟수를 메시지에 남긴다', async () => {
     const calls = stubFetch([{ status: 400, body: gatewayBody('NO_OPENAPI_SERVICE_ERROR', '12') }]);
 

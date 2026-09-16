@@ -69,6 +69,11 @@ interface KrDataFailure {
   readonly verdict: KrDataVerdict;
   readonly responseBody?: string;
   readonly cause?: unknown;
+
+  /** 응답이 어떤 상태로 왔나. 네트워크 오류로 응답 자체가 없으면 비어 있다. */
+  readonly httpStatus?: number;
+  /** 진단에 쓸 응답 헤더만 추린 한 줄. */
+  readonly responseHeaders?: string;
 }
 
 /**
@@ -101,7 +106,16 @@ async function send(
       if (!('failure' in result)) {
         return { status: response.status, data: result.data, headers: response.headers };
       }
-      failure = result.failure;
+      /*
+        **상태코드와 헤더를 실패에 실어 둔다.** 본문의 코드만으로는 게이트웨이가 정책으로
+        거절한 것인지 인프라가 흔들린 것인지 갈리지 않는다 — 같은 본문이 200 으로도
+        5xx 로도 온다.
+      */
+      failure = {
+        ...result.failure,
+        httpStatus: response.status,
+        responseHeaders: diagnosticHeaders(response.headers),
+      };
     } catch (error) {
       // 네트워크 오류·타임아웃. 원본이 답을 못 준 것이라 다시 불러 볼 값어치가 있다.
       failure = {
@@ -130,6 +144,24 @@ async function send(
   );
 }
 
+/**
+ * 진단에 쓸 응답 헤더만 추린다.
+ *
+ * **통째로 담지 않는다.** 헤더에는 쿠키 같은 것이 섞일 수 있고, 로그와 DB 에 그대로 남는다.
+ * 게이트웨이가 거절 이유를 싣는 자리(`retry-after`·`x-*`)와 어느 장비가 답했는지를 말하는
+ * 자리(`server`·`via`·`date`)만 본다.
+ */
+function diagnosticHeaders(headers: Headers): string {
+  const wanted = ['date', 'server', 'via', 'content-type', 'retry-after', 'connection'];
+  const picked: string[] = [];
+  headers.forEach((value, name) => {
+    if (wanted.includes(name) || name.startsWith('x-')) {
+      picked.push(`${name}=${value}`);
+    }
+  });
+  return picked.join(' ');
+}
+
 /** 지수 백오프. 코드가 요구하는 최소 대기가 더 길면 그쪽을 따른다. */
 function delayFor(config: ResolvedKrDataConfig, verdict: KrDataVerdict, attempt: number): number {
   const backoff = config.retryDelayMs * 2 ** (attempt - 1);
@@ -144,17 +176,33 @@ function sleep(ms: number): Promise<void> {
 }
 
 function toError(failure: KrDataFailure, endpoint: string, attempts: number): KrDataError {
+  /*
+    **상태코드를 한 줄에 넣는다.** 이력 표(sync_state.error)에는 이 문자열만 남아서,
+    상태가 빠지면 나중에 되짚을 때 게이트웨이 거절과 인프라 장애를 구별할 수 없다.
+  */
+  const http = failure.httpStatus === undefined ? '' : ` [HTTP ${failure.httpStatus}]`;
   const message =
-    attempts > 1 ? `${failure.message} (after ${attempts} attempts)` : failure.message;
+    attempts > 1
+      ? `${failure.message}${http} (after ${attempts} attempts)`
+      : `${failure.message}${http}`;
 
   if (failure.verdict.disposition === 'quota') {
-    return new KrDataQuotaError(message, failure.code, failure.responseBody, endpoint);
+    return new KrDataQuotaError(
+      message,
+      failure.code,
+      failure.responseBody,
+      endpoint,
+      failure.httpStatus,
+      failure.responseHeaders,
+    );
   }
   return new KrDataError(message, failure.code, {
     cause: failure.cause,
     responseBody: failure.responseBody,
     endpoint,
     disposition: failure.verdict.disposition,
+    httpStatus: failure.httpStatus,
+    responseHeaders: failure.responseHeaders,
   });
 }
 
