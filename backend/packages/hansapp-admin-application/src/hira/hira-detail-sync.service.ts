@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asNumber, asString } from '@hansapp/application';
 import { KrDataQuotaError } from '@krdata/core';
+import { KRDATA_CALLS_PER_SECOND, RateLimiter } from '@hansapp/common';
 import type { HiraClient } from '@krdata/hira';
 
 import { HiraDetailSyncRepository } from './hira-detail-sync.repository';
@@ -97,6 +98,13 @@ export class HiraDetailSyncService {
     const ops = options.ops ?? HIRA_DETAIL_OPS;
     const total = await this.countTargets(options);
 
+    /*
+      **이 루프가 초당 제한에 걸리는 자리다.** 워커 8개가 병원 하나당 오퍼레이션 11콜을
+      쉼 없이 두드려서 초당 50을 넘긴다. 병원이 아니라 **콜 단위로** 잡아야 한다 —
+      병원 단위로 세면 한 번 통과할 때마다 11콜이 한꺼번에 나간다.
+    */
+    const limiter = new RateLimiter(KRDATA_CALLS_PER_SECOND);
+
     /**
      * 아직 한도가 남은 오퍼레이션.
      *
@@ -149,7 +157,7 @@ export class HiraDetailSyncService {
       // --limit 은 일 10,000 한도를 지키는 유일한 가드라 어긋나면 한도를 넘겨 버린다.
       // 워커는 자기 콜 수만 반환하고, 합산은 모두 끝난 뒤 여기서 한 번에 한다.
       const callsPerHospital = await mapWithConcurrency(targets, CONCURRENCY, (ykiho) =>
-        this.fetchHospital(ykiho, activeOps, options.force === true, alive),
+        this.fetchHospital(ykiho, activeOps, options.force === true, alive, limiter),
       );
       calls += callsPerHospital.reduce((sum, n) => sum + n, 0);
 
@@ -212,6 +220,7 @@ export class HiraDetailSyncService {
     ops: readonly HiraDetailOp[],
     force: boolean,
     alive: Set<HiraDetailOp>,
+    limiter: RateLimiter,
   ): Promise<number> {
     let calls = 0;
 
@@ -226,6 +235,7 @@ export class HiraDetailSyncService {
 
       let items: Record<string, unknown>[];
       try {
+        await limiter.acquire();
         items = await this.call(op, ykiho);
         calls += 1;
 
