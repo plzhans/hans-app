@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/plzhans/hans-app/compare/release-medifinder/v1.0.2...release-medifinder/v1.1.0) (2026-09-16)
+
+
+### 기능
+
+* **batch:** 관리자 화면에서 배치를 수동 실행한다 ([#89](https://github.com/plzhans/hans-app/issues/89)) ([ea79916](https://github.com/plzhans/hans-app/commit/ea79916b71d6d2a30ea5cfbb3f013e4975cf6616))
+
 ## [1.0.2](https://github.com/plzhans/hans-app/compare/release-medifinder/v1.0.1...release-medifinder/v1.0.2) (2026-09-14)
 
 
