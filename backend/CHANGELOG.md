@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.2](https://github.com/plzhans/hans-app/compare/release-backend/v0.20.1...release-backend/v0.20.2) (2026-09-16)
+
+
+### 버그 수정
+
+* **batch:** 단계 수동 실행이 회차 목록에 남게 한다 ([#96](https://github.com/plzhans/hans-app/issues/96)) ([91a5262](https://github.com/plzhans/hans-app/commit/91a526243f0d5938bd5baa993c544aaff4c85df9))
+
 ## [0.20.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.20.0...release-backend/v0.20.1) (2026-09-16)
 
 
