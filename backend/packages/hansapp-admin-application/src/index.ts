@@ -140,6 +140,9 @@ export { MoisStageService, MOIS_STAGES } from './mois/mois-stage.service';
 export type { MoisStage } from './mois/mois-stage.service';
 
 export { SyncRunnerService, stageCatalog } from './common/sync-runner.service';
+// 잡 목록. 배치는 크론 등록에, 관리자 API 는 문서·검증에 쓴다(단계 목록과 같은 자리).
+export { BATCH_JOBS, BATCH_JOB_NAMES, findBatchJob } from './common/job-catalog';
+export type { BatchJobDefinition, BatchJobName } from './common/job-catalog';
 export type {
   RunAllOptions,
   RunAllResult,

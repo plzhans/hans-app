@@ -90,6 +90,9 @@ enum AdminLogAction {
   BATCH_JOB_ENABLE
   /// 배치 잡의 스케줄을 껐다. **수동 실행까지 막는 것은 아니다.**
   BATCH_JOB_DISABLE
+  /// 관리자 화면에서 배치 잡을 손으로 돌렸다. detail 에 잡 이름과 force 가 남는다.
+  /// **원본 호출을 쓰는 조치라 남긴다** — 일일 한도가 갑자기 준 날 누가 돌렸는지를 여기서 본다.
+  BATCH_JOB_RUN
   /// 배치 단계를 켰다. detail 에 단계 키(hira.2 등)가 남는다.
   BATCH_STAGE_ENABLE
   /// 배치 단계를 껐다. 잡과 달리 **수동 실행도 막는다**(--force 로만 뚫린다).

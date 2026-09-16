@@ -200,6 +200,42 @@ export class BatchJobEnabledDto {
   readonly enabled!: boolean;
 }
 
+/** 수동 실행 요청 */
+export class BatchJobRunRequestDto {
+  @ApiPropertyOptional({
+    description:
+      '이미 받은 것도 다시 받는다. 최근에 성공한 단계도 돌고(신선도 판정 무시), ' +
+      '상세 단계에서는 **이미 받아 둔 병원도 다시 조회한다**.\n\n' +
+      '**원본 호출을 크게 쓴다** — 8만 건을 통째로 다시 받는 쪽이라 일일 한도가 그만큼 빠진다. ' +
+      '원본이 바뀌어 다시 받아야 할 때만 켠다.\n\n' +
+      '**꺼 둔 단계를 뚫는 것과는 다르다.** 관리자 화면에서 부른 실행은 이 값과 무관하게 ' +
+      '꺼 둔 단계도 돈다.',
+    example: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly force?: boolean;
+}
+
+/** 수동 실행을 배치가 받아들였다 */
+export class BatchJobRunAcceptedDto {
+  @ApiProperty({ description: '돌기 시작한 잡', example: 'hira' })
+  readonly job: string;
+
+  @ApiProperty({
+    description:
+      '배치가 받아들였다. **끝났다는 뜻이 아니다** — 진행과 결과는 잡 현황과 회차 이력에서 본다.',
+    example: true,
+  })
+  readonly accepted: boolean;
+
+  constructor(job: string) {
+    this.job = job;
+    this.accepted = true;
+  }
+}
+
 /** 현황 화면이 한 번에 받는 것 */
 export class BatchOverviewDto {
   @ApiProperty({ description: '스케줄이 붙은 잡들', type: [BatchJobStatusDto] })

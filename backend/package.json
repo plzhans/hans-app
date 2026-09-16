@@ -29,6 +29,9 @@
     "openapi:gen:local": "pnpm --filter hansapp-api openapi:gen:local",
     "openapi:gen:dev": "pnpm --filter hansapp-api openapi:gen:dev",
     "openapi:gen:prod": "pnpm --filter hansapp-api openapi:gen:prod",
+    "dev:batch": "SWC_NODE_PROJECT=apps/hansapp-batch/tsconfig.json node --conditions src -r @swc-node/register --watch apps/hansapp-batch/src/main.ts",
+    "start:batch:local": "APP_ENV=local pnpm dev:batch",
+    "start:batch:develop": "APP_ENV=develop pnpm dev:batch",
     "hansapp-batch": "SWC_NODE_PROJECT=apps/hansapp-batch/tsconfig.json node --conditions src -r @swc-node/register apps/hansapp-batch/src/main.ts",
     "vworld:codegen": "pnpm --filter \"@vworld/*\" codegen"
   },

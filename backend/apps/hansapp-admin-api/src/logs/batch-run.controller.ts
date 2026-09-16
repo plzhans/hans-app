@@ -2,15 +2,24 @@ import {
   BadRequestException,
   Body,
   Get,
+  HttpCode,
   NotFoundException,
   Param,
+  Post,
   Put,
   Query,
   Req,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiAcceptedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ApiController, ApiPageResponse, PageResponseDto } from '@hansapp/http-common';
 import {
+  BATCH_JOB_NAMES,
   BatchJobService,
   BatchRunReadService,
   DATA_PROVIDERS,
@@ -26,9 +35,11 @@ import {
 import type { Request } from 'express';
 
 import {
+  BatchJobRunAcceptedDto,
   BatchJobRunDetailDto,
   BatchJobRunDto,
   BatchJobRunQueryDto,
+  BatchJobRunRequestDto,
   BatchJobEnabledDto,
   BatchJobStatusDto,
   BatchOverviewDto,
@@ -36,6 +47,7 @@ import {
   BatchStageRunDto,
   BatchStageRunQueryDto,
 } from './dto/batch-run.dto';
+import { BatchRunnerClient } from './batch-runner.client';
 
 /**
  * 배치 현황과 실행 이력.
@@ -55,6 +67,7 @@ export class BatchRunController {
     private readonly master: BatchJobService,
     private readonly stageState: SyncStateService,
     private readonly actionLog: AdminActionLogService,
+    private readonly runner: BatchRunnerClient,
   ) {}
 
   @Get('jobs')
@@ -73,6 +86,11 @@ export class BatchRunController {
   }
 
   @Put('jobs/:job/enabled')
+  @ApiParam({
+    name: 'job',
+    description: '잡 이름. 코드가 아는 목록에서 고른다.',
+    enum: BATCH_JOB_NAMES,
+  })
   @ApiOperation({
     summary: '스케줄 켜기 / 끄기',
     description:
@@ -109,6 +127,105 @@ export class BatchRunController {
 
     const updated = await this.batch.findJob(job);
     return new BatchJobStatusDto(updated ?? current);
+  }
+
+  @Post('jobs/:job/run')
+  @HttpCode(202)
+  @ApiParam({
+    name: 'job',
+    description: '잡 이름. 코드가 아는 목록에서 고른다.',
+    enum: BATCH_JOB_NAMES,
+  })
+  @ApiOperation({
+    summary: '지금 실행',
+    description:
+      '크론 시각을 기다리지 않고 그 잡을 지금 돌린다. **끝날 때까지 기다리지 않는다** — ' +
+      '배치가 받아들였다는 것만 답하고, 진행과 결과는 잡 현황(`GET jobs`)과 회차 이력에 ' +
+      '`source=ADMIN` 으로 쌓인다.\n\n' +
+      '**스케줄을 꺼 둔 잡도 돈다.** 끄는 것은 "정해진 시각에 저절로 돌지 마라" 이지 ' +
+      '"이 작업을 봉인하라" 가 아니다. 다만 **꺼 둔 단계는 그대로 건너뛴다** — 그쪽은 ' +
+      '원본 한도를 지키려고 끈 것이라 `force` 로만 뚫린다.\n\n' +
+      '이미 돌고 있으면 409, 배치 프로세스가 응답하지 않으면 503 이다.\n\n' +
+      '누가 언제 돌렸는지는 관리자 행위 로그에 남는다.',
+  })
+  @ApiAcceptedResponse({ type: BatchJobRunAcceptedDto })
+  async runJob(
+    @Param('job') job: string,
+    @Body() body: BatchJobRunRequestDto,
+    @CurrentAdmin() admin: AdminAuthUser,
+    @Req() request: Request,
+  ): Promise<BatchJobRunAcceptedDto> {
+    // 마스터에 없는 이름은 배치까지 갈 것도 없다. 오타를 네트워크 너머에서 알아낼 이유가 없다.
+    const current = await this.batch.findJob(job);
+    if (!current) {
+      throw new NotFoundException(`batch job ${job} not found`);
+    }
+
+    const force = body.force === true;
+    await this.runner.run('job', job, force, admin.adminId);
+
+    /*
+      **받아들여진 뒤에만 남긴다.** 이 기록이 답하는 질문은 "누가 원본 호출을 썼나" 인데,
+      배치에 닿지도 못한 요청은 한 콜도 쓰지 않는다.
+    */
+    await this.actionLog.record({
+      adminId: admin.adminId,
+      ip: request.ip ?? null,
+      userAgent: request.get('user-agent') ?? null,
+      action: 'BATCH_JOB_RUN',
+      result: 'SUCCESS',
+      // force 도 같이 남긴다 — 한도를 크게 쓴 회차가 어느 것인지는 이 값으로 갈린다.
+      detail: { job, force },
+    });
+
+    return new BatchJobRunAcceptedDto(job);
+  }
+
+  @Post('stages/:job/run')
+  @HttpCode(202)
+  @ApiParam({
+    name: 'job',
+    description: '단계 키. 코드가 아는 목록에서 고른다(hira.2 등).',
+    enum: stageCatalog().map((stage) => stage.job),
+  })
+  @ApiOperation({
+    summary: '단계 하나만 지금 실행',
+    description:
+      '잡 전체가 아니라 **지목한 단계 하나만** 돌린다. 한 단계를 고쳐 확인할 때 나머지까지 ' +
+      '원본 호출을 쓰지 않아도 된다.\n\n' +
+      '**꺼 둔 단계도 돈다.** 사람이 그 단계를 지목해 누른 것이라 의도가 분명하다 — ' +
+      '단계 off 는 스케줄과 hanscli 를 막는 장치이고 이 버튼은 그 예외다.\n\n' +
+      '**회차에 붙지 않는다.** 잡이 한 바퀴 돈 것이 아니라서, 잡 현황의 "수동 실행" 영역에 ' +
+      'hanscli 로 돌린 단계와 같은 자리에 뜬다(`source=ADMIN`).\n\n' +
+      '이미 돌고 있으면 409, 배치가 응답하지 않으면 503 이다.',
+  })
+  @ApiAcceptedResponse({ type: BatchJobRunAcceptedDto })
+  async runStage(
+    @Param('job') job: string,
+    @Body() body: BatchJobRunRequestDto,
+    @CurrentAdmin() admin: AdminAuthUser,
+    @Req() request: Request,
+  ): Promise<BatchJobRunAcceptedDto> {
+    // 카탈로그에 없는 단계는 배치까지 갈 것도 없다.
+    if (!stageCatalog().some((spec) => spec.job === job)) {
+      throw new NotFoundException(`batch stage ${job} not found`);
+    }
+
+    const force = body.force === true;
+    await this.runner.run('stage', job, force, admin.adminId);
+
+    await this.actionLog.record({
+      adminId: admin.adminId,
+      ip: request.ip ?? null,
+      userAgent: request.get('user-agent') ?? null,
+      // 잡과 같은 액션을 쓴다. 무엇을 돌렸는지는 detail 이 말한다 —
+      // 층위마다 액션을 만들면 단위가 늘 때마다 ALTER 가 따라온다.
+      action: 'BATCH_JOB_RUN',
+      result: 'SUCCESS',
+      detail: { stage: job, force },
+    });
+
+    return new BatchJobRunAcceptedDto(job);
   }
 
   @Get('runs')
@@ -171,6 +288,11 @@ export class BatchRunController {
   }
 
   @Put('stages/:job/enabled')
+  @ApiParam({
+    name: 'job',
+    description: '단계 키. 코드가 아는 목록에서 고른다(hira.2 등).',
+    enum: stageCatalog().map((stage) => stage.job),
+  })
   @ApiOperation({
     summary: '단계 켜기 / 끄기',
     description:

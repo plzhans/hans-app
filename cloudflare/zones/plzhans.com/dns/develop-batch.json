@@ -1,0 +1,8 @@
+{
+  "name": "develop-batch.plzhans.com",
+  "type": "A",
+  "content": "161.33.140.98",
+  "proxied": false,
+  "ttl": 1,
+  "comment": "hansapp-batch(develop). nginx 가 127.0.0.1:3012 로 넘긴다. develop-admin 과 같은 곳"
+}

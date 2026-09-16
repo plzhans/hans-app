@@ -24,7 +24,9 @@ x-common: &common
   volumes:
     - ./config/config.yaml:/app/config/config.yaml:ro
     - ./config/config.develop.yaml:/app/config/config.develop.yaml:ro
-    - ./config/develop:/app/config/secrets:ro
+  # **secrets 는 여기서 주지 않는다.** 앱마다 봐야 할 것이 달라서 서비스별로 붙인다 —
+  # config/<환경> 을 통째로 물리면 batch 가 api 의 서명키까지 들고 있게 된다.
+  # 컨테이너 안 자리는 다 같은 /app/config/secrets 다(이미지의 ENV 가 그 경로를 본다).
   # **env 는 마운트가 아니라 주입한다.** 도커가 호스트에서 읽어 환경변수로 넣는다.
   #
   # format: raw 를 쓰지 않는다 — 보간만 끄는 게 아니라 따옴표도 안 벗겨서 DATABASE_URL 이
@@ -43,6 +45,12 @@ services:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-api:${IMAGE_TAG}
     container_name: hansapp-develop-api
+    # **YAML 병합은 리스트를 이어붙이지 않는다.** x-common 의 두 줄을 다시 적어야 한다.
+    volumes:
+      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./config/config.develop.yaml:/app/config/config.develop.yaml:ro
+      - ./config/develop/jwt:/app/config/secrets/jwt:ro
+      - ./config/develop/ssl:/app/config/secrets/ssl:ro
     # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 산다.
     #
     # 앞단에 nginx 가 없다. Cloudflare 가 오리진에 직접 붙는데 CF 가 쓸 수 있는 HTTPS
@@ -69,6 +77,20 @@ services:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-batch:${IMAGE_TAG}
     container_name: hansapp-develop-batch
+    # **앞단 nginx 가 TLS 를 끝내고 프록시한다** — admin 과 같은 구조다. 그래서 이 컨테이너는
+    # 평문으로 뜨고 인증서를 모른다. 관리자 API 도 그 도메인으로 실행을 요청한다.
+    #
+    # **127.0.0.1 에만 바인딩한다.** 밖에서 직접 닿으면 nginx 를 지나치게 된다.
+    # 클라우드 방화벽에도 이 포트를 열지 않는다.
+    #
+    # **develop 과 production 이 같은 서버에 뜬다.** 호스트 포트가 갈려야 둘 다 산다 —
+    # production=3002, develop=3012 (admin 의 3001/3011 과 같은 규칙).
+    ports:
+      - '127.0.0.1:3012:3002'
+    # **서명키를 받지 않는다.** 실행 요청을 검증할 공개키는 admin 의 JWKS 에서 받아 온다.
+    volumes:
+      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./config/config.develop.yaml:/app/config/config.develop.yaml:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -85,6 +107,12 @@ services:
     <<: *common
     image: ghcr.io/plzhans/hans-app/hansapp-admin:${IMAGE_TAG}
     container_name: hansapp-develop-admin
+    # 관리자 서명키만 받는다. **공용 번들 밖(config/admin/)이라 배포가 명시해야 온다**
+    # (ci-deploy.sh 의 DEPLOY_ADMIN_SECRETS). 없으면 HS256 으로 떨어져 수동 실행만 막힌다.
+    volumes:
+      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./config/config.develop.yaml:/app/config/config.develop.yaml:ro
+      - ./config/admin/develop/jwt:/app/config/secrets/jwt:ro
     ports:
       - '127.0.0.1:3011:3001'
     depends_on:

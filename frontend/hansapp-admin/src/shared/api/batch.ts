@@ -166,6 +166,61 @@ export function setBatchJobEnabled(job: string, enabled: boolean) {
 }
 
 /**
+ * 두 실행이 공통으로 받는 값.
+ *
+ * `force` 는 **이미 받은 것도 다시 받는다** — 최근에 성공한 단계도 돌고(신선도 판정 무시),
+ * 상세 단계에서는 받아 둔 병원도 다시 조회한다. 원본 호출을 크게 쓰므로 평소엔 끈다.
+ * 꺼 둔 단계를 뚫는 것과는 다르다(관리자 화면의 실행은 이 값과 무관하게 꺼진 것도 돈다).
+ */
+
+/** "지금 실행" 을 배치가 받아들였다. 끝났다는 뜻이 아니다. */
+export interface BatchJobRunAccepted {
+  job: string;
+  accepted: boolean;
+}
+
+/**
+ * 크론 시각을 기다리지 않고 지금 돌린다.
+ *
+ * **끝날 때까지 기다리지 않는다.** 배치가 받아들였다는 것만 돌아오고, 진행과 결과는
+ * 현황 화면(`getBatchOverview`)과 회차 이력에 `source=ADMIN` 으로 쌓인다.
+ *
+ * 스케줄을 꺼 둔 잡도 돈다. 다만 **꺼 둔 단계는 건너뛴다** — 그쪽은 원본 한도를 지키려고
+ * 끈 것이라 `force` 로만 뚫린다.
+ *
+ * 이미 돌고 있으면 409, 배치 프로세스가 응답하지 않으면 503 이다.
+ */
+export function runBatchJob(job: string, force = false) {
+  return apiFetch<BatchJobRunAccepted>(
+    `/api/batch/jobs/${encodeURIComponent(job)}/run`,
+    {
+      method: "POST",
+      body: JSON.stringify({ force }),
+    },
+  );
+}
+
+/**
+ * 단계 하나만 돌린다(`hira.7`).
+ *
+ * **잡 전체와 도는 범위가 다르다.** 잡은 그 기관의 단계를 순서대로 다 돌지만 이건 지목한
+ * 하나만 돈다 — 한 단계를 고쳐 확인할 때 나머지까지 원본 호출을 쓰지 않아도 된다.
+ *
+ * **꺼 둔 단계도 돈다.** 사람이 그 단계를 지목해 누른 것이라 의도가 분명하다.
+ *
+ * 회차에 붙지 않아 현황 화면의 "수동 실행" 영역에 뜬다.
+ */
+export function runBatchStage(job: string, force = false) {
+  return apiFetch<BatchJobRunAccepted>(
+    `/api/batch/stages/${encodeURIComponent(job)}/run`,
+    {
+      method: "POST",
+      body: JSON.stringify({ force }),
+    },
+  );
+}
+
+/**
  * 단계 한 줄. 잡보다 한 칸 아래의 손잡이다.
  *
  * **잡을 통째로 끄면 싸고 중요한 목록 단계까지 멈춘다.** 원본(data.go.kr)의 일일 한도는

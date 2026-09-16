@@ -1,0 +1,8 @@
+{
+  "name": "batch.plzhans.com",
+  "type": "A",
+  "content": "10.0.0.101",
+  "proxied": false,
+  "ttl": 1,
+  "comment": "hansapp-batch. nginx 가 TLS 를 끝내고 127.0.0.1:3002 로 넘긴다. admin 과 같은 곳"
+}

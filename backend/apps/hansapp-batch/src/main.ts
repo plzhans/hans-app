@@ -7,7 +7,14 @@ import { reportBootFailure } from '@hansapp/http-common';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { logConfigSummary } from '@hansapp/common';
-import { BatchJobService, describeError } from '@hansapp/admin-application';
+import {
+  BATCH_JOBS,
+  BATCH_JOB_NAMES,
+  BatchJobService,
+  describeError,
+  findBatchJob,
+  type BatchJobDefinition,
+} from '@hansapp/admin-application';
 
 import { AppModule } from './app.module';
 import { appConfig } from './boot-config';
@@ -15,7 +22,6 @@ import { BATCH_CONFIG, type BatchConfig } from './batch.config';
 import { RUNNER } from './runner';
 import { BatchScheduler } from './batch.scheduler';
 import { BatchService } from './batch.service';
-import { BATCH_JOBS, BATCH_JOB_NAMES, findBatchJob, type BatchJobDefinition } from './batch.jobs';
 
 // --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
 // Sentry.init 이 DSN·환경·버전을 먼저 알아야 해서 모든 import 보다 앞서 돌아야 하기 때문이다.

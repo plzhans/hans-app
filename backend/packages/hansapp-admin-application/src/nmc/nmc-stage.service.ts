@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KrDataQuotaError } from '@krdata/core';
+import { BatchRunSource } from '@hansapp/common';
 
 import {
   ProgressReporter,
@@ -118,6 +119,11 @@ export function runMeta(job: SyncJob, options: StageRunOptions): SyncRunMeta {
   };
 }
 
+/** 관리자 화면이 부른 실행인가. 꺼진 단계를 통과시킬지가 여기서 갈린다. */
+function fromAdminConsole(options: StageRunOptions): boolean {
+  return options.context?.source === BatchRunSource.ADMIN;
+}
+
 /**
  * 건너뛸 이유를 돌려준다. 없으면 undefined.
  * 배치와 CLI 가 같은 판정을 쓰도록 여기 한 곳에 둔다.
@@ -133,10 +139,18 @@ export async function skipReason(
     return '이미 실행 중이다';
   }
 
-  // 꺼진 단계는 **수동 실행도 막는다.** batch_job.enabled 는 스케줄만 껐지만 이쪽은
-  // 목적이 한도 보호다 — dev 와 운영이 같은 서비스키를 쓰므로 hanscli 로 무심코 돌린
-  // 한 번이 그대로 운영 몫에서 빠진다. 고친 뒤 확인해야 하면 --force 로 뚫는다.
-  if (!options.force && !(await state.isEnabled(job))) {
+  /*
+    꺼진 단계.
+
+    **목적이 한도 보호다** — dev 와 운영이 같은 서비스키를 쓰므로 무심코 돌린 한 번이
+    그대로 운영 몫에서 빠진다. 그래서 스케줄만 끄는 batch_job.enabled 와 달리
+    hanscli 로 부른 것도 막고, 뚫으려면 --force 를 줘야 한다.
+
+    **관리자 화면에서 부른 것은 통과시킨다.** 거기서는 사람이 그 잡을 콕 집어 버튼을
+    누른 것이라 의도가 분명하고, 무엇이 꺼져 있는지도 그 화면에 같이 보인다 —
+    눌렀는데 조용히 아무 일도 안 일어나는 쪽이 더 나쁘다.
+  */
+  if (!options.force && !fromAdminConsole(options) && !(await state.isEnabled(job))) {
     return '꺼져 있다';
   }
 

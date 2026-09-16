@@ -100,12 +100,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
 
 ENV NODE_ENV=production
 
-# 컨테이너 안에서의 자리. **환경 이름이 들어가지 않는다.**
-# 컨테이너에는 환경이 하나뿐이므로 자기가 develop 인지 production 인지 파일 구조로 알
-# 필요가 없다. 배포는 호스트의 config/<환경>/ 을 여기로 마운트한다.
-ENV AUTH_JWT_KEY_DIR=config/secrets/jwt \
-    SSL_CERTIFICATE=config/secrets/ssl/fullchain.pem \
-    SSL_CERTIFICATE_KEY=config/secrets/ssl/privkey.pem
+# **0.0.0.0 에 붙는다.** 기본값(127.0.0.1)은 컨테이너 안의 루프백이라 도커가 발행한 포트로
+# 넘기지 못한다 — 앞단 nginx 가 호스트의 127.0.0.1 로 붙는데 거기까지 닿지 않는다.
+# 컨테이너 밖 경계는 compose 의 발행 주소(127.0.0.1:...)와 방화벽이 맡는다.
+ENV APPS_BATCH_WEB_BIND_ADDRESS=0.0.0.0
+
+# **서명키도 인증서도 두지 않는다.** 배치는 토큰을 발행하지 않고 TLS 도 열지 않는다
+# (TLS 는 앞단 nginx 가 끝낸다 — admin 과 같은 구조다).
+#
+# 예전에는 api 와 같은 값을 그냥 복사해 뒀는데, 쓰지도 않는 경로를 명시해 두면
+# 마운트가 없어진 뒤 그 모듈을 올리는 날 "경로는 있는데 키가 없다" 로 부팅이 거부된다.
+#
+# "지금 실행" 요청을 검증할 공개키는 파일이 아니라 admin 의 JWKS 에서 받는다.
 
 WORKDIR /app
 

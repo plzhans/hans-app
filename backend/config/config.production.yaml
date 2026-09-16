@@ -32,5 +32,7 @@ apps-admin-api:
     enabled: true
 
 apps-batch:
+  # 앞단 nginx 가 TLS 를 끝내고 프록시하는 주소. 관리자 API 가 여기로 실행을 요청한다.
+  externalUrl: https://batch.plzhans.com
   sentry:
     enabled: true

@@ -154,10 +154,25 @@ apps-api:
 # admin.jwt.secret 은 auth.jwt.secret 과 달라야 한다 — 같으면 부팅을 거부한다.
 admin:
   jwt:
-    # 관리자 access token 의 iss.
+    # 관리자 access token 의 iss. 미설정이면 iss 를 넣지 않는다.
+    #
+    # **배치도 이 값을 읽는다.** 여기가 곧 공개키(JWKS) 주소라, 배치가 "지금 실행" 요청을
+    # 검증할 때 `<issuer>/.well-known/jwks.json` 을 받아 오고 토큰의 iss 도 이 값으로 대조한다.
+    # 비어 있으면 그 기능만 꺼진다(로그인은 그대로 된다).
     issuer:
-    # 관리자 전용 서명 비밀키(시크릿).
+    # 받아들일 iss 목록. 자기 issuer 는 코드가 자동 포함한다.
+    # 로컬이 dev DB 에 붙어 세션 표를 공유할 때처럼 발급처가 여럿일 때 적는다.
+    allowedIssuers: []
+    # 관리자 전용 서명 비밀키(시크릿). keyDir 이 없을 때 이 키로 HS256 서명한다.
     secret:
+    # 관리자 토큰 비대칭(ES256) 서명 키 디렉터리. 키가 있으면 ES256, 없으면 HS256(secret).
+    # 규칙은 auth.jwt.keyDir 과 같다.
+    #
+    # **배치의 "지금 실행" 은 이게 있어야 된다.** 배치는 여기 공개키(JWKS)로 요청을 검증하는데
+    # HS256 이면 나눠 줄 공개키가 없다. 로그인은 어느 쪽이든 그대로 돈다.
+    # 발급: pnpm hansapp-cli jwt gen --app admin  → config/admin/<환경>/jwt
+    # **공용 번들 밖이라 배포가 명시해야 서버에 간다**(ci-deploy.sh 의 DEPLOY_ADMIN_SECRETS).
+    keyDir:
     #accessTokenExpiresIn: 1h
     #refreshTokenExpiresIn: 8h
   # bcrypt 비용 계수. default: 10
@@ -237,6 +252,21 @@ search:
 apps-batch:
   # 앱 이름. default: hansapp-batch
   #name: hansapp-batch
+  # 앞단 nginx 를 지나 이 프로세스에 닿는 주소.
+  #
+  # **관리자 API 가 "지금 실행" 을 여기로 보낸다.** 부르는 쪽이 아니라 여기 적는 것은 주소의
+  # 주인이 배치이기 때문이다 — 사본이 둘이면 옮길 때 한쪽만 고쳐져 조용히 못 붙는다.
+  # 비어 있으면 콘솔의 수동 실행이 막힌다(크론은 그대로 돈다).
+  externalUrl:
+  # 상주 모드가 여는 포트. 헬스체크와 콘솔의 "지금 실행" 을 여기서 받는다.
+  # 이미 떠 있으면 부팅이 실패한다 — 한 컴퓨터에 하나만 띄우는 가드를 겸한다.
+  #web:
+  #  # default: 3002
+  #  port: 3002
+  #  # 어느 주소에 붙을까. default: 127.0.0.1
+  #  # **컨테이너는 이미지가 0.0.0.0 으로 정해 둔다**(hansapp-batch.Dockerfile) — 도커가 발행한
+  #  # 포트로 넘기려면 루프백이면 안 된다. 여기서 바꿀 일은 거의 없다.
+  #  bindAddress: 127.0.0.1
   # 크론식을 해석할 타임존. default: Asia/Seoul
   #timeZone: Asia/Seoul
   # 실행당 최대 외부 API 호출 수. 0=무제한. default: 0

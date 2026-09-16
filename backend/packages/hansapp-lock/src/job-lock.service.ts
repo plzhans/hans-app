@@ -152,6 +152,33 @@ export class JobLockService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * 지금 누가 이 잡의 락을 쥐고 있나.
+   *
+   * **겹침을 막는 장치가 아니다.** 막는 것은 withLock 하나뿐이고, 이건 락을 잡기 전에
+   * "이미 돌고 있다" 를 사람에게 바로 알려주기 위한 것이다(관리자 화면의 수동 실행).
+   *
+   * **마스터 표의 RUNNING 을 대신 보면 안 된다.** 프로세스가 끊기면 종료 기록이 안 돌아
+   * 그 값이 영영 RUNNING 으로 굳는데, 그걸 기준으로 삼으면 크래시 한 번에 수동 실행이
+   * 영영 막힌다. 락은 TTL 이 지나면 저절로 사라져 그 상태가 남지 않는다.
+   *
+   * 락을 볼 수 없으면(Redis 미설정·다운) false 다. 그 경우 실행은 어차피 락을 못 잡아
+   * 생략 회차로 남는다 — 여기서 막아 봐야 이유만 흐려진다.
+   */
+  async isHeld(name: string): Promise<boolean> {
+    const client = await this.connect();
+    if (!client) {
+      return false;
+    }
+
+    try {
+      return (await client.exists(`${this.prefix}${name}`)) === 1;
+    } catch (error) {
+      this.logger.warn(`lock check failed (${name}): ${describe(error)}`);
+      return false;
+    }
+  }
+
   /** 락을 걸 수 있는 상태인가. 부팅 로그에 한 줄 남기는 용도다. */
   get configured(): boolean {
     return this.url !== undefined;

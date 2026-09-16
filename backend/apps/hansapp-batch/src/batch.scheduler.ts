@@ -2,12 +2,17 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import * as Sentry from '@sentry/nestjs';
-import { BatchJobService, stageCatalog, SyncStateService } from '@hansapp/admin-application';
+import {
+  BATCH_JOBS,
+  BatchJobService,
+  stageCatalog,
+  SyncStateService,
+  type BatchJobDefinition,
+} from '@hansapp/admin-application';
 import { BatchRunSource } from '@hansapp/common';
 
 import { BATCH_CONFIG, BatchConfig } from './batch.config';
 import { BatchService } from './batch.service';
-import { BATCH_JOBS, type BatchJobDefinition } from './batch.jobs';
 
 /**
  * 크론 등록.

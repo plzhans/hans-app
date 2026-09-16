@@ -7,6 +7,9 @@ import {
   HiraNmcMatchService,
   RunAllResult,
   SyncRunnerService,
+  type BatchJobDefinition,
+  type BatchJobName,
+  type StageSpec,
   type DataProvider,
   type RunContext,
 } from '@hansapp/admin-application';
@@ -17,7 +20,6 @@ import { JobLockService, LOCK_NOT_ACQUIRED } from '@hansapp/lock';
 import { BATCH_CONFIG, BatchConfig } from './batch.config';
 import { AuthCleanupService } from './auth-cleanup.service';
 import { SessionCacheSweeper } from './session-cache-sweeper.service';
-import type { BatchJobDefinition, BatchJobName } from './batch.jobs';
 
 /** 한 잡이 한 회차에 낸 결과. 회차 이력에 그대로 접힌다. */
 interface JobOutcome {
@@ -109,6 +111,49 @@ export class BatchService {
         'could not acquire the lock — another runner holds it, or redis is unavailable',
         options.scheduledAt,
       );
+    }
+  }
+
+  /**
+   * 단계 하나만 돌린다. 관리자 화면이 단계를 콕 집어 눌렀을 때 지나는 문이다.
+   *
+   * **회차(batch_job_history)를 열지 않는다.** 회차는 "잡이 한 바퀴 돌았다" 의 단위인데
+   * 이건 그 밖의 실행이다 — 잡 카드에 얹으면 스케줄이 돈 것처럼 보인다. 대신 단계 이력
+   * (sync_state_history)에 회차 없는 행으로 남고, 콘솔은 그것을 "수동 실행" 영역에 띄운다.
+   * hanscli 로 돌린 단계와 같은 자리이고 source 만 갈린다.
+   *
+   * **꺼 둔 단계도 돈다.** 관리자 화면에서 부른 실행이라 skipReason 이 통과시킨다 —
+   * 사람이 그 단계를 지목해 눌렀는데 조용히 아무 일도 안 일어나면 그게 더 나쁘다.
+   */
+  async runStage(
+    spec: StageSpec,
+    options: { source?: BatchRunSource; force?: boolean } = {},
+  ): Promise<void> {
+    const source = options.source ?? BatchRunSource.ONCE;
+    const context: RunContext = { source };
+
+    /*
+      **잡 락과 같은 자리를 쓴다**(키가 단계 키일 뿐이다). 단계 서비스도 자체로 겹침을
+      보지만(sync_state.status), 그 값은 프로세스가 끊기면 굳는다 — 락은 TTL 로 풀린다.
+    */
+    const result = await this.lock.withLock(spec.job, async () => {
+      const startedAt = Date.now();
+      this.logger.log(`${spec.job}: started`);
+      const outcome = await this.runner.runStage(spec.provider, spec.stage, {
+        force: options.force,
+        context,
+      });
+      const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+      this.logger.log(
+        outcome.skipped
+          ? `${spec.job}: skipped — ${outcome.skipReason}`
+          : `${spec.job}: done — ${outcome.calls.toLocaleString()} calls / ${seconds}s`,
+      );
+    });
+
+    if (result === LOCK_NOT_ACQUIRED) {
+      // 단계 실행은 회차가 없어 생략을 적을 자리도 없다. 로그로만 남긴다.
+      this.logger.warn(`${spec.job}: skipped — could not acquire the lock`);
     }
   }
 

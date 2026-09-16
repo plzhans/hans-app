@@ -33,7 +33,7 @@ export enum BatchRunSource {
   ONCE = 2,
   /** hanscli */
   CLI = 3,
-  /** 관리자 화면 (아직 없음) */
+  /** 관리자 화면의 "지금 실행" */
   ADMIN = 4,
 }
 

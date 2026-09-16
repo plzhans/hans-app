@@ -131,7 +131,13 @@ export class SyncRunnerService {
     return { runs, calls: spent, budgetExhausted: false };
   }
 
-  private runStage(
+  /**
+   * 단계 하나만 돌린다.
+   *
+   * **runAll 이 쓰는 것과 같은 문이다.** 관리자 화면이 단계를 콕 집어 돌릴 때도 여기를
+   * 지난다 — 경로가 갈리면 건너뛰기 판정이나 이력 기록이 한쪽에만 붙는 일이 생긴다.
+   */
+  runStage(
     provider: DataProvider,
     stage: number,
     options: { force?: boolean; limit?: number; context?: RunContext },

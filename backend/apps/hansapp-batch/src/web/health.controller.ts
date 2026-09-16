@@ -1,9 +1,9 @@
 import { Controller, Get, Inject } from '@nestjs/common';
-import { BatchJobService } from '@hansapp/admin-application';
+import { BATCH_JOBS, BatchJobService } from '@hansapp/admin-application';
 import { BatchCategory } from '@hansapp/common';
 
 import { BATCH_CONFIG, BatchConfig } from '../batch.config';
-import { BATCH_JOBS } from '../batch.jobs';
+
 import { buildInfo } from '../boot-config';
 import { RUNNER } from '../runner';
 
@@ -14,8 +14,8 @@ import { RUNNER } from '../runner';
  * 같은 컴퓨터에 두 번째 배치를 띄우면 EADDRINUSE 로 즉시 죽는다 — Node 에 flock 이
  * 없어서 "죽으면 커널이 회수한다" 는 성질을 포트에서 빌려온 것이다.
  *
- * 나머지 절반은 모니터링이다. 지금은 살아 있는지와 무엇을 물고 있는지만 답하고,
- * 잡 현황·수동 실행 같은 것은 필요해질 때 여기 붙이면 된다.
+ * 나머지 절반은 모니터링이다. 살아 있는지와 무엇을 물고 있는지를 답한다
+ * (관리자 콘솔이 손으로 돌리는 창구는 같은 포트의 job-run.controller 에 있다).
  *
  * **인증을 걸지 않는다.** 컨테이너 헬스체크가 부르는 자리이고, 기본 바인드가
  * 127.0.0.1 이라 밖에서 닿지 않는다(컨테이너에서는 0.0.0.0 으로 열되 포트를 노출하지 않는다).

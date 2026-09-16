@@ -5,6 +5,9 @@
   "description": "공공데이터를 로컬 DB 에 적재하는 배치. 크론으로 단계를 순서대로 돌린다",
   "scripts": {
     "start": "node --conditions src -r @swc-node/register src/main.ts",
+    "start:local": "APP_ENV=local node --watch --conditions src -r @swc-node/register src/main.ts",
+    "start:develop": "APP_ENV=develop node --watch --conditions src -r @swc-node/register src/main.ts",
+    "start:debug": "APP_ENV=develop node --inspect=9231 --watch --conditions src -r @swc-node/register src/main.ts",
     "start:once": "node --conditions src -r @swc-node/register src/main.ts --once",
     "build": "tsc -p tsconfig.json && node ../../scripts/build-info.mjs",
     "lint": "eslint \"src/**/*.ts\" --fix"
@@ -15,6 +18,7 @@
     "@hansapp/data": "workspace:*",
     "@hansapp/event-publisher": "workspace:*",
     "@hansapp/http-common": "workspace:*",
+    "@hansapp/jwt": "workspace:*",
     "@hansapp/lock": "workspace:*",
     "@hansapp/search": "workspace:*",
     "@nestjs/cache-manager": "^3.1.3",
