@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.3](https://github.com/plzhans/hans-app/compare/release-backend/v0.20.2...release-backend/v0.20.3) (2026-09-16)
+
+
+### 버그 수정
+
+* **krdata:** 초당 호출 상한을 지켜 429 를 피한다 ([#98](https://github.com/plzhans/hans-app/issues/98)) ([0cabc6f](https://github.com/plzhans/hans-app/commit/0cabc6fa60b5bb991de9916284720d81a99cc38d))
+
 ## [0.20.2](https://github.com/plzhans/hans-app/compare/release-backend/v0.20.1...release-backend/v0.20.2) (2026-09-16)
 
 
