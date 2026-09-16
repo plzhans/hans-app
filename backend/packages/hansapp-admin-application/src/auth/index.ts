@@ -37,6 +37,9 @@ export type {
   AdminPasswordResetTarget,
 } from './admin-password-reset.service';
 export { AdminTokenService } from './admin-token.service';
+// 서명 키를 들고 있는 쪽. 공개키셋(JWKS)을 내보내는 컨트롤러와, 내부 서비스 호출을
+// 서명하는 곳이 이걸 쓴다.
+export { AdminJwtService } from './admin-jwt.service';
 export type { AdminAuthTokens, AdminRequestMeta } from './admin-token.service';
 
 // 소셜 로그인(구글). 자격증명은 DB 설정(admin.google.*)에서 오고, 계정은 만들지 않는다.

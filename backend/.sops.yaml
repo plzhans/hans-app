@@ -17,6 +17,20 @@ creation_rules:
       age1zg5n5zp069lamnw2kxk3nw58h4l68tp9wx9tld962sq6gg9en58spmmm54,
       age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
 
+  # **admin 경계**(config/admin/<환경>/ : 관리자 서명키). 공용 번들(config/<환경>/) 밖에 둔다 —
+  # 기존 배포는 config/<환경> 만 훑으므로 **기본은 나가지 않고**, admin 을 띄우는 배포가
+  # DEPLOY_ADMIN_SECRETS 로 명시할 때만 나른다. 실수로 빠뜨려서 새는 쪽이 아니라
+  # 실수로 빠뜨리면 기능이 꺼지는 쪽이어야 한다.
+  - path_regex: ^config/admin/develop/.*$
+    age: >-
+      age1zg5n5zp069lamnw2kxk3nw58h4l68tp9wx9tld962sq6gg9en58spmmm54,
+      age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
+
+  - path_regex: ^config/admin/production/.*$
+    age: >-
+      age1zg5n5zp069lamnw2kxk3nw58h4l68tp9wx9tld962sq6gg9en58spmmm54,
+      age1hay0wsyqfzuh72h0yvwn64lpxrcpyxsz005lvu08jpwez9v8hvfsh92s26
+
   # develop 에셋 디렉터리(config/develop/ : jwt 키 등): 개인키 + develop 서버키.
   - path_regex: ^config/develop/.*$
     age: >-

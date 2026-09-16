@@ -72,8 +72,15 @@ ENV NODE_ENV=production
 # 안 바뀌는 값이고, 값이 비면 앱이 SPA 를 안 내보낸다(로컬은 Vite dev server 로 따로 띄운다).
 #
 # TLS 는 없다. 앞단 nginx 가 끝낸다 — SSL_CERTIFICATE 를 두지 않는 것이 곧 평문으로 뜨라는 뜻이다.
-# jwt 키 디렉터리도 없다. 관리자 토큰은 대칭키(HS256) 하나로 서명한다.
+#
+# AUTH_JWT_KEY_DIR 도 없다. 사용자 access token 을 서명하는 것은 api 이고 이 컨테이너는
+# 그 키를 받지도 않는다(compose 가 마운트를 앱마다 가른다).
 ENV APPS_ADMIN_API_WEB_STATIC_DIR=web
+
+# 관리자 토큰 서명 키. **비대칭(ES256)일 때만 배치가 "지금 실행" 요청을 검증할 수 있다** —
+# 키가 없으면 HS256 으로 떨어지고, 그러면 공개키가 없어 그 기능만 막힌다(로그인은 그대로다).
+# compose 가 config/<환경>/admin/jwt 를 여기로 마운트한다.
+ENV ADMIN_JWT_KEY_DIR=config/secrets/jwt
 
 WORKDIR /app
 

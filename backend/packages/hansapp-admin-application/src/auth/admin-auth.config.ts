@@ -15,6 +15,15 @@ export const ADMIN_TOKEN_AUDIENCE = 'hansapp-admin';
 export interface AdminAuthConfig {
   /** access token(JWT) 서명 키(HS256). **공개 API 의 auth.jwt.secret 과 달라야 한다.** */
   readonly jwtSecret: string;
+
+  /**
+   * 비대칭(ES256) 서명 키 디렉터리. 있으면 ES256, 없으면 위 jwtSecret 으로 HS256 폴백.
+   * 규칙은 auth.jwt.keyDir 과 같다.
+   *
+   * **배치의 수동 실행이 이 값에 걸린다.** 배치는 관리자가 서명한 요청을 JWKS 의 공개키로
+   * 검증하는데, HS256 이면 나눠 줄 공개키가 없다. 로그인은 어느 쪽이든 그대로 돈다.
+   */
+  readonly jwtKeyDir?: string;
   /**
    * 이 서버가 어느 환경인가(local·develop·production).
    *
@@ -26,6 +35,15 @@ export interface AdminAuthConfig {
 
   /** 발급자. 설정하면 sign 에 박고 verify 에서 대조한다. */
   readonly issuer?: string;
+
+  /**
+   * 검증 때 **허용할 iss 목록**. 자기 issuer 는 코드가 자동 포함한다.
+   *
+   * **발급처가 여럿일 수 있어서 둔다**(auth.jwt.allowedIssuers 와 같은 규칙). 로컬이 dev DB 에
+   * 붙으면 세션 표를 dev 서버와 공유하는데, 두 쪽이 찍는 iss 가 달라 한쪽 토큰이 거부된다.
+   * 비면 iss 검증을 하지 않는다(issuer 도 없을 때).
+   */
+  readonly allowedIssuers: readonly string[];
   readonly accessTokenTtlSec: number;
   readonly refreshTokenTtlSec: number;
   readonly bcryptRounds: number;
@@ -91,10 +109,20 @@ export function buildAdminAuthConfig(source: ConfigSource): AdminAuthConfig {
     );
   }
 
+  const issuer = source.getStringOrDefault('admin.jwt.issuer') || undefined;
+  // 허용 발급처 = admin.jwt.allowedIssuers(yaml 리스트) + 자기 issuer(자동 포함).
+  // auth.jwt 와 같은 규칙이다 — 발급처가 여럿인 경우를 설정으로 다룬다.
+  const allowedIssuers = [...source.getStringArray('admin.jwt.allowedIssuers')];
+  if (issuer && !allowedIssuers.includes(issuer)) {
+    allowedIssuers.push(issuer);
+  }
+
   return Object.freeze({
     jwtSecret,
+    jwtKeyDir: source.getStringOrDefault('admin.jwt.keyDir') || undefined,
+    allowedIssuers,
     appEnv: source.env,
-    issuer: source.getStringOrDefault('admin.jwt.issuer') || undefined,
+    issuer,
     // 1시간. 폐기는 가드가 세션 캐시로 잡으므로 이 값에 매달 이유가 없다(config-defaults 주석 참고).
     accessTokenTtlSec: source.getDurationSecOrDefault('admin.jwt.accessTokenExpiresIn'),
     // 8시간. 하루 근무를 덮으므로 작업 중 재로그인이 없고, 퇴근 뒤에는 자연히 끊긴다.
