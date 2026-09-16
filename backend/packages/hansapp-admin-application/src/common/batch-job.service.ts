@@ -145,6 +145,48 @@ export class BatchJobService {
   }
 
   /**
+   * 단계 하나만 도는 회차를 연다. **마스터는 건드리지 않는다.**
+   *
+   * 관리자 화면에서 `hira.7` 처럼 단계를 지목해 돌릴 때 쓴다. 그 실행도 회차 이력에
+   * 남아야 한다 — 회차가 없으면 단계 이력 행에 부모가 없어서, 회차 목록이 그 행을
+   * 집어낼 자리가 없다. 버튼을 누른 사람이 결과를 볼 곳이 사라진다는 뜻이다.
+   *
+   * **그렇다고 마스터까지 갱신하면 안 된다.** 마스터 한 행은 스케줄로 도는 그 잡의
+   * 상태인데, 12분의 1만 돈 실행이 마지막 성공 시각과 실패 연속 횟수를 덮어쓴다.
+   * 그래서 이력에만 남긴다(→ skip 과 같은 이유).
+   */
+  async startStandalone(job: string, source: BatchRunSource): Promise<OpenJobRun> {
+    const startedAt = new Date();
+
+    const historyId = await this.guard('단독 회차 이력 시작', () =>
+      this.history.startJobRun({ job, source, startedAt, runner: this.runner }),
+    );
+
+    return { job, historyId, startedAt };
+  }
+
+  /** 단독 회차를 닫는다. 마스터를 건드리지 않는 것 말고는 finish 와 같다(→ startStandalone). */
+  async finishStandalone(run: OpenJobRun, outcome: JobRunOutcome): Promise<void> {
+    if (run.historyId === undefined) {
+      return;
+    }
+
+    const finishedAt = new Date();
+
+    await this.guard('단독 회차 이력 종료', () =>
+      this.history.finishJobRun(run.historyId as bigint, {
+        status: outcome.status,
+        finishedAt,
+        elapsedMs: finishedAt.getTime() - run.startedAt.getTime(),
+        calls: outcome.calls,
+        processed: outcome.processed,
+        error: outcome.error,
+        summary: outcome.summary,
+      }),
+    );
+  }
+
+  /**
    * 크론은 떴는데 돌지 못한 회차를 남긴다.
    *
    * **마스터는 건드리지 않는다.** 그 순간 마스터는 이전 회차 때문에 RUNNING 인데,

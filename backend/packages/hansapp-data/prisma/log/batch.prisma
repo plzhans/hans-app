@@ -19,8 +19,12 @@ model BatchJobHistory {
   /// batch_job.job 과 같은 값. daily-sync | auth-cleanup
   job String @db.VarChar(30)
 
-  /// BatchRunSource. **잡 회차에는 CRON | ONCE 만 온다** —
-  /// hanscli 에는 "하루치 배치 전체" 커맨드가 없고 단계만 돌기 때문이다.
+  /// BatchRunSource. CRON | ONCE | ADMIN 이 온다.
+  /// CLI 는 없다 — hanscli 에 "하루치 배치 전체" 커맨드가 없고 단계만 돌기 때문이다.
+  ///
+  /// **ADMIN 회차는 단계 하나만 돈 것일 수 있다.** 관리자 화면에서 `hira.7` 을 지목해
+  /// 돌리면 부모 잡 이름으로 이 표에 한 행이 열린다 — 무엇을 돌린 것인지는 이 회차에
+  /// 매달린 SyncStateHistory 행이 말해 준다.
   source Int @db.TinyInt
 
   /// BatchRunStatus. 마스터와 달리 IDLE 은 오지 않는다.

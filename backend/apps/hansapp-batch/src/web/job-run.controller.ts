@@ -108,7 +108,8 @@ export class BatchJobRunController {
    * 순서대로 돌고 이건 지목한 하나만 돈다 — 한 단계만 고쳐 확인할 때 나머지까지 원본
    * 호출을 쓰지 않아도 된다.
    *
-   * 회차를 열지 않으므로 콘솔의 "수동 실행" 영역에 뜬다(BatchService.runStage 참고).
+   * 회차는 **부모 잡 이름으로** 열려서 크론 회차와 같은 목록에 뜬다. 마스터(batch_job)는
+   * 건드리지 않는다 — BatchJobService.startStandalone 참고.
    */
   @Post('stages/:job/run')
   @HttpCode(202)
