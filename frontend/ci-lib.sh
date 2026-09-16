@@ -50,6 +50,20 @@ env_short() {
   esac
 }
 
+# Worker 가 계정에 있는지 묻는다. **판정이 아니라 HTTP 코드를 그대로 돌려준다** —
+# "없음"과 "권한 없음"을 부르는 쪽이 구분해야 하기 때문이다. 둘을 뭉뚱그리면 토큰 권한이
+# 모자란 상황에서 "처음 만드는 거니 새로 만들라"고 엉뚱한 안내를 하게 된다.
+#
+# 2xx 를 통째로 본다. 정적 자산만 담은 Worker 는 스크립트 본문이 비어 204 가 오므로,
+# 200 만 보면 두 번째 배포부터 전부 막힌다.
+#
+# ci-deploy.sh 와 사이트맵 워크플로가 같이 쓴다.
+worker_http_code() {
+  curl -s -o /dev/null -w '%{http_code}' \
+    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$1"
+}
+
 # 필요한 환경변수가 다 있는지 **한 번에** 본다. 하나씩 죽으면 로컬에서 맞추는 데
 # 왕복이 여러 번 필요하다. 모자란 걸 전부 알려주고 한 번에 끝낸다.
 require_env() {

@@ -104,6 +104,20 @@ case "$project" in
     group "build ($project, $APP_ENV)"
     pnpm "build:$APP_ENV"
     endgroup
+
+    # 검색엔진용 산출물(robots.txt 교체·자리표시자 치환·약관 HTML 굽기)은 **빌드가 끝난 뒤**
+    # dist/ 를 손보는 일이라 빌드와 따로 돈다. 빌드 안에 넣으면 앱 빌드가 그 작업에 묶인다.
+    #
+    # **이 단계를 빼면 자리표시자가 그대로 배포된다** — robots.txt 의 Sitemap 줄이
+    # `__SITE_URL__/sitemap.xml` 인 채로 나가고, 빌드는 성공해서 아무도 모른다.
+    #
+    # 스크립트를 정의한 프로젝트에서만 돈다(지금은 hansapp-web 하나). 나중에 다른 프론트가
+    # 같은 이름으로 만들면 여기를 안 고쳐도 붙는다.
+    if node -e "process.exit(require('./package.json').scripts?.['seo:$APP_ENV'] ? 0 : 1)"; then
+      group "seo ($project, $APP_ENV)"
+      pnpm "seo:$APP_ENV"
+      endgroup
+    fi
     ;;
 
   hansapp-docs)

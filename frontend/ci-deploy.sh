@@ -89,9 +89,7 @@ CF_WORKER_NAME="$(worker_name_for "$project")"
 # **"없음" 과 "권한 없음" 을 반드시 구분한다.** 둘 다 실패로 뭉뚱그리면, 토큰 권한이
 # 모자란 상황에서 "처음 만드는 거니 CF_ALLOW_CREATE 를 주라" 고 엉뚱한 안내를 하게 된다.
 # 그 말을 따르면 배포가 인증에서 다시 죽고, 사람은 두 번 헤맨다.
-http_code=$(curl -s -o /dev/null -w '%{http_code}' \
-  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$CF_WORKER_NAME")
+http_code=$(worker_http_code "$CF_WORKER_NAME")
 
 case "$http_code" in
   # 2xx 를 통째로 받는다. 있는 Worker 가 늘 200 을 주지 않는다 — 이 엔드포인트는 스크립트

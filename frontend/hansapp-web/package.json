@@ -10,6 +10,10 @@
     "build": "tsc -b && vite build",
     "build:develop": "dotenv -e .env.develop -- vite build",
     "build:production": "dotenv -e .env.production -- vite build",
+    "seo:develop": "dotenv -e .env.develop -- node scripts/seo/generate.ts",
+    "seo:production": "dotenv -e .env.production -- node scripts/seo/generate.ts",
+    "sitemap:board:develop": "dotenv -e .env.develop -- node scripts/seo/sitemap-board.ts",
+    "sitemap:board:production": "dotenv -e .env.production -- node scripts/seo/sitemap-board.ts",
     "preview": "vite preview --port 5274 --strictPort"
   },
   "dependencies": {

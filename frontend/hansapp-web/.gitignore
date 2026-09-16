@@ -9,3 +9,6 @@ dist
 # 파일을 못 봐서 운영 빌드가 죽거나, 더 나쁘게는 빈 값으로 구워져 배포된다.
 # (frontend/.gitignore 의 정책과 같다. 진짜 비밀값은 VITE_ 접두사를 붙이면 안 된다.)
 node_modules/.tmp
+
+# 사이트맵 생성 산출물(scripts/seo/sitemap-board.ts). 워크플로가 만들어 워커로 올린다.
+out/

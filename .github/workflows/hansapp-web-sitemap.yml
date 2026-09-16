@@ -1,0 +1,143 @@
+# 콘솔(console.plzhans.com)의 게시판 사이트맵을 만들어 전용 Worker 로 올린다.
+#
+#   build → (artifact) → deploy
+#
+# **fe-deploy-* 와 관계가 없다.** 배포 파이프라인이 아니라 주기 실행이다. 게시글은 배포와
+# 무관하게 생기므로, 사이트 빌드에 묶으면 글 하나 올릴 때마다 프론트를 다시 배포해야 한다.
+#
+# [사이트 빌드에 넣지 않은 이유]
+# 넣으면 프론트 배포가 백엔드 가용성에 묶인다 — 앱 코드를 고쳐 올리려는데 API 장애로 막힌다.
+# 사이트맵은 늦어도 되지만 배포는 늦으면 안 되는 일이라, 실패의 무게가 다르다.
+#
+# [만들기와 올리기를 나눈 이유]
+# 만들다 실패하면 배포하지 않는다. 잘못된 사이트맵으로 덮는 것보다 지난 회차가 그대로
+# 살아 있는 편이 낫다 — 색인은 잘못 제출한 순간에 빠지고, 되돌려도 다시 잡히는 데 몇 주가
+# 걸린다. 산출물은 아티팩트로 남으므로 실패했을 때 무엇이 나왔는지 볼 수 있다.
+#
+# [올리는 방식]
+# 정적 자산만 담은 Worker(<환경약칭>-hansapp-web-sitemap)로 올리고, Cloudflare Route 가
+# console.plzhans.com/sitemap-auto-* 를 그 워커로 보낸다. 본체 워커는 건드리지 않는다.
+# 자격증명은 프론트 배포가 쓰던 것을 그대로 쓴다(docs/cloudflare.md).
+name: hansapp-web - sitemap
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_env:
+        description: '대상 환경'
+        type: choice
+        options: [production, develop]
+        default: production
+      dry_run:
+        description: '만들기만 하고 배포하지 않는다'
+        type: boolean
+        default: false
+
+  # 주 1회. 공지사항은 글이 드물게 올라와서 날마다 다시 만들 이유가 없다. 급하면 수동으로 돌린다.
+  # medifinder 사이트맵(금 21:00)과 시각을 겹치지 않게 한 시간 뒤에 둔다.
+  schedule:
+    - cron: '0 13 * * 5' # 금요일 22:00 KST
+
+# 두 실행이 겹치면 뒤섞인 회차가 배포된다. 줄을 세운다.
+concurrency:
+  group: hansapp-web-sitemap-${{ inputs.app_env || 'production' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read # node-builder 이미지를 GHCR 에서 받는다
+
+jobs:
+  sitemap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.app_env || 'production' }}
+    # node·pnpm 이 버전 고정으로 들어 있는 레포 공용 툴체인 이미지다.
+    container:
+      image: ghcr.io/${{ github.repository }}/node-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      # 예약 실행에는 inputs 가 없어 기본값을 식에서 준다. 이 워크플로가 하는 일은 운영
+      # 사이트맵을 갱신하는 것이고, develop 은 확인용이다.
+      APP_ENV: ${{ inputs.app_env || 'production' }}
+    defaults:
+      run:
+        working-directory: frontend/hansapp-web
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 툴체인 확인
+        run: node --version && pnpm --version
+
+      # dotenv-cli 가 필요하다(스크립트가 .env.<환경> 을 읽는다). 사이트 빌드와 같은 lockfile 이다.
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      # 타입 검사는 fe.yml 이 푸시마다 돌린다. 여기서는 소스를 그대로 실행한다
+      # (node 가 .ts 를 바로 읽는다 — tsconfig.node.json 의 allowImportingTsExtensions).
+      - name: 사이트맵 생성
+        run: pnpm "sitemap:board:$APP_ENV"
+
+      # 실패해도 남긴다. 무엇이 나왔길래 검사에 걸렸는지는 파일을 봐야 안다.
+      - name: 산출물 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sitemap-${{ inputs.app_env || 'production' }}
+          path: frontend/hansapp-web/out/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # Worker 이름은 ci-lib.sh 의 env_short 를 그대로 쓴다. 규칙을 여기 베껴 적으면
+      # 한쪽만 고치는 날이 온다.
+      - name: 워커 배포
+        if: ${{ !inputs.dry_run }}
+        env:
+          # 토큰만 Secret 이다. account id 는 비밀이 아니라 Variable 로 둔다(docs/cloudflare.md).
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          set -euo pipefail
+          . ../ci-lib.sh
+          worker="$(env_short "$APP_ENV")-hansapp-web-sitemap"
+          assets="out/hansapp-web_${APP_ENV}_sitemap"
+
+          [ -d "$assets" ] || { echo "❌ $assets 가 없다. 생성 단계를 확인할 것." >&2; exit 1; }
+
+          # **CI 는 Worker 를 만들지 않는다**(docs/cloudflare.md). 없는 이름에 그냥 배포되게
+          # 두면 오타 하나가 유령 Worker 를 만들고, 배포는 초록불인데 사이트는 그대로다.
+          # 첫 생성은 사람이 로컬에서 한 번 한다.
+          code="$(worker_http_code "$worker")"
+          case "$code" in
+            2[0-9][0-9]) ;;
+            404)
+              echo "❌ '$worker' Worker 가 계정에 없다." >&2
+              echo >&2
+              echo "   CI 는 Worker 를 만들지 않는다. 처음이라면 로컬에서 한 번 만들고 다시 돌릴 것:" >&2
+              echo "     cd frontend/hansapp-web" >&2
+              echo "     pnpm sitemap:board:$APP_ENV" >&2
+              echo "     npx wrangler@4 deploy --name $worker --assets $assets --compatibility-date 2026-07-01" >&2
+              exit 1
+              ;;
+            *)
+              echo "❌ Worker 조회에 실패했다 (HTTP $code). 토큰 권한과 account id 를 확인할 것." >&2
+              exit 1
+              ;;
+          esac
+
+          echo "Worker  $worker"
+          echo "Assets  $assets"
+
+          # --allow-build 가 없으면 pnpm 이 빌드 스크립트 실행 여부를 대화형으로 묻고 멈춘다.
+          # compatibility_date 는 값이 필요해서 적는 것이다 — 코드가 없는 워커라 동작이
+          # 달라질 자리가 없지만, 없으면 업로드가 거부된다. 본체(wrangler.jsonc)와 맞춘다.
+          CI=true pnpm --allow-build=esbuild,workerd dlx "wrangler@4" deploy \
+            --name "$worker" \
+            --assets "$assets" \
+            --compatibility-date 2026-07-01 \
+            --tag "$GITHUB_SHA" \
+            --message "ref: $GITHUB_REF_NAME"

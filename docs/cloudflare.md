@@ -78,6 +78,39 @@ develop 도 같은 모양이다(`develop.plzhans.com/docs`). 루트는 `dev-plzh
 (`hugo -e develop` 이 robots.txt Disallow 와 noindex 메타를 켠다). 랜딩은 다른 레포
 (`hans-blog`)에 있고 `make landing-develop` 이 빌드와 배포를 같이 한다.
 
+### 콘솔의 사이트맵 워커
+
+`console.plzhans.com/sitemap-auto-*` 는 **본체가 아니라 전용 Worker 가 준다.**
+
+| | Worker | 주는 것 |
+| --- | --- | --- |
+| 본체 | `prod-hansapp-web` | 앱 · `robots.txt` · `sitemap.xml` · `sitemap-pages.xml` |
+| 사이트맵 | `prod-hansapp-web-sitemap` | `sitemap-auto-board.xml` |
+
+가른 이유는 **주기가 달라서다.** 앞의 셋은 내용이 커밋에서 나와 배포할 때 정해지고,
+게시판 사이트맵은 글이 생길 때 바뀐다. 한 워커에 두면 글 하나 올릴 때마다 프론트를 다시
+배포해야 하고, 반대로 사이트맵을 갱신하려고 앱 빌드를 돌리게 된다.
+
+갱신은 `hansapp-web - sitemap` 워크플로가 주 1회 한다(수동 실행도 된다). 이름에 접두사를
+둔 것은 Route 규칙을 한 줄로 고정하기 위해서다 — 자동 생성 사이트맵이 늘어도 규칙은 그대로다.
+
+**Route 는 1회 수동 작업이다.** 본체는 커스텀 도메인이고 그 위에 더 구체적인 Route 를
+얹는다(랜딩 + `/docs*` 와 같은 방식).
+
+```
+console.plzhans.com/sitemap-auto-*          →  prod-hansapp-web-sitemap
+develop-console.plzhans.com/sitemap-auto-*  →  dev-hansapp-web-sitemap
+```
+
+순서가 있다. `public/sitemap.xml` 이 인덱스에서 이 이름을 물고 있어서, **Route 가 살아나기
+전에 사이트를 배포하면** 그 주소가 SPA 폴백에 걸려 index.html 을 200 으로 돌려준다 —
+검색엔진은 404 가 아니라 "사이트맵이 HTML" 오류로 받는다.
+
+1. 로컬에서 Worker 를 한 번 만든다(CI 는 Worker 를 만들지 않는다)
+2. Route 를 건다
+3. 그 주소가 XML 을 주는지 확인한다
+4. 그 다음에 사이트를 배포한다
+
 **`develop` 을 줄이지 않는다.** `APP_ENV`·워크플로·스크립트 인자가 전부 `develop` 이라
 도메인만 `dev` 로 두면 그것 하나가 예외가 된다.
 
