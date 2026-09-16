@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.15.0...release-frontend/v0.16.0) (2026-09-16)
+
+
+### 기능
+
+* **batch:** 관리자 화면에서 배치를 수동 실행한다 ([#89](https://github.com/plzhans/hans-app/issues/89)) ([ea79916](https://github.com/plzhans/hans-app/commit/ea79916b71d6d2a30ea5cfbb3f013e4975cf6616))
+
 ## [0.15.0](https://github.com/plzhans/hans-app/compare/release-frontend/v0.14.1...release-frontend/v0.15.0) (2026-09-15)
 
 
