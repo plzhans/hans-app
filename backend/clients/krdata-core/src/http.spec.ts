@@ -1,12 +1,5 @@
 import { KrDataError, KrDataQuotaError } from './error';
 import { createKrDataFetch } from './http';
-import { resetCallSlots } from './rate-limit';
-
-// 초당 제한 창은 프로세스 전역이라 테스트끼리 공유된다. 비우지 않으면 앞 테스트가
-// 쓴 자리 때문에 뒤 테스트가 창이 열릴 때까지 잠들어, 느려지고 순서에 따라 흔들린다.
-beforeEach(() => {
-  resetCallSlots();
-});
 
 /** 게이트웨이 오류 봉투. JSON 으로도 XML 로도, 200 으로도 4xx 로도 오는 그 모양이다. */
 function gatewayBody(errMsg: string, code: string): string {

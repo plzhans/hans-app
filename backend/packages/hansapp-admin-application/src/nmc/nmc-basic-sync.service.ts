@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { asString } from '@hansapp/application';
 import { KrDataQuotaError } from '@krdata/core';
+import { KRDATA_CALLS_PER_SECOND, RateLimiter } from '@hansapp/common';
 import type { HospitalBasisInfoItem, NmcClient } from '@krdata/nmc';
 
 import { NmcBasicSyncRepository } from './nmc-basic-sync.repository';
@@ -72,6 +73,12 @@ export class NmcBasicSyncService {
 
   async sync(options: BasicSyncOptions = {}): Promise<SyncOutcome> {
     const total = await this.countTargets(options);
+    /*
+      **이 루프가 초당 제한에 걸리는 자리다.** 워커 8개가 병원 하나당 1콜을 쉼 없이
+      두드려서 초당 50을 넘긴다. 실행 하나가 리미터 하나를 들고, 그 안의 모든 호출이
+      같은 창을 쓴다.
+    */
+    const limiter = new RateLimiter(KRDATA_CALLS_PER_SECOND);
     let calls = 0;
     let processed = 0;
     let limitReached = false;
@@ -96,6 +103,7 @@ export class NmcBasicSyncService {
       let done = 0;
       try {
         await mapWithConcurrency(targets, CONCURRENCY, async (hpid) => {
+          await limiter.acquire();
           await this.fetchAndStore(hpid);
           done += 1;
         });

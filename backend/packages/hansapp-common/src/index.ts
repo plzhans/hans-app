@@ -98,3 +98,5 @@ export { AuthorType, PostStatus, CommentStatus, BoardWriteRole, BoardStatus } fr
 export { BatchRunSource, BatchRunStatus, BatchCategory } from './batch-codes';
 export { BATCH_RUN_AUDIENCE, BATCH_RUN_TOKEN_TTL_SEC } from './batch-run-token';
 export type { BatchRunTarget, BatchRunTokenClaims } from './batch-run-token';
+
+export { RateLimiter, KRDATA_CALLS_PER_SECOND } from './rate-limiter';
