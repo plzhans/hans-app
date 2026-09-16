@@ -39,9 +39,52 @@ describe('acquireCallSlot', () => {
 
   it('게이트웨이가 거절하는 초당 50 보다 낮게 잡혀 있다', () => {
     /*
-      우리 시계의 1초와 게이트웨이의 1초는 경계가 어긋난다. 딱 50 으로 두면 지키고
-      있는데도 걸리므로, 이 값이 50 이 되는 변경은 막는다.
+      우리는 보낸 시각을, 게이트웨이는 도착한 시각을 센다. 지터로 몰려 도착하는 몫과
+      다른 프로세스(hanscli)가 같이 쓰는 몫을 남겨야 하므로 50 을 그대로 쓰면 안 된다.
     */
     expect(MAX_CALLS_PER_SECOND).toBeLessThan(50);
+  });
+});
+
+describe('부하를 걸었을 때', () => {
+  /** 슬라이딩 1초 창 어디를 잘라도 이 값을 넘으면 안 된다. */
+  function busiestSecond(stamps: number[]): number {
+    const sorted = [...stamps].sort((a, b) => a - b);
+    let worst = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      let n = 0;
+      while (i + n < sorted.length && sorted[i + n] - sorted[i] < 1_000) {
+        n += 1;
+      }
+      worst = Math.max(worst, n);
+    }
+    return worst;
+  }
+
+  it('한꺼번에 몰려도 어떤 1초 창에서든 상한을 안 넘는다', async () => {
+    const stamps: number[] = [];
+
+    await Promise.all(
+      Array.from({ length: MAX_CALLS_PER_SECOND * 3 }, async () => {
+        await acquireCallSlot();
+        stamps.push(Date.now());
+      }),
+    );
+
+    expect(busiestSecond(stamps)).toBeLessThanOrEqual(MAX_CALLS_PER_SECOND);
+  });
+
+  it('줄을 선 순서대로 나간다', async () => {
+    const order: number[] = [];
+
+    await Promise.all(
+      Array.from({ length: MAX_CALLS_PER_SECOND + 5 }, async (_, i) => {
+        await acquireCallSlot();
+        order.push(i);
+      }),
+    );
+
+    // 뒤에 선 요청이 앞을 앞지르면 특정 워커가 굶는다.
+    expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 });
