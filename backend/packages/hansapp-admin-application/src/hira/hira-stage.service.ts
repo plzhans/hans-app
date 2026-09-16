@@ -2,7 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { KrDataQuotaError } from '@krdata/core';
 
 import { runMeta, skipReason, StageResult, StageRunOptions } from '../nmc/nmc-stage.service';
-import { ProgressReporter, SyncOutcome, SyncStateService } from '../common/sync-state.service';
+import {
+  jobKey,
+  ProgressReporter,
+  SyncOutcome,
+  SyncStateService,
+} from '../common/sync-state.service';
+import { runInSyncScope, setSyncStep } from '../common/sync-scope';
 import { HiraCodeSyncService } from './hira-code-sync.service';
 import { HiraHospitalSyncService } from './hira-hospital-sync.service';
 import { HiraDetailSyncService, type HiraDetailOp } from './hira-detail-sync.service';
@@ -102,7 +108,14 @@ export class HiraStageService {
       };
     }
 
-    return this.state.run(job, (report) => this.guard(stage, options, report), meta);
+    /*
+      **단계 키를 로그에 함께 남긴다.** 콘솔은 잡을 `hira.1` 로 부르는데 로그가 클래스
+      이름만 달고 있으면 둘을 이어 볼 수 없다 — 콘솔에서 느린 단계를 보고 로그를 그 키로
+      찾을 수 있어야 한다.
+    */
+    return runInSyncScope(jobKey(job), () =>
+      this.state.run(job, (report) => this.guard(stage, options, report), meta),
+    );
   }
 
   /** 한도 초과는 실패가 아니다. 오늘은 여기까지라는 뜻이라 다음 실행에서 이어받는다. */
@@ -115,9 +128,7 @@ export class HiraStageService {
       return await this.execute(stage, options, report);
     } catch (error) {
       if (error instanceof KrDataQuotaError) {
-        this.logger.warn(
-          `HIRA stage ${stage} hit the daily quota (${error.errorCode}). Resuming tomorrow.`,
-        );
+        this.logger.warn(`hit the daily quota (${error.errorCode}). Resuming tomorrow.`);
         return { total: 0, processed: 0, calls: 0, limitReached: true };
       }
       throw error;
@@ -130,7 +141,7 @@ export class HiraStageService {
     report: ProgressReporter,
   ): Promise<SyncOutcome> {
     if (stage === 1) {
-      return this.stage1();
+      return this.stage1(report);
     }
 
     const clCd = HIRA_STAGE_CLASSES[stage];
@@ -172,40 +183,64 @@ export class HiraStageService {
    * **비급여가 이 단계의 콜을 지배한다**(130/294). 나머지를 다 합친 것보다 많다.
    * 갱신주기가 다른 게 확인되면 1단계에서 떼어내 따로 돌리는 걸 검토하라.
    */
-  private async stage1(): Promise<SyncOutcome> {
+  private async stage1(report: ProgressReporter): Promise<SyncOutcome> {
     const outcome: SyncOutcome = { total: 0, processed: 0, calls: 0 };
 
-    this.logger.log('HIRA stage 1 (1/6) six code tables');
-    for (const result of await this.code.sync()) {
-      outcome.calls += result.pages;
-      outcome.processed += result.upserted;
-    }
+    /*
+      **하위 작업이 끝날 때마다 진행분을 올린다.** 이 단계는 여섯 덩어리가 순서대로 도는데,
+      끝까지 아무것도 안 올리면 콘솔의 막대가 몇 분 동안 0 에 붙어 있다 — 도는 중인지
+      멈춘 것인지 화면만 보고는 구별할 수 없다.
+    */
+    const step = async (
+      n: number,
+      name: string,
+      what: string,
+      body: () => Promise<void>,
+    ): Promise<void> => {
+      // 스코프의 하위 작업 이름을 바꾼다. 아래에서 찍히는 모든 줄이 이 이름을 달고 나온다.
+      setSyncStep(name);
+      this.logger.log(`(${n}/6) ${what}`);
+      await body();
+      await report({ processed: outcome.processed, calls: outcome.calls, total: outcome.total });
+    };
 
-    this.logger.log('HIRA stage 1 (2/6) full hospital list');
-    const hospital = await this.hospital.sync({ full: true });
-    outcome.calls += hospital.pages;
-    outcome.processed += hospital.upserted;
-    outcome.total = hospital.totalCount;
+    await step(1, 'code', 'six code tables', async () => {
+      for (const result of await this.code.sync()) {
+        outcome.calls += result.pages;
+        outcome.processed += result.upserted;
+      }
+    });
 
-    this.logger.log('HIRA stage 1 (3/6) reverse lookup by subject (dgsbjtCd)');
-    const subject = await this.subject.sync();
-    outcome.calls += subject.calls;
-    outcome.processed += subject.processed;
+    await step(2, 'hospital', 'full hospital list', async () => {
+      const hospital = await this.hospital.sync({ full: true });
+      outcome.calls += hospital.pages;
+      outcome.processed += hospital.upserted;
+      outcome.total = hospital.totalCount;
+    });
 
-    this.logger.log('HIRA stage 1 (4/6) reverse lookup by specialty (srchCd)');
-    const specialty = await this.specialty.sync();
-    outcome.calls += specialty.calls;
-    outcome.processed += specialty.processed;
+    await step(3, 'subject', 'reverse lookup by subject (dgsbjtCd)', async () => {
+      const subject = await this.subject.sync();
+      outcome.calls += subject.calls;
+      outcome.processed += subject.processed;
+    });
 
-    this.logger.log('HIRA stage 1 (5/6) assessment grades (list)');
-    const assessment = await this.assessment.sync();
-    outcome.calls += assessment.calls;
-    outcome.processed += assessment.processed;
+    await step(4, 'specialty', 'reverse lookup by specialty (srchCd)', async () => {
+      const specialty = await this.specialty.sync();
+      outcome.calls += specialty.calls;
+      outcome.processed += specialty.processed;
+    });
 
-    this.logger.log('HIRA stage 1 (6/6) non-payment fees (list)');
-    const npay = await this.npay.sync();
-    outcome.calls += npay.calls;
-    outcome.processed += npay.processed;
+    await step(5, 'assessment', 'assessment grades (list)', async () => {
+      const assessment = await this.assessment.sync();
+      outcome.calls += assessment.calls;
+      outcome.processed += assessment.processed;
+    });
+
+    await step(6, 'npay', 'non-payment fees (list)', async () => {
+      const npay = await this.npay.sync();
+      outcome.calls += npay.calls;
+      outcome.processed += npay.processed;
+    });
 
     return outcome;
   }

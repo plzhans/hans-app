@@ -280,7 +280,12 @@ export class SyncStateService {
    */
   async fail(job: SyncJob, error: unknown, elapsedMs: number): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
-    this.logger.error(`${jobKey(job)} failed: ${message}`);
+
+    /*
+      **여기서는 안 찍는다.** 이 함수는 기록만 하고 예외를 다시 던진다 — 삼키는 자리
+      (SyncRunnerService)가 찍는다. 층마다 찍으면 한 실패가 여러 줄이 되고, 그대로
+      Sentry 이슈 여러 개가 된다.
+    */
 
     await this.repo.update(jobKey(job), {
       status: 'failed',
@@ -432,4 +437,30 @@ function nextEligibleAt(from: Date, freshnessHours?: number): Date | null {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * 공공데이터 포털 오류에서 되짚을 거리를 뽑는다. 그 오류가 아니면 undefined.
+ *
+ * **패키지를 의존하지 않고 모양만 본다.** 이 서비스는 기관 클라이언트를 모르고, 알게 되면
+ * 적재와 무관한 곳까지 그 의존이 번진다.
+ */
+export function krDataDiagnostics(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const e = error as Error & {
+    httpStatus?: number;
+    responseHeaders?: string;
+    endpoint?: string;
+    errorCode?: string;
+  };
+  if (e.httpStatus === undefined && !e.responseHeaders) return undefined;
+
+  return [
+    e.endpoint ? `endpoint=${e.endpoint}` : '',
+    e.errorCode ? `code=${e.errorCode}` : '',
+    e.httpStatus === undefined ? '' : `http=${e.httpStatus}`,
+    e.responseHeaders ? `headers[${e.responseHeaders}]` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 }

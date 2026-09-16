@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import {
   BatchJobService,
   HealthcareBuildService,
@@ -73,6 +74,18 @@ export class BatchService {
       force?: boolean;
     } = {},
   ): Promise<void> {
+    return this.guarded(definition.name, () => this.runJobOnce(definition, options));
+  }
+
+  private async runJobOnce(
+    definition: BatchJobDefinition,
+    options: {
+      source?: BatchRunSource;
+      scheduledAt?: Date;
+      nextRunAt?: Date;
+      force?: boolean;
+    },
+  ): Promise<void> {
     const { name } = definition;
     const source = options.source ?? BatchRunSource.ONCE;
 
@@ -129,6 +142,13 @@ export class BatchService {
     spec: StageSpec,
     options: { source?: BatchRunSource; force?: boolean } = {},
   ): Promise<void> {
+    return this.guarded(spec.job, () => this.runStageOnce(spec, options));
+  }
+
+  private async runStageOnce(
+    spec: StageSpec,
+    options: { source?: BatchRunSource; force?: boolean },
+  ): Promise<void> {
     const source = options.source ?? BatchRunSource.ONCE;
     const context: RunContext = { source };
 
@@ -157,6 +177,28 @@ export class BatchService {
     }
   }
 
+  /**
+   * 모든 잡 실행이 지나는 한 자리.
+   *
+   * **스프링의 `TaskScheduler.setErrorHandler` 에 해당한다.** Nest 는 HTTP 에만 예외 필터를
+   * 주고 스케줄·백그라운드에는 그런 자리를 안 내준다. 그래서 진입점(크론·수동 실행)마다
+   * `.catch` 를 붙이고 있었는데, 진입점이 늘 때마다 같은 코드를 또 넣어야 했다.
+   *
+   * 여기로 모으면 부르는 쪽은 그냥 부르기만 하면 된다.
+   *
+   * **기록한 뒤 다시 던진다.** 삼키면 크론 감시(Sentry withMonitor)가 정상 반환으로 보고
+   * 체크인을 초록으로 올린다 — 실패를 성공으로 보고하는 것이라 침묵보다 나쁘다.
+   */
+  private async guarded(name: string, body: () => Promise<void>): Promise<void> {
+    try {
+      await body();
+    } catch (error) {
+      this.logger.error(`${name} failed`, error);
+      Sentry.captureException(error, { tags: { job: name } });
+      throw error;
+    }
+  }
+
   /** 락을 잡은 뒤의 본체. 회차를 열고 닫는다. */
   private async execute(
     definition: BatchJobDefinition,
@@ -166,6 +208,8 @@ export class BatchService {
     const { name } = definition;
     const startedAt = Date.now();
     const run = await this.jobs.start(name, source, options.scheduledAt);
+    /** 단계가 죽어 회차가 FAILED 로 닫힌 경우의 요약. try 를 빠져나온 뒤에 던진다. */
+    let failed: string | undefined;
     // 단계 이력이 이 회차를 부모로 삼는다. hanscli 로 돈 단계는 이 값이 없어 저절로 갈린다.
     const context: RunContext = { jobRunId: run.historyId, source };
 
@@ -179,6 +223,17 @@ export class BatchService {
       );
 
       await this.jobs.finish(run, { ...outcome, nextRunAt: options.nextRunAt });
+
+      /*
+        **DB 가 FAILED 면 예외로 올린다.** 단계 실패는 SyncRunnerService 가 삼켜서(뒤 단계를
+        안 돌리려고) 여기까지 예외가 안 온다. 그대로 두면 이 함수가 정상 반환하고,
+        크론 감시(Sentry withMonitor)가 체크인을 **초록으로** 올린다 — 실패를 성공으로
+        보고하는 셈이라 침묵보다 나쁘다. 실제로 운영에서 아흐레를 그렇게 놓쳤다.
+
+        어느 단계가 왜 죽었는지는 sync_state_history 에 다 있다. 여기는 "이 회차는 실패다"
+        만 전한다.
+      */
+      failed = outcome.status === BatchRunStatus.FAILED ? (outcome.error ?? 'failed') : undefined;
     } catch (error) {
       /*
         여기까지 오는 것은 배치 자체의 버그다 — 단계·테이블 실패는 안에서 처리된다.
@@ -191,6 +246,14 @@ export class BatchService {
         nextRunAt: options.nextRunAt,
       });
       throw error;
+    }
+
+    /*
+      **try 밖에서 던진다.** 안에서 던지면 위 catch 가 그것을 잡아 회차를 한 번 더 닫고,
+      방금 기록한 콜 수·처리 건수가 빈 값으로 덮인다.
+    */
+    if (failed !== undefined) {
+      throw new Error(`${name}: ${failed}`);
     }
   }
 
@@ -347,7 +410,9 @@ export class BatchService {
   private report(label: string, result: RunAllResult): void {
     for (const run of result.runs) {
       if (run.error) {
-        this.logger.error(`  ${label} stage ${run.stage} failed: ${run.error}`);
+        // 실패 내용과 스택은 SyncRunnerService 가 이미 찍었다. 여기는 회차 요약이라
+        // 어느 단계가 죽었는지만 짚는다 — 같은 문장을 두 번 남기지 않는다.
+        this.logger.warn(`  ${label}.${run.stage} failed`);
       } else if (run.result?.skipped) {
         this.logger.log(`  ${label} stage ${run.stage} skipped: ${run.result.skipReason}`);
       } else {

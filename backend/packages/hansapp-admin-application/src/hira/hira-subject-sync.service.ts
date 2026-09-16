@@ -4,6 +4,7 @@ import type { HiraClient } from '@krdata/hira';
 
 import { HiraSubjectSyncRepository } from './hira-subject-sync.repository';
 import { SyncOutcome } from '../common/sync-state.service';
+import { SyncTimer } from '../common/sync-timer';
 import { HIRA_CLIENT } from '../krdata.providers';
 
 /** 한 페이지에 받을 병원 수. 내과는 23,768건이라 페이징이 필요하다. */
@@ -33,20 +34,31 @@ export class HiraSubjectSyncService {
     let calls = 0;
     let processed = 0;
 
-    for (const subject of subjects) {
+    // 몇 개를 돌 것인지 먼저 말한다. 이 줄이 없으면 뒤따르는 수십 줄이 어디까지 갈지 모른다.
+    this.logger.log(`${subjects.length} subjects`);
+    const startedAt = Date.now();
+
+    for (const [index, subject] of subjects.entries()) {
       const code = subject.cd;
       const name = subject.cdNm;
 
+      /*
+        **구간을 나눠 잰다.** 과목 하나에 수십 초가 드는데, 끝나고 한 줄만 찍으면 그동안
+        원본을 기다린 것인지 우리 DB 가 느린 것인지 알 수 없다.
+      */
+      const timer = new SyncTimer();
       let pageNo = 1;
       let fetched = 0;
       let totalCount = 0;
 
       for (;;) {
-        const response = await this.client.getHospitalList({
-          dgsbjtCd: code,
-          pageNo,
-          numOfRows: PAGE_SIZE,
-        });
+        const response = await timer.measure('api', () =>
+          this.client.getHospitalList({
+            dgsbjtCd: code,
+            pageNo,
+            numOfRows: PAGE_SIZE,
+          }),
+        );
         calls += 1;
 
         const body = response.response?.body;
@@ -61,7 +73,7 @@ export class HiraSubjectSyncService {
           .map((item) => asString(item.ykiho))
           .filter((ykiho): ykiho is string => ykiho !== null);
 
-        processed += await this.upsert(ykihos, code, name);
+        processed += await timer.measure('db', () => this.upsert(ykihos, code, name));
         fetched += items.length;
 
         if (fetched >= totalCount) {
@@ -70,8 +82,17 @@ export class HiraSubjectSyncService {
         pageNo += 1;
       }
 
-      this.logger.log(`HIRA subject ${code}(${name ?? '?'}) ${fetched.toLocaleString()} hospitals`);
+      this.logger.log(
+        `${index + 1}/${subjects.length} ${code}(${name ?? '?'}) done — ` +
+          `${pageNo} calls · ${timer.summary()} · ${fetched.toLocaleString()} rows`,
+      );
     }
+
+    const elapsed = ((Date.now() - startedAt) / 1000).toFixed(0);
+    this.logger.log(
+      `done — ${subjects.length} subjects · ${calls.toLocaleString()} calls · ` +
+        `${elapsed}s · ${processed.toLocaleString()} rows`,
+    );
 
     return { total: subjects.length, processed, calls };
   }

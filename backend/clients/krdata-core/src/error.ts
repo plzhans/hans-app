@@ -25,6 +25,24 @@ export class KrDataError extends Error {
   /** 원본 응답 본문 (있는 경우) */
   readonly responseBody?: string;
 
+  /**
+   * 응답의 HTTP 상태코드.
+   *
+   * **errorCode 와 다른 것을 말한다.** errorCode 는 게이트웨이가 본문에 적은 코드이고
+   * 이건 그 응답이 어떤 상태로 왔는지다. 게이트웨이 오류는 200 으로도 4xx·5xx 로도 오는데,
+   * 둘이 갈리면 성격이 다르다 — 200 이면 게이트웨이가 "정상적으로" 거절한 것이고(정책·한도),
+   * 5xx 면 인프라가 흔들린 것이다. 그 구별이 없어 원인을 못 좁힌 적이 있다.
+   */
+  readonly httpStatus?: number;
+
+  /**
+   * 응답 헤더 중 진단에 쓸 것만 추린 한 줄.
+   *
+   * 게이트웨이가 거절 이유를 본문이 아니라 헤더에 싣는 경우가 있어서 남긴다.
+   * 자격증명이 실릴 수 있는 헤더는 담지 않는다.
+   */
+  readonly responseHeaders?: string;
+
   constructor(
     message: string,
     errorCode = 'UNKNOWN',
@@ -33,6 +51,8 @@ export class KrDataError extends Error {
       responseBody?: string;
       endpoint?: string;
       disposition?: KrDataDisposition;
+      httpStatus?: number;
+      responseHeaders?: string;
     },
   ) {
     super(options?.endpoint ? `[${options.endpoint}] ${message}` : message, {
@@ -43,6 +63,8 @@ export class KrDataError extends Error {
     this.disposition = options?.disposition ?? 'fail';
     this.endpoint = options?.endpoint;
     this.responseBody = options?.responseBody;
+    this.httpStatus = options?.httpStatus;
+    this.responseHeaders = options?.responseHeaders;
   }
 }
 
@@ -58,8 +80,21 @@ export class KrDataError extends Error {
  * **초당 한도(23)는 여기 오지 않는다.** 그쪽은 잠깐 쉬면 풀리므로 재시도로 다룬다.
  */
 export class KrDataQuotaError extends KrDataError {
-  constructor(message: string, errorCode: string, responseBody?: string, endpoint?: string) {
-    super(message, errorCode, { responseBody, endpoint, disposition: 'quota' });
+  constructor(
+    message: string,
+    errorCode: string,
+    responseBody?: string,
+    endpoint?: string,
+    httpStatus?: number,
+    responseHeaders?: string,
+  ) {
+    super(message, errorCode, {
+      responseBody,
+      endpoint,
+      disposition: 'quota',
+      httpStatus,
+      responseHeaders,
+    });
     this.name = 'KrDataQuotaError';
   }
 }

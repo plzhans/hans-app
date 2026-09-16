@@ -11,7 +11,6 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import * as Sentry from '@sentry/nestjs';
 import { BatchRunSource, type BatchRunTarget, type BatchRunTokenClaims } from '@hansapp/common';
 import { findBatchJob, stageCatalog } from '@hansapp/admin-application';
 import { JobLockService } from '@hansapp/lock';
@@ -94,12 +93,10 @@ export class BatchJobRunController {
       예정에 없던 수동 회차를 체크인으로 넣으면 다음 크론이 밀렸는지가 가려진다.
       실패는 예외로 따로 보고한다.
     */
-    void this.batch
-      .run(definition, { source: BatchRunSource.ADMIN, force })
-      .catch((error: unknown) => {
-        this.logger.error(`${job}: manual run failed`, error);
-        Sentry.captureException(error, { tags: { job, source: 'admin' } });
-      });
+    void this.batch.run(definition, { source: BatchRunSource.ADMIN, force }).catch(() => {
+      // 기록과 Sentry 보고는 BatchService 의 가드가 이미 했다. 여기서 또 하면
+      // 한 실패가 이슈 두 개가 된다 — 띄워 놓고 안 기다리므로 삼키는 것이 맞다.
+    });
 
     return { job, accepted: true };
   }
@@ -134,9 +131,9 @@ export class BatchJobRunController {
 
     void this.batch
       .runStage(spec, { source: BatchRunSource.ADMIN, force: claims.force })
-      .catch((error: unknown) => {
-        this.logger.error(`${job}: manual stage run failed`, error);
-        Sentry.captureException(error, { tags: { stage: job, source: 'admin' } });
+      .catch(() => {
+        // 기록과 Sentry 보고는 BatchService 의 가드가 이미 했다. 여기서 또 하면
+        // 한 실패가 이슈 두 개가 된다 — 띄워 놓고 안 기다리므로 삼키는 것이 맞다.
       });
 
     return { job, accepted: true };
