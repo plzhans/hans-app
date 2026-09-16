@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.3](https://github.com/plzhans/hans-app/compare/release-backend/v0.19.2...release-backend/v0.19.3) (2026-09-16)
+
+
+### 버그 수정
+
+* **sentry:** 추적 헤더를 우리 도메인에만 붙인다 ([#86](https://github.com/plzhans/hans-app/issues/86)) ([3a595bf](https://github.com/plzhans/hans-app/commit/3a595bf38363766b7c3d1d561c08737e94279028))
+
 ## [0.19.2](https://github.com/plzhans/hans-app/compare/release-backend/v0.19.1...release-backend/v0.19.2) (2026-09-12)
 
 
