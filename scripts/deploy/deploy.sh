@@ -155,7 +155,9 @@ fi
 #
 # --skip-migrate 는 이미 돌렸거나 스키마 변경이 없는 게 확실할 때의 우회로다.
 if [ -z "$skip_migrate" ]; then
-  "$(dirname "$0")/migrate.sh" "$APP_ENV" "$assume_yes"
+  # **태그 자리를 비우면 안 된다.** migrate.sh 는 위치 인자로 받아서(<환경> [태그] [-y]),
+  # 빼고 넘기면 -y 가 태그로 들어가 `hansapp-cli:-y` 를 당기려다 죽는다.
+  "$(dirname "$0")/migrate.sh" "$APP_ENV" "$IMAGE_TAG" "$assume_yes"
   echo
 fi
 
