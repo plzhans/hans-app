@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/plzhans/hans-app/compare/release-backend/v0.20.0...release-backend/v0.20.1) (2026-09-16)
+
+
+### 버그 수정
+
+* **batch:** 잡 실패가 조용히 묻히지 않게 한다 ([#94](https://github.com/plzhans/hans-app/issues/94)) ([1528510](https://github.com/plzhans/hans-app/commit/152851063d94db9c64de9d6c53290fa4a6f0ff3d))
+
 ## [0.20.0](https://github.com/plzhans/hans-app/compare/release-backend/v0.19.3...release-backend/v0.20.0) (2026-09-16)
 
 
