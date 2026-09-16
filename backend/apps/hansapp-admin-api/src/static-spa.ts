@@ -17,7 +17,14 @@ import type { ConfigSource } from '@hansapp/common';
  * **API 경로를 가리지 않는다.** Nest 라우터가 먼저 서고 여기서 붙는 미들웨어는 그 뒤다.
  * 그래서 `/api/*`·`/auth/*` 는 컨트롤러가 가져가고, 남는 것만 정적파일로 간다.
  */
-const API_PREFIXES = ['/api/', '/auth/', '/health', '/docs', '/openapi'];
+/*
+  SPA 폴백에서 제외할 접두사. **여기 빠지면 그 경로가 조용히 HTML 을 돌려준다.**
+
+  `.well-known` 이 실제로 그랬다 — discovery 와 공개키셋(JWKS)은 컨트롤러가 있는데도
+  SPA 가 가로채 index.html 을 내보냈다. 로컬은 SPA 를 안 내보내(Vite dev server) 드러나지
+  않고, 배포한 뒤에야 보인다. 게다가 상태코드가 200 이라 "있는데 내용이 이상한" 모양이 된다.
+*/
+const API_PREFIXES = ['/api/', '/auth/', '/health', '/docs', '/openapi', '/.well-known/'];
 
 const STATIC_DIR_KEY = 'apps-admin-api.web.staticDir';
 
