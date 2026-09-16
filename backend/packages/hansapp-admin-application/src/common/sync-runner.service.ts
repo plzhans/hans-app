@@ -20,6 +20,7 @@ import {
   MoisStageService,
 } from '../mois/mois-stage.service';
 import { DataProvider } from './provider';
+import { krDataDiagnostics } from './sync-state.service';
 import { RunContext } from './run-context';
 
 /** 한 단계의 실행 결과 */
@@ -120,7 +121,17 @@ export class SyncRunnerService {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.error(`${provider} stage ${stage} failed: ${message}`);
+
+        /*
+          **예외가 여기서 끝난다.** 아래에서 삼키고 뒤 단계를 중단하므로, 이 자리가
+          그 실패를 기록할 유일한 곳이다. 예외 객체를 같이 넘겨 스택이 붙게 한다 —
+          문자열만 넘기면 Sentry 에서 어느 코드 줄인지 안 보이고 이슈도 흩어진다.
+        */
+        this.logger.error(`${provider}.${stage} failed: ${message}`, error);
+        const diagnostics = krDataDiagnostics(error);
+        if (diagnostics) {
+          this.logger.error(`${provider}.${stage} upstream: ${diagnostics}`);
+        }
         runs.push({ provider, stage, error: message });
 
         // 실패는 중단이다. 뒤 단계를 돌리지 않는다.

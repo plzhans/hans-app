@@ -13,6 +13,7 @@ import {
   BatchJobService,
   describeError,
   findBatchJob,
+  SyncAwareLogger,
   type BatchJobDefinition,
 } from '@hansapp/admin-application';
 
@@ -21,6 +22,7 @@ import { appConfig } from './boot-config';
 import { BATCH_CONFIG, type BatchConfig } from './batch.config';
 import { RUNNER } from './runner';
 import { BatchScheduler } from './batch.scheduler';
+import { installCrashHandlers } from './crash-handlers';
 import { BatchService } from './batch.service';
 
 // --version 처리, 환경 판별, 설정(ConfigSource) 로딩은 boot-config.ts 가 한다.
@@ -60,13 +62,26 @@ async function bootstrap(): Promise<void> {
     : (['error', 'warn', 'log'] as const);
 
   /*
+    **적재 로그가 자기 단계를 스스로 달게 한다.** 단계 서비스가 연 스코프(AsyncLocalStorage)를
+    읽어 `hira.1 subject` 를 메시지 앞에 붙인다 — 서비스는 아무것도 안 바꾼다.
+
+    전역으로 갈아끼우는 것이 요점이다. 서비스마다 로거를 바꾸면 파일마다 import 가 늘고,
+    남이 찍는 로그(Nest 내부·라이브러리)는 태그를 못 단다.
+  */
+  // 잡 실행 밖에서 새어 나간 오류의 마지막 자리. Node 는 이걸 자동으로 안 걸어 준다.
+  installCrashHandlers(logger);
+
+  const nestLogger = new SyncAwareLogger();
+  nestLogger.setLogLevels([...logLevels]);
+
+  /*
     **두 모드를 아예 갈라서 띄운다.** 일회 실행은 HTTP 가 필요 없고, 상주는 포트를 여는 것
     자체가 "한 컴퓨터에 하나" 가드다 — --job·--once 까지 포트를 열면 상주가 도는 중에
     손으로 한 번 돌리는 정상적인 일이 막힌다(그 겹침은 Redis 잡 락이 따로 맡는다).
   */
   if (once) {
     const app = await NestFactory.createApplicationContext(AppModule.forRoot(source), {
-      logger: [...logLevels],
+      logger: nestLogger,
     });
     const jobs = app.get(BatchJobService);
     jobs.setRunner(RUNNER);
@@ -112,7 +127,7 @@ async function bootstrap(): Promise<void> {
     return;
   }
 
-  const app = await NestFactory.create(AppModule.forRoot(source), { logger: [...logLevels] });
+  const app = await NestFactory.create(AppModule.forRoot(source), { logger: nestLogger });
   app.get(BatchJobService).setRunner(RUNNER);
   logger.log(`🏷  Runner : ${RUNNER.hostname} pid=${RUNNER.pid} ${RUNNER.version}`);
 

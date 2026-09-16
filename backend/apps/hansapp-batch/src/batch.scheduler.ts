@@ -101,11 +101,12 @@ export class BatchScheduler {
             schedule: { type: 'crontab', value: cronExpression },
             timezone: this.config.timeZone,
           },
-        ).catch((error: unknown) => {
-          // 여기까지 올라온 예외는 잡 자체의 버그다. 단계·테이블 실패는 이미 안에서 처리된다.
-          this.logger.error(`Unhandled error in ${definition.name}`, error);
-          // 로그만 남기면 아무도 안 본다. (상주 모드라 프로세스가 살아 있으니 flush 는 필요 없다)
-          Sentry.captureException(error, { tags: { job: definition.name } });
+        ).catch(() => {
+          /*
+            **여기서는 아무것도 안 한다.** 기록과 Sentry 보고는 BatchService 의 가드가 했다.
+            그래도 .catch 는 있어야 한다 — 없으면 떠다니는 rejection 이 되어 Node 가
+            프로세스를 죽인다. withMonitor 는 이 예외를 이미 보고 체크인을 실패로 올렸다.
+          */
         });
       },
       // onComplete 는 안 쓴다.
