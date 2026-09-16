@@ -1,6 +1,7 @@
 import { KrDataConfig, maskServiceKey, resolveConfig, ResolvedKrDataConfig } from './config';
 import { KrDataError, KrDataQuotaError } from './error';
 import { classifyKrDataFailure, KrDataVerdict } from './gateway-code';
+import { acquireCallSlot } from './rate-limit';
 
 /**
  * 응답 봉투. orval 의 fetch 클라이언트가 mutator 반환값으로 기대하는 형태다.
@@ -92,6 +93,14 @@ async function send(
 
   for (let attempt = 1; attempt <= config.maxRetry; attempt++) {
     failure = undefined;
+
+    /*
+      **나가기 전에 초당 자리를 얻는다.** 게이트웨이가 초당 50 에서 거절하는데(코드 23),
+      워커 여럿이 개별 상세를 연달아 부르면 그 선을 쉽게 넘는다. 재시도 안에 두는 것은
+      재시도도 한 번의 호출이기 때문이다 — 429 를 맞고 다시 부르는 요청이 창을 안 세면
+      막으려던 그 상황을 그대로 다시 만든다.
+    */
+    await acquireCallSlot();
 
     try {
       const response = await fetch(requestUrl, {

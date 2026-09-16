@@ -4,3 +4,4 @@ export * from './error';
 export * from './gateway-code';
 export * from './http';
 export * from './normalize';
+export * from './rate-limit';
