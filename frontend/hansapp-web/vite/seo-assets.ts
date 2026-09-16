@@ -34,16 +34,51 @@ const BAKED_ROUTES = [
 ];
 
 /**
- * 사이트맵에 싣는 주소. **console.plzhans.com 자기 페이지만 싣는다.**
+ * 정적으로 관리하는 URL. **여기가 정적 자원의 정본이다.**
  *
- * 호스트가 다르면 남의 URL 을 못 싣는 것이 규격이라, 루트(plzhans.com)의 사이트맵은 문서와
- * 랜딩만 물고 이 콘솔은 안 문다. 여기가 비면 콘솔 페이지를 광고할 곳이 없다.
+ * sitemap.xml(인덱스)이 이 파일을 물고, 파일 안에 URL 이 들어간다.
  *
- * 약관은 뺀다(위에서 noindex 로 굽는다). /apps 는 로그인 게이트라 뺀다.
- * /board 는 아직 안 싣는다 — 라우트마다 canonical 이 홈을 가리키고 있어, 지금 실어도
- * 홈의 중복으로 합쳐진다. canonical 을 라우트별로 세운 뒤에 넣을 것.
+ * 빌드가 아는 것만 적는다 — 라우트 목록은 이 앱이 갖고 있으니, 다른 데로 옮겨 적으면
+ * 정본이 둘이 된다(medifinder 의 STATIC_PATHS 가 그렇게 백엔드에 가 있다).
+ *
+ * **console.plzhans.com 자기 페이지만 싣는다.** 호스트가 다르면 남의 URL 을 못 싣는 것이
+ * 규격이라, 루트(plzhans.com)의 사이트맵은 문서와 랜딩만 물고 이 콘솔은 안 문다.
+ * 여기가 비면 콘솔 페이지를 광고할 곳이 없다.
+ *
+ * 약관은 뺀다(BAKED_ROUTES 에서 noindex 로 굽는다). /apps 는 로그인 게이트라 뺀다.
+ * /board 는 아직 안 싣는다 — canonical 이 전부 홈을 가리켜서, 실어도 홈의 중복으로 합쳐진다.
  */
-const SITEMAP_ROUTES = ['/'];
+const STATIC_SITEMAP = { file: 'sitemap-pages.xml', routes: ['/'] };
+
+/**
+ * 자동 생성 사이트맵의 이름 접두사. **라우팅이 이 패턴으로 분기한다.**
+ *
+ *   console.plzhans.com/sitemap-auto-*  →  생성기 워커
+ *   그 외                                →  이 사이트(정적 자산)
+ *
+ * 이름으로 주인을 가르는 이유: 라우트 규칙을 한 줄로 고정하기 위해서다. 생성물이 몇 개로
+ * 늘어도 규칙은 그대로고, 파일 이름만 보고 어느 워커가 주는지 알 수 있다.
+ *
+ * 커스텀 도메인 위에 더 구체적인 Route 를 얹는 방식은 이 저장소가 이미 쓰고 있다
+ * (랜딩 + /docs* → 문서 워커, docs/cloudflare.md 참고).
+ */
+const AUTO_SITEMAP_PREFIX = 'sitemap-auto-';
+
+/**
+ * 자동 생성 사이트맵의 파일 이름. **빌드는 만들지 않고 인덱스에 걸기만 한다.**
+ *
+ * 검색엔진에 알리는 입구는 sitemap.xml 하나다. 자식이 늘어도 robots.txt 는 안 바뀐다.
+ * 자식이 하나 깨져도 인덱스가 통째로 버려지지는 않는다 — 멀쩡한 자식은 그대로 읽힌다.
+ *
+ * **여기 적는 순간 그 주소가 실제로 사이트맵을 돌려줘야 한다.** 없으면 SPA 폴백이
+ * index.html 을 200 으로 주고, 검색엔진은 404 가 아니라 "사이트맵이 HTML" 오류로 받는다.
+ *
+ * 게시판(sitemap-auto-board.xml)을 넣기 전에 두 가지가 선행이다.
+ *   1. board 라우트의 canonical.
+ *   2. 만드는 쪽. 빌드가 API 를 읽어 굽거나, 배치가 만들어 따로 배포하거나
+ *      (후자는 medifinder 선례가 있다 — .github/workflows/medifinder-sitemap.yml).
+ */
+const AUTO_SITEMAPS: string[] = [];
 
 /** index.html 의 태그 값 하나를 바꾼다. 못 찾으면 던진다 — 조용히 넘어가면 배포하고 나서야 안다. */
 function replaceAttribute(
@@ -105,6 +140,20 @@ export function seoAssets(): Plugin {
     },
     closeBundle() {
       /*
+        자동 생성 사이트맵은 이름으로 라우팅된다. 접두사가 어긋나면 그 주소는 생성기 워커로
+        가지 않고 이 사이트의 SPA 폴백에 걸려 index.html 을 돌려준다 — 빌드는 성공하고
+        robots.txt 도 멀쩡해서, 검색엔진이 "사이트맵이 HTML" 이라고 할 때까지 아무도 모른다.
+      */
+      const misrouted = AUTO_SITEMAPS.filter(
+        (file) => !file.startsWith(AUTO_SITEMAP_PREFIX),
+      );
+      if (misrouted.length > 0) {
+        throw new Error(
+          `[hansapp-web] 자동 생성 사이트맵 이름은 '${AUTO_SITEMAP_PREFIX}' 로 시작해야 라우팅이 집어간다: ${misrouted.join(', ')}`,
+        );
+      }
+
+      /*
         운영 여부는 vite.config.ts 가 VITE_ROBOTS 를 정할 때 쓴 것과 **같은 기준**이어야 한다.
         기준이 갈리면 구운 페이지의 robots 와 홈의 robots 가 서로 다른 말을 한다.
       */
@@ -138,38 +187,81 @@ export function seoAssets(): Plugin {
       }
 
       /*
-        robots.txt. develop 은 통째로 막는다 — 도메인이 공개돼 있어 열어 두면 운영과 같은
-        내용이 두 주소로 색인된다. 운영은 로그인 게이트인 /apps 만 막는다.
-        /terms 는 **막지 않는다** — 위에서 구운 noindex 를 크롤러가 읽어야 지워진다.
+        robots.txt.
+
+        **운영은 아무것도 막지 않는다.** robots.txt 는 크롤러를 문 앞에서 돌려보내는 것이라,
+        막으면 안에 있는 noindex 를 못 읽는다 — 그러면 어딘가에 링크된 주소가 내용 없이
+        URL 만 검색 결과에 남고 지울 수단도 사라진다. 색인에서 빼고 싶은 주소는 들여보낸 뒤
+        HTML 의 noindex 로 거른다(BAKED_ROUTES).
+
+        develop 은 통째로 막는다 — 도메인이 공개돼 있어 열어 두면 운영과 같은 내용이
+        두 주소로 색인된다.
       */
       const robotsTxt = isProduction
-        ? `User-agent: *\nAllow: /\nDisallow: /apps\n\nSitemap: ${siteUrl}/sitemap.xml\n`
+        ? `User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`
         : `User-agent: *\nDisallow: /\n`;
       writeFileSync(path.join(outDir, 'robots.txt'), robotsTxt, 'utf-8');
 
       /*
-        sitemap.xml. 인덱스로 감싸지 않는다 — 인덱스는 /docs 를 갈라내려고 세운 것이었고,
-        문서가 루트 도메인으로 나간 지금은 자식이 하나뿐이라 한 겹이 그냥 낭비다.
+        사이트맵. **sitemap.xml 은 인덱스고, 거기서 갈라진다.**
+
+          sitemap.xml
+            ├ sitemap-pages.xml        정적. 이 빌드가 만든다.
+            └ sitemap-auto-*.xml       자동. 생성기가 만들고 라우팅이 집어간다.
+
+        가르는 기준은 URL 경로가 아니라 **누가 언제 만드느냐**다. 배포 때 정해지는 페이지와
+        글이 생길 때 바뀌는 게시판을 한 파일에 두면, 한쪽 때문에 다른 쪽을 계속 다시 만들어야
+        한다. 그래서 만드는 주체가 다르면 파일도 가르고, 이름에 그 경계를 드러낸다.
+
+        자식은 **루트에 평평하게** 둔다(/boards/sitemap.xml 이 아니라). 규격상 사이트맵
+        파일의 위치가 담을 수 있는 URL 범위를 제한해서, 하위 경로에 두면 그 경로로 시작하는
+        URL 밖에 못 싣는다.
+
+        검색엔진에 알리는 입구는 sitemap.xml 하나다(robots.txt). 자식이 늘어도 robots 는 그대로다.
         changefreq·priority 는 안 넣는다(검색엔진이 안 본다).
       */
       if (siteUrl) {
         const lastmod = lastModified();
-        const urls = SITEMAP_ROUTES.map(
-          (routePath) =>
-            `  <url>\n    <loc>${siteUrl}${routePath}</loc>\n    <lastmod>${lastmod}</lastmod>\n  </url>`,
-        ).join('\n');
+
+        const urls = STATIC_SITEMAP.routes
+          .map(
+            (routePath) =>
+              `  <url>\n    <loc>${siteUrl}${routePath}</loc>\n    <lastmod>${lastmod}</lastmod>\n  </url>`,
+          )
+          .join('\n');
+        writeFileSync(
+          path.join(outDir, STATIC_SITEMAP.file),
+          `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+          'utf-8',
+        );
+
+        /*
+          인덱스. 빌드가 만든 자식에만 lastmod 를 적는다 — 자동 생성분이 언제 바뀌었는지는
+          우리가 모르고, 모르는 값을 지어내면 크롤러가 lastmod 자체를 안 믿게 된다.
+        */
+        const entries = [
+          `  <sitemap>\n    <loc>${siteUrl}/${STATIC_SITEMAP.file}</loc>\n    <lastmod>${lastmod}</lastmod>\n  </sitemap>`,
+          ...AUTO_SITEMAPS.map(
+            (file) => `  <sitemap>\n    <loc>${siteUrl}/${file}</loc>\n  </sitemap>`,
+          ),
+        ].join('\n');
         writeFileSync(
           path.join(outDir, 'sitemap.xml'),
-          `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+          `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</sitemapindex>\n`,
           'utf-8',
         );
       } else {
         // 주소를 모르면 사이트맵을 만들 수 없다. 옛 산출물이 남아 오해를 사지 않게 지운다.
-        rmSync(path.join(outDir, 'sitemap.xml'), { force: true });
+        for (const file of ['sitemap.xml', STATIC_SITEMAP.file]) {
+          rmSync(path.join(outDir, file), { force: true });
+        }
       }
 
+      const sitemapNote = siteUrl
+        ? ` + sitemap.xml(정적 ${STATIC_SITEMAP.routes.length}, 자동 ${AUTO_SITEMAPS.length})`
+        : ' (sitemap 생략: VITE_SITE_URL 없음)';
       console.log(
-        `[hansapp-web] seo: ${BAKED_ROUTES.length}쪽 굽기 + robots.txt${siteUrl ? ' + sitemap.xml' : ' (sitemap 생략: VITE_SITE_URL 없음)'}`,
+        `[hansapp-web] seo: ${BAKED_ROUTES.length}쪽 굽기 + robots.txt${sitemapNote}`,
       );
     },
   };
