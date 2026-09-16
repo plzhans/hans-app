@@ -52,6 +52,36 @@ export function publicPemFromPem(pem: string, isPrivate: boolean): string {
   }) as string;
 }
 
+/**
+ * 공개 JWK 에서 검증용 SPKI PEM 을 만든다.
+ *
+ * createPublicKey 의 JWK 입력 타입은 @types/node 버전마다 이름이 달라(JsonWebKeyInput 등)
+ * 버전 무관하게 캐스팅한다.
+ */
+export function publicPemFromJwk(jwk: Record<string, unknown>): string {
+  return createPublicKey({
+    key: jwk,
+    format: 'jwk',
+  } as unknown as Parameters<typeof createPublicKey>[0]).export({
+    type: 'spki',
+    format: 'pem',
+  }) as string;
+}
+
+/** JWT 헤더를 읽는다. **서명 검증 전이므로 내용을 믿으면 안 된다** — kid 를 고르는 데만 쓴다. */
+export function readJwtHeader(token: string): { kid?: string; alg?: string } {
+  const seg = token.split('.')[0];
+  if (!seg) return {};
+  try {
+    return JSON.parse(Buffer.from(seg, 'base64url').toString('utf8')) as {
+      kid?: string;
+      alg?: string;
+    };
+  } catch {
+    return {};
+  }
+}
+
 /** EC 곡선 → JWT alg. 알 수 없으면 null. */
 export function algForCurve(crv?: string): AccessAlg | null {
   if (crv === 'P-256') return 'ES256';
