@@ -4,5 +4,6 @@
 
 User-agent: *
 Allow: /
+Disallow: /terms
 
 Sitemap: __SITE_URL__/sitemap.xml
