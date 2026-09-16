@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { seoAssets } from './vite/seo-assets';
 import { readFileSync } from 'fs';
 import path from 'path';
 
@@ -47,7 +48,11 @@ export default defineConfig(({ mode }) => {
       : 'noindex, nofollow';
 
   return {
-    plugins: [react()],
+    /*
+      seoAssets 는 라우트별 HTML·robots.txt·sitemap.xml 을 빌드가 만든다.
+      public/ 에 정적 파일로 두면 환경 치환을 안 거쳐 develop 이 운영 주소를 내보낸다.
+    */
+    plugins: [react(), seoAssets()],
     // 빌드 시점에 상수로 치환된다. Sentry release 문자열을 여기서 굳힌다.
     define: {
       __APP_RELEASE__: JSON.stringify(`${pkg.version}-${gitSha}`),

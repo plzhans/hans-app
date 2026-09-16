@@ -24,6 +24,12 @@
   "compatibility_date": "2026-07-01",
 
   "assets": {
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+
+    // 구운 라우트(vite/seo-assets.ts)를 **슬래시 없는 주소 그대로** 준다.
+    // 기본값(auto-trailing-slash)은 /terms/service 를 /terms/service/ 로 307 시키는데,
+    // 앱의 링크도 스토어·심사 양식에 적어 둔 주소도 슬래시가 없다. 그대로 두면 방문마다
+    // 리다이렉트가 한 번 끼고, HTML 에 구운 canonical 이 자기 자신이 아닌 주소를 가리킨다.
+    "html_handling": "drop-trailing-slash"
   }
 }
