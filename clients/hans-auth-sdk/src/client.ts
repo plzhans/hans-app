@@ -6,11 +6,28 @@ import { createPkceRequest, takeVerifier } from './pkce.js';
 import { resolveStorage, type PlatformStorage } from './platform.js';
 import { TokenStorage, type StoredTokens, type TokenPersistence } from './storage.js';
 
+/**
+ * 기본 주소. hans-auth 는 호스트가 하나라 쓰는 쪽이 매번 적을 이유가 없다 —
+ * 고객마다 다른 값은 clientId 뿐이다. 다른 환경을 볼 때만 설정으로 덮는다.
+ */
+const DEFAULT_AUTH_WEB_URL = 'https://auth.plzhans.com';
+const DEFAULT_API_BASE_URL = 'https://api.plzhans.com';
+
 export interface AuthClientConfig {
-  /** HansApp 웹(로그인 UI) base. 예: https://auth.plzhans.com 또는 http://127.0.0.1:5273 */
-  authWebUrl: string;
-  /** 인증 API base. 예: https://api.plzhans.com 또는 http://127.0.0.1:3000 */
-  apiBaseUrl: string;
+  /**
+   * 로그인 UI base. 기본 https://auth.plzhans.com
+   *
+   * 로컬·develop 을 볼 때만 준다(예: http://127.0.0.1:5273). 실제 이동 주소는 discovery 의
+   * authorization_endpoint 가 정하므로, 이 값은 discovery 를 못 읽었을 때의 대비책이다.
+   */
+  authWebUrl?: string;
+  /**
+   * 인증 API base. 기본 https://api.plzhans.com
+   *
+   * discovery·토큰 교환·공개키를 여기서 읽는다. 로컬·develop 을 볼 때만 준다
+   * (예: http://127.0.0.1:3000).
+   */
+  apiBaseUrl?: string;
   /**
    * 이 앱의 공개 클라이언트 ID(hansapp 앱 콘솔/CLI 에서 발급, 예: cl_fixed_medifinder).
    *
@@ -94,11 +111,17 @@ export class HansAppAuthClient {
    */
   private readonly keyPrefix: string;
 
+  private readonly authWebUrl: string;
+
+  private readonly apiBaseUrl: string;
+
   /** PKCE verifier 는 토큰 모드와 무관하게 지속 저장소에 둔다 — pkce.ts 주석 참고. */
   private readonly pkceStore: PlatformStorage['local'];
 
   constructor(private readonly config: AuthClientConfig) {
     this.keyPrefix = config.storageKey ?? 'hansapp.auth';
+    this.authWebUrl = config.authWebUrl ?? DEFAULT_AUTH_WEB_URL;
+    this.apiBaseUrl = config.apiBaseUrl ?? DEFAULT_API_BASE_URL;
     const platform = resolveStorage(config.storage);
     this.pkceStore = platform.local;
     this.storage = new TokenStorage(this.keyPrefix, config.persistence, platform);
@@ -130,8 +153,8 @@ export class HansAppAuthClient {
   /** 인증 엔드포인트(discovery). 실패해도 관례 경로로 채워져 반드시 성립한다. */
   private resolveEndpoints(): Promise<AuthEndpoints> {
     this.endpoints ??= discoverEndpoints({
-      apiBaseUrl: this.config.apiBaseUrl,
-      authWebUrl: this.config.authWebUrl,
+      apiBaseUrl: this.apiBaseUrl,
+      authWebUrl: this.authWebUrl,
       cacheKey: `${this.keyPrefix}.discovery`,
     });
     return this.endpoints;
@@ -265,7 +288,7 @@ export class HansAppAuthClient {
   async fetchWithAuth(pathOrUrl: string, init: RequestInit = {}): Promise<Response> {
     const url = /^https?:\/\//.test(pathOrUrl)
       ? pathOrUrl
-      : `${this.config.apiBaseUrl}${pathOrUrl}`;
+      : `${this.apiBaseUrl}${pathOrUrl}`;
 
     const call = async (): Promise<Response> => {
       const headers = new Headers(init.headers);

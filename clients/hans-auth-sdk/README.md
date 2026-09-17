@@ -19,11 +19,19 @@ npm install @hansapp/auth-sdk
 import { createAuthClient } from '@hansapp/auth-sdk';
 
 export const authClient = createAuthClient({
-  authWebUrl: 'https://auth.plzhans.com',
-  apiBaseUrl: 'https://api.plzhans.com',
   clientId: 'cl_your_client_id',
-  callbackPath: '/auth/callback',
   storageKey: 'yourapp.auth',
+});
+```
+
+주소는 기본값이 있다.
+로컬이나 개발 환경을 볼 때만 덮어쓴다.
+
+```ts
+createAuthClient({
+  clientId: 'cl_your_client_id',
+  apiBaseUrl: 'http://127.0.0.1:3000',
+  authWebUrl: 'http://127.0.0.1:5273',
 });
 ```
 
@@ -48,9 +56,9 @@ if (result.ok) {
 
 | 항목 | 필수 | 설명 |
 | --- | --- | --- |
-| `authWebUrl` | 예 | 로그인 UI 주소 |
-| `apiBaseUrl` | 예 | 인증 API 주소 |
 | `clientId` | 예 | 발급받은 공개 클라이언트 ID |
+| `authWebUrl` | 아니오 | 로그인 UI 주소. 기본 `https://auth.plzhans.com` |
+| `apiBaseUrl` | 아니오 | 인증 API 주소. 기본 `https://api.plzhans.com` |
 | `callbackPath` | 아니오 | 코드를 받을 경로. 기본 `/auth/callback` |
 | `storageKey` | 아니오 | 저장 키 접두사. 기본 `hansapp.auth` |
 | `persistence` | 아니오 | 토큰 보관 범위. 기본 `'device'` |
