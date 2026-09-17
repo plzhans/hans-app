@@ -17,12 +17,12 @@ importers:
       '@capacitor/preferences':
         specifier: ^8.0.1
         version: 8.0.1(@capacitor/core@8.5.0)
-      '@hans-api/auth-sdk':
-        specifier: link:../../../clients/hans-auth-sdk
-        version: link:../../../clients/hans-auth-sdk
-      '@hans-api/sdk':
+      '@hansapp/api-sdk':
         specifier: link:../../../clients/hans-api-sdk
         version: link:../../../clients/hans-api-sdk
+      '@hansapp/auth-sdk':
+        specifier: link:../../../clients/hans-auth-sdk
+        version: link:../../../clients/hans-auth-sdk
       '@radix-ui/react-dialog':
         specifier: ^1.1.23
         version: 1.1.23(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)

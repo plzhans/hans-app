@@ -1,6 +1,6 @@
 import i18n from '@/shared/i18n';
 import { authClient } from '@/shared/auth/authClient';
-import { configureHansApi } from '@hans-api/sdk/react';
+import { configureHansApi } from '@hansapp/api-sdk/react';
 
 /**
  * hans-api SDK 에 이 앱의 요청 방식을 알려준다. **부팅 때 한 번** 부른다.

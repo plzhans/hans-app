@@ -1,16 +1,46 @@
 {
-  "name": "@hans-api/auth-sdk",
+  "name": "@hansapp/auth-sdk",
   "version": "0.0.1",
-  "private": true,
   "type": "module",
   "description": "hans-api 로그인을 외부 앱에서 쓰기 위한 클라이언트 SDK (PKCE·토큰 보관·탭 동기화)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/plzhans/hans-app.git",
+    "directory": "clients/hans-auth-sdk"
+  },
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./capacitor": "./src/capacitor.ts"
   },
-  "dependencies": {
-    "@capacitor/core": "^8.5.0",
-    "@capacitor/preferences": "^8.0.1"
+  "//publishConfig": "레포 안에서는 src 를 그대로 쓰고(link:), 배포본만 dist 를 가리킨다. pnpm publish·pack 이 이 값으로 갈아끼운다.",
+  "publishConfig": {
+    "access": "public",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./capacitor": {
+        "types": "./dist/capacitor.d.ts",
+        "default": "./dist/capacitor.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "//prepack": "pack·publish 전에 자동으로 돈다. 빌드를 잊고 올려 dist 없는 빈 패키지가 나가는 것을 막는다.",
+    "prepack": "pnpm build",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }

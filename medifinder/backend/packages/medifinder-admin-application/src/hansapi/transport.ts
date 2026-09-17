@@ -1,11 +1,11 @@
 /**
- * 공유 SDK(@hans-api/sdk)에 이 CLI 의 요청 방식을 알려준다. **부팅 때 한 번** 부른다.
+ * 공유 SDK(@hansapp/api-sdk)에 이 CLI 의 요청 방식을 알려준다. **부팅 때 한 번** 부른다.
  *
  * SDK 는 인증도 속도 조절도 모른다 — 브라우저와 서버가 서로 다른 방식을 쓰기 때문에
  * 일부러 비워 둔 자리다. 브라우저(medifinder-web)는 auth SDK 와 오리진 대조를 채우고,
  * 여기는 서비스 키와 호출 간격을 채운다.
  */
-import { configureHansApi } from '@hans-api/sdk';
+import { configureHansApi } from '@hansapp/api-sdk';
 
 import type { HansApiConfig } from '../config';
 

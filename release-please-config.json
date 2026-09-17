@@ -99,6 +99,11 @@
       "release-type": "node",
       "component": "release-medifinder",
       "changelog-path": "CHANGELOG.md"
+    },
+    "clients/hans-auth-sdk": {
+      "release-type": "node",
+      "component": "release-auth-sdk",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }

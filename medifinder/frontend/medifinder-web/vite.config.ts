@@ -163,7 +163,7 @@ export default defineConfig(({ mode, isSsrBuild }) => {
       /**
        * react-query·React 도 **한 벌만** 번들한다.
        *
-       * @hans-api/sdk 가 같은 사정이다 — `link:` 로 붙고 자기 node_modules 에 react-query 를
+       * @hansapp/api-sdk 가 같은 사정이다 — `link:` 로 붙고 자기 node_modules 에 react-query 를
        * 따로 갖는다(혼자서도 타입 검사가 되어야 해서 devDependency 로 들고 있다).
        * 갈라지면 SDK 의 훅이 만든 쿼리가 앱의 QueryClient 와 다른 컨텍스트에 붙어서,
        * 캐시가 통째로 비어 보이고 SSR 로 심어 둔 데이터도 안 잡힌다.

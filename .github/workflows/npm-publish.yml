@@ -1,0 +1,100 @@
+# @hansapp/auth-sdk 를 npm 에 올린다.
+#
+# **릴리스와 배포는 분리돼 있다.** 릴리스는 "이 상태를 v0.1.0 이라 부른다" 는 선언이고,
+# 올리는 것은 별개 판단이다 — docs/release.md 와 release.yml 의 같은 구분을 따른다.
+#
+# **순서 때문에 갈라 뒀다.** SDK 는 백엔드 API 를 부르는데, 백엔드는 릴리스가 아니라
+# be-deploy-production.yml 을 돌릴 때 운영에 반영된다. 릴리스 시점에 npm 에 올리면 서버보다
+# SDK 가 먼저 나가고, 쓰는 쪽이 아직 배포되지 않은 엔드포인트를 부르게 된다.
+#
+#   1. be-deploy-production.yml  → 서버를 먼저 올린다
+#   2. npm-publish.yml           → 그다음 SDK 를 낸다
+#
+# **Actions 에서 릴리스 태그를 골라 실행한다.** "Use workflow from" 드롭다운에서
+# release-auth-sdk/v0.1.0 을 고르면 그 시점의 코드가 나간다. 백엔드·프론트 배포와 같은
+# 조작이다.
+#
+# 낼 수 있는 상태인지는 release.yml 이 릴리스 시점에 미리 확인한다(verify-auth-sdk).
+# 검사 내용은 clients/hans-auth-sdk/scripts/smoke-tarball.sh 한 곳에 있어 두 벌로 갈리지 않는다.
+name: npm publish - auth-sdk
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # 백엔드·프론트 운영 배포와 같은 취급이다. 허용된 릴리스 태그에서만 돌고,
+    # npmjs 의 trusted publisher 에도 같은 이름(production)이 등록돼 있어야 한다 —
+    # 여기서 지우면 OIDC 클레임이 안 맞아 publish 가 거절된다.
+    environment: production
+    permissions:
+      contents: read
+      # npm Trusted Publishing(OIDC). 저장소에 NPM_TOKEN 을 상주시키지 않는다 —
+      # GHCR 을 GITHUB_TOKEN 으로만 쓰는 것과 같은 이유다.
+      #
+      # **npmjs 의 trusted publisher 에 이 파일 이름(npm-publish.yml)이 등록돼 있어야 한다.**
+      # 등록 후에는 못 고치는 값이라, 이 파일 이름을 바꾸면 npm 쪽 설정을 지우고 다시 만들어야
+      # 한다.
+      id-token: write
+    defaults:
+      run:
+        working-directory: clients/hans-auth-sdk
+    steps:
+      # 아무 브랜치에서나 돌리면 그 시점 package.json 의 버전이 그대로 나간다.
+      # 릴리스 태그에서만 돌게 막는다.
+      - name: 릴리스 태그인지 확인
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/release-auth-sdk/v*) echo "  $GITHUB_REF" ;;
+            *)
+              echo "❌ 릴리스 태그에서만 돌릴 수 있다: $GITHUB_REF" >&2
+              echo "   Actions 의 'Use workflow from' 에서 release-auth-sdk/v… 를 고를 것." >&2
+              exit 1
+              ;;
+          esac
+        working-directory: .
+
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: clients/hans-auth-sdk/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: clients/hans-auth-sdk/pnpm-lock.yaml
+          registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing 은 npm 11.5.1 이상에서만 된다. Node 24 에 딸려 오는 것으로
+      # 충분하지만, 버전을 찍어 두면 나중에 실패했을 때 여기부터 보면 된다.
+      - name: 툴체인 확인
+        run: node --version && npm --version && pnpm --version
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: 타입 검사
+        run: pnpm typecheck
+
+      # publishConfig 가 여기서 적용된다 — tarball 안의 package.json 은 dist 를 가리킨다.
+      # 빌드는 prepack 이 알아서 돌린다.
+      - name: tarball 만들기
+        id: pack
+        run: |
+          tgz=$(pnpm pack | tail -1)
+          echo "path=$PWD/$tgz" >> "$GITHUB_OUTPUT"
+          echo "$tgz"
+
+      - name: tarball 스모크 테스트
+        run: ./scripts/smoke-tarball.sh "${{ steps.pack.outputs.path }}"
+
+      # --provenance 를 명시한다. 문서는 trusted publishing 이면 자동이라고 하지만
+      # 안 붙는 사례가 보고돼 있어, 빠져서 조용히 서명 없이 올라가는 것보다 낫다.
+      - name: npm publish
+        run: npm publish "${{ steps.pack.outputs.path }}" --access public --provenance

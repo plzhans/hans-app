@@ -4,7 +4,7 @@ import { MapPin, X } from 'lucide-react';
 import { Spinner } from '@/shared/ui/Spinner';
 import { cn } from '@/shared/lib/utils';
 import { useMyRegion } from '@/shared/hooks/useMyRegion';
-import type { RegionPointDto } from '@hans-api/sdk/react';
+import type { RegionPointDto } from '@hansapp/api-sdk/react';
 
 /**
  * "내 위치" 버튼. 누르면 권한을 받아 좌표를 지역 코드로 바꿔 부모에게 넘긴다.

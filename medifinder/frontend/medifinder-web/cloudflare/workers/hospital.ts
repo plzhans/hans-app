@@ -5,7 +5,7 @@ import type {
   HospitalDetailDto,
   HospitalNearbyResponseDto,
   TransportRouteDto,
-} from '@hans-api/sdk';
+} from '@hansapp/api-sdk';
 
 /** 병원 상세 화면이 서버에서 그려질 때 필요한 조회. */
 

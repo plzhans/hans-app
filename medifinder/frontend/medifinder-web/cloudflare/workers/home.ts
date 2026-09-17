@@ -2,7 +2,7 @@ import { apiGet } from './api';
 import type { Env } from './env';
 import type { Lang } from './routing';
 import { HOME_QUERY_PATHS } from '../../dist-server/entry-server.js';
-import type { HealthcareHospitalControllerSearch200 } from '@hans-api/sdk';
+import type { HealthcareHospitalControllerSearch200 } from '@hansapp/api-sdk';
 
 export type HomeSection = HealthcareHospitalControllerSearch200;
 

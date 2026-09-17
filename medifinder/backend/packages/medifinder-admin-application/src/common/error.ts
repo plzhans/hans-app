@@ -1,4 +1,4 @@
-import { HansApiError } from '@hans-api/sdk';
+import { HansApiError } from '@hansapp/api-sdk';
 
 /**
  * 에러를 사람이 읽을 한 줄로 옮긴다.

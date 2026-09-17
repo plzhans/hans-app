@@ -1,4 +1,7 @@
-import { createAuthClient } from '@hans-api/auth-sdk';
+import { CapacitorCookies } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
+import { createAuthClient } from '@hansapp/auth-sdk';
+import { capacitorStorage } from '@hansapp/auth-sdk/capacitor';
 
 /**
  * HansApp 로그인 SDK 클라이언트(싱글턴).
@@ -28,4 +31,11 @@ export const authClient = createAuthClient({
     동안 모든 탭이 공유한다(storage.ts 주석 참고).
   */
   persistence: 'browser',
+  /*
+    SDK 는 웹 표준 저장소만 기본으로 쓴다. 네이티브에서는 그것으로 부족해서 어댑터를 넘긴다 —
+    PKCE verifier 가 Preferences(UserDefaults/SharedPreferences)에 앉아야 한다. 네이티브
+    로그인은 앱 밖(ASWebAuthenticationSession/Custom Tabs)에서 진행되고 그동안 OS 가 앱을
+    종료할 수 있어, 웹뷰에만 있는 저장소면 돌아왔을 때 verifier 가 사라진다.
+  */
+  storage: capacitorStorage({ Preferences, CapacitorCookies }),
 });

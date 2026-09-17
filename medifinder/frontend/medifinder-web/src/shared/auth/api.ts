@@ -1,4 +1,4 @@
-import type { MeResponseDto } from '@hans-api/sdk/react';
+import type { MeResponseDto } from '@hansapp/api-sdk/react';
 import { authClient } from './authClient';
 
 /**

@@ -14,7 +14,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import type { TransportRouteDto } from '@hans-api/sdk/react';
+import type { TransportRouteDto } from '@hansapp/api-sdk/react';
 import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
 import { cn } from '@/shared/lib/utils';
 import { Spinner } from '@/shared/ui/Spinner';

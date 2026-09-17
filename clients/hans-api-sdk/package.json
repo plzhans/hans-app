@@ -1,5 +1,5 @@
 {
-  "name": "@hans-api/sdk",
+  "name": "@hansapp/api-sdk",
   "version": "0.0.1",
   "private": true,
   "description": "hans-api 공개 스펙에서 생성한 클라이언트 SDK. 브라우저·Node 양쪽이 같은 것을 쓴다",

@@ -1,5 +1,6 @@
 {
   "backend": "0.20.3",
   "frontend": "0.16.0",
-  "medifinder/frontend/medifinder-web": "1.1.0"
+  "medifinder/frontend/medifinder-web": "1.1.0",
+  "clients/hans-auth-sdk": "0.0.1"
 }

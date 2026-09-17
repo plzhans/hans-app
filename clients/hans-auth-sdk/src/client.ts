@@ -1,15 +1,33 @@
-import { SessionChannel, type SessionChange, type SessionEvent } from './channel';
-import { discoverEndpoints, type AuthEndpoints } from './discovery';
-import { readClaims, verifyAccessToken, type JwtCheck } from './jwt';
-import { withLock } from './lock';
-import { createPkceRequest, takeVerifier } from './pkce';
-import { TokenStorage, type StoredTokens, type TokenPersistence } from './storage';
+import { SessionChannel, type SessionChange, type SessionEvent } from './channel.js';
+import { discoverEndpoints, type AuthEndpoints } from './discovery.js';
+import { readClaims, verifyAccessToken, type JwtCheck } from './jwt.js';
+import { withLock } from './lock.js';
+import { createPkceRequest, takeVerifier } from './pkce.js';
+import { resolveStorage, type PlatformStorage } from './platform.js';
+import { TokenStorage, type StoredTokens, type TokenPersistence } from './storage.js';
+
+/**
+ * 기본 주소. hans-auth 는 호스트가 하나라 쓰는 쪽이 매번 적을 이유가 없다 —
+ * 고객마다 다른 값은 clientId 뿐이다. 다른 환경을 볼 때만 설정으로 덮는다.
+ */
+const DEFAULT_AUTH_WEB_URL = 'https://auth.plzhans.com';
+const DEFAULT_API_BASE_URL = 'https://api.plzhans.com';
 
 export interface AuthClientConfig {
-  /** HansApp 웹(로그인 UI) base. 예: https://auth.plzhans.com 또는 http://127.0.0.1:5273 */
-  authWebUrl: string;
-  /** 인증 API base. 예: https://api.plzhans.com 또는 http://127.0.0.1:3000 */
-  apiBaseUrl: string;
+  /**
+   * 로그인 UI base. 기본 https://auth.plzhans.com
+   *
+   * 로컬·develop 을 볼 때만 준다(예: http://127.0.0.1:5273). 실제 이동 주소는 discovery 의
+   * authorization_endpoint 가 정하므로, 이 값은 discovery 를 못 읽었을 때의 대비책이다.
+   */
+  authWebUrl?: string;
+  /**
+   * 인증 API base. 기본 https://api.plzhans.com
+   *
+   * discovery·토큰 교환·공개키를 여기서 읽는다. 로컬·develop 을 볼 때만 준다
+   * (예: http://127.0.0.1:3000).
+   */
+  apiBaseUrl?: string;
   /**
    * 이 앱의 공개 클라이언트 ID(hansapp 앱 콘솔/CLI 에서 발급, 예: cl_fixed_medifinder).
    *
@@ -29,6 +47,16 @@ export interface AuthClientConfig {
   storageKey?: string;
   /** 토큰을 어디까지 살려 둘지. 기본 'device'(기기에 남김). storage.ts 주석 참고. */
   persistence?: TokenPersistence;
+  /**
+   * 저장소 구현. 기본은 웹 표준(localStorage·쿠키·sessionStorage)이다.
+   *
+   * Capacitor 앱이면 넘겨야 한다 — 안 넘기면 웹뷰의 localStorage 로 떨어져서,
+   * 앱 데이터가 비워질 때 로그인이 함께 날아간다.
+   *
+   *   import { capacitorStorage } from '@hansapp/auth-sdk/capacitor';
+   *   storage: capacitorStorage({ Preferences, CapacitorCookies })
+   */
+  storage?: PlatformStorage;
 }
 
 /** /oauth/token 응답. */
@@ -83,9 +111,20 @@ export class HansAppAuthClient {
    */
   private readonly keyPrefix: string;
 
+  private readonly authWebUrl: string;
+
+  private readonly apiBaseUrl: string;
+
+  /** PKCE verifier 는 토큰 모드와 무관하게 지속 저장소에 둔다 — pkce.ts 주석 참고. */
+  private readonly pkceStore: PlatformStorage['local'];
+
   constructor(private readonly config: AuthClientConfig) {
     this.keyPrefix = config.storageKey ?? 'hansapp.auth';
-    this.storage = new TokenStorage(this.keyPrefix, config.persistence);
+    this.authWebUrl = config.authWebUrl ?? DEFAULT_AUTH_WEB_URL;
+    this.apiBaseUrl = config.apiBaseUrl ?? DEFAULT_API_BASE_URL;
+    const platform = resolveStorage(config.storage);
+    this.pkceStore = platform.local;
+    this.storage = new TokenStorage(this.keyPrefix, config.persistence, platform);
     this.channel = new SessionChannel(`${this.keyPrefix}.session`);
     this.channel.subscribe((event) => void this.receive(event));
   }
@@ -114,8 +153,8 @@ export class HansAppAuthClient {
   /** 인증 엔드포인트(discovery). 실패해도 관례 경로로 채워져 반드시 성립한다. */
   private resolveEndpoints(): Promise<AuthEndpoints> {
     this.endpoints ??= discoverEndpoints({
-      apiBaseUrl: this.config.apiBaseUrl,
-      authWebUrl: this.config.authWebUrl,
+      apiBaseUrl: this.apiBaseUrl,
+      authWebUrl: this.authWebUrl,
       cacheKey: `${this.keyPrefix}.discovery`,
     });
     return this.endpoints;
@@ -129,7 +168,7 @@ export class HansAppAuthClient {
    */
   async login(redirectUri: string = this.callbackUrl): Promise<void> {
     const { authorizationEndpoint } = await this.resolveEndpoints();
-    const { state, codeChallenge } = await createPkceRequest(this.pkcePrefix);
+    const { state, codeChallenge } = await createPkceRequest(this.pkcePrefix, this.pkceStore);
     // OAuth2 표준 authorization 요청 파라미터. redirect_uri·response_type=code·PKCE(S256).
     const params = new URLSearchParams({
       response_type: 'code',
@@ -165,7 +204,7 @@ export class HansAppAuthClient {
 
     // state 로 이 흐름의 verifier 를 꺼낸다. 없으면 이 브라우저가 시작한 로그인이 아니다 —
     // 남이 심어 놓은 code 를 교환하려는 시도(code injection)일 수 있으므로 여기서 끊는다.
-    const codeVerifier = await takeVerifier(this.pkcePrefix, params.get('state'));
+    const codeVerifier = await takeVerifier(this.pkcePrefix, params.get('state'), this.pkceStore);
     if (!codeVerifier) return { ok: false, error: 'no_verifier' };
 
     const { tokenEndpoint } = await this.resolveEndpoints();
@@ -249,7 +288,7 @@ export class HansAppAuthClient {
   async fetchWithAuth(pathOrUrl: string, init: RequestInit = {}): Promise<Response> {
     const url = /^https?:\/\//.test(pathOrUrl)
       ? pathOrUrl
-      : `${this.config.apiBaseUrl}${pathOrUrl}`;
+      : `${this.apiBaseUrl}${pathOrUrl}`;
 
     const call = async (): Promise<Response> => {
       const headers = new Headers(init.headers);

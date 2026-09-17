@@ -1,5 +1,5 @@
 import { useMyCoords, type Coords } from '@/shared/hooks/useMyCoords';
-import { useRegionControllerReverse } from '@hans-api/sdk/react';
+import { useRegionControllerReverse } from '@hansapp/api-sdk/react';
 
 export interface MyPlace {
   /** 좌표. 측위 전이면 없다. 거리순 조회에 그대로 실린다. */

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { healthcareHospitalControllerScroll, type HospitalSummaryDto } from '@hans-api/sdk';
+import { healthcareHospitalControllerScroll, type HospitalSummaryDto } from '@hansapp/api-sdk';
 
 import { TIERS, type Tier } from './sitemap-plan';
 
