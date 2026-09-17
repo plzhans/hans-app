@@ -35,6 +35,8 @@
     "dist"
   ],
   "scripts": {
+    "//prepack": "pack·publish 전에 자동으로 돈다. 빌드를 잊고 올려 dist 없는 빈 패키지가 나가는 것을 막는다.",
+    "prepack": "pnpm build",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
