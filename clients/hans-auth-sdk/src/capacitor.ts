@@ -7,7 +7,7 @@
  *
  *   import { Preferences } from '@capacitor/preferences';
  *   import { CapacitorCookies } from '@capacitor/core';
- *   import { capacitorStorage } from '@hans-api/auth-sdk/capacitor';
+ *   import { capacitorStorage } from '@hansapp/auth-sdk/capacitor';
  *
  *   createAuthClient({ ..., storage: capacitorStorage({ Preferences, CapacitorCookies }) });
  */

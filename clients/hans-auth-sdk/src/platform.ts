@@ -30,7 +30,7 @@ export function resolveStorage(storage?: PlatformStorage): PlatformStorage {
   if (isNativeContainer()) {
     console.warn(
       '[hans-auth-sdk] 네이티브에서 도는데 storage 어댑터가 없어 웹 저장소를 쓴다. ' +
-        "@hans-api/auth-sdk/capacitor 의 capacitorStorage 를 createAuthClient 의 storage 에 넘길 것.",
+        "@hansapp/auth-sdk/capacitor 의 capacitorStorage 를 createAuthClient 의 storage 에 넘길 것.",
     );
   }
   return webStorage;

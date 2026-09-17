@@ -1,7 +1,7 @@
 import { CapacitorCookies } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
-import { createAuthClient } from '@hans-api/auth-sdk';
-import { capacitorStorage } from '@hans-api/auth-sdk/capacitor';
+import { createAuthClient } from '@hansapp/auth-sdk';
+import { capacitorStorage } from '@hansapp/auth-sdk/capacitor';
 
 /**
  * HansApp 로그인 SDK 클라이언트(싱글턴).

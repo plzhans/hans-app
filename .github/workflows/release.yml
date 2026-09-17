@@ -271,8 +271,8 @@ jobs:
           JSON
 
           cat > smoke.ts <<'TS'
-          import { createAuthClient } from '@hans-api/auth-sdk';
-          import type { AuthClientConfig, JwtStatus } from '@hans-api/auth-sdk';
+          import { createAuthClient } from '@hansapp/auth-sdk';
+          import type { AuthClientConfig, JwtStatus } from '@hansapp/auth-sdk';
 
           const client = createAuthClient({} as AuthClientConfig);
           const status: JwtStatus = 'valid' as JwtStatus;

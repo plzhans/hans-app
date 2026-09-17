@@ -36,7 +36,7 @@ export interface AuthClientConfig {
    * Capacitor 앱이면 넘겨야 한다 — 안 넘기면 웹뷰의 localStorage 로 떨어져서,
    * 앱 데이터가 비워질 때 로그인이 함께 날아간다.
    *
-   *   import { capacitorStorage } from '@hans-api/auth-sdk/capacitor';
+   *   import { capacitorStorage } from '@hansapp/auth-sdk/capacitor';
    *   storage: capacitorStorage({ Preferences, CapacitorCookies })
    */
   storage?: PlatformStorage;
