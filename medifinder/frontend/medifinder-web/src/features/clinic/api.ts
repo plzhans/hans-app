@@ -12,7 +12,7 @@ import {
   getHealthcareHospitalControllerNonPaymentsQueryOptions,
   getHealthcareHospitalControllerNonPaymentsQueryKey,
   healthcareHospitalControllerRequestNonPayments,
-} from '@hans-api/sdk/react';
+} from '@hansapp/api-sdk/react';
 import {
   useHealthcareMetaControllerSubjects,
   useHealthcareMetaControllerSubjectGroups,
@@ -22,10 +22,10 @@ import {
   useHealthcareMetaControllerSpecials,
   useHealthcareMetaControllerEquipments,
   useHealthcareMetaControllerAssessments,
-} from '@hans-api/sdk/react';
+} from '@hansapp/api-sdk/react';
 // 지역은 /healthcare/meta/regions 가 아니라 /address/regions 다(영문 주소 변환과 같은 주소 그룹).
 // region_code 는 도메인 무관이라(병원·학교·약국이 같이 쓴다) 헬스케어 밑에서 빠졌다.
-import { useRegionControllerList } from '@hans-api/sdk/react';
+import { useRegionControllerList } from '@hansapp/api-sdk/react';
 import type {
   HospitalNonPaymentDto,
   NonPaymentCategoryDto,
@@ -41,7 +41,7 @@ import type {
   MetaSubjectGroupDto,
   MetaAssessmentGroupDto,
   RegionDto,
-} from '@hans-api/sdk/react';
+} from '@hansapp/api-sdk/react';
 
 /**
  * orval 이 생성한 react-query 훅(generated/react)에 대한 얇은 어댑터.

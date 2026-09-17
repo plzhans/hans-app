@@ -8,7 +8,7 @@
     /*
       **bundler 로 둔다. node·nodenext 로 바꾸지 말 것.**
 
-      @hans-api/sdk 는 소스(.ts)를 그대로 내보내는 ESM 패키지고, 그 안의 orval 산출물은
+      @hansapp/api-sdk 는 소스(.ts)를 그대로 내보내는 ESM 패키지고, 그 안의 orval 산출물은
       확장자 없는 상대경로를 쓴다.
         · node(=node10) 는 exports 필드를 아예 안 읽어 패키지를 못 찾는다
         · nodenext 는 찾지만 SDK 내부를 ESM 으로 검사해 확장자 없는 import 가 전부 깨진다

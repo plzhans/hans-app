@@ -78,7 +78,7 @@ importers:
 
   packages/medifinder-admin-application:
     dependencies:
-      '@hans-api/sdk':
+      '@hansapp/api-sdk':
         specifier: link:../../../../clients/hans-api-sdk
         version: link:../../../../clients/hans-api-sdk
       '@nestjs/common':

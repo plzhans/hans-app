@@ -12,7 +12,7 @@ import type {
   HealthcareHospitalControllerSearch200,
   HospitalDetailDto,
   HospitalNearbyResponseDto,
-} from '@hans-api/sdk';
+} from '@hansapp/api-sdk';
 
 /** 경로 접두사이자 i18next 언어 코드. shared/i18n 의 SUPPORTED_LANGUAGES 와 같다. */
 export type SsrLang = 'ko' | 'en-us' | 'ja' | 'zh-hans';

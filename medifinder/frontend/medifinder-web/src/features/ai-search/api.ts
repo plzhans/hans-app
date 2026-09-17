@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   aiCapabilitiesControllerCapabilities,
   healthcareAiSearchControllerSearch,
-} from '@hans-api/sdk/react';
+} from '@hansapp/api-sdk/react';
 import type {
   AiSearchHistoryTurnDto,
   AiSearchParamsDto,
@@ -15,7 +15,7 @@ import type {
   ModelChoiceDto,
   QuotaDto,
   QuotaWindowDto,
-} from '@hans-api/sdk/react';
+} from '@hansapp/api-sdk/react';
 
 /*
   **타입은 생성 코드에서 가져오고, 훅만 여기서 쓴다.**

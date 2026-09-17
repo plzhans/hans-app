@@ -75,7 +75,7 @@ case "$project" in
 
     # **link: 로 무는 워크스페이스 밖 의존성을 먼저 설치한다.**
     #
-    # medifinder-web 은 clients/ 의 SDK 들을 link: 로 문다(@hans-api/sdk · @hansapp/auth-sdk). pnpm 워크스페이스가
+    # medifinder-web 은 clients/ 의 SDK 들을 link: 로 문다(@hansapp/api-sdk · @hansapp/auth-sdk). pnpm 워크스페이스가
     # 아니라 그냥 심볼릭 링크라, 소비자에서 install 을 돌려도 **auth-sdk 자기 의존성은
     # 안 깔린다.** 그런데 그 SDK 들은 dist 가 아니라 src 를 내보내므로(main=src/index.ts)
     # tsc 가 그 소스까지 컴파일한다 → @capacitor/preferences 를 못 찾고 죽는다.

@@ -17,7 +17,7 @@ importers:
       '@capacitor/preferences':
         specifier: ^8.0.1
         version: 8.0.1(@capacitor/core@8.5.0)
-      '@hans-api/sdk':
+      '@hansapp/api-sdk':
         specifier: link:../../../clients/hans-api-sdk
         version: link:../../../clients/hans-api-sdk
       '@hansapp/auth-sdk':

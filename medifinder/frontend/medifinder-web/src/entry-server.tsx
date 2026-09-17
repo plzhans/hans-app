@@ -23,7 +23,7 @@ import {
   getHealthcareHospitalControllerNearbyQueryKey,
   getHealthcareHospitalControllerSearchQueryKey,
   getHealthcareHospitalControllerSearchUrl,
-} from '@hans-api/sdk/react';
+} from '@hansapp/api-sdk/react';
 import { configureApi } from '@/shared/api/configure';
 import { NEARBY_SIZE } from '@/features/clinic/api';
 import { HOME_SECTION_PARAMS } from '@/features/home/pages/Home';

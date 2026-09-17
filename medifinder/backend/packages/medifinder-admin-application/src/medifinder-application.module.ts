@@ -14,7 +14,7 @@ import { WorkerDeployService } from './storage/worker-deploy.service';
  * @hansapp/* 도 쓰지 않는다 — MediFinder 는 hans-api 의 외부 소비자라 그 시스템의
  * 내부 구조에 닿으면 안 된다. 이 전제는 eslint 로도 막아 둔다(backend/eslint.config.mjs).
  *
- * API 는 공유 SDK(@hans-api/sdk)로만 부른다. medifinder-web 이 브라우저에서 쓰는 것과
+ * API 는 공유 SDK(@hansapp/api-sdk)로만 부른다. medifinder-web 이 브라우저에서 쓰는 것과
  * 같은 패키지다 — 스펙이 한 번 생성되므로 프론트와 CLI 가 어긋날 자리가 없다.
  */
 @Module({})

@@ -8,7 +8,7 @@
     /*
       **응용 계층·SDK 와 같은 해석을 쓴다.** 자세한 이유는
       packages/medifinder-admin-application/tsconfig.json 주석에 있다 — 요약하면
-      @hans-api/sdk 가 소스 전용 ESM 패키지라 node·nodenext 로는 못 읽는다.
+      @hansapp/api-sdk 가 소스 전용 ESM 패키지라 node·nodenext 로는 못 읽는다.
     */
     "module": "preserve",
     "moduleResolution": "bundler",
