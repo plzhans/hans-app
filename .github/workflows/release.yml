@@ -209,9 +209,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # **루트 package.json 을 가리킨다.** 이 액션은 packageManager 필드에서 pnpm 버전을
+      # 읽는데, SDK 의 package.json 에는 그것이 없다(배포되는 파일이라 넣지 않는다).
+      # 버전 정본은 루트 하나다.
       - uses: pnpm/action-setup@v4
         with:
-          package_json_file: clients/hans-auth-sdk/package.json
+          package_json_file: package.json
 
       - uses: actions/setup-node@v7
         with:
