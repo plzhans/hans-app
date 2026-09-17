@@ -1,6 +1,6 @@
 {
   "name": "@hansapp/auth-sdk",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "description": "hans-api 로그인을 외부 앱에서 쓰기 위한 클라이언트 SDK (PKCE·토큰 보관·탭 동기화)",
   "license": "MIT",
