@@ -142,3 +142,14 @@ jobs:
             --assets "$PWD/$assets" \
             --tag "$GITHUB_SHA" \
             --message "ref: $GITHUB_REF_NAME"
+
+          # 올라간 파일의 공개 주소를 한 줄에 하나씩 남긴다. Actions 로그가 URL 을 링크로
+          # 만들어 주므로 배포 직후 로그에서 바로 눌러 열어 볼 수 있다.
+          # 주소는 사이트맵을 만들 때 쓴 것과 같은 .env.<환경> 에서 읽는다 — 여기 베껴 적으면
+          # 한쪽만 고치는 날이 온다.
+          # shellcheck disable=SC1090
+          . "./.env.$APP_ENV"
+          echo
+          for file in "$assets"/*.xml; do
+            echo "  ${VITE_SITE_URL%/}/$(basename "$file")"
+          done

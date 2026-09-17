@@ -68,7 +68,7 @@ export function sitemapCommand(load: () => MedifinderConfig): Command {
       .option('--force', '내용이 그대로여도 올린다')
       .action(async (options: { from: string; force?: boolean }): Promise<void> => {
         const config = announce(load());
-        const name = await withApplicationContext(config, async (context) => {
+        const result = await withApplicationContext(config, async (context) => {
           const files = await context.get(SitemapWriterService).list(options.from);
           if (files.length === 0) {
             throw new Error(
@@ -80,15 +80,24 @@ export function sitemapCommand(load: () => MedifinderConfig): Command {
           // 내용이 그대로면 올리지 않는다. 올려도 결과는 같지만, 배포 이력이 의미 없는
           // 회차로 채워지고 "언제 실제로 바뀌었나" 를 되짚을 수 없게 된다.
           if (!options.force && (await deployer.isUnchanged(options.from))) {
-            return undefined;
+            return { files, name: undefined };
           }
-          return deployer.deploy(options.from);
+          return { files, name: await deployer.deploy(options.from) };
         });
 
         console.log('');
         console.log(
-          name ? `배포 완료  → ${name}` : '내용이 그대로다. 올리지 않았다 (--force 로 강제)',
+          result.name
+            ? `배포 완료  → ${result.name}`
+            : '내용이 그대로다. 올리지 않았다 (--force 로 강제)',
         );
+
+        // 올라간 파일의 공개 주소를 한 줄에 하나씩 남긴다. CI 로그가 URL 을 링크로 만들어
+        // 주므로, 배포 직후 로그에서 바로 눌러 열어 볼 수 있다.
+        console.log('');
+        for (const file of publicOrder(result.files)) {
+          console.log(`  ${config.siteUrl}/${file}`);
+        }
       }),
     [
       'medifinder-cli sitemap deploy --from ./out --env develop',
@@ -145,6 +154,12 @@ function formatElapsed(ms: number): string {
 function announce(config: MedifinderConfig): MedifinderConfig {
   process.stderr.write(`${describeConfig(config)}\n\n`);
   return config;
+}
+
+/** 색인(sitemap.xml)을 맨 앞에 둔다. 검색엔진에 넣는 주소가 그것 하나다. */
+function publicOrder(files: string[]): string[] {
+  const index = 'sitemap.xml';
+  return files.includes(index) ? [index, ...files.filter((name) => name !== index)] : files;
 }
 
 function toInt(value: string): number {
