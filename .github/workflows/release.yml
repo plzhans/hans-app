@@ -182,20 +182,20 @@ jobs:
 
 
   # ───────────────────────────────────────────────────────────────────────────
-  # auth-sdk 를 npm 에 올린다.
+  # auth-sdk 가 **낼 수 있는 상태인지만** 확인한다. npm 에 올리지 않는다.
   #
-  # 이미지와 같은 취급이다 — 릴리스 시점에 산출물을 만들어 레지스트리에 둘 뿐,
-  # 쓰는 쪽이 언제 버전을 올릴지는 그쪽 판단이다.
+  # 올리는 것은 npm-publish.yml 이 따로 한다. 갈라 둔 이유는 순서다 — SDK 는 백엔드 API 를
+  # 부르는데 백엔드는 릴리스가 아니라 **배포** 때 운영에 반영된다. 여기서 npm 에 올려 버리면
+  # 서버보다 SDK 가 먼저 나가고, 쓰는 쪽이 아직 없는 엔드포인트를 부르게 된다.
   #
-  # **스모크 테스트가 이 잡의 핵심이다.** 레포 안에서는 medifinder 가 `link:` 로 src 를
-  # 직접 컴파일해 쓰고, 배포본은 dist 를 쓴다. 그래서 dist 는 이 잡 전까지 아무도 써보지
-  # 않은 코드다 — exports 를 잘못 적거나 files 에서 빠뜨려도 medifinder CI 는 초록이다.
-  # tarball 을 실제로 설치해 import 가 풀리는지 보고, 통과해야 publish 한다.
+  # 그래도 확인은 여기서 해 둔다. 배포일에 가서 "이 태그 빌드가 안 되네" 를 아는 건 늦다.
+  # 백엔드가 릴리스 때 이미지를 구워 두는 것과 같은 이유다.
   #
-  # 소비자가 node16·nodenext 로 타입을 풀 수도 있어 그 모드로 검사한다. 상대 import 에
-  # .js 를 붙여 둔 것이 여기서 확인된다.
+  # **재사용 호출(uses:)로 부르지 않는다.** npm-publish 는 id-token: write 가 필요한데,
+  # 이 워크플로의 permissions 에 그것이 없어 넘기는 순간 startup_failure 가 난다. 검사 내용은
+  # scripts/smoke-tarball.sh 한 곳에 있어 양쪽이 같은 것을 부른다.
   # ───────────────────────────────────────────────────────────────────────────
-  publish-auth-sdk:
+  verify-auth-sdk:
     needs: release
     if: >-
       needs.release.outputs.created == 'true' &&
@@ -203,10 +203,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # npm Trusted Publishing(OIDC). 저장소에 NPM_TOKEN 을 상주시키지 않는다 —
-      # GHCR 을 GITHUB_TOKEN 으로만 쓰는 것과 같은 이유다.
-      # npmjs 쪽에서 이 저장소·워크플로를 trusted publisher 로 한 번 등록해 둬야 한다.
-      id-token: write
     defaults:
       run:
         working-directory: clients/hans-auth-sdk
@@ -222,12 +218,6 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
           cache-dependency-path: clients/hans-auth-sdk/pnpm-lock.yaml
-          registry-url: https://registry.npmjs.org
-
-      # Trusted Publishing 은 npm 11.5.1 이상에서만 된다. Node 24 에 딸려 오는 것으로
-      # 충분하지만, 버전을 찍어 두면 나중에 실패했을 때 여기부터 보면 된다.
-      - name: 툴체인 확인
-        run: node --version && npm --version && pnpm --version
 
       - name: 의존성 설치
         run: pnpm install --frozen-lockfile
@@ -235,10 +225,6 @@ jobs:
       - name: 타입 검사
         run: pnpm typecheck
 
-      - name: 빌드
-        run: pnpm build
-
-      # publishConfig 가 여기서 적용된다 — tarball 안의 package.json 은 dist 를 가리킨다.
       - name: tarball 만들기
         id: pack
         run: |
@@ -247,44 +233,7 @@ jobs:
           echo "$tgz"
 
       - name: tarball 스모크 테스트
-        env:
-          TARBALL: ${{ steps.pack.outputs.path }}
-        run: |
-          work=$(mktemp -d)
-          cd "$work"
-          echo '{"name":"smoke","version":"1.0.0","type":"module","private":true}' > package.json
-          npm install "$TARBALL" typescript@^5.9.3 --no-audit --no-fund
+        run: ./scripts/smoke-tarball.sh "${{ steps.pack.outputs.path }}"
 
-          cat > tsconfig.json <<'JSON'
-          {
-            "compilerOptions": {
-              "target": "ES2022",
-              "module": "Node16",
-              "moduleResolution": "Node16",
-              "lib": ["ES2022", "DOM"],
-              "strict": true,
-              "noEmit": true,
-              "skipLibCheck": true
-            },
-            "include": ["smoke.ts"]
-          }
-          JSON
-
-          cat > smoke.ts <<'TS'
-          import { createAuthClient } from '@hansapp/auth-sdk';
-          import type { AuthClientConfig, JwtStatus } from '@hansapp/auth-sdk';
-
-          const client = createAuthClient({} as AuthClientConfig);
-          const status: JwtStatus = 'valid' as JwtStatus;
-          console.log(client, status);
-          TS
-
-          ./node_modules/.bin/tsc -p tsconfig.json
-          echo "  스모크 통과 — dist 로 import·타입이 풀린다"
-
-      # --provenance 를 명시한다. 문서는 trusted publishing 이면 자동이라고 하지만
-      # 안 붙는 사례가 보고돼 있어, 빠져서 조용히 서명 없이 올라가는 것보다 낫다.
-      - name: npm publish
-        env:
-          TARBALL: ${{ steps.pack.outputs.path }}
-        run: npm publish "$TARBALL" --access public --provenance
+      - name: 안내
+        run: echo "  낼 수 있는 상태다. 올리려면 npm-publish.yml 을 이 릴리스 태그에서 실행할 것."
