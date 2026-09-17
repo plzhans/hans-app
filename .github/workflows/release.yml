@@ -282,7 +282,9 @@ jobs:
           ./node_modules/.bin/tsc -p tsconfig.json
           echo "  스모크 통과 — dist 로 import·타입이 풀린다"
 
+      # --provenance 를 명시한다. 문서는 trusted publishing 이면 자동이라고 하지만
+      # 안 붙는 사례가 보고돼 있어, 빠져서 조용히 서명 없이 올라가는 것보다 낫다.
       - name: npm publish
         env:
           TARBALL: ${{ steps.pack.outputs.path }}
-        run: npm publish "$TARBALL" --access public
+        run: npm publish "$TARBALL" --access public --provenance
