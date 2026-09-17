@@ -1,4 +1,4 @@
-import { Preferences } from '@capacitor/preferences';
+import type { StateStore } from './persistence.js';
 
 /**
  * PKCE(RFC 7636) 파라미터 생성·보관.
@@ -7,8 +7,8 @@ import { Preferences } from '@capacitor/preferences';
  * 원본은 마지막 토큰 교환 때 POST 바디로 딱 한 번 나간다. 그래서 리다이렉트 왕복 전체를
  * 도청해도 코드를 교환할 수 없다 — 이게 public client 가 client_secret 없이 안전한 이유다.
  *
- * **저장에 Preferences 를 쓰는 이유:** 웹에서는 localStorage, 네이티브에서는
- * UserDefaults/SharedPreferences 로 내려간다. 네이티브 OAuth 는 앱 밖(ASWebAuthenticationSession /
+ * **지속 저장소(PlatformStorage.local)에 두는 이유:** 웹에서는 localStorage, 네이티브
+ * 어댑터를 주면 UserDefaults/SharedPreferences 로 내려간다. 네이티브 OAuth 는 앱 밖(ASWebAuthenticationSession /
  * Custom Tabs)에서 진행되고 그동안 OS 가 앱을 종료할 수 있어, sessionStorage 처럼 휘발성이면
  * 돌아왔을 때 verifier 가 사라진다.
  *
@@ -61,8 +61,8 @@ async function sha256base64url(value: string): Promise<string> {
  * verifier·state 를 만들어 보관하고, 인가 요청에 실을 값만 돌려준다.
  * verifier 는 여기서 밖으로 나가지 않는다.
  */
-export async function createPkceRequest(prefix: string): Promise<PkceRequest> {
-  await sweepExpired(prefix);
+export async function createPkceRequest(prefix: string, store: StateStore): Promise<PkceRequest> {
+  await sweepExpired(prefix, store);
 
   // 32 bytes → base64url 43자. RFC 7636 이 요구하는 43~128자 범위의 최소값이다.
   const verifier = randomBase64url(32);
@@ -70,7 +70,7 @@ export async function createPkceRequest(prefix: string): Promise<PkceRequest> {
   const codeChallenge = await sha256base64url(verifier);
 
   const stored: Stored = { verifier, expiresAt: Date.now() + TTL_MS };
-  await Preferences.set({ key: prefix + state, value: JSON.stringify(stored) });
+  await store.set(prefix + state, JSON.stringify(stored));
 
   return { state, codeChallenge };
 }
@@ -79,11 +79,15 @@ export async function createPkceRequest(prefix: string): Promise<PkceRequest> {
  * 콜백에서 state 로 verifier 를 꺼낸다. **꺼내면 지운다**(1회용).
  * 없으면 null — 이 브라우저가 시작하지 않은 흐름이라는 뜻이라, 교환하면 안 된다.
  */
-export async function takeVerifier(prefix: string, state: string | null): Promise<string | null> {
+export async function takeVerifier(
+  prefix: string,
+  state: string | null,
+  store: StateStore,
+): Promise<string | null> {
   if (!state) return null;
   const key = prefix + state;
-  const { value } = await Preferences.get({ key });
-  await Preferences.remove({ key });
+  const value = await store.get(key);
+  await store.remove(key);
   if (!value) return null;
   try {
     const stored = JSON.parse(value) as Stored;
@@ -97,20 +101,20 @@ export async function takeVerifier(prefix: string, state: string | null): Promis
  * 만료된 항목을 지운다. 사용자가 로그인을 중단하면 항목이 그대로 남으므로,
  * 새 흐름을 시작할 때마다 한 번씩 쓸어낸다.
  */
-async function sweepExpired(prefix: string): Promise<void> {
-  const { keys } = await Preferences.keys();
+async function sweepExpired(prefix: string, store: StateStore): Promise<void> {
+  const keys = await store.getAllKeys();
   const now = Date.now();
   await Promise.all(
     keys
       .filter((k) => k.startsWith(prefix))
       .map(async (key) => {
-        const { value } = await Preferences.get({ key });
+        const value = await store.get(key);
         if (!value) return;
         try {
           const stored = JSON.parse(value) as Stored;
-          if (stored.expiresAt <= now) await Preferences.remove({ key });
+          if (stored.expiresAt <= now) await store.remove(key);
         } catch {
-          await Preferences.remove({ key });
+          await store.remove(key);
         }
       }),
   );

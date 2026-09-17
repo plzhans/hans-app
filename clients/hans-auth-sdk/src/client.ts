@@ -3,6 +3,7 @@ import { discoverEndpoints, type AuthEndpoints } from './discovery.js';
 import { readClaims, verifyAccessToken, type JwtCheck } from './jwt.js';
 import { withLock } from './lock.js';
 import { createPkceRequest, takeVerifier } from './pkce.js';
+import { resolveStorage, type PlatformStorage } from './platform.js';
 import { TokenStorage, type StoredTokens, type TokenPersistence } from './storage.js';
 
 export interface AuthClientConfig {
@@ -29,6 +30,16 @@ export interface AuthClientConfig {
   storageKey?: string;
   /** 토큰을 어디까지 살려 둘지. 기본 'device'(기기에 남김). storage.ts 주석 참고. */
   persistence?: TokenPersistence;
+  /**
+   * 저장소 구현. 기본은 웹 표준(localStorage·쿠키·sessionStorage)이다.
+   *
+   * Capacitor 앱이면 넘겨야 한다 — 안 넘기면 웹뷰의 localStorage 로 떨어져서,
+   * 앱 데이터가 비워질 때 로그인이 함께 날아간다.
+   *
+   *   import { capacitorStorage } from '@hans-api/auth-sdk/capacitor';
+   *   storage: capacitorStorage({ Preferences, CapacitorCookies })
+   */
+  storage?: PlatformStorage;
 }
 
 /** /oauth/token 응답. */
@@ -83,9 +94,14 @@ export class HansAppAuthClient {
    */
   private readonly keyPrefix: string;
 
+  /** PKCE verifier 는 토큰 모드와 무관하게 지속 저장소에 둔다 — pkce.ts 주석 참고. */
+  private readonly pkceStore: PlatformStorage['local'];
+
   constructor(private readonly config: AuthClientConfig) {
     this.keyPrefix = config.storageKey ?? 'hansapp.auth';
-    this.storage = new TokenStorage(this.keyPrefix, config.persistence);
+    const platform = resolveStorage(config.storage);
+    this.pkceStore = platform.local;
+    this.storage = new TokenStorage(this.keyPrefix, config.persistence, platform);
     this.channel = new SessionChannel(`${this.keyPrefix}.session`);
     this.channel.subscribe((event) => void this.receive(event));
   }
@@ -129,7 +145,7 @@ export class HansAppAuthClient {
    */
   async login(redirectUri: string = this.callbackUrl): Promise<void> {
     const { authorizationEndpoint } = await this.resolveEndpoints();
-    const { state, codeChallenge } = await createPkceRequest(this.pkcePrefix);
+    const { state, codeChallenge } = await createPkceRequest(this.pkcePrefix, this.pkceStore);
     // OAuth2 표준 authorization 요청 파라미터. redirect_uri·response_type=code·PKCE(S256).
     const params = new URLSearchParams({
       response_type: 'code',
@@ -165,7 +181,7 @@ export class HansAppAuthClient {
 
     // state 로 이 흐름의 verifier 를 꺼낸다. 없으면 이 브라우저가 시작한 로그인이 아니다 —
     // 남이 심어 놓은 code 를 교환하려는 시도(code injection)일 수 있으므로 여기서 끊는다.
-    const codeVerifier = await takeVerifier(this.pkcePrefix, params.get('state'));
+    const codeVerifier = await takeVerifier(this.pkcePrefix, params.get('state'), this.pkceStore);
     if (!codeVerifier) return { ok: false, error: 'no_verifier' };
 
     const { tokenEndpoint } = await this.resolveEndpoints();
