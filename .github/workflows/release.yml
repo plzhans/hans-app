@@ -180,3 +180,109 @@ jobs:
       target: all
       version: ${{ needs.release.outputs.backend_version }}
 
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # auth-sdk 를 npm 에 올린다.
+  #
+  # 이미지와 같은 취급이다 — 릴리스 시점에 산출물을 만들어 레지스트리에 둘 뿐,
+  # 쓰는 쪽이 언제 버전을 올릴지는 그쪽 판단이다.
+  #
+  # **스모크 테스트가 이 잡의 핵심이다.** 레포 안에서는 medifinder 가 `link:` 로 src 를
+  # 직접 컴파일해 쓰고, 배포본은 dist 를 쓴다. 그래서 dist 는 이 잡 전까지 아무도 써보지
+  # 않은 코드다 — exports 를 잘못 적거나 files 에서 빠뜨려도 medifinder CI 는 초록이다.
+  # tarball 을 실제로 설치해 import 가 풀리는지 보고, 통과해야 publish 한다.
+  #
+  # 소비자가 node16·nodenext 로 타입을 풀 수도 있어 그 모드로 검사한다. 상대 import 에
+  # .js 를 붙여 둔 것이 여기서 확인된다.
+  # ───────────────────────────────────────────────────────────────────────────
+  publish-auth-sdk:
+    needs: release
+    if: >-
+      needs.release.outputs.created == 'true' &&
+      contains(fromJSON(needs.release.outputs.paths || '[]'), 'clients/hans-auth-sdk')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # npm Trusted Publishing(OIDC). 저장소에 NPM_TOKEN 을 상주시키지 않는다 —
+      # GHCR 을 GITHUB_TOKEN 으로만 쓰는 것과 같은 이유다.
+      # npmjs 쪽에서 이 저장소·워크플로를 trusted publisher 로 한 번 등록해 둬야 한다.
+      id-token: write
+    defaults:
+      run:
+        working-directory: clients/hans-auth-sdk
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: clients/hans-auth-sdk/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: clients/hans-auth-sdk/pnpm-lock.yaml
+          registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing 은 npm 11.5.1 이상에서만 된다. Node 24 에 딸려 오는 것으로
+      # 충분하지만, 버전을 찍어 두면 나중에 실패했을 때 여기부터 보면 된다.
+      - name: 툴체인 확인
+        run: node --version && npm --version && pnpm --version
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: 타입 검사
+        run: pnpm typecheck
+
+      - name: 빌드
+        run: pnpm build
+
+      # publishConfig 가 여기서 적용된다 — tarball 안의 package.json 은 dist 를 가리킨다.
+      - name: tarball 만들기
+        id: pack
+        run: |
+          tgz=$(pnpm pack | tail -1)
+          echo "path=$PWD/$tgz" >> "$GITHUB_OUTPUT"
+          echo "$tgz"
+
+      - name: tarball 스모크 테스트
+        env:
+          TARBALL: ${{ steps.pack.outputs.path }}
+        run: |
+          work=$(mktemp -d)
+          cd "$work"
+          echo '{"name":"smoke","version":"1.0.0","type":"module","private":true}' > package.json
+          npm install "$TARBALL" typescript@^5.9.3 --no-audit --no-fund
+
+          cat > tsconfig.json <<'JSON'
+          {
+            "compilerOptions": {
+              "target": "ES2022",
+              "module": "Node16",
+              "moduleResolution": "Node16",
+              "lib": ["ES2022", "DOM"],
+              "strict": true,
+              "noEmit": true,
+              "skipLibCheck": true
+            },
+            "include": ["smoke.ts"]
+          }
+          JSON
+
+          cat > smoke.ts <<'TS'
+          import { createAuthClient } from '@hans-api/auth-sdk';
+          import type { AuthClientConfig, JwtStatus } from '@hans-api/auth-sdk';
+
+          const client = createAuthClient({} as AuthClientConfig);
+          const status: JwtStatus = 'valid' as JwtStatus;
+          console.log(client, status);
+          TS
+
+          ./node_modules/.bin/tsc -p tsconfig.json
+          echo "  스모크 통과 — dist 로 import·타입이 풀린다"
+
+      - name: npm publish
+        env:
+          TARBALL: ${{ steps.pack.outputs.path }}
+        run: npm publish "$TARBALL" --access public

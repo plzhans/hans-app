@@ -1,9 +1,9 @@
-import { SessionChannel, type SessionChange, type SessionEvent } from './channel';
-import { discoverEndpoints, type AuthEndpoints } from './discovery';
-import { readClaims, verifyAccessToken, type JwtCheck } from './jwt';
-import { withLock } from './lock';
-import { createPkceRequest, takeVerifier } from './pkce';
-import { TokenStorage, type StoredTokens, type TokenPersistence } from './storage';
+import { SessionChannel, type SessionChange, type SessionEvent } from './channel.js';
+import { discoverEndpoints, type AuthEndpoints } from './discovery.js';
+import { readClaims, verifyAccessToken, type JwtCheck } from './jwt.js';
+import { withLock } from './lock.js';
+import { createPkceRequest, takeVerifier } from './pkce.js';
+import { TokenStorage, type StoredTokens, type TokenPersistence } from './storage.js';
 
 export interface AuthClientConfig {
   /** HansApp 웹(로그인 UI) base. 예: https://auth.plzhans.com 또는 http://127.0.0.1:5273 */
