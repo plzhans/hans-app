@@ -58,6 +58,9 @@ jobs:
   sitemap:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # 슬랙 토큰이 environment secret 이라(docs/deploy.md) 환경을 선언해야 잡힌다.
+    # hansapp-web 사이트맵도 같은 줄을 갖고 있다.
+    environment: ${{ inputs.app_env || 'production' }}
     # node·pnpm·sops·age 가 버전 고정으로 들어 있는 레포 공용 툴체인 이미지다.
     # sops 를 여기서 따로 깔지 않는 이유 — 버전이 레포와 갈라지고 아무도 안 고치게 된다.
     container:
@@ -70,6 +73,30 @@ jobs:
         working-directory: medifinder/backend
     steps:
       - uses: actions/checkout@v7
+
+      # ── 슬랙 ───────────────────────────────────────────────────────────────
+      # 주 1회 혼자 도는 일이라, 돌았다는 사실이 채널에 남지 않으면 아무도 모른다.
+      # 여기서 카드를 하나 올리고 그 아래로 진행을 쌓은 뒤, 끝에 이 카드 자체를
+      # 성공/실패로 고쳐 쓴다 — 채널에는 결론 한 줄만 남는다.
+      #
+      # **첫 게시만 액션으로 한다.** 답글·수정에 필요한 채널 id 를 output 으로 주는 것이
+      # 이것뿐이다. chat.update 는 `#이름` 을 거절한다(docs/deploy.md 의 "함정").
+      # 알림이 안 되더라도 사이트맵은 돌아야 하므로, 실패해도 잡은 그대로 간다.
+      - name: 슬랙 시작 알림
+        id: slack
+        continue-on-error: true
+        uses: slackapi/slack-github-action@v4
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          # 기본값(false)이면 거절당해도 로그에 한 줄도 안 남는다. 켜 두고 잡은
+          # continue-on-error 로 살린다.
+          errors: true
+          payload: |
+            {
+              "channel": "#hansapp-prod",
+              "text": "*🗺️ medifinder 사이트맵 · ${{ inputs.app_env || 'production' }}*\n진행 중…  ·  <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|실행 로그>"
+            }
 
       # node·pnpm 은 이미지에 들어 있다. setup-node 를 쓰지 않는 이유는 그러면 이미지가
       # 고정한 버전 위에 다른 버전을 덮어써서, 무엇으로 도는지가 두 곳에서 정해지기 때문이다.
@@ -111,7 +138,18 @@ jobs:
           MEDIFINDER_APP_ENV: ${{ inputs.app_env || 'production' }}
         # min-urls 는 "API 가 반쯤 죽었다" 를 잡는 바닥이다. 실제 건수(약 88,000)보다
         # 넉넉히 낮게 잡는다 — 폐업으로 자연히 줄어드는 몫까지 실패로 보면 안 된다.
-        run: pnpm cli sitemap build --out ./out --min-urls 70000 --env "$MEDIFINDER_APP_ENV"
+        # 출력을 갈무리해 슬랙 댓글에 싣는다. 기본 셸이 pipefail 이라 tee 가 실패를 삼키지 않는다.
+        run: pnpm cli sitemap build --out ./out --min-urls 70000 --env "$MEDIFINDER_APP_ENV" | tee "$RUNNER_TEMP/build.log"
+
+      - name: 슬랙 댓글 · 생성
+        if: ${{ steps.slack.outputs.ts != '' }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.slack.outputs.channel_id }}
+        run: |
+          ../../scripts/deploy/ci-slack-send.sh --thread '${{ steps.slack.outputs.ts }}' \
+            --title '🧾 사이트맵 생성 완료' \
+            --text "$(grep -m1 '^총 ' "$RUNNER_TEMP/build.log" || true)"
 
       # 실패해도 남긴다. 무엇이 나왔길래 검사에 걸렸는지는 파일을 봐야 안다.
       - name: 산출물 보관
@@ -129,4 +167,34 @@ jobs:
           MEDIFINDER_APP_ENV: ${{ inputs.app_env || 'production' }}
           # wrangler 가 직접 읽는다. 프론트 배포가 쓰는 것과 같은 토큰이다.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: pnpm cli sitemap deploy --from ./out --env "$MEDIFINDER_APP_ENV"
+        run: pnpm cli sitemap deploy --from ./out --env "$MEDIFINDER_APP_ENV" | tee "$RUNNER_TEMP/deploy.log"
+
+      - name: 슬랙 댓글 · 배포
+        if: ${{ steps.slack.outputs.ts != '' && !inputs.dry_run }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.slack.outputs.channel_id }}
+        run: |
+          # 올라간 사이트맵 주소만 고른다. wrangler 도 워커 주소(*.workers.dev)를 찍는데
+          # 그것은 확인할 대상이 아니라서, 확장자로 우리 것만 거른다.
+          urls="$(grep -oE 'https://[^ ]+\.(xml|json)' "$RUNNER_TEMP/deploy.log" || true)"
+          ../../scripts/deploy/ci-slack-send.sh --thread '${{ steps.slack.outputs.ts }}' \
+            --title '🚀 워커 배포 완료' --text "$urls"
+
+      # 첫 카드를 결과로 바꾼다. 스레드를 열지 않아도 성공/실패가 채널에서 읽혀야 한다.
+      - name: 슬랙 · 첫 메시지를 결과로
+        if: ${{ always() && steps.slack.outputs.ts != '' }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ steps.slack.outputs.channel_id }}
+          APP_ENV: ${{ inputs.app_env || 'production' }}
+          STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          case "$STATUS" in
+            success)   title="✅ medifinder 사이트맵 완료 · $APP_ENV" ;;
+            cancelled) title="⚪ medifinder 사이트맵 취소 · $APP_ENV" ;;
+            *)         title="❌ medifinder 사이트맵 실패 · $APP_ENV" ;;
+          esac
+          ../../scripts/deploy/ci-slack-send.sh --update '${{ steps.slack.outputs.ts }}' \
+            --title "$title" --text "진행은 스레드에  ·  <$RUN_URL|실행 로그>"
