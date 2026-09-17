@@ -69,5 +69,5 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
 | | |
 | --- | --- |
 | [**인증**](/common#인증) | 서비스 키(`Authorization`) 또는 클라이언트 ID(`X-Client-Id`) |
-| [**로그인 연동**](/common#login-integration) | OAuth 2.0 Authorization Code + PKCE |
+| [**로그인 연동**](/common#login-integration) | OAuth 2.0 Authorization Code + PKCE. 브라우저 앱은 [SDK](/common#auth-sdk) 로 |
 | [**다국어**](/common#다국어) | `Accept-Language` 하나로 한국어·영어·일본어·중국어 |

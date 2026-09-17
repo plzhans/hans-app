@@ -100,6 +100,69 @@ await fetch('https://api.plzhans.com/healthcare/hospitals?region=11680', {
 토큰 교환 때 요청의 `redirect_uri` 는 등록값과 **정확히 일치**해야 합니다(오픈 리다이렉트 방지).
 :::
 
+#### 브라우저 앱은 SDK 를 쓰세요 {#auth-sdk}
+
+아래 흐름을 직접 구현하지 않아도 됩니다.
+브라우저와 하이브리드 앱을 위한 공식 클라이언트 SDK 를 npm 으로 제공합니다.
+
+```bash
+npm install @hansapp/auth-sdk
+```
+
+콘솔에서 발급한 클라이언트 ID 만 넘기면 됩니다.
+
+```ts
+import { createAuthClient } from '@hansapp/auth-sdk';
+
+export const authClient = createAuthClient({
+  clientId: 'cl_your_client_id',
+  storageKey: 'yourapp.auth',
+});
+```
+
+로그인 버튼에서 `login()` 을 부르면 인증웹으로 이동합니다.
+등록해 둔 리디렉션 경로에서 `handleCallback()` 을 부르면 토큰 교환까지 끝납니다.
+
+```ts
+await authClient.login();
+```
+
+```ts
+const result = await authClient.handleCallback();
+if (result.ok) {
+  // 로그인 완료
+}
+```
+
+이후 API 호출은 `fetchWithAuth` 로 보냅니다.
+토큰 부착과 만료 시 갱신을 대신 처리합니다.
+
+```ts
+const res = await authClient.fetchWithAuth('/healthcare/hospitals?region=11680');
+```
+
+SDK 가 맡는 일은 다음과 같습니다.
+
+| | |
+| --- | --- |
+| PKCE | `code_verifier` 생성과 보관, 콜백에서 1회용 회수 |
+| `state` | 생성과 대조. 흐름마다 분리해 탭 간 충돌을 막습니다 |
+| discovery | 엔드포인트를 서버 설정에서 읽고 캐시합니다 |
+| 토큰 | 보관 범위 선택, 만료 전 자동 갱신, 동시 갱신 방지 |
+| 세션 | 탭 사이 로그인 상태 동기화 |
+
+토큰 보관 범위는 `persistence` 로 고릅니다.
+기본값 `device` 는 기기에 남기고 `browser` 는 브라우저를 닫으면 지워지며 `tab` 은 탭 단위입니다.
+
+의존성이 없고 웹 표준 저장소만 사용합니다.
+Capacitor 앱은 `@hansapp/auth-sdk/capacitor` 의 어댑터를 `storage` 로 넘기세요.
+자세한 사용법은 [패키지 문서](https://www.npmjs.com/package/@hansapp/auth-sdk)에 있습니다.
+
+::: tip 직접 구현해야 한다면
+서버 사이드나 다른 언어에서 붙일 때는 아래 프로토콜 설명을 따르세요.
+SDK 가 하는 일과 동일합니다.
+:::
+
 #### PKCE — 공개 클라이언트 보호
 
 공개 클라이언트는 client secret 을 안전하게 보관할 수 없으므로, 대신 **PKCE(RFC 7636)** 로 인가코드
