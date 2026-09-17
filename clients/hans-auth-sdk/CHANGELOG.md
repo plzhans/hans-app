@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/plzhans/hans-app/compare/release-auth-sdk/v0.1.0...release-auth-sdk/v0.2.0) (2026-09-17)
+
+
+### 기능
+
+* **auth-sdk:** npm 배포 가능한 패키지로 만들고 배포 경로를 분리한다 ([#100](https://github.com/plzhans/hans-app/issues/100)) ([983593c](https://github.com/plzhans/hans-app/commit/983593cd6d804fe9eab38af73599241bde78b50e))
+
 ## [0.1.0](https://github.com/plzhans/hans-app/compare/release-auth-sdk/v0.0.1...release-auth-sdk/v0.1.0) (2026-09-17)
 
 
